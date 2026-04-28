@@ -1,9 +1,11 @@
 import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
+  const { t: tErrors } = useTranslation('errors');
   const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
   const [draft, setDraft] = useState('');
 
@@ -97,7 +99,7 @@ export function ChatPanel() {
               fontSize: 'var(--text-sm)',
             }}
           >
-            {lastError.code}: {lastError.message}
+            {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
           </div>
         )}
       </div>

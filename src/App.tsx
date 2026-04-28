@@ -61,7 +61,7 @@ function App() {
       >
         <h1 style={{ margin: 0, fontSize: 'var(--text-lg)' }}>{t('app_title')}</h1>
         <button type="button" onClick={() => setSettingsOpen(true)}>
-          Settings
+          {t('settings')}
         </button>
       </header>
 

@@ -3,5 +3,9 @@
   "rate_limit": "Rate limit hit. Please retry shortly.",
   "network": "Network error. Check your connection.",
   "provider_error": "Provider error: {{message}}",
+  "no_body": "Empty response from the backend.",
+  "http_error": "HTTP error: {{message}}",
+  "aborted": "Request was cancelled.",
+  "invalid_response": "Invalid response from the backend.",
   "unknown": "Unexpected error: {{message}}"
 }
