@@ -1,6 +1,7 @@
 {
   "placeholder": "Type a message...",
   "send": "Send",
+  "stop": "Stop",
   "thinking": "Thinking...",
   "no_api_key": "Set your Anthropic API key in Settings to start chatting."
 }

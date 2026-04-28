@@ -1,14 +1,16 @@
-import { type KeyboardEvent, useState } from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChat } from '../hooks/useChat';
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
-  const { messages, streamingAssistant, isStreaming, lastError, send } = useChat();
+  const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
   const [draft, setDraft] = useState('');
 
+  const canSend = !isStreaming && draft.trim().length > 0;
+
   const onSend = async () => {
-    if (!draft.trim() || isStreaming) return;
+    if (!canSend) return;
     const text = draft;
     setDraft('');
     await send(text);
@@ -18,8 +20,22 @@ export function ChatPanel() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void onSend();
+    } else if (e.key === 'Escape' && isStreaming) {
+      e.preventDefault();
+      cancel();
     }
   };
+
+  // Window-level ESC also aborts an in-flight stream so the user can hit it
+  // even when focus has wandered out of the textarea.
+  useEffect(() => {
+    if (!isStreaming) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') cancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isStreaming, cancel]);
 
   return (
     <div
@@ -57,6 +73,7 @@ export function ChatPanel() {
         ))}
         {streamingAssistant !== null && (
           <div
+            aria-live="polite"
             style={{
               alignSelf: 'flex-start',
               maxWidth: '80%',
@@ -100,9 +117,15 @@ export function ChatPanel() {
           rows={2}
           style={{ flex: 1, resize: 'none' }}
         />
-        <button type="button" onClick={() => void onSend()} disabled={!draft.trim() || isStreaming}>
-          {isStreaming ? t('thinking') : t('send')}
-        </button>
+        {isStreaming ? (
+          <button type="button" onClick={cancel} aria-label={t('stop')}>
+            {t('stop')}
+          </button>
+        ) : (
+          <button type="button" onClick={() => void onSend()} disabled={!canSend}>
+            {t('send')}
+          </button>
+        )}
       </div>
     </div>
   );
