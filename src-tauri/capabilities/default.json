@@ -10,6 +10,7 @@
     {
       "identifier": "shell:allow-spawn",
       "allow": [{ "name": "binaries/dmai-server", "sidecar": true }]
-    }
+    },
+    "store:default"
   ]
 }
