@@ -39,6 +39,7 @@ pub fn router_with_mock_llm() -> Router {
 pub mod test_support {
     use super::*;
     use std::net::SocketAddr;
+    use std::sync::Arc;
     use tokio::net::TcpListener;
 
     pub struct TestServer {
@@ -48,7 +49,15 @@ pub mod test_support {
 
     impl TestServer {
         pub async fn start() -> Self {
-            let app = router_with_mock_llm();
+            Self::start_with(Arc::new(app_llm::MockProvider::new(vec![]))).await
+        }
+
+        pub async fn start_with(llm: Arc<dyn app_llm::LlmProvider>) -> Self {
+            let state = AppState {
+                llm,
+                default_model: "mock".into(),
+            };
+            let app = router(state);
             let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
             let addr = listener.local_addr().expect("addr");
             let handle = tokio::spawn(async move {
