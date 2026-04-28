@@ -1,0 +1,7 @@
+{
+  "auth_failed": "Authentication failed. Check your API key.",
+  "rate_limit": "Rate limit hit. Please retry shortly.",
+  "network": "Network error. Check your connection.",
+  "provider_error": "Provider error: {{message}}",
+  "unknown": "Unexpected error: {{message}}"
+}

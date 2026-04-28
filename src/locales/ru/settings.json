@@ -1,0 +1,9 @@
+{
+  "title": "Настройки",
+  "api_key_label": "Anthropic API ключ",
+  "api_key_placeholder": "sk-ant-...",
+  "language_ui_label": "Язык интерфейса",
+  "language_narration_label": "Язык повествования",
+  "lang_en": "Английский",
+  "lang_ru": "Русский"
+}
