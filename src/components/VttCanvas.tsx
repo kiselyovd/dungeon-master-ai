@@ -1,7 +1,7 @@
-import { useCallback } from 'react';
 import { Application, extend } from '@pixi/react';
-import { Container, Graphics } from 'pixi.js';
 import type { Graphics as PixiGraphics } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
+import { useCallback } from 'react';
 
 extend({ Container, Graphics });
 

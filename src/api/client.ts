@@ -23,7 +23,9 @@ async function getBackendPort(): Promise<number> {
 export async function initBackendListener(): Promise<UnlistenFn> {
   return listen<number>('backend-ready', (e) => {
     cachedPort = e.payload;
-    waitingResolvers.forEach((r) => r(e.payload));
+    waitingResolvers.forEach((r) => {
+      r(e.payload);
+    });
     waitingResolvers = [];
   });
 }

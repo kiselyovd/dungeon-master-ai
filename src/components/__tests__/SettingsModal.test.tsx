@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SettingsModal } from '../SettingsModal';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '../../state/useStore';
+import { SettingsModal } from '../SettingsModal';
 import '../../i18n';
 
 vi.mock('../../api/secrets', () => ({

@@ -38,9 +38,9 @@
   --radius-lg: 10px;
 
   /* Typography */
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
 
   --text-xs: 11px;
   --text-sm: 13px;

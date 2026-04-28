@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../state/useStore';
 import {
   getAnthropicApiKey,
-  setAnthropicApiKey,
-  getUiLanguage,
-  setUiLanguage as persistUiLang,
   getNarrationLanguage,
+  getUiLanguage,
   setNarrationLanguage as persistNarrationLang,
+  setUiLanguage as persistUiLang,
+  setAnthropicApiKey,
 } from '../api/secrets';
-import type { Language } from '../state/settings';
 import i18n from '../i18n';
+import type { Language } from '../state/settings';
+import { useStore } from '../state/useStore';
 
 interface Props {
   open: boolean;
@@ -123,8 +123,14 @@ export function SettingsModal({ open, onClose }: Props) {
             justifyContent: 'flex-end',
           }}
         >
-          <button onClick={onClose}>{tCommon('cancel')}</button>
-          <button onClick={() => void onSave()} style={{ borderColor: 'var(--color-accent)' }}>
+          <button type="button" onClick={onClose}>
+            {tCommon('cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            style={{ borderColor: 'var(--color-accent)' }}
+          >
             {tCommon('save')}
           </button>
         </div>

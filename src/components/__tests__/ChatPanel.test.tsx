@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ChatPanel } from '../ChatPanel';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from '../../state/useStore';
+import { ChatPanel } from '../ChatPanel';
 import '../../i18n';
 
 describe('ChatPanel', () => {

@@ -1,13 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 // Mock @pixi/react to avoid WebGL in jsdom.
 vi.mock('@pixi/react', () => ({
-  Application: ({
-    children,
-    ...props
-  }: { children?: ReactNode } & Record<string, unknown>) => (
+  Application: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
     <div data-testid="pixi-app" data-props={JSON.stringify(props)}>
       {children}
     </div>

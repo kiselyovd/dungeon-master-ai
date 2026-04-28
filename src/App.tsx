@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChatPanel } from './components/ChatPanel';
-import { VttCanvas } from './components/VttCanvas';
-import { SettingsModal } from './components/SettingsModal';
 import { initBackendListener } from './api/client';
-import { useStore } from './state/useStore';
-import { getAnthropicApiKey, getUiLanguage, getNarrationLanguage } from './api/secrets';
+import { getAnthropicApiKey, getNarrationLanguage, getUiLanguage } from './api/secrets';
+import { ChatPanel } from './components/ChatPanel';
+import { SettingsModal } from './components/SettingsModal';
+import { VttCanvas } from './components/VttCanvas';
 import i18n from './i18n';
+import { useStore } from './state/useStore';
 
 function App() {
   const { t } = useTranslation('common');
@@ -60,7 +60,9 @@ function App() {
         }}
       >
         <h1 style={{ margin: 0, fontSize: 'var(--text-lg)' }}>{t('app_title')}</h1>
-        <button onClick={() => setSettingsOpen(true)}>Settings</button>
+        <button type="button" onClick={() => setSettingsOpen(true)}>
+          Settings
+        </button>
       </header>
 
       <main style={{ overflow: 'hidden' }}>

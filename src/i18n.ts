@@ -1,16 +1,14 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
-
-import enCommon from './locales/en/common.json';
 import enChat from './locales/en/chat.json';
-import enSettings from './locales/en/settings.json';
+import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
-
-import ruCommon from './locales/ru/common.json';
+import enSettings from './locales/en/settings.json';
 import ruChat from './locales/ru/chat.json';
-import ruSettings from './locales/ru/settings.json';
+import ruCommon from './locales/ru/common.json';
 import ruErrors from './locales/ru/errors.json';
+import ruSettings from './locales/ru/settings.json';
 
 void i18n
   .use(LanguageDetector)

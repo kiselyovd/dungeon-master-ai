@@ -1,5 +1,5 @@
-import { backendUrl } from './client';
 import type { ChatMessage } from '../state/chat';
+import { backendUrl } from './client';
 
 export interface SseEvent {
   event: string;
@@ -89,7 +89,7 @@ export async function streamChat(opts: StreamChatOptions): Promise<void> {
   }
 
   if (buffer.trim()) {
-    const events = parseSseEvents(buffer + '\n\n');
+    const events = parseSseEvents(`${buffer}\n\n`);
     for (const ev of events) {
       handleEvent(ev, opts);
     }

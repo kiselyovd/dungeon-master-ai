@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChat } from '../hooks/useChat';
 
@@ -48,8 +48,7 @@ export function ChatPanel() {
               maxWidth: '80%',
               padding: 'var(--space-3) var(--space-4)',
               borderRadius: 'var(--radius-md)',
-              background:
-                m.role === 'user' ? 'var(--color-accent-soft)' : 'var(--color-bg-raised)',
+              background: m.role === 'user' ? 'var(--color-accent-soft)' : 'var(--color-bg-raised)',
               border: '1px solid var(--color-border-subtle)',
             }}
           >
@@ -101,7 +100,7 @@ export function ChatPanel() {
           rows={2}
           style={{ flex: 1, resize: 'none' }}
         />
-        <button onClick={() => void onSend()} disabled={!draft.trim() || isStreaming}>
+        <button type="button" onClick={() => void onSend()} disabled={!draft.trim() || isStreaming}>
           {isStreaming ? t('thinking') : t('send')}
         </button>
       </div>
