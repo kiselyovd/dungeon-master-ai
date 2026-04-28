@@ -30,12 +30,13 @@ pub async fn chat(
 
     let llm_req = LlmReq {
         messages: req.messages,
-        model: req.model.unwrap_or_else(|| state.default_model.clone()),
+        model: req.model.unwrap_or_else(|| state.default_model()),
         max_tokens: req.max_tokens,
         temperature: req.temperature,
     };
 
-    let chunk_stream = state.llm.stream_chat(llm_req).await?;
+    let provider = state.provider();
+    let chunk_stream = provider.stream_chat(llm_req).await?;
 
     let event_stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
         Box::pin(chunk_stream.map(|chunk| {

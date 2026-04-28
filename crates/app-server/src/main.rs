@@ -22,10 +22,7 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let state = AppState {
-        llm,
-        default_model: settings.default_model.clone(),
-    };
+    let state = AppState::new(llm, settings.default_model.clone());
 
     let listener = TcpListener::bind(&settings.bind_addr)
         .await

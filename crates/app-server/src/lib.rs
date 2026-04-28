@@ -28,10 +28,7 @@ pub fn router(state: AppState) -> Router {
 }
 
 pub fn router_with_mock_llm() -> Router {
-    let state = AppState {
-        llm: Arc::new(app_llm::MockProvider::new(vec![])),
-        default_model: "mock".into(),
-    };
+    let state = AppState::new(Arc::new(app_llm::MockProvider::new(vec![])), "mock".into());
     router(state)
 }
 
@@ -53,10 +50,7 @@ pub mod test_support {
         }
 
         pub async fn start_with(llm: Arc<dyn app_llm::LlmProvider>) -> Self {
-            let state = AppState {
-                llm,
-                default_model: "mock".into(),
-            };
+            let state = AppState::new(llm, "mock".into());
             let app = router(state);
             let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
             let addr = listener.local_addr().expect("addr");
