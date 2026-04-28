@@ -75,8 +75,9 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   if (!open) return null;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click is a convenience dismissal; keyboard users get ESC + the explicit Cancel button
     <div
-      role="presentation"
+      data-testid="modal-backdrop"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

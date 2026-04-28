@@ -100,7 +100,7 @@ describe('Modal', () => {
   it('closes when clicking the backdrop', () => {
     const onClose = vi.fn();
     render(<Modal open onClose={onClose} title="x" />);
-    const backdrop = screen.getByRole('presentation');
+    const backdrop = screen.getByTestId('modal-backdrop');
     fireEvent.mouseDown(backdrop);
     expect(onClose).toHaveBeenCalled();
   });
