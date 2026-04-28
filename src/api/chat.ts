@@ -1,43 +1,8 @@
 import type { ChatMessage } from '../state/chat';
 import { backendUrl } from './client';
 import { ChatError, type ChatErrorCode } from './errors';
-
-export interface SseEvent {
-  event: string;
-  data: unknown;
-}
-
-export function parseSseEvents(raw: string): SseEvent[] {
-  const blocks = raw.split('\n\n');
-  // Only the blocks BEFORE the final split element are complete. If `raw`
-  // ends with "\n\n", the last element is "" (still skipped). If it does
-  // not, the last element is a partial block and must be left to the
-  // caller to accumulate.
-  const completeBlocks = blocks.slice(0, -1);
-  const events: SseEvent[] = [];
-  for (const block of completeBlocks) {
-    if (!block.trim()) continue;
-    let eventName = '';
-    const dataLines: string[] = [];
-    for (const line of block.split('\n')) {
-      if (line.startsWith('event:')) {
-        eventName = line.slice('event:'.length).trim();
-      } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice('data:'.length).trim());
-      }
-    }
-    if (!eventName) continue;
-    const dataStr = dataLines.join('\n');
-    let data: unknown;
-    try {
-      data = JSON.parse(dataStr);
-    } catch {
-      data = dataStr;
-    }
-    events.push({ event: eventName, data });
-  }
-  return events;
-}
+import { safeParseDone, safeParseHttpError, safeParseStreamError, safeParseText } from './schemas';
+import { parseSseEvents } from './sse';
 
 export interface StreamChatOptions {
   messages: ChatMessage[];
@@ -92,13 +57,13 @@ export async function streamChat(opts: StreamChatOptions): Promise<StreamChatRes
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lastBlockEnd = buffer.lastIndexOf('\n\n');
-      if (lastBlockEnd === -1) continue;
-      const completePart = buffer.slice(0, lastBlockEnd + 2);
-      buffer = buffer.slice(lastBlockEnd + 2);
+      // Match the (non-greedy) SSE separators: \n\n, \r\r, or \r\n\r\n.
+      const splitIdx = findLastSeparator(buffer);
+      if (splitIdx === null) continue;
+      const completePart = buffer.slice(0, splitIdx.endIdx);
+      buffer = buffer.slice(splitIdx.endIdx);
       doneReason = handleBlock(completePart, opts) ?? doneReason;
       if (doneReason !== null) {
-        // Server sent done - nothing more to read; release the lock cleanly.
         await reader.cancel();
         return { reason: doneReason };
       }
@@ -107,13 +72,30 @@ export async function streamChat(opts: StreamChatOptions): Promise<StreamChatRes
     throw ChatError.from(e);
   }
 
-  // Connection closed without an explicit `done` event. Drain the trailing
-  // partial first; if it carries the done event we honor it, otherwise we
-  // treat it as a graceful disconnect.
   if (buffer.trim()) {
     doneReason = handleBlock(`${buffer}\n\n`, opts) ?? doneReason;
   }
   return { reason: doneReason ?? 'disconnected' };
+}
+
+interface SeparatorMatch {
+  endIdx: number; // exclusive index after the separator
+}
+
+/**
+ * Find the END of the last `\n\n`/`\r\r`/`\r\n\r\n` separator in `buffer`.
+ * Returns null if no separator is present yet.
+ */
+function findLastSeparator(buffer: string): SeparatorMatch | null {
+  let best: SeparatorMatch | null = null;
+  for (const sep of ['\r\n\r\n', '\n\n', '\r\r']) {
+    const idx = buffer.lastIndexOf(sep);
+    if (idx !== -1) {
+      const candidate = { endIdx: idx + sep.length };
+      if (best === null || candidate.endIdx > best.endIdx) best = candidate;
+    }
+  }
+  return best;
 }
 
 function handleBlock(raw: string, opts: StreamChatOptions): string | null {
@@ -122,19 +104,20 @@ function handleBlock(raw: string, opts: StreamChatOptions): string | null {
   for (const ev of events) {
     switch (ev.event) {
       case 'text_delta': {
-        const data = ev.data as { text?: string };
-        if (typeof data.text === 'string') opts.onTextDelta(data.text);
+        const payload = safeParseText(ev.data);
+        if (payload) opts.onTextDelta(payload.text);
         break;
       }
       case 'done': {
-        const data = ev.data as { reason?: string };
-        doneReason = typeof data.reason === 'string' ? data.reason : 'stop';
+        const payload = safeParseDone(ev.data);
+        doneReason = payload?.reason ?? 'stop';
         break;
       }
       case 'error': {
-        const data = ev.data as { code?: string; message?: string };
-        const code = isChatErrorCode(data.code) ? data.code : 'provider_error';
-        throw new ChatError(code, data.message ?? 'provider error');
+        const payload = safeParseStreamError(ev.data);
+        const code: ChatErrorCode = payload?.code ?? 'provider_error';
+        const message = payload?.message ?? 'provider error';
+        throw new ChatError(code, message);
       }
     }
   }
@@ -142,15 +125,15 @@ function handleBlock(raw: string, opts: StreamChatOptions): string | null {
 }
 
 async function readHttpError(resp: Response): Promise<ChatError> {
-  let parsed: { error?: { code?: string; message?: string } } = {};
+  let parsed: ReturnType<typeof safeParseHttpError> = null;
   try {
-    parsed = (await resp.json()) as typeof parsed;
+    parsed = safeParseHttpError(await resp.json());
   } catch {
     // Body may be empty or non-JSON; fall through to defaults.
   }
-  const codeRaw = parsed.error?.code;
+  const codeRaw = parsed?.error?.code;
   const code: ChatErrorCode = isChatErrorCode(codeRaw) ? codeRaw : statusToCode(resp.status);
-  const message = parsed.error?.message ?? `HTTP ${resp.status}`;
+  const message = parsed?.error?.message ?? `HTTP ${resp.status}`;
   return new ChatError(code, message);
 }
 
@@ -176,3 +159,6 @@ const KNOWN_CODES: ReadonlySet<ChatErrorCode> = new Set<ChatErrorCode>([
 function isChatErrorCode(value: unknown): value is ChatErrorCode {
   return typeof value === 'string' && KNOWN_CODES.has(value as ChatErrorCode);
 }
+
+// Re-exports for convenience / backwards compat with existing tests.
+export { parseSseEvents, type SseEvent } from './sse';
