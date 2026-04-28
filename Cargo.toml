@@ -1,0 +1,40 @@
+[workspace]
+members = [
+    # "crates/app-domain",  # added in Task 2
+    # "crates/app-llm",     # added in Task 2
+    # "crates/app-server",  # added in Task 5
+    "src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+authors = ["Daniil Kiselyov"]
+license = "MIT OR Apache-2.0"
+rust-version = "1.81"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+async-trait = "0.1"
+futures = "0.3"
+tokio-stream = "0.1"
+axum = { version = "0.8", features = ["macros"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+genai = "0.6"
+backon = "1"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+[profile.dev]
+debug = "line-tables-only"
+incremental = true
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

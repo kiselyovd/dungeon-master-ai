@@ -1,0 +1,19 @@
+default_job = "check"
+
+[jobs.check]
+command = ["cargo", "check", "--all-targets", "--color", "always"]
+need_stdout = false
+
+[jobs.test]
+command = ["cargo", "test", "--all-targets", "--color", "always"]
+need_stdout = true
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+need_stdout = false
+
+[jobs.run]
+command = ["cargo", "run", "-p", "app-server"]
+need_stdout = true
+allow_warnings = true
+background = true
