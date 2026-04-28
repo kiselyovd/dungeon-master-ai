@@ -17,6 +17,8 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(routes::health::health))
         .route("/chat", post(routes::chat::chat))
+        .route("/providers", get(routes::settings::get_providers))
+        .route("/settings", post(routes::settings::post_settings))
         .with_state(state)
         .layer(
             CorsLayer::new()
