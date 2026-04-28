@@ -2,7 +2,7 @@
 members = [
     "crates/app-domain",
     "crates/app-llm",
-    # "crates/app-server",  # added in Task 5
+    "crates/app-server",
     "src-tauri",
 ]
 resolver = "2"
