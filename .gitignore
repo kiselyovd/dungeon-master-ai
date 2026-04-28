@@ -26,6 +26,9 @@ dist-ssr
 # Rust build artifacts
 target/
 
+# Tauri sidecar binaries built by build.rs
+/src-tauri/binaries/
+
 # AI brainstorming artifacts (kept local, not committed)
 /docs/research/
 /docs/superpowers/
