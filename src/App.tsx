@@ -1,50 +1,83 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import { invoke } from '@tauri-apps/api/core';
-import './App.css';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChatPanel } from './components/ChatPanel';
+import { VttCanvas } from './components/VttCanvas';
+import { SettingsModal } from './components/SettingsModal';
+import { initBackendListener } from './api/client';
+import { useStore } from './state/useStore';
+import { getAnthropicApiKey, getUiLanguage, getNarrationLanguage } from './api/secrets';
+import i18n from './i18n';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState('');
-  const [name, setName] = useState('');
+  const { t } = useTranslation('common');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const setApiKey = useStore((s) => s.settings.setApiKey);
+  const setUiLang = useStore((s) => s.settings.setUiLanguage);
+  const setNarrationLang = useStore((s) => s.settings.setNarrationLanguage);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke('greet', { name }));
-  }
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void initBackendListener().then((u) => {
+      unlisten = u;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const k = await getAnthropicApiKey();
+      const ui = await getUiLanguage();
+      const narr = await getNarrationLanguage();
+      if (k) setApiKey(k);
+      if (ui) {
+        setUiLang(ui);
+        await i18n.changeLanguage(ui);
+      }
+      if (narr) setNarrationLang(narr);
+    })();
+  }, [setApiKey, setUiLang, setNarrationLang]);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void greet();
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 480px',
+        gridTemplateRows: 'auto 1fr',
+        height: '100vh',
+        background: 'var(--color-bg-base)',
+      }}
+    >
+      <header
+        style={{
+          gridColumn: '1 / -1',
+          padding: 'var(--space-3) var(--space-4)',
+          borderBottom: '1px solid var(--color-border-strong)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+        <h1 style={{ margin: 0, fontSize: 'var(--text-lg)' }}>{t('app_title')}</h1>
+        <button onClick={() => setSettingsOpen(true)}>Settings</button>
+      </header>
+
+      <main style={{ overflow: 'hidden' }}>
+        <VttCanvas />
+      </main>
+
+      <aside
+        style={{
+          borderLeft: '1px solid var(--color-border-strong)',
+          overflow: 'hidden',
+        }}
+      >
+        <ChatPanel />
+      </aside>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </div>
   );
 }
 
