@@ -23,6 +23,8 @@
   --color-success: #80e0a0;
   --color-warning: #f5b882;
   --color-danger: #c44;
+  --color-danger-soft: rgba(196, 68, 68, 0.08);
+  --color-overlay-scrim: rgba(0, 0, 0, 0.55);
 
   /* Spacing scale */
   --space-1: 4px;
