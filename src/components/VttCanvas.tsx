@@ -2,6 +2,8 @@ import { Application, extend } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
+import { useStore } from '../state/useStore';
+import { CombatOverlay } from './CombatOverlay';
 
 extend({ Container, Graphics });
 
@@ -14,6 +16,10 @@ interface Props {
 export function VttCanvas({ widthCells = 20, heightCells = 20, cellSize = 30 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
+
+  const combatActive = useStore((s) => s.combat.active);
+  const tokens = useStore((s) => s.combat.tokens);
+  const moveToken = useStore((s) => s.combat.moveToken);
 
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
@@ -33,10 +39,20 @@ export function VttCanvas({ widthCells = 20, heightCells = 20, cellSize = 30 }: 
   );
 
   return (
-    <Application width={width} height={height} backgroundColor={0x14101a}>
-      <pixiContainer>
-        <pixiGraphics draw={drawGrid} />
-      </pixiContainer>
-    </Application>
+    <div style={{ position: 'relative', width, height }}>
+      <Application width={width} height={height} backgroundColor={0x14101a}>
+        <pixiContainer>
+          <pixiGraphics draw={drawGrid} />
+        </pixiContainer>
+      </Application>
+      <CombatOverlay
+        active={combatActive}
+        tokens={tokens}
+        cellSize={cellSize}
+        widthCells={widthCells}
+        heightCells={heightCells}
+        onMoveToken={moveToken}
+      />
+    </div>
   );
 }
