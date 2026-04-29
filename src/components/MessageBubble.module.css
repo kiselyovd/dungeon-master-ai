@@ -11,7 +11,7 @@
 
 .bubble[data-role="user"] {
   align-self: flex-end;
-  background: var(--color-accent-soft);
+  background: var(--color-accent-tint);
 }
 
 .bubble[data-streaming="true"] {
