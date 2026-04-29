@@ -87,3 +87,23 @@ a {
   color: var(--color-accent);
   text-decoration: none;
 }
+
+/*
+ * prefers-reduced-motion: collapse all animations and transitions to 0.01ms.
+ * M5 audit fills in any remaining motion that needs nulling here.
+ * Using 0.01ms (not 0) because some browsers treat 0-duration transitions oddly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: a11y override required */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a11y override required */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a11y override required */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a11y override required */
+    scroll-behavior: auto !important;
+  }
+}
