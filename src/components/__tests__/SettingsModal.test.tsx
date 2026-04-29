@@ -5,12 +5,12 @@ import '../../i18n';
 import { useStore } from '../../state/useStore';
 import { SettingsModal } from '../SettingsModal';
 
-vi.mock('../../api/settingsStore', () => ({
-  saveProviders: vi.fn().mockResolvedValue(undefined),
-  saveActiveProvider: vi.fn().mockResolvedValue(undefined),
-  saveUiLanguage: vi.fn().mockResolvedValue(undefined),
-  saveNarrationLanguage: vi.fn().mockResolvedValue(undefined),
-  loadAll: vi.fn().mockResolvedValue({}),
+vi.mock('../../api/providers', () => ({
+  postSettings: vi.fn().mockResolvedValue({ kind: 'anthropic', default_model: 'claude-haiku' }),
+  getProviders: vi.fn().mockResolvedValue({
+    available: ['anthropic', 'openai-compat'],
+    active: { kind: 'anthropic', default_model: 'claude-haiku' },
+  }),
 }));
 
 describe('SettingsModal', () => {
@@ -31,9 +31,9 @@ describe('SettingsModal', () => {
     expect(screen.getByLabelText(/API key/i)).toBeInTheDocument();
   });
 
-  it('saves an Anthropic config to the store and persistence', async () => {
+  it('saves an Anthropic config to the store, posts to backend, and closes', async () => {
     const user = userEvent.setup();
-    const { saveProviders, saveActiveProvider } = await import('../../api/settingsStore');
+    const { postSettings } = await import('../../api/providers');
     const onClose = vi.fn();
 
     render(<SettingsModal open={true} onClose={onClose} />);
@@ -44,18 +44,20 @@ describe('SettingsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(saveProviders).toHaveBeenCalled();
-      expect(saveActiveProvider).toHaveBeenCalledWith('anthropic');
+      expect(postSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'anthropic', apiKey: 'sk-ant-xyz' }),
+      );
+      expect(onClose).toHaveBeenCalled();
     });
     const stored = useStore.getState().settings.providers.anthropic;
     expect(stored).not.toBeNull();
     expect(stored?.apiKey).toBe('sk-ant-xyz');
-    expect(onClose).toHaveBeenCalled();
+    expect(useStore.getState().settings.activeProvider).toBe('anthropic');
   });
 
-  it('switches provider to openai-compat and saves config', async () => {
+  it('switches provider to openai-compat and stores the config', async () => {
     const user = userEvent.setup();
-    const { saveProviders, saveActiveProvider } = await import('../../api/settingsStore');
+    const { postSettings } = await import('../../api/providers');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
     await user.selectOptions(screen.getByLabelText(/Provider/i), 'openai-compat');
@@ -66,32 +68,33 @@ describe('SettingsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(saveActiveProvider).toHaveBeenCalledWith('openai-compat');
-      expect(saveProviders).toHaveBeenCalled();
+      expect(postSettings).toHaveBeenCalledWith(expect.objectContaining({ kind: 'openai-compat' }));
     });
     const stored = useStore.getState().settings.providers['openai-compat'];
     expect(stored).not.toBeNull();
     expect(stored?.baseUrl).toBe('http://localhost:1234/v1');
     expect(stored?.model).toBe('qwen3-1.7b');
+    expect(useStore.getState().settings.activeProvider).toBe('openai-compat');
   });
 
   it('blocks save and surfaces validation when api key is missing', async () => {
     const user = userEvent.setup();
-    const { saveProviders } = await import('../../api/settingsStore');
+    const { postSettings } = await import('../../api/providers');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
     // Click save with empty key
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
-    // Validation message appears, persistence is NOT called.
+    // Validation message appears, backend POST is NOT called.
     expect(await screen.findByRole('alert')).toBeInTheDocument();
-    expect(saveProviders).not.toHaveBeenCalled();
+    expect(postSettings).not.toHaveBeenCalled();
+    expect(useStore.getState().settings.providers.anthropic).toBeNull();
 
     // Now fix the key and save succeeds.
     await user.type(screen.getByLabelText(/API key/i), 'sk-ant-real');
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
     await waitFor(() => {
-      expect(saveProviders).toHaveBeenCalled();
+      expect(postSettings).toHaveBeenCalled();
     });
   });
 });
