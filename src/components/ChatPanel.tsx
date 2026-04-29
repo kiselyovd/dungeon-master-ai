@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
+import { MessageBubble } from './MessageBubble';
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
@@ -58,35 +59,16 @@ export function ChatPanel() {
           gap: 'var(--space-3)',
         }}
       >
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '80%',
-              padding: 'var(--space-3) var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              background: m.role === 'user' ? 'var(--color-accent-soft)' : 'var(--color-bg-raised)',
-              border: '1px solid var(--color-border-subtle)',
-            }}
-          >
+        {messages.map((m) => (
+          <MessageBubble key={m.id} chatRole={m.role}>
             {m.content}
-          </div>
+          </MessageBubble>
         ))}
         {streamingAssistant !== null && (
-          <div
-            aria-live="polite"
-            style={{
-              alignSelf: 'flex-start',
-              maxWidth: '80%',
-              padding: 'var(--space-3) var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-bg-raised)',
-              border: '1px solid var(--color-accent)',
-              fontStyle: 'italic',
-            }}
-          >
-            {streamingAssistant}
+          <div aria-live="polite" style={{ display: 'contents' }}>
+            <MessageBubble chatRole="assistant" streaming>
+              {streamingAssistant}
+            </MessageBubble>
           </div>
         )}
         {lastError !== null && (

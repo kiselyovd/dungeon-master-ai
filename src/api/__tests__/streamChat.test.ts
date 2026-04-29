@@ -55,7 +55,7 @@ function stubFetch(script: FetchScript): void {
   );
 }
 
-const baseMessages = [{ role: 'user' as const, content: 'hi' }];
+const baseMessages = [{ id: 'm1', role: 'user' as const, content: 'hi' }];
 
 beforeEach(() => {
   vi.unstubAllGlobals();

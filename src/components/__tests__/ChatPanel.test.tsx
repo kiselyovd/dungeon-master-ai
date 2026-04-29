@@ -20,8 +20,8 @@ describe('ChatPanel', () => {
       chat: {
         ...s.chat,
         messages: [
-          { role: 'user', content: 'hello' },
-          { role: 'assistant', content: 'hi there' },
+          { id: 'm1', role: 'user', content: 'hello' },
+          { id: 'm2', role: 'assistant', content: 'hi there' },
         ],
       },
     }));

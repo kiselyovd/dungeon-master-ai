@@ -23,8 +23,11 @@ describe('useStore - chat slice', () => {
 
     const messages = useStore.getState().chat.messages;
     expect(messages).toHaveLength(2);
-    expect(messages[0]).toEqual({ role: 'user', content: 'hello' });
-    expect(messages[1]).toEqual({ role: 'assistant', content: 'hi there' });
+    expect(messages[0]).toMatchObject({ role: 'user', content: 'hello' });
+    expect(messages[1]).toMatchObject({ role: 'assistant', content: 'hi there' });
+    // Each message gets a stable id (uuid or fallback).
+    expect(typeof messages[0]?.id).toBe('string');
+    expect(messages[0]?.id).not.toBe(messages[1]?.id);
   });
 
   it('finalizeAssistant is a no-op when no stream is in progress', () => {
