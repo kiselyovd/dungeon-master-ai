@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './App.module.css';
 import { initBackendListener } from './api/client';
+import { ActionBar } from './components/ActionBar';
 import { ChatPanel } from './components/ChatPanel';
+import { InitiativeTracker } from './components/InitiativeTracker';
 import { SettingsModal } from './components/SettingsModal';
 import { VttCanvas } from './components/VttCanvas';
 import i18n from './i18n';
@@ -12,6 +14,10 @@ function App() {
   const { t } = useTranslation('common');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
+  const combatActive = useStore((s) => s.combat.active);
+  const combatTokens = useStore((s) => s.combat.tokens);
+  const combatOrder = useStore((s) => s.combat.initiativeOrder);
+  const combatRound = useStore((s) => s.combat.round);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -50,6 +56,24 @@ function App() {
       </aside>
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <InitiativeTracker
+        tokens={combatTokens}
+        order={combatOrder}
+        round={combatRound}
+        visible={combatActive}
+      />
+      <ActionBar
+        actionUsed={false}
+        bonusUsed={false}
+        reactionUsed={false}
+        movementFt={30}
+        speedFt={30}
+        visible={combatActive}
+        onEndTurn={() => {
+          /* M3 wires end-turn to the LLM agent loop */
+        }}
+      />
     </div>
   );
 }
