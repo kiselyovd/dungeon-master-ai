@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { postSettings } from '../api/providers';
 import {
   saveActiveProvider,
   saveNarrationLanguage,
@@ -45,7 +46,20 @@ export function SettingsModal({ open, onClose }: Props) {
       await i18n.changeLanguage(submission.uiLanguage);
     }
 
-    // Backend hot-swap: best-effort. C4 wires the actual POST /settings call.
+    // Tell the backend to swap providers atomically. Errors are non-fatal:
+    // local persistence already succeeded, so a network blip just means the
+    // sidecar keeps using the previously-configured provider until the next
+    // save attempt.
+    try {
+      await postSettings(submission.provider);
+    } catch (err) {
+      // Surface to the chat slice so the existing error renderer picks it up.
+      const { setError } = useStore.getState().chat;
+      if (err instanceof Error) {
+        setError({ code: 'provider_error', message: err.message });
+      }
+    }
+
     onClose();
   };
 
