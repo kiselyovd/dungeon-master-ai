@@ -1,0 +1,21 @@
+{
+  "initiative_tracker": "Порядок Инициативы",
+  "round": "Раунд {{round}}",
+  "action": "Действие",
+  "bonus_action": "Бонус",
+  "reaction": "Реакция",
+  "move": "Движение",
+  "end_turn": "Закончить ход",
+  "active_turn": "Ход",
+  "hp_label": "ОЗ",
+  "ac_label": "КД",
+  "dead": "Мёртв",
+  "conditions": {
+    "prone": "Лёжа",
+    "grappled": "Захват",
+    "frightened": "Напуган",
+    "poisoned": "Отравлен",
+    "unconscious": "Без сознания",
+    "blinded": "Слеплён"
+  }
+}
