@@ -29,8 +29,7 @@ export function CombatToken({ token, cellSize }: Props) {
   const py = token.y * cellSize;
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
-  const extraConditions =
-    token.conditions.length > 3 ? token.conditions.length - 3 : 0;
+  const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
 
   return (
     <div

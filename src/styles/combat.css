@@ -89,7 +89,9 @@
   color: var(--color-fg-primary);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background var(--t-fast) ease, box-shadow var(--t-fast) ease;
+  transition:
+    background var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
   min-width: 56px;
 }
 

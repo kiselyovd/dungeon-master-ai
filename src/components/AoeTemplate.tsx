@@ -24,14 +24,7 @@ const FT_PER_CELL = 5;
  * - line: var(--magic-transmutation)
  * - cube: var(--magic-abjuration) (shielding area)
  */
-export function AoeTemplate({
-  shape,
-  originX,
-  originY,
-  cellSize,
-  sizeInFt,
-  rotateDeg = 0,
-}: Props) {
+export function AoeTemplate({ shape, originX, originY, cellSize, sizeInFt, rotateDeg = 0 }: Props) {
   const px = (ft: number) => (ft / FT_PER_CELL) * cellSize;
 
   switch (shape) {

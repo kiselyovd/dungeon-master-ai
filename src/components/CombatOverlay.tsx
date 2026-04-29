@@ -45,7 +45,7 @@ export function CombatOverlay({
           key={token.id}
           token={token}
           cellSize={cellSize}
-          onMove={onMoveToken}
+          {...(onMoveToken ? { onMove: onMoveToken } : {})}
         />
       ))}
     </div>

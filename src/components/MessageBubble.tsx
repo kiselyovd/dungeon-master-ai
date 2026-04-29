@@ -23,11 +23,15 @@ interface MessageBubbleProps {
  * readers receive a single combined announcement, not per-bubble noise.
  */
 export function MessageBubble({ chatRole, streaming = false, children }: MessageBubbleProps) {
+  // Narrator drop-cap fires on finalised assistant bubbles; streaming output
+  // would otherwise re-trigger the cap glyph on every token, which thrashes.
+  const isNarrator = chatRole === 'assistant' && !streaming;
   return (
     <div
       className={styles.bubble}
       data-role={chatRole}
       data-streaming={streaming ? 'true' : undefined}
+      data-narrator={isNarrator ? 'true' : undefined}
     >
       {children}
     </div>
