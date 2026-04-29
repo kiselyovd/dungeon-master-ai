@@ -15,28 +15,28 @@ export interface ProvidersMap {
   'local-mistralrs': LocalMistralRsConfig | null;
 }
 
-export interface SettingsSlice {
-  settings: {
-    activeProvider: ProviderKind;
-    providers: ProvidersMap;
-    uiLanguage: Language;
-    narrationLanguage: Language;
-
-    setActiveProvider: (kind: ProviderKind) => void;
-    setProviderConfig: (config: ProviderConfig) => void;
-    clearProviderConfig: (kind: ProviderKind) => void;
-    setUiLanguage: (lang: Language) => void;
-    setNarrationLanguage: (lang: Language) => void;
-    /** Replace the entire settings sub-tree (used by the persist hydrate path). */
-    hydrate: (next: HydrateInput) => void;
-  };
+/**
+ * Persisted half of the settings slice. Kept as a separate type so the
+ * persist middleware's `partialize` can pick exactly these fields without
+ * dragging in the action functions, which are not serialisable.
+ */
+export interface SettingsData {
+  activeProvider: ProviderKind;
+  providers: ProvidersMap;
+  uiLanguage: Language;
+  narrationLanguage: Language;
 }
 
-export interface HydrateInput {
-  activeProvider?: ProviderKind;
-  providers?: Partial<ProvidersMap>;
-  uiLanguage?: Language;
-  narrationLanguage?: Language;
+export interface SettingsActions {
+  setActiveProvider: (kind: ProviderKind) => void;
+  setProviderConfig: (config: ProviderConfig) => void;
+  clearProviderConfig: (kind: ProviderKind) => void;
+  setUiLanguage: (lang: Language) => void;
+  setNarrationLanguage: (lang: Language) => void;
+}
+
+export interface SettingsSlice {
+  settings: SettingsData & SettingsActions;
 }
 
 const DEFAULT_PROVIDERS: ProvidersMap = {
@@ -75,22 +75,5 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setNarrationLanguage: (narrationLanguage) =>
       set((s) => ({ settings: { ...s.settings, narrationLanguage } })),
-
-    hydrate: (next) =>
-      set((s) => ({
-        settings: {
-          ...s.settings,
-          ...(next.activeProvider !== undefined ? { activeProvider: next.activeProvider } : {}),
-          ...(next.uiLanguage !== undefined ? { uiLanguage: next.uiLanguage } : {}),
-          ...(next.narrationLanguage !== undefined
-            ? { narrationLanguage: next.narrationLanguage }
-            : {}),
-          providers: {
-            ...DEFAULT_PROVIDERS,
-            ...s.settings.providers,
-            ...(next.providers ?? {}),
-          },
-        },
-      })),
   },
 });

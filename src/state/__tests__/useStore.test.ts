@@ -83,9 +83,21 @@ describe('useStore - settings slice', () => {
     expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
   });
 
-  it('hydrate merges incoming partial config without dropping existing keys', () => {
-    useStore.getState().settings.hydrate({ uiLanguage: 'ru' });
+  it('setUiLanguage updates only the language field', () => {
+    useStore.getState().settings.setUiLanguage('ru');
     expect(useStore.getState().settings.uiLanguage).toBe('ru');
     expect(useStore.getState().settings.activeProvider).toBe('anthropic');
+  });
+
+  it('clearProviderConfig nulls out the targeted kind only', () => {
+    const cfg: AnthropicConfig = {
+      kind: 'anthropic',
+      apiKey: 'sk-ant-test' as ApiKey,
+      model: 'claude-haiku',
+    };
+    useStore.getState().settings.setProviderConfig(cfg);
+    useStore.getState().settings.clearProviderConfig('anthropic');
+    expect(useStore.getState().settings.providers.anthropic).toBeNull();
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
   });
 });

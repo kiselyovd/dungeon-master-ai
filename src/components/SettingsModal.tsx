@@ -1,12 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { postSettings } from '../api/providers';
-import {
-  saveActiveProvider,
-  saveNarrationLanguage,
-  saveProviders,
-  saveUiLanguage,
-} from '../api/settingsStore';
-import i18n from '../i18n';
 import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -29,22 +22,13 @@ export function SettingsModal({ open, onClose }: Props) {
   const setNarrationLang = useStore((s) => s.settings.setNarrationLanguage);
 
   const onSubmit = async (submission: SettingsSubmission) => {
+    // Mutating the store fires the persist middleware, which writes through
+    // to secrets.json + settings.json. The App-level effect picks up the new
+    // uiLanguage and tells i18n to switch.
     setProviderConfig(submission.provider);
     setActiveProvider(submission.provider.kind);
     setUiLang(submission.uiLanguage);
     setNarrationLang(submission.narrationLanguage);
-
-    const providers = useStore.getState().settings.providers;
-    await Promise.all([
-      saveProviders(providers),
-      saveActiveProvider(submission.provider.kind),
-      saveUiLanguage(submission.uiLanguage),
-      saveNarrationLanguage(submission.narrationLanguage),
-    ]);
-
-    if (i18n.language !== submission.uiLanguage) {
-      await i18n.changeLanguage(submission.uiLanguage);
-    }
 
     // Tell the backend to swap providers atomically. Errors are non-fatal:
     // local persistence already succeeded, so a network blip just means the

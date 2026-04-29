@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
-import { loadAll } from './api/settingsStore';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { VttCanvas } from './components/VttCanvas';
@@ -11,7 +10,7 @@ import { useStore } from './state/useStore';
 function App() {
   const { t } = useTranslation('common');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const hydrate = useStore((s) => s.settings.hydrate);
+  const uiLanguage = useStore((s) => s.settings.uiLanguage);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -27,14 +26,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      const next = await loadAll();
-      hydrate(next);
-      if (next.uiLanguage && i18n.language !== next.uiLanguage) {
-        await i18n.changeLanguage(next.uiLanguage);
-      }
-    })();
-  }, [hydrate]);
+    if (i18n.language !== uiLanguage) {
+      void i18n.changeLanguage(uiLanguage);
+    }
+  }, [uiLanguage]);
 
   return (
     <div
