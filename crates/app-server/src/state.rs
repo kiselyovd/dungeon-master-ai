@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use app_llm::LlmProvider;
+use sqlx::SqlitePool;
 
 /// Shared application state for axum handlers.
 ///
@@ -18,14 +19,16 @@ pub struct AppState {
 struct AppStateInner {
     llm: RwLock<Arc<dyn LlmProvider>>,
     default_model: RwLock<Arc<String>>,
+    db: SqlitePool,
 }
 
 impl AppState {
-    pub fn new(llm: Arc<dyn LlmProvider>, default_model: String) -> Self {
+    pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
         Self {
             inner: Arc::new(AppStateInner {
                 llm: RwLock::new(llm),
                 default_model: RwLock::new(Arc::new(default_model)),
+                db,
             }),
         }
     }
@@ -64,5 +67,9 @@ impl AppState {
             .default_model
             .write()
             .expect("model lock poisoned") = Arc::new(model);
+    }
+
+    pub fn db(&self) -> &SqlitePool {
+        &self.inner.db
     }
 }

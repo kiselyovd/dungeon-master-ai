@@ -19,7 +19,11 @@ async fn chat_streams_sse_text_deltas_then_done() {
             reason: FinishReason::Stop,
         },
     ]));
-    let server = TestServer::start_with(provider).await;
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("in-memory db");
+    app_server::db::init_db(&pool).await.expect("migrate");
+    let server = TestServer::start_with(provider, pool).await;
 
     let body = json!({
         "messages": [{"role": "user", "content": "hi"}],
