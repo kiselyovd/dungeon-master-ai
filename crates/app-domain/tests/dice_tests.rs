@@ -6,7 +6,7 @@ fn d20_result_is_in_range() {
     let mut rng = SeededRng::from_seed(42);
     for _ in 0..200 {
         let result = roll_expr(&DiceExpr { count: 1, die: Die::D20, modifier: 0 }, &mut rng);
-        assert!(result >= 1 && result <= 20, "d20 out of range: {result}");
+        assert!((1..=20).contains(&result), "d20 out of range: {result}");
     }
 }
 
@@ -26,7 +26,7 @@ fn two_d6_plus_3_range() {
     let mut rng = SeededRng::from_seed(7);
     for _ in 0..500 {
         let result = roll_expr(&expr, &mut rng);
-        assert!(result >= 5 && result <= 15, "2d6+3 out of range: {result}");
+        assert!((5..=15).contains(&result), "2d6+3 out of range: {result}");
     }
 }
 
