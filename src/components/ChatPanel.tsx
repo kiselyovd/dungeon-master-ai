@@ -4,6 +4,7 @@ import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
 import styles from './ChatPanel.module.css';
 import { MessageBubble } from './MessageBubble';
+import { TypingIndicator } from './TypingIndicator';
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
@@ -49,11 +50,17 @@ export function ChatPanel() {
             {m.content}
           </MessageBubble>
         ))}
-        {streamingAssistant !== null && (
+        {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
-            <MessageBubble chatRole="assistant" streaming>
-              {streamingAssistant}
-            </MessageBubble>
+            {streamingAssistant === null || streamingAssistant === '' ? (
+              <div className={styles.typingRow}>
+                <TypingIndicator />
+              </div>
+            ) : (
+              <MessageBubble chatRole="assistant" streaming>
+                {streamingAssistant}
+              </MessageBubble>
+            )}
           </div>
         )}
         {lastError !== null && (

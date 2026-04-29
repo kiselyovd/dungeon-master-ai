@@ -36,3 +36,10 @@
   flex: 1;
   resize: none;
 }
+
+.typingRow {
+  padding: var(--space-2) var(--space-4);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
