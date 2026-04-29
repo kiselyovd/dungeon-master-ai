@@ -1,4 +1,5 @@
 import { type ButtonHTMLAttributes, forwardRef } from 'react';
+import styles from './Button.module.css';
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   variant?: 'default' | 'primary' | 'ghost';
@@ -12,17 +13,14 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'typ
  * via a data-attribute that CSS can target without dictating styles here.
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'default', type = 'button', style, ...rest }, ref) => {
-    const variantStyle = variant === 'primary' ? { borderColor: 'var(--color-accent)' } : {};
-    return (
-      <button
-        ref={ref}
-        type={type}
-        data-variant={variant}
-        style={{ ...variantStyle, ...style }}
-        {...rest}
-      />
-    );
-  },
+  ({ variant = 'default', type = 'button', className, ...rest }, ref) => (
+    <button
+      ref={ref}
+      type={type}
+      data-variant={variant}
+      className={[styles.button, className].filter(Boolean).join(' ')}
+      {...rest}
+    />
+  ),
 );
 Button.displayName = 'Button';

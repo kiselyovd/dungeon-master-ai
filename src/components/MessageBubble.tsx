@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ChatRole } from '../state/chat';
+import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
   chatRole: ChatRole;
@@ -22,24 +23,11 @@ interface MessageBubbleProps {
  * readers receive a single combined announcement, not per-bubble noise.
  */
 export function MessageBubble({ chatRole, streaming = false, children }: MessageBubbleProps) {
-  const isUser = chatRole === 'user';
   return (
     <div
+      className={styles.bubble}
       data-role={chatRole}
-      data-streaming={streaming || undefined}
-      style={{
-        alignSelf: isUser ? 'flex-end' : 'flex-start',
-        maxWidth: '80%',
-        padding: 'var(--space-3) var(--space-4)',
-        borderRadius: 'var(--radius-md)',
-        background: isUser ? 'var(--color-accent-soft)' : 'var(--color-bg-raised)',
-        border: streaming
-          ? '1px solid var(--color-accent)'
-          : '1px solid var(--color-border-subtle)',
-        fontStyle: streaming ? 'italic' : undefined,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
+      data-streaming={streaming ? 'true' : undefined}
     >
       {children}
     </div>

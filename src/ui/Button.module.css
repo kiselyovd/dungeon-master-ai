@@ -1,0 +1,3 @@
+.button[data-variant="primary"] {
+  border-color: var(--color-accent);
+}

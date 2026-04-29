@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
+import styles from './ChatPanel.module.css';
 import { MessageBubble } from './MessageBubble';
 
 export function ChatPanel() {
@@ -41,65 +42,34 @@ export function ChatPanel() {
   }, [isStreaming, cancel]);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--color-bg-base)',
-      }}
-    >
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 'var(--space-4)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--space-3)',
-        }}
-      >
+    <div className={styles.panel}>
+      <div className={styles.history}>
         {messages.map((m) => (
           <MessageBubble key={m.id} chatRole={m.role}>
             {m.content}
           </MessageBubble>
         ))}
         {streamingAssistant !== null && (
-          <div aria-live="polite" style={{ display: 'contents' }}>
+          <div aria-live="polite" className={styles.streamWrapper}>
             <MessageBubble chatRole="assistant" streaming>
               {streamingAssistant}
             </MessageBubble>
           </div>
         )}
         {lastError !== null && (
-          <div
-            role="alert"
-            style={{
-              padding: 'var(--space-3)',
-              borderLeft: '3px solid var(--color-danger)',
-              background: 'rgba(196, 68, 68, 0.08)',
-              fontSize: 'var(--text-sm)',
-            }}
-          >
+          <div role="alert" className={styles.errorAlert}>
             {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
           </div>
         )}
       </div>
-      <div
-        style={{
-          borderTop: '1px solid var(--color-border-strong)',
-          padding: 'var(--space-3)',
-          display: 'flex',
-          gap: 'var(--space-2)',
-        }}
-      >
+      <div className={styles.composer}>
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={t('placeholder')}
           rows={2}
-          style={{ flex: 1, resize: 'none' }}
+          className={styles.draft}
         />
         {isStreaming ? (
           <button type="button" onClick={cancel} aria-label={t('stop')}>

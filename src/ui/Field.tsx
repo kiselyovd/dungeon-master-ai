@@ -1,4 +1,5 @@
 import { type ReactNode, useId } from 'react';
+import styles from './Field.module.css';
 
 interface FieldProps {
   label: ReactNode;
@@ -23,14 +24,8 @@ export function Field({ label, error, helper, children }: FieldProps) {
   const message = error ?? helper;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <label
-        htmlFor={inputId}
-        style={{
-          fontSize: 'var(--text-sm)',
-          color: 'var(--color-fg-secondary)',
-        }}
-      >
+    <div className={styles.root}>
+      <label htmlFor={inputId} className={styles.label}>
         {label}
       </label>
       {children({
@@ -42,10 +37,8 @@ export function Field({ label, error, helper, children }: FieldProps) {
         <div
           id={messageId}
           role={error ? 'alert' : undefined}
-          style={{
-            fontSize: 'var(--text-xs)',
-            color: error ? 'var(--color-danger)' : 'var(--color-fg-muted)',
-          }}
+          className={styles.message}
+          data-error={error ? 'true' : undefined}
         >
           {message}
         </div>

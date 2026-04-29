@@ -1,0 +1,38 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg-base);
+}
+
+.history {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.streamWrapper {
+  display: contents;
+}
+
+.errorAlert {
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-danger);
+  background: rgba(196, 68, 68, 0.08);
+  font-size: var(--text-sm);
+}
+
+.composer {
+  border-top: 1px solid var(--color-border-strong);
+  padding: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.draft {
+  flex: 1;
+  resize: none;
+}

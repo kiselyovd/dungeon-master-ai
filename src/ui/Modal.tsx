@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react';
+import styles from './Modal.module.css';
 
 interface ModalProps {
   open: boolean;
@@ -78,17 +79,9 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click is a convenience dismissal; keyboard users get ESC + the explicit Cancel button
     <div
       data-testid="modal-backdrop"
+      className={styles.backdrop}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'var(--color-overlay-scrim)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
       }}
     >
       <div
@@ -97,33 +90,13 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        style={{
-          background: 'var(--color-bg-raised)',
-          padding: 'var(--space-6)',
-          borderRadius: 'var(--radius-lg)',
-          minWidth: 480,
-          maxWidth: 'min(640px, 90vw)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          border: '1px solid var(--color-border-strong)',
-        }}
+        className={styles.dialog}
       >
-        <h2 id={titleId} style={{ marginTop: 0 }}>
+        <h2 id={titleId} className={styles.title}>
           {title}
         </h2>
         <div>{children}</div>
-        {footer && (
-          <div
-            style={{
-              display: 'flex',
-              gap: 'var(--space-2)',
-              marginTop: 'var(--space-6)',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {footer}
-          </div>
-        )}
+        {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   );

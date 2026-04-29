@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import styles from './App.module.css';
 import { initBackendListener } from './api/client';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
@@ -32,41 +33,19 @@ function App() {
   }, [uiLanguage]);
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 480px',
-        gridTemplateRows: 'auto 1fr',
-        height: '100vh',
-        background: 'var(--color-bg-base)',
-      }}
-    >
-      <header
-        style={{
-          gridColumn: '1 / -1',
-          padding: 'var(--space-3) var(--space-4)',
-          borderBottom: '1px solid var(--color-border-strong)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <h1 style={{ margin: 0, fontSize: 'var(--text-lg)' }}>{t('app_title')}</h1>
+    <div className={styles.app}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>{t('app_title')}</h1>
         <button type="button" onClick={() => setSettingsOpen(true)}>
           {t('settings')}
         </button>
       </header>
 
-      <main style={{ overflow: 'hidden' }}>
+      <main className={styles.canvas}>
         <VttCanvas />
       </main>
 
-      <aside
-        style={{
-          borderLeft: '1px solid var(--color-border-strong)',
-          overflow: 'hidden',
-        }}
-      >
+      <aside className={styles.aside}>
         <ChatPanel />
       </aside>
 

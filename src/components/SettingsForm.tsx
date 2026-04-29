@@ -12,6 +12,7 @@ import {
 } from '../state/providers';
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
+import styles from './SettingsForm.module.css';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat'];
 
@@ -73,11 +74,11 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   return (
     <form
       id={formId}
+      className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
         void onSave();
       }}
-      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
     >
       <Field label={t('provider_label')}>
         {({ id }) => (
@@ -85,7 +86,7 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
             id={id}
             value={activeKind}
             onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           >
             {PROVIDER_KINDS.map((k) => (
               <option key={k} value={k}>
@@ -118,7 +119,7 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
 
       {activeKind === 'local-mistralrs' && <LocalMistralRsPlaceholder />}
 
-      <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+      <div className={styles.languages}>
         <Field label={t('language_ui_label')}>
           {({ id }) => (
             <LanguageSelect
@@ -174,7 +175,7 @@ function AnthropicFields({
             value={draft.apiKey}
             onChange={(e) => onChange({ ...draft, apiKey: e.target.value })}
             placeholder={t('api_key_placeholder')}
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -186,7 +187,7 @@ function AnthropicFields({
             value={draft.model}
             onChange={(e) => onChange({ ...draft, model: e.target.value })}
             placeholder={DEFAULT_ANTHROPIC_MODEL}
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -220,7 +221,7 @@ function OpenaiCompatFields({
             value={draft.baseUrl}
             onChange={(e) => onChange({ ...draft, baseUrl: e.target.value })}
             placeholder="http://localhost:1234/v1"
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -233,7 +234,7 @@ function OpenaiCompatFields({
             value={draft.apiKey}
             onChange={(e) => onChange({ ...draft, apiKey: e.target.value })}
             placeholder={t('api_key_placeholder_openai')}
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -245,7 +246,7 @@ function OpenaiCompatFields({
             value={draft.model}
             onChange={(e) => onChange({ ...draft, model: e.target.value })}
             placeholder="qwen3-1.7b"
-            style={{ width: '100%' }}
+            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -255,18 +256,7 @@ function OpenaiCompatFields({
 
 function LocalMistralRsPlaceholder() {
   const { t } = useTranslation('settings');
-  return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        border: '1px dashed var(--color-border-strong)',
-        color: 'var(--color-fg-muted)',
-        fontSize: 'var(--text-sm)',
-      }}
-    >
-      {t('local_coming_soon')}
-    </div>
-  );
+  return <div className={styles.placeholder}>{t('local_coming_soon')}</div>;
 }
 
 function LanguageSelect({
@@ -284,7 +274,7 @@ function LanguageSelect({
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value as 'en' | 'ru')}
-      style={{ width: '100%' }}
+      className={styles.fullWidth}
     >
       <option value="en">{t('lang_en')}</option>
       <option value="ru">{t('lang_ru')}</option>
