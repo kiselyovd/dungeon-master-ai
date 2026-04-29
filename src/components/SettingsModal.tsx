@@ -1,140 +1,69 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  getAnthropicApiKey,
-  getNarrationLanguage,
-  getUiLanguage,
-  setNarrationLanguage as persistNarrationLang,
-  setUiLanguage as persistUiLang,
-  setAnthropicApiKey,
-} from '../api/secrets';
+  saveActiveProvider,
+  saveNarrationLanguage,
+  saveProviders,
+  saveUiLanguage,
+} from '../api/settingsStore';
 import i18n from '../i18n';
-import type { Language } from '../state/settings';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
+import { SettingsForm, type SettingsSubmission } from './SettingsForm';
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
+const FORM_ID = 'settings-form';
+
 export function SettingsModal({ open, onClose }: Props) {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
-  const setApiKeyInStore = useStore((s) => s.settings.setApiKey);
-  const setUiLangInStore = useStore((s) => s.settings.setUiLanguage);
-  const setNarrationLangInStore = useStore((s) => s.settings.setNarrationLanguage);
 
-  const [apiKey, setApiKey] = useState('');
-  const [uiLang, setUiLang] = useState<Language>('en');
-  const [narrationLang, setNarrationLang] = useState<Language>('en');
+  const setActiveProvider = useStore((s) => s.settings.setActiveProvider);
+  const setProviderConfig = useStore((s) => s.settings.setProviderConfig);
+  const setUiLang = useStore((s) => s.settings.setUiLanguage);
+  const setNarrationLang = useStore((s) => s.settings.setNarrationLanguage);
 
-  useEffect(() => {
-    if (!open) return;
-    void (async () => {
-      const k = await getAnthropicApiKey();
-      const ui = await getUiLanguage();
-      const narr = await getNarrationLanguage();
-      setApiKey(k ?? '');
-      if (ui) setUiLang(ui);
-      if (narr) setNarrationLang(narr);
-    })();
-  }, [open]);
+  const onSubmit = async (submission: SettingsSubmission) => {
+    setProviderConfig(submission.provider);
+    setActiveProvider(submission.provider.kind);
+    setUiLang(submission.uiLanguage);
+    setNarrationLang(submission.narrationLanguage);
 
-  if (!open) return null;
+    const providers = useStore.getState().settings.providers;
+    await Promise.all([
+      saveProviders(providers),
+      saveActiveProvider(submission.provider.kind),
+      saveUiLanguage(submission.uiLanguage),
+      saveNarrationLanguage(submission.narrationLanguage),
+    ]);
 
-  const onSave = async () => {
-    await setAnthropicApiKey(apiKey || undefined);
-    await persistUiLang(uiLang);
-    await persistNarrationLang(narrationLang);
-    setApiKeyInStore(apiKey || undefined);
-    setUiLangInStore(uiLang);
-    setNarrationLangInStore(narrationLang);
-    await i18n.changeLanguage(uiLang);
+    if (i18n.language !== submission.uiLanguage) {
+      await i18n.changeLanguage(submission.uiLanguage);
+    }
+
+    // Backend hot-swap: best-effort. C4 wires the actual POST /settings call.
     onClose();
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--color-bg-raised)',
-          padding: 'var(--space-6)',
-          borderRadius: 'var(--radius-lg)',
-          minWidth: 480,
-          border: '1px solid var(--color-border-strong)',
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>{t('title')}</h2>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <label>
-            <div style={{ marginBottom: 'var(--space-1)' }}>{t('api_key_label')}</div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={t('api_key_placeholder')}
-              style={{ width: '100%' }}
-            />
-          </label>
-
-          <label>
-            <div style={{ marginBottom: 'var(--space-1)' }}>{t('language_ui_label')}</div>
-            <select
-              value={uiLang}
-              onChange={(e) => setUiLang(e.target.value as Language)}
-              style={{ width: '100%' }}
-            >
-              <option value="en">{t('lang_en')}</option>
-              <option value="ru">{t('lang_ru')}</option>
-            </select>
-          </label>
-
-          <label>
-            <div style={{ marginBottom: 'var(--space-1)' }}>{t('language_narration_label')}</div>
-            <select
-              value={narrationLang}
-              onChange={(e) => setNarrationLang(e.target.value as Language)}
-              style={{ width: '100%' }}
-            >
-              <option value="en">{t('lang_en')}</option>
-              <option value="ru">{t('lang_ru')}</option>
-            </select>
-          </label>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 'var(--space-2)',
-            marginTop: 'var(--space-6)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <button type="button" onClick={onClose}>
-            {tCommon('cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={() => void onSave()}
-            style={{ borderColor: 'var(--color-accent)' }}
-          >
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('title')}
+      footer={
+        <>
+          <Button onClick={onClose}>{tCommon('cancel')}</Button>
+          <Button variant="primary" type="submit" form={FORM_ID}>
             {tCommon('save')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <SettingsForm formId={FORM_ID} onSubmit={onSubmit} />
+    </Modal>
   );
 }

@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { AnthropicConfig, ApiKey } from '../providers';
 import { useStore } from '../useStore';
 
-describe('useStore', () => {
+describe('useStore - chat slice', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
   });
 
-  it('starts with empty chat messages', () => {
-    expect(useStore.getState().chat.messages).toEqual([]);
+  it('starts with empty messages and no streaming state', () => {
+    const s = useStore.getState().chat;
+    expect(s.messages).toEqual([]);
+    expect(s.streamingAssistant).toBeNull();
+    expect(s.isStreaming).toBe(false);
+    expect(s.lastError).toBeNull();
   });
 
-  it('appends user and assistant messages', () => {
+  it('appends user and assistant messages, finalising the streaming buffer', () => {
     useStore.getState().chat.appendUser('hello');
     useStore.getState().chat.appendAssistantDelta('hi ');
     useStore.getState().chat.appendAssistantDelta('there');
@@ -22,17 +27,62 @@ describe('useStore', () => {
     expect(messages[1]).toEqual({ role: 'assistant', content: 'hi there' });
   });
 
-  it('settings store starts with no api key and en language', () => {
+  it('finalizeAssistant is a no-op when no stream is in progress', () => {
+    useStore.getState().chat.finalizeAssistant();
+    expect(useStore.getState().chat.messages).toEqual([]);
+  });
+
+  it('beginStream/endStream toggles isStreaming and tracks the controller', () => {
+    const controller = new AbortController();
+    useStore.getState().chat.beginStream(controller);
+    expect(useStore.getState().chat.isStreaming).toBe(true);
+    expect(useStore.getState().chat.abortController).toBe(controller);
+
+    useStore.getState().chat.endStream();
+    expect(useStore.getState().chat.isStreaming).toBe(false);
+    expect(useStore.getState().chat.abortController).toBeNull();
+  });
+
+  it('abort triggers the active controller and is idempotent', () => {
+    const controller = new AbortController();
+    useStore.getState().chat.beginStream(controller);
+    useStore.getState().chat.abort();
+    expect(controller.signal.aborted).toBe(true);
+
+    // Second call is harmless.
+    useStore.getState().chat.abort();
+    expect(controller.signal.aborted).toBe(true);
+  });
+});
+
+describe('useStore - settings slice', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+  });
+
+  it('starts with anthropic active and no provider configs', () => {
     const s = useStore.getState().settings;
-    expect(s.anthropicApiKey).toBeUndefined();
+    expect(s.activeProvider).toBe('anthropic');
+    expect(s.providers.anthropic).toBeNull();
+    expect(s.providers['openai-compat']).toBeNull();
     expect(s.uiLanguage).toBe('en');
     expect(s.narrationLanguage).toBe('en');
   });
 
-  it('settings updates persist in store', () => {
-    useStore.getState().settings.setApiKey('sk-test');
-    useStore.getState().settings.setUiLanguage('ru');
-    expect(useStore.getState().settings.anthropicApiKey).toBe('sk-test');
+  it('setProviderConfig stores per-kind config without affecting other kinds', () => {
+    const cfg: AnthropicConfig = {
+      kind: 'anthropic',
+      apiKey: 'sk-ant-test' as ApiKey,
+      model: 'claude-haiku',
+    };
+    useStore.getState().settings.setProviderConfig(cfg);
+    expect(useStore.getState().settings.providers.anthropic).toEqual(cfg);
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+  });
+
+  it('hydrate merges incoming partial config without dropping existing keys', () => {
+    useStore.getState().settings.hydrate({ uiLanguage: 'ru' });
     expect(useStore.getState().settings.uiLanguage).toBe('ru');
+    expect(useStore.getState().settings.activeProvider).toBe('anthropic');
   });
 });

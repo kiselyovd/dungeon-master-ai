@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
-import { getAnthropicApiKey, getNarrationLanguage, getUiLanguage } from './api/secrets';
+import { loadAll } from './api/settingsStore';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { VttCanvas } from './components/VttCanvas';
@@ -11,33 +11,30 @@ import { useStore } from './state/useStore';
 function App() {
   const { t } = useTranslation('common');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const setApiKey = useStore((s) => s.settings.setApiKey);
-  const setUiLang = useStore((s) => s.settings.setUiLanguage);
-  const setNarrationLang = useStore((s) => s.settings.setNarrationLanguage);
+  const hydrate = useStore((s) => s.settings.hydrate);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
     void initBackendListener().then((u) => {
-      unlisten = u;
+      if (cancelled) u();
+      else unlisten = u;
     });
     return () => {
-      if (unlisten) unlisten();
+      cancelled = true;
+      unlisten?.();
     };
   }, []);
 
   useEffect(() => {
     void (async () => {
-      const k = await getAnthropicApiKey();
-      const ui = await getUiLanguage();
-      const narr = await getNarrationLanguage();
-      if (k) setApiKey(k);
-      if (ui) {
-        setUiLang(ui);
-        await i18n.changeLanguage(ui);
+      const next = await loadAll();
+      hydrate(next);
+      if (next.uiLanguage && i18n.language !== next.uiLanguage) {
+        await i18n.changeLanguage(next.uiLanguage);
       }
-      if (narr) setNarrationLang(narr);
     })();
-  }, [setApiKey, setUiLang, setNarrationLang]);
+  }, [hydrate]);
 
   return (
     <div
