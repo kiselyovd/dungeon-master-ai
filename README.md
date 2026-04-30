@@ -2,17 +2,22 @@
 
 A multimodal, AI-powered D&D desktop application. Tauri v2 + React + Rust.
 
-> **Status:** M1.5 - chat skeleton with multi-provider support. Three LLM
-> backends configurable in Settings:
+> **Status:** M2 - rules engine + combat overlay. Combat resolver (4-phase
+> turn, initiative, action economy, conditions, damage, saving throws,
+> ability checks), SQLite persistence via `sqlx`, VTT combat overlay
+> (tokens, AoE templates, initiative tracker, action bar), and chat
+> refinements (typing indicator, sticky-scroll within 100px of bottom,
+> drop-cap on narrator paragraphs). M3 wires the LLM agent loop and
+> tool-call surface (the validator dispatch table is already in place).
+>
+> Three LLM backends remain configurable in Settings:
 > - **Anthropic (cloud)** - paste an `sk-ant-...` key, default model
 >   `claude-haiku-4-5-20251001`.
-> - **OpenAI-compatible (cloud or local server)** - point at any endpoint
->   that speaks `/v1/chat/completions`: LM Studio, Ollama (`/v1/`),
->   llama.cpp server, vLLM, mistral.rs server, OpenRouter, Groq, DeepSeek,
->   Together, Fireworks, etc.
+> - **OpenAI-compatible (cloud or local server)** - any endpoint that
+>   speaks `/v1/chat/completions`: LM Studio, Ollama (`/v1/`), llama.cpp
+>   server, vLLM, mistral.rs server, OpenRouter, Groq, DeepSeek, Together,
+>   Fireworks, etc.
 > - **Embedded local model** - reserved slot, lights up in M4.
->
-> Empty PixiJS grid stub. No game engine yet (that's M2).
 
 ## Stack
 
@@ -28,18 +33,24 @@ A multimodal, AI-powered D&D desktop application. Tauri v2 + React + Rust.
 
 ```
 crates/
-  app-domain/   shared domain types (will grow in M2)
+  app-domain/   rules engine: dice, RNG, initiative, action economy, turn FSM,
+                damage, healing, conditions, saving throws, attack rolls,
+                CombatResolver (phases 1+2), ToolCallValidator dispatch table
   app-llm/      LLM provider abstraction (Anthropic, OpenAI-compat, Mock)
-  app-server/   axum HTTP server: /health, /chat (SSE), /providers, /settings
+  app-server/   axum HTTP server: /health, /chat (SSE), /providers, /settings,
+                /combat/{start,action,end} (SSE) + sqlx SQLite persistence
 src-tauri/      Tauri shell with sidecar lifecycle for app-server
 src/
-  api/          HTTP client (chat SSE, providers, settingsStore, errors)
-  components/   ChatPanel, MessageBubble, SettingsForm, SettingsModal, VttCanvas
-  hooks/        useChat
-  state/        Zustand store with chat + settings slices, ProviderConfig union
+  api/          HTTP clients (chat SSE, providers, combat, errors)
+  components/   ChatPanel, MessageBubble, TypingIndicator, SettingsForm,
+                SettingsModal, VttCanvas, CombatOverlay, CombatToken,
+                AoeTemplate, InitiativeTracker, ActionBar
+  hooks/        useChat, useCombat, useStickyScroll
+  state/        Zustand store with chat + settings + combat slices
   ui/           primitives: Modal, Field, Button
-  locales/      en + ru (common, chat, settings, errors namespaces)
-  styles/       theme.css design tokens, globals.css base
+  locales/      en + ru (common, chat, settings, errors, combat namespaces)
+  styles/       theme.css design tokens, globals.css base, fonts.css,
+                combat.css (initiative tracker / action bar / token-pulse)
 e2e/            Playwright frontend smoke tests
 ```
 

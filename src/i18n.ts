@@ -2,10 +2,12 @@ import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import enChat from './locales/en/chat.json';
+import enCombat from './locales/en/combat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enSettings from './locales/en/settings.json';
 import ruChat from './locales/ru/chat.json';
+import ruCombat from './locales/ru/combat.json';
 import ruCommon from './locales/ru/common.json';
 import ruErrors from './locales/ru/errors.json';
 import ruSettings from './locales/ru/settings.json';
@@ -17,19 +19,21 @@ void i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'ru'],
     defaultNS: 'common',
-    ns: ['common', 'chat', 'settings', 'errors'],
+    ns: ['common', 'chat', 'settings', 'errors', 'combat'],
     resources: {
       en: {
         common: enCommon,
         chat: enChat,
         settings: enSettings,
         errors: enErrors,
+        combat: enCombat,
       },
       ru: {
         common: ruCommon,
         chat: ruChat,
         settings: ruSettings,
         errors: ruErrors,
+        combat: ruCombat,
       },
     },
     interpolation: { escapeValue: false },

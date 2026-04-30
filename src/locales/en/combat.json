@@ -1,0 +1,21 @@
+{
+  "initiative_tracker": "Initiative Order",
+  "round": "Round {{round}}",
+  "action": "Action",
+  "bonus_action": "Bonus",
+  "reaction": "Reaction",
+  "move": "Move",
+  "end_turn": "End Turn",
+  "active_turn": "Active",
+  "hp_label": "HP",
+  "ac_label": "AC",
+  "dead": "Dead",
+  "conditions": {
+    "prone": "Prone",
+    "grappled": "Grappled",
+    "frightened": "Frightened",
+    "poisoned": "Poisoned",
+    "unconscious": "Unconscious",
+    "blinded": "Blinded"
+  }
+}

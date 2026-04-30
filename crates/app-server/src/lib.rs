@@ -1,6 +1,7 @@
 //! HTTP API for the dungeon-master-ai backend.
 
 pub mod config;
+pub mod db;
 pub mod error;
 pub mod routes;
 pub mod state;
@@ -19,6 +20,9 @@ pub fn router(state: AppState) -> Router {
         .route("/chat", post(routes::chat::chat))
         .route("/providers", get(routes::settings::get_providers))
         .route("/settings", post(routes::settings::post_settings))
+        .route("/combat/start", post(routes::combat::post_combat_start))
+        .route("/combat/action", post(routes::combat::post_combat_action))
+        .route("/combat/end", post(routes::combat::post_combat_end))
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -29,8 +33,12 @@ pub fn router(state: AppState) -> Router {
         .layer(TraceLayer::new_for_http())
 }
 
-pub fn router_with_mock_llm() -> Router {
-    let state = AppState::new(Arc::new(app_llm::MockProvider::new(vec![])), "mock".into());
+pub async fn router_with_mock_llm() -> Router {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("in-memory db");
+    db::init_db(&pool).await.expect("migrate");
+    let state = AppState::new(Arc::new(app_llm::MockProvider::new(vec![])), "mock".into(), pool);
     router(state)
 }
 
@@ -48,11 +56,18 @@ pub mod test_support {
 
     impl TestServer {
         pub async fn start() -> Self {
-            Self::start_with(Arc::new(app_llm::MockProvider::new(vec![]))).await
+            let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+                .await
+                .expect("in-memory db");
+            crate::db::init_db(&pool).await.expect("migrate");
+            Self::start_with(Arc::new(app_llm::MockProvider::new(vec![])), pool).await
         }
 
-        pub async fn start_with(llm: Arc<dyn app_llm::LlmProvider>) -> Self {
-            let state = AppState::new(llm, "mock".into());
+        pub async fn start_with(
+            llm: Arc<dyn app_llm::LlmProvider>,
+            db: sqlx::SqlitePool,
+        ) -> Self {
+            let state = AppState::new(llm, "mock".into(), db);
             let app = router(state);
             let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
             let addr = listener.local_addr().expect("addr");

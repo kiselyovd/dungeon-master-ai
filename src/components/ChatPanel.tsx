@@ -2,14 +2,22 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
+import { useStickyScroll } from '../hooks/useStickyScroll';
 import styles from './ChatPanel.module.css';
 import { MessageBubble } from './MessageBubble';
+import { TypingIndicator } from './TypingIndicator';
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
   const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
   const [draft, setDraft] = useState('');
+  const { ref: historyRef, onScroll, scrollToBottom } = useStickyScroll(100);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages.length, streamingAssistant, scrollToBottom]);
 
   const canSend = !isStreaming && draft.trim().length > 0;
 
@@ -43,17 +51,23 @@ export function ChatPanel() {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.history}>
+      <div ref={historyRef} className={styles.history} onScroll={onScroll}>
         {messages.map((m) => (
           <MessageBubble key={m.id} chatRole={m.role}>
             {m.content}
           </MessageBubble>
         ))}
-        {streamingAssistant !== null && (
+        {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
-            <MessageBubble chatRole="assistant" streaming>
-              {streamingAssistant}
-            </MessageBubble>
+            {streamingAssistant === null || streamingAssistant === '' ? (
+              <div className={styles.typingRow}>
+                <TypingIndicator />
+              </div>
+            ) : (
+              <MessageBubble chatRole="assistant" streaming>
+                {streamingAssistant}
+              </MessageBubble>
+            )}
           </div>
         )}
         {lastError !== null && (

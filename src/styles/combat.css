@@ -1,0 +1,143 @@
+/* Combat overlay styles */
+
+@keyframes token-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes typing-dot {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.initiative-tracker {
+  position: fixed;
+  right: var(--chat-width);
+  top: var(--header-height);
+  width: 200px;
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transform: translateX(100%);
+  transition: transform var(--t-slow) ease;
+}
+
+.initiative-tracker.visible {
+  transform: translateX(0);
+}
+
+.initiative-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.initiative-entry:last-child {
+  border-bottom: none;
+}
+
+.initiative-entry.active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.action-bar {
+  position: fixed;
+  bottom: var(--statusbar-height);
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  transition: transform var(--t-slow) ease;
+  display: flex;
+  gap: var(--space-2);
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--glow-accent);
+}
+
+.action-bar.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-fg-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
+  min-width: 56px;
+}
+
+.action-btn:hover {
+  background: var(--color-bg-overlay);
+  box-shadow: var(--glow-accent);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-btn.used {
+  opacity: 0.5;
+  background: var(--color-bg-deep);
+}
+
+/* Combat-mode entry: 280ms cross-fade using --t-slow */
+.vtt-combat-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--t-slow) ease;
+  pointer-events: none;
+}
+
+.vtt-combat-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* AoE template fills using school-of-magic palette */
+.aoe-cone {
+  fill: var(--magic-evocation);
+  opacity: 0.3;
+}
+.aoe-sphere {
+  fill: var(--magic-conjuration);
+  opacity: 0.3;
+}
+.aoe-line {
+  fill: var(--magic-transmutation);
+  opacity: 0.3;
+}
+.aoe-cube {
+  fill: var(--magic-abjuration);
+  opacity: 0.3;
+}

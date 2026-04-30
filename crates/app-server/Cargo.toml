@@ -24,6 +24,9 @@ tracing-subscriber = { workspace = true }
 futures = { workspace = true }
 tokio-stream = { workspace = true }
 async-trait = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
