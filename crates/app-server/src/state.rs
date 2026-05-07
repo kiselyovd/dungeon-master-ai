@@ -1,7 +1,10 @@
 use std::sync::{Arc, RwLock};
 
+use app_domain::srd::retriever::SrdRetriever;
 use app_llm::LlmProvider;
 use sqlx::SqlitePool;
+
+use crate::agent::orchestrator::AgentConfig;
 
 /// Shared application state for axum handlers.
 ///
@@ -20,6 +23,8 @@ struct AppStateInner {
     llm: RwLock<Arc<dyn LlmProvider>>,
     default_model: RwLock<Arc<String>>,
     db: SqlitePool,
+    agent_config: RwLock<AgentConfig>,
+    srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
 }
 
 impl AppState {
@@ -29,6 +34,8 @@ impl AppState {
                 llm: RwLock::new(llm),
                 default_model: RwLock::new(Arc::new(default_model)),
                 db,
+                agent_config: RwLock::new(AgentConfig::default()),
+                srd_retriever: RwLock::new(None),
             }),
         }
     }
@@ -45,11 +52,7 @@ impl AppState {
     }
 
     pub fn set_provider(&self, llm: Arc<dyn LlmProvider>) {
-        *self
-            .inner
-            .llm
-            .write()
-            .expect("provider lock poisoned") = llm;
+        *self.inner.llm.write().expect("provider lock poisoned") = llm;
     }
 
     pub fn default_model(&self) -> String {
@@ -71,5 +74,37 @@ impl AppState {
 
     pub fn db(&self) -> &SqlitePool {
         &self.inner.db
+    }
+
+    pub fn agent_config(&self) -> AgentConfig {
+        self.inner
+            .agent_config
+            .read()
+            .expect("agent config lock poisoned")
+            .clone()
+    }
+
+    pub fn set_agent_config(&self, config: AgentConfig) {
+        *self
+            .inner
+            .agent_config
+            .write()
+            .expect("agent config lock poisoned") = config;
+    }
+
+    pub fn srd_retriever(&self) -> Option<Arc<SrdRetriever>> {
+        self.inner
+            .srd_retriever
+            .read()
+            .expect("srd lock poisoned")
+            .clone()
+    }
+
+    pub fn set_srd_retriever(&self, retriever: Arc<SrdRetriever>) {
+        *self
+            .inner
+            .srd_retriever
+            .write()
+            .expect("srd lock poisoned") = Some(retriever);
     }
 }
