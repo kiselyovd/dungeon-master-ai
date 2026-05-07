@@ -1,6 +1,7 @@
 //! LLM provider abstraction for the dungeon-master-ai backend.
 
 pub mod anthropic;
+mod genai_common;
 pub mod mock;
 pub mod openai_compat;
 pub mod provider;
