@@ -1,5 +1,6 @@
 //! HTTP API for the dungeon-master-ai backend.
 
+pub mod agent;
 pub mod config;
 pub mod db;
 pub mod error;
