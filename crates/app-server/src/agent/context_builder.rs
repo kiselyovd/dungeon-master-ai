@@ -7,18 +7,25 @@
 //! For Task C1 the NPC loader is stubbed because the `npc_memory` table is
 //! introduced in migration `0002_m3_journal_npc_srd.sql` (Phase E/F/G work).
 
+use app_domain::srd::embedder::parse_embedding_model;
 use app_domain::srd::retriever::SrdRetriever;
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use fastembed::{InitOptions, TextEmbedding};
 use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
 /// Build the system context string for one agent round.
+///
+/// `model_name` is the kebab-case embedding model id (e.g. "multilingual-e5-small")
+/// from `AgentConfig.embedding_model`. It must agree with the model used to
+/// build the retriever's corpus, otherwise query/corpus vectors live in
+/// different spaces and similarity is meaningless.
 pub async fn build_context(
     pool: &SqlitePool,
     campaign_id: Uuid,
     player_message: &str,
     base_prompt: &str,
+    model_name: &str,
     retriever: Option<&SrdRetriever>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut ctx = base_prompt.to_string();
@@ -26,7 +33,7 @@ pub async fn build_context(
     // RAG: inject top-5 SRD chunks relevant to the player's message.
     if let Some(ret) = retriever {
         if !ret.is_empty() {
-            match embed_player_message(player_message) {
+            match embed_player_message(player_message, model_name) {
                 Ok(query_emb) => {
                     let chunks = ret.retrieve_by_embedding(&query_emb, 5);
                     if !chunks.is_empty() {
@@ -55,8 +62,13 @@ pub async fn build_context(
 /// Re-init on each call is wasteful in production. Phase I will cache the
 /// `TextEmbedding` handle on `AppState`. For M3 correctness this is sufficient
 /// because the model is cached on disk - only the ONNX session setup runs (~100ms).
-fn embed_player_message(text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
-    let model = TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGESmallENV15))?;
+fn embed_player_message(
+    text: &str,
+    model_name: &str,
+) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    let parsed = parse_embedding_model(model_name)
+        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.into() })?;
+    let model = TextEmbedding::try_new(InitOptions::new(parsed))?;
     let embeddings = model.embed(vec![text], None)?;
     embeddings
         .into_iter()

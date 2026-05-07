@@ -28,6 +28,10 @@ pub struct AgentConfig {
     pub system_prompt: String,
     pub temperature: f32,
     pub max_rounds: usize,
+    /// Kebab-case embedding model id (e.g. "multilingual-e5-small").
+    /// Must match the model used to build the SRD retriever's corpus.
+    /// Resolved against `app_domain::srd::embedder::parse_embedding_model`.
+    pub embedding_model: String,
 }
 
 impl Default for AgentConfig {
@@ -37,6 +41,7 @@ impl Default for AgentConfig {
             system_prompt: String::new(),
             temperature: 0.7,
             max_rounds: 8,
+            embedding_model: app_domain::srd::embedder::DEFAULT_EMBEDDING_MODEL.into(),
         }
     }
 }
@@ -112,6 +117,7 @@ impl AgentOrchestrator {
             req.campaign_id,
             &req.player_message,
             &self.config.system_prompt,
+            &self.config.embedding_model,
             self.retriever.as_deref(),
         )
         .await

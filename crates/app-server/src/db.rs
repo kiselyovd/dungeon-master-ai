@@ -353,3 +353,10 @@ pub async fn srd_chunks_load_all(pool: &SqlitePool) -> Result<Vec<SrdChunkRow>, 
         })
         .collect()
 }
+
+/// Clear all rows from `srd_chunks`. Used to invalidate the embedding cache
+/// when the active embedding model changes (different dim => incompatible vectors).
+pub async fn srd_chunks_clear(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM srd_chunks").execute(pool).await?;
+    Ok(())
+}
