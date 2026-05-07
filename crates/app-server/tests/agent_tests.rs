@@ -116,10 +116,11 @@ async fn orchestrator_executes_tool_call_and_continues() {
 
 #[tokio::test]
 async fn orchestrator_handles_unknown_tool_gracefully() {
-    // TODO(phase-d): once set_scene is added to the validator, flip is_error to false
+    // Hallucinated tool name not in the validator dispatch.
+    // validate_tool_call returns UnknownTool, executor returns is_error=true.
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::ToolCallStart { id: "c2".into(), name: "set_scene".into() },
+        ChatChunk::ToolCallStart { id: "c2".into(), name: "fly_dragon".into() },
         ChatChunk::ToolCallArgsDelta {
             id: "c2".into(),
             args_fragment: r#"{"title":"The Tavern","mode":"exploration"}"#.into(),
@@ -150,7 +151,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     while let Some(ev) = rx.recv().await {
         match ev {
             AgentEvent::ToolCallResult { tool_name, is_error, .. } => {
-                if tool_name == "set_scene" && is_error {
+                if tool_name == "fly_dragon" && is_error {
                     got_error_result = true;
                 }
             }
