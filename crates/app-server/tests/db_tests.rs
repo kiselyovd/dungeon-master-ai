@@ -82,15 +82,15 @@ async fn journal_list_empty_for_new_campaign() {
 async fn journal_entries_ordered_by_creation() {
     let pool = in_memory_pool().await;
     let campaign_id = Uuid::new_v4();
-    journal_insert(&pool, campaign_id, "<p>First.</p>", None)
+    let id1 = journal_insert(&pool, campaign_id, "<p>First.</p>", None)
         .await
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    journal_insert(&pool, campaign_id, "<p>Second.</p>", None)
+    let id2 = journal_insert(&pool, campaign_id, "<p>Second.</p>", None)
         .await
         .unwrap();
     let entries = journal_list(&pool, campaign_id).await.unwrap();
     assert_eq!(entries.len(), 2);
-    assert!(entries[0].entry_html.contains("First"));
-    assert!(entries[1].entry_html.contains("Second"));
+    assert_eq!(entries[0].id, id1);
+    assert_eq!(entries[1].id, id2);
 }

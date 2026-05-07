@@ -338,7 +338,9 @@ async fn execute_journal_append(
     pool: &SqlitePool,
     campaign_id: Uuid,
 ) -> (Value, bool) {
-    let entry_html = args["entry_html"].as_str().unwrap_or_default();
+    let Some(entry_html) = args["entry_html"].as_str() else {
+        return (json!({ "error": "entry_html is required" }), true);
+    };
     let chapter = args.get("chapter").and_then(|v| v.as_str());
     match crate::db::journal_insert(pool, campaign_id, entry_html, chapter).await {
         Ok(id) => (json!({ "entry_id": id.to_string() }), false),
