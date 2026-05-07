@@ -8,7 +8,9 @@
 //! - [`orchestrator`]: the agent loop driver and `AgentEvent` channel API.
 //! - [`tool_executor`]: dispatches validated tool-calls and runs the side-effects.
 //! - [`context_builder`]: assembles the system prompt for each round.
+//! - [`tools`]: tool catalog (`all_tools()`) exposed to the LLM.
 
 pub mod context_builder;
 pub mod orchestrator;
 pub mod tool_executor;
+pub mod tools;

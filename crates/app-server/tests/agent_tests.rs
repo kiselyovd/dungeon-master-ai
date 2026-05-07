@@ -113,3 +113,54 @@ async fn orchestrator_executes_tool_call_and_continues() {
     assert!(got_tool_call_result, "expected tool call result event");
     assert!(got_done);
 }
+
+#[tokio::test]
+async fn orchestrator_handles_unknown_tool_gracefully() {
+    // TODO(phase-d): once set_scene is added to the validator, flip is_error to false
+    let pool = test_pool().await;
+    let mock = Arc::new(MockProvider::new(vec![
+        ChatChunk::ToolCallStart { id: "c2".into(), name: "set_scene".into() },
+        ChatChunk::ToolCallArgsDelta {
+            id: "c2".into(),
+            args_fragment: r#"{"title":"The Tavern","mode":"exploration"}"#.into(),
+        },
+        ChatChunk::ToolCallDone { id: "c2".into() },
+        ChatChunk::Done { reason: FinishReason::ToolUse },
+    ]));
+
+    let config = AgentConfig {
+        model: "mock".into(),
+        system_prompt: "DM".into(),
+        temperature: 0.7,
+        max_rounds: 8,
+    };
+    let req = AgentTurnRequest {
+        campaign_id: uuid::Uuid::new_v4(),
+        session_id: uuid::Uuid::new_v4(),
+        player_message: "look around".into(),
+        history: vec![],
+    };
+
+    let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
+    let orch = AgentOrchestrator::new(mock, pool, config);
+    orch.run(req, tx).await.unwrap();
+
+    let mut got_error_result = false;
+    let mut got_done = false;
+    while let Some(ev) = rx.recv().await {
+        match ev {
+            AgentEvent::ToolCallResult { tool_name, is_error, .. } => {
+                if tool_name == "set_scene" && is_error {
+                    got_error_result = true;
+                }
+            }
+            AgentEvent::AgentDone { .. } => {
+                got_done = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+    assert!(got_error_result, "expected is_error=true result for unknown tool");
+    assert!(got_done);
+}

@@ -133,11 +133,15 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
             use sqlx::Row;
             let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
             let new_hp = (current_hp - amount).max(0);
-            let _ = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
+            if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
                 .bind(new_hp)
                 .bind(token_id)
                 .execute(pool)
-                .await;
+                .await
+            {
+                tracing::warn!(error = %e, "sqlx write failed in execute_apply_damage");
+                return (json!({ "error": e.to_string() }), true);
+            }
             (
                 json!({ "new_hp": new_hp, "damage_dealt": amount }),
                 false,
@@ -154,15 +158,20 @@ async fn execute_start_combat(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     let encounter_id = uuid::Uuid::new_v4();
     let initiative_json = serde_json::to_string(&args["initiative_entries"]).unwrap_or_default();
     let now = chrono::Utc::now().to_rfc3339();
-    let _ = sqlx::query(
+    if let Err(e) = sqlx::query(
         "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) VALUES (?1, ?2, 1, ?3, ?4)"
     )
     .bind(encounter_id.to_string())
+    // TODO(phase-i): pull session_id from AgentTurnRequest once /agent/turn endpoint plumbs it through
     .bind(uuid::Uuid::new_v4().to_string()) // placeholder session_id until session wiring lands
     .bind(now)
     .bind(initiative_json)
     .execute(pool)
-    .await;
+    .await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_start_combat");
+        return (json!({ "error": e.to_string() }), true);
+    }
     (
         json!({ "encounter_id": encounter_id.to_string() }),
         false,
@@ -171,10 +180,14 @@ async fn execute_start_combat(args: &Value, pool: &SqlitePool) -> (Value, bool) 
 
 async fn execute_end_combat(pool: &SqlitePool) -> (Value, bool) {
     let now = chrono::Utc::now().to_rfc3339();
-    let _ = sqlx::query("UPDATE combat_encounters SET ended_at = ?1 WHERE ended_at IS NULL")
+    if let Err(e) = sqlx::query("UPDATE combat_encounters SET ended_at = ?1 WHERE ended_at IS NULL")
         .bind(now)
         .execute(pool)
-        .await;
+        .await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_end_combat");
+        return (json!({ "error": e.to_string() }), true);
+    }
     (json!({ "status": "combat_ended" }), false)
 }
 
@@ -202,7 +215,7 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
         _ => return (json!({ "error": "no active encounter" }), true),
     };
 
-    let _ = sqlx::query(
+    if let Err(e) = sqlx::query(
         "INSERT OR REPLACE INTO combat_tokens (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,'[]')"
     )
     .bind(id)
@@ -214,7 +227,11 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     .bind(x)
     .bind(y)
     .execute(pool)
-    .await;
+    .await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_add_token");
+        return (json!({ "error": e.to_string() }), true);
+    }
 
     (json!({ "token_id": id, "status": "added" }), false)
 }
@@ -222,20 +239,29 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
 async fn execute_update_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
     if let Some(hp) = args["hp"].as_i64() {
-        let _ = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
+        if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
             .bind(hp as i32)
             .bind(id)
             .execute(pool)
-            .await;
+            .await
+        {
+            tracing::warn!(error = %e, "sqlx write failed in execute_update_token");
+            return (json!({ "error": e.to_string() }), true);
+        }
     }
     if let Some(x) = args["x"].as_i64() {
         if let Some(y) = args["y"].as_i64() {
-            let _ = sqlx::query("UPDATE combat_tokens SET pos_x = ?1, pos_y = ?2 WHERE id = ?3")
-                .bind(x as i32)
-                .bind(y as i32)
-                .bind(id)
-                .execute(pool)
-                .await;
+            if let Err(e) =
+                sqlx::query("UPDATE combat_tokens SET pos_x = ?1, pos_y = ?2 WHERE id = ?3")
+                    .bind(x as i32)
+                    .bind(y as i32)
+                    .bind(id)
+                    .execute(pool)
+                    .await
+            {
+                tracing::warn!(error = %e, "sqlx write failed in execute_update_token");
+                return (json!({ "error": e.to_string() }), true);
+            }
         }
     }
     (json!({ "token_id": id, "status": "updated" }), false)
@@ -243,10 +269,14 @@ async fn execute_update_token(args: &Value, pool: &SqlitePool) -> (Value, bool) 
 
 async fn execute_remove_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
-    let _ = sqlx::query("UPDATE combat_tokens SET is_dead = 1 WHERE id = ?1")
+    if let Err(e) = sqlx::query("UPDATE combat_tokens SET is_dead = 1 WHERE id = ?1")
         .bind(id)
         .execute(pool)
-        .await;
+        .await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_remove_token");
+        return (json!({ "error": e.to_string() }), true);
+    }
     (json!({ "token_id": id, "status": "removed" }), false)
 }
 
@@ -325,15 +355,20 @@ async fn execute_quick_save(
     let save_id = uuid::Uuid::new_v4();
     let now = chrono::Utc::now().to_rfc3339();
     // Linear save: stores a minimal state snapshot. The full save schema lands in M5.
-    let _ = sqlx::query(
+    if let Err(e) = sqlx::query(
         "INSERT INTO snapshots (id, session_id, turn_number, created_at, game_state, player_action) VALUES (?1, ?2, 0, ?3, ?4, NULL)"
     )
     .bind(save_id.to_string())
+    // TODO(phase-i): snapshots.session_id should be the actual session UUID, not campaign_id - fix when /agent/turn endpoint plumbs session through
     .bind(campaign_id.to_string())
     .bind(now)
     .bind(serde_json::json!({ "schema_version": 1, "state": { "label": label } }).to_string())
     .execute(pool)
-    .await;
+    .await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_quick_save");
+        return (json!({ "error": e.to_string() }), true);
+    }
     (
         json!({ "save_id": save_id.to_string(), "branch_id": null }),
         false,
