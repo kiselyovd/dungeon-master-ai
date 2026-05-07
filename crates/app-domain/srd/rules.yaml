@@ -1,0 +1,87 @@
+chunks:
+  - key: combat_turn_structure
+    text: "Combat turn structure. On your turn you can move a distance up to your speed and take one action. You decide whether to move first or take your action first. Bonus actions: certain class features, spells, and other abilities let you take an additional action called a bonus action. Reactions: certain special abilities, spells, and situations allow you to take a special action called a reaction. Your reaction refreshes at the start of each of your turns."
+
+  - key: attack_rolls
+    text: "Attack rolls. When you make an attack, your attack roll determines whether the attack hits or misses. To make an attack roll, roll a d20 and add the appropriate modifiers. If the total of the roll plus modifiers equals or exceeds the target's Armor Class, the attack hits. Modifiers to the roll: ability modifier, proficiency bonus if proficient with the weapon or spell. Critical Hits: If you roll a 20 on the d20 for an attack, you score a critical hit. Roll all of the attack's damage dice twice and add them together."
+
+  - key: damage_resistance
+    text: "Damage Resistance, Vulnerability, and Immunity. Resistance: If a creature has resistance to a damage type, damage of that type is halved against it. Vulnerability: If a creature has vulnerability to a damage type, damage of that type is doubled. Immunity: A creature immune to a damage type doesn't take damage of that type. Resistance and then vulnerability are applied after all other modifiers to damage. Multiple instances of resistance or vulnerability don't compound."
+
+  - key: saving_throws
+    text: "Saving throws. A saving throw represents an attempt to resist a spell, a trap, a poison, a disease, or a similar threat. To make a saving throw, roll a d20 and add the appropriate ability modifier. Compare the result to a difficulty class (DC) specified by the ability or spell. If the result equals or exceeds the DC, the creature succeeds. Proficiency bonus is added to saving throws for which a creature is proficient."
+
+  - key: conditions_prone
+    text: "Prone condition. A prone creature's only movement option is to crawl, unless it stands up and thereby ends the condition. The creature has disadvantage on attack rolls. An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage."
+
+  - key: conditions_poisoned
+    text: "Poisoned condition. A poisoned creature has disadvantage on attack rolls and ability checks."
+
+  - key: conditions_unconscious
+    text: "Unconscious condition. An unconscious creature is incapacitated (can't take actions or reactions), can't move or speak, and is unaware of its surroundings. The creature drops whatever it's holding and falls prone. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
+
+  - key: conditions_frightened
+    text: "Frightened condition. A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight. The creature can't willingly move closer to the source of its fear."
+
+  - key: conditions_grappled
+    text: "Grappled condition. A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed. The condition ends if the grappler is incapacitated. The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect."
+
+  - key: death_saving_throws
+    text: "Death Saving Throws. Whenever you start your turn with 0 hit points, you must make a special saving throw, called a death saving throw. Roll a d20. If the roll is 10 or higher, you succeed. Otherwise, you fail. On your third success, you become stable. On your third failure, you die. Rolling 1: counts as 2 failures. Rolling 20: you regain 1 hit point. Damage at 0 HP: if you take any damage while you have 0 HP, you suffer a death saving throw failure. If the damage is from a critical hit, you suffer two failures instead."
+
+  - key: concentration
+    text: "Concentration. Some spells require you to maintain concentration in order to keep their magic active. If you lose concentration, such a spell ends. Concentration is broken by: casting another spell that requires concentration, taking damage (must make a CON saving throw; DC equals half the damage taken or 10, whichever is higher), being incapacitated or killed. Normal activity such as moving, attacking, and casting non-concentration spells doesn't break concentration."
+
+  - key: opportunity_attacks
+    text: "Opportunity Attacks. You can make an opportunity attack when a hostile creature that you can see moves out of your reach. To make the opportunity attack, you use your reaction to make one melee attack against the provoking creature as it leaves your reach. The attack occurs right before the creature leaves your reach. You can avoid provoking an opportunity attack by taking the Disengage action. You also don't provoke an opportunity attack when you teleport or when someone or something moves you without using your movement."
+
+  - key: flanking_and_cover
+    text: "Cover. Walls, trees, creatures, and other obstacles can provide cover during combat, making a target more difficult to harm. A target can benefit from cover only when an attack or other effect originates on the opposite side of the cover. Three degrees: Half cover (+2 bonus to AC and DEX saving throws), Three-quarters cover (+5 bonus to AC and DEX saving throws), Total cover (can't be targeted directly)."
+
+  - key: action_types
+    text: "Actions in combat. Attack: make one melee or ranged attack. Cast a Spell: cast a spell with a casting time of 1 action. Dash: gain extra movement equal to your speed. Disengage: your movement doesn't provoke opportunity attacks for the rest of the turn. Dodge: until the start of your next turn, any attack roll against you has disadvantage if you can see the attacker, and you make DEX saving throws with advantage. Help: give an ally advantage on its next ability check or attack roll. Hide: make a DEX (Stealth) check to hide. Ready: prepare to do something in response to a trigger."
+
+  - key: spellcasting_basics
+    text: "Spellcasting. Spell Slots: you expend a slot of the spell's level or higher to cast the spell. The number of spell slots is determined by your class and level. Cantrips: 0-level spells requiring no slot. Spell save DC = 8 + proficiency bonus + spellcasting ability modifier. Spell attack modifier = proficiency bonus + spellcasting ability modifier. Components: Verbal (V) = must be able to speak; Somatic (S) = must have at least one free hand; Material (M) = must have required material or a spellcasting focus."
+
+  - key: ability_checks
+    text: "Ability checks. An ability check tests a character's or monster's innate talent and training in an effort to overcome a challenge. Roll a d20 and add the relevant ability modifier. Add proficiency bonus if proficient in the relevant skill. The DM sets the DC. Common DCs: Very Easy (5), Easy (10), Medium (15), Hard (20), Very Hard (25), Nearly Impossible (30). Advantage and Disadvantage: roll two d20s and take the higher (advantage) or lower (disadvantage) result."
+
+  - key: short_rest_long_rest
+    text: "Rest. Short Rest: at least 1 hour of downtime. A character can spend one or more Hit Dice, up to the character's maximum number of Hit Dice (equal to the character's level). For each Hit Die spent, the player rolls the die and adds the character's CON modifier to it, and the character regains hit points equal to the total. Long Rest: at least 8 hours of downtime including sleeping. A character regains all lost hit points and half of their total Hit Dice (minimum of 1). A character can benefit from only one long rest in a 24-hour period."
+
+  - key: initiative
+    text: "Initiative. Initiative determines the order of turns during combat. When combat starts, every participant makes a DEX check to determine their place in the initiative order. The DM makes one roll for an entire group of identical creatures. The DM ranks the combatants in order from the one with the highest initiative check total to the lowest. This is the order in which they act during each round. The initiative order remains the same from round to round."
+
+  - key: two_weapon_fighting
+    text: "Two-Weapon Fighting. When you take the Attack action and attack with a light melee weapon that you're holding in one hand, you can use a bonus action to attack with a different light melee weapon that you're holding in the other hand. You don't add your ability modifier to the damage of the bonus attack, unless that modifier is negative. If either weapon has the thrown property, you can throw the weapon, instead of making a melee attack with it."
+
+  - key: grappling_and_shoving
+    text: "Grappling. Using the Attack action, you can attempt a special melee attack to grapple a creature. Make a STR (Athletics) check contested by the target's STR (Athletics) or DEX (Acrobatics) check. If you succeed, you subject the target to the grappled condition. Shoving: make a STR (Athletics) check contested by the target's STR (Athletics) or DEX (Acrobatics) check. If you succeed, you either knock the target prone or push it 5 feet away from you."
+
+  - key: hiding_and_stealth
+    text: "Hiding. When you try to hide, make a DEX (Stealth) check. Until you are discovered or you stop hiding, that check's total is contested by the WIS (Perception) check of any creature that actively searches for signs of your presence. You must be heavily obscured or behind total cover to attempt to hide from a creature that can see you. Conditions that break hiding: the creature hears you, sees through illusions, you attack or cast a spell."
+
+  - key: exhaustion
+    text: "Exhaustion. Some special abilities and environmental hazards inflict exhaustion. Exhaustion is measured in six levels. Level 1: Disadvantage on ability checks. Level 2: Speed halved. Level 3: Disadvantage on attack rolls and saving throws. Level 4: Hit point maximum halved. Level 5: Speed reduced to 0. Level 6: Death. Finishing a long rest reduces exhaustion level by 1, provided the character has also ingested some food and drink."
+
+  - key: advantage_disadvantage
+    text: "Advantage and Disadvantage. Sometimes a special ability or spell tells you that you have advantage or disadvantage on an ability check, a saving throw, or an attack roll. You roll a second d20 when you make the roll. Use the higher of the two rolls if you have advantage, and use the lower roll if you have disadvantage. If multiple situations affect a roll and each one grants advantage or disadvantage, you don't roll more than one additional d20. If circumstances cause a roll to have both advantage and disadvantage, you are considered to have neither of them, and you roll one d20."
+
+  - key: magic_items_attunement
+    text: "Attunement. Some magic items require a creature to be attuned to them before the magical properties of the item can be used. To attune to an item, a creature must spend a short rest focused on only that item while being in physical contact with it (this can't be the same short rest used to attune to another item). You can be attuned to no more than three magic items at a time. You can end attunement to an item by spending another short rest with the item."
+
+  - key: passive_perception
+    text: "Passive checks. A passive check is a special kind of ability check that doesn't involve any die rolls. Passive Wisdom (Perception) = 10 + all modifiers that normally apply to the check. If the creature has advantage on the check, add 5. For disadvantage, subtract 5. Passive checks are used when the DM wants to determine if a character notices something without asking the player to roll and give away that there is something to notice."
+
+  - key: difficult_terrain
+    text: "Difficult Terrain. Combat often takes place in difficult terrain, such as dense foliage, deep mud, rubble, ice, or shallow water. Every foot of movement in difficult terrain costs 1 extra foot of movement. This rule is true even if multiple things in a space count as difficult terrain."
+
+  - key: falling_damage
+    text: "Falling damage. A fall from a great height is one of the most common hazards facing an adventurer. At the end of a fall, a creature takes 1d6 bludgeoning damage for every 10 feet it fell, to a maximum of 20d6. The creature lands prone, unless it avoids taking damage from the fall."
+
+  - key: healing_hit_points
+    text: "Healing. Unless it results in death, damage isn't permanent. Rest can restore a creature's hit points, and magical methods such as a cure wounds spell or a potion of healing can remove damage in an instant. When a creature receives healing of any kind, hit points regained are added to its current hit points. A creature's hit points can't exceed its hit point maximum. A creature with 0 hit points can't regain hit points on its own; it needs to receive healing from a cure wounds spell, a potion of healing, or similar magic."
+
+  - key: spell_schools
+    text: "Schools of magic. Abjuration: spells that protect, block, or banish (shield, counterspell). Conjuration: spells that transport objects or creatures (misty step, fog cloud). Divination: spells that reveal information (detect magic, identify). Enchantment: spells that affect the minds of others (charm person, sleep). Evocation: spells that create powerful elemental effects (fireball, magic missile). Illusion: spells that deceive the senses (invisibility, hypnotic pattern). Necromancy: spells that manipulate life force. Transmutation: spells that transform matter."

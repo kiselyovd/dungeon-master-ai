@@ -11,3 +11,5 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
 rand = { version = "0.9", features = ["small_rng"] }
+serde_yaml = "0.9"
+tracing = { workspace = true }

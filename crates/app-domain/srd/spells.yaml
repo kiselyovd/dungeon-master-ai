@@ -1,0 +1,60 @@
+chunks:
+  - key: magic_missile
+    text: "Magic Missile. 1st-level evocation. Casting time: 1 action. Range: 120 ft. Components: V, S. Duration: Instantaneous. You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4+1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several. At higher levels: When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st."
+
+  - key: shield
+    text: "Shield. 1st-level abjuration. Casting time: 1 reaction, which you take when you are hit by an attack or targeted by the magic missile spell. Range: Self. Components: V, S. Duration: 1 round. An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile."
+
+  - key: cure_wounds
+    text: "Cure Wounds. 1st-level evocation. Casting time: 1 action. Range: Touch. Components: V, S. Duration: Instantaneous. A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs. At higher levels: When cast using a slot of 2nd level or higher, healing increases by 1d8 for each slot level above 1st."
+
+  - key: burning_hands
+    text: "Burning Hands. 1st-level evocation. Casting time: 1 action. Range: Self (15-ft cone). Components: V, S. Duration: Instantaneous. As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a DEX saving throw. A creature takes 3d6 fire damage on a failed save, or half as much on a successful one. At higher levels: The damage increases by 1d6 for each slot level above 1st."
+
+  - key: sleep
+    text: "Sleep. 1st-level enchantment. Casting time: 1 action. Range: 90 ft. Components: V, S, M (a pinch of fine sand, rose petals, or a cricket). Duration: 1 minute. This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points. Starting with the creature that has the lowest current hit points, each creature affected by this spell falls unconscious until the spell ends, the sleeper takes damage, or someone uses an action to shake or slap the sleeper awake. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points."
+
+  - key: thunderwave
+    text: "Thunderwave. 1st-level evocation. Casting time: 1 action. Range: Self (15-ft cube). Components: V, S. Duration: Instantaneous. A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a CON saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and is not pushed. At higher levels: The damage increases by 1d8 for each slot level above 1st."
+
+  - key: charm_person
+    text: "Charm Person. 1st-level enchantment. Casting time: 1 action. Range: 30 ft. Components: V, S. Duration: 1 hour. You attempt to charm a humanoid you can see within range. It must make a WIS saving throw, and does so with advantage if you or your companions are fighting it. If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it. The charmed creature regards you as a friendly acquaintance. When the spell ends, the creature knows it was charmed by you."
+
+  - key: detect_magic
+    text: "Detect Magic. 1st-level divination (ritual). Casting time: 1 action. Range: Self. Components: V, S. Duration: Concentration, up to 10 minutes. For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any."
+
+  - key: identify
+    text: "Identify. 1st-level divination (ritual). Casting time: 1 minute. Range: Touch. Components: V, S, M (a pearl worth at least 100 gp and an owl feather). Duration: Instantaneous. You choose one object that you must touch throughout the casting of the spell. If it is a magic item or some other magic-imbued object, you learn its properties and how to use them, whether it requires attunement to use, and how many charges it has, if any."
+
+  - key: fog_cloud
+    text: "Fog Cloud. 1st-level conjuration. Casting time: 1 action. Range: 120 ft. Components: V, S. Duration: Concentration, up to 1 hour. You create a 20-foot-radius sphere of fog centered on a point within range. The sphere spreads around corners, and its area is heavily obscured. It lasts for the duration or until a wind of moderate or greater speed (at least 10 miles per hour) disperses it. At higher levels: The radius of the fog increases by 20 feet for each slot level above 1st."
+
+  - key: misty_step
+    text: "Misty Step. 2nd-level conjuration. Casting time: 1 bonus action. Range: Self. Components: V. Duration: Instantaneous. Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see."
+
+  - key: hold_person
+    text: "Hold Person. 2nd-level enchantment. Casting time: 1 action. Range: 60 ft. Components: V, S, M (a small, straight piece of iron). Duration: Concentration, up to 1 minute. Choose a humanoid that you can see within range. The target must succeed on a WIS saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another WIS saving throw. On a success, the spell ends on the target. At higher levels: When cast using a slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd."
+
+  - key: spiritual_weapon
+    text: "Spiritual Weapon. 2nd-level evocation. Casting time: 1 bonus action. Range: 60 ft. Components: V, S. Duration: 1 minute (no concentration). You create a floating, spectral weapon within range that lasts for the duration or until you cast this spell again. When you cast the spell, you can make a melee spell attack against a creature within 5 feet of the weapon. On a hit, the target takes force damage equal to 1d8 + your spellcasting ability modifier. As a bonus action on your turn, you can move the weapon up to 20 feet and repeat the attack against a creature within 5 feet of it."
+
+  - key: acid_arrow
+    text: "Melf's Acid Arrow. 2nd-level evocation. Casting time: 1 action. Range: 90 ft. Components: V, S, M (powdered rhubarb leaf and an adder's stomach). Duration: Instantaneous. A shimmering green arrow streaks toward a target within range and bursts in a spray of acid. Make a ranged spell attack against the target. On a hit, the target takes 4d4 acid damage immediately and 2d4 acid damage at the end of its next turn. On a miss, the arrow splashes the target with acid for half the initial damage and no damage at the end of its next turn."
+
+  - key: invisibility
+    text: "Invisibility. 2nd-level illusion. Casting time: 1 action. Range: Touch. Components: V, S, M (an eyelash encased in gum arabic). Duration: Concentration, up to 1 hour. A creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible as long as it is on the target's person. The spell ends for a target that attacks or casts a spell. At higher levels: When cast using a 3rd-level slot or higher, you can target one additional creature for each slot level above 2nd."
+
+  - key: fireball
+    text: "Fireball. 3rd-level evocation. Casting time: 1 action. Range: 150 ft. Components: V, S, M (a tiny ball of bat guano and sulfur). Duration: Instantaneous. A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a DEX saving throw. A target takes 8d6 fire damage on a failed save, or half as much on a successful one. At higher levels: The damage increases by 1d6 for each slot level above 3rd."
+
+  - key: counterspell
+    text: "Counterspell. 3rd-level abjuration. Casting time: 1 reaction, taken when you see a creature within 60 ft of you casting a spell. Range: 60 ft. Components: S. Duration: Instantaneous. You attempt to interrupt a creature in the process of casting a spell. If the creature is casting a spell of 3rd level or lower, its spell fails and has no effect. If it is casting a spell of 4th level or higher, make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On success, the creature's spell fails."
+
+  - key: hypnotic_pattern
+    text: "Hypnotic Pattern. 3rd-level illusion. Casting time: 1 action. Range: 120 ft. Components: S, M (a glowing stick of incense or a crystal vial filled with phosphorescent material). Duration: Concentration, up to 1 minute. You create a twisting pattern of colors that weaves through the air inside a 30-foot cube within range. The pattern appears for a moment and vanishes. Each creature in the area who sees the pattern must make a WIS saving throw. On a failed save, the creature becomes charmed for the duration. While charmed, the creature is incapacitated and has a speed of 0. The spell ends for an affected creature if it takes any damage or if someone else uses an action to shake the creature out of its stupor."
+
+  - key: bless
+    text: "Bless. 1st-level enchantment. Casting time: 1 action. Range: 30 ft. Components: V, S, M (a sprinkling of holy water). Duration: Concentration, up to 1 minute. You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw. At higher levels: When cast using a slot of 2nd level or higher, you can target one additional creature for each slot level above 1st."
+
+  - key: hex
+    text: "Hex. 1st-level enchantment. Casting time: 1 bonus action. Range: 90 ft. Components: V, S, M (the petrified eye of a newt). Duration: Concentration, up to 1 hour. You place a curse on a creature that you can see within range. Until the spell ends, you deal an extra 1d6 necrotic damage to the target whenever you hit it with an attack. Also, choose one ability when you cast the spell. The target has disadvantage on ability checks made with the chosen ability. If the target drops to 0 hit points before this spell ends, you can use a bonus action on a subsequent turn to curse a new creature."
