@@ -27,6 +27,7 @@ async-trait = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
+fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 
 [dev-dependencies]
 reqwest = { workspace = true }

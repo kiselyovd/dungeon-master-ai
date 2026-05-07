@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use app_domain::srd::retriever::SrdRetriever;
 use app_llm::{ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ToolCall};
 use futures::StreamExt;
 use serde_json::Value;
@@ -82,14 +83,21 @@ pub struct AgentOrchestrator {
     provider: Arc<dyn LlmProvider>,
     pool: SqlitePool,
     config: AgentConfig,
+    retriever: Option<Arc<SrdRetriever>>,
 }
 
 impl AgentOrchestrator {
-    pub fn new(provider: Arc<dyn LlmProvider>, pool: SqlitePool, config: AgentConfig) -> Self {
+    pub fn new(
+        provider: Arc<dyn LlmProvider>,
+        pool: SqlitePool,
+        config: AgentConfig,
+        retriever: Option<Arc<SrdRetriever>>,
+    ) -> Self {
         Self {
             provider,
             pool,
             config,
+            retriever,
         }
     }
 
@@ -104,6 +112,7 @@ impl AgentOrchestrator {
             req.campaign_id,
             &req.player_message,
             &self.config.system_prompt,
+            self.retriever.as_deref(),
         )
         .await
         .unwrap_or_else(|e| {

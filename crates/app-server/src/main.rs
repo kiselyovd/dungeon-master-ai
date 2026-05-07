@@ -30,6 +30,23 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new(llm, settings.default_model.clone(), pool);
 
+    // Spawn background SRD embedding (downloads model on first run, fast after that).
+    let state_clone = state.clone();
+    tokio::task::spawn_blocking(move || {
+        use app_domain::srd::embedder::embed_chunks;
+        use app_domain::srd::loader::load_all_chunks;
+        let chunks = load_all_chunks();
+        match embed_chunks(chunks) {
+            Ok(retriever) => {
+                state_clone.set_srd_retriever(Arc::new(retriever));
+                tracing::info!("SRD retriever ready");
+            }
+            Err(e) => {
+                tracing::warn!("SRD embedding failed (RAG will be unavailable): {e}");
+            }
+        }
+    });
+
     let listener = TcpListener::bind(&settings.bind_addr)
         .await
         .with_context(|| format!("bind {}", settings.bind_addr))?;

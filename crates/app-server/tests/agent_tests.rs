@@ -35,7 +35,7 @@ async fn orchestrator_emits_text_events_from_mock() {
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
-    let orch = AgentOrchestrator::new(mock, pool, config);
+    let orch = AgentOrchestrator::new(mock, pool, config, None);
     orch.run(req, tx).await.unwrap();
 
     let mut text = String::new();
@@ -92,7 +92,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
 
-    let orch = AgentOrchestrator::new(mock, pool, config);
+    let orch = AgentOrchestrator::new(mock, pool, config, None);
     orch.run(req, tx).await.unwrap();
 
     let mut got_tool_call_result = false;
@@ -143,7 +143,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
-    let orch = AgentOrchestrator::new(mock, pool, config);
+    let orch = AgentOrchestrator::new(mock, pool, config, None);
     orch.run(req, tx).await.unwrap();
 
     let mut got_error_result = false;
