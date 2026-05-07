@@ -15,7 +15,6 @@
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
 //! - `execute_remember_npc` / `execute_recall_npc` -> Phase G (NPC memory).
-//! - `execute_journal_append` -> Phase F (journal).
 //! - `execute_query_rules` -> Phase E (SRD RAG).
 //! - `execute_generate_image` -> Phase H (image queue).
 
@@ -335,12 +334,19 @@ async fn execute_recall_npc(
 }
 
 async fn execute_journal_append(
-    _args: &Value,
-    _pool: &SqlitePool,
-    _campaign_id: Uuid,
+    args: &Value,
+    pool: &SqlitePool,
+    campaign_id: Uuid,
 ) -> (Value, bool) {
-    // Phase F wires this to crate::db::journal_insert.
-    (json!({ "status": "deferred_to_phase_f" }), false)
+    let entry_html = args["entry_html"].as_str().unwrap_or_default();
+    let chapter = args.get("chapter").and_then(|v| v.as_str());
+    match crate::db::journal_insert(pool, campaign_id, entry_html, chapter).await {
+        Ok(id) => (json!({ "entry_id": id.to_string() }), false),
+        Err(e) => {
+            tracing::warn!(error = %e, "sqlx write failed in execute_journal_append");
+            (json!({ "error": e.to_string() }), true)
+        }
+    }
 }
 
 async fn execute_quick_save(

@@ -24,6 +24,7 @@ pub fn router(state: AppState) -> Router {
         .route("/combat/start", post(routes::combat::post_combat_start))
         .route("/combat/action", post(routes::combat::post_combat_action))
         .route("/combat/end", post(routes::combat::post_combat_end))
+        .route("/journal", get(routes::journal::get_journal))
         .with_state(state)
         .layer(
             CorsLayer::new()
