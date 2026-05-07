@@ -69,6 +69,14 @@ impl OpenAICompatProvider {
                 ChatMessage::Assistant { content } => {
                     g_req = g_req.append_message(GMsg::assistant(content));
                 }
+                ChatMessage::AssistantWithToolCalls { content, tool_calls: _ } => {
+                    if let Some(text) = content {
+                        g_req = g_req.append_message(GMsg::assistant(text));
+                    }
+                }
+                ChatMessage::ToolResult(_) => {
+                    // Full tool-result injection implemented in Phase B follow-up.
+                }
             }
         }
         g_req

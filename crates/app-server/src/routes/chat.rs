@@ -33,6 +33,8 @@ pub async fn chat(
         model: req.model.unwrap_or_else(|| state.default_model()),
         max_tokens: req.max_tokens,
         temperature: req.temperature,
+        tools: Vec::new(),
+        system_prompt: None,
     };
 
     let provider = state.provider();
@@ -49,6 +51,14 @@ pub async fn chat(
                     .event("done")
                     .json_data(serde_json::json!({ "reason": reason }))
                     .expect("json_data"),
+                Ok(ChatChunk::ToolCallStart { .. })
+                | Ok(ChatChunk::ToolCallArgsDelta { .. })
+                | Ok(ChatChunk::ToolCallDone { .. }) => {
+                    // Legacy /chat endpoint passes empty `tools`, so providers
+                    // should not produce these. If they do, drop silently;
+                    // the agent endpoint (M3 Phase I) handles tool-call chunks.
+                    Event::default().comment("tool_call_chunk_dropped")
+                }
                 Err(e) => Event::default()
                     .event("error")
                     .json_data(serde_json::json!({

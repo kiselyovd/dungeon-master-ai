@@ -9,5 +9,6 @@ pub use anthropic::AnthropicProvider;
 pub use mock::MockProvider;
 pub use openai_compat::OpenAICompatProvider;
 pub use provider::{
-    ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError, LlmProvider,
+    ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError, LlmProvider, Tool,
+    ToolCall, ToolResult,
 };

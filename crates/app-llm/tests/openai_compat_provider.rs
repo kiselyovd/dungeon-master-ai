@@ -43,6 +43,8 @@ async fn openai_compat_streams_text_then_done() {
         model: "qwen3-1.7b".into(),
         max_tokens: Some(32),
         temperature: Some(0.0),
+        tools: Vec::new(),
+        system_prompt: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
@@ -58,6 +60,11 @@ async fn openai_compat_streams_text_then_done() {
             }
             ChatChunk::Done { .. } => {
                 saw_done = true;
+            }
+            ChatChunk::ToolCallStart { .. }
+            | ChatChunk::ToolCallArgsDelta { .. }
+            | ChatChunk::ToolCallDone { .. } => {
+                panic!("unexpected tool-call chunk in legacy text-only test");
             }
         }
     }

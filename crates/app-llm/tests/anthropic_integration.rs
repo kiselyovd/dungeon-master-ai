@@ -22,6 +22,8 @@ async fn anthropic_streams_real_response_when_key_present() {
         model: "claude-haiku-4-5-20251001".into(),
         max_tokens: Some(10),
         temperature: Some(0.0),
+        tools: Vec::new(),
+        system_prompt: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
@@ -31,6 +33,11 @@ async fn anthropic_streams_real_response_when_key_present() {
         match chunk.expect("chunk") {
             ChatChunk::TextDelta { text: t } => text.push_str(&t),
             ChatChunk::Done { .. } => saw_done = true,
+            ChatChunk::ToolCallStart { .. }
+            | ChatChunk::ToolCallArgsDelta { .. }
+            | ChatChunk::ToolCallDone { .. } => {
+                panic!("unexpected tool-call chunk in legacy text-only test");
+            }
         }
     }
 

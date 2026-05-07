@@ -14,6 +14,8 @@ async fn mock_provider_streams_scripted_text_then_done() {
         model: "mock".into(),
         max_tokens: None,
         temperature: None,
+        tools: Vec::new(),
+        system_prompt: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
