@@ -14,6 +14,12 @@ impl MockProvider {
             scripted: Mutex::new(scripted),
         }
     }
+
+    /// Load a fresh set of scripted chunks. Useful for multi-turn tests where
+    /// callers need to set up round-2 chunks after consuming round-1 chunks.
+    pub fn set_chunks(&self, chunks: Vec<ChatChunk>) {
+        *self.scripted.lock().expect("mock lock poisoned") = chunks;
+    }
 }
 
 #[async_trait]
