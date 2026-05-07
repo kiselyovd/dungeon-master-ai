@@ -9,6 +9,7 @@
   /* Borders */
   --color-border-subtle: rgba(74, 58, 90, 0.5);
   --color-border-strong: #4a3a5a;
+  --color-border-accent: rgba(212, 175, 55, 0.4);
 
   /* Foreground */
   --color-fg-primary: #f0e6c8;
@@ -46,12 +47,18 @@
   --glow-danger: 0 0 0 1px rgba(168, 69, 69, 0.5), 0 0 24px rgba(168, 69, 69, 0.2);
   --glow-magic: 0 0 0 1px rgba(122, 108, 184, 0.5), 0 0 24px rgba(122, 108, 184, 0.2);
 
+  /* Shadows (modal/drawer depth) */
+  --shadow-modal: 0 12px 48px rgba(0, 0, 0, 0.6);
+  --shadow-drawer: -12px 0 32px rgba(0, 0, 0, 0.5);
+
   /* Spacing scale */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
 
   /* Radii */

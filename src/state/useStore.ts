@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
+import { createJournalSlice, type JournalSlice } from './journal';
 import { type PersistedSettings, persistStorage } from './persistStorage';
 import { createSettingsSlice, type SettingsSlice } from './settings';
 
-export type AppState = ChatSlice & SettingsSlice & CombatSlice;
+export type AppState = ChatSlice & SettingsSlice & CombatSlice & JournalSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -15,6 +16,7 @@ export const useStore = create<AppState>()(
       ...createChatSlice(...a),
       ...createSettingsSlice(...a),
       ...createCombatSlice(...a),
+      ...createJournalSlice(...a),
     }),
     {
       name: PERSIST_NAME,
