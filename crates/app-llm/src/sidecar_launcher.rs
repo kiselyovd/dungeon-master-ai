@@ -67,7 +67,8 @@ pub trait SidecarLauncher: Send + Sync {
 }
 
 /// In-memory launcher used in unit tests. Configure expectations with
-/// `expect_spawn`; calls to `spawn` consume them in FIFO order.
+/// `expect_spawn`; calls to `spawn` consume them in LIFO order
+/// (`Vec::pop` from the back).
 #[derive(Default)]
 pub struct MockSidecarLauncher {
     expectations: Mutex<Vec<SpawnSpec>>,
