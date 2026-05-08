@@ -26,7 +26,12 @@ use uuid::Uuid;
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
 /// Never panics - errors are surfaced as `is_error=true` with a message in the result.
-pub async fn execute_tool(tc: &ToolCall, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
+pub async fn execute_tool(
+    tc: &ToolCall,
+    pool: &SqlitePool,
+    campaign_id: Uuid,
+    session_id: Uuid,
+) -> (Value, bool) {
     // Phase 1: Validate via domain dispatch table.
     // M3 NOTE: The validator currently knows only the seven M2 tools. The
     // eight new tools (set_scene, cast_spell, remember_npc, recall_npc,
@@ -45,7 +50,7 @@ pub async fn execute_tool(tc: &ToolCall, pool: &SqlitePool, campaign_id: Uuid) -
     match validated.tool_name.as_str() {
         "roll_dice" => execute_roll_dice(&validated.args),
         "apply_damage" => execute_apply_damage(&validated.args, pool).await,
-        "start_combat" => execute_start_combat(&validated.args, pool).await,
+        "start_combat" => execute_start_combat(&validated.args, pool, session_id).await,
         "end_combat" => execute_end_combat(pool).await,
         "add_token" => execute_add_token(&validated.args, pool).await,
         "update_token" => execute_update_token(&validated.args, pool).await,
@@ -55,7 +60,7 @@ pub async fn execute_tool(tc: &ToolCall, pool: &SqlitePool, campaign_id: Uuid) -
         "remember_npc" => execute_remember_npc(&validated.args, pool, campaign_id).await,
         "recall_npc" => execute_recall_npc(&validated.args, pool, campaign_id).await,
         "journal_append" => execute_journal_append(&validated.args, pool, campaign_id).await,
-        "quick_save" => execute_quick_save(&validated.args, pool, campaign_id).await,
+        "quick_save" => execute_quick_save(&validated.args, pool, session_id).await,
         "generate_image" => execute_generate_image(&validated.args).await,
         "query_rules" => execute_query_rules(&validated.args, pool).await,
         unknown => (
@@ -152,7 +157,11 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     }
 }
 
-async fn execute_start_combat(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_start_combat(
+    args: &Value,
+    pool: &SqlitePool,
+    session_id: Uuid,
+) -> (Value, bool) {
     let encounter_id = uuid::Uuid::new_v4();
     let initiative_json = serde_json::to_string(&args["initiative_entries"]).unwrap_or_default();
     let now = chrono::Utc::now().to_rfc3339();
@@ -160,8 +169,7 @@ async fn execute_start_combat(args: &Value, pool: &SqlitePool) -> (Value, bool) 
         "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) VALUES (?1, ?2, 1, ?3, ?4)"
     )
     .bind(encounter_id.to_string())
-    // TODO(phase-i): pull session_id from AgentTurnRequest once /agent/turn endpoint plumbs it through
-    .bind(uuid::Uuid::new_v4().to_string()) // placeholder session_id until session wiring lands
+    .bind(session_id.to_string())
     .bind(now)
     .bind(initiative_json)
     .execute(pool)
@@ -387,7 +395,7 @@ async fn execute_journal_append(
 async fn execute_quick_save(
     args: &Value,
     pool: &SqlitePool,
-    campaign_id: Uuid,
+    session_id: Uuid,
 ) -> (Value, bool) {
     let label = args
         .get("label")
@@ -400,8 +408,7 @@ async fn execute_quick_save(
         "INSERT INTO snapshots (id, session_id, turn_number, created_at, game_state, player_action) VALUES (?1, ?2, 0, ?3, ?4, NULL)"
     )
     .bind(save_id.to_string())
-    // TODO(phase-i): snapshots.session_id should be the actual session UUID, not campaign_id - fix when /agent/turn endpoint plumbs session through
-    .bind(campaign_id.to_string())
+    .bind(session_id.to_string())
     .bind(now)
     .bind(serde_json::json!({ "schema_version": 1, "state": { "label": label } }).to_string())
     .execute(pool)

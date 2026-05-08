@@ -1,6 +1,7 @@
-use app_llm::{ChatChunk, FinishReason, MockProvider};
+use app_llm::{ChatChunk, FinishReason, MockProvider, ToolCall};
 use app_server::agent::orchestrator::AgentEvent;
 use app_server::agent::orchestrator::{AgentConfig, AgentOrchestrator, AgentTurnRequest};
+use app_server::agent::tool_executor::execute_tool;
 use app_server::test_support::TestServer;
 use reqwest::Client;
 use sqlx::SqlitePool;
@@ -257,6 +258,71 @@ async fn agent_tool_call_result_contains_tool_name() {
     assert!(body.contains("tool_call_result"), "missing tool_call_result in: {body}");
     assert!(body.contains("roll_dice"), "missing roll_dice in: {body}");
     assert!(body.contains("agent_done"), "missing agent_done in: {body}");
+}
+
+#[tokio::test]
+async fn start_combat_executor_persists_passed_session_id() {
+    let pool = test_pool().await;
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    assert_ne!(session_id, campaign_id);
+
+    let tc = ToolCall {
+        id: "tc-start".into(),
+        name: "start_combat".into(),
+        args: serde_json::json!({ "initiative_entries": [] }),
+    };
+    let (val, is_err) = execute_tool(&tc, &pool, campaign_id, session_id).await;
+    assert!(!is_err, "executor failed: {val}");
+
+    let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
+    use sqlx::Row;
+    let row = sqlx::query("SELECT session_id FROM combat_encounters WHERE id = ?1")
+        .bind(encounter_id)
+        .fetch_one(&pool)
+        .await
+        .expect("fetch encounter row");
+    let stored: String = row.get("session_id");
+    assert_eq!(
+        stored,
+        session_id.to_string(),
+        "combat_encounters.session_id must equal the session_id passed to execute_tool"
+    );
+}
+
+#[tokio::test]
+async fn quick_save_executor_uses_session_id_not_campaign_id() {
+    let pool = test_pool().await;
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    assert_ne!(session_id, campaign_id);
+
+    let tc = ToolCall {
+        id: "tc-save".into(),
+        name: "quick_save".into(),
+        args: serde_json::json!({ "label": "before the boss" }),
+    };
+    let (val, is_err) = execute_tool(&tc, &pool, campaign_id, session_id).await;
+    assert!(!is_err, "executor failed: {val}");
+
+    let save_id = val["save_id"].as_str().expect("save_id");
+    use sqlx::Row;
+    let row = sqlx::query("SELECT session_id FROM snapshots WHERE id = ?1")
+        .bind(save_id)
+        .fetch_one(&pool)
+        .await
+        .expect("fetch snapshot row");
+    let stored: String = row.get("session_id");
+    assert_eq!(
+        stored,
+        session_id.to_string(),
+        "snapshots.session_id must equal the session_id passed to execute_tool"
+    );
+    assert_ne!(
+        stored,
+        campaign_id.to_string(),
+        "snapshots.session_id must NOT be the campaign_id"
+    );
 }
 
 #[tokio::test]

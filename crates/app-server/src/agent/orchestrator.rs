@@ -220,7 +220,8 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
-                let (result_val, is_error) = execute_tool(tc, &self.pool, req.campaign_id).await;
+                let (result_val, is_error) =
+                    execute_tool(tc, &self.pool, req.campaign_id, req.session_id).await;
                 info!("tool {} -> {:?}", tc.name, result_val);
 
                 let result_str = serde_json::to_string(&result_val).unwrap_or_default();
