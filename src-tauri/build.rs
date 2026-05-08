@@ -13,9 +13,36 @@ fn main() {
         build_sidecar();
     }
 
+    // The mistralrs-server sidecar is fetched from upstream releases by
+    // `scripts/download_mistralrs.{sh,ps1}` (Phase B.2) or the prebuild-sidecars
+    // CI workflow before `tauri build`. For local `cargo test` / `cargo check`
+    // / `tauri dev` without a download we drop in an empty placeholder so the
+    // tauri-build externalBin resource check is satisfied; the placeholder is
+    // never bundled in production because CI / release pipelines run the
+    // downloader first and overwrite it with the real ~250MB asset.
+    ensure_mistralrs_placeholder();
+
     // Tauri's build script validates externalBin existence, so the sidecar
     // must already be in place before we hand off control to it.
     tauri_build::build();
+}
+
+fn ensure_mistralrs_placeholder() {
+    let target_triple = env::var("TARGET").expect("TARGET env var");
+    let bin_name = if cfg!(windows) {
+        format!("mistralrs-server-{target_triple}.exe")
+    } else {
+        format!("mistralrs-server-{target_triple}")
+    };
+    let dst_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("binaries");
+    fs::create_dir_all(&dst_dir).expect("mkdir binaries/");
+    let dst = dst_dir.join(&bin_name);
+    if !dst.exists() {
+        fs::File::create(&dst).expect("create placeholder mistralrs-server");
+        println!(
+            "cargo:warning=mistralrs-server binary missing - created empty placeholder. Run scripts/download_mistralrs.{{sh,ps1}} before `tauri build`."
+        );
+    }
 }
 
 fn build_sidecar() {
