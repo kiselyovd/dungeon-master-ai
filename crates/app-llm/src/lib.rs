@@ -2,12 +2,14 @@
 
 pub mod anthropic;
 mod genai_common;
+pub mod mistralrs_provider;
 pub mod mock;
 pub mod openai_compat;
 pub mod provider;
 pub mod sidecar_launcher;
 
 pub use anthropic::AnthropicProvider;
+pub use mistralrs_provider::MistralrsLocalProvider;
 pub use mock::MockProvider;
 pub use openai_compat::OpenAICompatProvider;
 pub use provider::{
