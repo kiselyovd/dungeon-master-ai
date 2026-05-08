@@ -5,6 +5,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
+pub mod sidecar_launcher;
+
 #[derive(Default)]
 struct BackendState {
     port: Mutex<Option<u16>>,
