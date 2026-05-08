@@ -50,6 +50,7 @@
   /* Shadows */
   --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-modal: 0 12px 48px rgba(0, 0, 0, 0.6);
   --shadow-drawer: -12px 0 32px rgba(0, 0, 0, 0.5);
 
