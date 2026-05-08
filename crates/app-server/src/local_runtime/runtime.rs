@@ -9,6 +9,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 
 use app_llm::sidecar_launcher::{SidecarHandle, SidecarLauncher};
 use tokio::sync::Mutex;
@@ -83,6 +84,31 @@ impl LocalRuntime {
         }
     }
 
+    /// Like `start`, but retries up to `max_attempts` times with exponential
+    /// backoff when the probe fails. Used by callers that want to absorb a
+    /// transient sidecar startup race (e.g. mistralrs-server still loading
+    /// model weights).
+    pub async fn start_with_retry(
+        &self,
+        name: &str,
+        args: &[&str],
+        port: u16,
+        max_attempts: u32,
+    ) -> Result<RuntimeStatus, std::io::Error> {
+        let mut delay = Duration::from_millis(500);
+        for attempt in 0..max_attempts {
+            let status = self.start(name, args, port).await?;
+            if matches!(status, RuntimeStatus::Ready { .. }) {
+                return Ok(status);
+            }
+            if attempt + 1 < max_attempts {
+                tokio::time::sleep(delay).await;
+                delay *= 2;
+            }
+        }
+        Ok(self.status().await)
+    }
+
     pub async fn stop(&self) -> Result<(), std::io::Error> {
         if let Some(h) = self.handle.lock().await.take() {
             let _ = h.kill();
@@ -142,6 +168,40 @@ mod tests {
         let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_fail());
         let result = runtime.start("mistralrs-server", &[], 37001).await;
         assert!(matches!(result, Ok(RuntimeStatus::Failed { .. })));
+    }
+
+    fn probe_third_attempt_ok() -> ProbeFn {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let counter = Arc::new(AtomicU32::new(0));
+        Arc::new(move |_url| {
+            let counter = counter.clone();
+            Box::pin(async move {
+                let attempt = counter.fetch_add(1, Ordering::SeqCst);
+                if attempt >= 2 {
+                    Ok(())
+                } else {
+                    Err(ProbeError::ExhaustedAttempts { attempts: 1 })
+                }
+            })
+        })
+    }
+
+    #[tokio::test]
+    async fn restart_succeeds_on_third_attempt() {
+        let mut launcher = MockSidecarLauncher::default();
+        for _ in 0..3 {
+            launcher.expect_spawn(SpawnSpec {
+                command: "mistralrs-server".into(),
+                args: vec![],
+                stdout_lines: vec![],
+            });
+        }
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe_third_attempt_ok());
+        let status = runtime
+            .start_with_retry("mistralrs-server", &[], 37100, 3)
+            .await
+            .unwrap();
+        assert!(matches!(status, RuntimeStatus::Ready { .. }));
     }
 
     #[tokio::test]
