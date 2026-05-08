@@ -1,16 +1,10 @@
 use axum::Json;
 use axum::extract::{Query, State};
-use serde::Deserialize;
-use uuid::Uuid;
 
+use super::CampaignQuery;
 use crate::db::{JournalEntry, journal_list};
 use crate::error::AppError;
 use crate::state::AppState;
-
-#[derive(Deserialize)]
-pub struct CampaignQuery {
-    pub campaign_id: Uuid,
-}
 
 pub async fn get_journal(
     State(state): State<AppState>,

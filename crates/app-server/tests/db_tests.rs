@@ -157,6 +157,9 @@ async fn npc_get_all_returns_all_campaign_npcs() {
         .unwrap();
     let npcs = npc_get_all(&pool, campaign_id).await.unwrap();
     assert_eq!(npcs.len(), 2);
+    let names: Vec<&str> = npcs.iter().map(|n| n.name.as_str()).collect();
+    assert!(names.contains(&"Mira"));
+    assert!(names.contains(&"Theron"));
 }
 
 #[tokio::test]

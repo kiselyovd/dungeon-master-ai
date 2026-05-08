@@ -4,3 +4,12 @@ pub mod health;
 pub mod journal;
 pub mod npc;
 pub mod settings;
+
+use serde::Deserialize;
+use uuid::Uuid;
+
+/// Query string used by all campaign-scoped GET endpoints (`/journal`, `/npcs`, etc.).
+#[derive(Deserialize)]
+pub struct CampaignQuery {
+    pub campaign_id: Uuid,
+}

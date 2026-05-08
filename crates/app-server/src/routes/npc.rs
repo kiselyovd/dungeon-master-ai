@@ -1,16 +1,10 @@
 use axum::Json;
 use axum::extract::{Query, State};
-use serde::Deserialize;
-use uuid::Uuid;
 
+use super::CampaignQuery;
 use crate::db::{NpcMemoryRow, npc_get_all};
 use crate::error::AppError;
 use crate::state::AppState;
-
-#[derive(Deserialize)]
-pub struct CampaignQuery {
-    pub campaign_id: Uuid,
-}
 
 pub async fn get_npcs(
     State(state): State<AppState>,
