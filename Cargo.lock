@@ -1478,6 +1478,8 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 name = "dungeon-master-ai"
 version = "0.1.0"
 dependencies = [
+ "app-llm",
+ "async-trait",
  "env_logger",
  "log",
  "serde",
@@ -1487,6 +1489,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-shell",
  "tauri-plugin-store",
+ "tokio",
 ]
 
 [[package]]
