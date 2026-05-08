@@ -32,5 +32,17 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/dmai-server", "binaries/mistralrs-server"]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/kiselyovd/dungeon-master-ai/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_AT_FIRST_RELEASE_TIME",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

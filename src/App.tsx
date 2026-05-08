@@ -6,7 +6,9 @@ import { ActionBar } from './components/ActionBar';
 import { ChatPanel } from './components/ChatPanel';
 import { InitiativeTracker } from './components/InitiativeTracker';
 import { SettingsModal } from './components/SettingsModal';
+import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VttCanvas } from './components/VttCanvas';
+import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
 import { useStore } from './state/useStore';
 
@@ -18,6 +20,7 @@ function App() {
   const combatTokens = useStore((s) => s.combat.tokens);
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
+  const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -56,6 +59,17 @@ function App() {
       </aside>
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {pendingUpdate && (
+        <UpdateAvailableModal
+          version={pendingUpdate.version}
+          notes={pendingUpdate.notes}
+          onLater={dismissUpdate}
+          onUpdate={() => {
+            void pendingUpdate.install().finally(dismissUpdate);
+          }}
+        />
+      )}
 
       <InitiativeTracker
         tokens={combatTokens}
