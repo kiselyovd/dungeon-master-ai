@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type AgentSettingsRequest, postAgentSettings } from '../api/agentSettings';
 import { postSettings } from '../api/providers';
@@ -5,6 +6,7 @@ import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { SettingsForm, type SettingsSubmission } from './SettingsForm';
+import styles from './SettingsModal.module.css';
 
 interface Props {
   open: boolean;
@@ -25,6 +27,13 @@ export function SettingsModal({ open, onClose }: Props) {
   const setTemperature = useStore((s) => s.settings.setTemperature);
   const setReplicateApiKey = useStore((s) => s.settings.setReplicateApiKey);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Clear stale errors when the modal closes so a re-open starts fresh.
+  useEffect(() => {
+    if (!open) setSubmitError(null);
+  }, [open]);
+
   const onSubmit = async (submission: SettingsSubmission) => {
     // Mutating the store fires the persist middleware, which writes through
     // to secrets.json + settings.json. The App-level effect picks up the new
@@ -38,9 +47,9 @@ export function SettingsModal({ open, onClose }: Props) {
     setReplicateApiKey(submission.replicateApiKey.length > 0 ? submission.replicateApiKey : null);
 
     // Tell the backend to swap providers atomically and push the agent-loop
-    // knobs in the same save. Errors are non-fatal: local persistence already
-    // succeeded, so a network blip just means the sidecar keeps using the
-    // previously-configured values until the next save attempt.
+    // knobs in the same save. The chat panel is occluded by this modal, so a
+    // network failure has to surface inline here - otherwise the user closes
+    // the modal believing the save succeeded and only sees the error after.
     try {
       await postSettings(submission.provider);
       const agentReq: AgentSettingsRequest = {
@@ -51,13 +60,12 @@ export function SettingsModal({ open, onClose }: Props) {
         agentReq.replicate_api_key = submission.replicateApiKey;
       await postAgentSettings(agentReq);
     } catch (err) {
-      // Surface to the chat slice so the existing error renderer picks it up.
-      const { setError } = useStore.getState().chat;
-      if (err instanceof Error) {
-        setError({ code: 'provider_error', message: err.message });
-      }
+      const message = err instanceof Error ? err.message : String(err);
+      setSubmitError(message);
+      return;
     }
 
+    setSubmitError(null);
     onClose();
   };
 
@@ -75,6 +83,11 @@ export function SettingsModal({ open, onClose }: Props) {
         </>
       }
     >
+      {submitError && (
+        <div role="alert" className={styles.errorBanner} data-testid="settings-save-error">
+          {t('save_error_prefix')} {submitError}
+        </div>
+      )}
       <SettingsForm formId={FORM_ID} onSubmit={onSubmit} />
     </Modal>
   );

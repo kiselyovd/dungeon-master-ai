@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type AnthropicConfig,
@@ -53,15 +53,15 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   const slice = useStore((s) => s.settings);
 
   const [activeTab, setActiveTab] = useState<Tab>('provider');
+  // Drafts and activeKind are seeded once from the slice on mount and live
+  // independently afterwards. SettingsModal unmounts the form on close
+  // (`if (!open) return null`), so the next open re-seeds from the latest slice.
+  // Without this, a useEffect([slice]) would reset drafts on every store write,
+  // wiping in-progress edits whenever any other code path touches the settings slice.
   const [activeKind, setActiveKind] = useState<ProviderKind>(slice.activeProvider);
   const [drafts, setDrafts] = useState<DraftState>(() => initialDrafts(slice));
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<DraftErrors>({});
-
-  useEffect(() => {
-    setActiveKind(slice.activeProvider);
-    setDrafts(initialDrafts(slice));
-  }, [slice]);
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {

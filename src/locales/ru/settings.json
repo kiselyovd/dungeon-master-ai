@@ -21,5 +21,6 @@
   "system_prompt_placeholder": "Ты - Мастер Подземелий...",
   "temperature_label": "Температура",
   "replicate_key_label": "Ключ Replicate API",
-  "replicate_key_helper": "Необходим для генерации изображений через Replicate."
+  "replicate_key_helper": "Необходим для генерации изображений через Replicate.",
+  "save_error_prefix": "Не удалось сохранить настройки:"
 }

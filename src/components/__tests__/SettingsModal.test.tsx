@@ -81,6 +81,21 @@ describe('SettingsModal', () => {
     expect(useStore.getState().settings.activeProvider).toBe('openai-compat');
   });
 
+  it('keeps the modal open and shows an inline banner when postSettings fails', async () => {
+    const user = userEvent.setup();
+    const { postSettings } = await import('../../api/providers');
+    vi.mocked(postSettings).mockRejectedValueOnce(new Error('network down'));
+    const onClose = vi.fn();
+    render(<SettingsModal open={true} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText(/API key/i), 'sk-ant-xyz');
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    const banner = await screen.findByTestId('settings-save-error');
+    expect(banner).toHaveTextContent(/network down/i);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('blocks save and surfaces validation when api key is missing', async () => {
     const user = userEvent.setup();
     const { postSettings } = await import('../../api/providers');

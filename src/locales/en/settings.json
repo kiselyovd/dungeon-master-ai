@@ -21,5 +21,6 @@
   "system_prompt_placeholder": "You are the Dungeon Master...",
   "temperature_label": "Temperature",
   "replicate_key_label": "Replicate API key",
-  "replicate_key_helper": "Required for AI image generation via Replicate cloud."
+  "replicate_key_helper": "Required for AI image generation via Replicate cloud.",
+  "save_error_prefix": "Could not save settings:"
 }
