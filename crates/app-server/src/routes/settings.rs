@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use app_llm::{AnthropicProvider, OpenAICompatProvider};
 
 use crate::error::AppError;
+use crate::image::replicate::ReplicateProvider;
 use crate::state::AppState;
 
 /// Tagged union of provider configurations the user can pick in Settings.
@@ -88,4 +89,41 @@ pub async fn post_settings(
         kind: state.provider().name().to_string(),
         default_model: state.default_model(),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AgentSettingsRequest {
+    pub system_prompt: Option<String>,
+    pub temperature: Option<f32>,
+    pub replicate_api_key: Option<String>,
+}
+
+pub async fn post_agent_settings(
+    State(state): State<AppState>,
+    Json(req): Json<AgentSettingsRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut config = state.agent_config();
+
+    if let Some(sp) = req.system_prompt {
+        config.system_prompt = sp;
+    }
+
+    if let Some(temp) = req.temperature {
+        if !(0.0..=2.0).contains(&temp) {
+            return Err(AppError::BadRequest(
+                "temperature must be between 0.0 and 2.0".into(),
+            ));
+        }
+        config.temperature = temp;
+    }
+
+    state.set_agent_config(config);
+
+    if let Some(key) = req.replicate_api_key {
+        if !key.trim().is_empty() {
+            state.set_image_provider(Arc::new(ReplicateProvider::new(key)));
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "status": "ok" })))
 }

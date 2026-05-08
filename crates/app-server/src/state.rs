@@ -9,11 +9,11 @@ use crate::agent::orchestrator::AgentConfig;
 /// Shared application state for axum handlers.
 ///
 /// Internally an `Arc<AppStateInner>` so cloning (axum's `State` extractor
-/// clones once per request) is cheap. The provider and default-model fields
-/// sit behind `RwLock<Arc<...>>` so the `POST /settings` endpoint can swap
-/// them without locking out in-flight `/chat` streams: we read-lock just
-/// long enough to clone the inner `Arc`, then drop the guard before any
-/// `.await`.
+/// clones once per request) is cheap. The provider, default-model, and
+/// image-provider fields sit behind `RwLock<Arc<...>>` so the `POST /settings`
+/// and `POST /agent-settings` endpoints can swap them without locking out
+/// in-flight `/chat` streams: we read-lock just long enough to clone the
+/// inner `Arc`, then drop the guard before any `.await`.
 #[derive(Clone)]
 pub struct AppState {
     inner: Arc<AppStateInner>,
@@ -25,6 +25,7 @@ struct AppStateInner {
     db: SqlitePool,
     agent_config: RwLock<AgentConfig>,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
+    image_provider: RwLock<Option<Arc<dyn crate::image::provider::ImageProvider>>>,
 }
 
 impl AppState {
@@ -36,6 +37,7 @@ impl AppState {
                 db,
                 agent_config: RwLock::new(AgentConfig::default()),
                 srd_retriever: RwLock::new(None),
+                image_provider: RwLock::new(None),
             }),
         }
     }
@@ -106,5 +108,21 @@ impl AppState {
             .srd_retriever
             .write()
             .expect("srd lock poisoned") = Some(retriever);
+    }
+
+    pub fn image_provider(&self) -> Option<Arc<dyn crate::image::provider::ImageProvider>> {
+        self.inner
+            .image_provider
+            .read()
+            .expect("image provider lock poisoned")
+            .clone()
+    }
+
+    pub fn set_image_provider(&self, provider: Arc<dyn crate::image::provider::ImageProvider>) {
+        *self
+            .inner
+            .image_provider
+            .write()
+            .expect("image provider lock poisoned") = Some(provider);
     }
 }

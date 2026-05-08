@@ -147,3 +147,67 @@ async fn post_settings_rejects_openai_compat_without_required_fields() {
         .expect("post /settings");
     assert_eq!(resp.status(), 400);
 }
+
+#[tokio::test]
+async fn agent_settings_updates_system_prompt_and_temperature() {
+    let server = TestServer::start().await;
+
+    let body = json!({
+        "system_prompt": "Be concise.",
+        "temperature": 0.5,
+    });
+
+    let resp = Client::new()
+        .post(server.url("/agent-settings"))
+        .json(&body)
+        .send()
+        .await
+        .expect("post /agent-settings");
+    assert_eq!(resp.status(), 200);
+
+    let updated: serde_json::Value = resp.json().await.expect("json");
+    assert_eq!(updated, json!({ "status": "ok" }));
+}
+
+#[tokio::test]
+async fn agent_settings_rejects_temperature_out_of_range() {
+    let server = TestServer::start().await;
+
+    let body = json!({
+        "temperature": 5.0,
+    });
+
+    let resp = Client::new()
+        .post(server.url("/agent-settings"))
+        .json(&body)
+        .send()
+        .await
+        .expect("post /agent-settings");
+    assert_eq!(resp.status(), 400);
+
+    let text = resp.text().await.expect("text");
+    assert!(
+        text.contains("temperature must be between"),
+        "expected error message about temperature range, got: {text}"
+    );
+}
+
+#[tokio::test]
+async fn agent_settings_with_replicate_key_returns_ok() {
+    let server = TestServer::start().await;
+
+    let body = json!({
+        "replicate_api_key": "fake-test-key",
+    });
+
+    let resp = Client::new()
+        .post(server.url("/agent-settings"))
+        .json(&body)
+        .send()
+        .await
+        .expect("post /agent-settings");
+    assert_eq!(resp.status(), 200);
+
+    let updated: serde_json::Value = resp.json().await.expect("json");
+    assert_eq!(updated, json!({ "status": "ok" }));
+}
