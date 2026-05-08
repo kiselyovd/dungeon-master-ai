@@ -24,13 +24,13 @@ tracing-subscriber = { workspace = true }
 futures = { workspace = true }
 tokio-stream = { workspace = true }
 async-trait = { workspace = true }
+reqwest = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 
 [dev-dependencies]
-reqwest = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 app-server = { path = ".", features = ["test-support"] }
 

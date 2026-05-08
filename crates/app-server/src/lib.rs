@@ -4,6 +4,7 @@ pub mod agent;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod image;
 pub mod routes;
 pub mod state;
 
