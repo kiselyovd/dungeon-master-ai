@@ -35,7 +35,7 @@ export function SettingsModal({ open, onClose }: Props) {
     setNarrationLang(submission.narrationLanguage);
     setSystemPrompt(submission.systemPrompt);
     setTemperature(submission.temperature);
-    setReplicateApiKey(submission.replicateApiKey || null);
+    setReplicateApiKey(submission.replicateApiKey.length > 0 ? submission.replicateApiKey : null);
 
     // Tell the backend to swap providers atomically and push the agent-loop
     // knobs in the same save. Errors are non-fatal: local persistence already
@@ -47,7 +47,8 @@ export function SettingsModal({ open, onClose }: Props) {
         temperature: submission.temperature,
       };
       if (submission.systemPrompt) agentReq.system_prompt = submission.systemPrompt;
-      if (submission.replicateApiKey) agentReq.replicate_api_key = submission.replicateApiKey;
+      if (submission.replicateApiKey.length > 0)
+        agentReq.replicate_api_key = submission.replicateApiKey;
       await postAgentSettings(agentReq);
     } catch (err) {
       // Surface to the chat slice so the existing error renderer picks it up.

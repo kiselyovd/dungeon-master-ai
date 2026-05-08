@@ -31,7 +31,7 @@ describe('SettingsModal', () => {
   it('renders the provider picker and Anthropic fields by default', () => {
     render(<SettingsModal open={true} onClose={() => {}} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Provider/i)).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Provider/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/API key/i)).toBeInTheDocument();
   });
 
@@ -64,7 +64,7 @@ describe('SettingsModal', () => {
     const { postSettings } = await import('../../api/providers');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
-    await user.selectOptions(screen.getByLabelText(/Provider/i), 'openai-compat');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Provider/i }), 'openai-compat');
     await user.type(screen.getByLabelText(/Base URL/i), 'http://localhost:1234/v1');
     await user.type(screen.getByLabelText(/API key/i), 'sk-test');
     await user.type(screen.getByLabelText(/Model/i), 'qwen3-1.7b');

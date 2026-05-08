@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type AnthropicConfig,
@@ -63,6 +63,21 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
     setDrafts(initialDrafts(slice));
   }, [slice]);
 
+  const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      setActiveTab((prev) => (prev === 'provider' ? 'model' : 'provider'));
+      // Move focus to the newly-active tab. Note: `activeTab` here still
+      // holds the previous value at the moment the keypress fires, so we
+      // focus the OPPOSITE tab. The rAF runs after React updates the DOM,
+      // by which time `tabIndex` on the now-active tab is `0`.
+      const targetId = activeTab === 'provider' ? 'settings-tab-model' : 'settings-tab-provider';
+      requestAnimationFrame(() => {
+        document.getElementById(targetId)?.focus();
+      });
+    }
+  };
+
   const onSave = async () => {
     const result = buildConfig(activeKind, drafts);
     if (!result.ok) {
@@ -101,7 +116,11 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
         <button
           type="button"
           role="tab"
+          id="settings-tab-provider"
+          aria-controls="settings-panel-provider"
           aria-selected={activeTab === 'provider'}
+          tabIndex={activeTab === 'provider' ? 0 : -1}
+          onKeyDown={onTabKeyDown}
           className={`${styles.tab} ${activeTab === 'provider' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('provider')}
         >
@@ -110,7 +129,11 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
         <button
           type="button"
           role="tab"
+          id="settings-tab-model"
+          aria-controls="settings-panel-model"
           aria-selected={activeTab === 'model'}
+          tabIndex={activeTab === 'model' ? 0 : -1}
+          onKeyDown={onTabKeyDown}
           className={`${styles.tab} ${activeTab === 'model' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('model')}
         >
@@ -119,7 +142,7 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
       </div>
 
       {activeTab === 'provider' && (
-        <>
+        <div role="tabpanel" id="settings-panel-provider" aria-labelledby="settings-tab-provider">
           <Field label={t('provider_label')}>
             {({ id }) => (
               <select
@@ -181,18 +204,20 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
               )}
             </Field>
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === 'model' && (
-        <ModelTab
-          draft={{
-            systemPrompt: drafts.systemPrompt,
-            temperature: drafts.temperature,
-            replicateApiKey: drafts.replicateApiKey,
-          }}
-          onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
-        />
+        <div role="tabpanel" id="settings-panel-model" aria-labelledby="settings-tab-model">
+          <ModelTab
+            draft={{
+              systemPrompt: drafts.systemPrompt,
+              temperature: drafts.temperature,
+              replicateApiKey: drafts.replicateApiKey,
+            }}
+            onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+          />
+        </div>
       )}
 
       <input type="submit" hidden disabled={submitting} />
