@@ -52,18 +52,35 @@ impl SidecarHandle {
 
     /// Constructor used by production launcher (Task B.3). Kept here so the
     /// `SidecarHandle` type remains the single source of truth for handle layout.
-    pub fn from_parts(pid: u32, rx: mpsc::Receiver<String>, kill: KillFn) -> Self {
+    /// Accepts any matching `FnOnce` closure; the boxing happens internally so
+    /// callers don't need to know about the private `KillFn` alias.
+    pub fn from_parts(
+        pid: u32,
+        rx: mpsc::Receiver<String>,
+        kill: impl FnOnce() -> Result<(), SidecarError> + Send + Sync + 'static,
+    ) -> Self {
         Self {
             child_pid: pid,
             stdout_rx: AsyncMutex::new(Some(rx)),
-            kill,
+            kill: Box::new(kill),
         }
     }
 }
 
 #[async_trait]
 pub trait SidecarLauncher: Send + Sync {
-    async fn spawn(&self, args: &[&str], name: &str) -> Result<SidecarHandle, SidecarError>;
+    /// Spawn a sidecar child process.
+    ///
+    /// `Ok(SidecarHandle)` only guarantees that the spawn syscall succeeded -
+    /// the child may have exited immediately (e.g., bad CLI args, missing
+    /// shared library). Callers MUST verify liveness with a health-probe
+    /// before treating the handle as ready (see `LocalRuntime::probe_until_ready`).
+    ///
+    /// Errors:
+    /// - `SidecarError::Spawn` - the underlying `Command::spawn` failed.
+    /// - `SidecarError::UnexpectedExit` - reserved for a future `wait_for_exit`
+    ///   helper; not produced by `spawn` itself.
+    async fn spawn(&self, name: &str, args: &[&str]) -> Result<SidecarHandle, SidecarError>;
 }
 
 /// In-memory launcher used in unit tests. Configure expectations with
@@ -82,7 +99,7 @@ impl MockSidecarLauncher {
 
 #[async_trait]
 impl SidecarLauncher for MockSidecarLauncher {
-    async fn spawn(&self, _args: &[&str], name: &str) -> Result<SidecarHandle, SidecarError> {
+    async fn spawn(&self, name: &str, _args: &[&str]) -> Result<SidecarHandle, SidecarError> {
         // Drain the expectation and the lines we want to replay before
         // touching the channel, so we never hold the Mutex across an await.
         let spec = {
@@ -90,10 +107,12 @@ impl SidecarLauncher for MockSidecarLauncher {
             q.pop()
                 .ok_or_else(|| SidecarError::MockUnconfigured(name.into()))?
         };
-        let (tx, rx) = mpsc::channel(8);
+        // Size the channel exactly to the configured stdout lines so we never
+        // silently drop on `try_send`. `.max(1)` because `mpsc::channel` panics
+        // on capacity 0.
+        let cap = spec.stdout_lines.len().max(1);
+        let (tx, rx) = mpsc::channel(cap);
         for line in spec.stdout_lines {
-            // Bounded channel of 8; tests configure a handful of lines so
-            // try_send is sufficient and avoids any await across locks.
             let _ = tx.try_send(line);
         }
         Ok(SidecarHandle {
@@ -116,10 +135,38 @@ mod tests {
             args: vec!["--port".into(), "12345".into()],
             stdout_lines: vec!["LISTENING_ON_PORT=12345".into()],
         });
-        let handle = mock.spawn(&["--port", "12345"], "fake-bin").await.unwrap();
+        let handle = mock.spawn("fake-bin", &["--port", "12345"]).await.unwrap();
         assert_eq!(
             handle.first_stdout_line().await.unwrap(),
             "LISTENING_ON_PORT=12345"
+        );
+    }
+
+    #[tokio::test]
+    async fn mock_launcher_drains_expectations_in_lifo_order() {
+        let mut mock = MockSidecarLauncher::default();
+        mock.expect_spawn(SpawnSpec {
+            command: "first-pushed".into(),
+            args: vec![],
+            stdout_lines: vec!["FIRST".into()],
+        });
+        mock.expect_spawn(SpawnSpec {
+            command: "second-pushed".into(),
+            args: vec![],
+            stdout_lines: vec!["SECOND".into()],
+        });
+        let handle1 = mock.spawn("any", &[]).await.unwrap();
+        assert_eq!(handle1.first_stdout_line().await.unwrap(), "SECOND");
+        let handle2 = mock.spawn("any", &[]).await.unwrap();
+        assert_eq!(handle2.first_stdout_line().await.unwrap(), "FIRST");
+    }
+
+    #[tokio::test]
+    async fn mock_launcher_returns_unconfigured_when_queue_empty() {
+        let mock = MockSidecarLauncher::default();
+        let result = mock.spawn("never-configured", &[]).await;
+        assert!(
+            matches!(result, Err(SidecarError::MockUnconfigured(name)) if name == "never-configured")
         );
     }
 }
