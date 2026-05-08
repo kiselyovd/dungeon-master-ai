@@ -1,0 +1,131 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-2022, target: x86_64-pc-windows-msvc, label: windows-x86_64 }
+          - { os: macos-14, target: aarch64-apple-darwin, label: darwin-aarch64 }
+          - { os: macos-13, target: x86_64-apple-darwin, label: darwin-x86_64 }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, label: linux-x86_64 }
+    runs-on: ${{ matrix.os }}
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+      WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Linux GUI deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Build Python sidecar
+        shell: bash
+        run: |
+          cd sidecar
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller==6.10
+          pyinstaller --noconfirm --clean build_spec.spec
+          mkdir -p ../src-tauri/binaries/python_sidecar_${{ matrix.target }}
+          cp -R dist/dmai-image-sidecar/* ../src-tauri/binaries/python_sidecar_${{ matrix.target }}/
+
+      - name: Download mistralrs sidecar
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            pwsh -NoProfile -File scripts/download_mistralrs.ps1 -Target "${{ matrix.target }}"
+          else
+            bash scripts/download_mistralrs.sh "${{ matrix.target }}"
+          fi
+
+      - name: Install bun deps
+        run: bun install
+
+      - name: Build (local flavor, signed by tauri-build via TAURI_SIGNING_PRIVATE_KEY)
+        run: bun run tauri:build
+
+      - name: Sign Windows binaries
+        if: matrix.os == 'windows-2022'
+        shell: pwsh
+        run: |
+          $cert = [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64)
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/cert.pfx", $cert)
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          Get-ChildItem -Path "src-tauri/target/release/bundle/" -Recurse -Include "*.exe","*.msi" |
+            ForEach-Object {
+              & $signtool sign /f "$env:RUNNER_TEMP/cert.pfx" /p "$env:WINDOWS_CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+            }
+
+      - name: Notarize macOS bundle
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        run: |
+          BUNDLE=$(find src-tauri/target/release/bundle/macos -name "*.app" | head -1)
+          if [ -z "$BUNDLE" ]; then
+            echo "no .app bundle found, skipping notarization"
+            exit 0
+          fi
+          ditto -c -k --keepParent "$BUNDLE" "$BUNDLE.zip"
+          xcrun notarytool submit "$BUNDLE.zip" \
+            --key <(echo "$APPLE_API_KEY" | base64 -d) \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$BUNDLE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.label }}
+          path: src-tauri/target/release/bundle/
+          retention-days: 90
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate latest.json
+        run: bun run scripts/build_latest_json.ts > latest.json
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --notes-file CHANGELOG.md \
+            artifacts/release-*/* latest.json

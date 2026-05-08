@@ -20,7 +20,7 @@ use tower_http::trace::TraceLayer;
 pub use state::AppState;
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let r = Router::new()
         .route("/health", get(routes::health::health))
         .route("/agent/turn", post(routes::agent::post_agent_turn))
         .route("/chat", post(routes::chat::chat))
@@ -31,7 +31,10 @@ pub fn router(state: AppState) -> Router {
         .route("/combat/action", post(routes::combat::post_combat_action))
         .route("/combat/end", post(routes::combat::post_combat_end))
         .route("/journal", get(routes::journal::get_journal))
-        .route("/npcs", get(routes::npc::get_npcs))
+        .route("/npcs", get(routes::npc::get_npcs));
+
+    #[cfg(feature = "with-local-runtime")]
+    let r = r
         .route(
             "/local-mode/config",
             get(routes::local_mode::get_config).post(routes::local_mode::post_config),
@@ -55,8 +58,9 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/local/runtime/status",
             get(routes::local_mode::runtime_status),
-        )
-        .with_state(state)
+        );
+
+    r.with_state(state)
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

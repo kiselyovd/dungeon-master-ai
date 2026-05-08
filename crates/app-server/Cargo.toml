@@ -39,4 +39,7 @@ wiremock = "0.6"
 tempfile = "3"
 
 [features]
+default = ["with-local-runtime"]
 test-support = []
+with-local-runtime = []
+cloud-only = []
