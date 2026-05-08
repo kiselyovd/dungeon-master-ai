@@ -8,6 +8,7 @@ pub mod image;
 pub mod local_runtime;
 pub mod models;
 pub mod routes;
+pub mod secrets;
 pub mod state;
 
 use axum::Router;

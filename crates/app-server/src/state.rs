@@ -11,6 +11,7 @@ use crate::local_runtime::{
 };
 use crate::models::DownloadManager;
 use crate::routes::local_mode::LocalModeConfig;
+use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
 
 /// Shared application state for axum handlers.
 ///
@@ -36,6 +37,7 @@ struct AppStateInner {
     download_manager: Arc<DownloadManager>,
     runtime_registry: Arc<RuntimeRegistry>,
     models_dir: RwLock<PathBuf>,
+    secrets_repo: RwLock<Arc<dyn SecretsRepo>>,
 }
 
 impl AppState {
@@ -63,6 +65,7 @@ impl AppState {
                 download_manager,
                 runtime_registry,
                 models_dir: RwLock::new(models_dir),
+                secrets_repo: RwLock::new(Arc::new(InMemorySecretsRepo::default())),
             }),
         }
     }
@@ -193,5 +196,21 @@ impl AppState {
             .models_dir
             .write()
             .expect("models dir lock poisoned") = dir;
+    }
+
+    pub fn secrets_repo(&self) -> Arc<dyn SecretsRepo> {
+        self.inner
+            .secrets_repo
+            .read()
+            .expect("secrets lock poisoned")
+            .clone()
+    }
+
+    pub fn set_secrets_repo(&self, repo: Arc<dyn SecretsRepo>) {
+        *self
+            .inner
+            .secrets_repo
+            .write()
+            .expect("secrets lock poisoned") = repo;
     }
 }

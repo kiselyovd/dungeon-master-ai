@@ -71,6 +71,11 @@ pub async fn post_settings(
             if model.trim().is_empty() {
                 return Err(AppError::BadRequest("model must not be empty".into()));
             }
+            state
+                .secrets_repo()
+                .set("anthropic_api_key", &api_key)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
             state.set_provider(Arc::new(AnthropicProvider::new(api_key)));
             state.set_default_model(model);
         }
@@ -84,6 +89,13 @@ pub async fn post_settings(
             }
             if model.trim().is_empty() {
                 return Err(AppError::BadRequest("model must not be empty".into()));
+            }
+            if !api_key.trim().is_empty() {
+                state
+                    .secrets_repo()
+                    .set("openai_compat_api_key", &api_key)
+                    .await
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
             }
             state.set_provider(Arc::new(OpenAICompatProvider::new(base_url, api_key)));
             state.set_default_model(model);
@@ -136,6 +148,11 @@ pub async fn post_agent_settings(
 
     if let Some(key) = req.replicate_api_key {
         if !key.trim().is_empty() {
+            state
+                .secrets_repo()
+                .set("replicate_api_key", &key)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
             state.set_image_provider(Arc::new(ReplicateProvider::new(key)));
         }
     }
