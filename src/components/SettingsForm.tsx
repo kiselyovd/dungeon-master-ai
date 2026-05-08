@@ -16,10 +16,15 @@ import styles from './SettingsForm.module.css';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat'];
 
+type Tab = 'provider' | 'model';
+
 export interface SettingsSubmission {
   provider: ProviderConfig;
   uiLanguage: 'en' | 'ru';
   narrationLanguage: 'en' | 'ru';
+  systemPrompt: string;
+  temperature: number;
+  replicateApiKey: string;
 }
 
 interface SettingsFormProps {
@@ -37,11 +42,17 @@ interface SettingsFormProps {
  * typed. `local-mistralrs` is hidden from the UI in M1.5 (M4 lights it up);
  * the type union still covers it so a future variant is one branch in this
  * switch + one new sub-form component.
+ *
+ * M3 adds a tab bar at the top: the Provider tab keeps the existing fields
+ * (provider picker + per-kind sub-form + language selects), and the Model
+ * tab exposes the agent-loop knobs (system prompt, temperature, Replicate
+ * API key) wired to `POST /agent-settings`.
  */
 export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
 
+  const [activeTab, setActiveTab] = useState<Tab>('provider');
   const [activeKind, setActiveKind] = useState<ProviderKind>(slice.activeProvider);
   const [drafts, setDrafts] = useState<DraftState>(() => initialDrafts(slice));
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +66,9 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   const onSave = async () => {
     const result = buildConfig(activeKind, drafts);
     if (!result.ok) {
+      // If the validation error lives in the Provider tab, surface it by
+      // switching back to that tab so the inline message is visible.
+      setActiveTab('provider');
       setErrors(result.errors);
       return;
     }
@@ -65,6 +79,9 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
         provider: result.config,
         uiLanguage: drafts.uiLanguage,
         narrationLanguage: drafts.narrationLanguage,
+        systemPrompt: drafts.systemPrompt,
+        temperature: drafts.temperature,
+        replicateApiKey: drafts.replicateApiKey,
       });
     } finally {
       setSubmitting(false);
@@ -80,67 +97,103 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
         void onSave();
       }}
     >
-      <Field label={t('provider_label')}>
-        {({ id }) => (
-          <select
-            id={id}
-            value={activeKind}
-            onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
-            className={styles.fullWidth}
-          >
-            {PROVIDER_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {t(
-                  `provider_${k.replace('-', '_')}` as
-                    | 'provider_anthropic'
-                    | 'provider_openai_compat',
-                )}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
-
-      {activeKind === 'anthropic' && (
-        <AnthropicFields
-          draft={drafts.anthropic}
-          errors={errors}
-          onChange={(d) => setDrafts((prev) => ({ ...prev, anthropic: d }))}
-        />
-      )}
-
-      {activeKind === 'openai-compat' && (
-        <OpenaiCompatFields
-          draft={drafts['openai-compat']}
-          errors={errors}
-          onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
-        />
-      )}
-
-      {activeKind === 'local-mistralrs' && <LocalMistralRsPlaceholder />}
-
-      <div className={styles.languages}>
-        <Field label={t('language_ui_label')}>
-          {({ id }) => (
-            <LanguageSelect
-              id={id}
-              value={drafts.uiLanguage}
-              onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
-            />
-          )}
-        </Field>
-        <Field label={t('language_narration_label')}>
-          {({ id }) => (
-            <LanguageSelect
-              id={id}
-              value={drafts.narrationLanguage}
-              onChange={(narrationLanguage) =>
-                setDrafts((prev) => ({ ...prev, narrationLanguage }))
-              }
-            />
-          )}
-        </Field>
+      <div className={styles.tabNav} role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'provider'}
+          className={`${styles.tab} ${activeTab === 'provider' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('provider')}
+        >
+          {t('tab_provider')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'model'}
+          className={`${styles.tab} ${activeTab === 'model' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('model')}
+        >
+          {t('tab_model')}
+        </button>
       </div>
+
+      {activeTab === 'provider' && (
+        <>
+          <Field label={t('provider_label')}>
+            {({ id }) => (
+              <select
+                id={id}
+                value={activeKind}
+                onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
+                className={styles.fullWidth}
+              >
+                {PROVIDER_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(
+                      `provider_${k.replace('-', '_')}` as
+                        | 'provider_anthropic'
+                        | 'provider_openai_compat',
+                    )}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+
+          {activeKind === 'anthropic' && (
+            <AnthropicFields
+              draft={drafts.anthropic}
+              errors={errors}
+              onChange={(d) => setDrafts((prev) => ({ ...prev, anthropic: d }))}
+            />
+          )}
+
+          {activeKind === 'openai-compat' && (
+            <OpenaiCompatFields
+              draft={drafts['openai-compat']}
+              errors={errors}
+              onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
+            />
+          )}
+
+          {activeKind === 'local-mistralrs' && <LocalMistralRsPlaceholder />}
+
+          <div className={styles.languages}>
+            <Field label={t('language_ui_label')}>
+              {({ id }) => (
+                <LanguageSelect
+                  id={id}
+                  value={drafts.uiLanguage}
+                  onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
+                />
+              )}
+            </Field>
+            <Field label={t('language_narration_label')}>
+              {({ id }) => (
+                <LanguageSelect
+                  id={id}
+                  value={drafts.narrationLanguage}
+                  onChange={(narrationLanguage) =>
+                    setDrafts((prev) => ({ ...prev, narrationLanguage }))
+                  }
+                />
+              )}
+            </Field>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'model' && (
+        <ModelTab
+          draft={{
+            systemPrompt: drafts.systemPrompt,
+            temperature: drafts.temperature,
+            replicateApiKey: drafts.replicateApiKey,
+          }}
+          onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+        />
+      )}
 
       <input type="submit" hidden disabled={submitting} />
     </form>
@@ -282,6 +335,65 @@ function LanguageSelect({
   );
 }
 
+interface ModelDraft {
+  systemPrompt: string;
+  temperature: number;
+  replicateApiKey: string;
+}
+
+function ModelTab({
+  draft,
+  onChange,
+}: {
+  draft: ModelDraft;
+  onChange: (patch: Partial<ModelDraft>) => void;
+}) {
+  const { t } = useTranslation('settings');
+  return (
+    <>
+      <Field label={t('system_prompt_label')} helper={t('system_prompt_helper')}>
+        {(p) => (
+          <textarea
+            {...p}
+            value={draft.systemPrompt}
+            onChange={(e) => onChange({ systemPrompt: e.target.value })}
+            placeholder={t('system_prompt_placeholder')}
+            rows={6}
+            className={styles.fullWidth}
+          />
+        )}
+      </Field>
+      <Field label={`${t('temperature_label')}: ${draft.temperature.toFixed(1)}`}>
+        {(p) => (
+          <input
+            {...p}
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            value={draft.temperature}
+            onChange={(e) => onChange({ temperature: Number(e.target.value) })}
+            className={styles.fullWidth}
+          />
+        )}
+      </Field>
+      <Field label={t('replicate_key_label')} helper={t('replicate_key_helper')}>
+        {(p) => (
+          <input
+            {...p}
+            type="password"
+            autoComplete="off"
+            value={draft.replicateApiKey}
+            onChange={(e) => onChange({ replicateApiKey: e.target.value })}
+            placeholder="r8_..."
+            className={styles.fullWidth}
+          />
+        )}
+      </Field>
+    </>
+  );
+}
+
 // ---- Draft state shape + validation ------------------------------------
 
 interface DraftState {
@@ -289,6 +401,9 @@ interface DraftState {
   'openai-compat': OpenaiCompatDraft;
   uiLanguage: 'en' | 'ru';
   narrationLanguage: 'en' | 'ru';
+  systemPrompt: string;
+  temperature: number;
+  replicateApiKey: string;
 }
 
 interface DraftErrors {
@@ -301,6 +416,9 @@ function initialDrafts(slice: {
   providers: { anthropic: AnthropicConfig | null; 'openai-compat': OpenaiCompatConfig | null };
   uiLanguage: 'en' | 'ru';
   narrationLanguage: 'en' | 'ru';
+  systemPrompt: string;
+  temperature: number;
+  replicateApiKey: string | null;
 }): DraftState {
   const a = slice.providers.anthropic;
   const o = slice.providers['openai-compat'];
@@ -316,6 +434,9 @@ function initialDrafts(slice: {
     },
     uiLanguage: slice.uiLanguage,
     narrationLanguage: slice.narrationLanguage,
+    systemPrompt: slice.systemPrompt,
+    temperature: slice.temperature,
+    replicateApiKey: slice.replicateApiKey ?? '',
   };
 }
 

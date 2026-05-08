@@ -13,6 +13,10 @@ vi.mock('../../api/providers', () => ({
   }),
 }));
 
+vi.mock('../../api/agentSettings', () => ({
+  postAgentSettings: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe('SettingsModal', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());

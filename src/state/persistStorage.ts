@@ -3,8 +3,10 @@
  * tauri-plugin-store. Splits the persisted Settings slice across two on-disk
  * files:
  *
- * - `secrets.json` keeps the per-provider configs (api keys, base URLs).
- * - `settings.json` keeps the non-sensitive prefs (active provider, languages).
+ * - `secrets.json` keeps the per-provider configs (api keys, base URLs) and
+ *   the Replicate API key (M3).
+ * - `settings.json` keeps the non-sensitive prefs (active provider, languages,
+ *   system prompt, temperature).
  *
  * The split exists so the M2 keychain swap touches only `secrets.json`.
  *
@@ -29,6 +31,9 @@ const KEY_PROVIDERS = 'providers';
 const KEY_ACTIVE_PROVIDER = 'active_provider';
 const KEY_UI_LANGUAGE = 'ui_language';
 const KEY_NARRATION_LANGUAGE = 'narration_language';
+const KEY_SYSTEM_PROMPT = 'system_prompt';
+const KEY_TEMPERATURE = 'temperature';
+const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 
 const secretsStore = new LazyStore(SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
@@ -42,29 +47,43 @@ const ProvidersMapSchema = v.object({
   'local-mistralrs': v.nullable(LocalMistralRsConfigSchema),
 });
 
+const SystemPromptSchema = v.string();
+const TemperatureSchema = v.pipe(v.number(), v.minValue(0), v.maxValue(2));
+const ReplicateKeySchema = v.nullable(v.string());
+
 export interface PersistedSettings {
   settings: Partial<SettingsData>;
 }
 
 export const persistStorage: PersistStorage<PersistedSettings> = {
   async getItem(_name): Promise<StorageValue<PersistedSettings> | null> {
-    const [providersRaw, activeRaw, uiRaw, narrRaw] = await Promise.all([
-      secretsStore.get(KEY_PROVIDERS),
-      settingsStore.get(KEY_ACTIVE_PROVIDER),
-      settingsStore.get(KEY_UI_LANGUAGE),
-      settingsStore.get(KEY_NARRATION_LANGUAGE),
-    ]);
+    const [providersRaw, activeRaw, uiRaw, narrRaw, sysRaw, tempRaw, replicateRaw] =
+      await Promise.all([
+        secretsStore.get(KEY_PROVIDERS),
+        settingsStore.get(KEY_ACTIVE_PROVIDER),
+        settingsStore.get(KEY_UI_LANGUAGE),
+        settingsStore.get(KEY_NARRATION_LANGUAGE),
+        settingsStore.get(KEY_SYSTEM_PROMPT),
+        settingsStore.get(KEY_TEMPERATURE),
+        secretsStore.get(KEY_REPLICATE_API_KEY),
+      ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
     const activeParsed = v.safeParse(ProviderKindSchema, activeRaw);
     const uiParsed = v.safeParse(LanguageSchema, uiRaw);
     const narrParsed = v.safeParse(LanguageSchema, narrRaw);
+    const sysParsed = v.safeParse(SystemPromptSchema, sysRaw);
+    const tempParsed = v.safeParse(TemperatureSchema, tempRaw);
+    const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
 
     if (
       !providersParsed.success &&
       !activeParsed.success &&
       !uiParsed.success &&
-      !narrParsed.success
+      !narrParsed.success &&
+      !sysParsed.success &&
+      !tempParsed.success &&
+      !replicateParsed.success
     ) {
       return null;
     }
@@ -74,6 +93,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (activeParsed.success) settings.activeProvider = activeParsed.output;
     if (uiParsed.success) settings.uiLanguage = uiParsed.output as Language;
     if (narrParsed.success) settings.narrationLanguage = narrParsed.output as Language;
+    if (sysParsed.success) settings.systemPrompt = sysParsed.output;
+    if (tempParsed.success) settings.temperature = tempParsed.output;
+    if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
 
     return { state: { settings }, version: 0 };
   },
@@ -93,6 +115,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.narrationLanguage !== undefined) {
       writes.push(settingsStore.set(KEY_NARRATION_LANGUAGE, settings.narrationLanguage));
     }
+    if (settings.systemPrompt !== undefined) {
+      writes.push(settingsStore.set(KEY_SYSTEM_PROMPT, settings.systemPrompt));
+    }
+    if (settings.temperature !== undefined) {
+      writes.push(settingsStore.set(KEY_TEMPERATURE, settings.temperature));
+    }
+    if (settings.replicateApiKey !== undefined) {
+      writes.push(secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -100,9 +131,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
   async removeItem(_name): Promise<void> {
     await Promise.all([
       secretsStore.delete(KEY_PROVIDERS),
+      secretsStore.delete(KEY_REPLICATE_API_KEY),
       settingsStore.delete(KEY_ACTIVE_PROVIDER),
       settingsStore.delete(KEY_UI_LANGUAGE),
       settingsStore.delete(KEY_NARRATION_LANGUAGE),
+      settingsStore.delete(KEY_SYSTEM_PROMPT),
+      settingsStore.delete(KEY_TEMPERATURE),
     ]);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },

@@ -1,5 +1,7 @@
 {
   "title": "Settings",
+  "tab_provider": "Provider",
+  "tab_model": "Model",
   "provider_label": "Provider",
   "provider_anthropic": "Anthropic (cloud)",
   "provider_openai_compat": "OpenAI-compatible (cloud or local server)",
@@ -13,5 +15,11 @@
   "language_narration_label": "Narration language",
   "lang_en": "English",
   "lang_ru": "Русский",
-  "local_coming_soon": "Embedded local model is shipping in a later milestone."
+  "local_coming_soon": "Embedded local model is shipping in a later milestone.",
+  "system_prompt_label": "System prompt",
+  "system_prompt_helper": "Override the DM persona and narration instructions.",
+  "system_prompt_placeholder": "You are the Dungeon Master...",
+  "temperature_label": "Temperature",
+  "replicate_key_label": "Replicate API key",
+  "replicate_key_helper": "Required for AI image generation via Replicate cloud."
 }

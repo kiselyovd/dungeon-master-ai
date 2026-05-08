@@ -37,6 +37,9 @@ export const useStore = create<AppState>()(
           providers: state.settings.providers,
           uiLanguage: state.settings.uiLanguage,
           narrationLanguage: state.settings.narrationLanguage,
+          systemPrompt: state.settings.systemPrompt,
+          temperature: state.settings.temperature,
+          replicateApiKey: state.settings.replicateApiKey,
         },
       }),
       // Preserve action functions on the in-memory `settings` object when the

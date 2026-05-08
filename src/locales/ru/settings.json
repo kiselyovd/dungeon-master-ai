@@ -1,5 +1,7 @@
 {
   "title": "Настройки",
+  "tab_provider": "Провайдер",
+  "tab_model": "Модель",
   "provider_label": "Провайдер",
   "provider_anthropic": "Anthropic (облако)",
   "provider_openai_compat": "OpenAI-совместимый (облако или локальный сервер)",
@@ -13,5 +15,11 @@
   "language_narration_label": "Язык повествования",
   "lang_en": "English",
   "lang_ru": "Русский",
-  "local_coming_soon": "Встроенная локальная модель появится в следующем этапе."
+  "local_coming_soon": "Встроенная локальная модель появится в следующем этапе.",
+  "system_prompt_label": "Системный промпт",
+  "system_prompt_helper": "Переопределить персону Мастера Подземелий.",
+  "system_prompt_placeholder": "Ты - Мастер Подземелий...",
+  "temperature_label": "Температура",
+  "replicate_key_label": "Ключ Replicate API",
+  "replicate_key_helper": "Необходим для генерации изображений через Replicate."
 }

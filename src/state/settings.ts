@@ -25,6 +25,10 @@ export interface SettingsData {
   providers: ProvidersMap;
   uiLanguage: Language;
   narrationLanguage: Language;
+  // Model tab (M3)
+  systemPrompt: string;
+  temperature: number;
+  replicateApiKey: string | null;
 }
 
 export interface SettingsActions {
@@ -33,6 +37,9 @@ export interface SettingsActions {
   clearProviderConfig: (kind: ProviderKind) => void;
   setUiLanguage: (lang: Language) => void;
   setNarrationLanguage: (lang: Language) => void;
+  setSystemPrompt: (prompt: string) => void;
+  setTemperature: (temp: number) => void;
+  setReplicateApiKey: (key: string | null) => void;
 }
 
 export interface SettingsSlice {
@@ -51,6 +58,9 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     providers: DEFAULT_PROVIDERS,
     uiLanguage: 'en',
     narrationLanguage: 'en',
+    systemPrompt: '',
+    temperature: 0.7,
+    replicateApiKey: null,
 
     setActiveProvider: (activeProvider) =>
       set((s) => ({ settings: { ...s.settings, activeProvider } })),
@@ -75,5 +85,12 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setNarrationLanguage: (narrationLanguage) =>
       set((s) => ({ settings: { ...s.settings, narrationLanguage } })),
+
+    setSystemPrompt: (systemPrompt) => set((s) => ({ settings: { ...s.settings, systemPrompt } })),
+
+    setTemperature: (temperature) => set((s) => ({ settings: { ...s.settings, temperature } })),
+
+    setReplicateApiKey: (replicateApiKey) =>
+      set((s) => ({ settings: { ...s.settings, replicateApiKey } })),
   },
 });
