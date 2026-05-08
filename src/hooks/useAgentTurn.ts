@@ -51,8 +51,7 @@ export function useAgentTurn() {
             addPending(id, toolName, {}, round);
           },
 
-          onToolCallResult: (id, toolName, args, result, isError, round) => {
-            void round;
+          onToolCallResult: (id, toolName, args, result, isError, _round) => {
             settle(id, result, isError);
 
             if (toolName === 'journal_append' && !isError && result && typeof result === 'object') {

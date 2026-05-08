@@ -36,9 +36,9 @@ describe('ToolCallCard', () => {
 
   it('shows error status for is_error entries', () => {
     render(<ToolCallCard entry={{ ...settledEntry, isError: true, result: { error: 'bad' } }} />);
-    // Status badge has exact text "error"; JSON in <pre> renders as "error": "bad"
-    // and also matches /error/i, so we look up the badge by exact text.
-    expect(screen.getByText('error')).toBeInTheDocument();
+    // Badge label after i18n: "Error". JSON pre still contains "error": "bad".
+    // Use exact match on the capitalized badge text.
+    expect(screen.getByText('Error')).toBeInTheDocument();
   });
 
   it('renders args and result as text', () => {
