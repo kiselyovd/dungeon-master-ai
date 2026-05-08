@@ -5,7 +5,7 @@ pub mod registry;
 pub mod runtime;
 
 pub use health::{probe_until_ready, ProbeConfig, ProbeError};
-pub use registry::{RegistrySnapshot, RuntimeRegistry};
+pub use registry::{GpuOwner, RegistrySnapshot, RuntimeRegistry};
 pub use runtime::{
     probe_always_fail, probe_always_ok, probe_real, LocalRuntime, ProbeFn, RuntimeStatus,
 };

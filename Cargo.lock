@@ -176,6 +176,7 @@ dependencies = [
  "app-server",
  "async-trait",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "fastembed",
  "futures",

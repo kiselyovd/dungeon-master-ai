@@ -1,0 +1,9 @@
+torch==2.4.1
+diffusers==0.30.3
+transformers==4.46.0
+accelerate==0.34.2
+safetensors==0.4.5
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pillow==10.4.0
+pydantic==2.9.2
