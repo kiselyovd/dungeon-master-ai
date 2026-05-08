@@ -1,6 +1,12 @@
 //! Image cache key computation.
 //!
 //! `key = fnv1a_64(scene_id + sorted(npc_ids) + style_preset)` rendered as 16-char hex.
+//!
+//! `content_prompt` is intentionally NOT part of the key: cache identity is the
+//! scene context (who is where in what style), not the exact prose. Two LLM
+//! turns describing the same tavern with the same NPCs in the same style get
+//! the same image, even if the wording varies.
+//!
 //! FNV-1a 64-bit is collision-rare for the small key space we expect (~thousands of
 //! distinct prompts per campaign) and avoids pulling in the `sha2` crate just for this.
 //! M5 can upgrade to SHA-256 if collisions ever matter at scale.

@@ -18,6 +18,7 @@ const SDXL_MODEL: &str = "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b
 const STYLE_PREAMBLE: &str = "dark fantasy oil painting, dramatic lighting, atmospheric, cinematic, Witcher 3 inspired, highly detailed";
 const MAX_POLL_SECS: u64 = 90;
 const POLL_INTERVAL_MS: u64 = 2500;
+const PER_REQUEST_TIMEOUT_SECS: u64 = 10;
 
 pub struct ReplicateProvider {
     api_key: String,
@@ -29,7 +30,6 @@ impl ReplicateProvider {
         Self {
             api_key,
             client: Client::builder()
-                .timeout(Duration::from_secs(30))
                 .build()
                 .expect("reqwest client"),
         }
@@ -66,7 +66,7 @@ struct PredictionResponse {
 impl ImageProvider for ReplicateProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         let full_prompt = self.full_prompt(&prompt);
-        info!("Replicate: generating image for prompt: {}", full_prompt);
+        info!(prompt = %full_prompt, "Replicate: generating image");
 
         let body = CreatePredictionRequest {
             version: SDXL_MODEL,
@@ -83,6 +83,7 @@ impl ImageProvider for ReplicateProvider {
             .header("Authorization", format!("Token {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
+            .timeout(Duration::from_secs(PER_REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| ImageError::Network(e.to_string()))?;
@@ -103,7 +104,7 @@ impl ImageProvider for ReplicateProvider {
             .map_err(|e| ImageError::Provider(e.to_string()))?;
 
         let prediction_id = prediction.id;
-        info!("Replicate: prediction {prediction_id} created, polling...");
+        info!(prediction_id = %prediction_id, "Replicate: prediction created, polling");
 
         let deadline = std::time::Instant::now() + Duration::from_secs(MAX_POLL_SECS);
         loop {
@@ -115,9 +116,20 @@ impl ImageProvider for ReplicateProvider {
             let poll_resp = self.client
                 .get(format!("{REPLICATE_API_BASE}/predictions/{prediction_id}"))
                 .header("Authorization", format!("Token {}", self.api_key))
+                .timeout(Duration::from_secs(PER_REQUEST_TIMEOUT_SECS))
                 .send()
                 .await
                 .map_err(|e| ImageError::Network(e.to_string()))?;
+
+            if !poll_resp.status().is_success() {
+                if poll_resp.status().as_u16() == 401 {
+                    return Err(ImageError::Auth);
+                }
+                return Err(ImageError::Provider(format!(
+                    "prediction poll failed: HTTP {}",
+                    poll_resp.status()
+                )));
+            }
 
             let status: PredictionResponse = poll_resp
                 .json()
@@ -130,10 +142,11 @@ impl ImageProvider for ReplicateProvider {
                         .and_then(|o| o.into_iter().next())
                         .ok_or_else(|| ImageError::Provider("no output URL".into()))?;
 
-                    info!("Replicate: image ready at {url}");
+                    info!(url = %url, "Replicate: image ready");
 
                     let img_resp = self.client
                         .get(&url)
+                        .timeout(Duration::from_secs(PER_REQUEST_TIMEOUT_SECS))
                         .send()
                         .await
                         .map_err(|e| ImageError::Network(e.to_string()))?;
@@ -152,7 +165,7 @@ impl ImageProvider for ReplicateProvider {
                     ));
                 }
                 _ => {
-                    warn!("Replicate: prediction {prediction_id} status: {}", status.status);
+                    warn!(prediction_id = %prediction_id, status = %status.status, "Replicate: prediction in progress");
                 }
             }
         }
