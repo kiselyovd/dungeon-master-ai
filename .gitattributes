@@ -1,0 +1,18 @@
+# Force LF endings for all text files. biome.json formatter expects LF; the
+# project is built/tested on Linux + macOS + Windows. Without this, Windows
+# checkouts with autocrlf=true would inflate `bun run check` with format errors.
+* text=auto eol=lf
+
+# Explicit binary types (no newline normalization).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.gz binary
+*.pdf binary
