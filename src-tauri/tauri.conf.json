@@ -31,6 +31,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/dmai-server"]
+    "externalBin": ["binaries/dmai-server", "binaries/mistralrs-server"]
   }
 }
