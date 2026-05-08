@@ -110,18 +110,6 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "round": round,
             }))
             .expect("tool_call_result json"),
-        AgentEvent::ToolCallError {
-            id,
-            tool_name,
-            message,
-        } => Event::default()
-            .event("tool_call_error")
-            .json_data(serde_json::json!({
-                "id": id,
-                "tool_name": tool_name,
-                "message": message,
-            }))
-            .expect("tool_call_error json"),
         AgentEvent::AgentDone { total_rounds } => Event::default()
             .event("agent_done")
             .json_data(serde_json::json!({ "total_rounds": total_rounds }))

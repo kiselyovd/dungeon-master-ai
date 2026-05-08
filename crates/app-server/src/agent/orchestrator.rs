@@ -76,12 +76,6 @@ pub enum AgentEvent {
     },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
-    /// A non-fatal error in one tool-call (loop continues).
-    ToolCallError {
-        id: String,
-        tool_name: String,
-        message: String,
-    },
 }
 
 pub struct AgentOrchestrator {
@@ -230,7 +224,7 @@ impl AgentOrchestrator {
                 info!("tool {} -> {:?}", tc.name, result_val);
 
                 let result_str = serde_json::to_string(&result_val).unwrap_or_default();
-                let _ = tx
+                if tx
                     .send(AgentEvent::ToolCallResult {
                         id: tc.id.clone(),
                         tool_name: tc.name.clone(),
@@ -239,7 +233,11 @@ impl AgentOrchestrator {
                         is_error,
                         round: total_rounds,
                     })
-                    .await;
+                    .await
+                    .is_err()
+                {
+                    return Ok(());
+                }
 
                 messages.push(ChatMessage::ToolResult(app_llm::ToolResult {
                     tool_call_id: tc.id.clone(),
