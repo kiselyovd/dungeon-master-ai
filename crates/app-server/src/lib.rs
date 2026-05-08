@@ -6,6 +6,7 @@ pub mod db;
 pub mod error;
 pub mod image;
 pub mod local_runtime;
+pub mod models;
 pub mod routes;
 pub mod state;
 
