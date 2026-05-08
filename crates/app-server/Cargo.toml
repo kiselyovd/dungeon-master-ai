@@ -33,6 +33,7 @@ fastembed = { version = "4", default-features = false, features = ["ort-download
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 app-server = { path = ".", features = ["test-support"] }
+wiremock = "0.6"
 
 [features]
 test-support = []
