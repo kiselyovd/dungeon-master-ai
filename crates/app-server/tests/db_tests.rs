@@ -1,5 +1,6 @@
 use app_server::db::{
-    init_db, journal_insert, journal_list, snapshot_insert, snapshot_load_latest,
+    init_db, journal_insert, journal_list, npc_get, npc_get_all, npc_upsert_fact, snapshot_insert,
+    snapshot_load_latest,
 };
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -93,4 +94,79 @@ async fn journal_entries_ordered_by_creation() {
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[0].id, id1);
     assert_eq!(entries[1].id, id2);
+}
+
+// ---- NPC Memory ----
+
+#[tokio::test]
+async fn npc_upsert_creates_new_record() {
+    let pool = in_memory_pool().await;
+    let campaign_id = Uuid::new_v4();
+    npc_upsert_fact(
+        &pool,
+        campaign_id,
+        "Mira",
+        "She saved the party in session 2",
+        "friendly",
+        "innkeeper",
+    )
+    .await
+    .unwrap();
+    let npc = npc_get(&pool, campaign_id, "Mira").await.unwrap();
+    assert!(npc.is_some());
+    let npc = npc.unwrap();
+    assert_eq!(npc.name, "Mira");
+    assert_eq!(npc.disposition, "friendly");
+    assert_eq!(npc.role, "innkeeper");
+    assert_eq!(npc.facts.len(), 1);
+    assert!(npc.facts[0].text.contains("saved the party"));
+}
+
+#[tokio::test]
+async fn npc_upsert_appends_facts_to_existing() {
+    let pool = in_memory_pool().await;
+    let campaign_id = Uuid::new_v4();
+    npc_upsert_fact(&pool, campaign_id, "Mira", "First fact", "neutral", "")
+        .await
+        .unwrap();
+    npc_upsert_fact(
+        &pool,
+        campaign_id,
+        "Mira",
+        "Second fact",
+        "friendly",
+        "innkeeper",
+    )
+    .await
+    .unwrap();
+    let npc = npc_get(&pool, campaign_id, "Mira").await.unwrap().unwrap();
+    assert_eq!(npc.facts.len(), 2);
+    assert_eq!(npc.disposition, "friendly"); // updated on second upsert
+    assert_eq!(npc.role, "innkeeper");
+}
+
+#[tokio::test]
+async fn npc_get_all_returns_all_campaign_npcs() {
+    let pool = in_memory_pool().await;
+    let campaign_id = Uuid::new_v4();
+    npc_upsert_fact(&pool, campaign_id, "Mira", "fact a", "friendly", "innkeeper")
+        .await
+        .unwrap();
+    npc_upsert_fact(&pool, campaign_id, "Theron", "fact b", "hostile", "guard")
+        .await
+        .unwrap();
+    let npcs = npc_get_all(&pool, campaign_id).await.unwrap();
+    assert_eq!(npcs.len(), 2);
+}
+
+#[tokio::test]
+async fn npc_from_different_campaign_not_returned() {
+    let pool = in_memory_pool().await;
+    let c1 = Uuid::new_v4();
+    let c2 = Uuid::new_v4();
+    npc_upsert_fact(&pool, c1, "Mira", "fact", "neutral", "")
+        .await
+        .unwrap();
+    let npcs = npc_get_all(&pool, c2).await.unwrap();
+    assert!(npcs.is_empty());
 }

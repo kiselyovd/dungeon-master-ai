@@ -14,7 +14,6 @@
 //!
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
-//! - `execute_remember_npc` / `execute_recall_npc` -> Phase G (NPC memory).
 //! - `execute_query_rules` -> Phase E (SRD RAG).
 //! - `execute_generate_image` -> Phase H (image queue).
 
@@ -312,25 +311,59 @@ async fn execute_cast_spell(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
 }
 
 async fn execute_remember_npc(
-    _args: &Value,
-    _pool: &SqlitePool,
-    _campaign_id: Uuid,
+    args: &Value,
+    pool: &SqlitePool,
+    campaign_id: Uuid,
 ) -> (Value, bool) {
-    // Phase G wires this to the npc_memory table via crate::db::npc_upsert_fact.
-    // Stubbed in Task C1 because the npc_memory table + db helpers don't exist yet.
-    (json!({ "status": "deferred_to_phase_g" }), false)
+    let Some(name) = args["name"].as_str() else {
+        return (json!({ "error": "name is required" }), true);
+    };
+    let Some(fact) = args["fact"].as_str() else {
+        return (json!({ "error": "fact is required" }), true);
+    };
+    let disposition = args
+        .get("disposition")
+        .and_then(|v| v.as_str())
+        .unwrap_or("neutral");
+    let role = args.get("role").and_then(|v| v.as_str()).unwrap_or("");
+
+    if let Err(e) =
+        crate::db::npc_upsert_fact(pool, campaign_id, name, fact, disposition, role).await
+    {
+        tracing::warn!(error = %e, "sqlx write failed in execute_remember_npc");
+        return (json!({ "error": e.to_string() }), true);
+    }
+    (json!({ "name": name, "status": "remembered" }), false)
 }
 
 async fn execute_recall_npc(
-    _args: &Value,
-    _pool: &SqlitePool,
-    _campaign_id: Uuid,
+    args: &Value,
+    pool: &SqlitePool,
+    campaign_id: Uuid,
 ) -> (Value, bool) {
-    // Phase G wires this to crate::db::npc_get.
-    (
-        json!({ "name": "", "facts": [], "status": "deferred_to_phase_g" }),
-        false,
-    )
+    let Some(name) = args["name"].as_str() else {
+        return (json!({ "error": "name is required" }), true);
+    };
+    match crate::db::npc_get(pool, campaign_id, name).await {
+        Ok(Some(npc)) => (
+            json!({
+                "name": npc.name,
+                "role": npc.role,
+                "disposition": npc.disposition,
+                "trust": npc.trust,
+                "facts": npc.facts,
+            }),
+            false,
+        ),
+        Ok(None) => (
+            json!({ "name": name, "facts": [], "status": "unknown_npc" }),
+            false,
+        ),
+        Err(e) => {
+            tracing::warn!(error = %e, "sqlx read failed in execute_recall_npc");
+            (json!({ "error": e.to_string() }), true)
+        }
+    }
 }
 
 async fn execute_journal_append(
