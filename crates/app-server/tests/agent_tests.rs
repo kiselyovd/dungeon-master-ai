@@ -1,6 +1,8 @@
 use app_llm::{ChatChunk, FinishReason, MockProvider};
 use app_server::agent::orchestrator::AgentEvent;
 use app_server::agent::orchestrator::{AgentConfig, AgentOrchestrator, AgentTurnRequest};
+use app_server::test_support::TestServer;
+use reqwest::Client;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -167,4 +169,45 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     }
     assert!(got_error_result, "expected is_error=true result for unknown tool");
     assert!(got_done);
+}
+
+#[tokio::test]
+async fn agent_turn_endpoint_streams_text() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+    let mock = Arc::new(MockProvider::new(vec![
+        ChatChunk::TextDelta {
+            text: "The goblin growls.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]));
+    let server = TestServer::start_with(mock, pool).await;
+
+    let client = Client::new();
+    let resp = client
+        .post(server.url("/agent/turn"))
+        .header("content-type", "application/json")
+        .body(
+            r#"{"player_message":"I attack the goblin","history":[],"campaign_id":"00000000-0000-0000-0000-000000000001","session_id":"00000000-0000-0000-0000-000000000002"}"#,
+        )
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body = resp.text().await.unwrap();
+    assert!(
+        body.contains("text_delta"),
+        "expected text_delta event in: {body}"
+    );
+    assert!(
+        body.contains("The goblin growls."),
+        "expected narration text in: {body}"
+    );
+    assert!(
+        body.contains("agent_done"),
+        "expected agent_done event in: {body}"
+    );
 }

@@ -19,6 +19,7 @@ pub use state::AppState;
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(routes::health::health))
+        .route("/agent/turn", post(routes::agent::post_agent_turn))
         .route("/chat", post(routes::chat::chat))
         .route("/providers", get(routes::settings::get_providers))
         .route("/settings", post(routes::settings::post_settings))
