@@ -52,7 +52,7 @@ fn cache_key_npc_order_is_sorted() {
 fn local_sdxl_stub_cost_is_zero() {
     use app_server::image::provider::ImageProvider;
     use app_server::image::stub::LocalSdxlSidecarProvider;
-    let stub = LocalSdxlSidecarProvider;
+    let stub = LocalSdxlSidecarProvider::new("http://127.0.0.1:0");
     assert_eq!(stub.cost_per_image(), 0.0);
     assert_eq!(stub.estimated_seconds(), 8);
 }

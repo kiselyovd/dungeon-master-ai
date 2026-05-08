@@ -94,7 +94,6 @@ impl ImageProvider for LocalSdxlSidecarProvider {
 mod tests {
     use super::*;
     use base64::engine::general_purpose::STANDARD as B64;
-    use base64::Engine as _;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
