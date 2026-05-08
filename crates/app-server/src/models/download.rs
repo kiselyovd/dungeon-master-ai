@@ -108,6 +108,58 @@ pub async fn download_to(
     })
 }
 
+#[derive(Debug)]
+pub struct DiffusersResult {
+    pub files_downloaded: u32,
+    pub bytes_total: u64,
+}
+
+pub async fn download_diffusers_repo(
+    manifest_url: &str,
+    base_url: &str,
+    dest_dir: &Path,
+    tx: Arc<broadcast::Sender<DownloadEvent>>,
+) -> Result<DiffusersResult, DownloadError> {
+    let client = reqwest::Client::new();
+    let manifest: serde_json::Value = client.get(manifest_url).send().await?.json().await?;
+    let mut files = Vec::new();
+    if let Some(obj) = manifest.as_object() {
+        for arr in obj.values().filter_map(|v| v.as_array()) {
+            for entry in arr {
+                if let Some(p) = entry.as_str() {
+                    files.push(p.to_string());
+                }
+            }
+        }
+    }
+
+    let mut bytes_total = 0u64;
+    let mut files_downloaded = 0u32;
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(4));
+    let mut handles = Vec::new();
+    for relpath in files {
+        let url = format!("{base_url}/{relpath}");
+        let dest = dest_dir.join(&relpath);
+        let permit = semaphore.clone();
+        let tx = tx.clone();
+        handles.push(tokio::spawn(async move {
+            let _p = permit.acquire_owned().await.expect("semaphore");
+            download_to(&url, &dest, "", tx).await
+        }));
+    }
+    for h in handles {
+        let r = h
+            .await
+            .map_err(|e| DownloadError::Io(std::io::Error::other(e.to_string())))??;
+        bytes_total += r.bytes_downloaded;
+        files_downloaded += 1;
+    }
+    Ok(DiffusersResult {
+        files_downloaded,
+        bytes_total,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,6 +208,46 @@ mod tests {
         .await;
         assert!(matches!(result, Err(DownloadError::Sha256Mismatch { .. })));
         assert!(!dest.exists());
+    }
+
+    #[tokio::test]
+    async fn diffusers_walk_downloads_listed_files() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/repo/model_index.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"unet": ["unet/diffusion_pytorch_model.safetensors"], "vae": ["vae/diffusion_pytorch_model.safetensors"]}"#,
+            ))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/repo/unet/diffusion_pytorch_model.safetensors"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"unet-bytes".to_vec()))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/repo/vae/diffusion_pytorch_model.safetensors"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"vae-bytes".to_vec()))
+            .mount(&server)
+            .await;
+
+        let tmp = TempDir::new().unwrap();
+        let (tx, _rx) = tokio::sync::broadcast::channel(8);
+        let manifest_url = format!("{}/repo/model_index.json", server.uri());
+        let base_url = format!("{}/repo", server.uri());
+        let result =
+            download_diffusers_repo(&manifest_url, &base_url, tmp.path(), Arc::new(tx))
+                .await
+                .unwrap();
+        assert!(tmp
+            .path()
+            .join("unet/diffusion_pytorch_model.safetensors")
+            .exists());
+        assert!(tmp
+            .path()
+            .join("vae/diffusion_pytorch_model.safetensors")
+            .exists());
+        assert_eq!(result.files_downloaded, 2);
     }
 
     #[tokio::test]
