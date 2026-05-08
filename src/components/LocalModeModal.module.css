@@ -1,0 +1,71 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 26, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.modal {
+  background: var(--color-surface, #1c1820);
+  border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--space-6, 24px);
+  width: min(640px, 92vw);
+  max-height: 90vh;
+  overflow: auto;
+  color: var(--color-text, #f0e6d6);
+  font-family: var(--font-body, Inter, sans-serif);
+  box-shadow: var(--shadow-modal, 0 16px 36px rgba(0, 0, 0, 0.55));
+}
+
+.modal h2 {
+  margin: 0 0 var(--space-4, 16px) 0;
+  font-family: var(--font-display, Cinzel, serif);
+  color: var(--color-accent, #d4af37);
+}
+
+.modal h3 {
+  margin: var(--space-5, 20px) 0 var(--space-2, 8px) 0;
+  font-family: var(--font-display, Cinzel, serif);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4, 16px);
+}
+
+.row label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.strategySelect {
+  padding: var(--space-2, 8px);
+  background: var(--color-surface, #1c1820);
+  color: var(--color-text, #f0e6d6);
+  border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
+  border-radius: var(--radius-sm, 6px);
+}
+
+.closeRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-5, 20px);
+}
+
+.closeRow button {
+  padding: var(--space-2, 8px) var(--space-5, 20px);
+  border-radius: var(--radius-pill, 9999px);
+  border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
+  background: var(--color-accent, #d4af37);
+  color: var(--color-text-on-accent, #14101a);
+  cursor: pointer;
+  font-family: inherit;
+}

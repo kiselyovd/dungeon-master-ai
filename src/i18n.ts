@@ -7,6 +7,7 @@ import enCombat from './locales/en/combat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enJournal from './locales/en/journal.json';
+import enLocalMode from './locales/en/local_mode.json';
 import enNpc from './locales/en/npc.json';
 import enSettings from './locales/en/settings.json';
 import enUpdater from './locales/en/updater.json';
@@ -16,6 +17,7 @@ import ruCombat from './locales/ru/combat.json';
 import ruCommon from './locales/ru/common.json';
 import ruErrors from './locales/ru/errors.json';
 import ruJournal from './locales/ru/journal.json';
+import ruLocalMode from './locales/ru/local_mode.json';
 import ruNpc from './locales/ru/npc.json';
 import ruSettings from './locales/ru/settings.json';
 import ruUpdater from './locales/ru/updater.json';
@@ -27,7 +29,18 @@ void i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'ru'],
     defaultNS: 'common',
-    ns: ['common', 'chat', 'settings', 'errors', 'combat', 'journal', 'npc', 'agent', 'updater'],
+    ns: [
+      'common',
+      'chat',
+      'settings',
+      'errors',
+      'combat',
+      'journal',
+      'npc',
+      'agent',
+      'updater',
+      'local_mode',
+    ],
     resources: {
       en: {
         common: enCommon,
@@ -39,6 +52,7 @@ void i18n
         npc: enNpc,
         agent: enAgent,
         updater: enUpdater,
+        local_mode: enLocalMode,
       },
       ru: {
         common: ruCommon,
@@ -50,6 +64,7 @@ void i18n
         npc: ruNpc,
         agent: ruAgent,
         updater: ruUpdater,
+        local_mode: ruLocalMode,
       },
     },
     interpolation: { escapeValue: false },

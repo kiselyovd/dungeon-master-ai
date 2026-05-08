@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
 import { createJournalSlice, type JournalSlice } from './journal';
+import { createLocalModeSlice, type LocalModeSlice } from './localMode';
 import { createNpcSlice, type NpcSlice } from './npc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
 import { createSettingsSlice, type SettingsSlice } from './settings';
@@ -13,7 +14,8 @@ export type AppState = ChatSlice &
   CombatSlice &
   JournalSlice &
   NpcSlice &
-  ToolLogSlice;
+  ToolLogSlice &
+  LocalModeSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -26,6 +28,7 @@ export const useStore = create<AppState>()(
       ...createJournalSlice(...a),
       ...createNpcSlice(...a),
       ...createToolLogSlice(...a),
+      ...createLocalModeSlice(...a),
     }),
     {
       name: PERSIST_NAME,

@@ -5,6 +5,7 @@ import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
 import { ChatPanel } from './components/ChatPanel';
 import { InitiativeTracker } from './components/InitiativeTracker';
+import { LocalModeModal } from './components/LocalModeModal';
 import { SettingsModal } from './components/SettingsModal';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VttCanvas } from './components/VttCanvas';
@@ -15,6 +16,7 @@ import { useStore } from './state/useStore';
 function App() {
   const { t } = useTranslation('common');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [localModeOpen, setLocalModeOpen] = useState(false);
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const combatActive = useStore((s) => s.combat.active);
   const combatTokens = useStore((s) => s.combat.tokens);
@@ -45,6 +47,9 @@ function App() {
     <div className={styles.app}>
       <header className={styles.header}>
         <h1 className={styles.title}>{t('app_title')}</h1>
+        <button type="button" onClick={() => setLocalModeOpen(true)}>
+          {t('local_mode')}
+        </button>
         <button type="button" onClick={() => setSettingsOpen(true)}>
           {t('settings')}
         </button>
@@ -59,6 +64,7 @@ function App() {
       </aside>
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
 
       {pendingUpdate && (
         <UpdateAvailableModal

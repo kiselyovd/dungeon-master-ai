@@ -1,0 +1,17 @@
+{
+  "title": "Local Mode",
+  "enable": "Enable Local Mode",
+  "start_runtimes": "Start runtimes",
+  "stop_runtimes": "Stop runtimes",
+  "download": "Download",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "use": "Use",
+  "in_use": "In use",
+  "llm_models": "LLM models",
+  "image_model": "Image model",
+  "vram_strategy": "VRAM strategy",
+  "strategy_auto_swap": "Auto-swap (LLM unloads when image generates)",
+  "strategy_keep_both": "Keep both loaded (>= 16 GB VRAM)",
+  "strategy_disable_image": "Disable image generation"
+}

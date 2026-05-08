@@ -1,0 +1,17 @@
+{
+  "title": "Локальный режим",
+  "enable": "Включить локальный режим",
+  "start_runtimes": "Запустить рантаймы",
+  "stop_runtimes": "Остановить рантаймы",
+  "download": "Скачать",
+  "cancel": "Отмена",
+  "delete": "Удалить",
+  "use": "Использовать",
+  "in_use": "Активна",
+  "llm_models": "LLM-модели",
+  "image_model": "Модель изображений",
+  "vram_strategy": "Стратегия VRAM",
+  "strategy_auto_swap": "Авто-свап (LLM выгружается на время генерации изображения)",
+  "strategy_keep_both": "Держать обе в VRAM (>= 16 ГБ)",
+  "strategy_disable_image": "Отключить генерацию изображений"
+}

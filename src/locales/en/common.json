@@ -4,5 +4,6 @@
   "save": "Save",
   "cancel": "Cancel",
   "close": "Close",
-  "settings": "Settings"
+  "settings": "Settings",
+  "local_mode": "Local Mode"
 }

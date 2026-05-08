@@ -1,0 +1,32 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
+}
+
+.off {
+  color: var(--color-text-muted, rgba(240, 230, 214, 0.6));
+  background: transparent;
+}
+
+.starting {
+  color: var(--color-accent, #d4af37);
+  background: var(--color-accent-tint, rgba(212, 175, 55, 0.12));
+}
+
+.ready {
+  color: var(--color-success, #76b870);
+  border-color: var(--color-success, #76b870);
+  background: rgba(118, 184, 112, 0.12);
+}
+
+.failed {
+  color: var(--color-danger, #d14b4b);
+  border-color: var(--color-danger, #d14b4b);
+  background: rgba(209, 75, 75, 0.12);
+}
