@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   z-index: 50;
-  box-shadow: var(--shadow-3);
+  box-shadow: var(--shadow-drawer);
 }
 
 .header {
@@ -179,4 +179,19 @@
 
 .jsonError {
   color: var(--color-danger);
+}
+
+.entryToggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.closeBtn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.curlBtn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
