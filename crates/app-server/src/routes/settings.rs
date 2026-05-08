@@ -4,10 +4,11 @@ use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 
-use app_llm::{AnthropicProvider, OpenAICompatProvider};
+use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
 
 use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
+use crate::models::manifest::{lookup, ModelId};
 use crate::state::AppState;
 
 /// Tagged union of provider configurations the user can pick in Settings.
@@ -27,6 +28,10 @@ pub enum ProviderConfig {
         api_key: String,
         model: String,
     },
+    LocalMistralrs {
+        model_id: ModelId,
+        port: u16,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -45,7 +50,7 @@ const DEFAULT_ANTHROPIC_MODEL: &str = "claude-haiku-4-5-20251001";
 
 pub async fn get_providers(State(state): State<AppState>) -> Json<ProvidersInfo> {
     Json(ProvidersInfo {
-        available: vec!["anthropic", "openai-compat"],
+        available: vec!["anthropic", "openai-compat", "local-mistralrs"],
         active: ActiveProviderInfo {
             kind: state.provider().name().to_string(),
             default_model: state.default_model(),
@@ -82,6 +87,16 @@ pub async fn post_settings(
             }
             state.set_provider(Arc::new(OpenAICompatProvider::new(base_url, api_key)));
             state.set_default_model(model);
+        }
+        ProviderConfig::LocalMistralrs { model_id, port } => {
+            let manifest = lookup(model_id)
+                .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
+            let model_name = manifest.hf_filename.to_string();
+            state.set_provider(Arc::new(MistralrsLocalProvider::new(
+                port,
+                model_name.clone(),
+            )));
+            state.set_default_model(model_name);
         }
     }
 

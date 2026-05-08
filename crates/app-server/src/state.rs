@@ -1,10 +1,16 @@
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use app_domain::srd::retriever::SrdRetriever;
-use app_llm::LlmProvider;
+use app_llm::{LlmProvider, NullSidecarLauncher};
 use sqlx::SqlitePool;
 
 use crate::agent::orchestrator::AgentConfig;
+use crate::local_runtime::{
+    probe_always_fail, LocalRuntime, RegistrySnapshot, RuntimeRegistry,
+};
+use crate::models::DownloadManager;
+use crate::routes::local_mode::LocalModeConfig;
 
 /// Shared application state for axum handlers.
 ///
@@ -26,10 +32,25 @@ struct AppStateInner {
     agent_config: RwLock<AgentConfig>,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
     image_provider: RwLock<Option<Arc<dyn crate::image::provider::ImageProvider>>>,
+    local_mode_config: RwLock<LocalModeConfig>,
+    download_manager: Arc<DownloadManager>,
+    runtime_registry: Arc<RuntimeRegistry>,
+    models_dir: RwLock<PathBuf>,
 }
 
 impl AppState {
     pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
+        let models_dir = std::env::temp_dir().join("dmai-models");
+        let download_manager = Arc::new(DownloadManager::new(models_dir.clone()));
+        let llm_runtime = Arc::new(LocalRuntime::new(
+            Arc::new(NullSidecarLauncher),
+            probe_always_fail(),
+        ));
+        let image_runtime = Arc::new(LocalRuntime::new(
+            Arc::new(NullSidecarLauncher),
+            probe_always_fail(),
+        ));
+        let runtime_registry = Arc::new(RuntimeRegistry::new(llm_runtime, image_runtime));
         Self {
             inner: Arc::new(AppStateInner {
                 llm: RwLock::new(llm),
@@ -38,6 +59,10 @@ impl AppState {
                 agent_config: RwLock::new(AgentConfig::default()),
                 srd_retriever: RwLock::new(None),
                 image_provider: RwLock::new(None),
+                local_mode_config: RwLock::new(LocalModeConfig::default()),
+                download_manager,
+                runtime_registry,
+                models_dir: RwLock::new(models_dir),
             }),
         }
     }
@@ -124,5 +149,49 @@ impl AppState {
             .image_provider
             .write()
             .expect("image provider lock poisoned") = Some(provider);
+    }
+
+    pub fn local_mode_config(&self) -> LocalModeConfig {
+        self.inner
+            .local_mode_config
+            .read()
+            .expect("local mode config lock poisoned")
+            .clone()
+    }
+
+    pub fn set_local_mode_config(&self, cfg: LocalModeConfig) {
+        *self
+            .inner
+            .local_mode_config
+            .write()
+            .expect("local mode config lock poisoned") = cfg;
+    }
+
+    pub fn download_manager(&self) -> Arc<DownloadManager> {
+        self.inner.download_manager.clone()
+    }
+
+    pub fn runtime_registry(&self) -> Arc<RuntimeRegistry> {
+        self.inner.runtime_registry.clone()
+    }
+
+    pub async fn runtime_status(&self) -> RegistrySnapshot {
+        self.runtime_registry().status().await
+    }
+
+    pub fn models_dir(&self) -> PathBuf {
+        self.inner
+            .models_dir
+            .read()
+            .expect("models dir lock poisoned")
+            .clone()
+    }
+
+    pub fn set_models_dir(&self, dir: PathBuf) {
+        *self
+            .inner
+            .models_dir
+            .write()
+            .expect("models dir lock poisoned") = dir;
     }
 }

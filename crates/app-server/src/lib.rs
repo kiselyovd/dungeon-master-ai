@@ -31,6 +31,30 @@ pub fn router(state: AppState) -> Router {
         .route("/combat/end", post(routes::combat::post_combat_end))
         .route("/journal", get(routes::journal::get_journal))
         .route("/npcs", get(routes::npc::get_npcs))
+        .route(
+            "/local-mode/config",
+            get(routes::local_mode::get_config).post(routes::local_mode::post_config),
+        )
+        .route(
+            "/local/download/{id}",
+            post(routes::local_mode::post_download).delete(routes::local_mode::delete_download),
+        )
+        .route(
+            "/local/download/{id}/progress",
+            get(routes::local_mode::download_progress),
+        )
+        .route(
+            "/local/runtime/start",
+            post(routes::local_mode::runtime_start),
+        )
+        .route(
+            "/local/runtime/stop",
+            post(routes::local_mode::runtime_stop),
+        )
+        .route(
+            "/local/runtime/status",
+            get(routes::local_mode::runtime_status),
+        )
         .with_state(state)
         .layer(
             CorsLayer::new()

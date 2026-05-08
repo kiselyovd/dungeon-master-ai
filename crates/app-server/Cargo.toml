@@ -22,7 +22,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 futures = { workspace = true }
-tokio-stream = { workspace = true }
+tokio-stream = { workspace = true, features = ["sync"] }
 async-trait = { workspace = true }
 reqwest = { workspace = true }
 sqlx = { workspace = true }

@@ -123,6 +123,23 @@ impl SidecarLauncher for MockSidecarLauncher {
     }
 }
 
+/// Stub launcher used as the default in `AppState::new` before a real
+/// production launcher (Tauri sidecar plugin) is wired in. Every `spawn`
+/// call fails with `SidecarError::Spawn` carrying a stable error message
+/// so callers can detect "local runtime not configured" deterministically.
+#[derive(Default)]
+pub struct NullSidecarLauncher;
+
+#[async_trait]
+impl SidecarLauncher for NullSidecarLauncher {
+    async fn spawn(&self, name: &str, _args: &[&str]) -> Result<SidecarHandle, SidecarError> {
+        Err(SidecarError::Spawn {
+            name: name.into(),
+            source: std::io::Error::other("local runtime not configured"),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

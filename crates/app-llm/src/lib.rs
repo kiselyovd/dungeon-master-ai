@@ -17,5 +17,6 @@ pub use provider::{
     ToolCall, ToolResult,
 };
 pub use sidecar_launcher::{
-    MockSidecarLauncher, SidecarError, SidecarHandle, SidecarLauncher, SpawnSpec,
+    MockSidecarLauncher, NullSidecarLauncher, SidecarError, SidecarHandle, SidecarLauncher,
+    SpawnSpec,
 };
