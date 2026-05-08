@@ -67,3 +67,41 @@ export function safeParseHttpError(data: unknown): HttpErrorEnvelope | null {
   const result = v.safeParse(HttpErrorEnvelopeSchema, data);
   return result.success ? result.output : null;
 }
+
+export const ToolCallStartSchema = v.object({
+  id: v.string(),
+  tool_name: v.string(),
+  round: v.number(),
+});
+
+export const ToolCallResultSchema = v.object({
+  id: v.string(),
+  tool_name: v.string(),
+  args: v.unknown(),
+  result: v.unknown(),
+  is_error: v.boolean(),
+  round: v.number(),
+});
+
+export const AgentDoneSchema = v.object({
+  total_rounds: v.number(),
+});
+
+export type ToolCallStartPayload = v.InferOutput<typeof ToolCallStartSchema>;
+export type ToolCallResultPayload = v.InferOutput<typeof ToolCallResultSchema>;
+export type AgentDonePayload = v.InferOutput<typeof AgentDoneSchema>;
+
+export function safeParseToolCallStart(data: unknown): ToolCallStartPayload | null {
+  const r = v.safeParse(ToolCallStartSchema, data);
+  return r.success ? r.output : null;
+}
+
+export function safeParseToolCallResult(data: unknown): ToolCallResultPayload | null {
+  const r = v.safeParse(ToolCallResultSchema, data);
+  return r.success ? r.output : null;
+}
+
+export function safeParseAgentDone(data: unknown): AgentDonePayload | null {
+  const r = v.safeParse(AgentDoneSchema, data);
+  return r.success ? r.output : null;
+}

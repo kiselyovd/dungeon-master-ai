@@ -1,0 +1,113 @@
+.card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-family: "JetBrains Mono", monospace;
+  font-size: var(--text-xs);
+  transition: border-color var(--t-base);
+}
+
+.cardError {
+  border-color: var(--color-danger);
+}
+
+@keyframes gold-flash {
+  0% {
+    box-shadow: 0 0 0 2px var(--color-accent);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.cardFlash {
+  animation: gold-flash 600ms ease-out forwards;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.toolName {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono);
+  flex: 1;
+}
+
+.statusBadge {
+  font-size: 10px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-deep);
+}
+
+.status_pending {
+  color: var(--color-fg-muted);
+}
+.status_success {
+  color: var(--color-success);
+}
+.status_error {
+  color: var(--color-danger);
+}
+
+.round {
+  color: var(--color-fg-muted);
+  font-size: 10px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  color: var(--color-fg-muted);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.code {
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--color-bg-deep);
+  border-radius: var(--radius-sm);
+  color: var(--color-fg-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: var(--leading-normal);
+}
+
+@keyframes digit-cycle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.cycling {
+  color: var(--color-fg-muted);
+  animation: digit-cycle 200ms ease-in-out infinite;
+}
+
+.settled {
+  color: var(--color-fg-primary);
+  animation: none;
+}

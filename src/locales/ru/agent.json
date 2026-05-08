@@ -1,0 +1,6 @@
+{
+  "tool_pending": "Выполняется...",
+  "tool_success": "Успех",
+  "tool_error": "Ошибка",
+  "round_label": "Раунд {{round}}"
+}

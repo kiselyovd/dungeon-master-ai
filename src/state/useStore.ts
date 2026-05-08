@@ -6,8 +6,14 @@ import { createJournalSlice, type JournalSlice } from './journal';
 import { createNpcSlice, type NpcSlice } from './npc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
 import { createSettingsSlice, type SettingsSlice } from './settings';
+import { createToolLogSlice, type ToolLogSlice } from './toolLog';
 
-export type AppState = ChatSlice & SettingsSlice & CombatSlice & JournalSlice & NpcSlice;
+export type AppState = ChatSlice &
+  SettingsSlice &
+  CombatSlice &
+  JournalSlice &
+  NpcSlice &
+  ToolLogSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -19,6 +25,7 @@ export const useStore = create<AppState>()(
       ...createCombatSlice(...a),
       ...createJournalSlice(...a),
       ...createNpcSlice(...a),
+      ...createToolLogSlice(...a),
     }),
     {
       name: PERSIST_NAME,
