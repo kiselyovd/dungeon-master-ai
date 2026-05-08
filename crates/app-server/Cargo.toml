@@ -29,11 +29,13 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
+sha2 = "0.10"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 app-server = { path = ".", features = ["test-support"] }
 wiremock = "0.6"
+tempfile = "3"
 
 [features]
 test-support = []
