@@ -39,4 +39,11 @@ describe('JournalViewer', () => {
     render(<JournalViewer entries={[]} onClose={vi.fn()} />);
     expect(screen.getByText(/no journal entries/i)).toBeInTheDocument();
   });
+
+  it('calls onClose on Escape key', async () => {
+    const onClose = vi.fn();
+    render(<JournalViewer entries={[]} onClose={onClose} />);
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });
