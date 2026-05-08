@@ -170,7 +170,7 @@
 .dispositionChip {
   font-family: "JetBrains Mono", monospace;
   font-size: var(--text-xs);
-  padding: 2px var(--space-2);
+  padding: var(--space-05) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-bg-deep);
 }

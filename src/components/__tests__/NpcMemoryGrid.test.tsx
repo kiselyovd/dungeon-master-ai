@@ -42,4 +42,15 @@ describe('NpcMemoryGrid', () => {
     await userEvent.click(screen.getByRole('button', { name: /close/i }));
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('escape in search clears the field, does not close', async () => {
+    const onClose = vi.fn();
+    render(<NpcMemoryGrid npcs={mockNpcs} onClose={onClose} />);
+    const input = screen.getByRole('searchbox');
+    await userEvent.type(input, 'mira');
+    await userEvent.click(input); // ensure focus
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect((input as HTMLInputElement).value).toBe('');
+  });
 });

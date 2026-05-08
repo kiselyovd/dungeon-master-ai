@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { NpcRecord } from '../state/npc';
+import { DISPOSITIONS, type Disposition, type NpcRecord } from '../state/npc';
 import styles from './NpcMemoryGrid.module.css';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void;
 }
 
-const DISPOSITION_COLORS: Record<string, string> = {
+const DISPOSITION_COLORS: Record<Disposition, string> = {
   friendly: 'var(--color-success)',
   neutral: 'var(--color-fg-secondary)',
   hostile: 'var(--color-danger)',
@@ -19,7 +19,7 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   const { t } = useTranslation('npc');
   const containerRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
-  const [filterDisposition, setFilterDisposition] = useState<string | null>(null);
+  const [filterDisposition, setFilterDisposition] = useState<Disposition | null>(null);
 
   useEffect(() => {
     containerRef.current?.focus();
@@ -55,6 +55,12 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
               placeholder={t('search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && search) {
+                  e.stopPropagation();
+                  setSearch('');
+                }
+              }}
               aria-label={t('search_placeholder')}
             />
             <button
@@ -68,7 +74,7 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
           </div>
         </div>
         <div className={styles.filters}>
-          {(['friendly', 'neutral', 'hostile', 'unknown'] as const).map((d) => (
+          {DISPOSITIONS.map((d) => (
             <button
               key={d}
               type="button"

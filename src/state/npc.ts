@@ -5,12 +5,15 @@ export interface NpcFact {
   created_at: string;
 }
 
+export const DISPOSITIONS = ['friendly', 'neutral', 'hostile', 'unknown'] as const;
+export type Disposition = (typeof DISPOSITIONS)[number];
+
 export interface NpcRecord {
   id: string;
   campaign_id: string;
   name: string;
   role: string;
-  disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown';
+  disposition: Disposition;
   trust: number;
   facts: NpcFact[];
   updated_at: string;
