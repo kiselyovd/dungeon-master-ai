@@ -1,0 +1,12 @@
+{
+  "title": "NPC Memory",
+  "close": "Close NPC memory",
+  "search_placeholder": "Search by name or role...",
+  "no_npcs": "No NPCs recorded yet. Encounter someone interesting.",
+  "no_results": "No NPCs match your search.",
+  "disposition_friendly": "Friendly",
+  "disposition_neutral": "Neutral",
+  "disposition_hostile": "Hostile",
+  "disposition_unknown": "Unknown",
+  "more_facts": "+{{count}} more"
+}

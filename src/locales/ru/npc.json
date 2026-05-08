@@ -1,0 +1,12 @@
+{
+  "title": "Память о НИП",
+  "close": "Закрыть память о НИП",
+  "search_placeholder": "Поиск по имени или роли...",
+  "no_npcs": "Никого не встречено. Познакомьтесь с кем-нибудь интересным.",
+  "no_results": "Никто не соответствует поиску.",
+  "disposition_friendly": "Дружелюбный",
+  "disposition_neutral": "Нейтральный",
+  "disposition_hostile": "Враждебный",
+  "disposition_unknown": "Неизвестно",
+  "more_facts": "+{{count}} ещё"
+}

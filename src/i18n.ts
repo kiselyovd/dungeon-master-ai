@@ -6,12 +6,14 @@ import enCombat from './locales/en/combat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enJournal from './locales/en/journal.json';
+import enNpc from './locales/en/npc.json';
 import enSettings from './locales/en/settings.json';
 import ruChat from './locales/ru/chat.json';
 import ruCombat from './locales/ru/combat.json';
 import ruCommon from './locales/ru/common.json';
 import ruErrors from './locales/ru/errors.json';
 import ruJournal from './locales/ru/journal.json';
+import ruNpc from './locales/ru/npc.json';
 import ruSettings from './locales/ru/settings.json';
 
 void i18n
@@ -21,7 +23,7 @@ void i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'ru'],
     defaultNS: 'common',
-    ns: ['common', 'chat', 'settings', 'errors', 'combat', 'journal'],
+    ns: ['common', 'chat', 'settings', 'errors', 'combat', 'journal', 'npc'],
     resources: {
       en: {
         common: enCommon,
@@ -30,6 +32,7 @@ void i18n
         errors: enErrors,
         combat: enCombat,
         journal: enJournal,
+        npc: enNpc,
       },
       ru: {
         common: ruCommon,
@@ -38,6 +41,7 @@ void i18n
         errors: ruErrors,
         combat: ruCombat,
         journal: ruJournal,
+        npc: ruNpc,
       },
     },
     interpolation: { escapeValue: false },
