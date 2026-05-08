@@ -211,3 +211,85 @@ async fn agent_turn_endpoint_streams_text() {
         "expected agent_done event in: {body}"
     );
 }
+
+#[tokio::test]
+async fn agent_tool_call_result_contains_tool_name() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let mock = std::sync::Arc::new(MockProvider::new(vec![
+        ChatChunk::ToolCallStart {
+            id: "c1".into(),
+            name: "roll_dice".into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: "c1".into(),
+            args_fragment: r#"{"dice":"1d20","reason":"stealth check"}"#.into(),
+        },
+        ChatChunk::ToolCallDone { id: "c1".into() },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
+    ]));
+
+    let server = TestServer::start_with(mock, pool).await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(server.url("/agent/turn"))
+        .header("content-type", "application/json")
+        .body(
+            serde_json::json!({
+                "campaign_id": "00000000-0000-0000-0000-000000000001",
+                "session_id": "00000000-0000-0000-0000-000000000002",
+                "player_message": "I try to sneak past the guard",
+                "history": []
+            })
+            .to_string(),
+        )
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("tool_call_start"), "missing tool_call_start in: {body}");
+    assert!(body.contains("tool_call_result"), "missing tool_call_result in: {body}");
+    assert!(body.contains("roll_dice"), "missing roll_dice in: {body}");
+    assert!(body.contains("agent_done"), "missing agent_done in: {body}");
+}
+
+#[tokio::test]
+async fn journal_endpoint_returns_entries_after_agent_appends() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let campaign_id = uuid::Uuid::new_v4();
+
+    app_server::db::journal_insert(
+        &pool,
+        campaign_id,
+        "<p>The party defeated the goblins.</p>",
+        Some("Chapter 1"),
+    )
+    .await
+    .unwrap();
+
+    let server = TestServer::start_with(
+        std::sync::Arc::new(MockProvider::new(vec![])),
+        pool,
+    )
+    .await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(server.url(&format!("/journal?campaign_id={campaign_id}")))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let entries: Vec<serde_json::Value> = resp.json().await.unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["chapter"].as_str(), Some("Chapter 1"));
+}
