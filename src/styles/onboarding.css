@@ -31,23 +31,24 @@
   padding: var(--space-7) var(--space-7) var(--space-6);
   box-shadow: var(--shadow-modal);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Language picker - top-right corner of the onboarding card. Lives above
- * the stepper so a user with no settings access yet can still flip the
- * UI language at any step. Pill-style toggle with two text labels (EN/RU);
- * we deliberately avoid flag emojis. */
+/* Language picker - sits above the stepper, right-aligned, so a user with
+ * no settings access yet can still flip the UI language at any step. The
+ * dedicated row prevents collision with translated stepper text (Russian
+ * labels are noticeably wider). Pill-style toggle with two text labels
+ * (EN/RU); we deliberately avoid flag emojis. */
 .dm-onboarding-lang {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
+  align-self: flex-end;
+  margin-bottom: var(--space-3);
   display: inline-flex;
   gap: 2px;
   padding: 2px;
   border-radius: var(--radius-pill);
   background: var(--color-bg-input);
   border: 1px solid var(--color-border-subtle);
-  z-index: 1;
 }
 
 .dm-onboarding-lang-btn {
