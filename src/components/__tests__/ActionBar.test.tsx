@@ -4,7 +4,7 @@ import '../../i18n';
 import { ActionBar } from '../ActionBar';
 
 describe('ActionBar', () => {
-  it('renders all four action buttons + end-turn', () => {
+  it('renders the design-spec eight action buttons + economy chips', () => {
     render(
       <ActionBar
         actionUsed={false}
@@ -12,18 +12,20 @@ describe('ActionBar', () => {
         reactionUsed={false}
         movementFt={30}
         speedFt={30}
-        visible={true}
         onEndTurn={() => {}}
       />,
     );
-    expect(screen.getByTestId('action-btn-action')).toBeTruthy();
-    expect(screen.getByTestId('action-btn-bonus')).toBeTruthy();
-    expect(screen.getByTestId('action-btn-reaction')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-attack')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-cast')).toBeTruthy();
     expect(screen.getByTestId('action-btn-move')).toBeTruthy();
-    expect(screen.getByTestId('action-btn-end-turn')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-dash')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-dodge')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-disengage')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-use_object')).toBeTruthy();
+    expect(screen.getByTestId('action-btn-end_turn')).toBeTruthy();
   });
 
-  it('action button is disabled when actionUsed=true', () => {
+  it('attack and other action-economy buttons are disabled when actionUsed=true', () => {
     render(
       <ActionBar
         actionUsed={true}
@@ -31,12 +33,11 @@ describe('ActionBar', () => {
         reactionUsed={false}
         movementFt={30}
         speedFt={30}
-        visible={true}
         onEndTurn={() => {}}
       />,
     );
-    const btn = screen.getByTestId('action-btn-action') as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    const attack = screen.getByTestId('action-btn-attack') as HTMLButtonElement;
+    expect(attack.disabled).toBe(true);
   });
 
   it('calls onEndTurn when end-turn is clicked', () => {
@@ -48,26 +49,24 @@ describe('ActionBar', () => {
         reactionUsed={false}
         movementFt={30}
         speedFt={30}
-        visible={true}
         onEndTurn={onEnd}
       />,
     );
-    fireEvent.click(screen.getByTestId('action-btn-end-turn'));
+    fireEvent.click(screen.getByTestId('action-btn-end_turn'));
     expect(onEnd).toHaveBeenCalledOnce();
   });
 
-  it('slides up when visible=true', () => {
-    const { container } = render(
+  it('end-turn is disabled when no handler is wired', () => {
+    render(
       <ActionBar
         actionUsed={false}
         bonusUsed={false}
         reactionUsed={false}
         movementFt={30}
         speedFt={30}
-        visible={true}
-        onEndTurn={() => {}}
       />,
     );
-    expect(container.querySelector('.action-bar.visible')).toBeTruthy();
+    const btn = screen.getByTestId('action-btn-end_turn') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
   });
 });

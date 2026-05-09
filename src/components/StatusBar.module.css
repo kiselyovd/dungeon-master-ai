@@ -1,0 +1,77 @@
+.statusBar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--statusbar-height);
+  padding: 0 var(--space-3);
+  background: var(--color-bg-deep);
+  border-top: 1px solid var(--color-border-strong);
+  font-size: 11px;
+  color: var(--color-fg-muted);
+  user-select: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label {
+  color: var(--color-fg-muted);
+}
+
+.value {
+  color: var(--color-fg-secondary);
+  font-weight: 500;
+}
+
+.valueMono {
+  color: var(--color-fg-secondary);
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.divider {
+  width: 1px;
+  height: 12px;
+  background: var(--color-border-subtle);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.dotConnected {
+  background: var(--color-success);
+  color: var(--color-success);
+}
+
+.dotError {
+  background: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.dotLoading {
+  background: var(--color-warning);
+  color: var(--color-warning);
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}

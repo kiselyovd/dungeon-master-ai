@@ -14,6 +14,28 @@
   border-radius: 8px;
   pointer-events: none;
   background: rgba(212, 175, 55, 0.05);
+  z-index: 5;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-strong);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), transparent);
+  user-select: none;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent-soft);
 }
 
 .history {
@@ -23,6 +45,36 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+  text-align: center;
+  color: var(--color-fg-secondary);
+}
+
+.welcomeOrnament {
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.4), transparent);
+}
+
+.welcomeTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--color-accent);
+  letter-spacing: 0.05em;
+}
+
+.welcomeText {
+  font-size: var(--text-sm);
+  color: var(--color-fg-muted);
+  max-width: 320px;
+  line-height: 1.6;
 }
 
 .streamWrapper {
@@ -48,6 +100,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
 }
 
 .composerActions {
@@ -56,12 +109,31 @@
   align-items: flex-end;
 }
 
-.paperclip {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  font-size: 22px;
-  line-height: 1;
+.sendBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.18), rgba(168, 134, 42, 0.1));
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--color-accent-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition:
+    background var(--t-fast),
+    border-color var(--t-fast);
+}
+
+.sendBtn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.28), rgba(168, 134, 42, 0.15));
+}
+
+.sendBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .stagingError {
@@ -75,6 +147,12 @@
 .draft {
   width: 100%;
   resize: none;
+}
+
+.hint {
+  font-size: 10px;
+  color: var(--color-fg-muted);
+  letter-spacing: 0.02em;
 }
 
 .typingRow {

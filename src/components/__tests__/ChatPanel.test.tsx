@@ -21,7 +21,7 @@ describe('ChatPanel', () => {
 
   it('renders empty state with placeholder when no messages', () => {
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/What do you do/i);
     expect(input).toBeInTheDocument();
   });
 
@@ -57,7 +57,7 @@ describe('ChatPanel', () => {
 
   it('enables send button when input has text', () => {
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/What do you do/i);
     fireEvent.change(input, { target: { value: 'test' } });
     const button = screen.getByRole('button', { name: /Send/i });
     expect(button).toBeEnabled();
@@ -72,7 +72,7 @@ describe('ChatPanel', () => {
     });
 
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/What do you do/i);
     await user.type(input, 'I draw my sword');
 
     fireEvent.click(screen.getByRole('button', { name: /Send/i }));
@@ -102,7 +102,7 @@ describe('ChatPanel', () => {
     streamChatMock.mockResolvedValue({ reason: 'stop' });
 
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i) as HTMLTextAreaElement;
+    const input = screen.getByPlaceholderText(/What do you do/i) as HTMLTextAreaElement;
 
     await user.click(input);
     await user.keyboard('first line');
@@ -135,7 +135,7 @@ describe('ChatPanel', () => {
     );
 
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/What do you do/i);
     await user.type(input, 'cast fireball');
 
     fireEvent.click(screen.getByRole('button', { name: /Send/i }));
@@ -157,7 +157,7 @@ describe('ChatPanel', () => {
     streamChatMock.mockRejectedValue(new ChatError('rate_limit', 'too many requests'));
 
     render(<ChatPanel />);
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/What do you do/i);
     await user.type(input, 'hi');
     fireEvent.click(screen.getByRole('button', { name: /Send/i }));
 

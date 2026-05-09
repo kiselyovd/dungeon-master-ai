@@ -4,7 +4,6 @@ import {
   type DragEvent as ReactDragEvent,
   useCallback,
   useEffect,
-  useRef,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +12,7 @@ import { useChat } from '../hooks/useChat';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
 import type { StagedImage } from '../state/chat';
+import { Icons } from '../ui/Icons';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
@@ -30,7 +30,6 @@ export function ChatPanel() {
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { ref: historyRef, onScroll, scrollToBottom } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
@@ -143,15 +142,32 @@ export function ChatPanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, [isStreaming, cancel]);
 
+  const isEmptyChat = messages.length === 0 && streamingAssistant === null && !isStreaming;
+
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: drag-drop surface; keyboard alternative is the paperclip button
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-drop surface; keyboard alternative is paste/Ctrl+V into the textarea
     <div
       className={`${styles.panel} ${isDragging ? styles.dragging : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <div className={styles.header}>
+        <span className={styles.headerTitle}>
+          <Icons.Sparkle size={14} />
+          <span>{t('header_title')}</span>
+        </span>
+      </div>
+
       <div ref={historyRef} className={styles.history} onScroll={onScroll}>
+        {isEmptyChat && (
+          <div className={styles.welcome} aria-hidden="true">
+            <div className={styles.welcomeOrnament} />
+            <div className={styles.welcomeTitle}>{t('welcome_title')}</div>
+            <div className={styles.welcomeText}>{t('welcome_text')}</div>
+            <div className={styles.welcomeOrnament} />
+          </div>
+        )}
         {messages.map((m) =>
           m.parts !== undefined ? (
             <MessageBubble key={m.id} chatRole={m.role} parts={m.parts}>
@@ -182,18 +198,8 @@ export function ChatPanel() {
           </div>
         )}
       </div>
+
       <div className={styles.composer}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          multiple
-          hidden
-          onChange={(e) => {
-            if (e.target.files) void addFiles(e.target.files);
-            e.target.value = '';
-          }}
-        />
         <div className={styles.composerCol}>
           {stagingError !== null && (
             <div role="status" className={styles.stagingError}>
@@ -209,25 +215,31 @@ export function ChatPanel() {
             placeholder={t('placeholder')}
             rows={2}
             className={styles.draft}
+            aria-label={t('placeholder')}
           />
+          <div className={styles.hint}>{t('hint_keyboard')}</div>
         </div>
         <div className={styles.composerActions}>
-          <button
-            type="button"
-            aria-label={t('attach_image')}
-            className={styles.paperclip}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isStreaming || staged.length >= MAX_IMAGES_PER_MESSAGE}
-          >
-            +
-          </button>
           {isStreaming ? (
-            <button type="button" onClick={cancel} aria-label={t('stop')}>
-              {t('stop')}
+            <button
+              type="button"
+              className={styles.sendBtn}
+              onClick={cancel}
+              aria-label={t('stop')}
+            >
+              <Icons.Stop size={14} />
+              <span>{t('stop')}</span>
             </button>
           ) : (
-            <button type="button" onClick={() => void onSend()} disabled={!canSend}>
-              {t('send')}
+            <button
+              type="button"
+              className={styles.sendBtn}
+              onClick={() => void onSend()}
+              disabled={!canSend}
+              aria-label={t('send')}
+            >
+              <Icons.Send size={14} />
+              <span>{t('send')}</span>
             </button>
           )}
         </div>

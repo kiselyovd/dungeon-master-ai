@@ -38,3 +38,12 @@ export async function backendUrl(path: string): Promise<string> {
 export function setBackendPortForTesting(port: number | null): void {
   cachedPort = port;
 }
+
+/**
+ * Synchronous access to the cached backend port for UI surfaces (cURL copy,
+ * status bar) that need a value right away. Returns `null` if the sidecar
+ * has not announced its port yet.
+ */
+export function getCachedBackendPort(): number | null {
+  return cachedPort;
+}

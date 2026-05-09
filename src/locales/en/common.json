@@ -5,5 +5,16 @@
   "cancel": "Cancel",
   "close": "Close",
   "settings": "Settings",
-  "local_mode": "Local Mode"
+  "local_mode": "Local Mode",
+  "saves": "Saves",
+  "journal": "Journal",
+  "npcs": "NPCs",
+  "minimize": "Minimize",
+  "maximize": "Maximize",
+  "provider": "Provider",
+  "model": "Model",
+  "saved": "Saved",
+  "saved_now": "just now",
+  "saved_min_ago": "{{count}} min ago",
+  "campaign_default": "Untitled Campaign"
 }

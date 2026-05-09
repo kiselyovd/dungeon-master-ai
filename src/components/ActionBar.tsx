@@ -1,4 +1,6 @@
+import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Icons } from '../ui/Icons';
 
 interface Props {
   actionUsed: boolean;
@@ -6,92 +8,157 @@ interface Props {
   reactionUsed: boolean;
   movementFt: number;
   speedFt: number;
-  visible: boolean;
-  onEndTurn: () => void;
-  onActionClick?: () => void;
-  onBonusClick?: () => void;
-  onReactionClick?: () => void;
+  onAttack?: (() => void) | undefined;
+  onCast?: (() => void) | undefined;
+  onMove?: (() => void) | undefined;
+  onDash?: (() => void) | undefined;
+  onDodge?: (() => void) | undefined;
+  onDisengage?: (() => void) | undefined;
+  onUseObject?: (() => void) | undefined;
+  onEndTurn?: (() => void) | undefined;
+}
+
+interface ActionButton {
+  key: string;
+  label: string;
+  icon: ReactElement;
+  kind?: 'primary' | 'magic' | 'end' | undefined;
+  kbd: string;
+  disabled?: boolean | undefined;
+  onClick?: (() => void) | undefined;
 }
 
 /**
- * ActionBar slides up from the bottom when it is the player's turn.
- * Transition is `transform: translateX(-50%) translateY(0)` over `var(--t-slow)`.
+ * ActionBar overlay shown bottom-center over the VTT during the player's turn.
+ * Renders the 8 standard actions + economy chips per the design brief.
  */
 export function ActionBar({
   actionUsed,
   bonusUsed,
   reactionUsed,
   movementFt,
-  visible,
+  speedFt,
+  onAttack,
+  onCast,
+  onMove,
+  onDash,
+  onDodge,
+  onDisengage,
+  onUseObject,
   onEndTurn,
-  onActionClick,
-  onBonusClick,
-  onReactionClick,
 }: Props) {
   const { t } = useTranslation('combat');
 
+  const moveLabel = `${t('move')} (${movementFt}/${speedFt} ft)`;
+
+  const actions: ActionButton[] = [
+    {
+      key: 'attack',
+      label: t('attack'),
+      icon: <Icons.Sword size={20} />,
+      kind: 'primary',
+      kbd: 'A',
+      disabled: actionUsed,
+      onClick: onAttack,
+    },
+    {
+      key: 'cast',
+      label: t('cast'),
+      icon: <Icons.Wand size={20} />,
+      kind: 'magic',
+      kbd: 'C',
+      disabled: actionUsed,
+      onClick: onCast,
+    },
+    {
+      key: 'move',
+      label: moveLabel,
+      icon: <Icons.Footprints size={20} />,
+      kbd: 'M',
+      disabled: movementFt === 0,
+      onClick: onMove,
+    },
+    {
+      key: 'dash',
+      label: t('dash'),
+      icon: <Icons.Run size={20} />,
+      kbd: 'D',
+      disabled: actionUsed,
+      onClick: onDash,
+    },
+    {
+      key: 'dodge',
+      label: t('dodge'),
+      icon: <Icons.ShieldHalf size={20} />,
+      kbd: 'V',
+      disabled: actionUsed,
+      onClick: onDodge,
+    },
+    {
+      key: 'disengage',
+      label: t('disengage'),
+      icon: <Icons.ArrowReverse size={20} />,
+      kbd: 'X',
+      disabled: actionUsed,
+      onClick: onDisengage,
+    },
+    {
+      key: 'use_object',
+      label: t('use_object'),
+      icon: <Icons.Hand size={20} />,
+      kbd: 'U',
+      disabled: actionUsed,
+      onClick: onUseObject,
+    },
+    {
+      key: 'end_turn',
+      label: t('end_turn'),
+      icon: <Icons.Hourglass size={20} />,
+      kind: 'end',
+      kbd: 'Enter',
+      disabled: onEndTurn === undefined,
+      onClick: onEndTurn,
+    },
+  ];
+
   return (
-    <div className={`action-bar${visible ? ' visible' : ''}`}>
-      <button
-        type="button"
-        data-testid="action-btn-action"
-        className={`action-btn${actionUsed ? ' used' : ''}`}
-        disabled={actionUsed}
-        onClick={onActionClick}
-        title={t('action')}
-      >
-        <span style={{ fontSize: 18 }}>{'⚔'}</span>
-        <span style={{ fontSize: 'var(--text-xs)' }}>{t('action')}</span>
-      </button>
+    <div className="dm-actionbar" role="toolbar" aria-label={t('action_bar')}>
+      <div className="dm-actionbar-econ">
+        <EconChip label={t('action')} used={actionUsed} />
+        <EconChip label={t('bonus_action')} used={bonusUsed} />
+        <EconChip label={t('reaction')} used={reactionUsed} />
+      </div>
+      <div className="dm-actionbar-buttons">
+        {actions.map((a) => (
+          <button
+            key={a.key}
+            type="button"
+            data-testid={`action-btn-${a.key}`}
+            className={`dm-action-btn dm-action-${a.kind ?? 'default'}`}
+            disabled={a.disabled === true}
+            onClick={a.onClick}
+            title={a.label}
+          >
+            <span className="dm-action-icon">{a.icon}</span>
+            <span className="dm-action-label">{a.label}</span>
+            <span className="dm-kbd">{a.kbd}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      <button
-        type="button"
-        data-testid="action-btn-bonus"
-        className={`action-btn${bonusUsed ? ' used' : ''}`}
-        disabled={bonusUsed}
-        onClick={onBonusClick}
-        title={t('bonus_action')}
-      >
-        <span style={{ fontSize: 18 }}>{'✦'}</span>
-        <span style={{ fontSize: 'var(--text-xs)' }}>{t('bonus_action')}</span>
-      </button>
+interface ChipProps {
+  label: string;
+  used: boolean;
+}
 
-      <button
-        type="button"
-        data-testid="action-btn-reaction"
-        className={`action-btn${reactionUsed ? ' used' : ''}`}
-        disabled={reactionUsed}
-        onClick={onReactionClick}
-        title={t('reaction')}
-      >
-        <span style={{ fontSize: 18 }}>{'⚡'}</span>
-        <span style={{ fontSize: 'var(--text-xs)' }}>{t('reaction')}</span>
-      </button>
-
-      <button
-        type="button"
-        data-testid="action-btn-move"
-        className="action-btn"
-        title={t('move')}
-        style={{ opacity: movementFt === 0 ? 0.4 : 1 }}
-      >
-        <span style={{ fontSize: 18 }}>{'↑'}</span>
-        <span style={{ fontSize: 'var(--text-xs)' }}>{movementFt}ft</span>
-      </button>
-
-      <button
-        type="button"
-        data-testid="action-btn-end-turn"
-        className="action-btn"
-        onClick={onEndTurn}
-        style={{
-          borderColor: 'var(--color-accent)',
-          color: 'var(--color-accent)',
-          marginLeft: 'var(--space-2)',
-        }}
-      >
-        <span style={{ fontSize: 'var(--text-xs)' }}>{t('end_turn')}</span>
-      </button>
+function EconChip({ label, used }: ChipProps) {
+  return (
+    <div className={`dm-econ-chip${used ? ' is-used' : ''}`}>
+      <span className="dm-econ-dot" />
+      <span>{label}</span>
     </div>
   );
 }

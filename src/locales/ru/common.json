@@ -5,5 +5,16 @@
   "cancel": "Отмена",
   "close": "Закрыть",
   "settings": "Настройки",
-  "local_mode": "Локальный режим"
+  "local_mode": "Локальный режим",
+  "saves": "Сейвы",
+  "journal": "Журнал",
+  "npcs": "NPC",
+  "minimize": "Свернуть",
+  "maximize": "Развернуть",
+  "provider": "Провайдер",
+  "model": "Модель",
+  "saved": "Сохранено",
+  "saved_now": "только что",
+  "saved_min_ago": "{{count}} мин назад",
+  "campaign_default": "Без названия"
 }

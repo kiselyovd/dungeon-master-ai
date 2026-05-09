@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getCachedBackendPort } from '../api/client';
 import type { ToolLogEntry } from '../state/toolLog';
 import styles from './ToolInspectorDrawer.module.css';
 
@@ -45,7 +46,9 @@ function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
   const statusLabel = entry.result === null ? 'pending' : entry.isError ? 'fail' : 'success';
 
   const copyAsCurl = () => {
-    const curlCmd = `curl -X POST "http://127.0.0.1:PORT/agent/turn" \\
+    const port = getCachedBackendPort();
+    const host = port === null ? '127.0.0.1:<port>' : `127.0.0.1:${port}`;
+    const curlCmd = `curl -X POST "http://${host}/agent/turn" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify({ tool_name: entry.toolName, args: entry.args }, null, 2)}'`;
     navigator.clipboard.writeText(curlCmd).catch(() => undefined);

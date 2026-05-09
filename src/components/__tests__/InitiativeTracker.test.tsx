@@ -11,31 +11,31 @@ const tokens: CombatToken[] = [
 
 describe('InitiativeTracker', () => {
   it('renders all combatant names', () => {
-    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} visible={true} />);
+    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} activeTokenId="a" />);
     expect(screen.getByText('Hero')).toBeTruthy();
     expect(screen.getByText('Goblin')).toBeTruthy();
   });
 
   it('shows round number', () => {
-    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={3} visible={true} />);
+    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={3} activeTokenId="a" />);
     expect(screen.getByText(/Round 3|Раунд 3/)).toBeTruthy();
   });
 
-  it('marks active combatant', () => {
-    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} visible={true} />);
+  it('marks the active combatant', () => {
+    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} activeTokenId="a" />);
     const active = document.querySelector('[data-active="true"]');
     expect(active).toBeTruthy();
   });
 
-  it('slides in when visible=true', () => {
+  it('returns null when initiative order is empty', () => {
     const { container } = render(
-      <InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} visible={true} />,
+      <InitiativeTracker tokens={tokens} order={[]} round={1} activeTokenId={null} />,
     );
-    expect(container.querySelector('.initiative-tracker.visible')).toBeTruthy();
+    expect(container.firstChild).toBeNull();
   });
 
-  it('renders HP bar with current/max', () => {
-    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} visible={true} />);
+  it('renders HP digits for each combatant', () => {
+    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} activeTokenId="a" />);
     expect(screen.getByText('15/15')).toBeTruthy();
     expect(screen.getByText('7/7')).toBeTruthy();
   });
