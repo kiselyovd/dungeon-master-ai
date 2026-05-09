@@ -7,6 +7,7 @@
 
 use std::convert::Infallible;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use axum::Json;
 use axum::extract::State;
@@ -14,11 +15,12 @@ use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::stream::{Stream, StreamExt};
 use serde::Deserialize;
+use sqlx::SqlitePool;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
-use app_llm::ChatMessage;
+use app_llm::{ChatMessage, ToolCall, ToolResult};
 
 use crate::agent::orchestrator::{AgentEvent, AgentOrchestrator, AgentTurnRequest};
 use crate::error::AppError;
@@ -52,6 +54,13 @@ pub async fn post_agent_turn(
     let retriever = state.srd_retriever();
     let pool = state.db().clone();
 
+    // Persist user message before the orchestrator runs. Best-effort.
+    let session_id_str = req.session_id.to_string();
+    let user_msg = ChatMessage::user_text(req.player_message.clone());
+    if let Err(e) = crate::db::insert_message(&pool, &session_id_str, &user_msg).await {
+        tracing::warn!(err = %e, "failed to persist user message");
+    }
+
     let turn_req = AgentTurnRequest {
         campaign_id: req.campaign_id,
         session_id: req.session_id,
@@ -61,17 +70,143 @@ pub async fn post_agent_turn(
 
     let (tx, rx) = mpsc::channel::<AgentEvent>(64);
 
+    let pool_for_orch = pool.clone();
     tokio::spawn(async move {
-        let orch = AgentOrchestrator::new(provider, pool, config, retriever);
+        let orch = AgentOrchestrator::new(provider, pool_for_orch, config, retriever);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }
     });
 
+    let persist_state = Arc::new(Mutex::new(PersistState::default()));
+    let pool_for_persist = pool.clone();
+    let session_for_persist = session_id_str.clone();
+
     let event_stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
-        Box::pin(ReceiverStream::new(rx).map(|agent_event| Ok(agent_event_to_sse(agent_event))));
+        Box::pin(ReceiverStream::new(rx).map(move |agent_event| {
+            persist_event(
+                &agent_event,
+                &persist_state,
+                &pool_for_persist,
+                &session_for_persist,
+            );
+            Ok(agent_event_to_sse(agent_event))
+        }));
 
     Ok(Sse::new(event_stream).keep_alive(KeepAlive::default()))
+}
+
+/// Per-round buffer used to assemble assistant + tool_call rows out of the
+/// stream of `AgentEvent`s emitted by the orchestrator.
+#[derive(Default)]
+struct PersistState {
+    current_round: usize,
+    text_buf: String,
+    tool_calls: Vec<ToolCall>,
+    tool_results: Vec<ToolResult>,
+}
+
+fn persist_event(
+    ev: &AgentEvent,
+    state: &Arc<Mutex<PersistState>>,
+    pool: &SqlitePool,
+    session_id: &str,
+) {
+    match ev {
+        AgentEvent::TextDelta { text } => {
+            if let Ok(mut s) = state.lock() {
+                s.text_buf.push_str(text);
+            }
+        }
+        AgentEvent::ToolCallStart { round, .. } => {
+            flush_round_if_changed(*round, state, pool, session_id);
+        }
+        AgentEvent::ToolCallResult {
+            id,
+            tool_name,
+            args,
+            result,
+            is_error,
+            round,
+        } => {
+            flush_round_if_changed(*round, state, pool, session_id);
+            if let Ok(mut s) = state.lock() {
+                s.tool_calls.push(ToolCall {
+                    id: id.clone(),
+                    name: tool_name.clone(),
+                    args: args.clone(),
+                });
+                s.tool_results.push(ToolResult {
+                    tool_call_id: id.clone(),
+                    content: serde_json::to_string(result).unwrap_or_default(),
+                    is_error: *is_error,
+                });
+            }
+        }
+        AgentEvent::AgentDone { .. } => {
+            flush_pending(state, pool, session_id);
+        }
+    }
+}
+
+fn flush_round_if_changed(
+    new_round: usize,
+    state: &Arc<Mutex<PersistState>>,
+    pool: &SqlitePool,
+    session_id: &str,
+) {
+    let needs_flush = match state.lock() {
+        Ok(s) => s.current_round != new_round && (s.current_round != 0 || !s.text_buf.is_empty()),
+        Err(_) => false,
+    };
+    if needs_flush {
+        flush_pending(state, pool, session_id);
+    }
+    if let Ok(mut s) = state.lock() {
+        s.current_round = new_round;
+    }
+}
+
+fn flush_pending(state: &Arc<Mutex<PersistState>>, pool: &SqlitePool, session_id: &str) {
+    let drained = match state.lock() {
+        Ok(mut s) => {
+            let text = std::mem::take(&mut s.text_buf);
+            let tool_calls = std::mem::take(&mut s.tool_calls);
+            let tool_results = std::mem::take(&mut s.tool_results);
+            Some((text, tool_calls, tool_results))
+        }
+        Err(_) => None,
+    };
+    let Some((text, tool_calls, tool_results)) = drained else {
+        return;
+    };
+    if text.is_empty() && tool_calls.is_empty() {
+        return;
+    }
+    let pool = pool.clone();
+    let session_id = session_id.to_string();
+    tokio::spawn(async move {
+        if !tool_calls.is_empty() {
+            let msg = ChatMessage::AssistantWithToolCalls {
+                content: if text.is_empty() { None } else { Some(text) },
+                tool_calls,
+            };
+            if let Err(e) = crate::db::insert_message(&pool, &session_id, &msg).await {
+                tracing::warn!(err = %e, "failed to persist assistant_with_tool_calls");
+            }
+            for tr in tool_results {
+                let row = ChatMessage::ToolResult(tr);
+                if let Err(e) = crate::db::insert_message(&pool, &session_id, &row).await {
+                    tracing::warn!(err = %e, "failed to persist tool_result");
+                }
+            }
+        } else if !text.is_empty() {
+            let msg = ChatMessage::Assistant { content: text };
+            if let Err(e) = crate::db::insert_message(&pool, &session_id, &msg).await {
+                tracing::warn!(err = %e, "failed to persist assistant");
+            }
+        }
+    });
 }
 
 fn agent_event_to_sse(ev: AgentEvent) -> Event {

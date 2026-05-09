@@ -159,6 +159,9 @@ pub fn enforce_size_guards(messages: &[ChatMessage]) -> Result<(), AppError> {
 #[derive(Debug, Deserialize)]
 pub struct ChatHttpRequest {
     pub messages: Vec<HttpMessage>,
+    /// Optional session UUID. When provided, user + assistant messages are
+    /// persisted to the `messages` table for resumable campaigns.
+    pub session_id: Option<String>,
     pub model: Option<String>,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,
@@ -175,6 +178,19 @@ pub async fn chat(
     let llm_messages: Vec<ChatMessage> = req.messages.into_iter().map(Into::into).collect();
     enforce_size_guards(&llm_messages)?;
 
+    // Persist the user message before opening the stream. Best-effort: a DB
+    // failure here logs a warning but does not fail the request - the chat
+    // continues without resumability.
+    if let Some(session_id) = req.session_id.as_deref() {
+        if let Some(last) = llm_messages.last() {
+            if matches!(last, ChatMessage::User { .. }) {
+                if let Err(e) = crate::db::insert_message(state.db(), session_id, last).await {
+                    tracing::warn!(err = %e, "failed to persist user message");
+                }
+            }
+        }
+    }
+
     let llm_req = LlmReq {
         messages: llm_messages,
         model: req.model.unwrap_or_else(|| state.default_model()),
@@ -187,17 +203,44 @@ pub async fn chat(
     let provider = state.provider();
     let chunk_stream = provider.stream_chat(llm_req).await?;
 
+    let session_id_for_assistant = req.session_id.clone();
+    let pool_for_assistant = state.db().clone();
+    let assistant_buf: std::sync::Arc<std::sync::Mutex<String>> =
+        std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+
     let event_stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
-        Box::pin(chunk_stream.map(|chunk| {
+        Box::pin(chunk_stream.map(move |chunk| {
             let event = match chunk {
-                Ok(ChatChunk::TextDelta { text }) => Event::default()
-                    .event("text_delta")
-                    .json_data(serde_json::json!({ "text": text }))
-                    .expect("json_data"),
-                Ok(ChatChunk::Done { reason }) => Event::default()
-                    .event("done")
-                    .json_data(serde_json::json!({ "reason": reason }))
-                    .expect("json_data"),
+                Ok(ChatChunk::TextDelta { text }) => {
+                    if let Ok(mut buf) = assistant_buf.lock() {
+                        buf.push_str(&text);
+                    }
+                    Event::default()
+                        .event("text_delta")
+                        .json_data(serde_json::json!({ "text": text }))
+                        .expect("json_data")
+                }
+                Ok(ChatChunk::Done { reason }) => {
+                    if let Some(sid) = session_id_for_assistant.clone() {
+                        let text = assistant_buf
+                            .lock()
+                            .map(|g| g.clone())
+                            .unwrap_or_default();
+                        if !text.is_empty() {
+                            let pool = pool_for_assistant.clone();
+                            tokio::spawn(async move {
+                                let msg = ChatMessage::Assistant { content: text };
+                                if let Err(e) = crate::db::insert_message(&pool, &sid, &msg).await {
+                                    tracing::warn!(err = %e, "failed to persist assistant message");
+                                }
+                            });
+                        }
+                    }
+                    Event::default()
+                        .event("done")
+                        .json_data(serde_json::json!({ "reason": reason }))
+                        .expect("json_data")
+                }
                 Ok(ChatChunk::ToolCallStart { .. })
                 | Ok(ChatChunk::ToolCallArgsDelta { .. })
                 | Ok(ChatChunk::ToolCallDone { .. }) => {
