@@ -11,6 +11,7 @@ import enChat from './locales/en/chat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enOnboarding from './locales/en/onboarding.json';
+import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
 
 declare module 'react-i18next' {
@@ -22,6 +23,7 @@ declare module 'react-i18next' {
       settings: typeof enSettings;
       errors: typeof enErrors;
       onboarding: typeof enOnboarding;
+      saves: typeof enSaves;
     };
   }
 }

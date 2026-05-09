@@ -10,12 +10,14 @@ import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
 import { Onboarding } from './components/Onboarding';
+import { SavesScreen } from './components/SavesScreen';
 import { ScenePill } from './components/ScenePill';
 import { SettingsModal } from './components/SettingsModal';
 import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VttCanvas } from './components/VttCanvas';
+import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
 // useSession is mounted inside ChatPanel so the retry-bar can call refetch.
@@ -33,6 +35,33 @@ function getProviderModel(state: ReturnType<typeof useStore.getState>): string {
   const cfg = state.settings.providers[active];
   if (cfg === null) return '—';
   return 'model' in cfg ? cfg.model : cfg.modelPath;
+}
+
+/**
+ * Tiny "Saved at HH:MM" toast that fades in for ~2.5s after every successful
+ * quick save. Watches the saves slice's `lastQuickSaveAt` ISO string - bumping
+ * that field is what actually triggers the toast (the keyboard handler does
+ * not need to call into the toast directly).
+ */
+function QuickSaveToast({ lastQuickSaveAt }: { lastQuickSaveAt: string | null }) {
+  const { t } = useTranslation('saves');
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!lastQuickSaveAt) return;
+    setVisible(true);
+    const handle = window.setTimeout(() => setVisible(false), 2500);
+    return () => window.clearTimeout(handle);
+  }, [lastQuickSaveAt]);
+  if (!visible || !lastQuickSaveAt) return null;
+  const time = new Date(lastQuickSaveAt).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return (
+    <div className="dm-saves-toast" role="status" aria-live="polite">
+      {t('saved_now')} - {time}
+    </div>
+  );
 }
 
 async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'): Promise<void> {
@@ -73,6 +102,9 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
+  const savesOpen = useStore((s) => s.saves.isOpen);
+  const lastQuickSaveAt = useStore((s) => s.saves.lastQuickSaveAt);
+  const { open: openSaves, quickSave } = useSaves();
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
@@ -105,12 +137,17 @@ function App() {
     document.documentElement.style.setProperty('--chat-width', `${chatPanelWidth}px`);
   }, [chatPanelWidth]);
 
-  // Dev-mode keyboard shortcuts: Ctrl+Shift+M opens local-mode config,
-  // Ctrl+Shift+I toggles the tool-call inspector. The local-mode UI moves
-  // into Settings -> Provider tab in a later milestone; the shortcut keeps
-  // the configuration reachable in the meantime.
+  // Dev-mode keyboard shortcuts. The Saves modal moves under Ctrl+Shift+S
+  // because plain Ctrl+S is reserved for the quick-save action (no modal).
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
+      // Ctrl+S (no shift) -> quick save. Run on the active session and
+      // pop the saved-now toast via the slice's `lastQuickSaveAt` clock.
+      if (e.ctrlKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void quickSave();
+        return;
+      }
       if (!(e.ctrlKey && e.shiftKey)) return;
       if (e.key === 'M' || e.key === 'm') {
         e.preventDefault();
@@ -118,11 +155,14 @@ function App() {
       } else if (e.key === 'I' || e.key === 'i') {
         e.preventDefault();
         setInspectorOpen((prev) => !prev);
+      } else if (e.key === 'S' || e.key === 's') {
+        e.preventDefault();
+        openSaves();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [openSaves, quickSave]);
 
   const providerLabel = PROVIDER_LABELS[activeProvider] ?? activeProvider;
   const providerStatus = activeProviderConfig === null ? 'error' : 'connected';
@@ -151,6 +191,16 @@ function App() {
         </div>
 
         <div className="dm-titlebar-right">
+          <button
+            type="button"
+            className="dm-btn-tb"
+            onClick={openSaves}
+            aria-label={t('saves')}
+            title={t('saves')}
+          >
+            <Icons.Save size={13} />
+            <span>{t('saves')}</span>
+          </button>
           <button
             type="button"
             className="dm-btn-tb"
@@ -255,6 +305,8 @@ function App() {
       )}
       {journalOpen && <JournalViewer entries={journalEntries} onClose={closeJournal} />}
       {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
+      {savesOpen && <SavesScreen />}
+      <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
       <ToolInspectorDrawer
         entries={toolEntries}
         isOpen={inspectorOpen}

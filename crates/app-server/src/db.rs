@@ -97,6 +97,164 @@ pub async fn snapshot_load_latest(
     }
 }
 
+// ---- Saves (M5 P2.13) ----
+//
+// User-driven saves piggy-back on the `snapshots` table. The agent's
+// `quick_save` tool already writes the bare envelope; the new columns
+// (`kind`, `title`, `summary`, `tag`) carry the metadata the Saves UI
+// renders. v1 is linear: every save is a leaf on the main branch.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSummary {
+    pub id: Uuid,
+    pub session_id: Uuid,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub tag: String,
+    pub created_at: String,
+    pub turn_number: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveRow {
+    pub id: Uuid,
+    pub session_id: Uuid,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub tag: String,
+    pub created_at: String,
+    pub turn_number: i64,
+    pub game_state: serde_json::Value,
+}
+
+/// Insert a user-driven save. Returns the new save UUID. Sets
+/// `turn_number = 0` (linear v1 has no turn tracking yet) and wraps
+/// `game_state` in the canonical `{schema_version, state}` envelope.
+pub async fn save_insert(
+    pool: &SqlitePool,
+    session_id: Uuid,
+    kind: &str,
+    title: &str,
+    summary: &str,
+    tag: &str,
+    game_state: &serde_json::Value,
+) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::new_v4();
+    let now = chrono::Utc::now().to_rfc3339();
+    let state_json = serde_json::to_string(game_state).expect("serialize state");
+
+    sqlx::query(
+        r#"INSERT INTO snapshots
+           (id, session_id, turn_number, created_at, game_state, kind, title, summary, tag)
+           VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+    )
+    .bind(id.to_string())
+    .bind(session_id.to_string())
+    .bind(&now)
+    .bind(state_json)
+    .bind(kind)
+    .bind(title)
+    .bind(summary)
+    .bind(tag)
+    .execute(pool)
+    .await?;
+
+    Ok(id)
+}
+
+/// List saves for a session in newest-first order. Returns the lightweight
+/// `SaveSummary` shape (no `game_state`) for fast list rendering.
+pub async fn save_list_by_session(
+    pool: &SqlitePool,
+    session_id: Uuid,
+) -> Result<Vec<SaveSummary>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT id, session_id, kind, title, summary, tag, created_at, turn_number
+           FROM snapshots
+           WHERE session_id = ?1
+           ORDER BY created_at DESC"#,
+    )
+    .bind(session_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|r| {
+            Ok(SaveSummary {
+                id: parse_uuid_col(&r, "id")?,
+                session_id: parse_uuid_col(&r, "session_id")?,
+                kind: r.try_get("kind")?,
+                title: r.try_get("title")?,
+                summary: r.try_get("summary")?,
+                tag: r.try_get("tag")?,
+                created_at: r.try_get("created_at")?,
+                turn_number: r.try_get("turn_number")?,
+            })
+        })
+        .collect()
+}
+
+/// Load a single save by id, including the full `game_state` envelope.
+pub async fn save_load(
+    pool: &SqlitePool,
+    save_id: Uuid,
+) -> Result<Option<SaveRow>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"SELECT id, session_id, kind, title, summary, tag, created_at, turn_number, game_state
+           FROM snapshots
+           WHERE id = ?1
+           LIMIT 1"#,
+    )
+    .bind(save_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(r) = row {
+        let game_state_str: String = r.try_get("game_state")?;
+        let game_state: serde_json::Value =
+            serde_json::from_str(&game_state_str).map_err(|e| {
+                sqlx::Error::Decode(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    e.to_string(),
+                )))
+            })?;
+        Ok(Some(SaveRow {
+            id: parse_uuid_col(&r, "id")?,
+            session_id: parse_uuid_col(&r, "session_id")?,
+            kind: r.try_get("kind")?,
+            title: r.try_get("title")?,
+            summary: r.try_get("summary")?,
+            tag: r.try_get("tag")?,
+            created_at: r.try_get("created_at")?,
+            turn_number: r.try_get("turn_number")?,
+            game_state,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Delete a save by id. Returns `true` when a row was actually removed.
+pub async fn save_delete(pool: &SqlitePool, save_id: Uuid) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM snapshots WHERE id = ?1")
+        .bind(save_id.to_string())
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() > 0)
+}
+
+fn parse_uuid_col(row: &sqlx::sqlite::SqliteRow, col: &str) -> Result<Uuid, sqlx::Error> {
+    let s: String = row.try_get(col)?;
+    Uuid::parse_str(&s).map_err(|e| {
+        sqlx::Error::Decode(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            e.to_string(),
+        )))
+    })
+}
+
 // ---- Journal ----
 
 pub async fn journal_insert(

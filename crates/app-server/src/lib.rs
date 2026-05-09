@@ -35,6 +35,18 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/sessions/{session_id}/messages",
             get(routes::messages::list_messages),
+        )
+        .route(
+            "/sessions/{session_id}/saves",
+            get(routes::saves::list_saves).post(routes::saves::create_save),
+        )
+        .route(
+            "/sessions/{session_id}/saves/quick",
+            post(routes::saves::quick_save),
+        )
+        .route(
+            "/saves/{save_id}",
+            get(routes::saves::get_save).delete(routes::saves::delete_save),
         );
 
     #[cfg(feature = "with-local-runtime")]

@@ -6,6 +6,7 @@ pub mod journal;
 pub mod local_mode;
 pub mod messages;
 pub mod npc;
+pub mod saves;
 pub mod settings;
 
 use serde::Deserialize;

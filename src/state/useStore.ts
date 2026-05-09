@@ -8,6 +8,7 @@ import { createNpcSlice, type NpcSlice } from './npc';
 import { createOnboardingSlice, type OnboardingSlice } from './onboarding';
 import { createPcSlice, type PcSlice } from './pc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
+import { createSavesSlice, type SavesSlice } from './saves';
 import { createSessionSlice, type SessionSlice } from './session';
 import { createSettingsSlice, type SettingsSlice } from './settings';
 import { createToolLogSlice, type ToolLogSlice } from './toolLog';
@@ -21,7 +22,8 @@ export type AppState = ChatSlice &
   LocalModeSlice &
   SessionSlice &
   OnboardingSlice &
-  PcSlice;
+  PcSlice &
+  SavesSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -38,6 +40,7 @@ export const useStore = create<AppState>()(
       ...createSessionSlice(...a),
       ...createOnboardingSlice(...a),
       ...createPcSlice(...a),
+      ...createSavesSlice(...a),
     }),
     {
       name: PERSIST_NAME,
