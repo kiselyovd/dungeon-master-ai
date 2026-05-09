@@ -360,3 +360,197 @@ pub async fn srd_chunks_clear(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM srd_chunks").execute(pool).await?;
     Ok(())
 }
+
+// ---- M4.5 messages ----
+
+use app_llm::{ChatMessage, MessagePart, ToolCall, ToolResult};
+
+/// Persist a single chat message under `session_id`. Returns the new row UUID.
+/// Encodes the in-memory `ChatMessage` into the `messages` table's `(role,
+/// parts JSON, tool_calls JSON, tool_call_id, is_error)` columns - parts is
+/// always a JSON array even for non-user roles (role-specific text wrapped
+/// into a single Text part) so the load path is symmetric.
+pub async fn insert_message(
+    pool: &SqlitePool,
+    session_id: &str,
+    msg: &ChatMessage,
+) -> Result<String, sqlx::Error> {
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let (role, parts_json, tool_calls_json, tool_call_id, is_error) = encode_message(msg);
+
+    sqlx::query(
+        r#"INSERT INTO messages
+           (id, session_id, role, parts, tool_calls, tool_call_id, is_error, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+    )
+    .bind(&id)
+    .bind(session_id)
+    .bind(role)
+    .bind(parts_json)
+    .bind(tool_calls_json)
+    .bind(tool_call_id)
+    .bind(is_error as i64)
+    .bind(now)
+    .execute(pool)
+    .await?;
+
+    Ok(id)
+}
+
+/// Load all messages for a session in chronological order.
+pub async fn list_messages_by_session(
+    pool: &SqlitePool,
+    session_id: &str,
+) -> Result<Vec<ChatMessage>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT role, parts, tool_calls, tool_call_id, is_error
+           FROM messages
+           WHERE session_id = ?1
+           ORDER BY created_at ASC, id ASC"#,
+    )
+    .bind(session_id)
+    .fetch_all(pool)
+    .await?;
+
+    let mut messages = Vec::with_capacity(rows.len());
+    for r in rows {
+        let role: String = r.try_get("role")?;
+        let parts_json: String = r.try_get("parts")?;
+        let tool_calls_json: Option<String> = r.try_get("tool_calls")?;
+        let tool_call_id: Option<String> = r.try_get("tool_call_id")?;
+        let is_error: i64 = r.try_get("is_error")?;
+        messages.push(decode_message(
+            &role,
+            &parts_json,
+            tool_calls_json.as_deref(),
+            tool_call_id.as_deref(),
+            is_error != 0,
+        )?);
+    }
+    Ok(messages)
+}
+
+fn encode_message(
+    msg: &ChatMessage,
+) -> (&'static str, String, Option<String>, Option<String>, bool) {
+    match msg {
+        ChatMessage::System { content } => (
+            "system",
+            serde_json::to_string(&vec![MessagePart::Text {
+                text: content.clone(),
+            }])
+            .expect("serialise text part"),
+            None,
+            None,
+            false,
+        ),
+        ChatMessage::User { parts } => (
+            "user",
+            serde_json::to_string(parts).expect("serialise parts"),
+            None,
+            None,
+            false,
+        ),
+        ChatMessage::Assistant { content } => (
+            "assistant",
+            serde_json::to_string(&vec![MessagePart::Text {
+                text: content.clone(),
+            }])
+            .expect("serialise text part"),
+            None,
+            None,
+            false,
+        ),
+        ChatMessage::AssistantWithToolCalls {
+            content,
+            tool_calls,
+        } => {
+            let parts = match content {
+                Some(c) => vec![MessagePart::Text { text: c.clone() }],
+                None => vec![],
+            };
+            (
+                "assistant_with_tool_calls",
+                serde_json::to_string(&parts).expect("serialise parts"),
+                Some(serde_json::to_string(tool_calls).expect("serialise tool_calls")),
+                None,
+                false,
+            )
+        }
+        ChatMessage::ToolResult(tr) => (
+            "tool_result",
+            serde_json::to_string(&vec![MessagePart::Text {
+                text: tr.content.clone(),
+            }])
+            .expect("serialise text part"),
+            None,
+            Some(tr.tool_call_id.clone()),
+            tr.is_error,
+        ),
+    }
+}
+
+fn decode_message(
+    role: &str,
+    parts_json: &str,
+    tool_calls_json: Option<&str>,
+    tool_call_id: Option<&str>,
+    is_error: bool,
+) -> Result<ChatMessage, sqlx::Error> {
+    let parts: Vec<MessagePart> =
+        serde_json::from_str(parts_json).map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+    Ok(match role {
+        "system" => {
+            let text = parts
+                .into_iter()
+                .find_map(|p| match p {
+                    MessagePart::Text { text } => Some(text),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            ChatMessage::System { content: text }
+        }
+        "user" => ChatMessage::User { parts },
+        "assistant" => {
+            let text = parts
+                .into_iter()
+                .find_map(|p| match p {
+                    MessagePart::Text { text } => Some(text),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            ChatMessage::Assistant { content: text }
+        }
+        "assistant_with_tool_calls" => {
+            let content = parts.into_iter().find_map(|p| match p {
+                MessagePart::Text { text } => Some(text),
+                _ => None,
+            });
+            let tool_calls: Vec<ToolCall> =
+                serde_json::from_str(tool_calls_json.unwrap_or("[]"))
+                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            ChatMessage::AssistantWithToolCalls {
+                content,
+                tool_calls,
+            }
+        }
+        "tool_result" => {
+            let content = parts
+                .into_iter()
+                .find_map(|p| match p {
+                    MessagePart::Text { text } => Some(text),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            ChatMessage::ToolResult(ToolResult {
+                tool_call_id: tool_call_id.unwrap_or("").to_string(),
+                content,
+                is_error,
+            })
+        }
+        other => Err(sqlx::Error::Decode(
+            format!("unknown message role: {other}").into(),
+        ))?,
+    })
+}
