@@ -9,6 +9,7 @@ import enErrors from './locales/en/errors.json';
 import enJournal from './locales/en/journal.json';
 import enLocalMode from './locales/en/local_mode.json';
 import enNpc from './locales/en/npc.json';
+import enOnboarding from './locales/en/onboarding.json';
 import enSettings from './locales/en/settings.json';
 import enUpdater from './locales/en/updater.json';
 import ruAgent from './locales/ru/agent.json';
@@ -19,6 +20,7 @@ import ruErrors from './locales/ru/errors.json';
 import ruJournal from './locales/ru/journal.json';
 import ruLocalMode from './locales/ru/local_mode.json';
 import ruNpc from './locales/ru/npc.json';
+import ruOnboarding from './locales/ru/onboarding.json';
 import ruSettings from './locales/ru/settings.json';
 import ruUpdater from './locales/ru/updater.json';
 
@@ -40,6 +42,7 @@ void i18n
       'agent',
       'updater',
       'local_mode',
+      'onboarding',
     ],
     resources: {
       en: {
@@ -53,6 +56,7 @@ void i18n
         agent: enAgent,
         updater: enUpdater,
         local_mode: enLocalMode,
+        onboarding: enOnboarding,
       },
       ru: {
         common: ruCommon,
@@ -65,6 +69,7 @@ void i18n
         agent: ruAgent,
         updater: ruUpdater,
         local_mode: ruLocalMode,
+        onboarding: ruOnboarding,
       },
     },
     interpolation: { escapeValue: false },

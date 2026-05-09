@@ -2,6 +2,7 @@
 @import "./theme.css";
 @import "./shell.css";
 @import "./vtt.css";
+@import "./onboarding.css";
 
 *,
 *::before,

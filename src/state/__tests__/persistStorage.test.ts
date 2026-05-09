@@ -35,6 +35,8 @@ async function clearStores() {
     settings.delete('active_campaign_id'),
     settings.delete('active_session_id'),
     settings.delete('current_scene'),
+    settings.delete('onboarding_completed'),
+    settings.delete('hero_class'),
   ]);
 }
 
@@ -195,6 +197,37 @@ describe('persistStorage', () => {
 
     const loaded = await persistStorage.getItem('any');
     expect(loaded?.state.session?.currentScene).toBeNull();
+  });
+
+  it('round-trips the onboarding-completed flag and chosen hero class', async () => {
+    await persistStorage.setItem('any', {
+      state: {
+        onboarding: { completed: true },
+        pc: { heroClass: 'wizard' },
+      },
+      version: 0,
+    });
+
+    expect(await settings.get('onboarding_completed')).toBe(true);
+    expect(await settings.get('hero_class')).toBe('wizard');
+
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.onboarding?.completed).toBe(true);
+    expect(loaded?.state.pc?.heroClass).toBe('wizard');
+  });
+
+  it('persists a null heroClass as an explicit clear', async () => {
+    await settings.set('hero_class', 'fighter');
+    await persistStorage.setItem('any', {
+      state: {
+        pc: { heroClass: null },
+      },
+      version: 0,
+    });
+    expect(await settings.get('hero_class')).toBeNull();
+
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.pc?.heroClass).toBeNull();
   });
 
   it('removeItem clears the vault, the legacy file, and the prefs file', async () => {

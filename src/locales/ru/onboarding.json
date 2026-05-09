@@ -1,0 +1,56 @@
+{
+  "step_welcome": "Добро пожаловать",
+  "step_connect_ai": "Подключение AI",
+  "step_create_hero": "Создание героя",
+
+  "next": "Далее",
+  "back": "Назад",
+  "skip": "Пропустить",
+  "begin": "Начать игру",
+
+  "step1_tag": "Шаг 1 - Здравствуй, путник",
+  "step1_title": "Сядь поближе к огню",
+  "step1_desc": "Твой Гейм-Мастер ждёт за столом. Расскажет историю, поведёт сюжет, бросит за тебя кости. Партия не нужна - нужно только желание играть.",
+  "step1_cta": "Подключить AI",
+
+  "step2_tag": "Шаг 2 - Голос мастера",
+  "step2_title": "Выбери провайдера",
+  "step2_desc": "Cloud-провайдер быстрее, локальная модель - приватнее и оффлайн.",
+
+  "provider_anthropic_title": "Anthropic",
+  "provider_anthropic_desc": "Cloud, рекомендуется",
+  "provider_openai_title": "OpenAI compat",
+  "provider_openai_desc": "Свой API",
+  "provider_local_title": "Локально",
+  "provider_local_desc": "Встроено, оффлайн",
+
+  "anthropic_api_key_label": "API-ключ",
+  "anthropic_api_key_hint": "Получить ключ: console.anthropic.com",
+  "anthropic_api_key_placeholder": "sk-ant-api03-...",
+
+  "openai_base_url_label": "Base URL",
+  "openai_base_url_placeholder": "https://api.openai.com/v1",
+  "openai_api_key_label": "API-ключ",
+  "openai_api_key_placeholder": "sk-...",
+
+  "local_setup_hint": "Настройка локальной модели - в Настройках во вкладке Провайдер после онбординга. Там можно выбрать вариант Qwen3.5 и запустить встроенную среду.",
+
+  "step3_tag": "Шаг 3 - Кто ты?",
+  "step3_title": "Создай героя",
+  "step3_desc": "Выбери класс - остальное можно заполнить позже или взять готового персонажа.",
+
+  "class_fighter_name": "Воин",
+  "class_fighter_desc": "Мастер ближнего боя. Тяжёлая броня, большие клинки, второе дыхание.",
+  "class_wizard_name": "Волшебник",
+  "class_wizard_desc": "Учёный тайной магии. Книга заклинаний, ритуалы, контроль поля боя.",
+  "class_rogue_name": "Плут",
+  "class_rogue_desc": "Скрытный, ловкий, смертельный. Скрытая атака, мастерство, хитрое действие.",
+  "class_cleric_name": "Жрец",
+  "class_cleric_desc": "Поборник божественного. Исцеление, поддержка, праведная мощь.",
+
+  "dialog_label": "Первый запуск",
+  "stepper_label": "Прогресс онбординга",
+
+  "validation_required": "обязательно",
+  "validation_invalid_url": "нужен корректный http(s) URL"
+}

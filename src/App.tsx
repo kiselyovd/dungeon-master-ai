@@ -9,6 +9,7 @@ import { InitiativeTracker } from './components/InitiativeTracker';
 import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
+import { Onboarding } from './components/Onboarding';
 import { ScenePill } from './components/ScenePill';
 import { SettingsModal } from './components/SettingsModal';
 import { StatusBar } from './components/StatusBar';
@@ -71,6 +72,7 @@ function App() {
   const openNpcs = useStore((s) => s.npcs.open);
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
+  const onboardingCompleted = useStore((s) => s.onboarding.completed);
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
@@ -258,6 +260,7 @@ function App() {
         isOpen={inspectorOpen}
         onClose={() => setInspectorOpen(false)}
       />
+      {!onboardingCompleted && <Onboarding />}
     </div>
   );
 }

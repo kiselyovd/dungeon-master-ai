@@ -1,0 +1,56 @@
+{
+  "step_welcome": "Welcome",
+  "step_connect_ai": "Connect AI",
+  "step_create_hero": "Create hero",
+
+  "next": "Continue",
+  "back": "Back",
+  "skip": "Skip for now",
+  "begin": "Begin adventure",
+
+  "step1_tag": "Step 1 - A new tale begins",
+  "step1_title": "Pull up a chair by the fire",
+  "step1_desc": "Your AI Game Master is waiting at the table. They will weave the story, run the world, and roll the dice. No party required - just bring your imagination.",
+  "step1_cta": "Configure provider",
+
+  "step2_tag": "Step 2 - The voice of the DM",
+  "step2_title": "Choose a provider",
+  "step2_desc": "Cloud is faster. Local is private and works offline.",
+
+  "provider_anthropic_title": "Anthropic",
+  "provider_anthropic_desc": "Cloud, recommended",
+  "provider_openai_title": "OpenAI compat",
+  "provider_openai_desc": "Bring your own API",
+  "provider_local_title": "Local",
+  "provider_local_desc": "Embedded, offline",
+
+  "anthropic_api_key_label": "API key",
+  "anthropic_api_key_hint": "Get one at console.anthropic.com",
+  "anthropic_api_key_placeholder": "sk-ant-api03-...",
+
+  "openai_base_url_label": "Base URL",
+  "openai_base_url_placeholder": "https://api.openai.com/v1",
+  "openai_api_key_label": "API key",
+  "openai_api_key_placeholder": "sk-...",
+
+  "local_setup_hint": "Local model setup happens in Settings -> Provider tab after onboarding. You can choose a Qwen3.5 variant and start the embedded runtime there.",
+
+  "step3_tag": "Step 3 - Who are you?",
+  "step3_title": "Create your hero",
+  "step3_desc": "Pick a class - you can fill in the rest later, or take a ready-made character.",
+
+  "class_fighter_name": "Fighter",
+  "class_fighter_desc": "Master of martial combat. Heavy armor, big weapons, second wind.",
+  "class_wizard_name": "Wizard",
+  "class_wizard_desc": "Scholar of arcane magic. Spellbook, rituals, control the battlefield.",
+  "class_rogue_name": "Rogue",
+  "class_rogue_desc": "Sneaky, clever, deadly. Sneak attack, expertise, cunning action.",
+  "class_cleric_name": "Cleric",
+  "class_cleric_desc": "Divine champion. Healing, support, righteous might.",
+
+  "dialog_label": "First-run setup",
+  "stepper_label": "Onboarding progress",
+
+  "validation_required": "required",
+  "validation_invalid_url": "must be a valid http(s) URL"
+}

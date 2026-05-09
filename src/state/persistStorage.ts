@@ -22,6 +22,8 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
+import type { OnboardingData } from './onboarding';
+import type { PcData } from './pc';
 import {
   AnthropicConfigSchema,
   LocalMistralRsConfigSchema,
@@ -51,6 +53,8 @@ const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
+const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
+const KEY_HERO_CLASS = 'hero_class';
 
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
@@ -95,10 +99,14 @@ const CurrentSceneSchema = v.nullable(
     stepCounter: v.pipe(v.number(), v.integer(), v.minValue(0)),
   }),
 );
+const OnboardingCompletedSchema = v.boolean();
+const HeroClassSchema = v.nullable(v.string());
 
 export interface PersistedSettings {
   settings?: Partial<SettingsData>;
   session?: Partial<SessionData>;
+  onboarding?: Partial<OnboardingData>;
+  pc?: Partial<PcData>;
 }
 
 export const persistStorage: PersistStorage<PersistedSettings> = {
@@ -115,6 +123,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       campaignRaw,
       sessionIdRaw,
       sceneRaw,
+      onboardingRaw,
+      heroClassRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -127,6 +137,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
       settingsStore.get(KEY_CURRENT_SCENE),
+      settingsStore.get(KEY_ONBOARDING_COMPLETED),
+      settingsStore.get(KEY_HERO_CLASS),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -140,6 +152,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
     const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
+    const onboardingParsed = v.safeParse(OnboardingCompletedSchema, onboardingRaw);
+    const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
 
     if (
       !providersParsed.success &&
@@ -152,7 +166,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !chatWidthParsed.success &&
       !campaignParsed.success &&
       !sessionIdParsed.success &&
-      !sceneParsed.success
+      !sceneParsed.success &&
+      !onboardingParsed.success &&
+      !heroClassParsed.success
     ) {
       return null;
     }
@@ -172,12 +188,20 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (sessionIdParsed.success) session.activeSessionId = sessionIdParsed.output;
     if (sceneParsed.success) session.currentScene = sceneParsed.output as CurrentScene | null;
 
-    return { state: { settings, session }, version: 0 };
+    const onboarding: Partial<OnboardingData> = {};
+    if (onboardingParsed.success) onboarding.completed = onboardingParsed.output;
+
+    const pc: Partial<PcData> = {};
+    if (heroClassParsed.success) pc.heroClass = heroClassParsed.output;
+
+    return { state: { settings, session, onboarding, pc }, version: 0 };
   },
 
   async setItem(_name, value): Promise<void> {
     const settings = value.state.settings ?? {};
     const session = value.state.session ?? {};
+    const onboarding = value.state.onboarding ?? {};
+    const pc = value.state.pc ?? {};
     const writes: Promise<unknown>[] = [];
     if (settings.providers !== undefined) {
       writes.push(secretsStore.set(KEY_PROVIDERS, settings.providers));
@@ -212,6 +236,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (session.currentScene !== undefined) {
       writes.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
     }
+    if (onboarding.completed !== undefined) {
+      writes.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
+    }
+    if (pc.heroClass !== undefined) {
+      writes.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -231,6 +261,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
       settingsStore.delete(KEY_CURRENT_SCENE),
+      settingsStore.delete(KEY_ONBOARDING_COMPLETED),
+      settingsStore.delete(KEY_HERO_CLASS),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },
