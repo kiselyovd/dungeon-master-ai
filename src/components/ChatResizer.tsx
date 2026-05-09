@@ -2,6 +2,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -25,6 +26,8 @@ interface DragSession {
   pointerId: number;
   startClientX: number;
   startWidth: number;
+  // Stored so we can detach without recreating closures.
+  cancelHandler: () => void;
 }
 
 /**
@@ -45,6 +48,35 @@ export function ChatResizer() {
     document.documentElement.style.setProperty('--chat-width', `${width}px`);
   }, []);
 
+  /**
+   * End an in-flight drag. When `cancel` is true, revert to the width captured
+   * at pointerdown (used for Escape, window blur, and tab visibility loss);
+   * otherwise commit the final pointer position. Either way, we always tear
+   * down the body class, window listeners, and dragRef so the component
+   * cannot leak global cursor state.
+   */
+  const finishDrag = useCallback(
+    (clientX: number | null, cancel: boolean) => {
+      const drag = dragRef.current;
+      if (drag === null) return;
+      let next: number;
+      if (cancel || clientX === null) {
+        next = drag.startWidth;
+      } else {
+        const delta = drag.startClientX - clientX;
+        next = clamp(drag.startWidth + delta);
+      }
+      window.removeEventListener('blur', drag.cancelHandler);
+      document.removeEventListener('visibilitychange', drag.cancelHandler);
+      dragRef.current = null;
+      setIsDragging(false);
+      document.body.classList.remove(RESIZING_BODY_CLASS);
+      applyWidth(next);
+      setChatPanelWidth(next);
+    },
+    [applyWidth, setChatPanelWidth],
+  );
+
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       // Only respond to the primary button; ignore right/middle clicks.
@@ -52,15 +84,26 @@ export function ChatResizer() {
       event.preventDefault();
       const target = event.currentTarget;
       target.setPointerCapture(event.pointerId);
+      // Build the cancel handler eagerly so blur/visibilitychange callbacks
+      // share the same identity used to attach + detach.
+      const cancelHandler = () => {
+        finishDrag(null, true);
+      };
       dragRef.current = {
         pointerId: event.pointerId,
         startClientX: event.clientX,
         startWidth: chatPanelWidth,
+        cancelHandler,
       };
       setIsDragging(true);
       document.body.classList.add(RESIZING_BODY_CLASS);
+      // OS-level focus loss (Alt+Tab, native dialog, devtools popout) does
+      // not always emit pointercancel; treat blur/visibility loss as a
+      // cancel so the body class never sticks.
+      window.addEventListener('blur', cancelHandler);
+      document.addEventListener('visibilitychange', cancelHandler);
     },
-    [chatPanelWidth],
+    [chatPanelWidth, finishDrag],
   );
 
   const onPointerMove = useCallback(
@@ -76,28 +119,33 @@ export function ChatResizer() {
     [applyWidth],
   );
 
-  const finishDrag = useCallback(
+  const onPointerEnd = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
-      const delta = drag.startClientX - event.clientX;
-      const next = clamp(drag.startWidth + delta);
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
         // setPointerCapture may have been auto-released already; ignore.
       }
-      dragRef.current = null;
-      setIsDragging(false);
-      document.body.classList.remove(RESIZING_BODY_CLASS);
-      applyWidth(next);
-      setChatPanelWidth(next);
+      const cancel = event.type === 'pointercancel';
+      finishDrag(event.clientX, cancel);
     },
-    [applyWidth, setChatPanelWidth],
+    [finishDrag],
   );
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+      // Escape during an active drag reverts to the pre-drag width. When
+      // there is no drag in flight, Escape is a no-op (keyboard stepping
+      // commits each keystroke; there is nothing to revert to).
+      if (event.key === 'Escape') {
+        if (dragRef.current !== null) {
+          event.preventDefault();
+          finishDrag(null, true);
+        }
+        return;
+      }
       const step = event.shiftKey ? KEYBOARD_STEP_LARGE_PX : KEYBOARD_STEP_PX;
       let next: number | null = null;
       if (event.key === 'ArrowLeft') {
@@ -116,7 +164,24 @@ export function ChatResizer() {
         setChatPanelWidth(next);
       }
     },
-    [applyWidth, chatPanelWidth, setChatPanelWidth],
+    [applyWidth, chatPanelWidth, finishDrag, setChatPanelWidth],
+  );
+
+  // Unmount cleanup. Without this, an unmount mid-drag (route change, error
+  // boundary, dev hot reload) would leave `dm-chat-resizing` on <body> and
+  // freeze the global cursor until the next page reload. We also detach any
+  // window listeners that the in-flight drag attached.
+  useEffect(
+    () => () => {
+      const drag = dragRef.current;
+      if (drag !== null) {
+        window.removeEventListener('blur', drag.cancelHandler);
+        document.removeEventListener('visibilitychange', drag.cancelHandler);
+        dragRef.current = null;
+      }
+      document.body.classList.remove(RESIZING_BODY_CLASS);
+    },
+    [],
   );
 
   const label = t('resize_handle_label');
@@ -135,8 +200,8 @@ export function ChatResizer() {
       title={label}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
       onKeyDown={onKeyDown}
     />
   );
