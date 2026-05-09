@@ -1,18 +1,23 @@
 /**
- * PersistStorage adapter for Zustand's persist middleware, backed by
- * tauri-plugin-store. Splits the persisted Settings slice across two on-disk
- * files:
+ * PersistStorage adapter for Zustand's persist middleware. Splits the
+ * persisted Settings slice across two on-disk surfaces:
  *
- * - `secrets.json` keeps the per-provider configs (api keys, base URLs) and
- *   the Replicate API key (M3).
- * - `settings.json` keeps the non-sensitive prefs (active provider, languages,
- *   system prompt, temperature).
+ * - Secrets (provider configs + Replicate API key) live in an encrypted
+ *   Stronghold vault via `strongholdSecretsStore`. The on-disk file
+ *   `dmai-vault.hold` is argon2-keyed with a per-install salt.
+ * - Non-sensitive prefs (active provider, languages, system prompt,
+ *   temperature, active campaign / session ID) live in `settings.json`
+ *   via plaintext `LazyStore` (tauri-plugin-store).
  *
- * The split exists so the M2 keychain swap touches only `secrets.json`.
+ * The split intentionally keeps the secrets surface narrow so the
+ * Stronghold backend only handles credential-bearing fields. Migration
+ * from the pre-M5 plaintext `secrets.json` is one-shot on first read:
+ * if a value is found in the legacy file but not yet in Stronghold, we
+ * copy it over and delete the legacy entry.
  *
- * The on-disk key layout intentionally matches the original `loadAll/save*`
+ * The settings file's key layout still matches the M1.5 `loadAll/save*`
  * helpers (`providers`, `active_provider`, `ui_language`, `narration_language`)
- * so users upgrading from M1.5 keep their saved settings.
+ * so an upgrade from M1.5 keeps the saved prefs.
  */
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
@@ -24,8 +29,9 @@ import {
 } from './providers';
 import type { SessionData } from './session';
 import type { Language, ProvidersMap, SettingsData } from './settings';
+import { strongholdSecretsStore } from './strongholdSecretsStore';
 
-const SECRETS_FILE = 'secrets.json';
+const LEGACY_SECRETS_FILE = 'secrets.json';
 const SETTINGS_FILE = 'settings.json';
 
 const KEY_PROVIDERS = 'providers';
@@ -38,8 +44,24 @@ const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 
-const secretsStore = new LazyStore(SECRETS_FILE);
+const secretsStore = strongholdSecretsStore;
+const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
+
+/**
+ * Pull a secret with one-shot migration from the pre-M5 plaintext
+ * secrets.json. Returns `undefined` if neither store has the key.
+ */
+async function getSecret(key: string): Promise<unknown> {
+  const fromVault = await secretsStore.get(key);
+  if (fromVault !== undefined) return fromVault;
+  const fromLegacy = await legacySecretsStore.get(key);
+  if (fromLegacy === undefined || fromLegacy === null) return undefined;
+  await secretsStore.set(key, fromLegacy);
+  await legacySecretsStore.delete(key);
+  await Promise.all([secretsStore.save(), legacySecretsStore.save()]);
+  return fromLegacy;
+}
 
 const ProviderKindSchema = v.picklist(['anthropic', 'openai-compat', 'local-mistralrs']);
 const LanguageSchema = v.picklist(['en', 'ru']);
@@ -73,13 +95,13 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       campaignRaw,
       sessionIdRaw,
     ] = await Promise.all([
-      secretsStore.get(KEY_PROVIDERS),
+      getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
       settingsStore.get(KEY_UI_LANGUAGE),
       settingsStore.get(KEY_NARRATION_LANGUAGE),
       settingsStore.get(KEY_SYSTEM_PROMPT),
       settingsStore.get(KEY_TEMPERATURE),
-      secretsStore.get(KEY_REPLICATE_API_KEY),
+      getSecret(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
     ]);
@@ -163,6 +185,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     await Promise.all([
       secretsStore.delete(KEY_PROVIDERS),
       secretsStore.delete(KEY_REPLICATE_API_KEY),
+      legacySecretsStore.delete(KEY_PROVIDERS),
+      legacySecretsStore.delete(KEY_REPLICATE_API_KEY),
       settingsStore.delete(KEY_ACTIVE_PROVIDER),
       settingsStore.delete(KEY_UI_LANGUAGE),
       settingsStore.delete(KEY_NARRATION_LANGUAGE),
@@ -171,6 +195,6 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
     ]);
-    await Promise.all([secretsStore.save(), settingsStore.save()]);
+    await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },
 };

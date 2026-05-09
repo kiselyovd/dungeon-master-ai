@@ -80,6 +80,18 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
         .setup(|app| {
+            // Resolve the per-install salt path inside `setup` so we have an
+            // initialised AppHandle. Stronghold's argon2 builder lazily writes
+            // the salt at first vault open; the file lives under the OS-native
+            // local-data dir for this app.
+            let salt_path = app
+                .path()
+                .app_local_data_dir()
+                .map_err(|e| format!("resolve app_local_data_dir: {e}"))?
+                .join("salt.txt");
+            app.handle()
+                .plugin(tauri_plugin_stronghold::Builder::with_argon2(&salt_path).build())?;
+
             let handle = app.handle().clone();
             spawn_backend(handle)?;
             Ok(())

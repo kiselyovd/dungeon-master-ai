@@ -12,6 +12,7 @@
       "allow": [{ "name": "binaries/dmai-server", "sidecar": true }]
     },
     "store:default",
+    "stronghold:default",
     "updater:default"
   ]
 }

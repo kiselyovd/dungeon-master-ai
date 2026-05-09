@@ -2,23 +2,37 @@ import { LazyStore } from '@tauri-apps/plugin-store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { persistStorage } from '../persistStorage';
 import type { AnthropicConfig, ApiKey } from '../providers';
+import { strongholdSecretsStore } from '../strongholdSecretsStore';
 
 /**
  * persistStorage is the bridge between Zustand's persist middleware and the
- * Tauri plugin-store. Two on-disk files (mocked here as in-memory buckets):
- * `secrets.json` for credentials, `settings.json` for prefs. These tests
- * lock down the split, the on-disk key naming, and the round-trip semantics.
+ * two on-disk surfaces (mocked here as in-memory buckets):
+ *
+ * - encrypted Stronghold vault (`strongholdSecretsStore`) for credentials
+ * - plaintext `LazyStore` `settings.json` for non-sensitive prefs
+ * - legacy `LazyStore` `secrets.json` for one-shot migration on first read
+ *
+ * These tests lock down the split, the on-disk key naming, the round-trip
+ * semantics, and the legacy-to-vault migration path.
  */
 
-const secrets = new LazyStore('secrets.json');
+const legacySecrets = new LazyStore('secrets.json');
 const settings = new LazyStore('settings.json');
 
 async function clearStores() {
+  strongholdSecretsStore._resetForTests();
   await Promise.all([
-    secrets.delete('providers'),
+    strongholdSecretsStore.delete('providers'),
+    strongholdSecretsStore.delete('replicate_api_key'),
+    legacySecrets.delete('providers'),
+    legacySecrets.delete('replicate_api_key'),
     settings.delete('active_provider'),
     settings.delete('ui_language'),
     settings.delete('narration_language'),
+    settings.delete('system_prompt'),
+    settings.delete('temperature'),
+    settings.delete('active_campaign_id'),
+    settings.delete('active_session_id'),
   ]);
 }
 
@@ -31,7 +45,7 @@ describe('persistStorage', () => {
     expect(await persistStorage.getItem('any')).toBeNull();
   });
 
-  it('writes provider configs to secrets.json and prefs to settings.json', async () => {
+  it('writes provider configs to the Stronghold vault and prefs to settings.json', async () => {
     const cfg: AnthropicConfig = {
       kind: 'anthropic',
       apiKey: 'sk-ant-real' as ApiKey,
@@ -54,14 +68,37 @@ describe('persistStorage', () => {
       version: 0,
     });
 
-    // Provider blob lives in secrets.json.
-    const providers = await secrets.get('providers');
-    expect(providers).toMatchObject({ anthropic: cfg });
+    // Provider blob lives in the encrypted Stronghold vault, NOT in the
+    // legacy plaintext secrets.json.
+    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ anthropic: cfg });
+    expect(await legacySecrets.get('providers')).toBeUndefined();
 
     // Prefs live in settings.json under the legacy snake_case keys.
     expect(await settings.get('active_provider')).toBe('anthropic');
     expect(await settings.get('ui_language')).toBe('ru');
     expect(await settings.get('narration_language')).toBe('en');
+  });
+
+  it('one-shot migrates legacy plaintext secrets.json into the vault on first read', async () => {
+    const cfg: AnthropicConfig = {
+      kind: 'anthropic',
+      apiKey: 'sk-ant-legacy' as ApiKey,
+      model: 'claude-haiku',
+    };
+    // Seed only the legacy plaintext store - simulates an upgrade from M4.5.
+    await legacySecrets.set('providers', {
+      anthropic: cfg,
+      'openai-compat': null,
+      'local-mistralrs': null,
+    });
+
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.settings?.providers).toMatchObject({ anthropic: cfg });
+
+    // The legacy entry was drained into the vault and removed from the
+    // plaintext file as part of the migration.
+    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ anthropic: cfg });
+    expect(await legacySecrets.get('providers')).toBeUndefined();
   });
 
   it('round-trips a full snapshot back through getItem', async () => {
@@ -112,7 +149,7 @@ describe('persistStorage', () => {
     expect(loaded?.state.settings?.uiLanguage).toBe('ru');
   });
 
-  it('removeItem clears both files', async () => {
+  it('removeItem clears the vault, the legacy file, and the prefs file', async () => {
     await persistStorage.setItem('any', {
       state: {
         settings: {
@@ -131,7 +168,8 @@ describe('persistStorage', () => {
 
     await persistStorage.removeItem('any');
 
-    expect(await secrets.get('providers')).toBeUndefined();
+    expect(await strongholdSecretsStore.get('providers')).toBeUndefined();
+    expect(await legacySecrets.get('providers')).toBeUndefined();
     expect(await settings.get('active_provider')).toBeUndefined();
     expect(await settings.get('ui_language')).toBeUndefined();
     expect(await settings.get('narration_language')).toBeUndefined();
