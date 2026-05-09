@@ -7,8 +7,24 @@ import { parseSseEvents } from './sse';
 export interface StreamChatOptions {
   messages: ChatMessage[];
   model?: string;
+  /** Optional session UUID; when provided, server persists user + assistant rows. */
+  sessionId?: string;
   onTextDelta: (text: string) => void;
   signal?: AbortSignal;
+}
+
+/**
+ * Translate a frontend `ChatMessage` (which always carries `content` plus an
+ * optional `parts` array) into the wire shape the backend's `HttpMessage`
+ * deserializer expects. User messages with images use the `parts` shape;
+ * everything else uses the legacy `content` string shape (which the backend
+ * accepts via dual-shape Deserialize).
+ */
+export function toWireMessage(m: ChatMessage): Record<string, unknown> {
+  if (m.role === 'user' && m.parts && m.parts.some((p) => p.type === 'image')) {
+    return { role: 'user', parts: m.parts };
+  }
+  return { role: m.role, content: m.content };
 }
 
 export interface StreamChatResult {
@@ -25,10 +41,15 @@ export interface StreamChatResult {
  */
 export async function streamChat(opts: StreamChatOptions): Promise<StreamChatResult> {
   const url = await backendUrl('/chat');
+  const wireMessages = opts.messages.map(toWireMessage);
   const init: RequestInit = {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-    body: JSON.stringify({ messages: opts.messages, model: opts.model }),
+    body: JSON.stringify({
+      messages: wireMessages,
+      model: opts.model,
+      session_id: opts.sessionId,
+    }),
   };
   if (opts.signal) init.signal = opts.signal;
 
@@ -162,3 +183,75 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode {
 
 // Re-exports for convenience / backwards compat with existing tests.
 export { parseSseEvents, type SseEvent } from './sse';
+
+interface BackendUserMessage {
+  role: 'user';
+  parts: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; mime: string; data_b64: string; name?: string | null }
+  >;
+}
+
+interface BackendSimpleMessage {
+  role: 'system' | 'assistant';
+  content: string;
+}
+
+interface BackendAssistantWithToolCalls {
+  role: 'assistant_with_tool_calls';
+  content: string | null;
+  tool_calls: unknown[];
+}
+
+interface BackendToolResult {
+  role: 'tool_result';
+  tool_call_id: string;
+  content: string;
+  is_error: boolean;
+}
+
+type BackendMessage =
+  | BackendUserMessage
+  | BackendSimpleMessage
+  | BackendAssistantWithToolCalls
+  | BackendToolResult;
+
+/**
+ * Pull persisted chat history for a session. Returns the messages already
+ * shaped as the frontend's `ChatMessage` (with synthesized `id`s). Tool
+ * results are filtered out - they belong in the tool log, not the chat.
+ */
+export async function fetchSessionMessages(sessionId: string): Promise<ChatMessage[]> {
+  const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/messages`);
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new ChatError('http_error', `messages fetch failed: ${resp.status}`);
+  }
+  const json = (await resp.json()) as { messages?: BackendMessage[] };
+  const list = json.messages ?? [];
+
+  const out: ChatMessage[] = [];
+  for (const m of list) {
+    const id = newRowId();
+    if (m.role === 'user') {
+      const text = m.parts
+        .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+        .map((p) => p.text)
+        .join('\n');
+      out.push({ id, role: 'user', content: text, parts: m.parts });
+    } else if (m.role === 'assistant') {
+      out.push({ id, role: 'assistant', content: m.content });
+    } else if (m.role === 'assistant_with_tool_calls') {
+      if (m.content) out.push({ id, role: 'assistant', content: m.content });
+    }
+    // system + tool_result are not rendered in the chat.
+  }
+  return out;
+}
+
+function newRowId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
