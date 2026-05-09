@@ -100,12 +100,16 @@ describe('VttCanvas', () => {
     expect(app).toBeInTheDocument();
   });
 
-  it('honours explicit grid size props as overrides', () => {
+  it('clamps to the minimum canvas size when no container box is available', () => {
+    // In jsdom clientWidth/clientHeight are 0 and ResizeObserver does not
+    // auto-fire on mount, so the canvas falls back to the MIN_CANVAS_PX floor
+    // (180px) on both axes. The widthCells/cellSize props now affect only the
+    // grid-line count, not the Pixi viewport size.
     const { getByTestId } = render(<VttCanvas widthCells={10} heightCells={15} cellSize={32} />);
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
-    expect(props.width).toBe(320);
-    expect(props.height).toBe(480);
+    expect(props.width).toBe(180);
+    expect(props.height).toBe(180);
   });
 
   it('renders the empty-state overlay when there are no tokens', () => {
@@ -117,7 +121,7 @@ describe('VttCanvas', () => {
     expect(title?.textContent ?? '').not.toBe('');
   });
 
-  it('derives the grid cell counts from the container size on resize', () => {
+  it('makes the Pixi canvas fill the container exactly on resize', () => {
     const { getByTestId } = render(<VttCanvas cellSize={30} />);
 
     act(() => {
@@ -127,9 +131,26 @@ describe('VttCanvas', () => {
 
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
-    // 900 / 30 = 30 cells wide, 450 / 30 = 15 cells tall.
-    expect(props.width).toBe(30 * 30);
-    expect(props.height).toBe(15 * 30);
+    // Canvas now fills the container (no centering, no cell-aligned crop).
+    expect(props.width).toBe(900);
+    expect(props.height).toBe(450);
+  });
+
+  it('fills a 600x500 container exactly (regression: prevent dark margins)', () => {
+    const { getByTestId } = render(<VttCanvas cellSize={30} />);
+
+    act(() => {
+      fireResize(600, 500);
+    });
+    flushRaf();
+
+    const app = getByTestId('pixi-app');
+    const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
+    // 600 is a clean multiple of 30 but 500 is not - canvas must still be
+    // 600x500 (NOT 600x480 = floor(500/30) * 30) so the grid background fills
+    // the full pane and no dark strip shows above/below the cell-aligned grid.
+    expect(props.width).toBe(600);
+    expect(props.height).toBe(500);
   });
 
   it('clamps to a minimum size when the container is smaller than the floor', () => {
@@ -142,9 +163,9 @@ describe('VttCanvas', () => {
 
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
-    // Min container floor is 180px -> 180 / 30 = 6 cells (also the MIN_CELLS floor).
-    expect(props.width).toBe(6 * 30);
-    expect(props.height).toBe(6 * 30);
+    // MIN_CANVAS_PX floor is 180px on both axes.
+    expect(props.width).toBe(180);
+    expect(props.height).toBe(180);
   });
 
   it('observes the .dm-vtt root element', () => {

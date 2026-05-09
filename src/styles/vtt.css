@@ -7,17 +7,30 @@
   background: var(--color-bg-deep);
   overflow: hidden;
   user-select: none;
+  /* Establish a stacking context so the Pixi canvas (which paints into a
+     <canvas> element with its own compositing layer) cannot occlude the
+     absolutely-positioned overlays (controls, scale, FAB). */
+  isolation: isolate;
 }
 
 .dm-vtt-canvas {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* The Pixi <canvas> sizes itself to fill this box now (width/height passed
+     directly from the ResizeObserver), so we don't need flex centering. */
 }
 
-/* Empty state */
+.dm-vtt-canvas > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Empty state
+ *
+ * Bottom padding keeps the centered icon/title clear of the CharFab pill at
+ * bottom-left and the controls toolbar at bottom-right (both ~32-40px tall
+ * including their 16px inset). */
 .dm-vtt-empty {
   position: absolute;
   inset: 0;
@@ -29,6 +42,7 @@
   color: var(--color-fg-muted);
   pointer-events: none;
   text-align: center;
+  padding-bottom: 72px;
 }
 
 .dm-vtt-empty-icon {
@@ -64,6 +78,8 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   z-index: 4;
+  pointer-events: auto;
+  color: var(--color-fg-secondary);
 }
 
 .dm-vtt-ctrl {
@@ -98,10 +114,15 @@
   margin: 2px 0;
 }
 
-/* Scale indicator */
+/* Scale indicator
+ *
+ * Anchored to the bottom-right just left of the controls toolbar so it does
+ * not collide with the CharFab (bottom-left) or the ActionBar (bottom-center
+ * during combat). Controls panel is ~44px wide (32 button + 6+6 padding) and
+ * sits at right:16, so the scale at right:68 leaves a comfortable gap. */
 .dm-vtt-scale {
   position: absolute;
-  left: 16px;
+  right: 68px;
   bottom: 16px;
   display: flex;
   align-items: center;
@@ -113,6 +134,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border-subtle);
   z-index: 4;
+  pointer-events: auto;
 }
 
 .dm-vtt-scale-bar {

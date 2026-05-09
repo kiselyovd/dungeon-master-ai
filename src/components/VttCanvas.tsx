@@ -108,14 +108,14 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
     };
   }, []);
 
-  const containerWidth = Math.max(MIN_CANVAS_PX, containerSize.width);
-  const containerHeight = Math.max(MIN_CANVAS_PX, containerSize.height);
+  // Pixi viewport fills the container so the grid never leaves a dark margin
+  // around it. The grid line count is derived independently from the floor of
+  // (containerPx / cellSize) so cells stay square even on non-multiple sizes.
+  const width = Math.max(MIN_CANVAS_PX, containerSize.width);
+  const height = Math.max(MIN_CANVAS_PX, containerSize.height);
 
-  const effectiveWidthCells = deriveCells(containerWidth, cellSize, widthCells);
-  const effectiveHeightCells = deriveCells(containerHeight, cellSize, heightCells);
-
-  const width = effectiveWidthCells * cellSize;
-  const height = effectiveHeightCells * cellSize;
+  const effectiveWidthCells = deriveCells(width, cellSize, widthCells);
+  const effectiveHeightCells = deriveCells(height, cellSize, heightCells);
 
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
