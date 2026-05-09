@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
 use tracing::warn;
 
-use crate::provider::{ChatChunk, ChatMessage, FinishReason, LlmError, Tool};
+use crate::provider::{ChatChunk, ChatMessage, FinishReason, LlmError, MessagePart, Tool};
 
 /// Translate our provider-agnostic `ChatMessage`/`Tool` shape into a genai
 /// `ChatRequest`. Identical for every genai-backed provider, so it lives here.
@@ -27,7 +27,23 @@ pub(crate) fn convert_messages(messages: Vec<ChatMessage>, tools: Vec<Tool>) -> 
     for m in messages {
         match m {
             ChatMessage::System { content } => g_req = g_req.with_system(content),
-            ChatMessage::User { content } => {
+            ChatMessage::User { parts } => {
+                use genai::chat::{ContentPart, MessageContent};
+                let mut content = MessageContent::default();
+                for part in parts {
+                    match part {
+                        MessagePart::Text { text } => {
+                            content.push(ContentPart::Text(text));
+                        }
+                        MessagePart::Image {
+                            mime,
+                            data_b64,
+                            name,
+                        } => {
+                            content.push(ContentPart::from_binary_base64(mime, data_b64, name));
+                        }
+                    }
+                }
                 g_req = g_req.append_message(GMsg::user(content));
             }
             ChatMessage::Assistant { content } => {

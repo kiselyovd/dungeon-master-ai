@@ -71,7 +71,7 @@ pub enum ChatMessage {
         content: String,
     },
     User {
-        content: String,
+        parts: Vec<MessagePart>,
     },
     Assistant {
         content: String,
@@ -83,6 +83,15 @@ pub enum ChatMessage {
     },
     /// A tool result injected back after the engine executed a tool-call.
     ToolResult(ToolResult),
+}
+
+impl ChatMessage {
+    /// Convenience for the common single-text-part user turn.
+    pub fn user_text(text: impl Into<String>) -> Self {
+        Self::User {
+            parts: vec![MessagePart::Text { text: text.into() }],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -192,5 +201,40 @@ mod tests {
             v,
             json!({"type": "image", "mime": "image/jpeg", "data_b64": "x", "name": null})
         );
+    }
+
+    #[test]
+    fn chat_message_user_text_helper() {
+        let m = ChatMessage::user_text("hello");
+        match m {
+            ChatMessage::User { parts } => {
+                assert_eq!(parts.len(), 1);
+                assert!(matches!(&parts[0], MessagePart::Text { text } if text == "hello"));
+            }
+            _ => panic!("expected User"),
+        }
+    }
+
+    #[test]
+    fn chat_message_user_serde_array_shape() {
+        let m = ChatMessage::User {
+            parts: vec![
+                MessagePart::Text {
+                    text: "see this:".into(),
+                },
+                MessagePart::Image {
+                    mime: "image/png".into(),
+                    data_b64: "aGk=".into(),
+                    name: None,
+                },
+            ],
+        };
+        let v = serde_json::to_value(&m).unwrap();
+        assert_eq!(v["role"], "user");
+        assert!(v["parts"].is_array());
+        assert_eq!(v["parts"][0]["type"], "text");
+        assert_eq!(v["parts"][1]["type"], "image");
+        let back: ChatMessage = serde_json::from_value(v).unwrap();
+        assert_eq!(back, m);
     }
 }

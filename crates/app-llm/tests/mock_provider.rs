@@ -10,7 +10,7 @@ async fn mock_provider_streams_scripted_text_then_done() {
     ]);
 
     let req = ChatRequest {
-        messages: vec![ChatMessage::User { content: "hi".into() }],
+        messages: vec![ChatMessage::user_text("hi")],
         model: "mock".into(),
         max_tokens: None,
         temperature: None,

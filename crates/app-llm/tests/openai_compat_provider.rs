@@ -37,9 +37,7 @@ async fn openai_compat_streams_text_then_done() {
 
     let provider = OpenAICompatProvider::new(server.uri(), "sk-test".into());
     let req = ChatRequest {
-        messages: vec![ChatMessage::User {
-            content: "hi".into(),
-        }],
+        messages: vec![ChatMessage::user_text("hi")],
         model: "qwen3-1.7b".into(),
         max_tokens: Some(32),
         temperature: Some(0.0),

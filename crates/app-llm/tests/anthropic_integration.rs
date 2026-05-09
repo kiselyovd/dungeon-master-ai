@@ -16,9 +16,7 @@ async fn anthropic_streams_real_response_when_key_present() {
 
     let provider = AnthropicProvider::new(key);
     let req = ChatRequest {
-        messages: vec![ChatMessage::User {
-            content: "Reply with exactly the word: pong".into(),
-        }],
+        messages: vec![ChatMessage::user_text("Reply with exactly the word: pong")],
         model: "claude-haiku-4-5-20251001".into(),
         max_tokens: Some(10),
         temperature: Some(0.0),

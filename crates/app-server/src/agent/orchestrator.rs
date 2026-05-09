@@ -122,9 +122,7 @@ impl AgentOrchestrator {
 
         let tools = all_tools();
         let mut messages: Vec<ChatMessage> = req.history;
-        messages.push(ChatMessage::User {
-            content: req.player_message.clone(),
-        });
+        messages.push(ChatMessage::user_text(req.player_message.clone()));
 
         let mut total_rounds = 0usize;
 

@@ -19,9 +19,7 @@ async fn mock_emits_tool_call_then_text() {
     ];
     let mock = MockProvider::new(chunks);
     let req = ChatRequest {
-        messages: vec![ChatMessage::User {
-            content: "attack".into(),
-        }],
+        messages: vec![ChatMessage::user_text("attack")],
         model: "mock".into(),
         max_tokens: None,
         temperature: None,

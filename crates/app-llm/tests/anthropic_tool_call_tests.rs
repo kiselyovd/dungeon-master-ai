@@ -45,9 +45,7 @@ async fn anthropic_emits_tool_call_chunks_for_roll_dice() {
             ChatMessage::System {
                 content: "You are a dungeon master. When the user asks for an attack roll, you MUST call the roll_dice tool. Do not narrate; just call the tool.".into(),
             },
-            ChatMessage::User {
-                content: "Roll a d20 for my attack.".into(),
-            },
+            ChatMessage::user_text("Roll a d20 for my attack."),
         ],
         model: "claude-haiku-4-5-20251001".into(),
         max_tokens: Some(256),
