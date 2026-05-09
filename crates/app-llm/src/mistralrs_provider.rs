@@ -44,6 +44,10 @@ impl LlmProvider for MistralrsLocalProvider {
         }
         self.inner.stream_chat(req).await
     }
+
+    fn supports_vision(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]

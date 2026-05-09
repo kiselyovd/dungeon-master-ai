@@ -69,6 +69,10 @@ impl LlmProvider for AnthropicProvider {
     fn supports_tools(&self) -> bool {
         true
     }
+
+    fn supports_vision(&self) -> bool {
+        true
+    }
 }
 
 #[allow(dead_code)]

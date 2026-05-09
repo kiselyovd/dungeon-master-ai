@@ -196,3 +196,50 @@ pub(crate) fn classify_genai_error(msg: String) -> LlmError {
         LlmError::Provider(msg)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_with_image_part_emits_binary_in_content() {
+        let messages = vec![ChatMessage::User {
+            parts: vec![
+                MessagePart::Text {
+                    text: "look".into(),
+                },
+                MessagePart::Image {
+                    mime: "image/png".into(),
+                    data_b64: "aGVsbG8=".into(),
+                    name: None,
+                },
+            ],
+        }];
+        let g_req = convert_messages(messages, vec![]);
+        assert_eq!(g_req.messages.len(), 1);
+        let content = &g_req.messages[0].content;
+        assert!(content.contains_text(), "must keep the text part");
+        assert!(content.contains_binary(), "must carry an image part");
+        let bins = content.binaries();
+        assert_eq!(bins.len(), 1);
+        assert!(bins[0].content_type.starts_with("image/"));
+    }
+
+    #[test]
+    fn user_text_only_does_not_produce_binary() {
+        let messages = vec![ChatMessage::user_text("hi")];
+        let g_req = convert_messages(messages, vec![]);
+        assert_eq!(g_req.messages.len(), 1);
+        let content = &g_req.messages[0].content;
+        assert_eq!(content.first_text(), Some("hi"));
+        assert!(!content.contains_binary());
+    }
+
+    #[test]
+    fn classify_rate_limit() {
+        assert!(matches!(
+            classify_genai_error("rate limit hit".into()),
+            LlmError::RateLimit
+        ));
+    }
+}

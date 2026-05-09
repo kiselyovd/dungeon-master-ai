@@ -94,4 +94,8 @@ impl LlmProvider for OpenAICompatProvider {
     fn supports_tools(&self) -> bool {
         true
     }
+
+    fn supports_vision(&self) -> bool {
+        true
+    }
 }

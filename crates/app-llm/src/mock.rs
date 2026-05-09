@@ -36,4 +36,8 @@ impl LlmProvider for MockProvider {
     fn name(&self) -> &'static str {
         "mock"
     }
+
+    fn supports_vision(&self) -> bool {
+        true
+    }
 }
