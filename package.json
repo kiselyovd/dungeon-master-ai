@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build": "tauri build",
-    "tauri:build:cloud": "tauri build -- --no-default-features --features cloud-only",
+    "tauri:build:cloud": "tauri build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
