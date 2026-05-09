@@ -48,5 +48,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bundle-${{ matrix.target }}
-          path: src-tauri/target/release/bundle/
+          path: target/release/bundle/
           retention-days: 7

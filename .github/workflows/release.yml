@@ -68,7 +68,7 @@ jobs:
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/cert.pfx", $cert)
           $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-          Get-ChildItem -Path "src-tauri/target/release/bundle/" -Recurse -Include "*.exe","*.msi" |
+          Get-ChildItem -Path "target/release/bundle/" -Recurse -Include "*.exe","*.msi" |
             ForEach-Object {
               & $signtool sign /f "$env:RUNNER_TEMP/cert.pfx" /p "$env:WINDOWS_CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
             }
@@ -77,7 +77,7 @@ jobs:
         if: startsWith(matrix.os, 'macos') && env.APPLE_API_KEY != ''
         shell: bash
         run: |
-          BUNDLE=$(find src-tauri/target/release/bundle/macos -name "*.app" | head -1)
+          BUNDLE=$(find target/release/bundle/macos -name "*.app" | head -1)
           if [ -z "$BUNDLE" ]; then
             echo "no .app bundle found, skipping notarization"
             exit 0
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.label }}
-          path: src-tauri/target/release/bundle/
+          path: target/release/bundle/
           retention-days: 90
 
   publish:
