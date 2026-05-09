@@ -2,7 +2,7 @@
 //! Wraps `download.rs` with cancellation, progress broadcast, and HF Hub URL
 //! resolution.
 
-use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent};
+use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent, HfEndpoints};
 use crate::models::manifest::{lookup, ModelId, ModelKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,6 +28,7 @@ pub enum DownloadStatus {
 
 pub struct DownloadManager {
     base_dir: PathBuf,
+    endpoints: HfEndpoints,
     state: Arc<RwLock<HashMap<ModelId, DownloadStatus>>>,
     handles: Arc<RwLock<HashMap<ModelId, JoinHandle<()>>>>,
     pub events: Arc<broadcast::Sender<DownloadEvent>>,
@@ -35,9 +36,14 @@ pub struct DownloadManager {
 
 impl DownloadManager {
     pub fn new(base_dir: PathBuf) -> Self {
+        Self::with_endpoints(base_dir, HfEndpoints::default())
+    }
+
+    pub fn with_endpoints(base_dir: PathBuf, endpoints: HfEndpoints) -> Self {
         let (tx, _rx) = broadcast::channel(64);
         Self {
             base_dir,
+            endpoints,
             state: Arc::new(RwLock::new(HashMap::new())),
             handles: Arc::new(RwLock::new(HashMap::new())),
             events: Arc::new(tx),
@@ -103,16 +109,14 @@ impl DownloadManager {
                 })
             }
             ModelKind::DiffusersFolder => {
-                let manifest_url = format!(
-                    "https://huggingface.co/{}/resolve/main/model_index.json",
-                    m.hf_repo
-                );
-                let base_url = format!("https://huggingface.co/{}/resolve/main", m.hf_repo);
+                let endpoints = self.endpoints.clone();
                 let dest_dir = self.base_dir.join(m.hf_repo);
+                let hf_repo = m.hf_repo;
                 tokio::spawn(async move {
                     match download_diffusers_repo(
-                        &manifest_url,
-                        &base_url,
+                        &endpoints,
+                        hf_repo,
+                        "main",
                         &dest_dir,
                         events.clone(),
                     )

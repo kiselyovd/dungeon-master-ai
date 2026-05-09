@@ -2,6 +2,7 @@
 
 use crate::models::manifest::ModelId;
 use futures::StreamExt;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -114,31 +115,69 @@ pub struct DiffusersResult {
     pub bytes_total: u64,
 }
 
+#[derive(Debug, Deserialize)]
+struct HfTreeEntry {
+    #[serde(rename = "type")]
+    kind: String,
+    path: String,
+}
+
+/// Endpoints used to talk to a HuggingFace-Hub-compatible host.
+/// `Default` points at https://huggingface.co; tests inject a wiremock origin.
+#[derive(Debug, Clone)]
+pub struct HfEndpoints {
+    pub api_base: String,
+    pub resolve_base: String,
+}
+
+impl Default for HfEndpoints {
+    fn default() -> Self {
+        Self {
+            api_base: "https://huggingface.co".into(),
+            resolve_base: "https://huggingface.co".into(),
+        }
+    }
+}
+
+/// Walks a HuggingFace repo via the Hub tree API and downloads every file.
+///
+/// Uses `{api_base}/api/models/{repo}/tree/{rev}?recursive=true` to list all
+/// blobs (LFS pointers and inline files alike), then resolves each via
+/// `{resolve_base}/{repo}/resolve/{rev}/{path}` which auto-redirects LFS
+/// objects to the CDN. Replaces an earlier model_index.json string-array
+/// walker that only worked for mocked schemas.
 pub async fn download_diffusers_repo(
-    manifest_url: &str,
-    base_url: &str,
+    endpoints: &HfEndpoints,
+    hf_repo: &str,
+    revision: &str,
     dest_dir: &Path,
     tx: Arc<broadcast::Sender<DownloadEvent>>,
 ) -> Result<DiffusersResult, DownloadError> {
+    let tree_url = format!(
+        "{}/api/models/{hf_repo}/tree/{revision}?recursive=true",
+        endpoints.api_base
+    );
     let client = reqwest::Client::new();
-    let manifest: serde_json::Value = client.get(manifest_url).send().await?.json().await?;
-    let mut files = Vec::new();
-    if let Some(obj) = manifest.as_object() {
-        for arr in obj.values().filter_map(|v| v.as_array()) {
-            for entry in arr {
-                if let Some(p) = entry.as_str() {
-                    files.push(p.to_string());
-                }
-            }
-        }
-    }
+    let entries: Vec<HfTreeEntry> = client
+        .get(&tree_url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let files: Vec<String> = entries
+        .into_iter()
+        .filter(|e| e.kind == "file")
+        .map(|e| e.path)
+        .collect();
 
     let mut bytes_total = 0u64;
     let mut files_downloaded = 0u32;
     let semaphore = Arc::new(tokio::sync::Semaphore::new(4));
     let mut handles = Vec::new();
+    let resolve_base = endpoints.resolve_base.clone();
     for relpath in files {
-        let url = format!("{base_url}/{relpath}");
+        let url = format!("{resolve_base}/{hf_repo}/resolve/{revision}/{relpath}");
         let dest = dest_dir.join(&relpath);
         let permit = semaphore.clone();
         let tx = tx.clone();
@@ -211,34 +250,63 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn diffusers_walk_downloads_listed_files() {
+    async fn diffusers_walk_downloads_files_via_hf_tree_api() {
         let server = MockServer::start().await;
+        // Real HF tree API returns an array of {type, path, size, oid, lfs?}.
+        // `directory` entries are returned alongside files when `recursive=true`
+        // and must be skipped.
         Mock::given(method("GET"))
-            .and(path("/repo/model_index.json"))
+            .and(path("/api/models/stabilityai/sdxl-test/tree/main"))
             .respond_with(ResponseTemplate::new(200).set_body_string(
-                r#"{"unet": ["unet/diffusion_pytorch_model.safetensors"], "vae": ["vae/diffusion_pytorch_model.safetensors"]}"#,
+                r#"[
+                    {"type":"directory","path":"unet","size":0,"oid":"d1"},
+                    {"type":"file","path":"model_index.json","size":42,"oid":"a1"},
+                    {"type":"file","path":"unet/diffusion_pytorch_model.safetensors","size":10,"oid":"b1","lfs":{"oid":"sha256:xxx","size":10,"pointerSize":120}},
+                    {"type":"file","path":"vae/diffusion_pytorch_model.safetensors","size":10,"oid":"c1"}
+                ]"#,
             ))
             .mount(&server)
             .await;
         Mock::given(method("GET"))
-            .and(path("/repo/unet/diffusion_pytorch_model.safetensors"))
+            .and(path(
+                "/stabilityai/sdxl-test/resolve/main/model_index.json",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"{}".to_vec()))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(
+                "/stabilityai/sdxl-test/resolve/main/unet/diffusion_pytorch_model.safetensors",
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(b"unet-bytes".to_vec()))
             .mount(&server)
             .await;
         Mock::given(method("GET"))
-            .and(path("/repo/vae/diffusion_pytorch_model.safetensors"))
+            .and(path(
+                "/stabilityai/sdxl-test/resolve/main/vae/diffusion_pytorch_model.safetensors",
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(b"vae-bytes".to_vec()))
             .mount(&server)
             .await;
 
         let tmp = TempDir::new().unwrap();
         let (tx, _rx) = tokio::sync::broadcast::channel(8);
-        let manifest_url = format!("{}/repo/model_index.json", server.uri());
-        let base_url = format!("{}/repo", server.uri());
-        let result =
-            download_diffusers_repo(&manifest_url, &base_url, tmp.path(), Arc::new(tx))
-                .await
-                .unwrap();
+        let endpoints = HfEndpoints {
+            api_base: server.uri(),
+            resolve_base: server.uri(),
+        };
+
+        let result = download_diffusers_repo(
+            &endpoints,
+            "stabilityai/sdxl-test",
+            "main",
+            tmp.path(),
+            Arc::new(tx),
+        )
+        .await
+        .unwrap();
+
+        assert!(tmp.path().join("model_index.json").exists());
         assert!(tmp
             .path()
             .join("unet/diffusion_pytorch_model.safetensors")
@@ -247,7 +315,7 @@ mod tests {
             .path()
             .join("vae/diffusion_pytorch_model.safetensors")
             .exists());
-        assert_eq!(result.files_downloaded, 2);
+        assert_eq!(result.files_downloaded, 3);
     }
 
     #[tokio::test]
