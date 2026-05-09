@@ -18,6 +18,19 @@ manual smoke list.
 - `useSession` hook that ensures a session exists on app mount and
   rehydrates the chat from `GET /sessions/{id}/messages` so reopening a
   campaign restores chat history (incl. images sent in prior sessions).
+- Frontend Stronghold-encrypted secrets vault via
+  `tauri-plugin-stronghold` 2.x and `@tauri-apps/plugin-stronghold`.
+  Provider configs and the Replicate API key now sit in
+  `dmai-vault.hold` under the OS-native app data dir; argon2 salt at
+  `app_local_data_dir()/salt.txt` is lazily created. One-shot migration
+  drains the pre-M5 plaintext `secrets.json` into the vault on first
+  read (closes M4 carry-over E.2 frontend half).
+- Backend `StrongholdSecretsRepo` via `iota_stronghold` 2.x (closes M4
+  carry-over E.2 backend half). dmai-server now opens an encrypted
+  Stronghold snapshot on startup (path: `DMAI_VAULT_PATH` env override
+  or sibling to the SQLite db file) and uses it as the SecretsRepo.
+  Survives a sidecar restart without the frontend re-delivering keys
+  via `/settings` POST.
 
 ### Changed
 - `useAgentTurn` and `useChat` now read campaign and session IDs from
@@ -25,6 +38,10 @@ manual smoke list.
   placeholders.
 - `streamChat` invocations pass the active `sessionId` so the backend
   persists user and assistant rows across launches.
+
+### Tests
+- 181 vitest (+5 from Stronghold + session work) and 210 cargo
+  (+4 stronghold round-trip tests).
 
 ## [v0.5.5-m4.5] - 2026-05-09 - Vision input + chat persistence
 
