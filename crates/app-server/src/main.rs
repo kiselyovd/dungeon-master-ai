@@ -9,6 +9,7 @@ use app_llm::{AnthropicProvider, LlmProvider, MockProvider};
 use app_server::secrets::StrongholdSecretsRepo;
 use app_server::{AppState, config::Settings, db::init_db, db::srd_chunks_clear, router};
 use sqlx::Row;
+use sqlx::sqlite::SqliteConnectOptions;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -27,10 +28,24 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data.db".into());
-    let pool = sqlx::SqlitePool::connect(&db_url)
-        .await
-        .with_context(|| format!("connect sqlite {db_url}"))?;
+    let pool = match std::env::var("DATABASE_URL") {
+        Ok(db_url) => sqlx::SqlitePool::connect(&db_url)
+            .await
+            .with_context(|| format!("connect sqlite {db_url}"))?,
+        Err(_) => {
+            // Default: writable path next to the sidecar binary, auto-created.
+            // Spawned under Tauri the cwd is unspecified, so a relative
+            // "data.db" lands in surprising places and sqlx without
+            // create_if_missing won't create it. Anchor on the exe dir.
+            let db_path = resolve_default_db_path();
+            let opts = SqliteConnectOptions::new()
+                .filename(&db_path)
+                .create_if_missing(true);
+            sqlx::SqlitePool::connect_with(opts)
+                .await
+                .with_context(|| format!("connect sqlite {}", db_path.display()))?
+        }
+    };
     init_db(&pool).await.context("run migrations")?;
 
     let state = AppState::new(llm, settings.default_model.clone(), pool);
@@ -152,20 +167,36 @@ async fn invalidate_srd_cache_on_dim_mismatch(
 /// Resolve where to put the Stronghold snapshot file. Honors
 /// `DMAI_VAULT_PATH` for tests / hermetic deploys; otherwise picks
 /// the same parent directory as the SQLite database file when a
-/// `sqlite://` URL points at a real path; `None` for any in-memory
-/// or non-file URL (Stronghold needs a writable disk location).
+/// `sqlite://` URL points at a real path; falls back to the default
+/// db path's parent when `DATABASE_URL` is unset; `None` only for
+/// in-memory / non-file URLs (Stronghold needs writable disk).
 fn resolve_vault_path() -> Option<std::path::PathBuf> {
     if let Ok(explicit) = std::env::var("DMAI_VAULT_PATH") {
         return Some(std::path::PathBuf::from(explicit));
     }
-    let db_url = std::env::var("DATABASE_URL").ok()?;
-    let path_str = db_url.strip_prefix("sqlite://")?;
-    if path_str.starts_with(':') || path_str.is_empty() {
-        return None;
-    }
-    let db_path = std::path::PathBuf::from(path_str);
+    let db_path = match std::env::var("DATABASE_URL") {
+        Ok(db_url) => {
+            let path_str = db_url.strip_prefix("sqlite://")?;
+            if path_str.starts_with(':') || path_str.is_empty() {
+                return None;
+            }
+            std::path::PathBuf::from(path_str)
+        }
+        Err(_) => resolve_default_db_path(),
+    };
     let parent = db_path.parent().unwrap_or_else(|| std::path::Path::new("."));
     Some(parent.join("dmai-vault.hold"))
+}
+
+/// Default SQLite database location when `DATABASE_URL` is unset.
+/// Resolves to `<exe_dir>/data.db` so the sidecar produces a stable
+/// writable path regardless of the launching shell's cwd.
+fn resolve_default_db_path() -> std::path::PathBuf {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    exe_dir.join("data.db")
 }
 
 fn init_tracing() {
