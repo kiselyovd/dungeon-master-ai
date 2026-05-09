@@ -8,6 +8,8 @@ use thiserror::Error;
 pub enum AppError {
     #[error("llm provider error: {0}")]
     Llm(#[from] app_llm::LlmError),
+    #[error("db error: {0}")]
+    Db(#[from] sqlx::Error),
     #[error("not found")]
     NotFound,
     #[error("bad request: {0}")]
@@ -30,6 +32,7 @@ impl IntoResponse for AppError {
                 self.to_string(),
             ),
             AppError::Llm(_) => (StatusCode::BAD_GATEWAY, "provider_error", self.to_string()),
+            AppError::Db(_) => (StatusCode::INTERNAL_SERVER_ERROR, "db_error", self.to_string()),
             AppError::NotFound => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
             AppError::PayloadTooLarge(_) => (

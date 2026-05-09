@@ -31,7 +31,11 @@ pub fn router(state: AppState) -> Router {
         .route("/combat/action", post(routes::combat::post_combat_action))
         .route("/combat/end", post(routes::combat::post_combat_end))
         .route("/journal", get(routes::journal::get_journal))
-        .route("/npcs", get(routes::npc::get_npcs));
+        .route("/npcs", get(routes::npc::get_npcs))
+        .route(
+            "/sessions/{session_id}/messages",
+            get(routes::messages::list_messages),
+        );
 
     #[cfg(feature = "with-local-runtime")]
     let r = r

@@ -4,6 +4,7 @@ pub mod combat;
 pub mod health;
 pub mod journal;
 pub mod local_mode;
+pub mod messages;
 pub mod npc;
 pub mod settings;
 
