@@ -27,7 +27,7 @@ import {
   LocalMistralRsConfigSchema,
   OpenaiCompatConfigSchema,
 } from './providers';
-import type { SessionData } from './session';
+import type { CurrentScene, SessionData } from './session';
 import {
   type Language,
   MAX_CHAT_WIDTH,
@@ -50,6 +50,7 @@ const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
+const KEY_CURRENT_SCENE = 'current_scene';
 
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
@@ -88,6 +89,12 @@ const ChatPanelWidthSchema = v.pipe(
   v.maxValue(MAX_CHAT_WIDTH),
 );
 const SessionIdSchema = v.string();
+const CurrentSceneSchema = v.nullable(
+  v.object({
+    name: v.string(),
+    stepCounter: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  }),
+);
 
 export interface PersistedSettings {
   settings?: Partial<SettingsData>;
@@ -107,6 +114,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       chatWidthRaw,
       campaignRaw,
       sessionIdRaw,
+      sceneRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -118,6 +126,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
+      settingsStore.get(KEY_CURRENT_SCENE),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -130,6 +139,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const chatWidthParsed = v.safeParse(ChatPanelWidthSchema, chatWidthRaw);
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
+    const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
 
     if (
       !providersParsed.success &&
@@ -141,7 +151,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !replicateParsed.success &&
       !chatWidthParsed.success &&
       !campaignParsed.success &&
-      !sessionIdParsed.success
+      !sessionIdParsed.success &&
+      !sceneParsed.success
     ) {
       return null;
     }
@@ -159,6 +170,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const session: Partial<SessionData> = {};
     if (campaignParsed.success) session.activeCampaignId = campaignParsed.output;
     if (sessionIdParsed.success) session.activeSessionId = sessionIdParsed.output;
+    if (sceneParsed.success) session.currentScene = sceneParsed.output as CurrentScene | null;
 
     return { state: { settings, session }, version: 0 };
   },
@@ -197,6 +209,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
       writes.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
     }
+    if (session.currentScene !== undefined) {
+      writes.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -215,6 +230,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_CHAT_PANEL_WIDTH),
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
+      settingsStore.delete(KEY_CURRENT_SCENE),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },

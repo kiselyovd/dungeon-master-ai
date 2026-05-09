@@ -34,6 +34,7 @@ async function clearStores() {
     settings.delete('chat_panel_width'),
     settings.delete('active_campaign_id'),
     settings.delete('active_session_id'),
+    settings.delete('current_scene'),
   ]);
 }
 
@@ -148,6 +149,52 @@ describe('persistStorage', () => {
     expect(loaded).not.toBeNull();
     expect(loaded?.state.settings?.activeProvider).toBeUndefined();
     expect(loaded?.state.settings?.uiLanguage).toBe('ru');
+  });
+
+  it('round-trips the current scene snapshot through settings.json', async () => {
+    await persistStorage.setItem('any', {
+      state: {
+        session: {
+          activeCampaignId: 'camp-1',
+          activeSessionId: 'sess-1',
+          loadError: null,
+          currentScene: { name: 'Crimson Sanctuary', stepCounter: 7 },
+        },
+      },
+      version: 0,
+    });
+
+    expect(await settings.get('current_scene')).toEqual({
+      name: 'Crimson Sanctuary',
+      stepCounter: 7,
+    });
+
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.session?.currentScene).toEqual({
+      name: 'Crimson Sanctuary',
+      stepCounter: 7,
+    });
+  });
+
+  it('persists a null currentScene as an explicit clear', async () => {
+    // Seed first, then write null - the persisted key should reflect the
+    // cleared scene rather than retaining the previous value.
+    await settings.set('current_scene', { name: 'Stale Scene', stepCounter: 3 });
+    await persistStorage.setItem('any', {
+      state: {
+        session: {
+          activeCampaignId: null,
+          activeSessionId: null,
+          loadError: null,
+          currentScene: null,
+        },
+      },
+      version: 0,
+    });
+    expect(await settings.get('current_scene')).toBeNull();
+
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.session?.currentScene).toBeNull();
   });
 
   it('removeItem clears the vault, the legacy file, and the prefs file', async () => {

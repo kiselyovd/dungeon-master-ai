@@ -50,4 +50,37 @@ describe('SessionSlice', () => {
     expect(second.campaignId).not.toBe(first.campaignId);
     expect(second.sessionId).not.toBe(first.sessionId);
   });
+
+  it('starts with currentScene null', () => {
+    const store = freshStore();
+    expect(store.getState().session.currentScene).toBeNull();
+  });
+
+  it('setCurrentScene sets and clears the scene snapshot', () => {
+    const store = freshStore();
+    store.getState().session.setCurrentScene({ name: 'Crimson Sanctuary', stepCounter: 0 });
+    expect(store.getState().session.currentScene).toEqual({
+      name: 'Crimson Sanctuary',
+      stepCounter: 0,
+    });
+    store.getState().session.setCurrentScene(null);
+    expect(store.getState().session.currentScene).toBeNull();
+  });
+
+  it('incrementScene bumps stepCounter when a scene is set', () => {
+    const store = freshStore();
+    store.getState().session.setCurrentScene({ name: 'Crimson Sanctuary', stepCounter: 2 });
+    store.getState().session.incrementScene();
+    store.getState().session.incrementScene();
+    expect(store.getState().session.currentScene).toEqual({
+      name: 'Crimson Sanctuary',
+      stepCounter: 4,
+    });
+  });
+
+  it('incrementScene is a no-op when no scene is set', () => {
+    const store = freshStore();
+    store.getState().session.incrementScene();
+    expect(store.getState().session.currentScene).toBeNull();
+  });
 });

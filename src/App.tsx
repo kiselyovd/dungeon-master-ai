@@ -9,6 +9,7 @@ import { InitiativeTracker } from './components/InitiativeTracker';
 import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
+import { ScenePill } from './components/ScenePill';
 import { SettingsModal } from './components/SettingsModal';
 import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
@@ -69,6 +70,7 @@ function App() {
   const closeNpcs = useStore((s) => s.npcs.close);
   const openNpcs = useStore((s) => s.npcs.open);
   const toolEntries = useStore((s) => s.toolLog.entries);
+  const currentScene = useStore((s) => s.session.currentScene);
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
@@ -143,7 +145,7 @@ function App() {
         </div>
 
         <div className="dm-titlebar-center">
-          {/* Scene-pill placeholder; populated when scene state lands in the chat slice. */}
+          <ScenePill scene={currentScene} />
         </div>
 
         <div className="dm-titlebar-right">

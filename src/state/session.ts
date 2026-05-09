@@ -10,6 +10,18 @@ import type { StateCreator } from 'zustand';
  * same session and the chat history rehydrates from
  * `/sessions/{id}/messages`.
  */
+
+/**
+ * Snapshot of the current scene shown in the titlebar centre slot. The
+ * step counter advances on each major narrative beat (currently driven
+ * manually by the agent loop; in M5+ the orchestrator will own it).
+ * `null` means no scene is active and the pill is hidden.
+ */
+export interface CurrentScene {
+  name: string;
+  stepCounter: number;
+}
+
 export interface SessionData {
   activeCampaignId: string | null;
   activeSessionId: string | null;
@@ -18,6 +30,8 @@ export interface SessionData {
    * retry-bar in the chat panel; cleared on a successful refetch.
    */
   loadError: string | null;
+  /** Active scene shown in the titlebar centre. Null when no scene is set. */
+  currentScene: CurrentScene | null;
 }
 
 export interface SessionActions {
@@ -32,6 +46,10 @@ export interface SessionActions {
   clearSession: () => void;
   /** Set or clear the message-load error shown in the chat retry bar. */
   setLoadError: (message: string | null) => void;
+  /** Replace the whole scene snapshot, or clear it with `null`. */
+  setCurrentScene: (scene: CurrentScene | null) => void;
+  /** +1 the active scene's step counter. No-op when no scene is set. */
+  incrementScene: () => void;
 }
 
 export interface SessionSlice {
@@ -52,6 +70,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     activeCampaignId: null,
     activeSessionId: null,
     loadError: null,
+    currentScene: null,
 
     setActiveSession: (campaignId, sessionId) =>
       set((s) => ({
@@ -79,5 +98,21 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
       set((s) => ({
         session: { ...s.session, loadError: message },
       })),
+
+    setCurrentScene: (scene) =>
+      set((s) => ({
+        session: { ...s.session, currentScene: scene },
+      })),
+
+    incrementScene: () => {
+      const current = get().session.currentScene;
+      if (current === null) return;
+      set((s) => ({
+        session: {
+          ...s.session,
+          currentScene: { name: current.name, stepCounter: current.stepCounter + 1 },
+        },
+      }));
+    },
   },
 });

@@ -51,6 +51,7 @@ export const useStore = create<AppState>()(
         session: {
           activeCampaignId: state.session.activeCampaignId,
           activeSessionId: state.session.activeSessionId,
+          currentScene: state.session.currentScene,
         },
       }),
       // Preserve action functions on the in-memory slice objects when the
