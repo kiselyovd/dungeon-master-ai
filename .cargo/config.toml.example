@@ -1,0 +1,13 @@
+# Optional local-dev linker overrides for faster incremental builds.
+# Copy to `.cargo/config.toml` if you have `mold` installed locally:
+#   - Linux:  apt install mold
+#   - macOS:  brew install mold (puts ld64.mold in /opt/homebrew/bin/)
+# .cargo/config.toml is gitignored so this never gets pushed to CI, where
+# mold may not be present.
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/ld64.mold"]

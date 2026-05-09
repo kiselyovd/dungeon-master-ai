@@ -1,3 +1,6 @@
+# Per-developer cargo overrides (mold linker etc.); see .cargo/config.toml.example
+.cargo/config.toml
+
 # Logs
 logs
 *.log
