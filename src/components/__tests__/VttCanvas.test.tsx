@@ -1,6 +1,6 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @pixi/react to avoid WebGL in jsdom.
 vi.mock('@pixi/react', () => ({
@@ -19,18 +19,140 @@ vi.mock('pixi.js', () => ({
 
 import { VttCanvas } from '../VttCanvas';
 
+type ResizeCallback = (entries: ResizeObserverEntry[]) => void;
+
+interface FakeResizeObserver {
+  observe: (target: Element) => void;
+  unobserve: (target: Element) => void;
+  disconnect: () => void;
+}
+
+const observers: { cb: ResizeCallback; targets: Element[] }[] = [];
+
+function installResizeObserverMock(): void {
+  observers.length = 0;
+  globalThis.ResizeObserver = class implements FakeResizeObserver {
+    private readonly targets: Element[] = [];
+    constructor(cb: ResizeCallback) {
+      observers.push({ cb, targets: this.targets });
+    }
+    observe(target: Element): void {
+      this.targets.push(target);
+    }
+    unobserve(target: Element): void {
+      const idx = this.targets.indexOf(target);
+      if (idx >= 0) this.targets.splice(idx, 1);
+    }
+    disconnect(): void {
+      this.targets.length = 0;
+    }
+  } as unknown as typeof ResizeObserver;
+}
+
+function fireResize(width: number, height: number): void {
+  for (const { cb, targets } of observers) {
+    const target = targets[0];
+    if (!target) continue;
+    const entry = {
+      target,
+      contentRect: {
+        width,
+        height,
+        top: 0,
+        left: 0,
+        bottom: height,
+        right: width,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRectReadOnly,
+      borderBoxSize: [],
+      contentBoxSize: [],
+      devicePixelContentBoxSize: [],
+    } as unknown as ResizeObserverEntry;
+    cb([entry]);
+  }
+}
+
+function flushRaf(): void {
+  // VttCanvas batches resize updates with requestAnimationFrame; jsdom does
+  // not auto-tick rAF, so push the test clock far enough that rAF callbacks
+  // fire (vitest's fake timers covers rAF when used, but a microtask flush
+  // works because vitest provides a polyfilled rAF that runs on a 0ms timer).
+  act(() => {
+    vi.advanceTimersByTime(20);
+  });
+}
+
 describe('VttCanvas', () => {
-  it('mounts with default 20x20 grid', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installResizeObserverMock();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('mounts with the Pixi Application', () => {
     const { getByTestId } = render(<VttCanvas />);
     const app = getByTestId('pixi-app');
     expect(app).toBeInTheDocument();
   });
 
-  it('accepts custom grid size', () => {
+  it('honours explicit grid size props as overrides', () => {
     const { getByTestId } = render(<VttCanvas widthCells={10} heightCells={15} cellSize={32} />);
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
     expect(props.width).toBe(320);
     expect(props.height).toBe(480);
+  });
+
+  it('renders the empty-state overlay when there are no tokens', () => {
+    const { container } = render(<VttCanvas />);
+    const empty = container.querySelector('.dm-vtt-empty');
+    expect(empty).toBeInTheDocument();
+    // Container's title node carries the translated/key text; assert it is non-empty.
+    const title = container.querySelector('.dm-vtt-empty-title');
+    expect(title?.textContent ?? '').not.toBe('');
+  });
+
+  it('derives the grid cell counts from the container size on resize', () => {
+    const { getByTestId } = render(<VttCanvas cellSize={30} />);
+
+    act(() => {
+      fireResize(900, 450);
+    });
+    flushRaf();
+
+    const app = getByTestId('pixi-app');
+    const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
+    // 900 / 30 = 30 cells wide, 450 / 30 = 15 cells tall.
+    expect(props.width).toBe(30 * 30);
+    expect(props.height).toBe(15 * 30);
+  });
+
+  it('clamps to a minimum size when the container is smaller than the floor', () => {
+    const { getByTestId } = render(<VttCanvas cellSize={30} />);
+
+    act(() => {
+      fireResize(50, 50);
+    });
+    flushRaf();
+
+    const app = getByTestId('pixi-app');
+    const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
+    // Min container floor is 180px -> 180 / 30 = 6 cells (also the MIN_CELLS floor).
+    expect(props.width).toBe(6 * 30);
+    expect(props.height).toBe(6 * 30);
+  });
+
+  it('observes the .dm-vtt root element', () => {
+    render(<VttCanvas />);
+    expect(observers.length).toBeGreaterThan(0);
+    const observer = observers[0];
+    expect(observer).toBeDefined();
+    expect(observer?.targets[0]).toBeInstanceOf(HTMLElement);
+    expect((observer?.targets[0] as HTMLElement).classList.contains('dm-vtt')).toBe(true);
   });
 });

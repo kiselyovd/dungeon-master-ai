@@ -2,6 +2,21 @@ import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 /**
+ * jsdom does not implement ResizeObserver. VttCanvas uses it to adapt the Pixi
+ * viewport to its container. Provide a minimal no-op shim so component tests
+ * can mount without throwing; tests that need to simulate a size change can
+ * override this stub locally.
+ */
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+}
+
+/**
  * tauri-plugin-store is unavailable in jsdom because it speaks to the Tauri
  * runtime. The persist middleware in `src/state/persistStorage.ts` constructs
  * `LazyStore` instances at module load, so this mock has to be in place
