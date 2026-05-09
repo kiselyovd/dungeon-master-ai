@@ -66,8 +66,11 @@ async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'
     if (action === 'minimize') await win.minimize();
     else if (action === 'toggleMaximize') await win.toggleMaximize();
     else await win.close();
-  } catch {
-    // Outside Tauri (e.g. vite dev preview) the API throws - ignore silently.
+  } catch (err) {
+    // Outside Tauri (e.g. vite dev preview) the API throws. Inside Tauri
+    // a failure usually means a missing capability; log so it is visible
+    // in the dev tools console.
+    console.warn(`window action ${action} failed`, err);
   }
 }
 

@@ -24,7 +24,10 @@ export function useUpdater() {
           install: () => update.downloadAndInstall(),
         });
       } catch (err) {
-        console.warn('updater check failed', err);
+        // Updater plugin is `active: false` until first GA release ships a
+        // signed `latest.json`; the check is best-effort. Demote to debug so
+        // the dev console stays clean.
+        console.debug('updater check skipped', err);
       }
     }, CHECK_DELAY_MS);
     return () => {
