@@ -41,9 +41,27 @@
 - [ ] Old build (one version behind) shows the `UpdateAvailableModal` after ~30 s
 - [ ] "Update now" downloads + installs successfully
 
+## M4.5 vision smoke
+
+- [ ] Anthropic + `claude-haiku-4-5-20251001` (or current Claude vision model): paste a small PNG into the composer, type "What is in this image?", send. Response references image content.
+- [ ] OpenRouter + `gpt-4o` (or current vision-capable model): same.
+- [ ] Local mistralrs + Qwen3.5-VL-4B (when manifest entry lands - currently M5 carry-over): same.
+- [ ] Drag-drop a JPEG onto the chat panel: thumbnail strip shows it; gold ring fades on dragleave.
+- [ ] Ctrl+V paste a screenshot from clipboard: stages a thumbnail.
+- [ ] Click + on the paperclip: file picker opens; pick a WebP; staging works.
+- [ ] Try a 6 MB image: red "Image exceeds 5 MB" toast; nothing staged.
+- [ ] Stage 4 images, try a 5th: "Up to 4 images per message" toast.
+- [ ] Send a message with images, restart the app, reopen the campaign: chat history rehydrates with images intact (if a `session_id` is wired in - M5 may need to plumb it).
+- [ ] Click an image bubble: lightbox opens at full size; Escape closes; backdrop click closes.
+
 ## Tag
 
 - [ ] `git tag v0.5.0-m4`
 - [ ] `git push <remote> m4-local-mode-and-packaging` (after explicit user authorization)
 - [ ] `git push <remote> v0.5.0-m4`
 - [ ] Open PR `m4-local-mode-and-packaging -> main`
+
+## M4.5 tag
+
+- [ ] `git tag v0.5.5-m4.5` (lightweight, local-only until M5 close)
+- [ ] On the M5 push, include this tag
