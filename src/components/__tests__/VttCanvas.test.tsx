@@ -103,13 +103,13 @@ describe('VttCanvas', () => {
   it('clamps to the minimum canvas size when no container box is available', () => {
     // In jsdom clientWidth/clientHeight are 0 and ResizeObserver does not
     // auto-fire on mount, so the canvas falls back to the MIN_CANVAS_PX floor
-    // (180px) on both axes. The widthCells/cellSize props now affect only the
+    // (60px) on both axes. The widthCells/cellSize props now affect only the
     // grid-line count, not the Pixi viewport size.
     const { getByTestId } = render(<VttCanvas widthCells={10} heightCells={15} cellSize={32} />);
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
-    expect(props.width).toBe(180);
-    expect(props.height).toBe(180);
+    expect(props.width).toBe(60);
+    expect(props.height).toBe(60);
   });
 
   it('renders the empty-state overlay when there are no tokens', () => {
@@ -157,15 +157,16 @@ describe('VttCanvas', () => {
     const { getByTestId } = render(<VttCanvas cellSize={30} />);
 
     act(() => {
-      fireResize(50, 50);
+      fireResize(20, 20);
     });
     flushRaf();
 
     const app = getByTestId('pixi-app');
     const props = JSON.parse(app.getAttribute('data-props') ?? '{}') as Record<string, unknown>;
-    // MIN_CANVAS_PX floor is 180px on both axes.
-    expect(props.width).toBe(180);
-    expect(props.height).toBe(180);
+    // MIN_CANVAS_PX floor is 60px on both axes - well below typical UI sizes
+    // so a narrow chat resize never strands the canvas at a misleading size.
+    expect(props.width).toBe(60);
+    expect(props.height).toBe(60);
   });
 
   it('observes the .dm-vtt root element', () => {

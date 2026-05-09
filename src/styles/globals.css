@@ -52,7 +52,6 @@ button {
   background: var(--color-bg-raised);
   color: var(--color-fg-primary);
   border: 1px solid var(--color-border-strong);
-  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
@@ -68,6 +67,15 @@ button:hover {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/*
+ * SVG icons must not flex-shrink below their declared size. Affects icon-
+ * only buttons (e.g. .dm-vtt-ctrl 32x32) where the SVG would otherwise
+ * collapse inside a flex parent.
+ */
+.dm-icon {
+  flex-shrink: 0;
 }
 
 input,

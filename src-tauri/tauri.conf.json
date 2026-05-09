@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "dungeon-master-ai",
+  "productName": "Dungeon Master AI",
   "version": "0.1.0",
   "identifier": "com.kiselyovd.dungeonmasterai",
   "build": {
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "dungeon-master-ai",
-        "width": 800,
-        "height": 600
+        "title": "Dungeon Master AI",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640
       }
     ],
     "security": {

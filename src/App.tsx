@@ -1,4 +1,3 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
@@ -58,17 +57,6 @@ function QuickSaveToast({ lastQuickSaveAt }: { lastQuickSaveAt: string | null })
       {t('saved_now')} - {time}
     </div>
   );
-}
-
-async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'): Promise<void> {
-  try {
-    const win = getCurrentWindow();
-    if (action === 'minimize') await win.minimize();
-    else if (action === 'toggleMaximize') await win.toggleMaximize();
-    else await win.close();
-  } catch {
-    // Outside Tauri (e.g. vite dev preview) the API throws — ignore silently.
-  }
 }
 
 function App() {
@@ -233,35 +221,6 @@ function App() {
           >
             <Icons.Settings size={14} />
           </button>
-          <div className="dm-window-controls">
-            <button
-              type="button"
-              className="dm-window-ctrl"
-              onClick={() => void tauriWindowAction('minimize')}
-              aria-label={t('minimize')}
-              title={t('minimize')}
-            >
-              <Icons.Minimize size={10} />
-            </button>
-            <button
-              type="button"
-              className="dm-window-ctrl"
-              onClick={() => void tauriWindowAction('toggleMaximize')}
-              aria-label={t('maximize')}
-              title={t('maximize')}
-            >
-              <Icons.Square size={10} />
-            </button>
-            <button
-              type="button"
-              className="dm-window-ctrl dm-window-close"
-              onClick={() => void tauriWindowAction('close')}
-              aria-label={t('close')}
-              title={t('close')}
-            >
-              <Icons.X size={10} />
-            </button>
-          </div>
         </div>
       </header>
 

@@ -17,17 +17,15 @@ interface Props {
   cellSize?: number;
 }
 
-/** Minimum pixel size we let the Pixi viewport shrink to so we never render at 0x0. */
-const MIN_CANVAS_PX = 180;
-/** Minimum cells along either axis (keeps the grid sensible on tiny containers). */
-const MIN_CELLS = 6;
+/** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */
+const MIN_CANVAS_PX = 60;
 /** Fallback dimensions when no ResizeObserver and no container size are available. */
 const FALLBACK_CELLS = 20;
 
 function deriveCells(containerPx: number, cellSize: number, override: number | undefined): number {
   if (override && override > 0) return override;
   if (containerPx <= 0) return FALLBACK_CELLS;
-  return Math.max(MIN_CELLS, Math.floor(containerPx / cellSize));
+  return Math.max(1, Math.floor(containerPx / cellSize));
 }
 
 export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
@@ -121,13 +119,24 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
     (g: PixiGraphics) => {
       g.clear();
       g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
+      // Vertical lines at 0, cellSize, 2*cellSize, ... and a closing line at
+      // `width` so the right-most partial cell is bounded (avoids a dark
+      // unstroked strip when width is not a clean multiple of cellSize).
       for (let x = 0; x <= effectiveWidthCells; x += 1) {
         const px = x * cellSize;
+        if (px > width) break;
         g.moveTo(px, 0).lineTo(px, height);
+      }
+      if (effectiveWidthCells * cellSize < width) {
+        g.moveTo(width, 0).lineTo(width, height);
       }
       for (let y = 0; y <= effectiveHeightCells; y += 1) {
         const py = y * cellSize;
+        if (py > height) break;
         g.moveTo(0, py).lineTo(width, py);
+      }
+      if (effectiveHeightCells * cellSize < height) {
+        g.moveTo(0, height).lineTo(width, height);
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
