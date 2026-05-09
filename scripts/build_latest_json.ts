@@ -22,7 +22,7 @@ const platforms: Record<string, PlatformEntry> = {};
 const labelToTauriKey: Record<string, string> = {
   'windows-x86_64': 'windows-x86_64',
   'darwin-aarch64': 'darwin-aarch64',
-  'darwin-x86_64': 'darwin-x86_64',
+  // darwin-x86_64 dropped from first-GA matrix; revisit if Intel Mac demand emerges.
   'linux-x86_64': 'linux-x86_64',
 };
 
