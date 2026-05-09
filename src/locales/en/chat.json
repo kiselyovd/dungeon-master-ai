@@ -22,5 +22,8 @@
   "bubble_images_suffix_other": "({{count}} images attached)",
   "session_load_error": "Failed to load chat history.",
   "retry": "Retry",
-  "resize_handle_label": "Resize chat panel"
+  "resize_handle_label": "Resize chat panel",
+  "typing_indicator": "Dungeon Master is writing",
+  "image_preview": "image preview",
+  "image": "image"
 }

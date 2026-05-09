@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getCachedBackendPort } from '../api/client';
 import type { ToolLogEntry } from '../state/toolLog';
 import styles from './ToolInspectorDrawer.module.css';
@@ -16,23 +17,24 @@ interface Props {
  * copy-as-cURL per entry.
  */
 export function ToolInspectorDrawer({ entries, isOpen, onClose }: Props) {
+  const { t } = useTranslation('agent');
   if (!isOpen) return null;
 
   return (
-    <aside className={styles.drawer} aria-label="Tool-call inspector">
+    <aside className={styles.drawer} aria-label={t('inspector_title')}>
       <div className={styles.header}>
-        <span className={styles.title}>Tool-call inspector</span>
+        <span className={styles.title}>{t('inspector_title')}</span>
         <button
           type="button"
           className={styles.closeBtn}
           onClick={onClose}
-          aria-label="Close inspector"
+          aria-label={t('inspector_close')}
         >
           &#x2715;
         </button>
       </div>
       <div className={styles.list}>
-        {entries.length === 0 && <p className={styles.empty}>No tool calls yet.</p>}
+        {entries.length === 0 && <p className={styles.empty}>{t('inspector_empty')}</p>}
         {[...entries].reverse().map((entry) => (
           <InspectorEntry key={entry.id} entry={entry} />
         ))}
@@ -42,6 +44,7 @@ export function ToolInspectorDrawer({ entries, isOpen, onClose }: Props) {
 }
 
 function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
+  const { t } = useTranslation('agent');
   const [expanded, setExpanded] = useState(false);
   const statusLabel = entry.result === null ? 'pending' : entry.isError ? 'fail' : 'success';
 
@@ -73,7 +76,7 @@ function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
           type="button"
           className={styles.curlBtn}
           onClick={copyAsCurl}
-          aria-label="Copy as cURL"
+          aria-label={t('inspector_copy_curl')}
         >
           cURL
         </button>
@@ -81,12 +84,12 @@ function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
       {expanded && (
         <div className={styles.entryBody}>
           <div className={styles.jsonSection}>
-            <span className={styles.jsonLabel}>Request</span>
+            <span className={styles.jsonLabel}>{t('inspector_request')}</span>
             <pre className={styles.json}>{JSON.stringify(entry.args, null, 2)}</pre>
           </div>
           {entry.result !== null && (
             <div className={styles.jsonSection}>
-              <span className={styles.jsonLabel}>Response</span>
+              <span className={styles.jsonLabel}>{t('inspector_response')}</span>
               <pre className={`${styles.json} ${entry.isError ? styles.jsonError : ''}`}>
                 {JSON.stringify(entry.result, null, 2)}
               </pre>

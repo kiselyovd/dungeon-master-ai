@@ -24,5 +24,7 @@
   "kind_manual": "Manual",
   "kind_checkpoint": "Chapter",
   "close_aria": "Close saves",
-  "confirm_delete": "Delete this save? This cannot be undone."
+  "confirm_delete": "Delete this save? This cannot be undone.",
+  "untitled": "(untitled)",
+  "default_manual_title": "Manual save"
 }

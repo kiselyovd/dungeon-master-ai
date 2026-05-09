@@ -2,5 +2,11 @@
   "tool_pending": "Выполняется...",
   "tool_success": "Успех",
   "tool_error": "Ошибка",
-  "round_label": "Раунд {{round}}"
+  "round_label": "Раунд {{round}}",
+  "inspector_title": "Инспектор вызовов",
+  "inspector_close": "Закрыть инспектор",
+  "inspector_empty": "Вызовов инструментов пока нет.",
+  "inspector_copy_curl": "Скопировать как cURL",
+  "inspector_request": "Запрос",
+  "inspector_response": "Ответ"
 }

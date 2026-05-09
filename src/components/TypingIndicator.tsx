@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 /**
  * Three Cinzel diamond glyphs pulsing in a 1.4s staggered loop.
  *
@@ -6,9 +8,10 @@
  * Color is var(--color-accent) (gold). Diamond character is U+25C6.
  */
 export function TypingIndicator() {
+  const { t } = useTranslation('chat');
   return (
     <span
-      aria-label="Dungeon Master is writing"
+      aria-label={t('typing_indicator')}
       role="status"
       style={{
         display: 'inline-flex',

@@ -509,8 +509,8 @@ function LocalMistralRsFields() {
             {tLocal('runtime_stop_error')}
           </span>
         )}
-        <RuntimeStatusPill label="LLM" state={lm.runtime.llm} />
-        <RuntimeStatusPill label="Image" state={lm.runtime.image} />
+        <RuntimeStatusPill label={tLocal('runtime_pill_llm')} state={lm.runtime.llm} />
+        <RuntimeStatusPill label={tLocal('runtime_pill_image')} state={lm.runtime.image} />
       </div>
       {lm.runtime.llm.state !== 'ready' && (
         <div className={styles.localHint}>{t('local_runtime_not_ready')}</div>

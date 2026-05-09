@@ -32,6 +32,8 @@
   "openai_base_url_placeholder": "https://api.openai.com/v1",
   "openai_api_key_label": "API-ключ",
   "openai_api_key_placeholder": "sk-...",
+  "openai_model_label": "Модель",
+  "openai_model_placeholder": "qwen3-1.7b",
 
   "local_setup_hint": "Настройка локальной модели - в Настройках во вкладке Провайдер после онбординга. Там можно выбрать вариант Qwen3.5 и запустить встроенную среду.",
 

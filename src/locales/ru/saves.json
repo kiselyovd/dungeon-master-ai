@@ -24,5 +24,7 @@
   "kind_manual": "Ручной",
   "kind_checkpoint": "Глава",
   "close_aria": "Закрыть сейвы",
-  "confirm_delete": "Удалить этот сейв? Действие необратимо."
+  "confirm_delete": "Удалить этот сейв? Действие необратимо.",
+  "untitled": "(без названия)",
+  "default_manual_title": "Ручной сейв"
 }

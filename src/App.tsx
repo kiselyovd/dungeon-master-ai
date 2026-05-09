@@ -26,12 +26,6 @@ import i18n from './i18n';
 import { useStore } from './state/useStore';
 import { Icons } from './ui/Icons';
 
-const PROVIDER_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic',
-  'openai-compat': 'OpenAI compatible',
-  'local-mistralrs': 'Local mistralrs',
-};
-
 function getProviderModel(state: ReturnType<typeof useStore.getState>): string {
   const active = state.settings.activeProvider;
   const cfg = state.settings.providers[active];
@@ -79,7 +73,7 @@ async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'
 
 function App() {
   const { t } = useTranslation('common');
-  const { t: tCombat } = useTranslation('combat');
+  const { t: tSettings } = useTranslation('settings');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [localModeOpen, setLocalModeOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -167,7 +161,12 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [openSaves, quickSave]);
 
-  const providerLabel = PROVIDER_LABELS[activeProvider] ?? activeProvider;
+  const providerLabel = tSettings(
+    `provider_${activeProvider.replace('-', '_')}` as
+      | 'provider_anthropic'
+      | 'provider_openai_compat'
+      | 'provider_local_mistralrs',
+  );
   const providerStatus = activeProviderConfig === null ? 'error' : 'connected';
   const modelLabel = getProviderModel(useStore.getState());
   const npcList = Object.values(npcRecords);
@@ -288,7 +287,7 @@ function App() {
         <CharFab onOpen={() => setCharacterSheetOpen(true)} />
       </main>
 
-      <aside className="dm-chat-panel" aria-label={tCombat('initiative_tracker')}>
+      <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
         <ChatResizer />
         <ChatPanel />
       </aside>

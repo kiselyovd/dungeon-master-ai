@@ -32,6 +32,8 @@
   "openai_base_url_placeholder": "https://api.openai.com/v1",
   "openai_api_key_label": "API key",
   "openai_api_key_placeholder": "sk-...",
+  "openai_model_label": "Model",
+  "openai_model_placeholder": "qwen3-1.7b",
 
   "local_setup_hint": "Local model setup happens in Settings -> Provider tab after onboarding. You can choose a Qwen3.5 variant and start the embedded runtime there.",
 

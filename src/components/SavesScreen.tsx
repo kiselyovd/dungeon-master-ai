@@ -60,9 +60,10 @@ interface SaveRowProps {
   onClick: () => void;
   tagLabel: string;
   kindLabel: string;
+  untitledLabel: string;
 }
 
-function SaveRow({ save, active, onClick, tagLabel, kindLabel }: SaveRowProps) {
+function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: SaveRowProps) {
   const KindIcon = kindIcon(save.kind);
   const TagIcon = tagIcon(save.tag);
   return (
@@ -74,7 +75,7 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel }: SaveRowProps) {
     >
       <SaveThumb tag={save.tag} />
       <div className="dm-save-row-body">
-        <div className="dm-save-row-title">{save.title || '(untitled)'}</div>
+        <div className="dm-save-row-title">{save.title || untitledLabel}</div>
         {save.summary && <div className="dm-save-row-summary">{save.summary}</div>}
         <div className="dm-save-row-meta">
           <span className="dm-tag" data-tag={save.tag}>
@@ -165,7 +166,7 @@ export function SavesScreen() {
   const onCreateNew = async () => {
     await manualSave({
       kind: 'manual',
-      title: 'Manual save',
+      title: t('default_manual_title'),
       summary: '',
       tag: 'exploration',
     });
@@ -266,6 +267,7 @@ export function SavesScreen() {
                       onClick={() => selectSave(s.id)}
                       tagLabel={tagLabel(s.tag)}
                       kindLabel={kindLabel(s.kind)}
+                      untitledLabel={t('untitled')}
                     />
                   ))}
                 </div>
@@ -309,7 +311,7 @@ export function SavesScreen() {
                 <span className="dm-tag dm-tag-ghost">{kindLabel(selected.kind)}</span>
               </div>
 
-              <h2 className="dm-save-detail-title">{selected.title || '(untitled)'}</h2>
+              <h2 className="dm-save-detail-title">{selected.title || t('untitled')}</h2>
 
               <div className="dm-save-detail-summary">
                 <div className="dm-save-detail-section-title">{t('summary_header')}</div>

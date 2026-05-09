@@ -17,5 +17,7 @@
   "vram_strategy": "VRAM strategy",
   "strategy_auto_swap": "Auto-swap (LLM unloads when image generates)",
   "strategy_keep_both": "Keep both loaded (>= 16 GB VRAM)",
-  "strategy_disable_image": "Disable image generation"
+  "strategy_disable_image": "Disable image generation",
+  "runtime_pill_llm": "LLM",
+  "runtime_pill_image": "Image"
 }

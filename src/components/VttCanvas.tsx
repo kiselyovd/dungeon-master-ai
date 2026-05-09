@@ -164,24 +164,43 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
 
       <div className="dm-vtt-scale" aria-hidden="true">
         <div className="dm-vtt-scale-bar" />
-        <span>5 ft</span>
+        <span>{t('map_scale_5ft')}</span>
       </div>
 
-      <div className="dm-vtt-controls" role="toolbar" aria-label="Map controls">
-        <button type="button" className="dm-vtt-ctrl" title="Zoom in" disabled>
+      <div className="dm-vtt-controls" role="toolbar" aria-label={t('map_controls')}>
+        <button
+          type="button"
+          className="dm-vtt-ctrl"
+          title={t('map_zoom_in')}
+          aria-label={t('map_zoom_in')}
+          disabled
+        >
           <Icons.ZoomIn size={16} />
         </button>
-        <button type="button" className="dm-vtt-ctrl" title="Zoom out" disabled>
+        <button
+          type="button"
+          className="dm-vtt-ctrl"
+          title={t('map_zoom_out')}
+          aria-label={t('map_zoom_out')}
+          disabled
+        >
           <Icons.ZoomOut size={16} />
         </button>
-        <button type="button" className="dm-vtt-ctrl" title="Fit to view" disabled>
+        <button
+          type="button"
+          className="dm-vtt-ctrl"
+          title={t('map_fit_to_view')}
+          aria-label={t('map_fit_to_view')}
+          disabled
+        >
           <Icons.Maximize size={16} />
         </button>
         <div className="dm-vtt-ctrl-divider" />
         <button
           type="button"
           className={`dm-vtt-ctrl${showGrid ? ' is-active' : ''}`}
-          title="Toggle grid"
+          title={t('map_toggle_grid')}
+          aria-label={t('map_toggle_grid')}
           onClick={() => setShowGrid((v) => !v)}
         >
           <Icons.GridIcon size={16} />
@@ -189,12 +208,19 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
         <button
           type="button"
           className={`dm-vtt-ctrl${measureMode ? ' is-active' : ''}`}
-          title="Measure"
+          title={t('map_measure')}
+          aria-label={t('map_measure')}
           onClick={() => setMeasureMode((v) => !v)}
         >
           <Icons.Ruler size={16} />
         </button>
-        <button type="button" className="dm-vtt-ctrl" title="Layers" disabled>
+        <button
+          type="button"
+          className="dm-vtt-ctrl"
+          title={t('map_layers')}
+          aria-label={t('map_layers')}
+          disabled
+        >
           <Icons.Layers size={16} />
         </button>
       </div>

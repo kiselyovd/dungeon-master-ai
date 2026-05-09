@@ -2,5 +2,11 @@
   "tool_pending": "Pending...",
   "tool_success": "Success",
   "tool_error": "Error",
-  "round_label": "Round {{round}}"
+  "round_label": "Round {{round}}",
+  "inspector_title": "Tool-call inspector",
+  "inspector_close": "Close inspector",
+  "inspector_empty": "No tool calls yet.",
+  "inspector_copy_curl": "Copy as cURL",
+  "inspector_request": "Request",
+  "inspector_response": "Response"
 }

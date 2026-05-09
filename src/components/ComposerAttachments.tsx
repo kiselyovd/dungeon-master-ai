@@ -18,8 +18,8 @@ export function ComposerAttachments({ items, onRemove }: Props) {
   return (
     <ul className={styles.strip}>
       {items.map((item, i) => (
-        <li key={`staged-${i}-${item.name ?? 'image'}`} className={styles.thumb}>
-          <img src={item.dataUrl} alt={item.name ?? 'image'} className={styles.image} />
+        <li key={`staged-${i}-${item.name ?? t('image')}`} className={styles.thumb}>
+          <img src={item.dataUrl} alt={item.name ?? t('image')} className={styles.image} />
           <button
             type="button"
             aria-label={t('remove_image')}

@@ -47,7 +47,12 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
                 data-active={isActive ? 'true' : undefined}
                 className={`dm-init-card${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`}
                 onClick={() => onSelect?.(tok.id)}
-                aria-label={`${tok.name} ${tok.hp}/${tok.maxHp} HP, AC ${tok.ac}`}
+                aria-label={t('token_aria', {
+                  name: tok.name,
+                  hp: tok.hp,
+                  maxHp: tok.maxHp,
+                  ac: tok.ac,
+                })}
               >
                 <div className="dm-init-init">{index + 1}</div>
                 <div className="dm-init-body">

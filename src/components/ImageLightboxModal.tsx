@@ -35,7 +35,7 @@ export function ImageLightboxModal({ src, alt, onClose }: Props) {
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={alt || 'image preview'}
+      aria-label={alt || t('image_preview')}
       tabIndex={-1}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: stops backdrop click from closing the modal when interacting with the image; image has its own native button */}

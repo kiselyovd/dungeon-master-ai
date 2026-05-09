@@ -33,6 +33,48 @@
   overflow: hidden;
 }
 
+/* Language picker - top-right corner of the onboarding card. Lives above
+ * the stepper so a user with no settings access yet can still flip the
+ * UI language at any step. Pill-style toggle with two text labels (EN/RU);
+ * we deliberately avoid flag emojis. */
+.dm-onboarding-lang {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  z-index: 1;
+}
+
+.dm-onboarding-lang-btn {
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
+}
+
+.dm-onboarding-lang-btn:hover {
+  color: var(--color-fg-primary);
+}
+
+.dm-onboarding-lang-btn.is-active {
+  background: var(--color-accent);
+  color: var(--color-fg-inverse);
+}
+
 /* Vignette decoration - radial gold tint at the corners. The design jsx
  * pairs the card with `.dm-vignette`; we ship a minimal version here so
  * onboarding does not depend on a class defined elsewhere yet. */

@@ -17,5 +17,7 @@
   "vram_strategy": "Стратегия VRAM",
   "strategy_auto_swap": "Авто-свап (LLM выгружается на время генерации изображения)",
   "strategy_keep_both": "Держать обе в VRAM (>= 16 ГБ)",
-  "strategy_disable_image": "Отключить генерацию изображений"
+  "strategy_disable_image": "Отключить генерацию изображений",
+  "runtime_pill_llm": "LLM",
+  "runtime_pill_image": "Изображение"
 }

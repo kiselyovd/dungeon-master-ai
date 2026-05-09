@@ -81,6 +81,7 @@ const RESET_DELAY_MS = 3500;
 
 export function LocalModeModal({ open, onClose }: Props) {
   const { t } = useTranslation('local_mode');
+  const { t: tCommon } = useTranslation('common');
   const lm = useStore((s) => s.localMode);
   useLocalRuntimeStatus(open && lm.enabled);
 
@@ -210,8 +211,8 @@ export function LocalModeModal({ open, onClose }: Props) {
               {t('runtime_stop_error')}
             </span>
           )}
-          <RuntimeStatusPill label="LLM" state={lm.runtime.llm} />
-          <RuntimeStatusPill label="Image" state={lm.runtime.image} />
+          <RuntimeStatusPill label={t('runtime_pill_llm')} state={lm.runtime.llm} />
+          <RuntimeStatusPill label={t('runtime_pill_image')} state={lm.runtime.image} />
         </div>
 
         <h3>{t('llm_models')}</h3>
@@ -242,7 +243,7 @@ export function LocalModeModal({ open, onClose }: Props) {
 
         <div className={styles.closeRow}>
           <button type="button" onClick={onClose}>
-            Close
+            {tCommon('close')}
           </button>
         </div>
       </div>

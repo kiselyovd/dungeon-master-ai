@@ -185,4 +185,39 @@ describe('Onboarding', () => {
     expect(afterItems[0]?.className).toMatch(/is-done/);
     expect(afterItems[1]?.className).toMatch(/is-active/);
   });
+
+  it('language picker swaps state.settings.uiLanguage when RU is clicked', async () => {
+    const user = userEvent.setup();
+    render(<Onboarding />);
+
+    // Default UI language is 'en'; the EN pill is active and RU is not.
+    expect(useStore.getState().settings.uiLanguage).toBe('en');
+
+    const ruButton = screen.getByRole('button', { name: 'RU' });
+    expect(ruButton).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(ruButton);
+
+    expect(useStore.getState().settings.uiLanguage).toBe('ru');
+    // After swap, the RU pill flips to pressed.
+    expect(screen.getByRole('button', { name: 'RU' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('language picker is visible on every onboarding step', async () => {
+    const user = userEvent.setup();
+    render(<Onboarding />);
+
+    // Step 1: present.
+    expect(screen.getByRole('group', { name: /Language|Язык/i })).toBeInTheDocument();
+
+    // Step 2: still present after Continue.
+    await user.click(screen.getByRole('button', { name: /Configure provider/i }));
+    expect(screen.getByRole('group', { name: /Language|Язык/i })).toBeInTheDocument();
+
+    // Step 3: still present after picking Local + Continue.
+    await user.click(screen.getByRole('radio', { name: /Local/i }));
+    await user.click(screen.getByRole('button', { name: /Continue/i }));
+    expect(screen.getByRole('group', { name: /Language|Язык/i })).toBeInTheDocument();
+  });
 });
