@@ -1,0 +1,61 @@
+{
+  "title": "Лист персонажа",
+  "close_aria": "Закрыть лист персонажа",
+  "fab_aria": "Открыть лист персонажа для {{name}}",
+
+  "section_combat": "Бой",
+  "section_saving_throws": "Спасброски",
+  "section_abilities": "Характеристики",
+  "section_skills": "Навыки",
+  "section_inventory": "Инвентарь",
+
+  "experience_label": "Опыт",
+  "experience_value": "{{xp}} / {{next}}",
+
+  "stat_hp": "Хиты",
+  "stat_ac": "КД",
+  "stat_initiative": "Инициатива",
+  "stat_speed": "Скорость",
+  "stat_speed_value": "{{ft}} фт",
+  "stat_proficiency": "Бонус мастерства",
+
+  "ability_str": "СИЛ",
+  "ability_dex": "ЛОВ",
+  "ability_con": "ТЕЛ",
+  "ability_int": "ИНТ",
+  "ability_wis": "МДР",
+  "ability_cha": "ХАР",
+
+  "save_str": "Сила",
+  "save_dex": "Ловкость",
+  "save_con": "Телосложение",
+  "save_int": "Интеллект",
+  "save_wis": "Мудрость",
+  "save_cha": "Харизма",
+
+  "skill_acrobatics": "Акробатика",
+  "skill_athletics": "Атлетика",
+  "skill_arcana": "Магия",
+  "skill_deception": "Обман",
+  "skill_history": "История",
+  "skill_insight": "Проницательность",
+  "skill_intimidation": "Запугивание",
+  "skill_investigation": "Расследование",
+  "skill_perception": "Внимательность",
+  "skill_persuasion": "Убеждение",
+  "skill_stealth": "Скрытность",
+  "skill_survival": "Выживание",
+
+  "meta_race_class_level": "{{race}} - {{className}} - Ур. {{level}}",
+  "meta_race_subclass_level": "{{race}} - {{className}} ({{subclass}}) - Ур. {{level}}",
+  "meta_background_alignment": "Предыстория: {{background}} - {{alignment}}",
+
+  "class_fighter": "Воин",
+  "class_wizard": "Волшебник",
+  "class_rogue": "Плут",
+  "class_cleric": "Жрец",
+
+  "empty_title": "Персонаж не создан",
+  "empty_desc": "Пройдите онбординг, чтобы создать героя.",
+  "empty_action": "К онбордингу"
+}

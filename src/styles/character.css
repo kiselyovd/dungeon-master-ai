@@ -1,0 +1,431 @@
+/*
+ * character.css - CharacterSheet modal + CharFab pill (M5 P2.14).
+ * Mirrors the CharacterSheet design jsx in
+ * docs/superpowers/design/components/onboarding.jsx (lines 167-271).
+ *
+ * Self-contained - re-uses theme tokens from theme.css. The modal sits
+ * just above the VTT scrim (z-index 900) but below the onboarding
+ * overlay (1000) so the first-run wizard always wins focus.
+ */
+
+/* ---- FAB ------------------------------------------------------------- */
+
+.dm-char-fab {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 5;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  height: 32px;
+
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.16) 0%, rgba(212, 175, 55, 0.06) 100%);
+  color: var(--color-fg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast),
+    box-shadow var(--t-fast);
+}
+
+.dm-char-fab:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+
+.dm-char-fab-name {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dm-char-fab-hp {
+  color: var(--color-fg-muted);
+  font-size: var(--text-xs);
+}
+
+/* ---- Modal backdrop -------------------------------------------------- */
+
+.dm-modal-backdrop.dm-char-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-scrim);
+  backdrop-filter: blur(2px);
+  padding: var(--space-5);
+}
+
+/* ---- Sheet card ------------------------------------------------------ */
+
+.dm-char {
+  background: linear-gradient(180deg, var(--color-bg-raised) 0%, var(--color-bg-base) 100%);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: min(900px, 95vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: var(--space-6);
+  position: relative;
+  color: var(--color-fg-primary);
+}
+
+.dm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.dm-modal-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-accent);
+}
+
+.dm-display {
+  font-family: var(--font-display);
+}
+
+.dm-btn-icon {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-fg-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    color var(--t-fast),
+    border-color var(--t-fast);
+}
+
+.dm-btn-icon:hover {
+  color: var(--color-fg-primary);
+  border-color: var(--color-accent);
+  background: transparent;
+}
+
+.dm-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  letter-spacing: var(--tracking-mono);
+}
+
+/* ---- Header (portrait + info + xp) ---------------------------------- */
+
+.dm-char-header {
+  display: grid;
+  grid-template-columns: 64px 1fr 200px;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.dm-char-portrait {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.05));
+  color: var(--color-accent);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  letter-spacing: 0;
+}
+
+.dm-char-info {
+  min-width: 0;
+}
+
+.dm-char-name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-accent);
+  margin: 0 0 var(--space-1);
+}
+
+.dm-char-meta {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dm-char-meta-soft {
+  color: var(--color-fg-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+
+.dm-char-xp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.dm-char-xp-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-fg-muted);
+}
+
+.dm-char-xp-bar {
+  width: 200px;
+  height: 6px;
+  background: var(--color-bg-deep);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.dm-char-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent));
+}
+
+.dm-char-xp-text {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+}
+
+/* ---- Body grid ------------------------------------------------------- */
+
+.dm-char-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+@media (max-width: 720px) {
+  .dm-char-body {
+    grid-template-columns: 1fr;
+  }
+  .dm-char-header {
+    grid-template-columns: 56px 1fr;
+  }
+  .dm-char-header .dm-char-xp {
+    grid-column: 1 / -1;
+    align-items: stretch;
+  }
+  .dm-char-xp-bar {
+    width: 100%;
+  }
+}
+
+.dm-char-section + .dm-char-section {
+  margin-top: var(--space-4);
+}
+
+.dm-char-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+/* ---- Stat rows ------------------------------------------------------- */
+
+.dm-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.dm-stat-row:last-child {
+  border-bottom: 0;
+}
+
+.dm-stat-hp-low {
+  color: var(--color-danger);
+}
+
+.dm-char-hpbar {
+  height: 4px;
+  background: var(--color-bg-deep);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  margin: 2px 0 6px;
+}
+
+.dm-char-hpbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-success), var(--color-accent));
+  transition: width var(--t-base);
+}
+
+.dm-char-hpbar-fill.is-low {
+  background: var(--color-danger);
+}
+
+/* ---- Ability grid ---------------------------------------------------- */
+
+.dm-ability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.dm-ability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.dm-ability-name {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-fg-muted);
+}
+
+.dm-ability-mod {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-accent);
+}
+
+.dm-ability-score {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+}
+
+/* ---- Skills ---------------------------------------------------------- */
+
+.dm-skills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px var(--space-3);
+}
+
+.dm-skill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.dm-skill-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dm-skill-prof {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.dm-skill.is-prof .dm-skill-prof {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.4);
+}
+
+.dm-skill.is-prof {
+  color: var(--color-fg-primary);
+}
+
+/* ---- Inventory ------------------------------------------------------- */
+
+.dm-inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dm-inv-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.dm-inv-item:hover {
+  background: var(--color-bg-input);
+}
+
+.dm-inv-item-name {
+  color: var(--color-fg-primary);
+}
+
+.dm-inv-item-count {
+  color: var(--color-fg-muted);
+  font-size: var(--text-xs);
+}
+
+/* ---- Empty state ----------------------------------------------------- */
+
+.dm-char-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.dm-char-empty-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-accent);
+  margin: 0;
+}
+
+.dm-char-empty-desc {
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-3);
+  max-width: 360px;
+}

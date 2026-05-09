@@ -7,6 +7,7 @@
 
 import 'react-i18next';
 
+import enCharacter from './locales/en/character.json';
 import enChat from './locales/en/chat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
@@ -24,6 +25,7 @@ declare module 'react-i18next' {
       errors: typeof enErrors;
       onboarding: typeof enOnboarding;
       saves: typeof enSaves;
+      character: typeof enCharacter;
     };
   }
 }

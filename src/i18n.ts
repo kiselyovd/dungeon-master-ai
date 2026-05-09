@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import enAgent from './locales/en/agent.json';
+import enCharacter from './locales/en/character.json';
 import enChat from './locales/en/chat.json';
 import enCombat from './locales/en/combat.json';
 import enCommon from './locales/en/common.json';
@@ -14,6 +15,7 @@ import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
 import enUpdater from './locales/en/updater.json';
 import ruAgent from './locales/ru/agent.json';
+import ruCharacter from './locales/ru/character.json';
 import ruChat from './locales/ru/chat.json';
 import ruCombat from './locales/ru/combat.json';
 import ruCommon from './locales/ru/common.json';
@@ -46,6 +48,7 @@ void i18n
       'local_mode',
       'onboarding',
       'saves',
+      'character',
     ],
     resources: {
       en: {
@@ -61,6 +64,7 @@ void i18n
         local_mode: enLocalMode,
         onboarding: enOnboarding,
         saves: enSaves,
+        character: enCharacter,
       },
       ru: {
         common: ruCommon,
@@ -75,6 +79,7 @@ void i18n
         local_mode: ruLocalMode,
         onboarding: ruOnboarding,
         saves: ruSaves,
+        character: ruCharacter,
       },
     },
     interpolation: { escapeValue: false },

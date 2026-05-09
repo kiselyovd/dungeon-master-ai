@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
+import { CharacterSheet } from './components/CharacterSheet';
+import { CharFab } from './components/CharFab';
 import { ChatPanel } from './components/ChatPanel';
 import { ChatResizer } from './components/ChatResizer';
 import { InitiativeTracker } from './components/InitiativeTracker';
@@ -81,6 +83,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [localModeOpen, setLocalModeOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
 
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
@@ -282,6 +285,7 @@ function App() {
             speedFt={30}
           />
         )}
+        <CharFab onOpen={() => setCharacterSheetOpen(true)} />
       </main>
 
       <aside className="dm-chat-panel" aria-label={tCombat('initiative_tracker')}>
@@ -312,6 +316,7 @@ function App() {
         isOpen={inspectorOpen}
         onClose={() => setInspectorOpen(false)}
       />
+      <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
       {!onboardingCompleted && <Onboarding />}
     </div>
   );

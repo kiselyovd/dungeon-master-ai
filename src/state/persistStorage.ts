@@ -55,6 +55,7 @@ const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
 const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
 const KEY_HERO_CLASS = 'hero_class';
+const KEY_PC = 'pc';
 
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
@@ -102,6 +103,68 @@ const CurrentSceneSchema = v.nullable(
 const OnboardingCompletedSchema = v.boolean();
 const HeroClassSchema = v.nullable(v.string());
 
+const AbilityScoresSchema = v.object({
+  str: v.number(),
+  dex: v.number(),
+  con: v.number(),
+  int: v.number(),
+  wis: v.number(),
+  cha: v.number(),
+});
+
+const SavingThrowProfSchema = v.object({
+  str: v.optional(v.boolean()),
+  dex: v.optional(v.boolean()),
+  con: v.optional(v.boolean()),
+  int: v.optional(v.boolean()),
+  wis: v.optional(v.boolean()),
+  cha: v.optional(v.boolean()),
+});
+
+const SkillProfSchema = v.object({
+  acrobatics: v.optional(v.boolean()),
+  athletics: v.optional(v.boolean()),
+  arcana: v.optional(v.boolean()),
+  deception: v.optional(v.boolean()),
+  history: v.optional(v.boolean()),
+  insight: v.optional(v.boolean()),
+  intimidation: v.optional(v.boolean()),
+  investigation: v.optional(v.boolean()),
+  perception: v.optional(v.boolean()),
+  persuasion: v.optional(v.boolean()),
+  stealth: v.optional(v.boolean()),
+  survival: v.optional(v.boolean()),
+});
+
+const InventoryItemSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  count: v.number(),
+  icon: v.optional(v.string()),
+});
+
+const PcSchema = v.object({
+  heroClass: v.nullable(v.string()),
+  name: v.nullable(v.string()),
+  race: v.nullable(v.string()),
+  subclass: v.nullable(v.string()),
+  background: v.nullable(v.string()),
+  alignment: v.nullable(v.string()),
+  level: v.number(),
+  experience: v.number(),
+  experienceNext: v.number(),
+  hp: v.number(),
+  hpMax: v.number(),
+  ac: v.number(),
+  initiative: v.number(),
+  speedFt: v.number(),
+  proficiencyBonus: v.number(),
+  abilities: AbilityScoresSchema,
+  savingThrowProfs: SavingThrowProfSchema,
+  skillProfs: SkillProfSchema,
+  inventory: v.array(InventoryItemSchema),
+});
+
 export interface PersistedSettings {
   settings?: Partial<SettingsData>;
   session?: Partial<SessionData>;
@@ -125,6 +188,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       sceneRaw,
       onboardingRaw,
       heroClassRaw,
+      pcRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -139,6 +203,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_CURRENT_SCENE),
       settingsStore.get(KEY_ONBOARDING_COMPLETED),
       settingsStore.get(KEY_HERO_CLASS),
+      settingsStore.get(KEY_PC),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -154,6 +219,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
     const onboardingParsed = v.safeParse(OnboardingCompletedSchema, onboardingRaw);
     const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
+    const pcParsed = v.safeParse(PcSchema, pcRaw);
 
     if (
       !providersParsed.success &&
@@ -168,7 +234,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !sessionIdParsed.success &&
       !sceneParsed.success &&
       !onboardingParsed.success &&
-      !heroClassParsed.success
+      !heroClassParsed.success &&
+      !pcParsed.success
     ) {
       return null;
     }
@@ -191,8 +258,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const onboarding: Partial<OnboardingData> = {};
     if (onboardingParsed.success) onboarding.completed = onboardingParsed.output;
 
-    const pc: Partial<PcData> = {};
-    if (heroClassParsed.success) pc.heroClass = heroClassParsed.output;
+    // PC: prefer the full `pc` JSON entry; fall back to the legacy
+    // `hero_class` scalar so an upgrade from M5 P2.12 (where only the
+    // class was persisted) still rehydrates that field.
+    let pc: Partial<PcData> = {};
+    if (pcParsed.success) {
+      pc = pcParsed.output as PcData;
+    } else if (heroClassParsed.success) {
+      pc.heroClass = heroClassParsed.output;
+    }
 
     return { state: { settings, session, onboarding, pc }, version: 0 };
   },
@@ -240,7 +314,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       writes.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
     }
     if (pc.heroClass !== undefined) {
+      // Keep the legacy scalar in sync so a downgrade still finds the class.
       writes.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass));
+    }
+    // Persist the full PC JSON whenever any of its fields changed. The
+    // partialize layer in useStore.ts always sends the whole `pc` slice,
+    // so checking `name` (a sentinel for "character has been created")
+    // is enough to know whether to write the JSON entry.
+    if (pc.name !== undefined || pc.heroClass !== undefined) {
+      writes.push(settingsStore.set(KEY_PC, pc));
     }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
@@ -263,6 +345,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_CURRENT_SCENE),
       settingsStore.delete(KEY_ONBOARDING_COMPLETED),
       settingsStore.delete(KEY_HERO_CLASS),
+      settingsStore.delete(KEY_PC),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },

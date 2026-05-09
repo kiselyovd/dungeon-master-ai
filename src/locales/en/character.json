@@ -1,0 +1,61 @@
+{
+  "title": "Character Sheet",
+  "close_aria": "Close character sheet",
+  "fab_aria": "Open character sheet for {{name}}",
+
+  "section_combat": "Combat",
+  "section_saving_throws": "Saving Throws",
+  "section_abilities": "Ability Scores",
+  "section_skills": "Skills",
+  "section_inventory": "Inventory",
+
+  "experience_label": "Experience",
+  "experience_value": "{{xp}} / {{next}}",
+
+  "stat_hp": "Hit Points",
+  "stat_ac": "Armor Class",
+  "stat_initiative": "Initiative",
+  "stat_speed": "Speed",
+  "stat_speed_value": "{{ft}} ft",
+  "stat_proficiency": "Proficiency",
+
+  "ability_str": "STR",
+  "ability_dex": "DEX",
+  "ability_con": "CON",
+  "ability_int": "INT",
+  "ability_wis": "WIS",
+  "ability_cha": "CHA",
+
+  "save_str": "Strength",
+  "save_dex": "Dexterity",
+  "save_con": "Constitution",
+  "save_int": "Intelligence",
+  "save_wis": "Wisdom",
+  "save_cha": "Charisma",
+
+  "skill_acrobatics": "Acrobatics",
+  "skill_athletics": "Athletics",
+  "skill_arcana": "Arcana",
+  "skill_deception": "Deception",
+  "skill_history": "History",
+  "skill_insight": "Insight",
+  "skill_intimidation": "Intimidation",
+  "skill_investigation": "Investigation",
+  "skill_perception": "Perception",
+  "skill_persuasion": "Persuasion",
+  "skill_stealth": "Stealth",
+  "skill_survival": "Survival",
+
+  "meta_race_class_level": "{{race}} - {{className}} - Lvl {{level}}",
+  "meta_race_subclass_level": "{{race}} - {{className}} ({{subclass}}) - Lvl {{level}}",
+  "meta_background_alignment": "{{background}} background - {{alignment}}",
+
+  "class_fighter": "Fighter",
+  "class_wizard": "Wizard",
+  "class_rogue": "Rogue",
+  "class_cleric": "Cleric",
+
+  "empty_title": "No character yet",
+  "empty_desc": "Run the onboarding wizard to create your hero.",
+  "empty_action": "Go to onboarding"
+}
