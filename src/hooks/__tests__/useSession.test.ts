@@ -64,6 +64,37 @@ describe('useSession', () => {
     expect(useStore.getState().chat.messages).toEqual([]);
   });
 
+  it('records the load error on session.loadError when the fetch rejects', async () => {
+    fetchMock.mockRejectedValue(new Error('backend down'));
+
+    renderHook(() => useSession());
+
+    await waitFor(() => {
+      expect(useStore.getState().session.loadError).toBe('backend down');
+    });
+  });
+
+  it('refetch retries the fetch and clears loadError on success', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('backend down'));
+
+    const { result } = renderHook(() => useSession());
+
+    await waitFor(() => {
+      expect(useStore.getState().session.loadError).toBe('backend down');
+    });
+
+    fetchMock.mockResolvedValueOnce([{ id: 'a', role: 'user', content: 'after retry' }]);
+
+    result.current.refetch();
+
+    await waitFor(() => {
+      expect(useStore.getState().session.loadError).toBeNull();
+    });
+    expect(useStore.getState().chat.messages).toEqual([
+      { id: 'a', role: 'user', content: 'after retry' },
+    ]);
+  });
+
   it('does not overwrite the chat slice when the backend returns no messages', async () => {
     useStore.setState((s) => ({
       chat: {

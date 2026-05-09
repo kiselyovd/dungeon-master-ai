@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type StreamChatOptions, streamChat } from '../../api/chat';
+import { fetchSessionMessages, type StreamChatOptions, streamChat } from '../../api/chat';
 import { ChatError } from '../../api/errors';
 import { useStore } from '../../state/useStore';
 import { ChatPanel } from '../ChatPanel';
@@ -9,14 +9,18 @@ import '../../i18n';
 
 vi.mock('../../api/chat', () => ({
   streamChat: vi.fn(),
+  fetchSessionMessages: vi.fn(async () => []),
 }));
 
 const streamChatMock = vi.mocked(streamChat);
+const fetchSessionMessagesMock = vi.mocked(fetchSessionMessages);
 
 describe('ChatPanel', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
     streamChatMock.mockReset();
+    fetchSessionMessagesMock.mockReset();
+    fetchSessionMessagesMock.mockResolvedValue([]);
   });
 
   it('renders empty state with placeholder when no messages', () => {
@@ -150,6 +154,17 @@ describe('ChatPanel', () => {
       expect(useStore.getState().chat.isStreaming).toBe(false);
       expect(useStore.getState().chat.lastError?.code).toBe('aborted');
     });
+  });
+
+  it('renders the dm-chat-error retry bar when session.loadError is set', async () => {
+    // Make the on-mount session fetch reject so useSession populates loadError.
+    fetchSessionMessagesMock.mockRejectedValueOnce(new Error('backend down'));
+
+    render(<ChatPanel />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveClass('dm-chat-error');
+    expect(alert).toHaveTextContent(/failed to load chat history/i);
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('renders an error alert when the stream rejects', async () => {

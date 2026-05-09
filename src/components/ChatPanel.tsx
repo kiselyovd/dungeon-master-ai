@@ -9,9 +9,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
 import { useChat } from '../hooks/useChat';
+import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
 import type { StagedImage } from '../state/chat';
+import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
@@ -26,6 +28,8 @@ export function ChatPanel() {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
   const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
+  const { refetch: refetchSession } = useSession();
+  const sessionLoadError = useStore((s) => s.session.loadError);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -160,6 +164,14 @@ export function ChatPanel() {
       </div>
 
       <div ref={historyRef} className={styles.history} onScroll={onScroll}>
+        {sessionLoadError !== null && (
+          <div role="alert" className={`${styles.sessionLoadError} dm-chat-error`}>
+            <span className={styles.sessionLoadErrorText}>{t('session_load_error')}</span>
+            <button type="button" className={styles.sessionLoadErrorRetry} onClick={refetchSession}>
+              {t('retry')}
+            </button>
+          </div>
+        )}
         {isEmptyChat && (
           <div className={styles.welcome} aria-hidden="true">
             <div className={styles.welcomeOrnament} />

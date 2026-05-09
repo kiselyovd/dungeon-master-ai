@@ -14,5 +14,14 @@
   "header_meta": "СЦЕНА {{scene}} · ХОД {{turn}}",
   "hint_keyboard": "Enter — отправить · Shift+Enter — новая строка",
   "welcome_title": "Новое приключение",
-  "welcome_text": "Напиши ниже, чтобы начать. Опиши действие, задай вопрос или поговори с миром."
+  "welcome_text": "Напиши ниже, чтобы начать. Опиши действие, задай вопрос или поговори с миром.",
+  "bubble_user_label": "Игрок: {{preview}}",
+  "bubble_assistant_label": "Ведущий: {{preview}}",
+  "bubble_system_label": "Система: {{preview}}",
+  "bubble_images_suffix_one": "(прикреплено {{count}} изображение)",
+  "bubble_images_suffix_few": "(прикреплено {{count}} изображения)",
+  "bubble_images_suffix_many": "(прикреплено {{count}} изображений)",
+  "bubble_images_suffix_other": "(прикреплено {{count}} изображений)",
+  "session_load_error": "Не удалось загрузить историю чата.",
+  "retry": "Повторить"
 }

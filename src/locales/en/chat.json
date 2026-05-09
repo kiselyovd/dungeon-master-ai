@@ -14,5 +14,12 @@
   "header_meta": "SCENE {{scene}} · TURN {{turn}}",
   "hint_keyboard": "Enter — send · Shift+Enter — new line",
   "welcome_title": "A new adventure",
-  "welcome_text": "Type below to begin. Describe an action, ask a question, or speak to the world."
+  "welcome_text": "Type below to begin. Describe an action, ask a question, or speak to the world.",
+  "bubble_user_label": "User: {{preview}}",
+  "bubble_assistant_label": "Assistant: {{preview}}",
+  "bubble_system_label": "System: {{preview}}",
+  "bubble_images_suffix_one": "({{count}} image attached)",
+  "bubble_images_suffix_other": "({{count}} images attached)",
+  "session_load_error": "Failed to load chat history.",
+  "retry": "Retry"
 }

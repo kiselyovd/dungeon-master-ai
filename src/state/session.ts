@@ -13,6 +13,11 @@ import type { StateCreator } from 'zustand';
 export interface SessionData {
   activeCampaignId: string | null;
   activeSessionId: string | null;
+  /**
+   * Last error encountered while loading session messages. Surfaced as a
+   * retry-bar in the chat panel; cleared on a successful refetch.
+   */
+  loadError: string | null;
 }
 
 export interface SessionActions {
@@ -25,6 +30,8 @@ export interface SessionActions {
   ensureSession: () => { campaignId: string; sessionId: string };
   /** Forget the current session - next `ensureSession` mints a new pair. */
   clearSession: () => void;
+  /** Set or clear the message-load error shown in the chat retry bar. */
+  setLoadError: (message: string | null) => void;
 }
 
 export interface SessionSlice {
@@ -44,6 +51,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
   session: {
     activeCampaignId: null,
     activeSessionId: null,
+    loadError: null,
 
     setActiveSession: (campaignId, sessionId) =>
       set((s) => ({
@@ -65,6 +73,11 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     clearSession: () =>
       set((s) => ({
         session: { ...s.session, activeCampaignId: null, activeSessionId: null },
+      })),
+
+    setLoadError: (message) =>
+      set((s) => ({
+        session: { ...s.session, loadError: message },
       })),
   },
 });

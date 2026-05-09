@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../hooks/useModelDownload';
@@ -74,10 +75,73 @@ const persistConfig = (selectedLlm: ModelId, vramStrategy: VramStrategy) => {
   });
 };
 
+type RuntimeActionStatus = 'idle' | 'pending' | 'error';
+
+const RESET_DELAY_MS = 3500;
+
 export function LocalModeModal({ open, onClose }: Props) {
   const { t } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
   useLocalRuntimeStatus(open && lm.enabled);
+
+  const [startStatus, setStartStatus] = useState<RuntimeActionStatus>('idle');
+  const [stopStatus, setStopStatus] = useState<RuntimeActionStatus>('idle');
+  const startResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStartReset = useCallback(() => {
+    if (startResetRef.current !== null) {
+      clearTimeout(startResetRef.current);
+      startResetRef.current = null;
+    }
+  }, []);
+
+  const clearStopReset = useCallback(() => {
+    if (stopResetRef.current !== null) {
+      clearTimeout(stopResetRef.current);
+      stopResetRef.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearStartReset();
+      clearStopReset();
+    },
+    [clearStartReset, clearStopReset],
+  );
+
+  const handleStart = useCallback(async () => {
+    clearStartReset();
+    setStartStatus('pending');
+    try {
+      const res = await fetch('/local/runtime/start', { method: 'POST' });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      setStartStatus('idle');
+    } catch {
+      setStartStatus('error');
+      startResetRef.current = setTimeout(() => {
+        setStartStatus('idle');
+        startResetRef.current = null;
+      }, RESET_DELAY_MS);
+    }
+  }, [clearStartReset]);
+
+  const handleStop = useCallback(async () => {
+    clearStopReset();
+    setStopStatus('pending');
+    try {
+      const res = await fetch('/local/runtime/stop', { method: 'POST' });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      setStopStatus('idle');
+    } catch {
+      setStopStatus('error');
+      stopResetRef.current = setTimeout(() => {
+        setStopStatus('idle');
+        stopResetRef.current = null;
+      }, RESET_DELAY_MS);
+    }
+  }, [clearStopReset]);
 
   if (!open) return null;
 
@@ -105,20 +169,34 @@ export function LocalModeModal({ open, onClose }: Props) {
           </label>
           <button
             type="button"
+            disabled={startStatus === 'pending'}
+            data-status={startStatus}
             onClick={() => {
-              void fetch('/local/runtime/start', { method: 'POST' });
+              void handleStart();
             }}
           >
-            {t('start_runtimes')}
+            {startStatus === 'pending' ? t('runtime_starting') : t('start_runtimes')}
           </button>
+          {startStatus === 'error' && (
+            <span role="alert" className={styles.errorChip}>
+              {t('runtime_start_error')}
+            </span>
+          )}
           <button
             type="button"
+            disabled={stopStatus === 'pending'}
+            data-status={stopStatus}
             onClick={() => {
-              void fetch('/local/runtime/stop', { method: 'POST' });
+              void handleStop();
             }}
           >
-            {t('stop_runtimes')}
+            {stopStatus === 'pending' ? t('runtime_stopping') : t('stop_runtimes')}
           </button>
+          {stopStatus === 'error' && (
+            <span role="alert" className={styles.errorChip}>
+              {t('runtime_stop_error')}
+            </span>
+          )}
           <RuntimeStatusPill label="LLM" state={lm.runtime.llm} />
           <RuntimeStatusPill label="Image" state={lm.runtime.image} />
         </div>

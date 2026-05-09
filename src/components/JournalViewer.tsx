@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { JournalEntry } from '../state/journal';
 import styles from './JournalViewer.module.css';
@@ -18,6 +19,17 @@ export function JournalViewer({ entries, onClose }: Props) {
     containerRef.current?.focus();
   }, []);
   const { t } = useTranslation('journal');
+
+  // Sanitise once per (id + html) pair so re-renders don't re-purify the
+  // same entry. Backend sanitises upstream too; this is defense in depth.
+  const sanitisedEntries = useMemo(
+    () =>
+      entries.map((entry) => ({
+        entry,
+        safeHtml: DOMPurify.sanitize(entry.entry_html, { USE_PROFILES: { html: true } }),
+      })),
+    [entries],
+  );
 
   return (
     <div
@@ -44,16 +56,16 @@ export function JournalViewer({ entries, onClose }: Props) {
           </button>
         </div>
         <div className={styles.scroll}>
-          {entries.length === 0 ? (
+          {sanitisedEntries.length === 0 ? (
             <p className={styles.empty}>{t('no_entries')}</p>
           ) : (
-            entries.map((entry) => (
+            sanitisedEntries.map(({ entry, safeHtml }) => (
               <article key={entry.id} className={styles.entry}>
                 {entry.chapter && <h3 className={styles.chapter}>{entry.chapter}</h3>}
                 <div
                   className={styles.prose}
-                  // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted backend HTML, sanitised upstream
-                  dangerouslySetInnerHTML={{ __html: entry.entry_html }}
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML sanitised by DOMPurify (defense in depth on top of backend sanitisation)
+                  dangerouslySetInnerHTML={{ __html: safeHtml }}
                 />
                 <time className={styles.timestamp} dateTime={entry.created_at}>
                   {new Date(entry.created_at).toLocaleString()}

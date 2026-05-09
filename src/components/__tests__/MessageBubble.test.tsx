@@ -43,4 +43,42 @@ describe('MessageBubble', () => {
     fireEvent.click(screen.getByRole('img'));
     expect(screen.getByTestId('lightbox-image')).toBeInTheDocument();
   });
+
+  it('exposes the bubble as role=article with an aria-label combining role + text preview', () => {
+    render(<MessageBubble chatRole="user">I draw my sword.</MessageBubble>);
+    const article = screen.getByRole('article');
+    expect(article).toBe(screen.getByTestId('bubble'));
+    expect(article.getAttribute('aria-label')).toBe('User: I draw my sword.');
+  });
+
+  it('labels assistant bubbles distinctly from user bubbles', () => {
+    render(<MessageBubble chatRole="assistant">A dragon roars in the dark.</MessageBubble>);
+    const article = screen.getByRole('article');
+    expect(article.getAttribute('aria-label')).toMatch(/^Assistant:/);
+  });
+
+  it('appends an image-count suffix when the message includes images', () => {
+    const parts: MessagePart[] = [
+      { type: 'text', text: 'check this map' },
+      { type: 'image', mime: 'image/png', data_b64: 'aGk=', name: 'a.png' },
+      { type: 'image', mime: 'image/png', data_b64: 'aGk=', name: 'b.png' },
+    ];
+    render(
+      <MessageBubble chatRole="user" parts={parts}>
+        check this map
+      </MessageBubble>,
+    );
+    const article = screen.getByRole('article');
+    expect(article.getAttribute('aria-label')).toMatch(/check this map/);
+    expect(article.getAttribute('aria-label')).toMatch(/2 images attached/);
+  });
+
+  it('marks the bubble aria-busy while streaming', () => {
+    render(
+      <MessageBubble chatRole="assistant" streaming>
+        partial...
+      </MessageBubble>,
+    );
+    expect(screen.getByRole('article').getAttribute('aria-busy')).toBe('true');
+  });
 });

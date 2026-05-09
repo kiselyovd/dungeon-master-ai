@@ -13,9 +13,9 @@ import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VttCanvas } from './components/VttCanvas';
-import { useSession } from './hooks/useSession';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
+// useSession is mounted inside ChatPanel so the retry-bar can call refetch.
 import { useStore } from './state/useStore';
 import { Icons } from './ui/Icons';
 
@@ -69,7 +69,6 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
-  useSession();
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;

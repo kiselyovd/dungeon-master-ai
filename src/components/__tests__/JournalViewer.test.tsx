@@ -46,4 +46,27 @@ describe('JournalViewer', () => {
     await userEvent.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('strips <script> tags from entry HTML before rendering (DOMPurify defense in depth)', () => {
+    const malicious = [
+      {
+        id: 'x',
+        entry_html:
+          '<p>safe text</p><script>window.__pwned = true;</script><img src=x onerror="window.__pwned=true">',
+        chapter: null,
+        created_at: '2026-05-09T00:00:00Z',
+        campaign_id: 'c1',
+      },
+    ];
+    const { container } = render(<JournalViewer entries={malicious} onClose={vi.fn()} />);
+    // Original safe text must still render.
+    expect(screen.getByText('safe text')).toBeInTheDocument();
+    // Script tags must not survive sanitisation.
+    expect(container.querySelector('script')).toBeNull();
+    // onerror handler must be stripped from the surviving <img>.
+    const img = container.querySelector('img');
+    if (img !== null) {
+      expect(img.getAttribute('onerror')).toBeNull();
+    }
+  });
 });
