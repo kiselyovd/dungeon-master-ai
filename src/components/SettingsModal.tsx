@@ -8,6 +8,27 @@ import { Modal } from '../ui/Modal';
 import { SettingsForm, type SettingsSubmission } from './SettingsForm';
 import styles from './SettingsModal.module.css';
 
+/**
+ * Mirrors the shape used by `POST /local-mode/config` on the backend so the
+ * Settings Save can persist the selected Qwen variant + VRAM strategy when
+ * the user picks the local-mistralrs provider. Fire-and-forget; errors here
+ * are non-fatal because /settings already configured the provider.
+ */
+function persistLocalModeConfig(): void {
+  const lm = useStore.getState().localMode;
+  void fetch('/local-mode/config', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      selected_llm: lm.selectedLlm,
+      vram_strategy: lm.vramStrategy,
+    }),
+  }).catch(() => {
+    // The next save retry will surface the error; the provider switch above
+    // already succeeded so we do not block modal close on this.
+  });
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -63,6 +84,13 @@ export function SettingsModal({ open, onClose }: Props) {
       const message = err instanceof Error ? err.message : String(err);
       setSubmitError(message);
       return;
+    }
+
+    // For local-mistralrs, also persist the Qwen variant + VRAM strategy so
+    // the runtime/start route picks them up. Fire-and-forget - /settings has
+    // already pinned the provider so the chat path will work either way.
+    if (submission.provider.kind === 'local-mistralrs') {
+      persistLocalModeConfig();
     }
 
     setSubmitError(null);

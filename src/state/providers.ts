@@ -120,6 +120,13 @@ export const ProviderConfigSchema = v.variant('kind', [
 
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
+/**
+ * Default context window for the embedded local mistralrs provider. Qwen3.5
+ * GGUFs ship with 32k native context, but mistralrs-server defaults to 8k
+ * on cold-start unless overridden; we mirror that to avoid silent truncation.
+ */
+export const DEFAULT_LOCAL_CONTEXT_WINDOW = 8192;
+
 /** Convenient `assertNever` for exhaustive switches over ProviderKind. */
 export function assertNeverProvider(_value: never): never {
   throw new Error(`unhandled provider kind: ${String(_value)}`);

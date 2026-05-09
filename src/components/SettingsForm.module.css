@@ -20,6 +20,43 @@
   font-size: var(--text-sm);
 }
 
+.localFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.localHeading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-family: "Cinzel", serif;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-display);
+}
+
+.localHint {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-fg-muted);
+}
+
+.localRuntimeRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.localErrorChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2, 8px);
+  border-radius: var(--radius-pill, 9999px);
+  border: 1px solid var(--color-danger, #c44444);
+  background: rgba(196, 68, 68, 0.12);
+  color: var(--color-danger, #c44444);
+  font-size: var(--text-xs, 11px);
+  font-family: inherit;
+}
+
 .tabNav {
   display: flex;
   gap: var(--space-1);

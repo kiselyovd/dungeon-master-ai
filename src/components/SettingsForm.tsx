@@ -1,9 +1,14 @@
-import { type KeyboardEvent, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
+import { useModelDownload } from '../hooks/useModelDownload';
+import type { ModelId, VramStrategy } from '../state/localMode';
 import {
   type AnthropicConfig,
   assertNeverProvider,
   DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_LOCAL_CONTEXT_WINDOW,
+  type LocalMistralRsConfig,
   type OpenaiCompatConfig,
   type ProviderConfig,
   type ProviderKind,
@@ -12,9 +17,11 @@ import {
 } from '../state/providers';
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
+import { ModelDownloadCard } from './ModelDownloadCard';
+import { RuntimeStatusPill } from './RuntimeStatusPill';
 import styles from './SettingsForm.module.css';
 
-const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat'];
+const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
 type Tab = 'provider' | 'model';
 
@@ -38,19 +45,25 @@ interface SettingsFormProps {
  * Multi-provider Settings form.
  *
  * The form keeps each provider kind's draft state independent so the user
- * can flip between Anthropic and OpenAI-compat without losing what they've
- * typed. `local-mistralrs` is hidden from the UI in M1.5 (M4 lights it up);
- * the type union still covers it so a future variant is one branch in this
- * switch + one new sub-form component.
+ * can flip between Anthropic, OpenAI-compat, and local-mistralrs without
+ * losing what they've typed. The local-mistralrs sub-form mirrors the
+ * Ctrl+Shift+M LocalModeModal (model picker + VRAM strategy + runtime
+ * controls) so the embedded provider can be configured from Settings.
  *
- * M3 adds a tab bar at the top: the Provider tab keeps the existing fields
- * (provider picker + per-kind sub-form + language selects), and the Model
- * tab exposes the agent-loop knobs (system prompt, temperature, Replicate
- * API key) wired to `POST /agent-settings`.
+ * M3 added a tab bar at the top: the Provider tab keeps the provider
+ * picker + per-kind sub-form + language selects, and the Model tab exposes
+ * the agent-loop knobs (system prompt, temperature, Replicate API key)
+ * wired to `POST /agent-settings`. M4 lights up local-mistralrs as the
+ * third provider option (radio-card UI deferred to a later polish pass).
  */
 export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
+  // Read the live ModelId from the localMode slice at submit time. We read
+  // from getState() rather than subscribing because the selection only
+  // matters at the moment Save fires, and a subscription here would force
+  // every form rerender to also rebuild on unrelated download progress.
+  const localModeSelection = useStore((s) => s.localMode.selectedLlm);
 
   const [activeTab, setActiveTab] = useState<Tab>('provider');
   // Drafts and activeKind are seeded once from the slice on mount and live
@@ -79,7 +92,7 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
   };
 
   const onSave = async () => {
-    const result = buildConfig(activeKind, drafts);
+    const result = buildConfig(activeKind, drafts, localModeSelection);
     if (!result.ok) {
       // If the validation error lives in the Provider tab, surface it by
       // switching back to that tab so the inline message is visible.
@@ -156,7 +169,8 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
                     {t(
                       `provider_${k.replace('-', '_')}` as
                         | 'provider_anthropic'
-                        | 'provider_openai_compat',
+                        | 'provider_openai_compat'
+                        | 'provider_local_mistralrs',
                     )}
                   </option>
                 ))}
@@ -180,7 +194,7 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
             />
           )}
 
-          {activeKind === 'local-mistralrs' && <LocalMistralRsPlaceholder />}
+          {activeKind === 'local-mistralrs' && <LocalMistralRsFields />}
 
           <div className={styles.languages}>
             <Field label={t('language_ui_label')}>
@@ -332,9 +346,211 @@ function OpenaiCompatFields({
   );
 }
 
-function LocalMistralRsPlaceholder() {
+interface LocalLlmEntry {
+  id: ModelId;
+  name: string;
+  size: number;
+  vram: number;
+  warn?: string;
+}
+
+const LOCAL_LLMS: readonly LocalLlmEntry[] = [
+  { id: 'qwen3_5_0_8b', name: 'Qwen3.5-0.8B Q4_K_M', size: 600e6, vram: 900e6 },
+  { id: 'qwen3_5_2b', name: 'Qwen3.5-2B Q4_K_M', size: 1.5e9, vram: 2.0e9 },
+  { id: 'qwen3_5_4b', name: 'Qwen3.5-4B Q4_K_M', size: 3.0e9, vram: 2.5e9 },
+  {
+    id: 'qwen3_5_9b',
+    name: 'Qwen3.5-9B Q4_K_M',
+    size: 6.5e9,
+    vram: 5.5e9,
+    warn: 'requires VRAM swap with image-gen',
+  },
+];
+
+const RUNTIME_RESET_DELAY_MS = 3500;
+type RuntimeActionStatus = 'idle' | 'pending' | 'error';
+
+/**
+ * `local-mistralrs` provider editor inside the Settings -> Provider tab.
+ *
+ * Mirrors the LocalModeModal (Ctrl+Shift+M) so the embedded provider can be
+ * configured without leaving Settings: pick a Qwen variant, choose a VRAM
+ * strategy, and start/stop the LLM + image runtimes. The shared state lives
+ * in the localMode slice so both surfaces stay in sync.
+ */
+function LocalMistralRsFields() {
   const { t } = useTranslation('settings');
-  return <div className={styles.placeholder}>{t('local_coming_soon')}</div>;
+  const { t: tLocal } = useTranslation('local_mode');
+  const lm = useStore((s) => s.localMode);
+  // Poll runtime status so the pills + the toWireConfig port lookup reflect
+  // the current sidecar state. While the local-mistralrs panel is mounted
+  // we always poll - the user is actively configuring it, so the original
+  // `enabled` gate would be a confusing extra hoop.
+  useLocalRuntimeStatus(true);
+
+  const [startStatus, setStartStatus] = useState<RuntimeActionStatus>('idle');
+  const [stopStatus, setStopStatus] = useState<RuntimeActionStatus>('idle');
+  const startResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStartReset = useCallback(() => {
+    if (startResetRef.current !== null) {
+      clearTimeout(startResetRef.current);
+      startResetRef.current = null;
+    }
+  }, []);
+
+  const clearStopReset = useCallback(() => {
+    if (stopResetRef.current !== null) {
+      clearTimeout(stopResetRef.current);
+      stopResetRef.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearStartReset();
+      clearStopReset();
+    },
+    [clearStartReset, clearStopReset],
+  );
+
+  const handleStart = useCallback(async () => {
+    clearStartReset();
+    setStartStatus('pending');
+    try {
+      const res = await fetch('/local/runtime/start', { method: 'POST' });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      setStartStatus('idle');
+    } catch {
+      setStartStatus('error');
+      startResetRef.current = setTimeout(() => {
+        setStartStatus('idle');
+        startResetRef.current = null;
+      }, RUNTIME_RESET_DELAY_MS);
+    }
+  }, [clearStartReset]);
+
+  const handleStop = useCallback(async () => {
+    clearStopReset();
+    setStopStatus('pending');
+    try {
+      const res = await fetch('/local/runtime/stop', { method: 'POST' });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      setStopStatus('idle');
+    } catch {
+      setStopStatus('error');
+      stopResetRef.current = setTimeout(() => {
+        setStopStatus('idle');
+        stopResetRef.current = null;
+      }, RUNTIME_RESET_DELAY_MS);
+    }
+  }, [clearStopReset]);
+
+  return (
+    <div className={styles.localFields}>
+      <div className={styles.localHint}>{t('local_runtime_hint')}</div>
+
+      <h3 className={styles.localHeading}>{tLocal('llm_models')}</h3>
+      {LOCAL_LLMS.map((m) => (
+        <LocalModelCard key={m.id} entry={m} isLlm />
+      ))}
+
+      <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
+      <LocalModelCard
+        entry={{ id: 'sdxl_turbo', name: 'SDXL-Turbo (fp16)', size: 7e9 }}
+        isLlm={false}
+      />
+
+      <Field label={tLocal('vram_strategy')}>
+        {({ id }) => (
+          <select
+            id={id}
+            value={lm.vramStrategy}
+            onChange={(e) => lm.setVramStrategy(e.target.value as VramStrategy)}
+            className={styles.fullWidth}
+          >
+            <option value="auto-swap">{tLocal('strategy_auto_swap')}</option>
+            <option value="keep-both-loaded">{tLocal('strategy_keep_both')}</option>
+            <option value="disable-image-gen">{tLocal('strategy_disable_image')}</option>
+          </select>
+        )}
+      </Field>
+
+      <h3 className={styles.localHeading}>{t('local_runtime_section')}</h3>
+      <div className={styles.localRuntimeRow}>
+        <button
+          type="button"
+          disabled={startStatus === 'pending'}
+          data-status={startStatus}
+          onClick={() => {
+            void handleStart();
+          }}
+        >
+          {startStatus === 'pending' ? tLocal('runtime_starting') : tLocal('start_runtimes')}
+        </button>
+        {startStatus === 'error' && (
+          <span role="alert" className={styles.localErrorChip}>
+            {tLocal('runtime_start_error')}
+          </span>
+        )}
+        <button
+          type="button"
+          disabled={stopStatus === 'pending'}
+          data-status={stopStatus}
+          onClick={() => {
+            void handleStop();
+          }}
+        >
+          {stopStatus === 'pending' ? tLocal('runtime_stopping') : tLocal('stop_runtimes')}
+        </button>
+        {stopStatus === 'error' && (
+          <span role="alert" className={styles.localErrorChip}>
+            {tLocal('runtime_stop_error')}
+          </span>
+        )}
+        <RuntimeStatusPill label="LLM" state={lm.runtime.llm} />
+        <RuntimeStatusPill label="Image" state={lm.runtime.image} />
+      </div>
+      {lm.runtime.llm.state !== 'ready' && (
+        <div className={styles.localHint}>{t('local_runtime_not_ready')}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Inline ModelDownloadCard binding that wires a manifest entry to the
+ * download hook + the localMode slice. Mirrors the helper inside
+ * LocalModeModal so both surfaces share the same selection semantics.
+ */
+function LocalModelCard({
+  entry,
+  isLlm,
+}: {
+  entry: { id: ModelId; name: string; size: number; vram?: number; warn?: string };
+  isLlm: boolean;
+}) {
+  const lm = useStore((s) => s.localMode);
+  const dl = useModelDownload(entry.id);
+  return (
+    <ModelDownloadCard
+      modelId={entry.id}
+      displayName={entry.name}
+      sizeBytes={entry.size}
+      vramBytes={entry.vram}
+      vramWarning={entry.warn}
+      state={lm.downloads[entry.id]}
+      active={isLlm && lm.selectedLlm === entry.id}
+      onSelect={() => isLlm && lm.selectModel(entry.id)}
+      onDownload={() => {
+        void dl.start();
+      }}
+      onDelete={() => {
+        void dl.cancel();
+      }}
+    />
+  );
 }
 
 function LanguageSelect({
@@ -467,7 +683,11 @@ function initialDrafts(slice: {
 
 type BuildResult = { ok: true; config: ProviderConfig } | { ok: false; errors: DraftErrors };
 
-function buildConfig(kind: ProviderKind, drafts: DraftState): BuildResult {
+function buildConfig(
+  kind: ProviderKind,
+  drafts: DraftState,
+  localSelectedLlm: ModelId,
+): BuildResult {
   switch (kind) {
     case 'anthropic': {
       const errors: DraftErrors = {};
@@ -489,9 +709,17 @@ function buildConfig(kind: ProviderKind, drafts: DraftState): BuildResult {
       if (baseUrl === null || apiKey === null || model.length === 0) return { ok: false, errors };
       return { ok: true, config: { kind: 'openai-compat', baseUrl, apiKey, model } };
     }
-    case 'local-mistralrs':
-      // Not implemented in M1.5.
-      return { ok: false, errors: {} };
+    case 'local-mistralrs': {
+      // The selected ModelId lives in the localMode slice. We stash it in
+      // `modelPath` and let the API boundary translate it to the wire shape
+      // (model_id + port) when posting to /settings.
+      const config: LocalMistralRsConfig = {
+        kind: 'local-mistralrs',
+        modelPath: localSelectedLlm,
+        contextWindow: DEFAULT_LOCAL_CONTEXT_WINDOW,
+      };
+      return { ok: true, config };
+    }
     default:
       return assertNeverProvider(kind);
   }

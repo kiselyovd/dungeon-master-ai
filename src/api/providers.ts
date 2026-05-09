@@ -8,6 +8,7 @@
  */
 
 import { assertNeverProvider, type ProviderConfig, type ProviderKind } from '../state/providers';
+import { useStore } from '../state/useStore';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 
@@ -71,8 +72,26 @@ function toWireConfig(c: ProviderConfig): Record<string, unknown> {
         api_key: c.apiKey,
         model: c.model,
       };
-    case 'local-mistralrs':
-      throw new ChatError('provider_error', 'local-mistralrs provider is not implemented in M1.5');
+    case 'local-mistralrs': {
+      // The backend `POST /settings` for local-mistralrs needs the live LLM
+      // sidecar port (see crates/app-server/src/routes/settings.rs). Read it
+      // from the runtime snapshot in the Zustand store; if the runtime is
+      // not ready yet the user has to start it first.
+      const runtime = useStore.getState().localMode.runtime.llm;
+      if (runtime.state !== 'ready') {
+        throw new ChatError(
+          'provider_error',
+          'local runtime is not ready - start the runtime in Settings before saving.',
+        );
+      }
+      return {
+        kind: 'local-mistralrs',
+        // The frontend stores the ModelId string in `modelPath`; the backend
+        // accepts it as `model_id` and looks up the on-disk path itself.
+        model_id: c.modelPath,
+        port: runtime.port,
+      };
+    }
     default:
       return assertNeverProvider(c);
   }
