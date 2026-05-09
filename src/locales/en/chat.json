@@ -21,5 +21,6 @@
   "bubble_images_suffix_one": "({{count}} image attached)",
   "bubble_images_suffix_other": "({{count}} images attached)",
   "session_load_error": "Failed to load chat history.",
-  "retry": "Retry"
+  "retry": "Retry",
+  "resize_handle_label": "Resize chat panel"
 }

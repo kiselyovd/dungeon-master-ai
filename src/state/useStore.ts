@@ -46,6 +46,7 @@ export const useStore = create<AppState>()(
           systemPrompt: state.settings.systemPrompt,
           temperature: state.settings.temperature,
           replicateApiKey: state.settings.replicateApiKey,
+          chatPanelWidth: state.settings.chatPanelWidth,
         },
         session: {
           activeCampaignId: state.session.activeCampaignId,

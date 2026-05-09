@@ -23,5 +23,6 @@
   "bubble_images_suffix_many": "(прикреплено {{count}} изображений)",
   "bubble_images_suffix_other": "(прикреплено {{count}} изображений)",
   "session_load_error": "Не удалось загрузить историю чата.",
-  "retry": "Повторить"
+  "retry": "Повторить",
+  "resize_handle_label": "Изменить ширину панели чата"
 }

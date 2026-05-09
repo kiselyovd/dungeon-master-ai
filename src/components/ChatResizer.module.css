@@ -1,0 +1,46 @@
+/*
+ * ChatResizer - vertical drag handle on the LEFT border of the chat panel.
+ * Hosts pointer-driven dragging plus arrow-key keyboard nudging. The handle
+ * straddles the grid gutter, so we make it absolute-positioned and shift it
+ * a few pixels left so its hit-area covers the divider line itself.
+ */
+
+.handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  margin-left: -3px;
+  cursor: col-resize;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  z-index: 4;
+  transition: background var(--t-fast);
+  -webkit-app-region: no-drag;
+  touch-action: none;
+}
+
+.handle:hover,
+.handle.dragging {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+.handle:focus-visible {
+  outline: none;
+  background: rgba(212, 175, 55, 0.28);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+/* While dragging, lock the cursor at the document level so quick mouse
+ * movements outside the handle don't flicker back to the default arrow. */
+:global(body.dm-chat-resizing) {
+  cursor: col-resize;
+  user-select: none;
+}
+
+:global(body.dm-chat-resizing *) {
+  cursor: col-resize;
+  user-select: none;
+}

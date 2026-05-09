@@ -15,9 +15,12 @@
 
 .dm-chat-panel {
   border-left: 1px solid var(--color-border-strong);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+  /* overflow visible so the resize handle's hit-area can extend a few pixels
+   * over the divider; the inner ChatPanel clips its own scrolling content. */
+  overflow: visible;
 }
 
 /* Title bar */

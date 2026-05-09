@@ -16,6 +16,15 @@ export interface ProvidersMap {
 }
 
 /**
+ * Min/max bounds for the user-resizable chat panel (in CSS pixels). Exposed
+ * as named constants so the drag handle, keyboard nudge, and persisted-value
+ * sanitiser all share a single source of truth.
+ */
+export const MIN_CHAT_WIDTH = 360;
+export const MAX_CHAT_WIDTH = 640;
+export const DEFAULT_CHAT_WIDTH = 480;
+
+/**
  * Persisted half of the settings slice. Kept as a separate type so the
  * persist middleware's `partialize` can pick exactly these fields without
  * dragging in the action functions, which are not serialisable.
@@ -29,6 +38,9 @@ export interface SettingsData {
   systemPrompt: string;
   temperature: number;
   replicateApiKey: string | null;
+  // P3.21 - chat panel width (px). Clamped to [MIN_CHAT_WIDTH, MAX_CHAT_WIDTH]
+  // by setChatPanelWidth and by the persistStorage sanitiser on load.
+  chatPanelWidth: number;
 }
 
 export interface SettingsActions {
@@ -40,6 +52,14 @@ export interface SettingsActions {
   setSystemPrompt: (prompt: string) => void;
   setTemperature: (temp: number) => void;
   setReplicateApiKey: (key: string | null) => void;
+  setChatPanelWidth: (width: number) => void;
+}
+
+function clampChatWidth(width: number): number {
+  if (!Number.isFinite(width)) return DEFAULT_CHAT_WIDTH;
+  if (width < MIN_CHAT_WIDTH) return MIN_CHAT_WIDTH;
+  if (width > MAX_CHAT_WIDTH) return MAX_CHAT_WIDTH;
+  return width;
 }
 
 export interface SettingsSlice {
@@ -61,6 +81,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     systemPrompt: '',
     temperature: 0.7,
     replicateApiKey: null,
+    chatPanelWidth: DEFAULT_CHAT_WIDTH,
 
     setActiveProvider: (activeProvider) =>
       set((s) => ({ settings: { ...s.settings, activeProvider } })),
@@ -92,5 +113,10 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setReplicateApiKey: (replicateApiKey) =>
       set((s) => ({ settings: { ...s.settings, replicateApiKey } })),
+
+    setChatPanelWidth: (width) =>
+      set((s) => ({
+        settings: { ...s.settings, chatPanelWidth: clampChatWidth(width) },
+      })),
   },
 });

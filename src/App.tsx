@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
 import { ChatPanel } from './components/ChatPanel';
+import { ChatResizer } from './components/ChatResizer';
 import { InitiativeTracker } from './components/InitiativeTracker';
 import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
@@ -51,6 +52,7 @@ function App() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
+  const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
   const activeProvider = useStore((s) => s.settings.activeProvider);
   const activeProviderConfig = useStore((s) => s.settings.providers[s.settings.activeProvider]);
   const combatActive = useStore((s) => s.combat.active);
@@ -88,6 +90,16 @@ function App() {
       void i18n.changeLanguage(uiLanguage);
     }
   }, [uiLanguage]);
+
+  // Apply the persisted chat panel width to the `--chat-width` CSS var on
+  // the root element so the grid track in shell.css picks it up on boot
+  // (and after rehydration, when the persisted value differs from the
+  // default). The drag handle also writes to this var directly during a
+  // drag for flicker-free resizing; this effect is the source of truth on
+  // mount and whenever the slice changes via keyboard or programmatic set.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--chat-width', `${chatPanelWidth}px`);
+  }, [chatPanelWidth]);
 
   // Dev-mode keyboard shortcuts: Ctrl+Shift+M opens local-mode config,
   // Ctrl+Shift+I toggles the tool-call inspector. The local-mode UI moves
@@ -219,6 +231,7 @@ function App() {
       </main>
 
       <aside className="dm-chat-panel" aria-label={tCombat('initiative_tracker')}>
+        <ChatResizer />
         <ChatPanel />
       </aside>
 

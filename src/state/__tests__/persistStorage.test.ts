@@ -31,6 +31,7 @@ async function clearStores() {
     settings.delete('narration_language'),
     settings.delete('system_prompt'),
     settings.delete('temperature'),
+    settings.delete('chat_panel_width'),
     settings.delete('active_campaign_id'),
     settings.delete('active_session_id'),
   ]);
