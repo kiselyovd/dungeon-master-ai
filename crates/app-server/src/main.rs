@@ -6,6 +6,7 @@ use app_domain::srd::embedder::{
     DEFAULT_EMBEDDING_MODEL, embedding_dim, parse_embedding_model,
 };
 use app_llm::{AnthropicProvider, LlmProvider, MockProvider};
+use app_server::secrets::StrongholdSecretsRepo;
 use app_server::{AppState, config::Settings, db::init_db, db::srd_chunks_clear, router};
 use sqlx::Row;
 use tokio::net::TcpListener;
@@ -33,6 +34,26 @@ async fn main() -> anyhow::Result<()> {
     init_db(&pool).await.context("run migrations")?;
 
     let state = AppState::new(llm, settings.default_model.clone(), pool);
+
+    // Try to swap InMemorySecretsRepo for an encrypted Stronghold-backed
+    // repo so secrets persisted by /settings POST survive a restart. The
+    // snapshot file lives next to the SQLite db; passphrase comes from
+    // DMAI_VAULT_PASSPHRASE or falls back to a constant (acceptable - the
+    // argon2 salt is per-snapshot and disk-encryption is not the threat
+    // model the project signs up for; see docs/RELEASE.md).
+    if let Some(snapshot_path) = resolve_vault_path() {
+        let passphrase = std::env::var("DMAI_VAULT_PASSPHRASE")
+            .unwrap_or_else(|_| "dungeon-master-ai-default-vault-passphrase".to_string());
+        match StrongholdSecretsRepo::open(snapshot_path.clone(), passphrase.into_bytes()) {
+            Ok(repo) => {
+                state.set_secrets_repo(Arc::new(repo));
+                tracing::info!(?snapshot_path, "stronghold secrets repo ready");
+            }
+            Err(e) => {
+                tracing::warn!(?snapshot_path, error = %e, "stronghold open failed; staying on InMemorySecretsRepo");
+            }
+        }
+    }
 
     // Resolve the embedding model (env override -> default, fall back if unknown).
     let requested_model_name = std::env::var("DMAI_EMBEDDING_MODEL")
@@ -126,6 +147,25 @@ async fn invalidate_srd_cache_on_dim_mismatch(
         }
     }
     Ok(())
+}
+
+/// Resolve where to put the Stronghold snapshot file. Honors
+/// `DMAI_VAULT_PATH` for tests / hermetic deploys; otherwise picks
+/// the same parent directory as the SQLite database file when a
+/// `sqlite://` URL points at a real path; `None` for any in-memory
+/// or non-file URL (Stronghold needs a writable disk location).
+fn resolve_vault_path() -> Option<std::path::PathBuf> {
+    if let Ok(explicit) = std::env::var("DMAI_VAULT_PATH") {
+        return Some(std::path::PathBuf::from(explicit));
+    }
+    let db_url = std::env::var("DATABASE_URL").ok()?;
+    let path_str = db_url.strip_prefix("sqlite://")?;
+    if path_str.starts_with(':') || path_str.is_empty() {
+        return None;
+    }
+    let db_path = std::path::PathBuf::from(path_str);
+    let parent = db_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    Some(parent.join("dmai-vault.hold"))
 }
 
 fn init_tracing() {

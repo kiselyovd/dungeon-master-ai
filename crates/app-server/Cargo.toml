@@ -31,6 +31,7 @@ chrono = { workspace = true }
 fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 sha2 = "0.10"
 base64 = "0.22"
+iota_stronghold = "2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
