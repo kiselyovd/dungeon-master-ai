@@ -47,4 +47,31 @@ describe('LocalModeModal runtime controls', () => {
     });
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('resets error state when the modal is closed before the reset timer fires', async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error('network down');
+    }) as unknown as typeof fetch;
+
+    const user = userEvent.setup();
+    const { rerender } = render(<LocalModeModal open={true} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /start runtimes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to start/i);
+    });
+
+    // Close the modal while the reset timer is still pending.
+    rerender(<LocalModeModal open={false} onClose={vi.fn()} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Reopen the modal: the error chip must not flash back from stale state.
+    rerender(<LocalModeModal open={true} onClose={vi.fn()} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: /start runtimes/i })).toHaveAttribute(
+      'data-status',
+      'idle',
+    );
+  });
 });

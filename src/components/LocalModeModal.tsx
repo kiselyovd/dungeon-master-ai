@@ -111,6 +111,19 @@ export function LocalModeModal({ open, onClose }: Props) {
     [clearStartReset, clearStopReset],
   );
 
+  // When the modal closes, cancel any pending reset timers and clear status
+  // so the next open does not flash a stale 'error' chip. The component stays
+  // mounted (App.tsx always renders it), so the unmount cleanup above is not
+  // enough on its own.
+  useEffect(() => {
+    if (!open) {
+      clearStartReset();
+      clearStopReset();
+      setStartStatus('idle');
+      setStopStatus('idle');
+    }
+  }, [open, clearStartReset, clearStopReset]);
+
   const handleStart = useCallback(async () => {
     clearStartReset();
     setStartStatus('pending');
