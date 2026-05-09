@@ -22,6 +22,7 @@ import {
   LocalMistralRsConfigSchema,
   OpenaiCompatConfigSchema,
 } from './providers';
+import type { SessionData } from './session';
 import type { Language, ProvidersMap, SettingsData } from './settings';
 
 const SECRETS_FILE = 'secrets.json';
@@ -34,6 +35,8 @@ const KEY_NARRATION_LANGUAGE = 'narration_language';
 const KEY_SYSTEM_PROMPT = 'system_prompt';
 const KEY_TEMPERATURE = 'temperature';
 const KEY_REPLICATE_API_KEY = 'replicate_api_key';
+const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
+const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 
 const secretsStore = new LazyStore(SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
@@ -50,23 +53,36 @@ const ProvidersMapSchema = v.object({
 const SystemPromptSchema = v.string();
 const TemperatureSchema = v.pipe(v.number(), v.minValue(0), v.maxValue(2));
 const ReplicateKeySchema = v.nullable(v.string());
+const SessionIdSchema = v.string();
 
 export interface PersistedSettings {
-  settings: Partial<SettingsData>;
+  settings?: Partial<SettingsData>;
+  session?: Partial<SessionData>;
 }
 
 export const persistStorage: PersistStorage<PersistedSettings> = {
   async getItem(_name): Promise<StorageValue<PersistedSettings> | null> {
-    const [providersRaw, activeRaw, uiRaw, narrRaw, sysRaw, tempRaw, replicateRaw] =
-      await Promise.all([
-        secretsStore.get(KEY_PROVIDERS),
-        settingsStore.get(KEY_ACTIVE_PROVIDER),
-        settingsStore.get(KEY_UI_LANGUAGE),
-        settingsStore.get(KEY_NARRATION_LANGUAGE),
-        settingsStore.get(KEY_SYSTEM_PROMPT),
-        settingsStore.get(KEY_TEMPERATURE),
-        secretsStore.get(KEY_REPLICATE_API_KEY),
-      ]);
+    const [
+      providersRaw,
+      activeRaw,
+      uiRaw,
+      narrRaw,
+      sysRaw,
+      tempRaw,
+      replicateRaw,
+      campaignRaw,
+      sessionIdRaw,
+    ] = await Promise.all([
+      secretsStore.get(KEY_PROVIDERS),
+      settingsStore.get(KEY_ACTIVE_PROVIDER),
+      settingsStore.get(KEY_UI_LANGUAGE),
+      settingsStore.get(KEY_NARRATION_LANGUAGE),
+      settingsStore.get(KEY_SYSTEM_PROMPT),
+      settingsStore.get(KEY_TEMPERATURE),
+      secretsStore.get(KEY_REPLICATE_API_KEY),
+      settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
+      settingsStore.get(KEY_ACTIVE_SESSION_ID),
+    ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
     const activeParsed = v.safeParse(ProviderKindSchema, activeRaw);
@@ -75,6 +91,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const sysParsed = v.safeParse(SystemPromptSchema, sysRaw);
     const tempParsed = v.safeParse(TemperatureSchema, tempRaw);
     const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
+    const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
+    const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
 
     if (
       !providersParsed.success &&
@@ -83,7 +101,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !narrParsed.success &&
       !sysParsed.success &&
       !tempParsed.success &&
-      !replicateParsed.success
+      !replicateParsed.success &&
+      !campaignParsed.success &&
+      !sessionIdParsed.success
     ) {
       return null;
     }
@@ -97,11 +117,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (tempParsed.success) settings.temperature = tempParsed.output;
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
 
-    return { state: { settings }, version: 0 };
+    const session: Partial<SessionData> = {};
+    if (campaignParsed.success) session.activeCampaignId = campaignParsed.output;
+    if (sessionIdParsed.success) session.activeSessionId = sessionIdParsed.output;
+
+    return { state: { settings, session }, version: 0 };
   },
 
   async setItem(_name, value): Promise<void> {
     const settings = value.state.settings ?? {};
+    const session = value.state.session ?? {};
     const writes: Promise<unknown>[] = [];
     if (settings.providers !== undefined) {
       writes.push(secretsStore.set(KEY_PROVIDERS, settings.providers));
@@ -124,6 +149,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.replicateApiKey !== undefined) {
       writes.push(secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey));
     }
+    if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
+      writes.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
+    }
+    if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
+      writes.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -137,6 +168,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_NARRATION_LANGUAGE),
       settingsStore.delete(KEY_SYSTEM_PROMPT),
       settingsStore.delete(KEY_TEMPERATURE),
+      settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
+      settingsStore.delete(KEY_ACTIVE_SESSION_ID),
     ]);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },

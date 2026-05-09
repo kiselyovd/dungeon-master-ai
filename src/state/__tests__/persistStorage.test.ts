@@ -108,8 +108,8 @@ describe('persistStorage', () => {
 
     const loaded = await persistStorage.getItem('any');
     expect(loaded).not.toBeNull();
-    expect(loaded?.state.settings.activeProvider).toBeUndefined();
-    expect(loaded?.state.settings.uiLanguage).toBe('ru');
+    expect(loaded?.state.settings?.activeProvider).toBeUndefined();
+    expect(loaded?.state.settings?.uiLanguage).toBe('ru');
   });
 
   it('removeItem clears both files', async () => {

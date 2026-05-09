@@ -9,6 +9,7 @@ import { LocalModeModal } from './components/LocalModeModal';
 import { SettingsModal } from './components/SettingsModal';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VttCanvas } from './components/VttCanvas';
+import { useSession } from './hooks/useSession';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
 import { useStore } from './state/useStore';
@@ -23,6 +24,7 @@ function App() {
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
+  useSession();
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;

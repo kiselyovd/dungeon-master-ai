@@ -23,12 +23,15 @@ export function useChat() {
   const endStream = useStore((s) => s.chat.endStream);
   const setError = useStore((s) => s.chat.setError);
   const abort = useStore((s) => s.chat.abort);
+  const ensureSession = useStore((s) => s.session.ensureSession);
 
   const send = useCallback(
     async (text: string, images: StagedImage[] = []) => {
       const trimmed = text.trim();
       if (!trimmed && images.length === 0) return;
       if (useStore.getState().chat.isStreaming) return;
+
+      const { sessionId } = ensureSession();
 
       const parts: MessagePart[] = [];
       if (trimmed) parts.push({ type: 'text', text });
@@ -49,6 +52,7 @@ export function useChat() {
       try {
         await streamChat({
           messages: baseMessages,
+          sessionId,
           onTextDelta: appendDelta,
           signal: controller.signal,
         });
@@ -59,7 +63,7 @@ export function useChat() {
         endStream();
       }
     },
-    [appendUser, appendDelta, finalize, beginStream, endStream, setError],
+    [appendUser, appendDelta, finalize, beginStream, endStream, setError, ensureSession],
   );
 
   return {

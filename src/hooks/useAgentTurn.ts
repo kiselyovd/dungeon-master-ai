@@ -4,14 +4,12 @@ import { ChatError } from '../api/errors';
 import { DISPOSITIONS, type Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
 
-const HARDCODED_CAMPAIGN_ID = '00000000-0000-0000-0000-000000000001';
-const HARDCODED_SESSION_ID = '00000000-0000-0000-0000-000000000002';
-
 /**
  * Agent turn orchestrator hook. Replaces useChat.send for the M3 agent endpoint.
  * Dispatches text deltas, tool-call events, journal entries, and NPC updates
- * to the appropriate Zustand slices. Campaign/session IDs are hardcoded for
- * M3; M5 will plumb them through a SessionSlice.
+ * to the appropriate Zustand slices. Campaign/session IDs come from the
+ * persistent SessionSlice (M5); each launch lazily mints a UUID pair via
+ * `ensureSession()` on first mount.
  */
 export function useAgentTurn() {
   const appendUser = useStore((s) => s.chat.appendUser);
@@ -25,11 +23,14 @@ export function useAgentTurn() {
   const settle = useStore((s) => s.toolLog.settle);
   const appendJournalEntry = useStore((s) => s.journal.appendEntry);
   const upsertNpc = useStore((s) => s.npcs.upsertNpc);
+  const ensureSession = useStore((s) => s.session.ensureSession);
 
   const send = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
       if (useStore.getState().chat.isStreaming) return;
+
+      const { campaignId, sessionId } = ensureSession();
 
       appendUser(text);
       const controller = new AbortController();
@@ -39,8 +40,8 @@ export function useAgentTurn() {
 
       try {
         await streamAgentTurn({
-          campaignId: HARDCODED_CAMPAIGN_ID,
-          sessionId: HARDCODED_SESSION_ID,
+          campaignId,
+          sessionId,
           playerMessage: text,
           history,
           signal: controller.signal,
@@ -60,7 +61,7 @@ export function useAgentTurn() {
                 const a = (args ?? {}) as Record<string, unknown>;
                 appendJournalEntry({
                   id: String(r.entry_id),
-                  campaign_id: HARDCODED_CAMPAIGN_ID,
+                  campaign_id: campaignId,
                   chapter: typeof a.chapter === 'string' ? a.chapter : null,
                   entry_html: typeof a.entry_html === 'string' ? a.entry_html : '',
                   created_at: new Date().toISOString(),
@@ -79,7 +80,7 @@ export function useAgentTurn() {
                     : 'unknown';
                 upsertNpc({
                   id: name,
-                  campaign_id: HARDCODED_CAMPAIGN_ID,
+                  campaign_id: campaignId,
                   name,
                   role: typeof a.role === 'string' ? a.role : '',
                   disposition,
@@ -118,6 +119,7 @@ export function useAgentTurn() {
       settle,
       appendJournalEntry,
       upsertNpc,
+      ensureSession,
     ],
   );
 

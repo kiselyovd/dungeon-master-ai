@@ -6,6 +6,7 @@ import { createJournalSlice, type JournalSlice } from './journal';
 import { createLocalModeSlice, type LocalModeSlice } from './localMode';
 import { createNpcSlice, type NpcSlice } from './npc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
+import { createSessionSlice, type SessionSlice } from './session';
 import { createSettingsSlice, type SettingsSlice } from './settings';
 import { createToolLogSlice, type ToolLogSlice } from './toolLog';
 
@@ -15,7 +16,8 @@ export type AppState = ChatSlice &
   JournalSlice &
   NpcSlice &
   ToolLogSlice &
-  LocalModeSlice;
+  LocalModeSlice &
+  SessionSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -29,6 +31,7 @@ export const useStore = create<AppState>()(
       ...createNpcSlice(...a),
       ...createToolLogSlice(...a),
       ...createLocalModeSlice(...a),
+      ...createSessionSlice(...a),
     }),
     {
       name: PERSIST_NAME,
@@ -44,8 +47,12 @@ export const useStore = create<AppState>()(
           temperature: state.settings.temperature,
           replicateApiKey: state.settings.replicateApiKey,
         },
+        session: {
+          activeCampaignId: state.session.activeCampaignId,
+          activeSessionId: state.session.activeSessionId,
+        },
       }),
-      // Preserve action functions on the in-memory `settings` object when the
+      // Preserve action functions on the in-memory slice objects when the
       // persisted (data-only) snapshot is merged back in.
       merge: (persistedState, currentState) => {
         if (!persistedState || typeof persistedState !== 'object') return currentState;
@@ -55,6 +62,10 @@ export const useStore = create<AppState>()(
           settings: {
             ...currentState.settings,
             ...(persisted.settings ?? {}),
+          },
+          session: {
+            ...currentState.session,
+            ...(persisted.session ?? {}),
           },
         };
       },
