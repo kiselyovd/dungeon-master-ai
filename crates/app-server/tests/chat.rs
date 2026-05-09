@@ -26,7 +26,7 @@ async fn chat_streams_sse_text_deltas_then_done() {
     let server = TestServer::start_with(provider, pool).await;
 
     let body = json!({
-        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}],
+        "messages": [{"role": "user", "content": "hi"}],
         "model": "mock"
     });
 

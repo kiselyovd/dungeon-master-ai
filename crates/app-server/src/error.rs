@@ -12,6 +12,8 @@ pub enum AppError {
     NotFound,
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("payload too large: {0}")]
+    PayloadTooLarge(String),
     #[error("internal: {0}")]
     Internal(String),
 }
@@ -30,6 +32,11 @@ impl IntoResponse for AppError {
             AppError::Llm(_) => (StatusCode::BAD_GATEWAY, "provider_error", self.to_string()),
             AppError::NotFound => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
+            AppError::PayloadTooLarge(_) => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "payload_too_large",
+                self.to_string(),
+            ),
             AppError::Internal(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal",
