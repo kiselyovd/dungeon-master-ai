@@ -3,5 +3,11 @@
   "send": "Отправить",
   "stop": "Стоп",
   "thinking": "Думаю...",
-  "no_api_key": "Укажи свой Anthropic API key в настройках, чтобы начать."
+  "no_api_key": "Укажи свой Anthropic API key в настройках, чтобы начать.",
+  "attach_image": "Прикрепить изображение",
+  "image_too_large": "Изображение больше 5 МБ",
+  "image_unsupported": "Поддерживаются только PNG, JPEG и WebP",
+  "too_many_images": "До 4 изображений в сообщении",
+  "remove_image": "Удалить изображение",
+  "attachment_lightbox_close": "Закрыть"
 }

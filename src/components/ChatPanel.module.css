@@ -3,6 +3,17 @@
   flex-direction: column;
   height: 100%;
   background: var(--color-bg-base);
+  position: relative;
+}
+
+.panel.dragging::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed var(--color-accent);
+  border-radius: 8px;
+  pointer-events: none;
+  background: rgba(212, 175, 55, 0.05);
 }
 
 .history {
@@ -30,10 +41,39 @@
   padding: var(--space-3);
   display: flex;
   gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.composerCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.composerActions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.paperclip {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.stagingError {
+  padding: var(--space-2);
+  border-left: 2px solid var(--color-danger);
+  background: rgba(196, 68, 68, 0.08);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
 }
 
 .draft {
-  flex: 1;
+  width: 100%;
   resize: none;
 }
 

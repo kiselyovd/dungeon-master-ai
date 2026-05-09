@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { streamChat } from '../api/chat';
 import { ChatError } from '../api/errors';
+import { stripDataUrlPrefix } from '../lib/fileToDataUrl';
+import type { MessagePart, StagedImage } from '../state/chat';
 import { useStore } from '../state/useStore';
 
 /**
@@ -23,11 +25,23 @@ export function useChat() {
   const abort = useStore((s) => s.chat.abort);
 
   const send = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
+    async (text: string, images: StagedImage[] = []) => {
+      const trimmed = text.trim();
+      if (!trimmed && images.length === 0) return;
       if (useStore.getState().chat.isStreaming) return;
 
-      appendUser(text);
+      const parts: MessagePart[] = [];
+      if (trimmed) parts.push({ type: 'text', text });
+      for (const img of images) {
+        parts.push({
+          type: 'image',
+          mime: img.mime,
+          data_b64: stripDataUrlPrefix(img.dataUrl),
+          name: img.name ?? null,
+        });
+      }
+      appendUser(text, images.length > 0 ? parts : undefined);
+
       const controller = new AbortController();
       beginStream(controller);
 

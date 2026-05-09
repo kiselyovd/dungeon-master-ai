@@ -3,5 +3,11 @@
   "send": "Send",
   "stop": "Stop",
   "thinking": "Thinking...",
-  "no_api_key": "Set your Anthropic API key in Settings to start chatting."
+  "no_api_key": "Set your Anthropic API key in Settings to start chatting.",
+  "attach_image": "Attach image",
+  "image_too_large": "Image exceeds 5 MB",
+  "image_unsupported": "Only PNG, JPEG, and WebP are supported",
+  "too_many_images": "Up to 4 images per message",
+  "remove_image": "Remove image",
+  "attachment_lightbox_close": "Close"
 }
