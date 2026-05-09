@@ -13,8 +13,8 @@ pub use mistralrs_provider::MistralrsLocalProvider;
 pub use mock::MockProvider;
 pub use openai_compat::OpenAICompatProvider;
 pub use provider::{
-    ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError, LlmProvider, Tool,
-    ToolCall, ToolResult,
+    ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError, LlmProvider,
+    MessagePart, Tool, ToolCall, ToolResult,
 };
 pub use sidecar_launcher::{
     MockSidecarLauncher, NullSidecarLauncher, SidecarError, SidecarHandle, SidecarLauncher,

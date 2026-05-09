@@ -31,6 +31,25 @@ pub struct ToolResult {
     pub is_error: bool,
 }
 
+/// A single segment of a chat message body. User turns are multi-part to
+/// support images alongside text; non-user roles still serialize through the
+/// `Text` variant only.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum MessagePart {
+    Text {
+        text: String,
+    },
+    Image {
+        /// MIME type, e.g. `image/png`, `image/jpeg`, `image/webp`.
+        mime: String,
+        /// Base64-encoded payload, no `data:` prefix.
+        data_b64: String,
+        /// Optional original filename for display.
+        name: Option<String>,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
@@ -115,5 +134,63 @@ pub trait LlmProvider: Send + Sync {
     /// `stream_chat` with tool-call enabled requests.
     fn supports_tools(&self) -> bool {
         true
+    }
+
+    /// Whether this provider's model accepts image content parts. Default
+    /// `false`; providers that wrap genai (Anthropic, OpenAI-compat,
+    /// mistralrs) override to `true`. Used today only for tests and reading
+    /// the capability matrix; not enforced server-side.
+    fn supports_vision(&self) -> bool {
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn message_part_text_serde_round_trip() {
+        let p = MessagePart::Text { text: "hi".into() };
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(v, json!({"type": "text", "text": "hi"}));
+        let back: MessagePart = serde_json::from_value(v).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn message_part_image_serde_round_trip() {
+        let p = MessagePart::Image {
+            mime: "image/png".into(),
+            data_b64: "aGVsbG8=".into(),
+            name: Some("greeting.png".into()),
+        };
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(
+            v,
+            json!({
+                "type": "image",
+                "mime": "image/png",
+                "data_b64": "aGVsbG8=",
+                "name": "greeting.png"
+            })
+        );
+        let back: MessagePart = serde_json::from_value(v).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn message_part_image_name_optional_serializes_null() {
+        let p = MessagePart::Image {
+            mime: "image/jpeg".into(),
+            data_b64: "x".into(),
+            name: None,
+        };
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(
+            v,
+            json!({"type": "image", "mime": "image/jpeg", "data_b64": "x", "name": null})
+        );
     }
 }
