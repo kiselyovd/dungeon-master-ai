@@ -23,7 +23,7 @@
 
 .size {
   color: var(--color-text-muted, rgba(240, 230, 214, 0.6));
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 0.875rem;
 }
 

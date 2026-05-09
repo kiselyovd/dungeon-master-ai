@@ -47,7 +47,7 @@ export function ToolCallCard({ entry }: Props) {
     setFlashing(true);
     const flashTimer = setTimeout(() => setFlashing(false), 600);
     return () => clearTimeout(flashTimer);
-  }, [pending, result, entry.id]);
+  }, [pending, result]);
 
   const statusKey = pending ? 'tool_pending' : isError ? 'tool_error' : 'tool_success';
   const statusLabel = pending ? 'pending' : isError ? 'error' : 'success';

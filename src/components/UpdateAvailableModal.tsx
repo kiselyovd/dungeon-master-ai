@@ -14,6 +14,7 @@ export function UpdateAvailableModal({ version, notes, onUpdate, onLater }: Prop
     <div className={styles.backdrop} role="dialog" aria-labelledby="update-title" aria-modal="true">
       <div className={styles.modal}>
         <h2 id="update-title">{t('title', { version })}</h2>
+        {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label on <pre> conveys release-notes context to screen readers */}
         <pre className={styles.notes} aria-label={t('release_notes')}>
           {notes || '-'}
         </pre>

@@ -25,6 +25,7 @@ export function ModelDownloadCard(p: Props) {
       : 0;
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: role="group" is intentional; <fieldset> would force a different visual treatment
     <div className={`${styles.card} ${p.active ? styles.active : ''}`} role="group">
       <div className={styles.head}>
         <strong>{p.displayName}</strong>
@@ -38,7 +39,6 @@ export function ModelDownloadCard(p: Props) {
       {p.state.state === 'downloading' && (
         <progress
           className={styles.progress}
-          role="progressbar"
           value={progressPct}
           max={100}
           aria-valuenow={progressPct}

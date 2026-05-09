@@ -70,15 +70,20 @@ export function MessageBubble({
   );
 }
 
+function partKey(part: MessagePart, index: number): string {
+  if (part.type === 'text') return `t-${index}-${part.text.length}`;
+  return `i-${index}-${part.mime}-${part.data_b64.length}`;
+}
+
 function renderPart(
   part: MessagePart,
   index: number,
   onImageClick: (src: string, alt: string) => void,
 ): ReactNode {
+  const key = partKey(part, index);
   if (part.type === 'text') {
     return (
-      // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional
-      <p key={index} className={styles.text}>
+      <p key={key} className={styles.text}>
         {part.text}
       </p>
     );
@@ -86,21 +91,13 @@ function renderPart(
   const src = `data:${part.mime};base64,${part.data_b64}`;
   const alt = part.name ?? '';
   return (
-    <img
-      // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional
-      key={index}
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      className={styles.attachment}
+    <button
+      key={key}
+      type="button"
+      className={styles.attachmentButton}
       onClick={() => onImageClick(src, alt)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onImageClick(src, alt);
-        }
-      }}
-    />
+    >
+      <img src={src} alt={alt} loading="lazy" decoding="async" className={styles.attachment} />
+    </button>
   );
 }

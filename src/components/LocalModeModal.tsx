@@ -82,7 +82,12 @@ export function LocalModeModal({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className={styles.backdrop} role="dialog" aria-modal="true" aria-labelledby="local-mode-title">
+    <div
+      className={styles.backdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="local-mode-title"
+    >
       <div className={styles.modal}>
         <h2 id="local-mode-title">{t('title')}</h2>
 

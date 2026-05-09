@@ -5,7 +5,7 @@
   padding: var(--space-1, 4px) var(--space-3, 12px);
   border-radius: var(--radius-pill, 9999px);
   font-size: 0.8125rem;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
 }
 

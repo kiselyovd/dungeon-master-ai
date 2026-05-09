@@ -20,7 +20,7 @@ describe('CombatOverlay', () => {
     );
     const el = getByTestId('combat-overlay');
     expect(el.className).toContain('active');
-    expect(el.dataset['active']).toBe('true');
+    expect(el.dataset.active).toBe('true');
   });
 
   it('omits the active class when active=false', () => {
@@ -28,7 +28,7 @@ describe('CombatOverlay', () => {
       <CombatOverlay active={false} tokens={[]} cellSize={30} widthCells={20} heightCells={20} />,
     );
     const el = getByTestId('combat-overlay');
-    expect(el.dataset['active']).toBeUndefined();
+    expect(el.dataset.active).toBeUndefined();
     expect(el.className).not.toContain(' active');
   });
 

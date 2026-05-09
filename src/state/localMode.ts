@@ -55,14 +55,10 @@ export const createLocalModeSlice: StateCreator<AppState, [], [], LocalModeSlice
     vramStrategy: 'auto-swap',
     runtime: { llm: { state: 'off' }, image: { state: 'off' } },
     downloads: idleDownloads(),
-    setEnabled: (v) =>
-      set((s) => ({ localMode: { ...s.localMode, enabled: v } })),
-    selectModel: (id) =>
-      set((s) => ({ localMode: { ...s.localMode, selectedLlm: id } })),
-    setVramStrategy: (vs) =>
-      set((s) => ({ localMode: { ...s.localMode, vramStrategy: vs } })),
-    setRuntimeStatus: (snap) =>
-      set((s) => ({ localMode: { ...s.localMode, runtime: snap } })),
+    setEnabled: (v) => set((s) => ({ localMode: { ...s.localMode, enabled: v } })),
+    selectModel: (id) => set((s) => ({ localMode: { ...s.localMode, selectedLlm: id } })),
+    setVramStrategy: (vs) => set((s) => ({ localMode: { ...s.localMode, vramStrategy: vs } })),
+    setRuntimeStatus: (snap) => set((s) => ({ localMode: { ...s.localMode, runtime: snap } })),
     setDownloadState: (id, ds) =>
       set((s) => ({
         localMode: {

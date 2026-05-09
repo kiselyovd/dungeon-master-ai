@@ -12,8 +12,7 @@ test.beforeEach(async ({ page }) => {
   // Mock the /chat SSE endpoint with a short scripted response.
   await page.route('**/chat', async (route) => {
     const body =
-      'event: text_delta\ndata: {"text":"got it"}\n\n' +
-      'event: done\ndata: {"reason":"stop"}\n\n';
+      'event: text_delta\ndata: {"text":"got it"}\n\n' + 'event: done\ndata: {"reason":"stop"}\n\n';
     await route.fulfill({
       status: 200,
       headers: { 'content-type': 'text/event-stream' },

@@ -38,11 +38,11 @@ export function ImageLightboxModal({ src, alt, onClose }: Props) {
       aria-label={alt || 'image preview'}
       tabIndex={-1}
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: stops backdrop click from closing the modal when interacting with the image; image has its own native button */}
       <div
         className={styles.frame}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        role="presentation"
       >
         <img src={src} alt={alt} className={styles.image} data-testid="lightbox-image" />
         <button

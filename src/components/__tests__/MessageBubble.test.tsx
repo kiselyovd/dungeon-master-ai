@@ -24,9 +24,11 @@ describe('MessageBubble', () => {
     const bubble = screen.getByTestId('bubble');
     const children = Array.from(bubble.children);
     expect(children).toHaveLength(3);
-    expect(children[0].textContent).toBe('before');
-    expect(children[1].tagName).toBe('IMG');
-    expect(children[2].textContent).toBe('after');
+    expect(children[0]?.textContent).toBe('before');
+    // Image is wrapped in a <button> so the click target is keyboard-reachable.
+    expect(children[1]?.tagName).toBe('BUTTON');
+    expect(children[1]?.querySelector('img')).not.toBeNull();
+    expect(children[2]?.textContent).toBe('after');
   });
 
   it('opens the lightbox when an image is clicked', () => {

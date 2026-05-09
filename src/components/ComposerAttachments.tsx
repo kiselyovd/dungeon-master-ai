@@ -16,14 +16,9 @@ export function ComposerAttachments({ items, onRemove }: Props) {
   const { t } = useTranslation('chat');
   if (items.length === 0) return null;
   return (
-    <div className={styles.strip} role="list">
+    <ul className={styles.strip}>
       {items.map((item, i) => (
-        <div
-          // biome-ignore lint/suspicious/noArrayIndexKey: staged-image order is the only stable key here
-          key={i}
-          className={styles.thumb}
-          role="listitem"
-        >
+        <li key={`staged-${i}-${item.name ?? 'image'}`} className={styles.thumb}>
           <img src={item.dataUrl} alt={item.name ?? 'image'} className={styles.image} />
           <button
             type="button"
@@ -33,8 +28,8 @@ export function ComposerAttachments({ items, onRemove }: Props) {
           >
             ×
           </button>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

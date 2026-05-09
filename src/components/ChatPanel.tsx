@@ -1,7 +1,7 @@
 import {
+  type KeyboardEvent,
   type ClipboardEvent as ReactClipboardEvent,
   type DragEvent as ReactDragEvent,
-  type KeyboardEvent,
   useCallback,
   useEffect,
   useRef,
@@ -144,6 +144,7 @@ export function ChatPanel() {
   }, [isStreaming, cancel]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-drop surface; keyboard alternative is the paperclip button
     <div
       className={`${styles.panel} ${isDragging ? styles.dragging : ''}`}
       onDragOver={onDragOver}

@@ -19,18 +19,14 @@ describe('UpdateAvailableModal', () => {
 
   it('calls onUpdate when Update Now clicked', () => {
     const onUpdate = vi.fn();
-    render(
-      <UpdateAvailableModal version="0.6.0" notes="" onUpdate={onUpdate} onLater={vi.fn()} />,
-    );
+    render(<UpdateAvailableModal version="0.6.0" notes="" onUpdate={onUpdate} onLater={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /update now/i }));
     expect(onUpdate).toHaveBeenCalled();
   });
 
   it('calls onLater when Later clicked', () => {
     const onLater = vi.fn();
-    render(
-      <UpdateAvailableModal version="0.6.0" notes="" onUpdate={vi.fn()} onLater={onLater} />,
-    );
+    render(<UpdateAvailableModal version="0.6.0" notes="" onUpdate={vi.fn()} onLater={onLater} />);
     fireEvent.click(screen.getByRole('button', { name: /later/i }));
     expect(onLater).toHaveBeenCalled();
   });

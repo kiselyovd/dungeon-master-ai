@@ -31,7 +31,7 @@ describe('CombatToken', () => {
     const token = { ...baseToken, isActive: true };
     const { getByTestId } = render(<CombatToken token={token} cellSize={30} />);
     const el = getByTestId('combat-token-tok-1');
-    expect(el.dataset['active']).toBe('true');
+    expect(el.dataset.active).toBe('true');
   });
 
   it('hp bar width reflects current/max ratio', () => {

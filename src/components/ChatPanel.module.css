@@ -7,7 +7,7 @@
 }
 
 .panel.dragging::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 8px;
   border: 2px dashed var(--color-accent);
