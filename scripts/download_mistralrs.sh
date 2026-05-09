@@ -26,5 +26,14 @@ URL="https://github.com/EricLBuehler/mistral.rs/releases/download/$VERSION/$ASSE
 mkdir -p "$OUT_DIR"
 DEST="$OUT_DIR/mistralrs-server-$TARGET$SUFFIX"
 echo "Downloading $URL -> $DEST"
-curl -fL -o "$DEST" "$URL"
-chmod +x "$DEST"
+# Upstream EricLBuehler/mistral.rs ships source-only releases as of v0.8.0 -
+# no prebuilt binaries on GitHub. We try the download anyway in case a future
+# tag publishes them, but a 404 is non-fatal: build.rs's
+# `ensure_mistralrs_placeholder` lays down an empty file so `tauri build`
+# resolves the externalBin entry. Local Mode will be a no-op until a real
+# binary lands here, which is fine for cloud-only first-GA releases.
+if curl -fL -o "$DEST" "$URL"; then
+  chmod +x "$DEST"
+else
+  echo "WARNING: $URL not available; leaving placeholder for build.rs to create."
+fi

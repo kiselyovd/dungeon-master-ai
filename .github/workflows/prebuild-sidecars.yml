@@ -9,10 +9,14 @@ name: prebuild-sidecars
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'scripts/download_mistralrs.*'
-      - '.github/workflows/prebuild-sidecars.yml'
+  # Auto-trigger on push intentionally disabled: upstream EricLBuehler/mistral.rs
+  # ships source-only releases as of v0.8.0 so the download will always 404
+  # until the release pipeline is rewired around a self-built binary. Run
+  # this workflow manually once that lands.
+  # push:
+  #   paths:
+  #     - 'scripts/download_mistralrs.*'
+  #     - '.github/workflows/prebuild-sidecars.yml'
 
 jobs:
   fetch:

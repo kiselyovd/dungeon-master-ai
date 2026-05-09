@@ -1,5 +1,12 @@
 name: build-bundle
 
+# Per-push verification that the cloud-only Tauri bundle builds on all four
+# supported targets. Local Mode (mistralrs sidecar + Python SDXL sidecar)
+# is intentionally skipped here - upstream EricLBuehler/mistral.rs publishes
+# source-only releases as of v0.8.0, and the Python sidecar pulls torch +
+# diffusers (~5 GB) which would balloon CI time. Both come back in a future
+# point release once a real binary plan lands. See docs/RELEASE.md.
+
 on:
   pull_request:
   push:
@@ -32,37 +39,11 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev \
             libayatana-appindicator3-dev librsvg2-dev
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Build Python sidecar
-        shell: bash
-        run: |
-          cd sidecar
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller==6.10
-          pyinstaller --noconfirm --clean build_spec.spec
-          mkdir -p ../src-tauri/binaries/python_sidecar_${{ matrix.target }}
-          cp -R dist/dmai-image-sidecar/* ../src-tauri/binaries/python_sidecar_${{ matrix.target }}/
-
-      - name: Download mistralrs sidecar
-        shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == *windows* ]]; then
-            pwsh -NoProfile -File scripts/download_mistralrs.ps1 -Target "${{ matrix.target }}"
-          else
-            bash scripts/download_mistralrs.sh "${{ matrix.target }}"
-          fi
-
       - name: Install bun deps
         run: bun install
 
-      - name: Build (cloud flavor)
+      - name: Build cloud-only Tauri bundle
         run: bun run tauri:build:cloud
-
-      - name: Build (local flavor)
-        run: bun run tauri:build
 
       - uses: actions/upload-artifact@v4
         with:

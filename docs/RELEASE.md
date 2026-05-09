@@ -31,21 +31,37 @@ to the GitHub repo as the `TAURI_SIGNING_PRIVATE_KEY` secret (base64-encoded).
 
 **Never commit the private key.**
 
-## What the workflow does
+## What the workflow does (cloud-only first-GA path)
 
 1. Matrix-builds for `x86_64-pc-windows-msvc`, `aarch64-apple-darwin`,
    `x86_64-apple-darwin`, and `x86_64-unknown-linux-gnu`.
-2. Builds the Python image sidecar with PyInstaller and copies it under
-   `src-tauri/binaries/python_sidecar_<target>/`.
-3. Downloads the prebuilt `mistralrs-server` binary from upstream and copies
-   it under `src-tauri/binaries/`.
-4. Runs `bun run tauri:build` (local-runtime flavor) so the bundle includes
-   both sidecars + the Tauri shell + the auto-updater plugin signature.
-5. Signs the Windows .exe + .msi via `signtool`.
-6. Notarizes the macOS .app via `notarytool` and staples the ticket.
-7. The `publish` job runs `scripts/build_latest_json.ts` to produce the
+2. Runs `bun run tauri:build:cloud` (cloud-only flavor) so the bundle
+   contains the Tauri shell + the dmai-server backend + the auto-updater
+   plugin signature.
+3. Optional: signs Windows binaries via `signtool` if `WINDOWS_CERT_BASE64`
+   is set; otherwise skips with no error.
+4. Optional: notarizes the macOS .app via `notarytool` if `APPLE_API_KEY`
+   is set; otherwise skips.
+5. The `publish` job runs `scripts/build_latest_json.ts` to produce the
    updater manifest, then `gh release create` uploads all artifacts plus
    `latest.json`.
+
+## Local Mode (mistralrs sidecar + Python SDXL sidecar) - deferred
+
+Upstream `EricLBuehler/mistral.rs` ships source-only releases as of
+v0.8.0 (no prebuilt server binaries). The Python SDXL sidecar pulls
+torch + diffusers (~5 GB) and bundling via PyInstaller would balloon CI
+time on every push. Both come back in a future point release once a
+self-built binary plan or a Docker-based bundling approach lands.
+
+Current behavior:
+- `scripts/download_mistralrs.{sh,ps1}` tolerate the upstream 404 and
+  leave the placeholder file `build.rs` creates so `tauri build`
+  resolves the externalBin entry. The bundled placeholder is empty;
+  flipping the app into Local Mode at runtime is a no-op until a real
+  binary lands here.
+- The `prebuild-sidecars.yml` workflow's automatic push trigger is
+  commented out for the same reason.
 
 ## Open issue: Windows EV certificate provisioning
 

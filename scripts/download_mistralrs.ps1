@@ -21,4 +21,14 @@ $url   = "https://github.com/EricLBuehler/mistral.rs/releases/download/$Version/
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $dest = Join-Path $OutDir "mistralrs-server-$Target.exe"
 Write-Host "Downloading $url -> $dest"
-Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+
+# Upstream EricLBuehler/mistral.rs ships source-only releases as of v0.8.0 -
+# no prebuilt binaries on GitHub. A 404 here is non-fatal: build.rs's
+# ensure_mistralrs_placeholder lays down an empty file so tauri build
+# resolves the externalBin entry. Local Mode will be a no-op until a real
+# binary lands here, which is fine for cloud-only first-GA releases.
+try {
+    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -ErrorAction Stop
+} catch {
+    Write-Warning "$url not available ($($_.Exception.Message)); leaving placeholder for build.rs to create."
+}
