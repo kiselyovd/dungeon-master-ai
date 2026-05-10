@@ -26,5 +26,8 @@
   "temperature_label": "Температура",
   "replicate_key_label": "Ключ Replicate API",
   "replicate_key_helper": "Необходим для генерации изображений через Replicate.",
-  "save_error_prefix": "Не удалось сохранить настройки:"
+  "save_error_prefix": "Не удалось сохранить настройки:",
+  "scene_transitions_label": "Переходы между сценами",
+  "scene_transitions_helper": "Проигрывать короткий ролик при смене сцены (не чаще одного раза в 30 секунд).",
+  "scene_transitions_toggle": "Включено"
 }

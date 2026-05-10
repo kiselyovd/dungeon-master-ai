@@ -26,5 +26,8 @@
   "temperature_label": "Temperature",
   "replicate_key_label": "Replicate API key",
   "replicate_key_helper": "Required for AI image generation via Replicate cloud.",
-  "save_error_prefix": "Could not save settings:"
+  "save_error_prefix": "Could not save settings:",
+  "scene_transitions_label": "Scene transitions",
+  "scene_transitions_helper": "Play a short cinematic when the scene changes (debounced to once per 30s).",
+  "scene_transitions_toggle": "Enabled"
 }

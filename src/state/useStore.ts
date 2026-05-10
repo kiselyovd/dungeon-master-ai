@@ -56,6 +56,7 @@ export const useStore = create<AppState>()(
           temperature: state.settings.temperature,
           replicateApiKey: state.settings.replicateApiKey,
           chatPanelWidth: state.settings.chatPanelWidth,
+          sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
         },
         session: {
           activeCampaignId: state.session.activeCampaignId,

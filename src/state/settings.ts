@@ -41,6 +41,8 @@ export interface SettingsData {
   // P3.21 - chat panel width (px). Clamped to [MIN_CHAT_WIDTH, MAX_CHAT_WIDTH]
   // by setChatPanelWidth and by the persistStorage sanitiser on load.
   chatPanelWidth: number;
+  /** Play scene-transition video clips when the active scene changes. */
+  sceneTransitionsEnabled: boolean;
 }
 
 export interface SettingsActions {
@@ -53,6 +55,7 @@ export interface SettingsActions {
   setTemperature: (temp: number) => void;
   setReplicateApiKey: (key: string | null) => void;
   setChatPanelWidth: (width: number) => void;
+  setSceneTransitionsEnabled: (enabled: boolean) => void;
 }
 
 function clampChatWidth(width: number): number {
@@ -82,6 +85,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     temperature: 0.7,
     replicateApiKey: null,
     chatPanelWidth: DEFAULT_CHAT_WIDTH,
+    sceneTransitionsEnabled: true,
 
     setActiveProvider: (activeProvider) =>
       set((s) => ({ settings: { ...s.settings, activeProvider } })),
@@ -118,5 +122,8 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
       set((s) => ({
         settings: { ...s.settings, chatPanelWidth: clampChatWidth(width) },
       })),
+
+    setSceneTransitionsEnabled: (sceneTransitionsEnabled) =>
+      set((s) => ({ settings: { ...s.settings, sceneTransitionsEnabled } })),
   },
 });

@@ -9,8 +9,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SaveSummary, SaveTag } from '../api/saves';
+import saveThumbCombat from '../assets/save-thumb-combat.png';
+import saveThumbDialog from '../assets/save-thumb-dialog.png';
+import saveThumbExploration from '../assets/save-thumb-exploration.png';
+import saveThumbNpc from '../assets/save-thumb-npc.png';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
+
+const TAG_THUMB_SRC: Record<SaveTag, string> = {
+  combat: saveThumbCombat,
+  exploration: saveThumbExploration,
+  dialog: saveThumbDialog,
+  npc: saveThumbNpc,
+};
 
 type Tab = 'all' | 'manual' | 'auto';
 
@@ -46,10 +57,9 @@ interface SaveThumbProps {
 }
 
 function SaveThumb({ tag, large = false }: SaveThumbProps) {
-  const Icon = tagIcon(tag);
   return (
     <div className={`dm-save-thumb${large ? ' dm-save-thumb-lg' : ''}`} data-tag={tag}>
-      <Icon size={large ? 36 : 22} />
+      <img src={TAG_THUMB_SRC[tag]} alt="" className="dm-save-thumb-art" />
     </div>
   );
 }

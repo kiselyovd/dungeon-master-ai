@@ -1,6 +1,10 @@
 import { Fragment, type ReactNode, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postSettings } from '../api/providers';
+import classCleric from '../assets/class-cleric.png';
+import classFighter from '../assets/class-fighter.png';
+import classRogue from '../assets/class-rogue.png';
+import classWizard from '../assets/class-wizard.png';
 import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_LOCAL_CONTEXT_WINDOW,
@@ -457,11 +461,12 @@ function Step3({ titleId, t, heroClass, onHeroClassChange, onBack, onSkip, onBeg
   const classes: readonly {
     id: HeroClassId;
     icon: ReactNode;
+    art: string;
   }[] = [
-    { id: 'fighter', icon: <Icons.Sword size={22} /> },
-    { id: 'wizard', icon: <Icons.Wand size={22} /> },
-    { id: 'rogue', icon: <Icons.Bow size={22} /> },
-    { id: 'cleric', icon: <Icons.Star size={22} /> },
+    { id: 'fighter', icon: <Icons.Sword size={22} />, art: classFighter },
+    { id: 'wizard', icon: <Icons.Wand size={22} />, art: classWizard },
+    { id: 'rogue', icon: <Icons.Bow size={22} />, art: classRogue },
+    { id: 'cleric', icon: <Icons.Star size={22} />, art: classCleric },
   ];
 
   return (
@@ -483,7 +488,10 @@ function Step3({ titleId, t, heroClass, onHeroClassChange, onBack, onSkip, onBeg
             className={`dm-class-card${heroClass === c.id ? ' is-selected' : ''}`}
             onClick={() => onHeroClassChange(c.id)}
           >
-            <div className="dm-class-card-icon">{c.icon}</div>
+            <div className="dm-class-card-art">
+              <img src={c.art} alt="" className="dm-class-card-art-img" />
+              <div className="dm-class-card-icon">{c.icon}</div>
+            </div>
             <div className="dm-class-card-name">{t(`class_${c.id}_name`)}</div>
             <div className="dm-class-card-desc">{t(`class_${c.id}_desc`)}</div>
           </button>

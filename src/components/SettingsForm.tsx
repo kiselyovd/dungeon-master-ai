@@ -590,6 +590,8 @@ function ModelTab({
   onChange: (patch: Partial<ModelDraft>) => void;
 }) {
   const { t } = useTranslation('settings');
+  const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
+  const setSceneTransitionsEnabled = useStore((s) => s.settings.setSceneTransitionsEnabled);
   return (
     <>
       <Field label={t('system_prompt_label')} helper={t('system_prompt_helper')}>
@@ -629,6 +631,19 @@ function ModelTab({
             placeholder="r8_..."
             className={styles.fullWidth}
           />
+        )}
+      </Field>
+      <Field label={t('scene_transitions_label')} helper={t('scene_transitions_helper')}>
+        {(p) => (
+          <label className={styles.toggleRow}>
+            <input
+              {...p}
+              type="checkbox"
+              checked={sceneTransitionsEnabled}
+              onChange={(e) => setSceneTransitionsEnabled(e.target.checked)}
+            />
+            <span>{t('scene_transitions_toggle')}</span>
+          </label>
         )}
       </Field>
     </>

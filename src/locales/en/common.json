@@ -19,5 +19,7 @@
   "saved_now": "just now",
   "saved_min_ago": "{{count}} min ago",
   "campaign_default": "Untitled Campaign",
-  "scene_step": "Step {{count}}"
+  "scene_step": "Step {{count}}",
+  "skip": "Skip",
+  "scene_transition_label": "Scene transition"
 }

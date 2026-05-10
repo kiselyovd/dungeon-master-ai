@@ -14,7 +14,9 @@ import { NpcMemoryGrid } from './components/NpcMemoryGrid';
 import { Onboarding } from './components/Onboarding';
 import { SavesScreen } from './components/SavesScreen';
 import { ScenePill } from './components/ScenePill';
+import { SceneTransitionOverlay } from './components/SceneTransitionOverlay';
 import { SettingsModal } from './components/SettingsModal';
+import { SplashOverlay } from './components/SplashOverlay';
 import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
@@ -320,6 +322,8 @@ function App() {
       />
       <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
       {!onboardingCompleted && <Onboarding />}
+      <SceneTransitionOverlay />
+      <SplashOverlay />
     </div>
   );
 }

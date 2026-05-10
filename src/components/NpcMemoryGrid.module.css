@@ -121,11 +121,30 @@
 }
 
 .cardBanner {
-  height: 80px;
+  height: 140px;
   background: linear-gradient(135deg, var(--color-bg-deep), var(--color-bg-overlay));
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.cardBanner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 16, 26, 0) 65%, rgba(20, 16, 26, 0.6) 100%);
+  pointer-events: none;
+}
+
+.cardPortrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .cardAvatar {

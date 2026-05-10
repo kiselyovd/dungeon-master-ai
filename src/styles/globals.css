@@ -5,6 +5,7 @@
 @import "./onboarding.css";
 @import "./saves.css";
 @import "./character.css";
+@import "./overlays.css";
 
 *,
 *::before,

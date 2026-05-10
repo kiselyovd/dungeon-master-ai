@@ -50,6 +50,7 @@ const KEY_SYSTEM_PROMPT = 'system_prompt';
 const KEY_TEMPERATURE = 'temperature';
 const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
+const KEY_SCENE_TRANSITIONS_ENABLED = 'scene_transitions_enabled';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
@@ -93,6 +94,7 @@ const ChatPanelWidthSchema = v.pipe(
   v.minValue(MIN_CHAT_WIDTH),
   v.maxValue(MAX_CHAT_WIDTH),
 );
+const SceneTransitionsEnabledSchema = v.boolean();
 const SessionIdSchema = v.string();
 const CurrentSceneSchema = v.nullable(
   v.object({
@@ -183,6 +185,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       tempRaw,
       replicateRaw,
       chatWidthRaw,
+      sceneTransitionsRaw,
       campaignRaw,
       sessionIdRaw,
       sceneRaw,
@@ -198,6 +201,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_TEMPERATURE),
       getSecret(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.get(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
       settingsStore.get(KEY_CURRENT_SCENE),
@@ -214,6 +218,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const tempParsed = v.safeParse(TemperatureSchema, tempRaw);
     const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
     const chatWidthParsed = v.safeParse(ChatPanelWidthSchema, chatWidthRaw);
+    const sceneTransitionsParsed = v.safeParse(SceneTransitionsEnabledSchema, sceneTransitionsRaw);
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
     const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
@@ -230,6 +235,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !tempParsed.success &&
       !replicateParsed.success &&
       !chatWidthParsed.success &&
+      !sceneTransitionsParsed.success &&
       !campaignParsed.success &&
       !sessionIdParsed.success &&
       !sceneParsed.success &&
@@ -249,6 +255,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (tempParsed.success) settings.temperature = tempParsed.output;
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
+    if (sceneTransitionsParsed.success) {
+      settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;
+    }
 
     const session: Partial<SessionData> = {};
     if (campaignParsed.success) session.activeCampaignId = campaignParsed.output;
@@ -301,6 +310,11 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.chatPanelWidth !== undefined) {
       writes.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
     }
+    if (settings.sceneTransitionsEnabled !== undefined) {
+      writes.push(
+        settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
+      );
+    }
     if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
       writes.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
     }
@@ -340,6 +354,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_SYSTEM_PROMPT),
       settingsStore.delete(KEY_TEMPERATURE),
       settingsStore.delete(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.delete(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
       settingsStore.delete(KEY_CURRENT_SCENE),

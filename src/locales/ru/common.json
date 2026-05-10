@@ -19,5 +19,7 @@
   "saved_now": "только что",
   "saved_min_ago": "{{count}} мин назад",
   "campaign_default": "Без названия",
-  "scene_step": "Шаг {{count}}"
+  "scene_step": "Шаг {{count}}",
+  "skip": "Пропустить",
+  "scene_transition_label": "Смена сцены"
 }

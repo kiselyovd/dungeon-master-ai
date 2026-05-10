@@ -1,4 +1,16 @@
+import tokenCleric from '../assets/token-cleric.png';
+import tokenFighter from '../assets/token-fighter.png';
+import tokenRogue from '../assets/token-rogue.png';
+import tokenWizard from '../assets/token-wizard.png';
 import type { CombatToken as TokenData } from '../state/combat';
+import { useStore } from '../state/useStore';
+
+const CLASS_TOKEN: Record<string, string> = {
+  fighter: tokenFighter,
+  wizard: tokenWizard,
+  rogue: tokenRogue,
+  cleric: tokenCleric,
+};
 
 interface Props {
   token: TokenData;
@@ -25,11 +37,17 @@ function hpColor(hp: number, maxHp: number): string {
  * - HP bar color by percent: success >50%, warning 25-50%, danger <25%.
  */
 export function CombatToken({ token, cellSize }: Props) {
+  const pcName = useStore((s) => s.pc.name);
+  const pcHeroClass = useStore((s) => s.pc.heroClass);
   const px = token.x * cellSize;
   const py = token.y * cellSize;
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
+  const portraitSrc =
+    pcName !== null && token.name === pcName && pcHeroClass !== null
+      ? (CLASS_TOKEN[pcHeroClass] ?? null)
+      : null;
 
   return (
     <div
@@ -60,9 +78,13 @@ export function CombatToken({ token, cellSize }: Props) {
           justifyContent: 'center',
           fontSize: 'var(--text-xs)',
           color: 'var(--color-fg-primary)',
+          overflow: 'hidden',
+          backgroundImage: portraitSrc !== null ? `url(${portraitSrc})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
-        {token.name.charAt(0).toUpperCase()}
+        {portraitSrc === null && token.name.charAt(0).toUpperCase()}
 
         <div
           data-testid={`combat-token-${token.id}-ac`}

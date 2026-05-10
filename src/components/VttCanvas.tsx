@@ -3,6 +3,7 @@ import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import vttEmptyArt from '../assets/vtt-empty.png';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { CombatOverlay } from './CombatOverlay';
@@ -165,7 +166,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
 
       {isEmpty && (
         <div className="dm-vtt-empty" aria-live="polite">
-          <Icons.Map size={48} className="dm-vtt-empty-icon" />
+          <img src={vttEmptyArt} alt="" className="dm-vtt-empty-art" />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>
         </div>
