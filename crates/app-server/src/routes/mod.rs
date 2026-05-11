@@ -8,6 +8,7 @@ pub mod messages;
 pub mod npc;
 pub mod saves;
 pub mod settings;
+pub mod srd;
 
 use serde::Deserialize;
 use uuid::Uuid;

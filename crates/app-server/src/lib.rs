@@ -32,6 +32,16 @@ pub fn router(state: AppState) -> Router {
         .route("/combat/end", post(routes::combat::post_combat_end))
         .route("/journal", get(routes::journal::get_journal))
         .route("/npcs", get(routes::npc::get_npcs))
+        .route("/srd/races", get(routes::srd::get_races))
+        .route("/srd/classes", get(routes::srd::get_classes))
+        .route("/srd/backgrounds", get(routes::srd::get_backgrounds))
+        .route("/srd/spells", get(routes::srd::get_spells))
+        .route("/srd/equipment", get(routes::srd::get_equipment))
+        .route("/srd/feats", get(routes::srd::get_feats))
+        .route(
+            "/srd/weapon-properties",
+            get(routes::srd::get_weapon_properties),
+        )
         .route(
             "/sessions/{session_id}/messages",
             get(routes::messages::list_messages),
