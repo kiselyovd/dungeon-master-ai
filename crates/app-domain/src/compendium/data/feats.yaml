@@ -1,0 +1,34 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Feats
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from Open5e v2 (https://api.open5e.com/) with `document__key__in=srd-2014`.
+#
+# _note: SRD 5.1 only includes the Grappler feat. The familiar 5e feats (Alert,
+#        Great Weapon Master, Sharpshooter, Lucky, etc.) are NOT in SRD 5.1 - they
+#        come from the full PHB or Tasha's, which are proprietary WotC content
+#        outside CC-BY-4.0. Stand-alone "feats" YAML therefore intentionally has
+#        only one entry. Expanding this list requires Open5e SRD 2024 (5.2) data
+#        which extends feats coverage, but that's a separate dataset.
+
+feats:
+  - id: grappler
+    name_en: Grappler
+    name_ru: Борец
+    prerequisites:
+      - type: ability_score
+        ability: str
+        minimum: 13
+    asi_grants: []
+    effects_en:
+      - "You have advantage on attack rolls against a creature you are grappling."
+      - "You can use your action to try to pin a creature grappled by you. To do so, make another grapple check. If you succeed, you and the creature are both restrained until the grapple ends."
+    effects_ru:
+      - "Вы совершаете с преимуществом броски атак по существам, схваченным вами."
+      - "Вы можете действием попытаться обездвижить существо, схваченное вами. Для этого совершите ещё одну проверку захвата. В случае успеха вы и это существо становитесь обездвиженными, пока захват не закончится."
+    mechanical_hooks:
+      advantage_against_grappled: true
+      pin_action: true
+    source_url: https://5thsrd.org/character/feats/grappler/
+    srd_section: "SRD 5.1 §Feats / Grappler"

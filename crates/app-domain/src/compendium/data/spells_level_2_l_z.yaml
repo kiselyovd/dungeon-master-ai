@@ -1,0 +1,647 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Spells level 2 (L-Z half)
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from Open5e v2 with `document__key__in=srd-2014`.
+# Pair file: spells_level_2_a_k.yaml.
+#
+# Note: description_en / description_ru contain paraphrased mechanical summaries
+# rather than verbatim SRD prose; consult source_url for the full official text.
+
+spells:
+  - id: lesser-restoration
+    name_en: Lesser Restoration
+    name_ru: Малое восстановление
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid, paladin, ranger]
+    description_en: |
+      You touch a creature and end one disease or one condition afflicting it: blinded, deafened, paralyzed, or poisoned.
+    description_ru: |
+      Вы касаетесь существа и оканчиваете одну болезнь или одно состояние, действующее на него: ослеплён, оглохший, парализован или отравлен.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/lesser_restoration/
+    srd_section: "SRD 5.1 §Spells / Lesser Restoration"
+
+  - id: levitate
+    name_en: Levitate
+    name_ru: Левитация
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a small leather loop or a piece of golden wire bent into a cup shape with a long shank on one end" }
+    duration: "Concentration, up to 10 minutes"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, wizard]
+    description_en: |
+      One willing creature or loose object of your choice (up to 500 pounds) rises vertically up to 20 feet and stays suspended for the duration. An unwilling creature that succeeds on a Constitution saving throw is unaffected. On your turn you can move the target up to 20 feet vertically.
+    description_ru: |
+      Одно согласное существо или несвязанный предмет на ваш выбор (до 500 фунтов) поднимается вертикально на расстояние до 20 футов и остаётся подвешенным на время действия. Несогласное существо, преуспевшее в спасброске Телосложения, не подвергается эффекту. В свой ход вы можете перемещать цель по вертикали на расстояние до 20 футов.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: con, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/levitate/
+    srd_section: "SRD 5.1 §Spells / Levitate"
+
+  - id: locate-animals-or-plants
+    name_en: Locate Animals or Plants
+    name_ru: Поиск животных и растений
+    level: 2
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "a bit of fur from a bloodhound" }
+    duration: "Instantaneous"
+    ritual: true
+    concentration: false
+    classes: [bard, druid, ranger]
+    description_en: |
+      Describe or name a specific kind of beast or plant. Concentrating on the voice of nature, you learn the direction and distance to the closest creature or plant of that kind within 5 miles, if any are present.
+    description_ru: |
+      Опишите или назовите определённый вид зверя или растения. Сосредоточившись на голосе природы, вы узнаёте направление и расстояние до ближайшего существа или растения такого вида в пределах 5 миль, если таковые есть.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/locate_animals_or_plants/
+    srd_section: "SRD 5.1 §Spells / Locate Animals or Plants"
+
+  - id: locate-object
+    name_en: Locate Object
+    name_ru: Поиск предмета
+    level: 2
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "a forked twig" }
+    duration: "Concentration, up to 10 minutes"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric, druid, paladin, ranger, wizard]
+    description_en: |
+      Describe or name an object that is familiar to you. You sense the direction to the object's location, as long as it is within 1,000 feet. If the object is in motion, you know the direction of its movement. The spell can locate a specific object only if you have seen it up close.
+    description_ru: |
+      Опишите или назовите знакомый вам предмет. Вы чувствуете направление к местонахождению предмета, если он находится в пределах 1 000 футов. Если предмет в движении, вы знаете направление его движения. Заклинание может найти конкретный предмет, только если вы видели его вблизи.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/locate_object/
+    srd_section: "SRD 5.1 §Spells / Locate Object"
+
+  - id: magic-mouth
+    name_en: Magic Mouth
+    name_ru: Магические уста
+    level: 2
+    school: illusion
+    casting_time: "1 minute"
+    range_ft: 30
+    components: { v: true, s: true, m: "a small bit of honeycomb and jade dust worth at least 10 gp, which the spell consumes" }
+    duration: "Until dispelled"
+    ritual: true
+    concentration: false
+    classes: [bard, wizard]
+    description_en: |
+      You implant a message within an object in range. The message is spoken when a triggering condition you specify occurs. Choose an object visible to you that isn't being worn or carried by another creature. Then speak the message, which can be no more than 25 words long. Finally, determine the circumstance that will trigger the spell to deliver your message.
+    description_ru: |
+      Вы внедряете послание в предмет в пределах дистанции. Послание произносится, когда происходит указанное вами условие срабатывания. Выберите предмет, видимый вам и не носимый и не несомый другим существом. Затем произнесите послание длиной не более 25 слов. Наконец, определите обстоятельство, которое заставит заклинание произнести ваше послание.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/magic_mouth/
+    srd_section: "SRD 5.1 §Spells / Magic Mouth"
+
+  - id: magic-weapon
+    name_en: Magic Weapon
+    name_ru: Магическое оружие
+    level: 2
+    school: transmutation
+    casting_time: "1 bonus action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin, wizard]
+    description_en: |
+      You touch a nonmagical weapon. Until the spell ends, that weapon becomes a magic weapon with a +1 bonus to attack rolls and damage rolls.
+    description_ru: |
+      Вы касаетесь немагического оружия. Пока заклинание активно, это оружие становится магическим с бонусом +1 к броскам атаки и урона.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 4th level or higher, the bonus increases to +2. When you use a spell slot of 6th level or higher, the bonus increases to +3."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 4-го уровня или выше, бонус увеличивается до +2. При использовании ячейки 6-го уровня или выше бонус увеличивается до +3."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/magic_weapon/
+    srd_section: "SRD 5.1 §Spells / Magic Weapon"
+
+  - id: mirror-image
+    name_en: Mirror Image
+    name_ru: Зеркальный образ
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, warlock, wizard]
+    description_en: |
+      Three illusory duplicates of yourself appear in your space. Until the spell ends, the duplicates move with you and mimic your actions, shifting position so it is impossible to track which image is real. Each time a creature targets you with an attack during the spell's duration, roll a d20 to determine whether the attack instead targets one of your duplicates. With three duplicates, a roll of 6 or higher targets a duplicate; with two, 8 or higher; with one, 11 or higher. A duplicate's AC equals 10 + your Dexterity modifier, and a hit destroys it.
+    description_ru: |
+      Три иллюзорных дубликата вас появляются в вашем пространстве. Пока заклинание активно, дубликаты двигаются вместе с вами и подражают вашим действиям, меняясь местами, так что отследить, какой образ настоящий, невозможно. Каждый раз, когда существо нацеливается на вас атакой во время действия заклинания, бросьте d20, чтобы определить, не нацелится ли атака на одного из ваших дубликатов. При трёх дубликатах атака попадает в дубликат при результате 6 и выше, при двух - 8 и выше, при одном - 11 и выше. КД дубликата равен 10 + ваш модификатор Ловкости, и попадание уничтожает его.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/mirror_image/
+    srd_section: "SRD 5.1 §Spells / Mirror Image"
+
+  - id: misty-step
+    name_en: Misty Step
+    name_ru: Туманный шаг
+    level: 2
+    school: conjuration
+    casting_time: "1 bonus action"
+    range_ft: "Self"
+    components: { v: true, s: false, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, warlock, wizard]
+    description_en: |
+      Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see.
+    description_ru: |
+      Окружённые на короткое мгновение серебристым туманом, вы телепортируетесь на расстояние до 30 футов в свободное пространство, которое можете видеть.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/misty_step/
+    srd_section: "SRD 5.1 §Spells / Misty Step"
+
+  - id: moonbeam
+    name_en: Moonbeam
+    name_ru: Лунный луч
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: "several seeds of any moonseed plant and a piece of opalescent feldspar" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [druid]
+    description_en: |
+      A silvery beam of pale light shines down in a 5-foot-radius, 40-foot-high cylinder centered on a point within range. Until the spell ends, dim light fills the cylinder. When a creature enters the spell's area for the first time on a turn or starts its turn there, it is engulfed in ghostly flames that cause searing pain, and it must make a Constitution saving throw. It takes 2d10 radiant damage on a failed save, or half as much on a successful one. On each of your turns after you cast this spell, you can use an action to move the beam up to 60 feet in any direction.
+    description_ru: |
+      Серебристый луч бледного света падает вниз в цилиндре с радиусом 5 футов и высотой 40 футов, центрированном на точке в пределах дистанции. Пока заклинание активно, цилиндр заполнен тусклым светом. Когда существо впервые за ход входит в область заклинания или начинает там свой ход, оно охватывается призрачным пламенем, причиняющим жгучую боль, и должно совершить спасбросок Телосложения. При провале оно получает 2d10 урона излучением, при успехе - половину этого урона. В каждый свой ход после накладывания заклинания вы можете действием переместить луч на расстояние до 60 футов в любом направлении.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d10 for each slot level above 2nd."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 3-го уровня или выше, урон увеличивается на 1d10 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "2d10", type: radiant }
+    attack: null
+    save: { ability: con, half_on_success: true }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/moonbeam/
+    srd_section: "SRD 5.1 §Spells / Moonbeam"
+
+  - id: pass-without-trace
+    name_en: Pass without Trace
+    name_ru: Бесследное передвижение
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "ashes from a burned leaf of mistletoe and a sprig of spruce" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [druid, ranger]
+    description_en: |
+      A veil of shadows and silence radiates from you, masking you and your companions from detection. For the duration, each creature you choose within 30 feet of you (including yourself) has a +10 bonus to Dexterity (Stealth) checks and can't be tracked except by magical means. A creature that receives this bonus leaves behind no tracks or other traces of its passage.
+    description_ru: |
+      Завеса теней и тишины исходит от вас, скрывая вас и ваших спутников от обнаружения. На время действия каждое выбранное вами существо в пределах 30 футов от вас (включая вас самих) получает бонус +10 к проверкам Ловкости (Скрытность) и не может быть выслежено иначе, как магическими средствами. Существо, получающее этот бонус, не оставляет следов или иных признаков своего прохождения.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/pass_without_trace/
+    srd_section: "SRD 5.1 §Spells / Pass without Trace"
+
+  - id: phantasmal-force
+    name_en: Phantasmal Force
+    name_ru: Фантомная сила
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a bit of fleece" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, wizard]
+    description_en: |
+      You craft an illusion that takes root in the mind of a creature that you can see within range. The target must make an Intelligence saving throw. On a failed save, you create a phantasmal object, creature, or other visible phenomenon of your choice that is no larger than a 10-foot cube and that is perceivable only to the target for the duration. While the target is affected, it treats the phantasm as real and rationalizes any illogical outcomes. Physical interaction with the phantasm can deal 1d6 psychic damage to the target on each of your turns if the target perceives that it should be dealing damage.
+    description_ru: |
+      Вы создаёте иллюзию, укореняющуюся в разуме существа, видимого вам в пределах дистанции. Цель должна совершить спасбросок Интеллекта. При провале вы создаёте фантомный предмет, существо или иное видимое явление по своему выбору не больше куба со стороной 10 футов, воспринимаемое только целью на время действия заклинания. Пока цель находится под действием, она считает фантом реальным и рационализирует любые нелогичные последствия. Физическое взаимодействие с фантомом может наносить цели 1d6 психического урона в каждый ваш ход, если цель считает, что урон должен быть нанесён.
+    at_higher_levels: null
+    damage: { dice: "1d6", type: psychic }
+    attack: null
+    save: { ability: int, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/phantasmal_force/
+    srd_section: "SRD 5.1 §Spells / Phantasmal Force"
+
+  - id: prayer-of-healing
+    name_en: Prayer of Healing
+    name_ru: Молитва исцеления
+    level: 2
+    school: evocation
+    casting_time: "10 minutes"
+    range_ft: 30
+    components: { v: true, s: false, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric, paladin]
+    description_en: |
+      Up to six creatures of your choice that you can see within range each regain hit points equal to 2d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.
+    description_ru: |
+      До шести существ на ваш выбор, видимых вам в пределах дистанции, восстанавливают хиты в количестве 2d8 + ваш модификатор базовой характеристики заклинаний. Это заклинание не действует на нежить и конструктов.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the healing increases by 1d8 for each slot level above 2nd."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 3-го уровня или выше, исцеление увеличивается на 1d8 за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/prayer_of_healing/
+    srd_section: "SRD 5.1 §Spells / Prayer of Healing"
+
+  - id: protection-from-poison
+    name_en: Protection from Poison
+    name_ru: Защита от яда
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [cleric, druid, paladin, ranger]
+    description_en: |
+      You touch a creature. If it is poisoned, you neutralize the poison. If more than one poison afflicts the target, you neutralize one poison that you know is present, or you neutralize one at random. For the duration, the target has advantage on saving throws against being poisoned, and it has resistance to poison damage.
+    description_ru: |
+      Вы касаетесь существа. Если оно отравлено, вы нейтрализуете яд. Если на цель действует больше одного яда, вы нейтрализуете один яд, о котором знаете, или один случайный. На время действия цель имеет преимущество к спасброскам против отравления и сопротивление к урону ядом.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/protection_from_poison/
+    srd_section: "SRD 5.1 §Spells / Protection from Poison"
+
+  - id: ray-of-enfeeblement
+    name_en: Ray of Enfeeblement
+    name_ru: Луч слабости
+    level: 2
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [warlock, wizard]
+    description_en: |
+      A black beam of enervating energy springs from your finger toward a creature within range. Make a ranged spell attack against the target. On a hit, the target deals only half damage with weapon attacks that use Strength until the spell ends. At the end of each of the target's turns, it can make a Constitution saving throw against the spell. On a success, the spell ends.
+    description_ru: |
+      Чёрный луч изнуряющей энергии вылетает из вашего пальца в существо в пределах дистанции. Совершите дальнобойную атаку заклинанием по цели. При попадании цель наносит только половину урона атаками оружием, использующими Силу, пока заклинание активно. В конце каждого хода цель может совершить спасбросок Телосложения против заклинания. При успехе заклинание оканчивается.
+    at_higher_levels: null
+    damage: null
+    attack: { kind: ranged_spell }
+    save: { ability: con, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/ray_of_enfeeblement/
+    srd_section: "SRD 5.1 §Spells / Ray of Enfeeblement"
+
+  - id: rope-trick
+    name_en: Rope Trick
+    name_ru: Трюк с верёвкой
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "powdered corn extract and a twisted loop of parchment" }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [wizard]
+    description_en: |
+      You touch a length of rope that is up to 60 feet long. One end of the rope then rises into the air until the whole rope hangs perpendicular to the ground. At the upper end of the rope, an invisible entrance opens to an extradimensional space that lasts until the spell ends. The extradimensional space can be reached by climbing to the top of the rope. The space can hold as many as eight Medium or smaller creatures. The rope can be pulled into the space, making it disappear from view outside. Attacks and spells can't cross through the entrance into or out of the extradimensional space, but those inside can see out as if through a 3-foot-by-5-foot window centered on the rope.
+    description_ru: |
+      Вы касаетесь верёвки длиной до 60 футов. Один конец верёвки поднимается в воздух, пока вся верёвка не повиснет перпендикулярно земле. У верхнего конца верёвки открывается невидимый вход в межпространственное пространство, существующее до окончания заклинания. В это пространство можно попасть, забравшись по верёвке. Пространство вмещает до восьми существ размером не больше Среднего. Верёвку можно втянуть внутрь, и тогда она исчезает из виду снаружи. Атаки и заклинания не могут проходить через вход в межпространственное пространство и обратно, но находящиеся внутри могут смотреть наружу, как через окно 3 на 5 футов с центром на верёвке.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/rope_trick/
+    srd_section: "SRD 5.1 §Spells / Rope Trick"
+
+  - id: scorching-ray
+    name_en: Scorching Ray
+    name_ru: Жгучий луч
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: |
+      You create three rays of fire and hurl them at targets within range. You can hurl them at one target or several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 fire damage.
+    description_ru: |
+      Вы создаёте три огненных луча и швыряете их в цели в пределах дистанции. Вы можете направить их в одну или в несколько целей. Совершите дальнобойную атаку заклинанием по каждому лучу. При попадании цель получает 2d6 урона огнём.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, you create one additional ray for each slot level above 2nd."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 3-го уровня или выше, вы создаёте по одному дополнительному лучу за каждый уровень ячейки выше 2-го."
+    damage: { dice: "2d6", type: fire }
+    attack: { kind: ranged_spell }
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/scorching_ray/
+    srd_section: "SRD 5.1 §Spells / Scorching Ray"
+
+  - id: see-invisibility
+    name_en: See Invisibility
+    name_ru: Видение невидимого
+    level: 2
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "a pinch of talc and a small sprinkling of powdered silver" }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, wizard]
+    description_en: |
+      For the duration, you see invisible creatures and objects as if they were visible, and you can see into the Ethereal Plane. Ethereal creatures and objects appear ghostly and translucent.
+    description_ru: |
+      На время действия вы видите невидимых существ и предметы, как если бы они были видимы, и можете видеть Эфирный план. Эфирные существа и предметы кажутся призрачными и полупрозрачными.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/see_invisibility/
+    srd_section: "SRD 5.1 §Spells / See Invisibility"
+
+  - id: shatter
+    name_en: Shatter
+    name_ru: Дробление
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a chip of mica" }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: |
+      A sudden loud ringing noise, painfully intense, erupts from a point of your choice within range. Each creature in a 10-foot-radius sphere centered on that point must make a Constitution saving throw. A creature takes 3d8 thunder damage on a failed save, or half as much on a successful one. A creature made of inorganic material such as stone, crystal, or metal has disadvantage on this saving throw. A nonmagical object that isn't being worn or carried also takes the damage if it's in the spell's area.
+    description_ru: |
+      Из выбранной вами точки в пределах дистанции внезапно раздаётся громкий, мучительно интенсивный звон. Каждое существо в сфере радиусом 10 футов с центром в этой точке должно совершить спасбросок Телосложения. При провале существо получает 3d8 урона звуком, при успехе - половину этого урона. Существо, состоящее из неорганического материала, такого как камень, кристалл или металл, совершает этот спасбросок с помехой. Немагический предмет, который никто не несёт и не носит, также получает урон, если находится в области заклинания.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d8 for each slot level above 2nd."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 3-го уровня или выше, урон увеличивается на 1d8 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "3d8", type: thunder }
+    attack: null
+    save: { ability: con, half_on_success: true }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/shatter/
+    srd_section: "SRD 5.1 §Spells / Shatter"
+
+  - id: silence
+    name_en: Silence
+    name_ru: Тишина
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Concentration, up to 10 minutes"
+    ritual: true
+    concentration: true
+    classes: [bard, cleric, druid, ranger]
+    description_en: |
+      For the duration, no sound can be created within or pass through a 20-foot-radius sphere centered on a point you choose within range. Any creature or object entirely inside the sphere is immune to thunder damage, and creatures are deafened while entirely inside it. Casting a spell that includes a verbal component is impossible there.
+    description_ru: |
+      На время действия в сфере радиусом 20 футов с центром в выбранной вами точке в пределах дистанции не может создаваться и проходить сквозь неё ни один звук. Существа и предметы, целиком находящиеся в сфере, обладают иммунитетом к урону звуком, а существа, целиком находящиеся в ней, оглохшие. Накладывание там заклинаний с вербальным компонентом невозможно.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/silence/
+    srd_section: "SRD 5.1 §Spells / Silence"
+
+  - id: spider-climb
+    name_en: Spider Climb
+    name_ru: Паучье лазание
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "a drop of bitumen and a spider" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, warlock, wizard]
+    description_en: |
+      Until the spell ends, one willing creature you touch gains the ability to move up, down, and across vertical surfaces and upside down along ceilings, while leaving its hands free. The target also gains a climbing speed equal to its walking speed.
+    description_ru: |
+      Пока заклинание активно, одно согласное существо, которого вы касаетесь, получает способность перемещаться вверх, вниз и поперёк вертикальных поверхностей и по потолкам вниз головой, оставляя руки свободными. Цель также получает скорость лазания, равную её скорости ходьбы.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/spider_climb/
+    srd_section: "SRD 5.1 §Spells / Spider Climb"
+
+  - id: spike-growth
+    name_en: Spike Growth
+    name_ru: Шипастый рост
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 150
+    components: { v: true, s: true, m: "seven sharp thorns or seven small twigs, each sharpened to a point" }
+    duration: "Concentration, up to 10 minutes"
+    ritual: false
+    concentration: true
+    classes: [druid, ranger]
+    description_en: |
+      The ground in a 20-foot-radius centered on a point within range twists and sprouts hard spikes and thorns. The area becomes difficult terrain for the duration. When a creature moves into or within the area, it takes 2d4 piercing damage for every 5 feet it travels. The transformation is camouflaged: creatures that can't see the area when the spell is cast must make a Wisdom (Perception) check against your spell save DC to recognize the terrain as hazardous before entering it.
+    description_ru: |
+      Земля в радиусе 20 футов с центром в точке в пределах дистанции искривляется и покрывается твёрдыми шипами и колючками. Область становится труднопроходимой на время действия. Когда существо входит в область или перемещается в ней, оно получает 2d4 колющего урона за каждые 5 футов перемещения. Преображение замаскировано: существа, не видевшие область в момент накладывания заклинания, должны совершить проверку Мудрости (Восприятие) против Сл вашего спасброска заклинаний, чтобы распознать территорию как опасную перед входом в неё.
+    at_higher_levels: null
+    damage: { dice: "2d4", type: piercing }
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/spike_growth/
+    srd_section: "SRD 5.1 §Spells / Spike Growth"
+
+  - id: spiritual-weapon
+    name_en: Spiritual Weapon
+    name_ru: Духовное оружие
+    level: 2
+    school: evocation
+    casting_time: "1 bonus action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: |
+      You create a floating, spectral weapon within range that lasts for the duration or until you cast this spell again. When you cast the spell, you can make a melee spell attack against a creature within 5 feet of the weapon. On a hit, the target takes force damage equal to 1d8 + your spellcasting ability modifier. As a bonus action on your turn, you can move the weapon up to 20 feet and repeat the attack against a creature within 5 feet of it. The weapon can take any form you choose.
+    description_ru: |
+      Вы создаёте парящее призрачное оружие в пределах дистанции, существующее на время действия или пока вы не наложите это заклинание снова. При накладывании заклинания вы можете совершить рукопашную атаку заклинанием по существу в пределах 5 футов от оружия. При попадании цель получает урон силовым полем, равный 1d8 + ваш модификатор базовой характеристики заклинаний. Бонусным действием в свой ход вы можете переместить оружие на расстояние до 20 футов и повторить атаку по существу в пределах 5 футов от него. Оружие может принимать любую форму по вашему выбору.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d8 for every two slot levels above the 2nd."
+      ru: "Когда вы накладываете это заклинание с использованием ячейки 3-го уровня или выше, урон увеличивается на 1d8 за каждые два уровня ячейки выше 2-го."
+    damage: { dice: "1d8", type: force }
+    attack: { kind: melee_spell }
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/spiritual_weapon/
+    srd_section: "SRD 5.1 §Spells / Spiritual Weapon"
+
+  - id: suggestion
+    name_en: Suggestion
+    name_ru: Внушение
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, m: "a snake's tongue and either a bit of honeycomb or a drop of sweet oil", s: false }
+    duration: "Concentration, up to 8 hours"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: |
+      You suggest a course of activity (limited to a sentence or two) and magically influence a creature you can see within range that can hear and understand you. Creatures that can't be charmed are immune to this effect. The suggestion must be worded in such a manner as to make the course of action sound reasonable. The target must make a Wisdom saving throw. On a failed save, it pursues the course of action you described to the best of its ability. The spell ends when the target finishes what you asked it to do.
+    description_ru: |
+      Вы предлагаете курс действий (ограниченный одним-двумя предложениями) и магически влияете на существо, видимое вам в пределах дистанции, которое слышит и понимает вас. Существа, неспособные быть очарованными, обладают иммунитетом к этому эффекту. Внушение должно быть сформулировано так, чтобы предлагаемый курс действий казался разумным. Цель должна совершить спасбросок Мудрости. При провале она следует описанному вами курсу действий насколько может. Заклинание оканчивается, когда цель завершит то, о чём вы её попросили.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: wis, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/suggestion/
+    srd_section: "SRD 5.1 §Spells / Suggestion"
+
+  - id: warding-bond
+    name_en: Warding Bond
+    name_ru: Связь стража
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "a pair of platinum rings worth at least 50 gp each, which you and the target must wear for the duration" }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [cleric, paladin]
+    description_en: |
+      This spell wards a willing creature you touch and creates a mystic connection between you and the target until the spell ends. While the target is within 60 feet of you, it gains a +1 bonus to AC and saving throws, and it has resistance to all damage. Also, each time it takes damage, you take the same amount of damage. The spell ends if you drop to 0 hit points or if you and the target become separated by more than 60 feet.
+    description_ru: |
+      Это заклинание защищает согласное существо, которого вы касаетесь, и создаёт мистическую связь между вами и целью до окончания заклинания. Пока цель находится в пределах 60 футов от вас, она получает бонус +1 к КД и спасброскам и имеет сопротивление ко всем видам урона. Кроме того, каждый раз, когда она получает урон, вы получаете такой же урон. Заклинание оканчивается, если ваши хиты опускаются до 0 или если вас с целью разделяет больше 60 футов.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/warding_bond/
+    srd_section: "SRD 5.1 §Spells / Warding Bond"
+
+  - id: web
+    name_en: Web
+    name_ru: Паутина
+    level: 2
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a bit of spiderweb" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, wizard]
+    description_en: |
+      You conjure a mass of thick, sticky webbing at a point of your choice within range. The webs fill a 20-foot cube from that point for the duration. The webs are difficult terrain and lightly obscure the area. If the webs aren't anchored between two solid masses or layered across a floor, wall, or ceiling, the conjured web collapses on itself, and the spell ends. Webs layered over a flat surface have a depth of 5 feet. Each creature that starts its turn in the webs or that enters them during its turn must make a Dexterity saving throw. On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free. A creature restrained by the webs can use its action to make a Strength check against your spell save DC. If it succeeds, it is no longer restrained. The webs are flammable: any 5-foot cube of webs exposed to fire burns away in 1 round, dealing 2d4 fire damage to any creature that starts its turn in the fire.
+    description_ru: |
+      Вы создаёте массу густой клейкой паутины в выбранной вами точке в пределах дистанции. Паутина заполняет куб со стороной 20 футов от этой точки на время действия. Паутина является труднопроходимой местностью и слегка затрудняет видимость в области. Если паутина не закреплена между двумя твёрдыми массами или не уложена на пол, стену или потолок, призванная паутина обрушается на себя, и заклинание оканчивается. Паутина, уложенная на плоскую поверхность, имеет глубину 5 футов. Каждое существо, начинающее свой ход в паутине или входящее в неё во время своего хода, должно совершить спасбросок Ловкости. При провале существо опутано, пока остаётся в паутине или пока не освободится. Опутанное паутиной существо может действием совершить проверку Силы против Сл вашего спасброска заклинаний. При успехе оно перестаёт быть опутанным. Паутина горюча: любой куб паутины со стороной 5 футов, подвергнутый огню, сгорает за 1 раунд, нанося 2d4 урона огнём любому существу, начинающему свой ход в огне.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: dex, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/web/
+    srd_section: "SRD 5.1 §Spells / Web"
+
+  - id: zone-of-truth
+    name_en: Zone of Truth
+    name_ru: Зона истины
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, paladin]
+    description_en: |
+      You create a magical zone that guards against deception in a 15-foot-radius sphere centered on a point of your choice within range. Until the spell ends, a creature that enters the spell's area for the first time on a turn or starts its turn there must make a Charisma saving throw. On a failed save, the creature can't speak a deliberate lie while in the radius. You know whether each creature succeeds or fails on its saving throw. An affected creature is aware of the spell and can therefore avoid answering questions to which it would normally respond with a lie. Such a creature can be evasive in its answers as long as it remains within the boundaries of the truth.
+    description_ru: |
+      Вы создаёте магическую зону, защищающую от обмана, в сфере радиусом 15 футов с центром в выбранной вами точке в пределах дистанции. Пока заклинание активно, существо, впервые за ход входящее в область заклинания или начинающее там свой ход, должно совершить спасбросок Харизмы. При провале существо не может произнести намеренную ложь, пока находится в радиусе. Вы знаете, преуспело ли каждое существо в своём спасброске или провалило его. Затронутое существо осознаёт действие заклинания и поэтому может уклоняться от ответов на вопросы, на которые в обычной ситуации ответило бы ложью. Такое существо может давать уклончивые ответы, пока остаётся в пределах правды.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: cha, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/zone_of_truth/
+    srd_section: "SRD 5.1 §Spells / Zone of Truth"

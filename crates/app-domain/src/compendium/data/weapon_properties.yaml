@@ -1,0 +1,81 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Weapon properties dictionary
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from dnd5eapi.co (https://www.dnd5eapi.co/api/2014/weapon-properties)
+# cross-checked against the SRD 5.1 PDF (https://media.wizards.com/2023/downloads/dnd/SRD_CC_v5.1.pdf).
+# See also: equipment.yaml for the items that reference these property ids.
+
+weapon_properties:
+  - id: ammunition
+    name_en: Ammunition
+    name_ru: Боеприпасы
+    description_en: "You can use a weapon that has the ammunition property to make a ranged attack only if you have ammunition to fire from the weapon. Each time you attack with the weapon, you expend one piece of ammunition. Drawing the ammunition from a quiver, case, or other container is part of the attack (you need a free hand to load a one-handed weapon). At the end of the battle, you can recover half your expended ammunition by taking a minute to search the battlefield. If you use a weapon that has the ammunition property to make a melee attack, you treat the weapon as an improvised weapon. A sling must be loaded to deal any damage with it."
+    description_ru: "Вы можете использовать оружие со свойством «Боеприпасы» для совершения дальнобойной атаки только если у вас есть боеприпасы, которыми можно стрелять из этого оружия. Каждая совершённая атака этим оружием расходует один боеприпас. Извлечение боеприпаса из колчана, чехла или иного контейнера является частью атаки (для зарядки одноручного оружия требуется свободная рука). По окончании сражения вы можете восстановить половину истраченных боеприпасов, потратив минуту на поиск на поле боя. Если вы используете оружие со свойством «Боеприпасы» для совершения рукопашной атаки, оно считается импровизированным оружием. Праща должна быть заряжена, чтобы нанести какой-либо урон."
+
+  - id: finesse
+    name_en: Finesse
+    name_ru: Фехтовальное
+    description_en: "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+    description_ru: "При совершении атаки фехтовальным оружием вы по своему выбору используете модификатор Силы или Ловкости для бросков атаки и урона. Для обоих бросков нужно использовать один и тот же модификатор."
+
+  - id: heavy
+    name_en: Heavy
+    name_ru: Тяжёлое
+    description_en: "Small creatures have disadvantage on attack rolls with heavy weapons. A heavy weapon's size and bulk make it too large for a Small creature to use effectively."
+    description_ru: "Маленькие существа совершают броски атаки тяжёлым оружием с помехой. Размер и вес тяжёлого оружия делают его слишком громоздким для эффективного использования Маленькими существами."
+
+  - id: light
+    name_en: Light
+    name_ru: Лёгкое
+    description_en: "A light weapon is small and easy to handle, making it ideal for use when fighting with two weapons."
+    description_ru: "Лёгкое оружие маленькое и удобное в обращении, что делает его идеальным для сражения двумя оружиями."
+
+  - id: loading
+    name_en: Loading
+    name_ru: Перезарядка
+    description_en: "Because of the time required to load this weapon, you can fire only one piece of ammunition from it when you use an action, bonus action, or reaction to fire it, regardless of the number of attacks you can normally make."
+    description_ru: "Из-за времени, необходимого для перезарядки этого оружия, вы можете выстрелить из него только одним боеприпасом за действие, бонусное действие или реакцию, независимо от того, сколько атак вы обычно можете совершить."
+
+  - id: range
+    name_en: Range
+    name_ru: Дистанция
+    description_en: "A weapon that can be used to make a ranged attack has a range in parentheses after the ammunition or thrown property. The range lists two numbers. The first is the weapon's normal range in feet, and the second indicates the weapon's long range. When attacking a target beyond normal range, you have disadvantage on the attack roll. You can't attack a target beyond the weapon's long range."
+    description_ru: "У оружия, которым можно совершать дальнобойные атаки, в скобках после свойства «Боеприпасы» или «Метательное» указана дистанция. Дистанция состоит из двух чисел. Первое - нормальная дистанция оружия в футах, второе - максимальная дистанция. При атаке цели за пределами нормальной дистанции вы совершаете бросок атаки с помехой. Вы не можете атаковать цели за пределами максимальной дистанции."
+
+  - id: reach
+    name_en: Reach
+    name_ru: Досягаемость
+    description_en: "This weapon adds 5 feet to your reach when you attack with it, as well as when determining your reach for opportunity attacks with it."
+    description_ru: "Это оружие добавляет 5 футов к вашей досягаемости при атаке им, а также при определении досягаемости для провоцированных атак этим оружием."
+
+  - id: special
+    name_en: Special
+    name_ru: Особое
+    description_en: "A weapon with the special property has unusual rules governing its use, explained in the weapon's description (see Special Weapons)."
+    description_ru: "Оружие со свойством «Особое» обладает необычными правилами использования, которые описаны в описании самого оружия (см. раздел «Особое оружие»)."
+
+  - id: thrown
+    name_en: Thrown
+    name_ru: Метательное
+    description_en: "If a weapon has the thrown property, you can throw the weapon to make a ranged attack. If the weapon is a melee weapon, you use the same ability modifier for that attack roll and damage roll that you would use for a melee attack with the weapon. For example, if you throw a handaxe, you use your Strength, but if you throw a dagger, you can use either your Strength or your Dexterity, since the dagger has the finesse property."
+    description_ru: "Если у оружия есть свойство «Метательное», вы можете бросить его, чтобы совершить дальнобойную атаку. Если это оружие ближнего боя, для бросков атаки и урона используется тот же модификатор характеристики, что и при рукопашной атаке этим оружием. Например, при метании ручного топора вы используете Силу, но при метании кинжала можете использовать либо Силу, либо Ловкость, так как у кинжала есть свойство «Фехтовальное»."
+
+  - id: two-handed
+    name_en: Two-Handed
+    name_ru: Двуручное
+    description_en: "This weapon requires two hands when you attack with it."
+    description_ru: "Это оружие при атаке нужно держать двумя руками."
+
+  - id: versatile
+    name_en: Versatile
+    name_ru: Универсальное
+    description_en: "This weapon can be used with one or two hands. A damage value in parentheses appears with the property-the damage when the weapon is used with two hands to make a melee attack."
+    description_ru: "Это оружие можно использовать как одной, так и двумя руками. Значение урона в скобках указано рядом со свойством - это урон при использовании оружия двумя руками для рукопашной атаки."
+
+  - id: silvered
+    name_en: Silvered
+    name_ru: Посеребрённое
+    description_en: "Some monsters that have immunity or resistance to nonmagical weapons are susceptible to silver weapons, so cautious adventurers invest extra coin to plate their weapons with silver. You can silver a single weapon or ten pieces of ammunition for 100 gp. This cost represents not only the price of the silver, but the time and expertise needed to add silver to the weapon without making it less effective."
+    description_ru: "Некоторые монстры, обладающие иммунитетом или сопротивлением к немагическому оружию, уязвимы к серебряному оружию, поэтому осторожные искатели приключений вкладывают дополнительные средства, чтобы покрыть оружие серебром. Покрытие серебром одного оружия или десяти боеприпасов стоит 100 зм. Эта стоимость включает не только цену серебра, но также время и мастерство, необходимые для серебрения оружия без потери его эффективности."

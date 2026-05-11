@@ -1,0 +1,796 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Spells level 2 (A-K half)
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from Open5e v2 (https://api.open5e.com/) with `document__key__in=srd-2014`.
+# Pair file: spells_level_2_l_z.yaml.
+
+spells:
+  - id: acid-arrow
+    name_en: Acid Arrow
+    name_ru: Кислотная стрела
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 90
+    components: { v: true, s: true, m: "powdered rhubarb leaf and an adder's stomach" }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [wizard]
+    description_en: |
+      A shimmering green arrow streaks toward a target within range and bursts in a spray of acid. Make a ranged spell attack against the target. On a hit, the target takes 4d4 acid damage immediately and 2d4 acid damage at the end of its next turn. On a miss, the arrow splashes the target with acid for half as much of the initial damage and no damage at the end of its next turn.
+    description_ru: |
+      Мерцающая зелёная стрела устремляется к цели в пределах дистанции и взрывается брызгами кислоты. Совершите дальнобойную атаку заклинанием по цели. При попадании цель немедленно получает 4к4 урона кислотой и ещё 2к4 урона кислотой в конце своего следующего хода. При промахе стрела обдаёт цель кислотой, нанося половину начального урона, и не наносит урона в конце следующего хода цели.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage (both initial and later) increases by 1d4 for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, урон (как начальный, так и последующий) увеличивается на 1к4 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "4d4", type: acid }
+    attack: { kind: ranged_spell }
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/acid_arrow/
+    srd_section: "SRD 5.1 §Spells / Acid Arrow"
+
+  - id: aid
+    name_en: Aid
+    name_ru: Помощь
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "a tiny strip of white cloth" }
+    duration: "8 hours"
+    ritual: false
+    concentration: false
+    classes: [cleric, paladin]
+    description_en: |
+      Your spell bolsters your allies with toughness and resolve. Choose up to three creatures within range. Each target's hit point maximum and current hit points increase by 5 for the duration.
+    description_ru: |
+      Ваше заклинание укрепляет ваших союзников выносливостью и решимостью. Выберите до трёх существ в пределах дистанции. Максимум хитов и текущее количество хитов каждой цели увеличиваются на 5 на время действия заклинания.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, a target's hit points increase by an additional 5 for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, максимум хитов целей увеличивается ещё на 5 за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/aid/
+    srd_section: "SRD 5.1 §Spells / Aid"
+
+  - id: alter-self
+    name_en: Alter Self
+    name_ru: Изменение облика
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, wizard]
+    description_en: |
+      You assume a different form. When you cast the spell, choose one of the following options, the effects of which last for the duration of the spell. While the spell lasts, you can end one option as an action to gain the benefits of a different one.
+
+      **Aquatic Adaptation.** You adapt your body to an aquatic environment, sprouting gills and growing webbing between your fingers. You can breathe underwater and gain a swimming speed equal to your walking speed.
+
+      **Change Appearance.** You transform your appearance. You decide what you look like, including your height, weight, facial features, sound of your voice, hair length, coloration, and distinguishing characteristics, if any. You can make yourself appear as a member of another race, though none of your statistics change. You also can't appear as a creature of a different size than you, and your basic shape stays the same; if you're bipedal, you can't use this spell to become quadrupedal, for instance. At any time for the duration of the spell, you can use your action to change your appearance in this way again.
+
+      **Natural Weapons.** You grow claws, fangs, spines, horns, or a different natural weapon of your choice. Your unarmed strikes deal 1d6 bludgeoning, piercing, or slashing damage, as appropriate to the natural weapon you chose, and you are proficient with your unarmed strikes. Finally, the natural weapon is magic and you have a +1 bonus to the attack and damage rolls you make using it.
+    description_ru: |
+      Вы принимаете другой облик. При накладывании этого заклинания выберите один из следующих вариантов, эффект которого действует на протяжении заклинания. Пока действует заклинание, вы можете действием прекратить один эффект и получить выгоду другого.
+
+      **Водная адаптация.** Вы приспосабливаете тело к водной среде, отращиваете жабры и перепонки между пальцами. Вы можете дышать под водой и получаете скорость плавания, равную вашей скорости ходьбы.
+
+      **Изменение внешности.** Вы меняете свою внешность. Вы решаете, как будете выглядеть, включая рост, вес, черты лица, тембр голоса, длину волос, цвет и отличительные особенности, если таковые имеются. Вы можете заставить себя выглядеть представителем другой расы, хотя характеристики не меняются. Вы также не можете выглядеть существом другого размера, а основная форма остаётся той же: если вы двуногий, заклинание не сделает вас четвероногим. В любое время в течение действия заклинания вы можете действием снова изменить свою внешность подобным образом.
+
+      **Природное оружие.** У вас вырастают когти, клыки, шипы, рога или иное природное оружие по вашему выбору. Ваши безоружные удары наносят 1к6 урона дробящего, колющего или рубящего типа, в зависимости от выбранного природного оружия, и вы владеете своими безоружными ударами. Наконец, природное оружие магическое, и вы получаете бонус +1 к броскам атаки и урона им.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/alter_self/
+    srd_section: "SRD 5.1 §Spells / Alter Self"
+
+  - id: animal-messenger
+    name_en: Animal Messenger
+    name_ru: Звериный посланник
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "a morsel of food" }
+    duration: "24 hours"
+    ritual: true
+    concentration: false
+    classes: [bard, druid, ranger]
+    description_en: |
+      By means of this spell, you use an animal to deliver a message. Choose a Tiny beast you can see within range, such as a squirrel, a blue jay, or a bat. You specify a location, which you must have visited, and a recipient who matches a general description, such as "a man or woman dressed in the uniform of the town guard" or "a red-haired dwarf wearing a pointed hat." You also speak a message of up to twenty-five words. The target beast travels for the duration of the spell toward the specified location, covering about 50 miles per 24 hours for a flying messenger, or 25 miles for other animals.
+
+      When the messenger arrives, it delivers your message to the creature that you described, replicating the sound of your voice. The messenger speaks only to a creature matching the description you gave. If the messenger doesn't reach its destination before the spell ends, the message is lost, and the beast makes its way back to where you cast this spell.
+    description_ru: |
+      Посредством этого заклинания вы используете животное для доставки послания. Выберите Крошечного зверя в пределах дистанции, которого вы видите, например белку, сойку или летучую мышь. Вы указываете место, в котором вы когда-либо были, и получателя, подходящего под общее описание, например "мужчина или женщина в форме городской стражи" или "рыжебородый дварф в остроконечной шляпе". Вы также произносите послание длиной до двадцати пяти слов. Целевой зверь движется в течение действия заклинания к указанному месту, преодолевая около 50 миль за 24 часа для летающего посланника или 25 миль для прочих животных.
+
+      По прибытии посланник доставляет ваше послание существу, подходящему под описание, воспроизводя звук вашего голоса. Посланник заговорит только с существом, подходящим под данное вами описание. Если посланник не доберётся до места назначения до окончания заклинания, послание теряется, а зверь возвращается туда, где вы наложили это заклинание.
+    at_higher_levels:
+      en: "If you cast this spell using a spell slot of 3rd level or higher, the duration of the spell increases by 48 hours for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, длительность заклинания увеличивается на 48 часов за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/animal_messenger/
+    srd_section: "SRD 5.1 §Spells / Animal Messenger"
+
+  - id: arcane-lock
+    name_en: Arcane Lock
+    name_ru: Магический замок
+    level: 2
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "gold dust worth at least 25 gp, which the spell consumes" }
+    duration: "Until dispelled"
+    ritual: false
+    concentration: false
+    classes: [wizard]
+    description_en: |
+      You touch a closed door, window, gate, chest, or other entryway, and it becomes locked for the duration. You and the creatures you designate when you cast this spell can open the object normally. You can also set a password that, when spoken within 5 feet of the object, suppresses this spell for 1 minute. Otherwise, it is impassable until it is broken or the spell is dispelled or suppressed. Casting knock on the object suppresses arcane lock for 10 minutes. While affected by this spell, the object is more difficult to break or force open; the DC to break it or pick any locks on it increases by 10.
+    description_ru: |
+      Вы прикасаетесь к закрытой двери, окну, воротам, сундуку или иному проходу, и они становятся запертыми на время действия заклинания. Вы и существа, указанные вами при наложении заклинания, можете открывать предмет как обычно. Вы также можете установить пароль, который при произнесении в пределах 5 футов от предмета подавляет это заклинание на 1 минуту. В остальных случаях предмет непроходим, пока не будет сломан, либо заклинание не будет рассеяно или подавлено. Накладывание стука на предмет подавляет магический замок на 10 минут. На время действия заклинания предмет становится труднее сломать или взломать: Сл проверок для этого увеличивается на 10.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/arcane_lock/
+    srd_section: "SRD 5.1 §Spells / Arcane Lock"
+
+  - id: arcanists-magic-aura
+    name_en: Arcanist's Magic Aura
+    name_ru: Магическая аура чародея
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "a small square of silk" }
+    duration: "24 hours"
+    ritual: false
+    concentration: false
+    classes: [wizard]
+    description_en: |
+      You place an illusion on a creature or an object you touch so that divination spells reveal false information about it. The target can be a willing creature or an object that isn't being carried or worn by another creature. When you cast the spell, choose one or both of the following effects. The effect lasts for the duration. If you cast this spell on the same creature or object every day for 30 days, placing the same effect on it each time, the illusion lasts until it is dispelled.
+
+      **False Aura.** You change the way the target appears to spells and magical effects, such as detect magic, that detect magical auras. You can make a nonmagical object appear magical, a magical object appear nonmagical, or change the object's magical aura so that it appears to belong to a specific school of magic that you choose. When you use this effect on an object, you can make the false magic apparent to any creature that handles the item.
+
+      **Mask.** You change the way the target appears to spells and magical effects that detect creature types, such as a paladin's Divine Sense or the trigger of a symbol spell. You choose a creature type and other spells and magical effects treat the target as if it were a creature of that type or of that alignment.
+    description_ru: |
+      Вы помещаете иллюзию на существо или предмет, которого касаетесь, так что заклинания школы Прорицания дают о нём ложные сведения. Целью может быть согласное существо или предмет, который не носится и не находится у другого существа. При накладывании заклинания выберите один или оба следующих эффекта. Эффект длится в течение действия заклинания. Если вы накладываете это заклинание на одно и то же существо или предмет ежедневно в течение 30 дней, помещая на него один и тот же эффект, иллюзия длится до рассеяния.
+
+      **Ложная аура.** Вы меняете то, как цель воспринимается заклинаниями и магическими эффектами, такими как обнаружение магии, которые обнаруживают магические ауры. Вы можете сделать немагический предмет магическим, магический немагическим, либо изменить магическую ауру предмета так, чтобы она казалась принадлежащей к выбранной вами школе магии. Применяя этот эффект к предмету, вы можете сделать ложную магию очевидной для любого существа, прикасающегося к нему.
+
+      **Маска.** Вы меняете то, как цель воспринимается заклинаниями и магическими эффектами, обнаруживающими типы существ, например Божественным чутьём паладина или активацией заклинания «Символ». Вы выбираете тип существа, и прочие заклинания и магические эффекты обращаются с целью как с существом этого типа или мировоззрения.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/arcanists_magic_aura/
+    srd_section: "SRD 5.1 §Spells / Arcanist's Magic Aura"
+
+  - id: augury
+    name_en: Augury
+    name_ru: Авгурия
+    level: 2
+    school: divination
+    casting_time: "1 minute"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "specially marked sticks, bones, or similar tokens worth at least 25 gp" }
+    duration: "Instantaneous"
+    ritual: true
+    concentration: false
+    classes: [cleric]
+    description_en: |
+      By casting gem-inlaid sticks, rolling dragon bones, laying out ornate cards, or employing some other divining tool, you receive an omen from an otherworldly entity about the results of a specific course of action that you plan to take within the next 30 minutes. The DM chooses from the following possible omens:
+
+      - Weal, for good results
+      - Woe, for bad results
+      - Weal and woe, for both good and bad results
+      - Nothing, for results that aren't especially good or bad
+
+      The spell doesn't take into account any possible circumstances that might change the outcome, such as the casting of additional spells or the loss or gain of a companion. If you cast the spell two or more times before completing your next long rest, there is a cumulative 25 percent chance for each casting after the first that you get a random reading. The DM makes this roll in secret.
+    description_ru: |
+      Кидая палочки с самоцветами, бросая драконьи кости, раскладывая узорчатые карты или используя иной гадальный инструмент, вы получаете от потусторонней сущности знамение об итогах определённого действия, которое планируете совершить в течение ближайших 30 минут. Мастер выбирает из следующих возможных знамений:
+
+      - Благо - для хороших результатов;
+      - Горе - для плохих результатов;
+      - Благо и горе - для и хороших, и плохих результатов;
+      - Ничего - для результатов, которые не особенно хороши или плохи.
+
+      Заклинание не учитывает обстоятельств, которые могут изменить итог, например наложения дополнительных заклинаний или потери либо обретения союзника. Если вы накладываете заклинание два или более раз до завершения следующего длительного отдыха, появляется кумулятивный шанс 25 процентов за каждое наложение после первого, что вы получите случайное знамение. Мастер делает этот бросок втайне.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/augury/
+    srd_section: "SRD 5.1 §Spells / Augury"
+
+  - id: barkskin
+    name_en: Barkskin
+    name_ru: Кора
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "a handful of oak bark" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [druid, ranger]
+    description_en: |
+      You touch a willing creature. Until the spell ends, the target's skin has a rough, bark-like appearance, and the target's AC can't be less than 16, regardless of what kind of armor it is wearing.
+    description_ru: |
+      Вы касаетесь согласного существа. Пока заклинание не закончится, кожа цели становится грубой, похожей на кору, и КД цели не может быть меньше 16, вне зависимости от того, какой доспех она носит.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/barkskin/
+    srd_section: "SRD 5.1 §Spells / Barkskin"
+
+  - id: blindness-deafness
+    name_en: Blindness/Deafness
+    name_ru: Слепота/Глухота
+    level: 2
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: false, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, sorcerer, wizard]
+    description_en: |
+      You can blind or deafen a foe. Choose one creature that you can see within range to make a Constitution saving throw. If it fails, the target is either blinded or deafened (your choice) for the duration. At the end of each of its turns, the target can make a Constitution saving throw. On a success, the spell ends.
+    description_ru: |
+      Вы можете ослепить или оглушить врага. Выберите одно существо в пределах дистанции, которое вы видите, чтобы оно совершило спасбросок Телосложения. При провале цель становится либо ослеплённой, либо оглушённой (на ваш выбор) на время действия заклинания. В конце каждого своего хода цель может повторять спасбросок Телосложения. При успехе заклинание оканчивается.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, вы можете нацелиться на одно дополнительное существо за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: { ability: con, half_on_success: false }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/blindness_deafness/
+    srd_section: "SRD 5.1 §Spells / Blindness/Deafness"
+
+  - id: blur
+    name_en: Blur
+    name_ru: Размытый облик
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: false, m: null }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, wizard]
+    description_en: |
+      Your body becomes blurred, shifting and wavering to all who can see you. For the duration, any creature has disadvantage on attack rolls against you. An attacker is immune to this effect if it doesn't rely on sight, as with blindsight, or can see through illusions, as with truesight.
+    description_ru: |
+      Ваше тело становится размытым, колеблющимся и зыбким для всех, кто вас видит. На время действия заклинания любое существо совершает с помехой броски атак по вам. Атакующий не подвержен этому эффекту, если он не полагается на зрение, как при слепом зрении, либо видит сквозь иллюзии, как при истинном зрении.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/blur/
+    srd_section: "SRD 5.1 §Spells / Blur"
+
+  - id: branding-smite
+    name_en: Branding Smite
+    name_ru: Клеймящая кара
+    level: 2
+    school: evocation
+    casting_time: "1 bonus action"
+    range_ft: "Self"
+    components: { v: true, s: false, m: null }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [paladin]
+    description_en: |
+      The next time you hit a creature with a weapon attack before this spell ends, the weapon gleams with astral radiance as you strike. The attack deals an extra 2d6 radiant damage to the target, which becomes visible if it's invisible, and the target sheds dim light in a 5-foot radius and can't become invisible until the spell ends.
+    description_ru: |
+      В следующий раз, когда вы попадёте по существу атакой оружием до окончания заклинания, оружие при ударе вспыхивает астральным сиянием. Атака наносит цели дополнительные 2к6 урона излучением, цель становится видимой, если была невидимой, испускает тусклый свет в радиусе 5 футов и не может стать невидимой, пока заклинание не закончится.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the extra damage increases by 1d6 for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, дополнительный урон увеличивается на 1к6 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "2d6", type: radiant }
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/branding_smite/
+    srd_section: "SRD 5.1 §Spells / Branding Smite"
+
+  - id: calm-emotions
+    name_en: Calm Emotions
+    name_ru: Успокоение эмоций
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric]
+    description_en: |
+      You attempt to suppress strong emotions in a group of people. Each humanoid in a 20-foot-radius sphere centered on a point you choose within range must make a Charisma saving throw; a creature can choose to fail this saving throw if it wishes. If a creature fails its saving throw, choose one of the following two effects. You can suppress any effect causing a target to be charmed or frightened. When this spell ends, any suppressed effect resumes, provided that its duration has not expired in the meantime. Alternatively, you can make a target indifferent about creatures of your choice that it is hostile toward. This indifference ends if the target is attacked or harmed by a spell or if it witnesses any of its friends being harmed. When the spell ends, the creature becomes hostile again, unless the DM rules otherwise.
+    description_ru: |
+      Вы пытаетесь подавить сильные эмоции в группе людей. Каждый гуманоид в сфере радиусом 20 футов с центром в выбранной вами точке в пределах дистанции должен совершить спасбросок Харизмы; существо может намеренно провалить этот спасбросок. Если существо проваливает спасбросок, выберите один из двух следующих эффектов. Вы можете подавить любой эффект, заставляющий цель быть очарованной или испуганной. Когда заклинание оканчивается, любой подавленный эффект возобновляется при условии, что его длительность к этому моменту не истекла. Либо вы можете сделать цель безразличной к выбранным вами существам, по отношению к которым она враждебна. Это безразличие оканчивается, если цель будет атакована или подвергнется вреду от заклинания, либо если она увидит, что её друзьям наносится вред. Когда заклинание оканчивается, существо снова становится враждебным, если только Мастер не решит иначе.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: cha, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/calm_emotions/
+    srd_section: "SRD 5.1 §Spells / Calm Emotions"
+
+  - id: continual-flame
+    name_en: Continual Flame
+    name_ru: Неугасимое пламя
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "ruby dust worth 50 gp, which the spell consumes" }
+    duration: "Until dispelled"
+    ritual: false
+    concentration: false
+    classes: [cleric, wizard]
+    description_en: |
+      A flame, equivalent in brightness to a torch, springs forth from an object that you touch. The effect looks like a regular flame, but it creates no heat and doesn't use oxygen. A continual flame can be covered or hidden but not smothered or quenched.
+    description_ru: |
+      Из предмета, которого вы касаетесь, возникает пламя, равное по яркости факелу. Эффект выглядит как обычное пламя, но не создаёт тепла и не потребляет кислород. Неугасимое пламя можно прикрыть или спрятать, но нельзя задушить или потушить.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/continual_flame/
+    srd_section: "SRD 5.1 §Spells / Continual Flame"
+
+  - id: darkness
+    name_en: Darkness
+    name_ru: Тьма
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: false, m: "bat fur and a drop of pitch or piece of coal" }
+    duration: "Concentration, up to 10 minutes"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, warlock, wizard]
+    description_en: |
+      Magical darkness spreads from a point you choose within range to fill a 15-foot-radius sphere for the duration. The darkness spreads around corners. A creature with darkvision can't see through this darkness, and nonmagical light can't illuminate it. If the point you choose is on an object you are holding or one that isn't being worn or carried, the darkness emanates from the object and moves with it. Completely covering the source of the darkness with an opaque object, such as a bowl or a helm, blocks the darkness. If any of this spell's area overlaps with an area of light created by a spell of 2nd level or lower, the spell that created the light is dispelled.
+    description_ru: |
+      Магическая тьма распространяется из точки, выбранной вами в пределах дистанции, заполняя сферу радиусом 15 футов на время действия заклинания. Тьма огибает углы. Существо с тёмным зрением не может видеть сквозь эту тьму, а немагический свет не может её осветить. Если выбранная вами точка находится на предмете, который вы держите либо который не носится и не находится у кого-либо, тьма исходит от предмета и движется вместе с ним. Полное укрытие источника тьмы непрозрачным предметом, например миской или шлемом, блокирует тьму. Если область этого заклинания пересекается с областью света, созданной заклинанием 2-го уровня или ниже, заклинание, создавшее свет, рассеивается.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/darkness/
+    srd_section: "SRD 5.1 §Spells / Darkness"
+
+  - id: darkvision
+    name_en: Darkvision
+    name_ru: Тёмное зрение
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "either a pinch of dried carrot or an agate" }
+    duration: "8 hours"
+    ritual: false
+    concentration: false
+    classes: [druid, ranger, sorcerer, wizard]
+    description_en: |
+      You touch a willing creature to grant it the ability to see in the dark. For the duration, that creature has darkvision out to a range of 60 feet.
+    description_ru: |
+      Вы касаетесь согласного существа, чтобы даровать ему способность видеть в темноте. На время действия заклинания это существо обладает тёмным зрением с дальностью 60 футов.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/darkvision/
+    srd_section: "SRD 5.1 §Spells / Darkvision"
+
+  - id: detect-thoughts
+    name_en: Detect Thoughts
+    name_ru: Обнаружение мыслей
+    level: 2
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "a copper coin" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, wizard]
+    description_en: |
+      For the duration, you can read the thoughts of certain creatures. When you cast the spell and as your action on each turn until the spell ends, you can focus your mind on any one creature that you can see within 30 feet of you. If the creature you choose has an Intelligence of 3 or lower or doesn't speak any language, the creature is unaffected. You initially learn the surface thoughts of the creature - what is most on its mind in that moment. As an action, you can either shift your attention to another creature's thoughts or attempt to probe deeper into the same creature's mind. If you probe deeper, the target must make a Wisdom saving throw. If it fails, you gain insight into its reasoning (if any), its emotional state, and something that looms large in its mind (such as something it worries over, loves, or hates). If it succeeds, the spell ends. Either way, the target knows that you are probing into its mind, and unless you shift your attention to another creature's thoughts, the creature can use its action on its turn to make an Intelligence check contested by your Intelligence check; if it succeeds, the spell ends. Questions verbally directed at the target creature naturally shape the course of its thoughts, so this spell is particularly effective as part of an interrogation. You can also use this spell to detect the presence of thinking creatures you can't see. When you cast the spell or as your action during the duration, you can search for thoughts within 30 feet of you. The spell can penetrate barriers, but 2 feet of rock, 2 inches of any metal other than lead, or a thin sheet of lead blocks you. You can't detect a creature with an Intelligence of 3 or lower or one that doesn't speak any language. Once you detect the presence of a creature in this way, you can read its thoughts for the rest of the duration as described above, even if you can't see it, but it must still be within range.
+    description_ru: |
+      На время действия заклинания вы можете читать мысли определённых существ. При накладывании заклинания и затем действием в каждом своём ходу до окончания заклинания вы можете сосредоточить разум на одном существе, которое вы видите в пределах 30 футов от себя. Если у выбранного существа Интеллект 3 или ниже либо оно не говорит ни на одном языке, оно не подвержено эффекту. Сначала вы узнаёте поверхностные мысли существа - то, что больше всего занимает его в данный момент. Действием вы можете либо переключить внимание на мысли другого существа, либо попытаться проникнуть глубже в разум того же существа. Если вы проникаете глубже, цель должна совершить спасбросок Мудрости. При провале вы получаете представление о её рассуждениях (если таковые есть), эмоциональном состоянии и чём-то значительном, что занимает её разум (например, о чём-то, что её беспокоит, что она любит или ненавидит). При успехе заклинание оканчивается. В любом случае цель знает, что вы исследуете её разум, и, если вы не переключаете внимание на другое существо, она может действием в свой ход совершить проверку Интеллекта, противопоставленную вашей проверке Интеллекта; при успехе заклинание оканчивается. Вопросы, заданные цели вслух, естественным образом направляют ход её мыслей, поэтому это заклинание особенно эффективно в ходе допроса. Вы также можете использовать это заклинание для обнаружения присутствия мыслящих существ, которых вы не видите. При накладывании заклинания либо действием в ходе его действия вы можете искать мысли в пределах 30 футов от себя. Заклинание проникает сквозь преграды, но 2 фута камня, 2 дюйма любого металла кроме свинца или тонкий лист свинца блокируют его. Вы не можете обнаружить существо с Интеллектом 3 или ниже либо не говорящее ни на одном языке. Обнаружив существо таким образом, вы можете читать его мысли до конца длительности заклинания, как описано выше, даже если не видите его, но оно всё равно должно находиться в пределах дистанции.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: wis, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/detect_thoughts/
+    srd_section: "SRD 5.1 §Spells / Detect Thoughts"
+
+  - id: enhance-ability
+    name_en: Enhance Ability
+    name_ru: Улучшение характеристики
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "fur or a feather from a beast" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric, druid, sorcerer]
+    description_en: |
+      You touch a creature and bestow upon it a magical enhancement. Choose one of the following effects; the target gains that effect until the spell ends.
+
+      **Bear's Endurance.** The target has advantage on Constitution checks. It also gains 2d6 temporary hit points, which are lost when the spell ends.
+
+      **Bull's Strength.** The target has advantage on Strength checks, and his or her carrying capacity doubles.
+
+      **Cat's Grace.** The target has advantage on Dexterity checks. It also doesn't take damage from falling 20 feet or less if it isn't incapacitated.
+
+      **Eagle's Splendor.** The target has advantage on Charisma checks.
+
+      **Fox's Cunning.** The target has advantage on Intelligence checks.
+
+      **Owl's Wisdom.** The target has advantage on Wisdom checks.
+    description_ru: |
+      Вы касаетесь существа и наделяете его магическим улучшением. Выберите один из следующих эффектов; цель получает этот эффект до окончания заклинания.
+
+      **Выносливость медведя.** Цель совершает с преимуществом проверки Телосложения. Она также получает 2к6 временных хитов, которые теряются по окончании заклинания.
+
+      **Сила быка.** Цель совершает с преимуществом проверки Силы, а её грузоподъёмность удваивается.
+
+      **Кошачья ловкость.** Цель совершает с преимуществом проверки Ловкости. Кроме того, она не получает урона при падении с высоты 20 футов или меньше, если не недееспособна.
+
+      **Орлиное великолепие.** Цель совершает с преимуществом проверки Харизмы.
+
+      **Лисья хитрость.** Цель совершает с преимуществом проверки Интеллекта.
+
+      **Совиная мудрость.** Цель совершает с преимуществом проверки Мудрости.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, вы можете нацелиться на одно дополнительное существо за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/enhance_ability/
+    srd_section: "SRD 5.1 §Spells / Enhance Ability"
+
+  - id: enlarge-reduce
+    name_en: Enlarge/Reduce
+    name_ru: Увеличение/Уменьшение
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "a pinch of powdered iron" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, wizard]
+    description_en: |
+      You cause a creature or an object you can see within range to grow larger or smaller for the duration. Choose either a creature or an object that is neither worn nor carried. If the target is unwilling, it can make a Constitution saving throw. On a success, the spell has no effect. If the target is a creature, everything it is wearing and carrying changes size with it. Any item dropped by an affected creature returns to normal size at once.
+
+      **Enlarge.** The target's size doubles in all dimensions, and its weight is multiplied by eight. This growth increases its size by one category - from Medium to Large, for example. If there isn't enough room for the target to double its size, the creature or object attains the maximum possible size in the space available. Until the spell ends, the target also has advantage on Strength checks and Strength saving throws. The target's weapons also grow to match its new size. While these weapons are enlarged, the target's attacks with them deal 1d4 extra damage.
+
+      **Reduce.** The target's size is halved in all dimensions, and its weight is reduced to one-eighth of normal. This reduction decreases its size by one category - from Medium to Small, for example. Until the spell ends, the target also has disadvantage on Strength checks and Strength saving throws. The target's weapons also shrink to match its new size. While these weapons are reduced, the target's attacks with them deal 1d4 less damage (this can't reduce the damage below 1).
+    description_ru: |
+      Вы заставляете существо или предмет в пределах дистанции, который видите, увеличиться или уменьшиться на время действия заклинания. Выберите существо или предмет, который не носится и не находится у кого-либо. Если цель не согласна, она может совершить спасбросок Телосложения. При успехе заклинание не оказывает на неё эффекта. Если цель - существо, всё, что она носит и держит, меняет размер вместе с ней. Любой предмет, оброненный затронутым существом, немедленно возвращается к обычному размеру.
+
+      **Увеличение.** Размер цели удваивается во всех измерениях, а вес умножается на восемь. Этот рост увеличивает её размер на одну категорию - например, со Среднего до Большого. Если для удвоения размера цели не хватает места, существо или предмет принимает максимальный возможный размер в доступном пространстве. До окончания заклинания цель также совершает с преимуществом проверки Силы и спасброски Силы. Оружие цели тоже увеличивается под её новый размер. Пока это оружие увеличено, атаки им наносят дополнительные 1к4 урона.
+
+      **Уменьшение.** Размер цели уменьшается вдвое во всех измерениях, а вес уменьшается до одной восьмой от обычного. Это уменьшение снижает её размер на одну категорию - например, со Среднего до Маленького. До окончания заклинания цель также совершает с помехой проверки Силы и спасброски Силы. Оружие цели тоже уменьшается под её новый размер. Пока это оружие уменьшено, атаки им наносят на 1к4 урона меньше (но не ниже 1).
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: con, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/enlarge_reduce/
+    srd_section: "SRD 5.1 §Spells / Enlarge/Reduce"
+
+  - id: enthrall
+    name_en: Enthrall
+    name_ru: Покорение
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, warlock]
+    description_en: |
+      You weave a distracting string of words, causing creatures of your choice that you can see within range and that can hear you to make a Wisdom saving throw. Any creature that can't be charmed succeeds on this saving throw automatically, and if you or your companions are fighting a creature, it has advantage on the save. On a failed save, the target has disadvantage on Wisdom (Perception) checks made to perceive any creature other than you until the spell ends or until the target can no longer hear you. The spell ends if you are incapacitated or can no longer speak.
+    description_ru: |
+      Вы плетёте отвлекающую вязь слов, заставляя выбранных вами существ в пределах дистанции, которые вас слышат, совершить спасбросок Мудрости. Любое существо, которое нельзя очаровать, автоматически преуспевает в этом спасброске, а если вы или ваши товарищи сражаетесь с существом, оно совершает спасбросок с преимуществом. При провале цель совершает с помехой проверки Мудрости (Внимание) для обнаружения любых существ кроме вас, пока заклинание не закончится либо пока цель не перестанет вас слышать. Заклинание оканчивается, если вы стали недееспособны либо больше не можете говорить.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: wis, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/enthrall/
+    srd_section: "SRD 5.1 §Spells / Enthrall"
+
+  - id: find-steed
+    name_en: Find Steed
+    name_ru: Поиск скакуна
+    level: 2
+    school: conjuration
+    casting_time: "10 minutes"
+    range_ft: 30
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [paladin]
+    description_en: |
+      You summon a spirit that assumes the form of an unusually intelligent, strong, and loyal steed, creating a long-lasting bond with it. Appearing in an unoccupied space within range, the steed takes on a form that you choose, such as a warhorse, a pony, a camel, an elk, or a mastiff. (Your DM might allow other animals to be summoned as steeds.) The steed has the statistics of the chosen form, though it is a celestial, fey, or fiend (your choice) instead of its normal type. Additionally, if your steed has an Intelligence of 5 or less, its Intelligence becomes 6, and it gains the ability to understand one language of your choice that you speak. Your steed serves you as a mount, both in combat and out, and you have an instinctive bond with it that allows you to fight as a seamless unit. While mounted on your steed, you can make any spell you cast that targets only you also target your steed. When the steed drops to 0 hit points, it disappears, leaving behind no physical form. You can also dismiss your steed at any time as an action, causing it to disappear. In either case, casting this spell again summons the same steed, restored to its hit point maximum. While your steed is within 1 mile of you, you can communicate with it telepathically. You can't have more than one steed bonded by this spell at a time. As an action, you can release the steed from its bond at any time, causing it to disappear.
+    description_ru: |
+      Вы призываете дух, принимающий форму необычно умного, сильного и преданного скакуна, и создаёте с ним длительную связь. Появляясь в свободном пространстве в пределах дистанции, скакун принимает форму по вашему выбору, например боевой лошади, пони, верблюда, лося или мастифа. (Ваш Мастер может разрешить призывать другие виды животных в качестве скакунов.) У скакуна характеристики выбранной формы, но он является небожителем, феей или исчадием (на ваш выбор) вместо обычного типа. Кроме того, если Интеллект вашего скакуна 5 или меньше, его Интеллект становится 6, и он получает способность понимать один выбранный вами язык, на котором говорите вы. Ваш скакун служит вам верховым животным как в бою, так и вне его, и вы обладаете инстинктивной связью с ним, позволяющей сражаться как одно целое. Будучи верхом на скакуне, любое заклинание, нацеленное только на вас, вы можете нацелить и на скакуна. Когда хиты скакуна опускаются до 0, он исчезает, не оставляя физической формы. Вы также можете действием в любой момент отпустить скакуна, и он исчезнет. В обоих случаях повторное наложение этого заклинания призывает того же скакуна, восстановленного до максимума хитов. Пока скакун находится в пределах 1 мили от вас, вы можете телепатически общаться с ним. У вас не может быть более одного скакуна, связанного этим заклинанием. Действием вы можете в любое время разорвать связь со скакуном, и он исчезнет.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/find_steed/
+    srd_section: "SRD 5.1 §Spells / Find Steed"
+
+  - id: find-traps
+    name_en: Find Traps
+    name_ru: Поиск ловушек
+    level: 2
+    school: divination
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric, druid, ranger]
+    description_en: |
+      You sense the presence of any trap within range that is within line of sight. A trap, for the purpose of this spell, includes anything that would inflict a sudden or unexpected effect you consider harmful or undesirable, which was specifically intended as such by its creator. Thus, the spell would sense an area affected by the alarm spell, a glyph of warding, or a mechanical pit trap, but it would not reveal a natural weakness in the floor, an unstable ceiling, or a hidden sinkhole. This spell merely reveals that a trap is present. You don't learn the location of each trap, but you do learn the general nature of the danger posed by a trap you sense.
+    description_ru: |
+      Вы ощущаете присутствие любой ловушки в пределах дистанции, находящейся в пределах линии обзора. Ловушкой для целей этого заклинания считается всё, что наносит внезапный или неожиданный эффект, который вы считаете вредным или нежелательным, и было специально задумано таковым своим создателем. Таким образом, заклинание ощутит область, затронутую заклинанием «Тревога», охранным знаком или механической ямой-ловушкой, но не выявит естественной слабости пола, неустойчивого потолка или скрытого провала. Заклинание лишь обнаруживает присутствие ловушки. Вы не узнаёте местоположения каждой ловушки, но узнаёте общую природу опасности, которую представляет обнаруженная ловушка.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/find_traps/
+    srd_section: "SRD 5.1 §Spells / Find Traps"
+
+  - id: flame-blade
+    name_en: Flame Blade
+    name_ru: Огненный клинок
+    level: 2
+    school: evocation
+    casting_time: "1 bonus action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "leaf of sumac" }
+    duration: "Concentration, up to 10 minutes"
+    ritual: false
+    concentration: true
+    classes: [druid]
+    description_en: |
+      You evoke a fiery blade in your free hand. The blade is similar in size and shape to a scimitar, and it lasts for the duration. If you let go of the blade, it disappears, but you can evoke the blade again as a bonus action. You can use your action to make a melee spell attack with the fiery blade. On a hit, the target takes 3d6 fire damage. The flaming blade sheds bright light in a 10-foot radius and dim light for an additional 10 feet.
+    description_ru: |
+      Вы воплощаете огненный клинок в своей свободной руке. Клинок похож по размеру и форме на скимитар и существует на время действия заклинания. Если вы отпустите клинок, он исчезает, но вы можете воплотить его заново бонусным действием. Вы можете действием совершить рукопашную атаку заклинанием огненным клинком. При попадании цель получает 3к6 урона огнём. Огненный клинок испускает яркий свет в радиусе 10 футов и тусклый свет ещё на 10 футов.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for every two slot levels above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 4-го уровня или выше, урон увеличивается на 1к6 за каждые два уровня ячейки выше 2-го."
+    damage: { dice: "3d6", type: fire }
+    attack: { kind: melee_spell }
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/flame_blade/
+    srd_section: "SRD 5.1 §Spells / Flame Blade"
+
+  - id: flaming-sphere
+    name_en: Flaming Sphere
+    name_ru: Огненная сфера
+    level: 2
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a bit of tallow, a pinch of brimstone, and a dusting of powdered iron" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [druid, wizard]
+    description_en: |
+      A 5-foot-diameter sphere of fire appears in an unoccupied space of your choice within range and lasts for the duration. Any creature that ends its turn within 5 feet of the sphere must make a Dexterity saving throw. The creature takes 2d6 fire damage on a failed save, or half as much damage on a successful one. As a bonus action, you can move the sphere up to 30 feet. If you ram the sphere into a creature, that creature must make the saving throw against the sphere's damage, and the sphere stops moving this turn. When you move the sphere, you can direct it over barriers up to 5 feet tall and jump it across pits up to 10 feet wide. The sphere ignites flammable objects not being worn or carried, and it sheds bright light in a 20-foot radius and dim light for an additional 20 feet.
+    description_ru: |
+      Сфера огня диаметром 5 футов появляется в свободном пространстве по вашему выбору в пределах дистанции и существует на время действия заклинания. Любое существо, оканчивающее ход в пределах 5 футов от сферы, должно совершить спасбросок Ловкости. Существо получает 2к6 урона огнём при провале или половину этого урона при успехе. Бонусным действием вы можете передвинуть сферу на расстояние до 30 футов. Если вы тараните существо сферой, оно должно совершить спасбросок против её урона, а сфера в этом ходу больше не движется. Перемещая сферу, вы можете направлять её через препятствия высотой до 5 футов и перепрыгивать ею ямы шириной до 10 футов. Сфера поджигает воспламеняемые предметы, которые не носятся и не находятся у кого-либо, испускает яркий свет в радиусе 20 футов и тусклый свет ещё на 20 футов.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d6 for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, урон увеличивается на 1к6 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "2d6", type: fire }
+    attack: null
+    save: { ability: dex, half_on_success: true }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/flaming_sphere/
+    srd_section: "SRD 5.1 §Spells / Flaming Sphere"
+
+  - id: gentle-repose
+    name_en: Gentle Repose
+    name_ru: Тихий покой
+    level: 2
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "a pinch of salt and one copper piece placed on each of the corpse's eyes, which must remain there for the duration" }
+    duration: "10 days"
+    ritual: true
+    concentration: false
+    classes: [cleric, wizard]
+    description_en: |
+      You touch a corpse or other remains. For the duration, the target is protected from decay and can't become undead. The spell also effectively extends the time limit on raising the target from the dead, since days spent under the influence of this spell don't count against the time limit of spells such as raise dead.
+    description_ru: |
+      Вы касаетесь трупа или иных останков. На время действия заклинания цель защищена от разложения и не может стать нежитью. Заклинание также фактически продлевает срок поднятия цели из мёртвых, поскольку дни, проведённые под действием этого заклинания, не учитываются в сроках действия таких заклинаний, как «Воскрешение мёртвого».
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/gentle_repose/
+    srd_section: "SRD 5.1 §Spells / Gentle Repose"
+
+  - id: gust-of-wind
+    name_en: Gust of Wind
+    name_ru: Порыв ветра
+    level: 2
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Self (60-foot line)"
+    components: { v: true, s: true, m: "a legume seed" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [druid, sorcerer, wizard]
+    description_en: |
+      A line of strong wind 60 feet long and 10 feet wide blasts from you in a direction you choose for the spell's duration. Each creature that starts its turn in the line must succeed on a Strength saving throw or be pushed 15 feet away from you in a direction following the line. Any creature in the line must spend 2 feet of movement for every 1 foot it moves when moving closer to you. The gust disperses gas or vapor, and it extinguishes candles, torches, and similar unprotected flames in the area. It causes protected flames, such as those of lanterns, to dance wildly and has a 50 percent chance to extinguish them. As a bonus action on each of your turns before the spell ends, you can change the direction in which the line blasts from you.
+    description_ru: |
+      Линия сильного ветра длиной 60 футов и шириной 10 футов исходит от вас в выбранном вами направлении на время действия заклинания. Каждое существо, начинающее ход в линии, должно преуспеть в спасброске Силы либо быть отброшенным на 15 футов от вас в направлении линии. Любое существо в линии должно тратить 2 фута перемещения за каждый 1 фут движения, если двигается ближе к вам. Порыв разгоняет газ или пар, гасит свечи, факелы и подобное незащищённое пламя в области. Защищённое пламя, например в фонарях, начинает беспорядочно колыхаться, и шанс затушить его - 50 процентов. Бонусным действием в каждом из своих ходов до окончания заклинания вы можете изменить направление, в котором линия исходит от вас.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: { ability: str, half_on_success: false }
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/gust_of_wind/
+    srd_section: "SRD 5.1 §Spells / Gust of Wind"
+
+  - id: heat-metal
+    name_en: Heat Metal
+    name_ru: Раскаление металла
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a piece of iron and a flame" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, druid]
+    description_en: |
+      Choose a manufactured metal object, such as a metal weapon or a suit of heavy or medium metal armor, that you can see within range. You cause the object to glow red-hot. Any creature in physical contact with the object takes 2d8 fire damage when you cast the spell. Until the spell ends, you can use a bonus action on each of your subsequent turns to cause this damage again. If a creature is holding or wearing the object and takes the damage from it, the creature must succeed on a Constitution saving throw or drop the object if it can. If it doesn't drop the object, it has disadvantage on attack rolls and ability checks until the start of your next turn.
+    description_ru: |
+      Выберите изготовленный металлический предмет в пределах дистанции, который вы видите, например металлическое оружие или комплект тяжёлого или среднего металлического доспеха. Вы заставляете предмет раскалиться докрасна. Любое существо в физическом контакте с предметом получает 2к8 урона огнём при накладывании заклинания. До окончания заклинания вы можете бонусным действием в каждом из своих последующих ходов снова нанести этот урон. Если существо держит или носит предмет и получает от него урон, оно должно преуспеть в спасброске Телосложения либо уронить предмет, если может. Если оно не роняет предмет, оно совершает с помехой броски атак и проверки характеристик до начала вашего следующего хода.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d8 for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, урон увеличивается на 1к8 за каждый уровень ячейки выше 2-го."
+    damage: { dice: "2d8", type: fire }
+    attack: null
+    save: { ability: con, half_on_success: false }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/heat_metal/
+    srd_section: "SRD 5.1 §Spells / Heat Metal"
+
+  - id: hold-person
+    name_en: Hold Person
+    name_ru: Удержание личности
+    level: 2
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "a small, straight piece of iron" }
+    duration: "Concentration, up to 1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric, druid, sorcerer, warlock, wizard]
+    description_en: |
+      Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.
+    description_ru: |
+      Выберите гуманоида в пределах дистанции, которого видите. Цель должна преуспеть в спасброске Мудрости либо быть парализована на время действия заклинания. В конце каждого своего хода цель может повторять спасбросок Мудрости. При успехе заклинание оканчивается для цели.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd. The humanoids must be within 30 feet of each other when you target them."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, вы можете нацелиться на одного дополнительного гуманоида за каждый уровень ячейки выше 2-го. Гуманоиды должны находиться в пределах 30 футов друг от друга, когда вы их выбираете."
+    damage: null
+    attack: null
+    save: { ability: wis, half_on_success: false }
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/hold_person/
+    srd_section: "SRD 5.1 §Spells / Hold Person"
+
+  - id: invisibility
+    name_en: Invisibility
+    name_ru: Невидимость
+    level: 2
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "an eyelash encased in gum arabic" }
+    duration: "Concentration, up to 1 hour"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: |
+      A creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible as long as it is on the target's person. The spell ends for a target that attacks or casts a spell.
+    description_ru: |
+      Существо, которого вы касаетесь, становится невидимым до окончания заклинания. Всё, что цель носит и держит, становится невидимым, пока находится у неё. Заклинание оканчивается для цели, которая атакует или накладывает заклинание.
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го уровня или выше, вы можете нацелиться на одно дополнительное существо за каждый уровень ячейки выше 2-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/invisibility/
+    srd_section: "SRD 5.1 §Spells / Invisibility"
+
+  - id: knock
+    name_en: Knock
+    name_ru: Стук
+    level: 2
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: false, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, wizard]
+    description_en: |
+      Choose an object that you can see within range. The object can be a door, a box, a chest, a set of manacles, a padlock, or another object that contains a mundane or magical means that prevents access. A target that is held shut by a mundane lock or that is stuck or barred becomes unlocked, unstuck, or unbarred. If the object has multiple locks, only one of them is unlocked. If you choose a target that is held shut with arcane lock, that spell is suppressed for 10 minutes, during which time the target can be opened and shut normally. When you cast the spell, a loud knock, audible from as far away as 300 feet, emanates from the target object.
+    description_ru: |
+      Выберите предмет в пределах дистанции, который видите. Предмет может быть дверью, коробкой, сундуком, наручниками, висячим замком или иным предметом, содержащим мирское или магическое средство, препятствующее доступу. Цель, удерживаемая закрытой обычным замком, заклинённая или забаррикадированная, становится отпертой, разблокированной или освобождённой. Если у предмета несколько замков, отпирается только один из них. Если выбранная цель удерживается закрытой магическим замком, это заклинание подавляется на 10 минут, в течение которых цель можно открывать и закрывать как обычно. При накладывании заклинания от целевого предмета исходит громкий стук, слышимый на расстоянии до 300 футов.
+    at_higher_levels: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/knock/
+    srd_section: "SRD 5.1 §Spells / Knock"

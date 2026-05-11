@@ -1,0 +1,1045 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) — Character Creation Dataset
+# Generated for the "Dungeon Master AI" companion app.
+# License: System Reference Document 5.1 by Wizards of the Coast LLC,
+#          available at https://dnd.wizards.com/resources/systems-reference-document
+#          and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+
+races:
+  - id: dwarf
+    name_en: Dwarf
+    name_ru: Дварф
+    ability_score_increases: { con: 2 }
+    age: { mature_at: 50, max_lifespan: 350 }
+    alignment_tendency: "Most dwarves are lawful, believing firmly in the benefits of a well-ordered society. They tend toward good, with a strong sense of fair play and a belief that everyone deserves to share in the benefits of a just order."
+    size: Medium
+    speed: 25
+    languages: [Common, Dwarvish]
+    proficiencies:
+      skills: []
+      weapons: [battleaxe, handaxe, light hammer, warhammer]
+      tools: ["one of: smith's tools, brewer's supplies, or mason's tools"]
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can't discern color in darkness, only shades of gray."
+        flavor_description: "Accustomed to life underground, dwarves have superior vision in dark and dim conditions."
+      - id: dwarven-resilience
+        name_en: Dwarven Resilience
+        name_ru: Дварфская устойчивость
+        mechanical_description: "You have advantage on saving throws against poison, and you have resistance against poison damage."
+        flavor_description: "Dwarves' hardy constitutions resist toxins that would fell other folk."
+      - id: dwarven-combat-training
+        name_en: Dwarven Combat Training
+        name_ru: Дварфская боевая подготовка
+        mechanical_description: "You have proficiency with the battleaxe, handaxe, light hammer, and warhammer."
+        flavor_description: "Dwarves train from youth in the use of their traditional weapons."
+      - id: tool-proficiency
+        name_en: Tool Proficiency
+        name_ru: Владение инструментами
+        mechanical_description: "You gain proficiency with the artisan's tools of your choice: smith's tools, brewer's supplies, or mason's tools."
+        flavor_description: "Dwarves are renowned craftworkers."
+      - id: stonecunning
+        name_en: Stonecunning
+        name_ru: Знание камня
+        mechanical_description: "Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check, instead of your normal proficiency bonus."
+        flavor_description: "Dwarves possess innate knowledge of stone and earth."
+    subraces:
+      - id: hill-dwarf
+        name_en: Hill Dwarf
+        name_ru: Холмовой дварф
+        additional_asi: { wis: 1 }
+        additional_traits:
+          - id: dwarven-toughness
+            name_en: Dwarven Toughness
+            name_ru: Дварфская выносливость
+            mechanical_description: "Your hit point maximum increases by 1, and it increases by 1 every time you gain a level."
+            flavor_description: "Hill dwarves possess remarkable resilience."
+    source_url: https://5thsrd.org/character/races/dwarf/
+    srd_section: "SRD 5.1 §Races / Dwarf"
+
+  - id: elf
+    name_en: Elf
+    name_ru: Эльф
+    ability_score_increases: { dex: 2 }
+    age: { mature_at: 100, max_lifespan: 750 }
+    alignment_tendency: "Elves love freedom, variety, and self-expression, leaning strongly toward the gentler aspects of chaos. Most elves are good. The drow are an exception; their exile has made them vicious and dangerous, and they are more often evil than not."
+    size: Medium
+    speed: 30
+    languages: [Common, Elvish]
+    proficiencies:
+      skills: [Perception]
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can't discern color in darkness, only shades of gray."
+        flavor_description: "Accustomed to twilit forests and the night sky, elves see well in low light."
+      - id: keen-senses
+        name_en: Keen Senses
+        name_ru: Острые чувства
+        mechanical_description: "You have proficiency in the Perception skill."
+        flavor_description: "Elves' senses are sharper than those of other folk."
+      - id: fey-ancestry
+        name_en: Fey Ancestry
+        name_ru: Наследие фей
+        mechanical_description: "You have advantage on saving throws against being charmed, and magic can't put you to sleep."
+        flavor_description: "Elves' fey heritage protects them from beguiling magic."
+      - id: trance
+        name_en: Trance
+        name_ru: Транс
+        mechanical_description: "Elves don't need to sleep. Instead, they meditate deeply, remaining semiconscious, for 4 hours a day. After resting in this way, you gain the same benefit that a human does from 8 hours of sleep."
+        flavor_description: "Elves enter a meditative trance rather than true sleep."
+    subraces:
+      - id: high-elf
+        name_en: High Elf
+        name_ru: Высший эльф
+        additional_asi: { int: 1 }
+        additional_traits:
+          - id: elf-weapon-training
+            name_en: Elf Weapon Training
+            name_ru: Эльфийская боевая подготовка
+            mechanical_description: "You have proficiency with the longsword, shortsword, shortbow, and longbow."
+            flavor_description: "High elves train with classic elven weapons."
+          - id: cantrip
+            name_en: Cantrip
+            name_ru: Заговор
+            mechanical_description: "You know one cantrip of your choice from the wizard spell list. Intelligence is your spellcasting ability for it."
+            flavor_description: "High elves possess a keen mind and innate magical aptitude."
+          - id: extra-language
+            name_en: Extra Language
+            name_ru: Дополнительный язык
+            mechanical_description: "You can speak, read, and write one extra language of your choice."
+            flavor_description: "High elves are well-traveled scholars."
+    source_url: https://5thsrd.org/character/races/elf/
+    srd_section: "SRD 5.1 §Races / Elf"
+
+  - id: halfling
+    name_en: Halfling
+    name_ru: Полурослик
+    ability_score_increases: { dex: 2 }
+    age: { mature_at: 20, max_lifespan: 150 }
+    alignment_tendency: "Most halflings are lawful good. As a rule, they are good-hearted and kind, hate to see others in pain, and have no tolerance for oppression. They are also very orderly and traditional."
+    size: Small
+    speed: 25
+    languages: [Common, Halfling]
+    proficiencies:
+      skills: []
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: null, truesight_ft: null }
+    traits:
+      - id: lucky
+        name_en: Lucky
+        name_ru: Везение
+        mechanical_description: "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll."
+        flavor_description: "Halflings are uncommonly fortunate."
+      - id: brave
+        name_en: Brave
+        name_ru: Храбрость
+        mechanical_description: "You have advantage on saving throws against being frightened."
+        flavor_description: "Despite their small size, halflings face danger with steady nerves."
+      - id: halfling-nimbleness
+        name_en: Halfling Nimbleness
+        name_ru: Проворство полурослика
+        mechanical_description: "You can move through the space of any creature that is of a size larger than yours."
+        flavor_description: "Halflings dart between the legs of larger foes."
+    subraces:
+      - id: lightfoot-halfling
+        name_en: Lightfoot Halfling
+        name_ru: Легконогий полурослик
+        additional_asi: { cha: 1 }
+        additional_traits:
+          - id: naturally-stealthy
+            name_en: Naturally Stealthy
+            name_ru: Прирождённая скрытность
+            mechanical_description: "You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you."
+            flavor_description: "Lightfoots can easily hide using larger creatures as cover."
+    source_url: https://5thsrd.org/character/races/halfling/
+    srd_section: "SRD 5.1 §Races / Halfling"
+
+  - id: human
+    name_en: Human
+    name_ru: Человек
+    ability_score_increases: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }
+    age: { mature_at: 18, max_lifespan: 90 }
+    alignment_tendency: "Humans tend toward no particular alignment. The best and the worst are found among them."
+    size: Medium
+    speed: 30
+    languages: [Common, "one extra language of your choice"]
+    proficiencies:
+      skills: []
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: null, truesight_ft: null }
+    traits:
+      - id: ability-score-increase
+        name_en: Ability Score Increase
+        name_ru: Повышение характеристик
+        mechanical_description: "Your ability scores each increase by 1."
+        flavor_description: "Humans' versatility shows in their balanced talents."
+      - id: extra-language
+        name_en: Languages
+        name_ru: Языки
+        mechanical_description: "You can speak, read, and write Common and one extra language of your choice."
+        flavor_description: "Humans pick up languages from peoples they trade and travel with."
+    subraces: []
+    source_url: https://5thsrd.org/character/races/human/
+    srd_section: "SRD 5.1 §Races / Human"
+
+  - id: dragonborn
+    name_en: Dragonborn
+    name_ru: Драконорождённый
+    ability_score_increases: { str: 2, cha: 1 }
+    age: { mature_at: 15, max_lifespan: 80 }
+    alignment_tendency: "Dragonborn tend toward the extremes, making a conscious choice for one side or the other in the cosmic war between good and evil. Most dragonborn are good, but those who side with evil can be terrible villains."
+    size: Medium
+    speed: 30
+    languages: [Common, Draconic]
+    proficiencies:
+      skills: []
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: null, truesight_ft: null }
+    traits:
+      - id: draconic-ancestry
+        name_en: Draconic Ancestry
+        name_ru: Драконье наследие
+        mechanical_description: "You have draconic ancestry. Choose one type of dragon from the Draconic Ancestry table. Your breath weapon and damage resistance are determined by the dragon type."
+        flavor_description: "Each dragonborn is descended from a particular kind of true dragon."
+        ancestry_table:
+          - { dragon: Black,  damage_type: acid,      breath_weapon: "5 by 30 ft. line (Dex. save)" }
+          - { dragon: Blue,   damage_type: lightning, breath_weapon: "5 by 30 ft. line (Dex. save)" }
+          - { dragon: Brass,  damage_type: fire,      breath_weapon: "5 by 30 ft. line (Dex. save)" }
+          - { dragon: Bronze, damage_type: lightning, breath_weapon: "5 by 30 ft. line (Dex. save)" }
+          - { dragon: Copper, damage_type: acid,      breath_weapon: "5 by 30 ft. line (Dex. save)" }
+          - { dragon: Gold,   damage_type: fire,      breath_weapon: "15 ft. cone (Dex. save)" }
+          - { dragon: Green,  damage_type: poison,    breath_weapon: "15 ft. cone (Con. save)" }
+          - { dragon: Red,    damage_type: fire,      breath_weapon: "15 ft. cone (Dex. save)" }
+          - { dragon: Silver, damage_type: cold,      breath_weapon: "15 ft. cone (Con. save)" }
+          - { dragon: White,  damage_type: cold,      breath_weapon: "15 ft. cone (Con. save)" }
+      - id: breath-weapon
+        name_en: Breath Weapon
+        name_ru: Дыхательное оружие
+        mechanical_description: "You can use your action to exhale destructive energy. The DC for this saving throw equals 8 + your Constitution modifier + your proficiency bonus. A creature takes 2d6 damage on a failed save, and half as much on a successful one. The damage increases to 3d6 at 6th level, 4d6 at 11th level, and 5d6 at 16th level. After you use your breath weapon, you can't use it again until you complete a short or long rest."
+        flavor_description: "Your draconic heritage manifests in a destructive breath."
+      - id: damage-resistance
+        name_en: Damage Resistance
+        name_ru: Сопротивление урону
+        mechanical_description: "You have resistance to the damage type associated with your draconic ancestry."
+        flavor_description: "Dragon blood shields you from your ancestor's element."
+    subraces: []
+    source_url: https://5thsrd.org/character/races/dragonborn/
+    srd_section: "SRD 5.1 §Races / Dragonborn"
+
+  - id: gnome
+    name_en: Gnome
+    name_ru: Гном
+    ability_score_increases: { int: 2 }
+    age: { mature_at: 40, max_lifespan: 425 }
+    alignment_tendency: "Gnomes are most often good. Those who tend toward law are sages, engineers, researchers, scholars, investigators, or inventors. Those who tend toward chaos are minstrels, tricksters, wanderers, or fanciful jewelers. Gnomes are good-hearted, and even the tricksters among them are more playful than vicious."
+    size: Small
+    speed: 25
+    languages: [Common, Gnomish]
+    proficiencies:
+      skills: []
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can't discern color in darkness, only shades of gray."
+        flavor_description: "Gnomes' burrow-dwelling ancestors gave them keen low-light vision."
+      - id: gnome-cunning
+        name_en: Gnome Cunning
+        name_ru: Гномья хитрость
+        mechanical_description: "You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic."
+        flavor_description: "Gnomes' wits resist enchantments and other mind-affecting magic."
+    subraces:
+      - id: rock-gnome
+        name_en: Rock Gnome
+        name_ru: Скальный гном
+        additional_asi: { con: 1 }
+        additional_traits:
+          - id: artificers-lore
+            name_en: Artificer's Lore
+            name_ru: Знание ремесленника
+            mechanical_description: "Whenever you make an Intelligence (History) check related to magic items, alchemical objects, or technological devices, you can add twice your proficiency bonus, instead of any proficiency bonus you normally apply."
+            flavor_description: "Rock gnomes have an instinctive grasp of devices."
+          - id: tinker
+            name_en: Tinker
+            name_ru: Мастеровой
+            mechanical_description: "You have proficiency with artisan's tools (tinker's tools). Using those tools, you can spend 1 hour and 10 gp worth of materials to construct a Tiny clockwork device (AC 5, 1 hp). You can have up to three such devices active at a time. Choose a Clockwork Toy, Fire Starter, or Music Box when you create one."
+            flavor_description: "Rock gnomes craft tiny clockwork curiosities."
+    source_url: https://5thsrd.org/character/races/gnome/
+    srd_section: "SRD 5.1 §Races / Gnome"
+
+  - id: half-elf
+    name_en: Half-Elf
+    name_ru: Полуэльф
+    ability_score_increases: { cha: 2, any: 1 }   # +2 Cha, +1 to two other abilities of choice
+    age: { mature_at: 20, max_lifespan: 180 }
+    alignment_tendency: "Half-elves share the chaotic bent of their elven heritage. They value both personal freedom and creative expression, demonstrating neither love of leaders nor desire for followers."
+    size: Medium
+    speed: 30
+    languages: [Common, Elvish, "one extra language of your choice"]
+    proficiencies:
+      skills: ["choose 2 (any)"]
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: ability-score-increase
+        name_en: Ability Score Increase
+        name_ru: Повышение характеристик
+        mechanical_description: "Your Charisma score increases by 2, and two other ability scores of your choice increase by 1."
+        flavor_description: "Half-elves blend the gifts of their two parent races."
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "Thanks to your elf blood, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet as if bright, and in darkness as dim, in shades of gray."
+        flavor_description: "Elven heritage grants keen vision in low light."
+      - id: fey-ancestry
+        name_en: Fey Ancestry
+        name_ru: Наследие фей
+        mechanical_description: "You have advantage on saving throws against being charmed, and magic can't put you to sleep."
+        flavor_description: "Half-elves inherit the elves' resistance to enchantment."
+      - id: skill-versatility
+        name_en: Skill Versatility
+        name_ru: Многосторонность
+        mechanical_description: "You gain proficiency in two skills of your choice."
+        flavor_description: "Half-elves are adaptable, picking up many talents."
+    subraces: []
+    source_url: https://5thsrd.org/character/races/half-elf/
+    srd_section: "SRD 5.1 §Races / Half-Elf"
+
+  - id: half-orc
+    name_en: Half-Orc
+    name_ru: Полуорк
+    ability_score_increases: { str: 2, con: 1 }
+    age: { mature_at: 14, max_lifespan: 75 }
+    alignment_tendency: "Half-orcs inherit a tendency toward chaos from their orc parents and are not strongly inclined toward good. Half-orcs raised among orcs and willing to live out their lives among them are usually evil."
+    size: Medium
+    speed: 30
+    languages: [Common, Orc]
+    proficiencies:
+      skills: [Intimidation]
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "Thanks to your orc blood, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet as if bright, and in darkness as dim, in shades of gray."
+        flavor_description: "Orc ancestry sharpens the half-orc's eyes in the dark."
+      - id: menacing
+        name_en: Menacing
+        name_ru: Устрашение
+        mechanical_description: "You gain proficiency in the Intimidation skill."
+        flavor_description: "Half-orcs have an imposing, fearsome presence."
+      - id: relentless-endurance
+        name_en: Relentless Endurance
+        name_ru: Неудержимая выносливость
+        mechanical_description: "When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. You can't use this feature again until you finish a long rest."
+        flavor_description: "Half-orcs refuse to fall while there is fight left in them."
+      - id: savage-attacks
+        name_en: Savage Attacks
+        name_ru: Дикие атаки
+        mechanical_description: "When you score a critical hit with a melee weapon attack, you can roll one of the weapon's damage dice one additional time and add it to the extra damage of the critical hit."
+        flavor_description: "Half-orcs strike with brutal, savage force."
+    subraces: []
+    source_url: https://5thsrd.org/character/races/half-orc/
+    srd_section: "SRD 5.1 §Races / Half-Orc"
+
+  - id: tiefling
+    name_en: Tiefling
+    name_ru: Тифлинг
+    ability_score_increases: { int: 1, cha: 2 }
+    age: { mature_at: 18, max_lifespan: 110 }
+    alignment_tendency: "Tieflings might not have an innate tendency toward evil, but many of them end up there. Evil or not, an independent nature inclines many tieflings toward chaotic alignments."
+    size: Medium
+    speed: 30
+    languages: [Common, Infernal]
+    proficiencies:
+      skills: []
+      weapons: []
+      tools: []
+      saves: []
+    senses: { darkvision_ft: 60, truesight_ft: null }
+    traits:
+      - id: ability-score-increase
+        name_en: Ability Score Increase
+        name_ru: Повышение характеристик
+        mechanical_description: "Your Intelligence score increases by 1, and your Charisma score increases by 2."
+        flavor_description: "Infernal heritage sharpens both intellect and force of personality."
+      - id: darkvision
+        name_en: Darkvision
+        name_ru: Тёмное зрение
+        mechanical_description: "Thanks to your infernal heritage, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet as if bright, and in darkness as dim, in shades of gray."
+        flavor_description: "Tieflings see clearly in the gloom of their fiendish forebears."
+      - id: hellish-resistance
+        name_en: Hellish Resistance
+        name_ru: Адское сопротивление
+        mechanical_description: "You have resistance to fire damage."
+        flavor_description: "Hellfire holds little terror for the descendants of devils."
+      - id: infernal-legacy
+        name_en: Infernal Legacy
+        name_ru: Адское наследие
+        mechanical_description: "You know the thaumaturgy cantrip. At 3rd level, you can cast hellish rebuke as a 2nd-level spell once per long rest. At 5th level, you can cast darkness once per long rest. Charisma is your spellcasting ability for these spells."
+        flavor_description: "Tieflings inherit minor magical gifts from their fiendish ancestors."
+    subraces: []
+    source_url: https://5thsrd.org/character/races/tiefling/
+    srd_section: "SRD 5.1 §Races / Tiefling"
+
+
+classes:
+  - id: barbarian
+    name_en: Barbarian
+    name_ru: Варвар
+    hit_die: 12
+    primary_ability: [str]
+    saving_throw_proficiencies: [str, con]
+    armor_proficiencies: [light, medium, shields]
+    weapon_proficiencies: [simple, martial]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]
+    starting_equipment:
+      - { option_letter: a, items: [greataxe] }
+      - { option_letter: b, items: ["any martial melee weapon"] }
+      - { option_letter: a, items: ["two handaxes"] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: fixed, items: ["explorer's pack", "four javelins"] }
+    level_1_features:
+      - name_en: Rage
+        name_ru: Ярость
+        description: "On your turn, you can enter a rage as a bonus action. While raging (and not wearing heavy armor), you have advantage on Strength checks and Strength saves; gain a bonus to melee damage with Strength-based weapon attacks (+2 at level 1); and have resistance to bludgeoning, piercing, and slashing damage. You cannot cast or concentrate on spells while raging. The rage lasts 1 minute, ending early if you are knocked unconscious or end your turn without attacking a hostile creature or taking damage. You can rage 2 times per long rest at 1st level."
+      - name_en: Unarmored Defense
+        name_ru: Защита без доспехов
+        description: "While not wearing armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
+    spellcasting: null
+    subclass_at_level: 3
+    subclasses:
+      - id: path-of-the-berserker
+        name_en: Path of the Berserker
+        name_ru: Путь Берсерка
+        level_1_features_if_any:
+          - name_en: Frenzy
+            name_ru: Бешенство
+            description: "Starting at 3rd level, you can go into a frenzy when you rage. For the duration of your rage, you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion."
+    source_url: https://5thsrd.org/character/classes/barbarian/
+
+  - id: bard
+    name_en: Bard
+    name_ru: Бард
+    hit_die: 8
+    primary_ability: [cha]
+    saving_throw_proficiencies: [dex, cha]
+    armor_proficiencies: [light]
+    weapon_proficiencies: [simple, "hand crossbows", longswords, rapiers, shortswords]
+    tool_proficiencies: ["three musical instruments of your choice"]
+    skill_proficiencies:
+      choose_n: 3
+      from: ["any"]
+    starting_equipment:
+      - { option_letter: a, items: [rapier] }
+      - { option_letter: b, items: [longsword] }
+      - { option_letter: c, items: ["any simple weapon"] }
+      - { option_letter: a, items: ["diplomat's pack"] }
+      - { option_letter: b, items: ["entertainer's pack"] }
+      - { option_letter: a, items: [lute] }
+      - { option_letter: b, items: ["any other musical instrument"] }
+      - { option_letter: fixed, items: ["leather armor", "dagger"] }
+    level_1_features:
+      - name_en: Spellcasting
+        name_ru: Использование заклинаний
+        description: "You have learned to untangle and reshape the fabric of reality in harmony with your wishes and music. You know 2 cantrips and 4 first-level spells. Charisma is your spellcasting ability. You can use a musical instrument as a spellcasting focus. You can cast bard spells with the ritual tag as rituals if you know them."
+      - name_en: Bardic Inspiration
+        name_ru: Вдохновение барда
+        description: "As a bonus action, choose one creature other than yourself within 60 feet who can hear you. That creature gains one Bardic Inspiration die (a d6). Within the next 10 minutes, the creature can roll the die and add it to one ability check, attack roll, or saving throw. You can use this feature a number of times equal to your Charisma modifier (minimum 1), regaining all uses on a long rest. The die improves at 5th, 10th, and 15th levels."
+    spellcasting:
+      type: full
+      ability: cha
+      cantrips_known_lvl1: 2
+      spells_known_lvl1: 4
+      spell_slots_lvl1: { 1: 2 }
+      prepared_count_formula: "spells_known (no preparation; bards know spells)"
+      spell_list_id: bard-spell-list
+    subclass_at_level: 3
+    subclasses:
+      - id: college-of-lore
+        name_en: College of Lore
+        name_ru: Коллегия Знаний
+        level_1_features_if_any:
+          - name_en: Bonus Proficiencies
+            name_ru: Дополнительные владения
+            description: "When you join the College of Lore at 3rd level, you gain proficiency with three skills of your choice."
+          - name_en: Cutting Words
+            name_ru: Разящие слова
+            description: "Also at 3rd level, when a creature you can see within 60 feet makes an attack roll, ability check, or damage roll, you can use your reaction to expend one Bardic Inspiration die and subtract the number rolled from the creature's roll. You can use this after the creature rolls but before the GM determines outcome. The creature is immune if it can't hear you or is immune to being charmed."
+    source_url: https://5thsrd.org/character/classes/bard/
+
+  - id: cleric
+    name_en: Cleric
+    name_ru: Жрец
+    hit_die: 8
+    primary_ability: [wis]
+    saving_throw_proficiencies: [wis, cha]
+    armor_proficiencies: [light, medium, shields]
+    weapon_proficiencies: [simple]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [History, Insight, Medicine, Persuasion, Religion]
+    starting_equipment:
+      - { option_letter: a, items: [mace] }
+      - { option_letter: b, items: [warhammer] }
+      - { option_letter: a, items: ["scale mail"] }
+      - { option_letter: b, items: ["leather armor"] }
+      - { option_letter: c, items: ["chain mail (if proficient)"] }
+      - { option_letter: a, items: ["light crossbow", "20 bolts"] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: a, items: ["priest's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: [shield, "holy symbol"] }
+    level_1_features:
+      - name_en: Spellcasting
+        name_ru: Использование заклинаний
+        description: "As a conduit for divine power, you can cast cleric spells. You know 3 cantrips at 1st level. Wisdom is your spellcasting ability. You can use a holy symbol as a spellcasting focus. You may cast prepared cleric spells with the ritual tag as rituals."
+      - name_en: Divine Domain
+        name_ru: Божественный домен
+        description: "Choose one domain related to your deity (e.g., Life). Your choice grants you domain spells (always prepared and not counting against your prepared spell limit) and other features at 1st level, and additional Channel Divinity options at 2nd level, with further benefits at 6th, 8th, and 17th."
+    spellcasting:
+      type: full
+      ability: wis
+      cantrips_known_lvl1: 3
+      spells_known_lvl1: 0
+      spell_slots_lvl1: { 1: 2 }
+      prepared_count_formula: "wis_mod + cleric_level (minimum 1)"
+      spell_list_id: cleric-spell-list
+    subclass_at_level: 1
+    subclasses:
+      - id: life-domain
+        name_en: Life Domain
+        name_ru: Домен Жизни
+        level_1_features_if_any:
+          - name_en: Bonus Proficiency
+            name_ru: Дополнительное владение
+            description: "When you choose this domain at 1st level, you gain proficiency with heavy armor."
+          - name_en: Disciple of Life
+            name_ru: Ученик жизни
+            description: "Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell's level."
+          - name_en: Life Domain Spells
+            name_ru: Заклинания домена Жизни
+            description: |
+              Always-prepared domain spells:
+              1st level: bless, cure wounds
+              3rd level: lesser restoration, spiritual weapon
+              5th level: beacon of hope, revivify
+              7th level: death ward, guardian of faith
+              9th level: mass cure wounds, raise dead
+    source_url: https://5thsrd.org/character/classes/cleric/
+
+  - id: druid
+    name_en: Druid
+    name_ru: Друид
+    hit_die: 8
+    primary_ability: [wis]
+    saving_throw_proficiencies: [int, wis]
+    armor_proficiencies: [light, medium, shields, "non-metal only"]
+    weapon_proficiencies: [clubs, daggers, darts, javelins, maces, quarterstaffs, scimitars, sickles, slings, spears]
+    tool_proficiencies: ["herbalism kit"]
+    skill_proficiencies:
+      choose_n: 2
+      from: [Arcana, "Animal Handling", Insight, Medicine, Nature, Perception, Religion, Survival]
+    starting_equipment:
+      - { option_letter: a, items: ["wooden shield"] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: a, items: [scimitar] }
+      - { option_letter: b, items: ["any simple melee weapon"] }
+      - { option_letter: fixed, items: ["leather armor", "explorer's pack", "druidic focus"] }
+    level_1_features:
+      - name_en: Druidic
+        name_ru: Друидический
+        description: "You know Druidic, the secret language of druids. You can speak the language and use it to leave hidden messages. You and others who know this language automatically spot such messages. Others spot the message's presence with a successful DC 15 Wisdom (Perception) check but can't decipher it without magic."
+      - name_en: Spellcasting
+        name_ru: Использование заклинаний
+        description: "Drawing on the divine essence of nature itself, you can cast druid spells. You know 2 cantrips at 1st level. Wisdom is your spellcasting ability. You can use a druidic focus as a spellcasting focus."
+    spellcasting:
+      type: full
+      ability: wis
+      cantrips_known_lvl1: 2
+      spells_known_lvl1: 0
+      spell_slots_lvl1: { 1: 2 }
+      prepared_count_formula: "wis_mod + druid_level (minimum 1)"
+      spell_list_id: druid-spell-list
+    subclass_at_level: 2
+    subclasses:
+      - id: circle-of-the-land
+        name_en: Circle of the Land
+        name_ru: Круг Земли
+        level_1_features_if_any:
+          - name_en: Bonus Cantrip
+            name_ru: Дополнительный заговор
+            description: "When you choose this circle at 2nd level, you learn one additional druid cantrip of your choice."
+          - name_en: Natural Recovery
+            name_ru: Природное восстановление
+            description: "Starting at 2nd level, during a short rest you can recover expended spell slots whose combined level is equal to or less than half your druid level (rounded up); none of the slots can be 6th level or higher. Once per long rest."
+          - name_en: Circle Spells
+            name_ru: Заклинания круга
+            description: |
+              At 3rd, 5th, 7th, and 9th level, you gain Circle Spells tied to a chosen terrain (always prepared, not counting against limit). Choose one terrain: arctic, coast, desert, forest, grassland, mountain, or swamp. (Underdark is NOT in SRD 5.1.)
+              Arctic — 3rd: hold person, spike growth; 5th: sleet storm, slow; 7th: freedom of movement, ice storm; 9th: commune with nature, cone of cold.
+              Coast — 3rd: mirror image, misty step; 5th: water breathing, water walk; 7th: control water, freedom of movement; 9th: conjure elemental, scrying.
+              Desert — 3rd: blur, silence; 5th: create food and water, protection from energy; 7th: blight, hallucinatory terrain; 9th: insect plague, wall of stone.
+              Forest — 3rd: barkskin, spider climb; 5th: call lightning, plant growth; 7th: divination, freedom of movement; 9th: commune with nature, tree stride.
+              Grassland — 3rd: invisibility, pass without trace; 5th: daylight, haste; 7th: divination, freedom of movement; 9th: dream, insect plague.
+              Mountain — 3rd: spider climb, spike growth; 5th: lightning bolt, meld into stone; 7th: stone shape, stoneskin; 9th: passwall, wall of stone.
+              Swamp — 3rd: acid arrow, darkness; 5th: water walk, stinking cloud; 7th: freedom of movement, locate creature; 9th: insect plague, scrying.
+    source_url: https://5thsrd.org/character/classes/druid/
+
+  - id: fighter
+    name_en: Fighter
+    name_ru: Воин
+    hit_die: 10
+    primary_ability: [str, dex]
+    saving_throw_proficiencies: [str, con]
+    armor_proficiencies: [light, medium, heavy, shields]
+    weapon_proficiencies: [simple, martial]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [Acrobatics, "Animal Handling", Athletics, History, Insight, Intimidation, Perception, Survival]
+    starting_equipment:
+      - { option_letter: a, items: ["chain mail"] }
+      - { option_letter: b, items: ["leather armor", longbow, "20 arrows"] }
+      - { option_letter: a, items: ["a martial weapon", shield] }
+      - { option_letter: b, items: ["two martial weapons"] }
+      - { option_letter: a, items: ["light crossbow", "20 bolts"] }
+      - { option_letter: b, items: ["two handaxes"] }
+      - { option_letter: a, items: ["dungeoneer's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+    level_1_features:
+      - name_en: Fighting Style
+        name_ru: Боевой стиль
+        description: |
+          Choose one style: Archery (+2 to ranged weapon attack rolls); Defense (+1 AC while wearing armor); Dueling (+2 damage when wielding a melee weapon in one hand and no other weapons); Great Weapon Fighting (reroll 1s and 2s on damage dice for two-handed melee weapons); Protection (use reaction to impose disadvantage on an attack against an ally within 5 ft, requires shield); Two-Weapon Fighting (add ability modifier to off-hand damage).
+      - name_en: Second Wind
+        name_ru: Второе дыхание
+        description: "On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. You must finish a short or long rest before using it again."
+    spellcasting: null
+    subclass_at_level: 3
+    subclasses:
+      - id: champion
+        name_en: Champion
+        name_ru: Чемпион
+        level_1_features_if_any:
+          - name_en: Improved Critical
+            name_ru: Улучшенный критический удар
+            description: "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20."
+    source_url: https://5thsrd.org/character/classes/fighter/
+
+  - id: monk
+    name_en: Monk
+    name_ru: Монах
+    hit_die: 8
+    primary_ability: [dex, wis]
+    saving_throw_proficiencies: [str, dex]
+    armor_proficiencies: []
+    weapon_proficiencies: [simple, shortswords]
+    tool_proficiencies: ["one type of artisan's tools or one musical instrument of your choice"]
+    skill_proficiencies:
+      choose_n: 2
+      from: [Acrobatics, Athletics, History, Insight, Religion, Stealth]
+    starting_equipment:
+      - { option_letter: a, items: [shortsword] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: a, items: ["dungeoneer's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: ["10 darts"] }
+    level_1_features:
+      - name_en: Unarmored Defense
+        name_ru: Защита без доспехов
+        description: "While you are wearing no armor and not wielding a shield, your AC equals 10 + your Dexterity modifier + your Wisdom modifier."
+      - name_en: Martial Arts
+        name_ru: Боевые искусства
+        description: "Your practice of martial arts gives you mastery of combat styles using unarmed strikes and monk weapons (shortswords and any simple melee weapons without two-handed or heavy properties). While unarmed or wielding only monk weapons (and not wearing armor or wielding a shield): you may use Dexterity instead of Strength for attack and damage rolls; you may roll a d4 in place of normal damage for unarmed strikes/monk weapons (improves with level); when you take the Attack action with such a weapon, you can make one unarmed strike as a bonus action."
+    spellcasting: null
+    subclass_at_level: 3
+    subclasses:
+      - id: way-of-the-open-hand
+        name_en: Way of the Open Hand
+        name_ru: Путь Открытой Ладони
+        level_1_features_if_any:
+          - name_en: Open Hand Technique
+            name_ru: Техника Открытой Ладони
+            description: |
+              Starting at 3rd level, when you hit a creature with one of the attacks granted by your Flurry of Blows, you can impose one of: target must succeed on a Dexterity save or be knocked prone; target must make a Strength save or be pushed up to 15 feet away; target can't take reactions until the end of your next turn.
+    source_url: https://5thsrd.org/character/classes/monk/
+
+  - id: paladin
+    name_en: Paladin
+    name_ru: Паладин
+    hit_die: 10
+    primary_ability: [str, cha]
+    saving_throw_proficiencies: [wis, cha]
+    armor_proficiencies: [light, medium, heavy, shields]
+    weapon_proficiencies: [simple, martial]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [Athletics, Insight, Intimidation, Medicine, Persuasion, Religion]
+    starting_equipment:
+      - { option_letter: a, items: ["a martial weapon", shield] }
+      - { option_letter: b, items: ["two martial weapons"] }
+      - { option_letter: a, items: ["five javelins"] }
+      - { option_letter: b, items: ["any simple melee weapon"] }
+      - { option_letter: a, items: ["priest's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: ["chain mail", "holy symbol"] }
+    level_1_features:
+      - name_en: Divine Sense
+        name_ru: Божественное чутьё
+        description: "As an action, until the end of your next turn, you know the location of any celestial, fiend, or undead within 60 feet that is not behind total cover. You also detect places or objects consecrated or desecrated as with the hallow spell. You can use this feature a number of times equal to 1 + your Charisma modifier, regaining all uses on a long rest."
+      - name_en: Lay on Hands
+        name_ru: Возложение рук
+        description: "You have a pool of healing power equal to your paladin level × 5 hit points, replenished on a long rest. As an action, you can touch a creature and restore hit points up to the remaining pool. Alternatively, expend 5 points to cure one disease or neutralize one poison. No effect on undead or constructs."
+    spellcasting: null   # Spellcasting begins at 2nd level
+    subclass_at_level: 3
+    subclasses:
+      - id: oath-of-devotion
+        name_en: Oath of Devotion
+        name_ru: Клятва Преданности
+        level_1_features_if_any:
+          - name_en: Tenets of Devotion
+            name_ru: Принципы Преданности
+            description: "Honesty, Courage, Compassion, Honor, and Duty — paladins of this oath uphold these tenets."
+          - name_en: Oath Spells
+            name_ru: Заклинания клятвы
+            description: |
+              Always-prepared oath spells:
+              3rd level: protection from evil and good, sanctuary
+              5th level: lesser restoration, zone of truth
+              9th level: beacon of hope, dispel magic
+              13th level: freedom of movement, guardian of faith
+              17th level: commune, flame strike
+          - name_en: Channel Divinity (Sacred Weapon)
+            name_ru: Божественный канал (Священное оружие)
+            description: "As an action, imbue one weapon you are holding with positive energy. For 1 minute, you add your Charisma modifier to attack rolls with that weapon (minimum +1). The weapon emits bright light in a 20-ft radius and dim light 20 ft beyond, and becomes magical for the duration. You can end this effect on your turn as part of any other action."
+          - name_en: Channel Divinity (Turn the Unholy)
+            name_ru: Божественный канал (Изгнание нечестивых)
+            description: "As an action, present your holy symbol and speak a prayer. Each fiend or undead within 30 feet that can see or hear you must make a Wisdom saving throw or be turned for 1 minute or until it takes damage."
+    source_url: https://5thsrd.org/character/classes/paladin/
+
+  - id: ranger
+    name_en: Ranger
+    name_ru: Следопыт
+    hit_die: 10
+    primary_ability: [dex, wis]
+    saving_throw_proficiencies: [str, dex]
+    armor_proficiencies: [light, medium, shields]
+    weapon_proficiencies: [simple, martial]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 3
+      from: ["Animal Handling", Athletics, Insight, Investigation, Nature, Perception, Stealth, Survival]
+    starting_equipment:
+      - { option_letter: a, items: ["scale mail"] }
+      - { option_letter: b, items: ["leather armor"] }
+      - { option_letter: a, items: ["two shortswords"] }
+      - { option_letter: b, items: ["two simple melee weapons"] }
+      - { option_letter: a, items: ["dungeoneer's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: [longbow, "quiver of 20 arrows"] }
+    level_1_features:
+      - name_en: Favored Enemy
+        name_ru: Заклятый враг
+        description: "Choose a type of favored enemy: aberrations, beasts, celestials, constructs, dragons, elementals, fey, fiends, giants, monstrosities, oozes, plants, or undead; alternatively, two races of humanoid (such as gnolls and orcs). You have advantage on Wisdom (Survival) checks to track them and on Intelligence checks to recall information about them. You also learn one language of your choice spoken by your favored enemies, if they speak one."
+      - name_en: Natural Explorer
+        name_ru: Природный исследователь
+        description: |
+          Choose a favored terrain: arctic, coast, desert, forest, grassland, mountain, or swamp. While in your favored terrain: difficult terrain doesn't slow your group's travel; your group can't become lost except by magic; while traveling alone, you can move stealthily at a normal pace; when you forage you find twice as much food; while tracking, you learn exact number, sizes, and how long ago they passed; your proficiency bonus is doubled on Intelligence and Wisdom checks related to the terrain (when using a proficient skill).
+    spellcasting: null   # Spellcasting begins at 2nd level
+    subclass_at_level: 3
+    subclasses:
+      - id: hunter
+        name_en: Hunter
+        name_ru: Охотник
+        level_1_features_if_any:
+          - name_en: Hunter's Prey
+            name_ru: Добыча охотника
+            description: |
+              At 3rd level, choose one feature:
+              Colossus Slayer — Once per turn when you hit a creature with a weapon attack, deal an extra 1d8 damage if the target is below its hit point maximum.
+              Giant Killer — When a Large or larger creature within 5 feet of you hits or misses you with an attack, you can use your reaction to attack that creature immediately after its attack.
+              Horde Breaker — Once on each of your turns when you make a weapon attack, you can make another attack with the same weapon against a different creature within 5 feet of the original target and within range of your weapon.
+    source_url: https://5thsrd.org/character/classes/ranger/
+
+  - id: rogue
+    name_en: Rogue
+    name_ru: Плут
+    hit_die: 8
+    primary_ability: [dex]
+    saving_throw_proficiencies: [dex, int]
+    armor_proficiencies: [light]
+    weapon_proficiencies: [simple, "hand crossbows", longswords, rapiers, shortswords]
+    tool_proficiencies: ["thieves' tools"]
+    skill_proficiencies:
+      choose_n: 4
+      from: [Acrobatics, Athletics, Deception, Insight, Intimidation, Investigation, Perception, Performance, Persuasion, "Sleight of Hand", Stealth]
+    starting_equipment:
+      - { option_letter: a, items: [rapier] }
+      - { option_letter: b, items: [shortsword] }
+      - { option_letter: a, items: [shortbow, "quiver of 20 arrows"] }
+      - { option_letter: b, items: [shortsword] }
+      - { option_letter: a, items: ["burglar's pack"] }
+      - { option_letter: b, items: ["dungeoneer's pack"] }
+      - { option_letter: c, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: ["leather armor", "two daggers", "thieves' tools"] }
+    level_1_features:
+      - name_en: Expertise
+        name_ru: Компетентность
+        description: "Choose two of your skill proficiencies, or one skill proficiency and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check that uses either of the chosen proficiencies."
+      - name_en: Sneak Attack
+        name_ru: Скрытая атака
+        description: "Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll. The attack must use a finesse or a ranged weapon. You don't need advantage if another enemy of the target is within 5 feet of it (not incapacitated) and you don't have disadvantage. Damage increases as you level."
+      - name_en: Thieves' Cant
+        name_ru: Воровской жаргон
+        description: "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation. Only another creature that knows thieves' cant understands such messages."
+    spellcasting: null
+    subclass_at_level: 3
+    subclasses:
+      - id: thief
+        name_en: Thief
+        name_ru: Вор
+        level_1_features_if_any:
+          - name_en: Fast Hands
+            name_ru: Быстрые руки
+            description: "Starting at 3rd level, you can use the bonus action granted by your Cunning Action to make a Dexterity (Sleight of Hand) check, use your thieves' tools to disarm a trap or open a lock, or take the Use an Object action."
+          - name_en: Second-Story Work
+            name_ru: Работа на втором этаже
+            description: "When you choose this archetype at 3rd level, you gain the ability to climb faster than normal; climbing no longer costs you extra movement. In addition, when you make a running jump, the distance you cover increases by a number of feet equal to your Dexterity modifier."
+    source_url: https://5thsrd.org/character/classes/rogue/
+
+  - id: sorcerer
+    name_en: Sorcerer
+    name_ru: Чародей
+    hit_die: 6
+    primary_ability: [cha]
+    saving_throw_proficiencies: [con, cha]
+    armor_proficiencies: []
+    weapon_proficiencies: [daggers, darts, slings, quarterstaffs, "light crossbows"]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [Arcana, Deception, Insight, Intimidation, Persuasion, Religion]
+    starting_equipment:
+      - { option_letter: a, items: ["light crossbow", "20 bolts"] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: a, items: ["component pouch"] }
+      - { option_letter: b, items: ["arcane focus"] }
+      - { option_letter: a, items: ["dungeoneer's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: ["two daggers"] }
+    level_1_features:
+      - name_en: Spellcasting
+        name_ru: Использование заклинаний
+        description: "An event in your past, or in the life of a parent or ancestor, infused you with arcane magic. You know 4 cantrips and 2 first-level spells at 1st level. Charisma is your spellcasting ability. You can use an arcane focus as a spellcasting focus."
+      - name_en: Sorcerous Origin
+        name_ru: Чародейское происхождение
+        description: "Choose a sorcerous origin (e.g., Draconic Bloodline). Your choice grants you features at 1st, 6th, 14th, and 18th level."
+    spellcasting:
+      type: full
+      ability: cha
+      cantrips_known_lvl1: 4
+      spells_known_lvl1: 2
+      spell_slots_lvl1: { 1: 2 }
+      prepared_count_formula: "spells_known (sorcerers know spells)"
+      spell_list_id: sorcerer-spell-list
+    subclass_at_level: 1
+    subclasses:
+      - id: draconic-bloodline
+        name_en: Draconic Bloodline
+        name_ru: Драконья Кровь
+        level_1_features_if_any:
+          - name_en: Dragon Ancestor
+            name_ru: Драконий предок
+            description: |
+              Choose one type of dragon as your ancestor (Black/acid, Blue/lightning, Brass/fire, Bronze/lightning, Copper/acid, Gold/fire, Green/poison, Red/fire, Silver/cold, White/cold). The damage type is used by features you gain later. You can speak, read, and write Draconic. Whenever you make a Charisma check when interacting with dragons, your proficiency bonus is doubled if it applies.
+          - name_en: Draconic Resilience
+            name_ru: Драконья стойкость
+            description: "As magic flows through your body, draconic traits emerge. At 1st level, your hit point maximum increases by 1 and increases by 1 again whenever you gain a level in this class. Additionally, parts of your skin are covered by a thin sheen of dragon-like scales. When you aren't wearing armor, your AC equals 13 + your Dexterity modifier."
+    source_url: https://5thsrd.org/character/classes/sorcerer/
+
+  - id: warlock
+    name_en: Warlock
+    name_ru: Колдун
+    hit_die: 8
+    primary_ability: [cha]
+    saving_throw_proficiencies: [wis, cha]
+    armor_proficiencies: [light]
+    weapon_proficiencies: [simple]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [Arcana, Deception, History, Intimidation, Investigation, Nature, Religion]
+    starting_equipment:
+      - { option_letter: a, items: ["light crossbow", "20 bolts"] }
+      - { option_letter: b, items: ["any simple weapon"] }
+      - { option_letter: a, items: ["component pouch"] }
+      - { option_letter: b, items: ["arcane focus"] }
+      - { option_letter: a, items: ["scholar's pack"] }
+      - { option_letter: b, items: ["dungeoneer's pack"] }
+      - { option_letter: fixed, items: ["leather armor", "any simple weapon", "two daggers"] }
+    level_1_features:
+      - name_en: Otherworldly Patron
+        name_ru: Потусторонний покровитель
+        description: "At 1st level, you have struck a bargain with an otherworldly being of your choice (e.g., the Fiend). Your choice grants you features at 1st, 6th, 10th, and 14th level."
+      - name_en: Pact Magic
+        name_ru: Магия Договора
+        description: "Your arcane research and the magic bestowed by your patron grant you spells. You know 2 cantrips and 2 first-level spells at 1st level. Charisma is your spellcasting ability. You have one 1st-level spell slot, regained on a short or long rest. All your spell slots are the same level (Pact Magic), and they cast at the highest slot level you have access to (1st at level 1)."
+    spellcasting:
+      type: warlock
+      ability: cha
+      cantrips_known_lvl1: 2
+      spells_known_lvl1: 2
+      spell_slots_lvl1: { 1: 1 }
+      prepared_count_formula: "spells_known (Pact Magic; warlocks know spells)"
+      spell_list_id: warlock-spell-list
+    subclass_at_level: 1
+    subclasses:
+      - id: the-fiend
+        name_en: The Fiend
+        name_ru: Исчадие
+        level_1_features_if_any:
+          - name_en: Expanded Spell List
+            name_ru: Расширенный список заклинаний
+            description: |
+              The Fiend adds spells to your warlock spell list:
+              1st: burning hands, command
+              2nd: blindness/deafness, scorching ray
+              3rd: fireball, stinking cloud
+              4th: fire shield, wall of fire
+              5th: flame strike, hallow
+          - name_en: Dark One's Blessing
+            name_ru: Благословение Тёмного
+            description: "Starting at 1st level, when you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level (minimum of 1)."
+    source_url: https://5thsrd.org/character/classes/warlock/
+
+  - id: wizard
+    name_en: Wizard
+    name_ru: Волшебник
+    hit_die: 6
+    primary_ability: [int]
+    saving_throw_proficiencies: [int, wis]
+    armor_proficiencies: []
+    weapon_proficiencies: [daggers, darts, slings, quarterstaffs, "light crossbows"]
+    tool_proficiencies: []
+    skill_proficiencies:
+      choose_n: 2
+      from: [Arcana, History, Insight, Investigation, Medicine, Religion]
+    starting_equipment:
+      - { option_letter: a, items: [quarterstaff] }
+      - { option_letter: b, items: [dagger] }
+      - { option_letter: a, items: ["component pouch"] }
+      - { option_letter: b, items: ["arcane focus"] }
+      - { option_letter: a, items: ["scholar's pack"] }
+      - { option_letter: b, items: ["explorer's pack"] }
+      - { option_letter: fixed, items: [spellbook] }
+    level_1_features:
+      - name_en: Spellcasting
+        name_ru: Использование заклинаний
+        description: "As a student of arcane magic, you have a spellbook containing spells. You know 3 cantrips at 1st level. Your spellbook starts with 6 first-level wizard spells of your choice. You may prepare a number of wizard spells equal to your Intelligence modifier + your wizard level (minimum 1) from your spellbook each long rest. Intelligence is your spellcasting ability. You can use an arcane focus or component pouch as a spellcasting focus. You can copy other wizard spells you find into your spellbook (50 gp + 2 hours per spell level)."
+      - name_en: Arcane Recovery
+        name_ru: Магическое восстановление
+        description: "Once per day when you finish a short rest, you can choose expended spell slots to recover. The slots can have a combined level equal to or less than half your wizard level (rounded up); none can be 6th level or higher."
+    spellcasting:
+      type: full
+      ability: int
+      cantrips_known_lvl1: 3
+      spells_known_lvl1: 6
+      spell_slots_lvl1: { 1: 2 }
+      prepared_count_formula: "int_mod + wizard_level (minimum 1)"
+      spell_list_id: wizard-spell-list
+    subclass_at_level: 2
+    subclasses:
+      - id: school-of-evocation
+        name_en: School of Evocation
+        name_ru: Школа Воплощения
+        level_1_features_if_any:
+          - name_en: Evocation Savant
+            name_ru: Знаток Воплощения
+            description: "Beginning when you select this school at 2nd level, the gold and time you must spend to copy an evocation spell into your spellbook is halved."
+          - name_en: Sculpt Spells
+            name_ru: Лепка заклинаний
+            description: "Beginning at 2nd level, you can create pockets of relative safety within the effects of your evocation spells. When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell's level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save."
+    source_url: https://5thsrd.org/character/classes/wizard/
+
+
+backgrounds:
+  - id: acolyte
+    name_en: Acolyte
+    name_ru: Прислужник
+    skill_proficiencies: [Insight, Religion]
+    tool_proficiencies: []
+    language_proficiencies: { choose_n: 2 }
+    starting_equipment:
+      - "a holy symbol (a gift to you when you entered the priesthood)"
+      - "a prayer book or prayer wheel"
+      - "5 sticks of incense"
+      - "vestments"
+      - "a set of common clothes"
+      - "a pouch containing 15 gp"
+    starting_gold: 15
+    feature:
+      name_en: Shelter of the Faithful
+      name_ru: Прибежище верующих
+      description: "As an acolyte, you command the respect of those who share your faith, and you can perform the religious ceremonies of your deity. You and your adventuring companions can expect to receive free healing and care at a temple, shrine, or other established presence of your faith, though you must provide any material components needed for spells. Those who share your religion will support you (but only you) at a modest lifestyle. You might also have ties to a specific temple dedicated to your chosen deity or pantheon, and you have a residence there. While near your temple, you can call upon the priests for assistance, provided the assistance you ask for is not hazardous and you remain in good standing with your temple."
+    suggested_characteristics:
+      personality_traits:
+        - "I idolize a particular hero of my faith, and constantly refer to that person's deeds and example."
+        - "I can find common ground between the fiercest enemies, empathizing with them and always working toward peace."
+        - "I see omens in every event and action. The gods try to speak to us, we just need to listen."
+        - "Nothing can shake my optimistic attitude."
+        - "I quote (or misquote) sacred texts and proverbs in almost every situation."
+        - "I am tolerant (or intolerant) of other faiths and respect (or condemn) the worship of other gods."
+        - "I've enjoyed fine food, drink, and high society among my temple's elite. Rough living grates on me."
+        - "I've spent so long in the temple that I have little practical experience dealing with people in the outside world."
+      ideals:
+        - { ideal: "Tradition. The ancient traditions of worship and sacrifice must be preserved and upheld.", alignment_alignment: "Lawful" }
+        - { ideal: "Charity. I always try to help those in need, no matter what the personal cost.", alignment_alignment: "Good" }
+        - { ideal: "Change. We must help bring about the changes the gods are constantly working in the world.", alignment_alignment: "Chaotic" }
+        - { ideal: "Power. I hope to one day rise to the top of my faith's religious hierarchy.", alignment_alignment: "Lawful" }
+        - { ideal: "Faith. I trust that my deity will guide my actions. I have faith that if I work hard, things will go well.", alignment_alignment: "Lawful" }
+        - { ideal: "Aspiration. I seek to prove myself worthy of my god's favor by matching my actions against his or her teachings.", alignment_alignment: "Any" }
+      bonds:
+        - "I would die to recover an ancient relic of my faith that was lost long ago."
+        - "I will someday get revenge on the corrupt temple hierarchy who branded me a heretic."
+        - "I owe my life to the priest who took me in when my parents died."
+        - "Everything I do is for the common people."
+        - "I will do anything to protect the temple where I served."
+        - "I seek to preserve a sacred text that my enemies consider heretical and seek to destroy."
+      flaws:
+        - "I judge others harshly, and myself even more severely."
+        - "I put too much trust in those who wield power within my temple's hierarchy."
+        - "My piety sometimes leads me to blindly trust those that profess faith in my god."
+        - "I am inflexible in my thinking."
+        - "I am suspicious of strangers and expect the worst of them."
+        - "Once I pick a goal, I become obsessed with it to the detriment of everything else in my life."
+    source_url: https://5thsrd.org/character/backgrounds/

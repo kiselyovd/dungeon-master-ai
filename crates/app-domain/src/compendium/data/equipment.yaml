@@ -1,0 +1,2495 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Equipment (weapons, armor, adventuring gear)
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from Open5e v2 (https://api.open5e.com/) with `document__key__in=srd-2014`
+# and dnd5eapi.co v2014 (https://www.dnd5eapi.co/api/2014/) for pack contents and tool details.
+# See also: weapon_properties.yaml for property id definitions.
+
+weapons:
+  - id: battleaxe
+    name_en: Battleaxe
+    name_ru: Боевой топор
+    category: martial_melee
+    cost: { gp: 10 }
+    damage: { dice: "1d8", type: slashing, versatile_dice: "1d10" }
+    weight_lb: 4
+    properties: [versatile]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Battleaxe"
+
+  - id: blowgun
+    name_en: Blowgun
+    name_ru: Духовая трубка
+    category: martial_ranged
+    cost: { gp: 10 }
+    damage: { dice: "1", type: piercing, versatile_dice: null }
+    weight_lb: 1
+    properties: [ammunition, loading]
+    range_ft: { normal: 25, long: 100 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Blowgun"
+
+  - id: club
+    name_en: Club
+    name_ru: Дубинка
+    category: simple_melee
+    cost: { sp: 1 }
+    damage: { dice: "1d4", type: bludgeoning, versatile_dice: null }
+    weight_lb: 2
+    properties: [light]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Club"
+
+  - id: crossbow-hand
+    name_en: Crossbow, hand
+    name_ru: Арбалет, ручной
+    category: martial_ranged
+    cost: { gp: 75 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: null }
+    weight_lb: 3
+    properties: [ammunition, light, loading]
+    range_ft: { normal: 30, long: 120 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Crossbow, hand"
+
+  - id: crossbow-heavy
+    name_en: Crossbow, heavy
+    name_ru: Арбалет, тяжёлый
+    category: martial_ranged
+    cost: { gp: 50 }
+    damage: { dice: "1d10", type: piercing, versatile_dice: null }
+    weight_lb: 18
+    properties: [ammunition, heavy, loading, two-handed]
+    range_ft: { normal: 100, long: 400 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Crossbow, heavy"
+
+  - id: crossbow-light
+    name_en: Crossbow, light
+    name_ru: Арбалет, лёгкий
+    category: simple_ranged
+    cost: { gp: 25 }
+    damage: { dice: "1d8", type: piercing, versatile_dice: null }
+    weight_lb: 5
+    properties: [ammunition, loading, two-handed]
+    range_ft: { normal: 80, long: 320 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Crossbow, light"
+
+  - id: dagger
+    name_en: Dagger
+    name_ru: Кинжал
+    category: simple_melee
+    cost: { gp: 2 }
+    damage: { dice: "1d4", type: piercing, versatile_dice: null }
+    weight_lb: 1
+    properties: [finesse, light, thrown]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Dagger"
+
+  - id: dart
+    name_en: Dart
+    name_ru: Дротик
+    category: simple_ranged
+    cost: { cp: 5 }
+    damage: { dice: "1d4", type: piercing, versatile_dice: null }
+    weight_lb: 0.25
+    properties: [finesse, thrown]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Dart"
+
+  - id: flail
+    name_en: Flail
+    name_ru: Цеп
+    category: martial_melee
+    cost: { gp: 10 }
+    damage: { dice: "1d8", type: bludgeoning, versatile_dice: null }
+    weight_lb: 2
+    properties: []
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Flail"
+
+  - id: glaive
+    name_en: Glaive
+    name_ru: Глефа
+    category: martial_melee
+    cost: { gp: 20 }
+    damage: { dice: "1d10", type: slashing, versatile_dice: null }
+    weight_lb: 6
+    properties: [heavy, reach, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Glaive"
+
+  - id: greataxe
+    name_en: Greataxe
+    name_ru: Секира
+    category: martial_melee
+    cost: { gp: 30 }
+    damage: { dice: "1d12", type: slashing, versatile_dice: null }
+    weight_lb: 7
+    properties: [heavy, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Greataxe"
+
+  - id: greatclub
+    name_en: Greatclub
+    name_ru: Палица
+    category: simple_melee
+    cost: { sp: 2 }
+    damage: { dice: "1d8", type: bludgeoning, versatile_dice: null }
+    weight_lb: 10
+    properties: [two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Greatclub"
+
+  - id: greatsword
+    name_en: Greatsword
+    name_ru: Двуручный меч
+    category: martial_melee
+    cost: { gp: 50 }
+    damage: { dice: "2d6", type: slashing, versatile_dice: null }
+    weight_lb: 6
+    properties: [heavy, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Greatsword"
+
+  - id: halberd
+    name_en: Halberd
+    name_ru: Алебарда
+    category: martial_melee
+    cost: { gp: 20 }
+    damage: { dice: "1d10", type: slashing, versatile_dice: null }
+    weight_lb: 6
+    properties: [heavy, reach, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Halberd"
+
+  - id: handaxe
+    name_en: Handaxe
+    name_ru: Ручной топор
+    category: simple_melee
+    cost: { gp: 5 }
+    damage: { dice: "1d6", type: slashing, versatile_dice: null }
+    weight_lb: 2
+    properties: [light, thrown]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Handaxe"
+
+  - id: javelin
+    name_en: Javelin
+    name_ru: Метательное копьё
+    category: simple_melee
+    cost: { sp: 5 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: [thrown]
+    range_ft: { normal: 30, long: 120 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Javelin"
+
+  - id: lance
+    name_en: Lance
+    name_ru: Кавалерийская пика
+    category: martial_melee
+    cost: { gp: 10 }
+    damage: { dice: "1d12", type: piercing, versatile_dice: null }
+    weight_lb: 6
+    properties: [reach, special]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: "You have disadvantage when you use a lance to attack a target within 5 feet of you. Also, a lance requires two hands to wield when you aren't mounted."
+      ru: "Вы совершаете с помехой броски атаки кавалерийской пикой по целям в пределах 5 футов от вас. Кроме того, для использования кавалерийской пики не верхом на скакуне требуется две руки."
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Lance"
+
+  - id: light-hammer
+    name_en: Light hammer
+    name_ru: Лёгкий молот
+    category: simple_melee
+    cost: { gp: 2 }
+    damage: { dice: "1d4", type: bludgeoning, versatile_dice: null }
+    weight_lb: 2
+    properties: [light, thrown]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Light hammer"
+
+  - id: longbow
+    name_en: Longbow
+    name_ru: Длинный лук
+    category: martial_ranged
+    cost: { gp: 50 }
+    damage: { dice: "1d8", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: [ammunition, heavy, two-handed]
+    range_ft: { normal: 150, long: 600 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Longbow"
+
+  - id: longsword
+    name_en: Longsword
+    name_ru: Длинный меч
+    category: martial_melee
+    cost: { gp: 15 }
+    damage: { dice: "1d8", type: slashing, versatile_dice: "1d10" }
+    weight_lb: 3
+    properties: [versatile]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Longsword"
+
+  - id: mace
+    name_en: Mace
+    name_ru: Булава
+    category: simple_melee
+    cost: { gp: 5 }
+    damage: { dice: "1d6", type: bludgeoning, versatile_dice: null }
+    weight_lb: 4
+    properties: []
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Mace"
+
+  - id: maul
+    name_en: Maul
+    name_ru: Молот
+    category: martial_melee
+    cost: { gp: 10 }
+    damage: { dice: "2d6", type: bludgeoning, versatile_dice: null }
+    weight_lb: 10
+    properties: [heavy, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Maul"
+
+  - id: morningstar
+    name_en: Morningstar
+    name_ru: Моргенштерн
+    category: martial_melee
+    cost: { gp: 15 }
+    damage: { dice: "1d8", type: piercing, versatile_dice: null }
+    weight_lb: 4
+    properties: []
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Morningstar"
+
+  - id: net
+    name_en: Net
+    name_ru: Сеть
+    category: martial_ranged
+    cost: { gp: 1 }
+    damage: { dice: "0", type: bludgeoning, versatile_dice: null }
+    weight_lb: 3
+    properties: [special, thrown]
+    range_ft: { normal: 5, long: 15 }
+    special_rules:
+      en: "A Large or smaller creature hit by a net is restrained until it is freed. A net has no effect on creatures that are formless, or creatures that are Huge or larger. A creature can use its action to make a DC 10 Strength check, freeing itself or another creature within its reach on a success. Dealing 5 slashing damage to the net (AC 10) also frees the creature without harming it, ending the effect and destroying the net. When you use an action, bonus action, or reaction to attack with a net, you can make only one attack regardless of the number of attacks you can normally make."
+      ru: "Существо размера не больше Большого, попавшее под сеть, считается опутанным, пока его не освободят. Сеть не действует на бесформенных существ и существ размера Огромное и больше. Существо может действием совершить проверку Силы со Сл 10, освободив себя или другое существо в пределах своей досягаемости при успехе. Нанесение сети 5 рубящего урона (КД 10) также освобождает существо, не причиняя ему вреда, оканчивая эффект и уничтожая сеть. Когда вы используете действие, бонусное действие или реакцию для атаки сетью, вы можете совершить только одну атаку, независимо от числа атак, которые обычно можете совершить."
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Net"
+
+  - id: pike
+    name_en: Pike
+    name_ru: Пика
+    category: martial_melee
+    cost: { gp: 5 }
+    damage: { dice: "1d10", type: piercing, versatile_dice: null }
+    weight_lb: 18
+    properties: [heavy, reach, two-handed]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Pike"
+
+  - id: quarterstaff
+    name_en: Quarterstaff
+    name_ru: Боевой посох
+    category: simple_melee
+    cost: { sp: 2 }
+    damage: { dice: "1d6", type: bludgeoning, versatile_dice: "1d8" }
+    weight_lb: 4
+    properties: [versatile]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Quarterstaff"
+
+  - id: rapier
+    name_en: Rapier
+    name_ru: Рапира
+    category: martial_melee
+    cost: { gp: 25 }
+    damage: { dice: "1d8", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: [finesse]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Rapier"
+
+  - id: scimitar
+    name_en: Scimitar
+    name_ru: Скимитар
+    category: martial_melee
+    cost: { gp: 25 }
+    damage: { dice: "1d6", type: slashing, versatile_dice: null }
+    weight_lb: 3
+    properties: [finesse, light]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Scimitar"
+
+  - id: shortbow
+    name_en: Shortbow
+    name_ru: Короткий лук
+    category: simple_ranged
+    cost: { gp: 25 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: [ammunition, two-handed]
+    range_ft: { normal: 80, long: 320 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Shortbow"
+
+  - id: shortsword
+    name_en: Shortsword
+    name_ru: Короткий меч
+    category: martial_melee
+    cost: { gp: 10 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: [finesse, light]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Shortsword"
+
+  - id: sickle
+    name_en: Sickle
+    name_ru: Серп
+    category: simple_melee
+    cost: { gp: 1 }
+    damage: { dice: "1d4", type: slashing, versatile_dice: null }
+    weight_lb: 2
+    properties: [light]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Sickle"
+
+  - id: sling
+    name_en: Sling
+    name_ru: Праща
+    category: simple_ranged
+    cost: { sp: 1 }
+    damage: { dice: "1d4", type: bludgeoning, versatile_dice: null }
+    weight_lb: 0
+    properties: [ammunition]
+    range_ft: { normal: 30, long: 120 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Sling"
+
+  - id: spear
+    name_en: Spear
+    name_ru: Копьё
+    category: simple_melee
+    cost: { gp: 1 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: "1d8" }
+    weight_lb: 3
+    properties: [thrown, versatile]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Spear"
+
+  - id: trident
+    name_en: Trident
+    name_ru: Трезубец
+    category: martial_melee
+    cost: { gp: 5 }
+    damage: { dice: "1d6", type: piercing, versatile_dice: "1d8" }
+    weight_lb: 4
+    properties: [thrown, versatile]
+    range_ft: { normal: 20, long: 60 }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Trident"
+
+  - id: war-pick
+    name_en: War Pick
+    name_ru: Боевая кирка
+    category: martial_melee
+    cost: { gp: 5 }
+    damage: { dice: "1d8", type: piercing, versatile_dice: null }
+    weight_lb: 2
+    properties: []
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / War Pick"
+
+  - id: warhammer
+    name_en: Warhammer
+    name_ru: Боевой молот
+    category: martial_melee
+    cost: { gp: 15 }
+    damage: { dice: "1d8", type: bludgeoning, versatile_dice: "1d10" }
+    weight_lb: 2
+    properties: [versatile]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Warhammer"
+
+  - id: whip
+    name_en: Whip
+    name_ru: Кнут
+    category: martial_melee
+    cost: { gp: 2 }
+    damage: { dice: "1d4", type: slashing, versatile_dice: null }
+    weight_lb: 3
+    properties: [finesse, reach]
+    range_ft: { normal: null, long: null }
+    special_rules:
+      en: null
+      ru: null
+    source_url: https://5thsrd.org/character/weapons/
+    srd_section: "SRD 5.1 §Weapons / Whip"
+
+armor:
+  - id: breastplate
+    name_en: Breastplate
+    name_ru: Кираса
+    category: medium
+    cost: { gp: 400 }
+    ac_base: 14
+    ac_dex_bonus_cap: 2
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 20
+    don_time: "5 minutes"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Breastplate"
+
+  - id: chain-mail
+    name_en: Chain Mail
+    name_ru: Кольчуга
+    category: heavy
+    cost: { gp: 75 }
+    ac_base: 16
+    ac_dex_bonus_cap: 0
+    stealth_disadvantage: true
+    str_req: 13
+    weight_lb: 55
+    don_time: "10 minutes"
+    doff_time: "5 minutes"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Chain Mail"
+
+  - id: chain-shirt
+    name_en: Chain Shirt
+    name_ru: Кольчужная рубаха
+    category: medium
+    cost: { gp: 50 }
+    ac_base: 13
+    ac_dex_bonus_cap: 2
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 20
+    don_time: "5 minutes"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Chain Shirt"
+
+  - id: half-plate
+    name_en: Half Plate
+    name_ru: Полулаты
+    category: medium
+    cost: { gp: 750 }
+    ac_base: 15
+    ac_dex_bonus_cap: 2
+    stealth_disadvantage: true
+    str_req: null
+    weight_lb: 40
+    don_time: "5 minutes"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Half Plate"
+
+  - id: hide
+    name_en: Hide
+    name_ru: Шкурный доспех
+    category: medium
+    cost: { gp: 10 }
+    ac_base: 12
+    ac_dex_bonus_cap: 2
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 12
+    don_time: "5 minutes"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Hide"
+
+  - id: leather
+    name_en: Leather Armor
+    name_ru: Кожаный доспех
+    category: light
+    cost: { gp: 10 }
+    ac_base: 11
+    ac_dex_bonus_cap: null
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 10
+    don_time: "1 minute"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Leather"
+
+  - id: padded
+    name_en: Padded Armor
+    name_ru: Стёганый доспех
+    category: light
+    cost: { gp: 5 }
+    ac_base: 11
+    ac_dex_bonus_cap: null
+    stealth_disadvantage: true
+    str_req: null
+    weight_lb: 8
+    don_time: "1 minute"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Padded"
+
+  - id: plate
+    name_en: Plate Armor
+    name_ru: Латы
+    category: heavy
+    cost: { gp: 1500 }
+    ac_base: 18
+    ac_dex_bonus_cap: 0
+    stealth_disadvantage: true
+    str_req: 15
+    weight_lb: 65
+    don_time: "10 minutes"
+    doff_time: "5 minutes"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Plate"
+
+  - id: ring-mail
+    name_en: Ring Mail
+    name_ru: Кольчатый доспех
+    category: heavy
+    cost: { gp: 30 }
+    ac_base: 14
+    ac_dex_bonus_cap: 0
+    stealth_disadvantage: true
+    str_req: null
+    weight_lb: 40
+    don_time: "10 minutes"
+    doff_time: "5 minutes"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Ring Mail"
+
+  - id: scale-mail
+    name_en: Scale Mail
+    name_ru: Чешуйчатый доспех
+    category: medium
+    cost: { gp: 50 }
+    ac_base: 14
+    ac_dex_bonus_cap: 2
+    stealth_disadvantage: true
+    str_req: null
+    weight_lb: 45
+    don_time: "5 minutes"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Scale Mail"
+
+  - id: shield
+    name_en: Shield
+    name_ru: Щит
+    category: shield
+    cost: { gp: 10 }
+    ac_base: 2
+    ac_dex_bonus_cap: 0
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 6
+    don_time: "1 action"
+    doff_time: "1 action"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Shield"
+
+  - id: splint
+    name_en: Splint Armor
+    name_ru: Наборный доспех
+    category: heavy
+    cost: { gp: 200 }
+    ac_base: 17
+    ac_dex_bonus_cap: 0
+    stealth_disadvantage: true
+    str_req: 15
+    weight_lb: 60
+    don_time: "10 minutes"
+    doff_time: "5 minutes"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Splint"
+
+  - id: studded-leather
+    name_en: Studded Leather
+    name_ru: Клёпаный кожаный доспех
+    category: light
+    cost: { gp: 45 }
+    ac_base: 12
+    ac_dex_bonus_cap: null
+    stealth_disadvantage: false
+    str_req: null
+    weight_lb: 13
+    don_time: "1 minute"
+    doff_time: "1 minute"
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Armor / Studded Leather"
+
+adventuring_gear:
+  - id: abacus
+    name_en: Abacus
+    name_ru: Абак
+    cost: { gp: 2 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A counting device with sliding beads used for calculations."
+    description_ru: "Счётное устройство с подвижными костяшками, используемое для вычислений."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Abacus"
+
+  - id: acid-vial
+    name_en: Acid (vial)
+    name_ru: Кислота (склянка)
+    cost: { gp: 25 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "As an action, you can splash the contents of this vial onto a creature within 5 feet of you or throw the vial up to 20 feet, shattering it on impact. In either case, make a ranged attack against a creature or object, treating the acid as an improvised weapon. On a hit, the target takes 2d6 acid damage."
+    description_ru: "Действием вы можете выплеснуть содержимое склянки на существо в пределах 5 футов или метнуть склянку на расстояние до 20 футов, разбив её при ударе. В любом случае совершите дальнобойную атаку по существу или объекту, считая кислоту импровизированным оружием. При попадании цель получает 2d6 урона кислотой."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Acid"
+
+  - id: alchemists-fire-flask
+    name_en: Alchemist's Fire (flask)
+    name_ru: Алхимический огонь (склянка)
+    cost: { gp: 50 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This sticky, adhesive fluid ignites when exposed to air. As an action, you can throw this flask up to 20 feet, shattering it on impact. Make a ranged attack against a creature or object, treating the alchemist's fire as an improvised weapon. On a hit, the target takes 1d4 fire damage at the start of each of its turns. A creature can end this damage by using its action to make a DC 10 Dexterity check to extinguish the flames."
+    description_ru: "Эта липкая клейкая жидкость воспламеняется при контакте с воздухом. Действием вы можете метнуть склянку на расстояние до 20 футов, разбив её при ударе. Совершите дальнобойную атаку по существу или объекту, считая алхимический огонь импровизированным оружием. При попадании цель получает 1d4 урона огнём в начале каждого своего хода. Существо может прекратить этот урон, использовав действие на проверку Ловкости со Сл 10, чтобы потушить пламя."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Alchemist's Fire"
+
+  - id: alchemists-supplies
+    name_en: Alchemist's Supplies
+    name_ru: Инструменты алхимика
+    cost: { gp: 50 }
+    weight_lb: 8
+    is_bundle: false
+    contents: null
+    description_en: "Alchemist's supplies enable a character to produce useful concoctions, such as acid or alchemist's fire. Proficiency with alchemist's supplies lets you add your proficiency bonus to any ability checks you make to identify or apply alchemical concoctions."
+    description_ru: "Инструменты алхимика позволяют персонажу создавать полезные смеси, такие как кислота или алхимический огонь. Владение инструментами алхимика позволяет добавлять бонус мастерства к любым проверкам характеристик для определения или применения алхимических смесей."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Alchemist's Supplies"
+
+  - id: amulet
+    name_en: Amulet
+    name_ru: Амулет
+    cost: { gp: 5 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A holy symbol is a representation of a god or pantheon. A cleric or paladin can use a holy symbol as a spellcasting focus. To use the symbol in this way, the caster must hold it in hand, wear it visibly, or bear it on a shield. An amulet is a holy symbol worn around the neck."
+    description_ru: "Священный символ - это изображение бога или пантеона. Жрец или паладин может использовать священный символ как фокусировку. Чтобы использовать символ таким образом, заклинатель должен держать его в руке, носить его на видном месте или иметь его на щите. Амулет - это священный символ, носимый на шее."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Amulet (Holy Symbol)"
+
+  - id: antitoxin-vial
+    name_en: Antitoxin (vial)
+    name_ru: Антитоксин (склянка)
+    cost: { gp: 50 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A creature that drinks this vial of liquid gains advantage on saving throws against poison for 1 hour. It confers no benefit to undead or constructs."
+    description_ru: "Существо, выпившее склянку этой жидкости, получает преимущество на спасброски против яда на 1 час. Это не действует на нежить и конструктов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Antitoxin"
+
+  - id: arrows-20
+    name_en: Arrows (20)
+    name_ru: Стрелы (20)
+    cost: { gp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "Ammunition for a shortbow or longbow."
+    description_ru: "Боеприпасы для короткого или длинного лука."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Arrows"
+
+  - id: backpack
+    name_en: Backpack
+    name_ru: Рюкзак
+    cost: { gp: 2 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
+    description_ru: "Рюкзак вмещает один кубический фут или 30 фунтов снаряжения. Вы также можете привязать предметы, например, спальный мешок или моток верёвки, снаружи рюкзака."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Backpack"
+
+  - id: bagpipes
+    name_en: Bagpipes
+    name_ru: Волынка
+    cost: { gp: 30 }
+    weight_lb: 6
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. If you have proficiency with a given musical instrument, you can add your proficiency bonus to any ability checks you make to play music with the instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Если вы владеете музыкальным инструментом, вы можете добавлять бонус мастерства к любым проверкам характеристик, совершаемым для игры музыки на этом инструменте. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Bagpipes"
+
+  - id: ball-bearings-bag-of-1000
+    name_en: Ball bearings (bag of 1,000)
+    name_ru: Шарикоподшипники (мешок 1000 штук)
+    cost: { gp: 1 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "As an action, you can spill these tiny metal balls from their pouch to cover a level, square area that is 10 feet on a side. A creature moving across the covered area must succeed on a DC 10 Dexterity saving throw or fall prone. A creature moving through the area at half speed doesn't need to make the save."
+    description_ru: "Действием вы можете высыпать эти маленькие металлические шарики из мешочка, покрывая ровный квадратный участок 10×10 футов. Существо, движущееся через покрытую область, должно совершить успешный спасбросок Ловкости со Сл 10 или упасть ничком. Существо, движущееся через область на половинной скорости, не обязано совершать спасбросок."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Ball Bearings"
+
+  - id: barrel
+    name_en: Barrel
+    name_ru: Бочка
+    cost: { gp: 2 }
+    weight_lb: 70
+    is_bundle: false
+    contents: null
+    description_en: "A barrel can hold 40 gallons of liquid or 4 cubic feet of solid material."
+    description_ru: "Бочка вмещает 40 галлонов жидкости или 4 кубических фута твёрдого материала."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Barrel"
+
+  - id: basket
+    name_en: Basket
+    name_ru: Корзина
+    cost: { sp: 4 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A basket can hold 2 cubic feet or 40 pounds of gear."
+    description_ru: "Корзина вмещает 2 кубических фута или 40 фунтов снаряжения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Basket"
+
+  - id: bedroll
+    name_en: Bedroll
+    name_ru: Спальный мешок
+    cost: { gp: 1 }
+    weight_lb: 7
+    is_bundle: false
+    contents: null
+    description_en: "A simple roll of cloth and padding for sleeping outdoors."
+    description_ru: "Простой свёрток ткани с подкладкой для сна на открытом воздухе."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Bedroll"
+
+  - id: bell
+    name_en: Bell
+    name_ru: Колокольчик
+    cost: { gp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A small bell that produces a clear, ringing sound when shaken."
+    description_ru: "Маленький колокольчик, производящий чистый звон при потряхивании."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Bell"
+
+  - id: blanket
+    name_en: Blanket
+    name_ru: Одеяло
+    cost: { sp: 5 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "A blanket to keep warm at night."
+    description_ru: "Одеяло, чтобы согреться ночью."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Blanket"
+
+  - id: block-and-tackle
+    name_en: Block and Tackle
+    name_ru: Блок и лебёдка
+    cost: { gp: 1 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "A set of pulleys with a cable threaded through them and a hook to attach to objects, a block and tackle allows you to hoist up to four times the weight you can normally lift."
+    description_ru: "Набор блоков с пропущенным через них тросом и крюком для прикрепления к объектам. Блок и лебёдка позволяет поднимать в четыре раза больше веса, чем обычно."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Block and Tackle"
+
+  - id: blowgun-needles-50
+    name_en: Blowgun needles (50)
+    name_ru: Иглы для духовой трубки (50)
+    cost: { gp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "Ammunition for a blowgun."
+    description_ru: "Боеприпасы для духовой трубки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Blowgun needles"
+
+  - id: book
+    name_en: Book
+    name_ru: Книга
+    cost: { gp: 25 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "A book might contain poetry, historical accounts, information pertaining to a particular field of lore, diagrams and notes on contraptions, or just about anything else that can be represented using text or pictures. A book of spells is a spellbook."
+    description_ru: "Книга может содержать поэзию, исторические записи, информацию по определённой области знаний, диаграммы и заметки об устройствах или почти что угодно, что может быть представлено текстом или иллюстрациями. Книга заклинаний - это магическая книга."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Book"
+
+  - id: bottle-glass
+    name_en: Bottle, glass
+    name_ru: Бутылка, стеклянная
+    cost: { gp: 2 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A glass bottle can hold 1.5 pints of liquid."
+    description_ru: "Стеклянная бутылка вмещает 1,5 пинты жидкости."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Bottle, glass"
+
+  - id: brewers-supplies
+    name_en: Brewer's Supplies
+    name_ru: Инструменты пивовара
+    cost: { gp: 20 }
+    weight_lb: 9
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for brewing beer and other alcoholic beverages. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для пивоварения. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к любым проверкам характеристик, совершаемым при использовании инструментов в своём ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Brewer's Supplies"
+
+  - id: bucket
+    name_en: Bucket
+    name_ru: Ведро
+    cost: { cp: 5 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A bucket can hold 3 gallons of liquid or 1/2 cubic foot of solid material."
+    description_ru: "Ведро вмещает 3 галлона жидкости или 1/2 кубического фута твёрдого материала."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Bucket"
+
+  - id: burglars-pack
+    name_en: Burglar's Pack
+    name_ru: Набор взломщика
+    cost: { gp: 16 }
+    weight_lb: 46.5
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: ball-bearings-bag-of-1000, quantity: 1 }
+      - { item_id: string-10ft, quantity: 1 }
+      - { item_id: bell, quantity: 1 }
+      - { item_id: candle, quantity: 5 }
+      - { item_id: crowbar, quantity: 1 }
+      - { item_id: hammer, quantity: 1 }
+      - { item_id: piton, quantity: 10 }
+      - { item_id: lantern-hooded, quantity: 1 }
+      - { item_id: oil-flask, quantity: 2 }
+      - { item_id: rations-1-day, quantity: 5 }
+      - { item_id: tinderbox, quantity: 1 }
+      - { item_id: waterskin, quantity: 1 }
+      - { item_id: rope-hempen-50ft, quantity: 1 }
+    description_en: "Includes a backpack, a bag of 1,000 ball bearings, 10 feet of string, a bell, 5 candles, a crowbar, a hammer, 10 pitons, a hooded lantern, 2 flasks of oil, 5 days rations, a tinderbox, a waterskin, and 50 feet of hempen rope."
+    description_ru: "Включает рюкзак, мешок из 1000 шарикоподшипников, 10 футов верёвки, колокольчик, 5 свечей, лом, молоток, 10 пиков, закрытый фонарь, 2 склянки масла, рацион на 5 дней, трутницу, бурдюк и 50 футов пеньковой верёвки."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/burglars-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Burglar's Pack"
+
+  - id: calligraphers-supplies
+    name_en: Calligrapher's Supplies
+    name_ru: Инструменты каллиграфа
+    cost: { gp: 10 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for ornamental writing. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для художественного письма. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Calligrapher's Supplies"
+
+  - id: caltrops-bag-of-20
+    name_en: Caltrops (bag of 20)
+    name_ru: Калтропы (мешок 20 штук)
+    cost: { gp: 1 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "As an action, you can spread a single bag of caltrops to cover a 5-foot square area. Any creature that enters the area must succeed on a DC 15 Dexterity saving throw or stop moving this turn and take 1 piercing damage. Taking this damage reduces the creature's walking speed by 10 feet until the creature regains at least 1 hit point. A creature moving through the area at half speed doesn't need to make the save."
+    description_ru: "Действием вы можете рассыпать мешок калтропов, покрывая квадратный участок 5×5 футов. Любое существо, входящее в эту область, должно совершить успешный спасбросок Ловкости со Сл 15 или прекратить движение на этом ходу и получить 1 урон колющим. Получив этот урон, скорость ходьбы существа уменьшается на 10 футов, пока оно не восстановит хотя бы 1 хит. Существо, движущееся через область на половинной скорости, не обязано совершать спасбросок."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Caltrops"
+
+  - id: candle
+    name_en: Candle
+    name_ru: Свеча
+    cost: { cp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "For 1 hour, a candle sheds bright light in a 5-foot radius and dim light for an additional 5 feet."
+    description_ru: "Свеча в течение 1 часа испускает яркий свет в радиусе 5 футов и тусклый свет ещё на 5 футов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Candle"
+
+  - id: carpenters-tools
+    name_en: Carpenter's Tools
+    name_ru: Инструменты плотника
+    cost: { gp: 8 }
+    weight_lb: 6
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for woodworking. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы с деревом. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Carpenter's Tools"
+
+  - id: cartographers-tools
+    name_en: Cartographer's Tools
+    name_ru: Инструменты картографа
+    cost: { gp: 15 }
+    weight_lb: 6
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for mapmaking. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для составления карт. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Cartographer's Tools"
+
+  - id: case-crossbow-bolt
+    name_en: Case, crossbow bolt
+    name_ru: Чехол для арбалетных болтов
+    cost: { gp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This wooden case can hold up to 20 crossbow bolts."
+    description_ru: "Этот деревянный чехол вмещает до 20 арбалетных болтов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Case, crossbow bolt"
+
+  - id: case-map-or-scroll
+    name_en: Case, map or scroll
+    name_ru: Чехол для карт или свитков
+    cost: { gp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This cylindrical leather case can hold up to ten rolled-up sheets of paper or five rolled-up sheets of parchment."
+    description_ru: "Этот цилиндрический кожаный чехол вмещает до десяти свёрнутых листов бумаги или пяти свёрнутых листов пергамента."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Case, map or scroll"
+
+  - id: chain-10-feet
+    name_en: Chain (10 feet)
+    name_ru: Цепь (10 футов)
+    cost: { gp: 5 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "A chain has 10 hit points. It can be burst with a successful DC 20 Strength check."
+    description_ru: "Цепь имеет 10 хитов. Её можно разорвать успешной проверкой Силы со Сл 20."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Chain"
+
+  - id: chalk-1-piece
+    name_en: Chalk (1 piece)
+    name_ru: Мел (1 кусок)
+    cost: { cp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A piece of chalk for writing or marking."
+    description_ru: "Кусок мела для письма или меток."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Chalk"
+
+  - id: chest
+    name_en: Chest
+    name_ru: Сундук
+    cost: { gp: 5 }
+    weight_lb: 25
+    is_bundle: false
+    contents: null
+    description_en: "A chest can hold 12 cubic feet or 300 pounds of gear."
+    description_ru: "Сундук вмещает 12 кубических футов или 300 фунтов снаряжения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Chest"
+
+  - id: climbers-kit
+    name_en: Climber's Kit
+    name_ru: Набор скалолаза
+    cost: { gp: 25 }
+    weight_lb: 12
+    is_bundle: false
+    contents: null
+    description_en: "A climber's kit includes special pitons, boot tips, gloves, and a harness. You can use the climber's kit as an action to anchor yourself; when you do, you can't fall more than 25 feet from the point where you anchored yourself, and you can't climb more than 25 feet away from that point without undoing the anchor."
+    description_ru: "Набор скалолаза включает специальные пики, накладки на сапоги, перчатки и страховочную систему. Вы можете действием использовать набор скалолаза, чтобы закрепиться; в этом случае вы не можете упасть более чем на 25 футов от точки закрепления и не можете подняться более чем на 25 футов от этой точки без снятия закрепления."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Climber's Kit"
+
+  - id: clothes-common
+    name_en: Clothes, common
+    name_ru: Одежда, обычная
+    cost: { sp: 5 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "Common clothes suitable for everyday wear."
+    description_ru: "Обычная одежда для повседневной носки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Clothes, common"
+
+  - id: clothes-costume
+    name_en: Clothes, costume
+    name_ru: Одежда, костюм
+    cost: { gp: 5 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "A costume for performances or disguises."
+    description_ru: "Костюм для выступлений или маскировки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Clothes, costume"
+
+  - id: clothes-fine
+    name_en: Clothes, fine
+    name_ru: Одежда, изысканная
+    cost: { gp: 15 }
+    weight_lb: 6
+    is_bundle: false
+    contents: null
+    description_en: "Fine clothes suitable for nobility or formal occasions."
+    description_ru: "Изысканная одежда, подходящая для знати или торжественных случаев."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Clothes, fine"
+
+  - id: clothes-travelers
+    name_en: Clothes, traveler's
+    name_ru: Одежда, путешественника
+    cost: { gp: 2 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "Sturdy clothing suitable for travel and outdoor wear."
+    description_ru: "Прочная одежда, подходящая для путешествий и носки на природе."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Clothes, traveler's"
+
+  - id: cobblers-tools
+    name_en: Cobbler's Tools
+    name_ru: Инструменты сапожника
+    cost: { gp: 5 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for shoemaking and shoe repair. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для изготовления и ремонта обуви. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Cobbler's Tools"
+
+  - id: component-pouch
+    name_en: Component Pouch
+    name_ru: Мешочек с компонентами
+    cost: { gp: 25 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A component pouch is a small, watertight leather belt pouch that has compartments to hold all the material components and other special items you need to cast your spells, except for those components that have a specific cost."
+    description_ru: "Мешочек с компонентами - это маленький водонепроницаемый кожаный поясной мешочек с отделениями для всех материальных компонентов и других особых предметов, необходимых для накладывания заклинаний, за исключением компонентов с указанной стоимостью."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Component Pouch"
+
+  - id: cooks-utensils
+    name_en: Cook's Utensils
+    name_ru: Поварская утварь
+    cost: { gp: 1 }
+    weight_lb: 8
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for cooking. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для приготовления пищи. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Cook's Utensils"
+
+  - id: crossbow-bolts-20
+    name_en: Crossbow bolts (20)
+    name_ru: Арбалетные болты (20)
+    cost: { gp: 1 }
+    weight_lb: 1.5
+    is_bundle: false
+    contents: null
+    description_en: "Ammunition for a crossbow."
+    description_ru: "Боеприпасы для арбалета."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Crossbow bolts"
+
+  - id: crowbar
+    name_en: Crowbar
+    name_ru: Лом
+    cost: { gp: 2 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Using a crowbar grants advantage to Strength checks where the crowbar's leverage can be applied."
+    description_ru: "Использование лома даёт преимущество к проверкам Силы, в которых можно применить рычаг лома."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Crowbar"
+
+  - id: crystal
+    name_en: Crystal
+    name_ru: Кристалл
+    cost: { gp: 10 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "An arcane focus is a special item designed to channel the power of arcane spells. A sorcerer, warlock, or wizard can use such an item as a spellcasting focus. A crystal serves as an arcane focus."
+    description_ru: "Магическая фокусировка - это особый предмет, предназначенный для проведения силы магических заклинаний. Чародей, колдун или волшебник может использовать такой предмет как фокусировку. Кристалл служит магической фокусировкой."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Crystal (Arcane Focus)"
+
+  - id: dice-set
+    name_en: Dice Set
+    name_ru: Набор костей
+    cost: { sp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A gaming set used for games of chance. Proficiency with a gaming set applies to one type of game, such as Three-Dragon Ante or games of chance that use dice. If you are proficient with a given game, you can add your proficiency bonus to ability checks you make to play it."
+    description_ru: "Игровой набор для азартных игр. Владение игровым набором применяется к одному типу игры, например Трёхдраконовое Анте или азартные игры с использованием костей. Если вы владеете игрой, вы можете добавлять бонус мастерства к проверкам характеристик для игры в неё."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Gaming Set / Dice Set"
+
+  - id: diplomats-pack
+    name_en: Diplomat's Pack
+    name_ru: Набор дипломата
+    cost: { gp: 39 }
+    weight_lb: 39
+    is_bundle: true
+    contents:
+      - { item_id: chest, quantity: 1 }
+      - { item_id: case-map-or-scroll, quantity: 2 }
+      - { item_id: clothes-fine, quantity: 1 }
+      - { item_id: ink-1oz-bottle, quantity: 1 }
+      - { item_id: ink-pen, quantity: 1 }
+      - { item_id: lamp, quantity: 1 }
+      - { item_id: oil-flask, quantity: 2 }
+      - { item_id: paper-sheet, quantity: 5 }
+      - { item_id: perfume-vial, quantity: 1 }
+      - { item_id: sealing-wax, quantity: 1 }
+      - { item_id: soap, quantity: 1 }
+    description_en: "Includes a chest, 2 cases for maps and scrolls, a set of fine clothes, a bottle of ink, an ink pen, a lamp, 2 flasks of oil, 5 sheets of paper, a vial of perfume, sealing wax, and soap."
+    description_ru: "Включает сундук, 2 чехла для карт и свитков, изысканную одежду, бутылочку чернил, перьевую ручку, лампу, 2 склянки масла, 5 листов бумаги, склянку духов, сургуч и мыло."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/diplomats-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Diplomat's Pack"
+
+  - id: disguise-kit
+    name_en: Disguise Kit
+    name_ru: Набор для маскировки
+    cost: { gp: 25 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "This pouch of cosmetics, hair dye, and small props lets you create disguises that change your physical appearance. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to create a visual disguise."
+    description_ru: "Этот мешочек с косметикой, краской для волос и маленьким реквизитом позволяет создавать маскировки, меняющие вашу внешность. Владение этим набором позволяет добавлять бонус мастерства к любым проверкам характеристик для создания зрительной маскировки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Disguise Kit"
+
+  - id: dragonchess-set
+    name_en: Dragonchess Set
+    name_ru: Набор Драконьих шахмат
+    cost: { gp: 1 }
+    weight_lb: 0.5
+    is_bundle: false
+    contents: null
+    description_en: "A gaming set for the game of dragonchess. Proficiency with a gaming set applies to one type of game. If you are proficient with a given game, you can add your proficiency bonus to ability checks you make to play it."
+    description_ru: "Игровой набор для игры в драконьи шахматы. Владение игровым набором применяется к одному типу игры. Если вы владеете игрой, вы можете добавлять бонус мастерства к проверкам характеристик для игры в неё."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Gaming Set / Dragonchess Set"
+
+  - id: drum
+    name_en: Drum
+    name_ru: Барабан
+    cost: { gp: 6 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Drum"
+
+  - id: dulcimer
+    name_en: Dulcimer
+    name_ru: Цимбалы
+    cost: { gp: 25 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Dulcimer"
+
+  - id: dungeoneers-pack
+    name_en: Dungeoneer's Pack
+    name_ru: Набор путешественника по подземельям
+    cost: { gp: 12 }
+    weight_lb: 61.5
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: crowbar, quantity: 1 }
+      - { item_id: hammer, quantity: 1 }
+      - { item_id: piton, quantity: 10 }
+      - { item_id: torch, quantity: 10 }
+      - { item_id: tinderbox, quantity: 1 }
+      - { item_id: rations-1-day, quantity: 10 }
+      - { item_id: waterskin, quantity: 1 }
+      - { item_id: rope-hempen-50ft, quantity: 1 }
+    description_en: "Includes a backpack, a crowbar, a hammer, 10 pitons, 10 torches, a tinderbox, 10 days of rations, a waterskin, and 50 feet of hempen rope strapped to the side of it."
+    description_ru: "Включает рюкзак, лом, молоток, 10 пиков, 10 факелов, трутницу, рацион на 10 дней, бурдюк и 50 футов пеньковой верёвки, привязанной к боку."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/dungeoneers-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Dungeoneer's Pack"
+
+  - id: emblem
+    name_en: Emblem
+    name_ru: Эмблема
+    cost: { gp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A holy symbol is a representation of a god or pantheon. A cleric or paladin can use a holy symbol as a spellcasting focus. An emblem is a holy symbol emblazoned on a shield."
+    description_ru: "Священный символ - это изображение бога или пантеона. Жрец или паладин может использовать священный символ как фокусировку. Эмблема - это священный символ, изображённый на щите."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Emblem (Holy Symbol)"
+
+  - id: entertainers-pack
+    name_en: Entertainer's Pack
+    name_ru: Набор артиста
+    cost: { gp: 40 }
+    weight_lb: 38
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: bedroll, quantity: 1 }
+      - { item_id: clothes-costume, quantity: 2 }
+      - { item_id: candle, quantity: 5 }
+      - { item_id: rations-1-day, quantity: 5 }
+      - { item_id: waterskin, quantity: 1 }
+      - { item_id: disguise-kit, quantity: 1 }
+    description_en: "Includes a backpack, a bedroll, 2 costumes, 5 candles, 5 days of rations, a waterskin, and a disguise kit."
+    description_ru: "Включает рюкзак, спальный мешок, 2 костюма, 5 свечей, рацион на 5 дней, бурдюк и набор для маскировки."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/entertainers-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Entertainer's Pack"
+
+  - id: explorers-pack
+    name_en: Explorer's Pack
+    name_ru: Набор исследователя
+    cost: { gp: 10 }
+    weight_lb: 59
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: bedroll, quantity: 1 }
+      - { item_id: mess-kit, quantity: 1 }
+      - { item_id: tinderbox, quantity: 1 }
+      - { item_id: torch, quantity: 10 }
+      - { item_id: rations-1-day, quantity: 10 }
+      - { item_id: waterskin, quantity: 1 }
+      - { item_id: rope-hempen-50ft, quantity: 1 }
+    description_en: "Includes a backpack, a bedroll, a mess kit, a tinderbox, 10 torches, 10 days of rations, a waterskin, and 50 feet of hempen rope strapped to the side of it."
+    description_ru: "Включает рюкзак, спальный мешок, набор для еды, трутницу, 10 факелов, рацион на 10 дней, бурдюк и 50 футов пеньковой верёвки, привязанной к боку."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/explorers-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Explorer's Pack"
+
+  - id: fishing-tackle
+    name_en: Fishing Tackle
+    name_ru: Рыболовные снасти
+    cost: { gp: 1 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "This kit includes a wooden rod, silken line, corkwood bobbers, steel hooks, lead sinkers, velvet lures, and narrow netting."
+    description_ru: "Этот набор включает деревянное удилище, шёлковую леску, пробковые поплавки, стальные крючки, свинцовые грузила, бархатные приманки и узкую сеть."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Fishing Tackle"
+
+  - id: flask-tankard
+    name_en: Flask or tankard
+    name_ru: Фляга или кружка
+    cost: { cp: 2 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A flask or tankard holds 1 pint of liquid."
+    description_ru: "Фляга или кружка вмещает 1 пинту жидкости."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Flask or tankard"
+
+  - id: flute
+    name_en: Flute
+    name_ru: Флейта
+    cost: { gp: 2 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Flute"
+
+  - id: forgery-kit
+    name_en: Forgery Kit
+    name_ru: Набор для подделок
+    cost: { gp: 15 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "This small box contains a variety of papers and parchments, pens and inks, seals and sealing wax, gold and silver leaf, and other supplies necessary to create convincing forgeries of physical documents. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to create a physical forgery of a document."
+    description_ru: "Эта маленькая коробочка содержит разнообразную бумагу и пергамент, перья и чернила, печати и сургуч, золотую и серебряную фольгу и другие материалы, необходимые для создания убедительных подделок физических документов. Владение этим набором позволяет добавлять бонус мастерства к проверкам характеристик для создания физической подделки документа."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Forgery Kit"
+
+  - id: glassblowers-tools
+    name_en: Glassblower's Tools
+    name_ru: Инструменты стеклодува
+    cost: { gp: 30 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for working with glass. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы со стеклом. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Glassblower's Tools"
+
+  - id: grappling-hook
+    name_en: Grappling Hook
+    name_ru: Кошка
+    cost: { gp: 2 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "A grappling hook with prongs designed to catch on edges and ledges."
+    description_ru: "Крюк-кошка с зубцами, предназначенными для зацепления за края и выступы."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Grappling Hook"
+
+  - id: hammer
+    name_en: Hammer
+    name_ru: Молоток
+    cost: { gp: 1 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "A common hammer used for driving in pitons or other utility work."
+    description_ru: "Обычный молоток, используемый для забивания пиков или другой утилитарной работы."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Hammer"
+
+  - id: hammer-sledge
+    name_en: Hammer, sledge
+    name_ru: Молот, кувалда
+    cost: { gp: 2 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "A heavy sledgehammer for heavy-duty work."
+    description_ru: "Тяжёлая кувалда для тяжёлых работ."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Hammer, sledge"
+
+  - id: healers-kit
+    name_en: Healer's Kit
+    name_ru: Набор целителя
+    cost: { gp: 5 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "This kit is a leather pouch containing bandages, salves, and splints. The kit has ten uses. As an action, you can expend one use of the kit to stabilize a creature that has 0 hit points, without needing to make a Wisdom (Medicine) check."
+    description_ru: "Этот набор представляет собой кожаный мешочек с бинтами, мазями и шинами. У набора есть десять зарядов. Действием вы можете потратить один заряд набора, чтобы стабилизировать существо с 0 хитов без необходимости совершать проверку Мудрости (Медицина)."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Healer's Kit"
+
+  - id: herbalism-kit
+    name_en: Herbalism Kit
+    name_ru: Набор травника
+    cost: { gp: 5 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "This kit contains a variety of instruments such as clippers, mortar and pestle, and pouches and vials used by herbalists to create remedies and potions. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to identify or apply herbs. Also, proficiency with this kit is required to create antitoxin and potions of healing."
+    description_ru: "Этот набор содержит разнообразные инструменты, такие как ножницы, ступка и пестик, мешочки и флаконы, используемые травниками для создания лекарств и зелий. Владение этим набором позволяет добавлять бонус мастерства к любым проверкам характеристик, совершаемым для определения или применения трав. Кроме того, владение этим набором требуется для создания антитоксина и зелий лечения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Herbalism Kit"
+
+  - id: holy-water-flask
+    name_en: Holy Water (flask)
+    name_ru: Святая вода (склянка)
+    cost: { gp: 25 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "As an action, you can splash the contents of this flask onto a creature within 5 feet of you or throw it up to 20 feet, shattering it on impact. In either case, make a ranged attack against a target creature, treating the holy water as an improvised weapon. If the target is a fiend or undead, it takes 2d6 radiant damage. A cleric or paladin may create holy water by performing a special ritual. The ritual takes 1 hour to perform, uses 25 gp worth of powdered silver, and requires the caster to expend a 1st-level spell slot."
+    description_ru: "Действием вы можете выплеснуть содержимое этой склянки на существо в пределах 5 футов или бросить её на расстояние до 20 футов, разбив при ударе. В любом случае совершите дальнобойную атаку по существу-цели, считая святую воду импровизированным оружием. Если цель - исчадие или нежить, она получает 2d6 урона излучением. Жрец или паладин может создавать святую воду, проведя особый ритуал. Ритуал занимает 1 час, использует серебряную пыль на сумму 25 зм и требует от заклинателя потратить ячейку заклинания 1-го круга."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Holy Water"
+
+  - id: horn
+    name_en: Horn
+    name_ru: Рог
+    cost: { gp: 3 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Horn"
+
+  - id: hourglass
+    name_en: Hourglass
+    name_ru: Песочные часы
+    cost: { gp: 25 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A timepiece that measures the passage of one hour by the flow of sand."
+    description_ru: "Прибор для измерения времени, отмеряющий час по течению песка."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Hourglass"
+
+  - id: hunting-trap
+    name_en: Hunting Trap
+    name_ru: Охотничий капкан
+    cost: { gp: 5 }
+    weight_lb: 25
+    is_bundle: false
+    contents: null
+    description_en: "When you use your action to set it, this trap forms a saw-toothed steel ring that snaps shut when a creature steps on a pressure plate in the center. The trap is affixed by a heavy chain to an immobile object, such as a tree or a spike driven into the ground. A creature that steps on the plate must succeed on a DC 13 Dexterity saving throw or take 1d4 piercing damage and stop moving. Thereafter, until the creature breaks free of the trap, its movement is limited by the length of the chain (typically 3 feet long). A creature can use its action to make a DC 13 Strength check, freeing itself or another creature within its reach on a success. Each failed check deals 1 piercing damage to the trapped creature."
+    description_ru: "Когда вы используете действие, чтобы установить капкан, он образует пилообразное стальное кольцо, защёлкивающееся, когда существо ступает на нажимную пластину в центре. Капкан прикреплён тяжёлой цепью к неподвижному объекту, например, к дереву или к вбитому в землю колышку. Существо, наступившее на пластину, должно совершить успешный спасбросок Ловкости со Сл 13 или получить 1d4 урона колющим и прекратить движение. После этого, пока существо не освободится из капкана, его движение ограничено длиной цепи (обычно 3 фута). Существо может действием совершить проверку Силы со Сл 13, освободив себя или другое существо в пределах досягаемости при успехе. Каждый проваленный бросок наносит 1 урон колющим пойманному существу."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Hunting Trap"
+
+  - id: ink-1oz-bottle
+    name_en: Ink (1 ounce bottle)
+    name_ru: Чернила (бутылочка 1 унция)
+    cost: { gp: 10 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A small bottle of ink for writing."
+    description_ru: "Маленькая бутылочка чернил для письма."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Ink"
+
+  - id: ink-pen
+    name_en: Ink pen
+    name_ru: Перьевая ручка
+    cost: { cp: 2 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A pen used with ink for writing."
+    description_ru: "Перо, используемое с чернилами для письма."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Ink pen"
+
+  - id: jewelers-tools
+    name_en: Jeweler's Tools
+    name_ru: Инструменты ювелира
+    cost: { gp: 25 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for working with gems and precious metals. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы с драгоценными камнями и металлами. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Jeweler's Tools"
+
+  - id: jug-pitcher
+    name_en: Jug or pitcher
+    name_ru: Кувшин
+    cost: { cp: 2 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "A jug or pitcher can hold 1 gallon of liquid."
+    description_ru: "Кувшин вмещает 1 галлон жидкости."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Jug or pitcher"
+
+  - id: ladder-10ft
+    name_en: Ladder (10-foot)
+    name_ru: Лестница (10 футов)
+    cost: { sp: 1 }
+    weight_lb: 25
+    is_bundle: false
+    contents: null
+    description_en: "A wooden ladder approximately 10 feet in length."
+    description_ru: "Деревянная лестница около 10 футов длиной."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Ladder"
+
+  - id: lamp
+    name_en: Lamp
+    name_ru: Лампа
+    cost: { sp: 5 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A lamp casts bright light in a 15-foot radius and dim light for an additional 30 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil."
+    description_ru: "Лампа испускает яркий свет в радиусе 15 футов и тусклый свет ещё на 30 футов. После зажжения горит 6 часов на одной склянке (1 пинте) масла."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Lamp"
+
+  - id: lantern-bullseye
+    name_en: Lantern, bullseye
+    name_ru: Фонарь, направленный
+    cost: { gp: 10 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A bullseye lantern casts bright light in a 60-foot cone and dim light for an additional 60 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil."
+    description_ru: "Направленный фонарь испускает яркий свет в конусе 60 футов и тусклый свет ещё на 60 футов. После зажжения горит 6 часов на одной склянке (1 пинте) масла."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Lantern, bullseye"
+
+  - id: lantern-hooded
+    name_en: Lantern, hooded
+    name_ru: Фонарь, закрытый
+    cost: { gp: 5 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A hooded lantern casts bright light in a 30-foot radius and dim light for an additional 30 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil. As an action, you can lower the hood, reducing the light to dim light in a 5-foot radius."
+    description_ru: "Закрытый фонарь испускает яркий свет в радиусе 30 футов и тусклый свет ещё на 30 футов. После зажжения горит 6 часов на одной склянке (1 пинте) масла. Действием вы можете опустить кожух, уменьшив свет до тусклого в радиусе 5 футов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Lantern, hooded"
+
+  - id: leatherworkers-tools
+    name_en: Leatherworker's Tools
+    name_ru: Инструменты кожевника
+    cost: { gp: 5 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for working with leather. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы с кожей. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Leatherworker's Tools"
+
+  - id: lock
+    name_en: Lock
+    name_ru: Замок
+    cost: { gp: 10 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A key is provided with the lock. Without the key, a creature proficient with thieves' tools can pick this lock with a successful DC 15 Dexterity check. Your DM may decide that better locks are available for higher prices."
+    description_ru: "С замком прилагается ключ. Без ключа существо, владеющее воровскими инструментами, может взломать этот замок успешной проверкой Ловкости со Сл 15. Ваш Мастер может решить, что доступны более качественные замки за более высокую цену."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Lock"
+
+  - id: lute
+    name_en: Lute
+    name_ru: Лютня
+    cost: { gp: 35 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Lute"
+
+  - id: lyre
+    name_en: Lyre
+    name_ru: Лира
+    cost: { gp: 30 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Lyre"
+
+  - id: magnifying-glass
+    name_en: Magnifying Glass
+    name_ru: Увеличительное стекло
+    cost: { gp: 100 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "This lens allows a closer look at small objects. It is also useful as a substitute for flint and steel when starting fires. Lighting a fire with a magnifying glass requires light as bright as sunlight to focus, tinder to ignite, and about 5 minutes for the fire to ignite. A magnifying glass grants advantage on any ability check made to appraise or inspect an item that is small or highly detailed."
+    description_ru: "Эта линза позволяет внимательнее рассматривать маленькие объекты. Также её можно использовать как замену кремню и кресалу для разведения огня. Разжигание огня увеличительным стеклом требует света яркостью солнечного для фокусировки, трута для воспламенения и около 5 минут для возгорания. Увеличительное стекло даёт преимущество на любые проверки характеристик для оценки или осмотра маленьких или детализированных предметов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Magnifying Glass"
+
+  - id: manacles
+    name_en: Manacles
+    name_ru: Кандалы
+    cost: { gp: 2 }
+    weight_lb: 6
+    is_bundle: false
+    contents: null
+    description_en: "These metal restraints can bind a Small or Medium creature. Escaping the manacles requires a successful DC 20 Dexterity check. Breaking them requires a successful DC 20 Strength check. Each set of manacles comes with one key. Without the key, a creature proficient with thieves' tools can pick the manacles' lock with a successful DC 15 Dexterity check. Manacles have 15 hit points."
+    description_ru: "Эти металлические оковы могут сковывать Маленькое или Среднее существо. Освобождение от кандалов требует успешной проверки Ловкости со Сл 20. Их можно разорвать успешной проверкой Силы со Сл 20. К каждому набору кандалов прилагается один ключ. Без ключа существо, владеющее воровскими инструментами, может взломать замок кандалов успешной проверкой Ловкости со Сл 15. Кандалы имеют 15 хитов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Manacles"
+
+  - id: masons-tools
+    name_en: Mason's Tools
+    name_ru: Инструменты каменщика
+    cost: { gp: 10 }
+    weight_lb: 8
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for stone-working. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы с камнем. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Mason's Tools"
+
+  - id: mess-kit
+    name_en: Mess Kit
+    name_ru: Набор для еды
+    cost: { sp: 2 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This tin box contains a cup and simple cutlery. The box clamps together, and one side can be used as a cooking pan and the other as a plate or shallow bowl."
+    description_ru: "Эта жестяная коробка содержит чашку и простые столовые приборы. Коробка защёлкивается, и одну её сторону можно использовать как сковороду, а другую - как тарелку или мелкую миску."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Mess Kit"
+
+  - id: mirror-steel
+    name_en: Mirror, steel
+    name_ru: Зеркало, стальное
+    cost: { gp: 5 }
+    weight_lb: 0.5
+    is_bundle: false
+    contents: null
+    description_en: "A small steel mirror."
+    description_ru: "Маленькое стальное зеркало."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Mirror, steel"
+
+  - id: navigators-tools
+    name_en: Navigator's Tools
+    name_ru: Инструменты навигатора
+    cost: { gp: 25 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "This set of instruments is used for navigation at sea. Proficiency with navigator's tools lets you chart a ship's course and follow navigation charts. In addition, these tools let you add your proficiency bonus to any ability check you make to avoid getting lost at sea."
+    description_ru: "Этот набор инструментов используется для морской навигации. Владение инструментами навигатора позволяет прокладывать курс корабля и следовать навигационным картам. Кроме того, эти инструменты позволяют добавлять бонус мастерства к любым проверкам характеристик, чтобы не заблудиться в море."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Navigator's Tools"
+
+  - id: oil-flask
+    name_en: Oil (flask)
+    name_ru: Масло (склянка)
+    cost: { sp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "Oil usually comes in a clay flask that holds 1 pint. As an action, you can splash the oil in this flask onto a creature within 5 feet of you or throw it up to 20 feet, shattering it on impact. Make a ranged attack against a target creature or object, treating the oil as an improvised weapon. On a hit, the target is covered in oil. If the target takes any fire damage before the oil dries (after 1 minute), the target takes an additional 5 fire damage from the burning oil. You can also pour a flask of oil on the ground to cover a 5-foot-square area, provided that the surface is level. If lit, the oil burns for 2 rounds and deals 5 fire damage to any creature that enters the area or ends its turn in the area. A creature can take this damage only once per turn."
+    description_ru: "Масло обычно поставляется в глиняной склянке вместимостью 1 пинта. Действием вы можете выплеснуть масло на существо в пределах 5 футов или бросить склянку на расстояние до 20 футов, разбив её при ударе. Совершите дальнобойную атаку по существу или объекту, считая масло импровизированным оружием. При попадании цель покрывается маслом. Если цель получает урон огнём до того, как масло высохнет (через 1 минуту), она получает дополнительные 5 урона огнём от горящего масла. Вы также можете вылить склянку масла на землю, покрывая квадратный участок 5×5 футов, если поверхность ровная. Если масло поджечь, оно горит 2 раунда и наносит 5 урона огнём любому существу, входящему в область или оканчивающему в ней свой ход. Существо может получить этот урон только один раз за ход."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Oil"
+
+  - id: painters-supplies
+    name_en: Painter's Supplies
+    name_ru: Инструменты художника
+    cost: { gp: 10 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for painting and visual art. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для рисования и изобразительного искусства. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Painter's Supplies"
+
+  - id: pan-flute
+    name_en: Pan Flute
+    name_ru: Свирель
+    cost: { gp: 12 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Pan Flute"
+
+  - id: paper-sheet
+    name_en: Paper (one sheet)
+    name_ru: Бумага (один лист)
+    cost: { sp: 2 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A single sheet of paper."
+    description_ru: "Один лист бумаги."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Paper"
+
+  - id: parchment-sheet
+    name_en: Parchment (one sheet)
+    name_ru: Пергамент (один лист)
+    cost: { sp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A single sheet of parchment."
+    description_ru: "Один лист пергамента."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Parchment"
+
+  - id: perfume-vial
+    name_en: Perfume (vial)
+    name_ru: Духи (склянка)
+    cost: { gp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A small vial of perfume."
+    description_ru: "Маленькая склянка духов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Perfume"
+
+  - id: pick-miners
+    name_en: Pick, miner's
+    name_ru: Кирка, шахтёрская
+    cost: { gp: 2 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "A heavy iron pick used for mining."
+    description_ru: "Тяжёлая железная кирка, используемая для горных работ."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Pick, miner's"
+
+  - id: piton
+    name_en: Piton
+    name_ru: Пик
+    cost: { cp: 5 }
+    weight_lb: 0.25
+    is_bundle: false
+    contents: null
+    description_en: "A metal spike used in climbing or to secure ropes."
+    description_ru: "Металлический шип, используемый при скалолазании или для закрепления верёвок."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Piton"
+
+  - id: playing-card-set
+    name_en: Playing Card Set
+    name_ru: Набор игральных карт
+    cost: { sp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A gaming set for card games. Proficiency with a gaming set applies to one type of game. If you are proficient with a given game, you can add your proficiency bonus to ability checks you make to play it."
+    description_ru: "Игровой набор для карточных игр. Владение игровым набором применяется к одному типу игры. Если вы владеете игрой, вы можете добавлять бонус мастерства к проверкам характеристик для игры в неё."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Gaming Set / Playing Card Set"
+
+  - id: poison-basic-vial
+    name_en: Poison, basic (vial)
+    name_ru: Яд, простой (склянка)
+    cost: { gp: 100 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "You can use the poison in this vial to coat one slashing or piercing weapon or up to three pieces of ammunition. Applying the poison takes an action. A creature hit by the poisoned weapon or ammunition must make a DC 10 Constitution saving throw or take 1d4 poison damage. Once applied, the poison retains potency for 1 minute before drying."
+    description_ru: "Вы можете использовать яд из этой склянки, чтобы покрыть одно рубящее или колющее оружие либо до трёх боеприпасов. Нанесение яда занимает действие. Существо, поражённое отравленным оружием или боеприпасом, должно совершить спасбросок Телосложения со Сл 10 или получить 1d4 урона ядом. После нанесения яд сохраняет силу 1 минуту, прежде чем высохнет."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Poison, basic"
+
+  - id: poisoners-kit
+    name_en: Poisoner's Kit
+    name_ru: Набор отравителя
+    cost: { gp: 50 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A poisoner's kit includes the vials, chemicals, and other equipment necessary for the creation of poisons. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to craft or use poisons."
+    description_ru: "Набор отравителя включает склянки, химикаты и другое оборудование, необходимое для создания ядов. Владение этим набором позволяет добавлять бонус мастерства к проверкам характеристик для изготовления или применения ядов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Poisoner's Kit"
+
+  - id: pole-10ft
+    name_en: Pole (10-foot)
+    name_ru: Шест (10 футов)
+    cost: { cp: 5 }
+    weight_lb: 7
+    is_bundle: false
+    contents: null
+    description_en: "A 10-foot wooden pole, useful for probing or reaching."
+    description_ru: "10-футовый деревянный шест, полезный для прощупывания или достижения предметов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Pole"
+
+  - id: pot-iron
+    name_en: Pot, iron
+    name_ru: Котелок, железный
+    cost: { gp: 2 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "An iron pot for cooking."
+    description_ru: "Железный котелок для приготовления пищи."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Pot, iron"
+
+  - id: potion-of-healing
+    name_en: Potion of healing
+    name_ru: Зелье лечения
+    cost: { gp: 50 }
+    weight_lb: 0.5
+    is_bundle: false
+    contents: null
+    description_en: "A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action."
+    description_ru: "Персонаж, выпивший магическую красную жидкость из этой склянки, восстанавливает 2d4 + 2 хитов. Выпить или дать выпить зелье - действие."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Potion of healing"
+
+  - id: potters-tools
+    name_en: Potter's Tools
+    name_ru: Инструменты гончара
+    cost: { gp: 10 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for pottery. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для гончарного ремесла. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Potter's Tools"
+
+  - id: pouch
+    name_en: Pouch
+    name_ru: Мешочек
+    cost: { sp: 5 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A cloth or leather pouch can hold up to 20 sling bullets or 50 blowgun needles, among other things. A compartmentalized pouch for holding spell components is called a component pouch (described earlier in this section). A pouch can hold up to 1/5 cubic foot or 6 pounds of gear."
+    description_ru: "Тканевый или кожаный мешочек вмещает до 20 пращных пуль или 50 игл для духовой трубки, среди прочего. Мешочек с отделениями для компонентов заклинаний называется мешочком с компонентами (описан ранее). Мешочек вмещает до 1/5 кубического фута или 6 фунтов снаряжения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Pouch"
+
+  - id: priests-pack
+    name_en: Priest's Pack
+    name_ru: Набор священника
+    cost: { gp: 19 }
+    weight_lb: 24
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: blanket, quantity: 1 }
+      - { item_id: candle, quantity: 10 }
+      - { item_id: tinderbox, quantity: 1 }
+      - { item_id: rations-1-day, quantity: 2 }
+      - { item_id: waterskin, quantity: 1 }
+      - { item_id: alms-box, quantity: 1 }
+      - { item_id: block-of-incense, quantity: 2 }
+      - { item_id: censer, quantity: 1 }
+      - { item_id: vestments, quantity: 1 }
+    description_en: "Includes a backpack, a blanket, 10 candles, a tinderbox, an alms box, 2 blocks of incense, a censer, vestments, 2 days of rations, and a waterskin."
+    description_ru: "Включает рюкзак, одеяло, 10 свечей, трутницу, копилку для милостыни, 2 бруска благовоний, кадильницу, облачение, рацион на 2 дня и бурдюк."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/priests-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Priest's Pack"
+
+  - id: quiver
+    name_en: Quiver
+    name_ru: Колчан
+    cost: { gp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A quiver can hold up to 20 arrows."
+    description_ru: "Колчан вмещает до 20 стрел."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Quiver"
+
+  - id: ram-portable
+    name_en: Ram, portable
+    name_ru: Таран, переносной
+    cost: { gp: 4 }
+    weight_lb: 35
+    is_bundle: false
+    contents: null
+    description_en: "You can use a portable ram to break down doors. When doing so, you gain a +4 bonus to the Strength check. One other character can help you use the ram, giving you advantage on this check."
+    description_ru: "Вы можете использовать переносной таран, чтобы выбивать двери. При этом вы получаете бонус +4 к проверке Силы. Другой персонаж может помочь вам использовать таран, давая вам преимущество на этот бросок."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Ram, portable"
+
+  - id: rations-1-day
+    name_en: Rations (1 day)
+    name_ru: Рацион (1 день)
+    cost: { sp: 5 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
+    description_ru: "Рацион состоит из сухой пищи, пригодной для длительных путешествий, включая вяленое мясо, сухофрукты, галеты и орехи."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Rations"
+
+  - id: reliquary
+    name_en: Reliquary
+    name_ru: Реликварий
+    cost: { gp: 5 }
+    weight_lb: 2
+    is_bundle: false
+    contents: null
+    description_en: "A holy symbol is a representation of a god or pantheon. A cleric or paladin can use a holy symbol as a spellcasting focus. A reliquary is a small container holding a sacred relic."
+    description_ru: "Священный символ - это изображение бога или пантеона. Жрец или паладин может использовать священный символ как фокусировку. Реликварий - это маленький контейнер, содержащий священную реликвию."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Reliquary (Holy Symbol)"
+
+  - id: robes
+    name_en: Robes
+    name_ru: Мантия
+    cost: { gp: 1 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "Simple robes suitable for ceremonial or scholarly wear."
+    description_ru: "Простая мантия, подходящая для церемониального или учёного облачения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Robes"
+
+  - id: rope-hempen-50ft
+    name_en: Rope, hempen (50 feet)
+    name_ru: Верёвка, пеньковая (50 футов)
+    cost: { gp: 1 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "Rope, whether made of hemp or silk, has 2 hit points and can be burst with a DC 17 Strength check."
+    description_ru: "Верёвка, изготовленная из пеньки или шёлка, имеет 2 хита и может быть разорвана проверкой Силы со Сл 17."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Rope, hempen"
+
+  - id: rope-silk-50ft
+    name_en: Rope, silk (50 feet)
+    name_ru: Верёвка, шёлковая (50 футов)
+    cost: { gp: 10 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Rope, whether made of hemp or silk, has 2 hit points and can be burst with a DC 17 Strength check."
+    description_ru: "Верёвка, изготовленная из пеньки или шёлка, имеет 2 хита и может быть разорвана проверкой Силы со Сл 17."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Rope, silk"
+
+  - id: sack
+    name_en: Sack
+    name_ru: Мешок
+    cost: { cp: 1 }
+    weight_lb: 0.5
+    is_bundle: false
+    contents: null
+    description_en: "A cloth sack can hold up to 1 cubic foot or 30 pounds of gear."
+    description_ru: "Тканевый мешок вмещает до 1 кубического фута или 30 фунтов снаряжения."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Sack"
+
+  - id: scale-merchants
+    name_en: Scale, merchant's
+    name_ru: Весы торговца
+    cost: { gp: 5 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "A scale includes a small balance, pans, and a suitable assortment of weights up to 2 pounds. With it, you can measure the exact weight of small objects, such as raw precious metals or trade goods, to help determine their worth."
+    description_ru: "Весы включают маленький балансир, чаши и подходящий набор гирь до 2 фунтов. С их помощью можно измерять точный вес мелких предметов, таких как сырые драгоценные металлы или торговые товары, чтобы определить их стоимость."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Scale, merchant's"
+
+  - id: scholars-pack
+    name_en: Scholar's Pack
+    name_ru: Набор учёного
+    cost: { gp: 40 }
+    weight_lb: 10
+    is_bundle: true
+    contents:
+      - { item_id: backpack, quantity: 1 }
+      - { item_id: book, quantity: 1 }
+      - { item_id: ink-1oz-bottle, quantity: 1 }
+      - { item_id: ink-pen, quantity: 1 }
+      - { item_id: parchment-sheet, quantity: 10 }
+      - { item_id: little-bag-of-sand, quantity: 1 }
+      - { item_id: small-knife, quantity: 1 }
+    description_en: "Includes a backpack, a book of lore, a bottle of ink, an ink pen, 10 sheets of parchment, a little bag of sand, and a small knife."
+    description_ru: "Включает рюкзак, книгу знаний, бутылочку чернил, перьевую ручку, 10 листов пергамента, маленький мешочек песка и маленький нож."
+    source_url: https://www.dnd5eapi.co/api/2014/equipment/scholars-pack
+    srd_section: "SRD 5.1 §Equipment Packs / Scholar's Pack"
+
+  - id: sealing-wax
+    name_en: Sealing wax
+    name_ru: Сургуч
+    cost: { sp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "Wax used for sealing letters and documents."
+    description_ru: "Воск, используемый для запечатывания писем и документов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Sealing wax"
+
+  - id: shawm
+    name_en: Shawm
+    name_ru: Шалмей
+    cost: { gp: 2 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Shawm"
+
+  - id: shovel
+    name_en: Shovel
+    name_ru: Лопата
+    cost: { gp: 2 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "A common shovel used for digging."
+    description_ru: "Обычная лопата, используемая для копки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Shovel"
+
+  - id: signal-whistle
+    name_en: Signal Whistle
+    name_ru: Сигнальный свисток
+    cost: { sp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A whistle used to signal companions."
+    description_ru: "Свисток, используемый для подачи сигнала спутникам."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Signal Whistle"
+
+  - id: signet-ring
+    name_en: Signet Ring
+    name_ru: Перстень-печатка
+    cost: { gp: 5 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A ring engraved with a personal or family seal used to mark documents."
+    description_ru: "Перстень с выгравированной личной или семейной печатью для запечатывания документов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Signet Ring"
+
+  - id: sling-bullets-20
+    name_en: Sling bullets (20)
+    name_ru: Пращные пули (20)
+    cost: { cp: 4 }
+    weight_lb: 1.5
+    is_bundle: false
+    contents: null
+    description_en: "Ammunition for a sling."
+    description_ru: "Боеприпасы для пращи."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Sling bullets"
+
+  - id: smiths-tools
+    name_en: Smith's Tools
+    name_ru: Инструменты кузнеца
+    cost: { gp: 20 }
+    weight_lb: 8
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for metalworking. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для работы с металлом. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Smith's Tools"
+
+  - id: soap
+    name_en: Soap
+    name_ru: Мыло
+    cost: { cp: 2 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A bar of soap for personal cleanliness."
+    description_ru: "Брусок мыла для личной гигиены."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Soap"
+
+  - id: spellbook
+    name_en: Spellbook
+    name_ru: Книга заклинаний
+    cost: { gp: 50 }
+    weight_lb: 3
+    is_bundle: false
+    contents: null
+    description_en: "Essential for wizards, a spellbook is a leather-bound tome with 100 blank vellum pages suitable for recording spells."
+    description_ru: "Важная для волшебников книга заклинаний - это переплетённый в кожу том со 100 пустыми страницами пергамента, подходящими для записи заклинаний."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Spellbook"
+
+  - id: spike-iron
+    name_en: Spike, iron
+    name_ru: Шип, железный
+    cost: { sp: 1 }
+    weight_lb: 0.5
+    is_bundle: false
+    contents: null
+    description_en: "An iron spike used for wedging doors, securing ropes, or marking trails."
+    description_ru: "Железный шип, используемый для заклинивания дверей, закрепления верёвок или разметки троп."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Spike, iron"
+
+  - id: sprig-of-mistletoe
+    name_en: Sprig of mistletoe
+    name_ru: Веточка омелы
+    cost: { gp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A druidic focus might be a sprig of mistletoe or holly, a wand or scepter made of yew or another special wood, a staff drawn whole out of a living tree, or a totem object incorporating feathers, fur, bones, and teeth from sacred animals. A druid can use such an object as a spellcasting focus."
+    description_ru: "Друидической фокусировкой может быть веточка омелы или остролиста, жезл или скипетр из тиса или другого особого дерева, посох, вырезанный целиком из живого дерева, или предмет-тотем с перьями, мехом, костями и зубами священных животных. Друид может использовать такой предмет как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Sprig of mistletoe (Druidic Focus)"
+
+  - id: spyglass
+    name_en: Spyglass
+    name_ru: Подзорная труба
+    cost: { gp: 1000 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "Objects viewed through a spyglass are magnified to twice their size."
+    description_ru: "Объекты, рассматриваемые в подзорную трубу, увеличиваются вдвое."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Spyglass"
+
+  - id: string-10ft
+    name_en: String (10 feet)
+    name_ru: Бечёвка (10 футов)
+    cost: { cp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "10 feet of string."
+    description_ru: "10 футов бечёвки."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / String"
+
+  - id: tent-two-person
+    name_en: Tent, two-person
+    name_ru: Палатка, двухместная
+    cost: { gp: 2 }
+    weight_lb: 20
+    is_bundle: false
+    contents: null
+    description_en: "A simple and portable canvas shelter, a tent sleeps two."
+    description_ru: "Простое и переносное парусиновое укрытие; в палатке могут спать двое."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Tent, two-person"
+
+  - id: thieves-tools
+    name_en: Thieves' Tools
+    name_ru: Воровские инструменты
+    cost: { gp: 25 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This set of tools includes a small file, a set of lock picks, a small mirror mounted on a metal handle, a set of narrow-bladed scissors, and a pair of pliers. Proficiency with these tools lets you add your proficiency bonus to any ability checks you make to disarm traps or open locks."
+    description_ru: "Этот набор инструментов включает маленький напильник, набор отмычек, маленькое зеркало на металлической ручке, узкие ножницы и пассатижи. Владение этими инструментами позволяет добавлять бонус мастерства к любым проверкам характеристик для обезвреживания ловушек или вскрытия замков."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Thieves' Tools"
+
+  - id: tinderbox
+    name_en: Tinderbox
+    name_ru: Трутница
+    cost: { sp: 5 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "This small container holds flint, fire steel, and tinder (usually dry cloth soaked in light oil) used to kindle a fire. Using it to light a torch-or anything else with abundant, exposed fuel-takes an action. Lighting any other fire takes 1 minute."
+    description_ru: "Этот маленький контейнер содержит кремень, огниво и трут (обычно сухую ткань, пропитанную лёгким маслом), используемые для разжигания огня. Использование трутницы для зажжения факела или чего-либо ещё с обильным и открытым горючим занимает действие. Разжигание любого другого огня занимает 1 минуту."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Tinderbox"
+
+  - id: tinkers-tools
+    name_en: Tinker's Tools
+    name_ru: Инструменты ремонтника
+    cost: { gp: 50 }
+    weight_lb: 10
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for performing odd jobs and minor repairs. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для выполнения мелких работ и небольшого ремонта. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Tinker's Tools"
+
+  - id: torch
+    name_en: Torch
+    name_ru: Факел
+    cost: { cp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A torch burns for 1 hour, providing bright light in a 20-foot radius and dim light for an additional 20 feet. If you make a melee attack with a burning torch and hit, it deals 1 fire damage."
+    description_ru: "Факел горит 1 час, испуская яркий свет в радиусе 20 футов и тусклый свет ещё на 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он наносит 1 урон огнём."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Torch"
+
+  - id: totem
+    name_en: Totem
+    name_ru: Тотем
+    cost: { gp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A druidic focus might be a sprig of mistletoe or holly, a wand or scepter made of yew or another special wood, a staff drawn whole out of a living tree, or a totem object incorporating feathers, fur, bones, and teeth from sacred animals. A druid can use such an object as a spellcasting focus."
+    description_ru: "Друидической фокусировкой может быть веточка омелы или остролиста, жезл или скипетр из тиса или другого особого дерева, посох, вырезанный целиком из живого дерева, или предмет-тотем с перьями, мехом, костями и зубами священных животных. Друид может использовать такой предмет как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Totem (Druidic Focus)"
+
+  - id: vial
+    name_en: Vial
+    name_ru: Флакон
+    cost: { gp: 1 }
+    weight_lb: 0
+    is_bundle: false
+    contents: null
+    description_en: "A vial can hold up to 4 ounces of liquid."
+    description_ru: "Флакон вмещает до 4 унций жидкости."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Vial"
+
+  - id: viol
+    name_en: Viol
+    name_ru: Виола
+    cost: { gp: 30 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A musical instrument. A bard can use a musical instrument as a spellcasting focus."
+    description_ru: "Музыкальный инструмент. Бард может использовать музыкальный инструмент как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Musical Instruments / Viol"
+
+  - id: waterskin
+    name_en: Waterskin
+    name_ru: Бурдюк
+    cost: { sp: 2 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "A waterskin can hold up to 4 pints of liquid (it weighs 5 pounds when full)."
+    description_ru: "Бурдюк вмещает до 4 пинт жидкости (полный весит 5 фунтов)."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Waterskin"
+
+  - id: weavers-tools
+    name_en: Weaver's Tools
+    name_ru: Инструменты ткача
+    cost: { gp: 1 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for weaving cloth. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для ткачества. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Weaver's Tools"
+
+  - id: whetstone
+    name_en: Whetstone
+    name_ru: Точильный камень
+    cost: { cp: 1 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A whetstone used to sharpen bladed weapons and tools."
+    description_ru: "Точильный камень для заточки клинкового оружия и инструментов."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Whetstone"
+
+  - id: woodcarvers-tools
+    name_en: Woodcarver's Tools
+    name_ru: Инструменты резчика по дереву
+    cost: { gp: 1 }
+    weight_lb: 5
+    is_bundle: false
+    contents: null
+    description_en: "Artisan's tools for woodcarving. Proficiency with a set of artisan's tools lets you add your proficiency bonus to any ability checks you make using the tools in your craft."
+    description_ru: "Ремесленные инструменты для резьбы по дереву. Владение набором ремесленных инструментов позволяет добавлять бонус мастерства к проверкам характеристик при использовании инструментов в ремесле."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Tools / Artisan's Tools / Woodcarver's Tools"
+
+  - id: wooden-staff
+    name_en: Wooden staff
+    name_ru: Деревянный посох
+    cost: { gp: 5 }
+    weight_lb: 4
+    is_bundle: false
+    contents: null
+    description_en: "A druidic focus might be a sprig of mistletoe or holly, a wand or scepter made of yew or another special wood, a staff drawn whole out of a living tree, or a totem object incorporating feathers, fur, bones, and teeth from sacred animals. A druid can use such an object as a spellcasting focus."
+    description_ru: "Друидической фокусировкой может быть веточка омелы или остролиста, жезл или скипетр из тиса или другого особого дерева, посох, вырезанный целиком из живого дерева, или предмет-тотем с перьями, мехом, костями и зубами священных животных. Друид может использовать такой предмет как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Wooden staff (Druidic Focus)"
+
+  - id: yew-wand
+    name_en: Yew wand
+    name_ru: Тисовая палочка
+    cost: { gp: 10 }
+    weight_lb: 1
+    is_bundle: false
+    contents: null
+    description_en: "A druidic focus might be a sprig of mistletoe or holly, a wand or scepter made of yew or another special wood, a staff drawn whole out of a living tree, or a totem object incorporating feathers, fur, bones, and teeth from sacred animals. A druid can use such an object as a spellcasting focus."
+    description_ru: "Друидической фокусировкой может быть веточка омелы или остролиста, жезл или скипетр из тиса или другого особого дерева, посох, вырезанный целиком из живого дерева, или предмет-тотем с перьями, мехом, костями и зубами священных животных. Друид может использовать такой предмет как фокусировку."
+    source_url: https://5thsrd.org/character/equipment/
+    srd_section: "SRD 5.1 §Adventuring Gear / Yew wand (Druidic Focus)"

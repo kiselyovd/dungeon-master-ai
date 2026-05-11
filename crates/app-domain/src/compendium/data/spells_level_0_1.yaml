@@ -1,0 +1,1758 @@
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Spells level 0 and 1
+# Generated for the Dungeon Master AI companion app.
+# Source: System Reference Document 5.1 by Wizards of the Coast LLC,
+#         available at https://dnd.wizards.com/resources/systems-reference-document
+#         and licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
+# Aggregated from Open5e v2 (https://api.open5e.com/) with `document__key__in=srd-2014`.
+
+spells:
+  - id: acid-splash
+    name_en: "Acid Splash"
+    name_ru: "Кислотные брызги"
+    level: 0
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "You hurl a bubble of acid. Choose one creature within range, or choose two creatures within range that are within 5 feet of each other. A target must succeed on a dexterity saving throw or take 1d6 acid damage."
+    description_ru: "Вы швыряете пузырь кислоты. Выберите одно существо в пределах дистанции или двух существ в пределах дистанции, находящихся в пределах 5 футов друг от друга. Цель должна преуспеть в спасброске Ловкости, иначе получает 1к6 урона кислотой."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d6 when you reach 5th level (2d6), 11th level (3d6), and 17th level (4d6)."
+      ru: "Урон этого заклинания увеличивается на 1к6, когда вы достигаете 5-го уровня (2к6), 11-го уровня (3к6) и 17-го уровня (4к6)."
+    damage:
+      dice: "1d6"
+      type: acid
+    attack: null
+    save:
+      ability: dex
+      half_on_success: false
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/acid_splash/
+    srd_section: "SRD 5.1 §Spells / Acid Splash"
+  - id: chill-touch
+    name_en: "Chill Touch"
+    name_ru: "Холодное прикосновение"
+    level: 0
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, warlock, wizard]
+    description_en: "You create a ghostly, skeletal hand in the space of a creature within range. Make a ranged spell attack against the creature to assail it with the chill of the grave. On a hit, the target takes 1d8 necrotic damage, and it can't regain hit points until the start of your next turn. Until then, the hand clings to the target. If you hit an undead target, it also has disadvantage on attack rolls against you until the end of your next turn."
+    description_ru: "Вы создаёте призрачную, скелетообразную руку в пространстве существа в пределах дистанции. Совершите дальнобойную атаку заклинанием по этому существу, чтобы поразить его холодом могилы. При попадании цель получает 1к8 урона некротической энергией и не может восстанавливать хиты до начала вашего следующего хода. До этого момента рука цепляется за цель. Если вы попали по нежити, она также совершает с помехой броски атаки против вас до конца вашего следующего хода."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8)."
+      ru: "Урон этого заклинания увеличивается на 1к8, когда вы достигаете 5-го уровня (2к8), 11-го уровня (3к8) и 17-го уровня (4к8)."
+    damage:
+      dice: "1d8"
+      type: necrotic
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/chill_touch/
+    srd_section: "SRD 5.1 §Spells / Chill Touch"
+  - id: dancing-lights
+    name_en: "Dancing Lights"
+    name_ru: "Пляшущие огоньки"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: "A bit of phosphorus or wychwood, or a glowworm." }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, wizard]
+    description_en: "You create up to four torch-sized lights within range, making them appear as torches, lanterns, or glowing orbs that hover in the air for the duration. You can also combine the four lights into one glowing vaguely humanoid form of Medium size. Whichever form you choose, each light sheds dim light in a 10-foot radius. As a bonus action on your turn, you can move the lights up to 60 feet to a new spot within range. A light must be within 20 feet of another light created by this spell, and a light winks out if it exceeds the spell's range."
+    description_ru: "Вы создаёте до четырёх огоньков размером с факел в пределах дистанции, и они выглядят как факелы, фонари или светящиеся шары, парящие в воздухе на протяжении длительности заклинания. Вы также можете объединить эти четыре огонька в одну светящуюся смутно гуманоидную форму Среднего размера. Какую бы форму вы ни выбрали, каждый огонёк испускает тусклый свет в радиусе 10 футов. Бонусным действием в свой ход вы можете переместить огоньки на расстояние до 60 футов в новое место в пределах дистанции. Огонёк должен находиться в пределах 20 футов от другого огонька, созданного этим заклинанием, и гаснет, если оказывается за пределами дистанции заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/dancing_lights/
+    srd_section: "SRD 5.1 §Spells / Dancing Lights"
+  - id: druidcraft
+    name_en: "Druidcraft"
+    name_ru: "Друидизм"
+    level: 0
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [druid]
+    description_en: "Whispering to the spirits of nature, you create one of the following effects within range: - You create a tiny, harmless sensory effect that predicts what the weather will be at your location for the next 24 hours. The effect might manifest as a golden orb for clear skies, a cloud for rain, falling snowflakes for snow, and so on. This effect persists for 1 round. - You instantly make a flower blossom, a seed pod open, or a leaf bud bloom. - You create an instantaneous, harmless sensory effect, such as falling leaves, a puff of wind, the sound of a small animal, or the faint odor of skunk. The effect must fit in a 5---foot cube. - You instantly light or snuff out a candle, a torch, or a small campfire."
+    description_ru: "Шепча духам природы, вы создаёте один из следующих эффектов в пределах дистанции: - Вы создаёте крошечный безвредный сенсорный эффект, предсказывающий, какая будет погода в вашей местности в течение следующих 24 часов. Эффект может проявиться как золотистый шар для ясной погоды, облако для дождя, падающие снежинки для снега и так далее. Эффект сохраняется 1 раунд. - Вы мгновенно заставляете цветок распуститься, семенной стручок раскрыться или лиственную почку расцвести. - Вы создаёте мгновенный безвредный сенсорный эффект, такой как падающие листья, порыв ветра, звук мелкого животного или слабый запах скунса. Эффект должен помещаться в куб с длиной ребра 5 футов. - Вы мгновенно зажигаете или тушите свечу, факел или небольшой костёр."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/druidcraft/
+    srd_section: "SRD 5.1 §Spells / Druidcraft"
+  - id: eldritch-blast
+    name_en: "Eldritch Blast"
+    name_ru: "Мистический заряд"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [warlock]
+    description_en: "A beam of crackling energy streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 force damage. The spell creates more than one beam when you reach higher levels: two beams at 5th level, three beams at 11th level, and four beams at 17th level. You can direct the beams at the same target or at different ones. Make a separate attack roll for each beam."
+    description_ru: "Луч потрескивающей энергии устремляется к существу в пределах дистанции. Совершите дальнобойную атаку заклинанием по цели. При попадании цель получает 1к10 урона силовым полем. На больших уровнях это заклинание создаёт больше одного луча: два луча на 5-м уровне, три луча на 11-м уровне и четыре луча на 17-м уровне. Вы можете направить лучи в одну цель или в разные. Для каждого луча совершите отдельный бросок атаки."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage:
+      dice: "1d10"
+      type: force
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/eldritch_blast/
+    srd_section: "SRD 5.1 §Spells / Eldritch Blast"
+  - id: fire-bolt
+    name_en: "Fire Bolt"
+    name_ru: "Огненный снаряд"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage. A flammable object hit by this spell ignites if it isn't being worn or carried."
+    description_ru: "Вы швыряете комок огня в существо или предмет в пределах дистанции. Совершите дальнобойную атаку заклинанием по цели. При попадании цель получает 1к10 урона огнём. Воспламеняемый предмет, по которому попало это заклинание, загорается, если он не носится и не находится в чьих-либо руках."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d10 when you reach 5th level (2d10), 11th level (3d10), and 17th level (4d10)."
+      ru: "Урон этого заклинания увеличивается на 1к10, когда вы достигаете 5-го уровня (2к10), 11-го уровня (3к10) и 17-го уровня (4к10)."
+    damage:
+      dice: "1d10"
+      type: fire
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/fire_bolt/
+    srd_section: "SRD 5.1 §Spells / Fire Bolt"
+  - id: guidance
+    name_en: "Guidance"
+    name_ru: "Указание"
+    level: 0
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [cleric, druid]
+    description_en: "You touch one willing creature. Once before the spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice. It can roll the die before or after making the ability check. The spell then ends."
+    description_ru: "Вы касаетесь одного согласного существа. До окончания заклинания цель один раз может бросить 1к4 и прибавить выпавшее число к одной проверке характеристики по своему выбору. Она может бросить кость до или после совершения проверки. Заклинание после этого оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/guidance/
+    srd_section: "SRD 5.1 §Spells / Guidance"
+  - id: light
+    name_en: "Light"
+    name_ru: "Свет"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: false, m: "A firefly or phosphorescent moss." }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, sorcerer, wizard]
+    description_en: "You touch one object that is no larger than 10 feet in any dimension. Until the spell ends, the object sheds bright light in a 20-foot radius and dim light for an additional 20 feet. The light can be colored as you like. Completely covering the object with something opaque blocks the light. The spell ends if you cast it again or dismiss it as an action. If you target an object held or worn by a hostile creature, that creature must succeed on a dexterity saving throw to avoid the spell."
+    description_ru: "Вы касаетесь одного предмета, размер которого по всем сторонам не превышает 10 футов. Пока заклинание активно, предмет испускает яркий свет в радиусе 20 футов и тусклый свет ещё на 20 футов. Свет может быть любого выбранного вами цвета. Полное укрытие предмета чем-то непрозрачным блокирует свет. Заклинание оканчивается, если вы накладываете его снова или прекращаете действием. Если вы выбрали целью предмет, носимый или несомый враждебным существом, это существо должно преуспеть в спасброске Ловкости, чтобы избежать заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: dex
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/light/
+    srd_section: "SRD 5.1 §Spells / Light"
+  - id: mage-hand
+    name_en: "Mage Hand"
+    name_ru: "Волшебная рука"
+    level: 0
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "A spectral, floating hand appears at a point you choose within range. The hand lasts for the duration or until you dismiss it as an action. The hand vanishes if it is ever more than 30 feet away from you or if you cast this spell again. You can use your action to control the hand. You can use the hand to manipulate an object, open an unlocked door or container, stow or retrieve an item from an open container, or pour the contents out of a vial. You can move the hand up to 30 feet each time you use it. The hand can't attack, activate magic items, or carry more than 10 pounds."
+    description_ru: "В выбранной вами точке в пределах дистанции появляется призрачная парящая рука. Рука существует, пока заклинание не окончится, или пока вы не прекратите его действием. Рука исчезает, если оказывается дальше 30 футов от вас, или если вы накладываете это заклинание ещё раз. Вы можете действием управлять рукой. Вы можете использовать руку для манипуляций с предметом, открывания незапертых дверей или контейнеров, размещения или извлечения предмета из открытого контейнера, или для выливания содержимого пузырька. Каждый раз при использовании руки вы можете переместить её на расстояние до 30 футов. Рука не может атаковать, использовать магические предметы и переносить более 10 фунтов."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/mage_hand/
+    srd_section: "SRD 5.1 §Spells / Mage Hand"
+  - id: mending
+    name_en: "Mending"
+    name_ru: "Починка"
+    level: 0
+    school: transmutation
+    casting_time: "1 minute"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "Two lodestones." }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid, sorcerer, wizard]
+    description_en: "This spell repairs a single break or tear in an object you touch, such as a broken key, a torn cloak, or a leaking wineskin. As long as the break or tear is no longer than 1 foot in any dimension, you mend it, leaving no trace of the former damage. This spell can physically repair a magic item or construct, but the spell can't restore magic to such an object."
+    description_ru: "Это заклинание чинит один разлом или разрыв на предмете, к которому вы прикоснулись, например, сломанный ключ, разорванный плащ или прохудившийся бурдюк. Если разлом или разрыв не длиннее 1 фута ни в одном из измерений, вы устраняете его, не оставляя следов прежних повреждений. Это заклинание может физически починить магический предмет или конструкта, но не может восстановить магию таких предметов."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/mending/
+    srd_section: "SRD 5.1 §Spells / Mending"
+  - id: message
+    name_en: "Message"
+    name_ru: "Послание"
+    level: 0
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: "A short piece of copper wire." }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, wizard]
+    description_en: "You point your finger toward a creature within range and whisper a message. The target (and only the target) hears the message and can reply in a whisper that only you can hear. You can cast this spell through solid objects if you are familiar with the target and know it is beyond the barrier. Magical silence, 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood blocks the spell. The spell doesn't have to follow a straight line and can travel freely around corners or through openings."
+    description_ru: "Вы указываете пальцем на существо в пределах дистанции и шепчете сообщение. Цель (и только цель) слышит это сообщение и может ответить шёпотом, который слышите только вы. Вы можете накладывать это заклинание сквозь твёрдые объекты, если знакомы с целью и знаете, что она находится за барьером. Заклинание блокируется магической тишиной, 1 футом камня, 1 дюймом обычного металла, тонким листом свинца или 3 футами древесины. Заклинанию не нужно следовать по прямой и оно может свободно огибать углы и проникать сквозь отверстия."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/message/
+    srd_section: "SRD 5.1 §Spells / Message"
+  - id: minor-illusion
+    name_en: "Minor Illusion"
+    name_ru: "Малая иллюзия"
+    level: 0
+    school: illusion
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: false, s: true, m: "A bit of fleece." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "You create a sound or an image of an object within range that lasts for the duration. The illusion also ends if you dismiss it as an action or cast this spell again. If you create a sound, its volume can range from a whisper to a scream. It can be your voice, someone else's voice, a lion's roar, a beating of drums, or any other sound you choose. The sound continues unabated throughout the duration, or you can make discrete sounds at different times before the spell ends. If you create an image of an object-such as a chair, muddy footprints, or a small chest-it must be no larger than a 5-foot cube. The image can't create sound, light, smell, or any other sensory effect. Physical interaction with the image reveals it to be an illusion, because things can pass through it. If a creature uses its action to examine the sound or image, the creature can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the illusion becomes faint to the creature."
+    description_ru: "Вы создаёте звук или образ предмета в пределах дистанции, существующий пока заклинание активно. Иллюзия также оканчивается, если вы прекращаете её действием или накладываете это заклинание снова. Если вы создаёте звук, его громкость может варьироваться от шёпота до крика. Это может быть ваш голос, чей-то ещё голос, рык льва, барабанный бой или любой другой звук на ваш выбор. Звук непрерывно длится всё время действия заклинания, или же вы можете издавать различные отдельные звуки в разные моменты до окончания заклинания. Если вы создаёте образ предмета - например, стула, грязных отпечатков ног или маленького сундучка, - он должен помещаться в куб с длиной ребра 5 футов. Образ не может создавать звук, свет, запах или какие-либо иные сенсорные эффекты. Физическое взаимодействие с образом выявляет, что это иллюзия, поскольку сквозь него можно проходить. Если существо использует своё действие, чтобы изучить звук или образ, оно может определить, что это иллюзия, успешно совершив проверку Интеллекта (Расследование) против Сл вашего спасброска заклинания. Если существо распознало иллюзию как таковую, она становится для него блёклой."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/minor_illusion/
+    srd_section: "SRD 5.1 §Spells / Minor Illusion"
+  - id: poison-spray
+    name_en: "Poison Spray"
+    name_ru: "Брызги яда"
+    level: 0
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 10
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [druid, sorcerer, warlock, wizard]
+    description_en: "You extend your hand toward a creature you can see within range and project a puff of noxious gas from your palm. The creature must succeed on a Constitution saving throw or take 1d12 poison damage."
+    description_ru: "Вы протягиваете руку к существу, которое можете видеть в пределах дистанции, и выпускаете клуб ядовитого газа со своей ладони. Существо должно преуспеть в спасброске Телосложения, иначе получит 1к12 урона ядом."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d12 when you reach 5th level (2d12), 11th level (3d12), and 17th level (4d12)."
+      ru: "Урон этого заклинания увеличивается на 1к12, когда вы достигаете 5-го уровня (2к12), 11-го уровня (3к12) и 17-го уровня (4к12)."
+    damage:
+      dice: "1d12"
+      type: poison
+    attack: null
+    save:
+      ability: con
+      half_on_success: false
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/poison_spray/
+    srd_section: "SRD 5.1 §Spells / Poison Spray"
+  - id: prestidigitation
+    name_en: "Prestidigitation"
+    name_ru: "Фокусы"
+    level: 0
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 10
+    components: { v: true, s: true, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "This spell is a minor magical trick that novice spellcasters use for practice. You create one of the following magical effects within 'range': - You create an instantaneous, harmless sensory effect, such as a shower of sparks, a puff of wind, faint musical notes, or an odd odor. - You instantaneously light or snuff out a candle, a torch, or a small campfire. - You instantaneously clean or soil an object no larger than 1 cubic foot. - You chill, warm, or flavor up to 1 cubic foot of nonliving material for 1 hour. - You make a color, a small mark, or a symbol appear on an object or a surface for 1 hour. - You create a nonmagical trinket or an illusory image that can fit in your hand and that lasts until the end of your next turn. If you cast this spell multiple times, you can have up to three of its non-instantaneous effects active at a time, and you can dismiss such an effect as an action."
+    description_ru: "Это заклинание - небольшой магический трюк, который начинающие заклинатели используют для упражнения. Вы создаёте один из следующих магических эффектов в пределах дистанции: - Вы создаёте мгновенный безвредный сенсорный эффект, такой как сноп искр, порыв ветра, слабые музыкальные ноты или странный запах. - Вы мгновенно зажигаете или тушите свечу, факел или небольшой костёр. - Вы мгновенно чистите или пачкаете предмет объёмом не более 1 кубического фута. - Вы охлаждаете, согреваете или сдабриваете до 1 кубического фута неживой материи на 1 час. - Вы заставляете цвет, небольшой знак или символ появиться на предмете или поверхности на 1 час. - Вы создаёте немагический брелок или иллюзорный образ, который помещается в вашей руке и существует до конца вашего следующего хода. Если вы накладываете это заклинание несколько раз, у вас одновременно может быть до трёх его не мгновенных эффектов, и вы можете прекратить любой такой эффект действием."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/prestidigitation/
+    srd_section: "SRD 5.1 §Spells / Prestidigitation"
+  - id: produce-flame
+    name_en: "Produce Flame"
+    name_ru: "Сотворение пламени"
+    level: 0
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: false
+    concentration: false
+    classes: [druid]
+    description_en: "A flickering flame appears in your hand. The flame remains there for the duration and harms neither you nor your equipment. The flame sheds bright light in a 10-foot radius and dim light for an additional 10 feet. The spell ends if you dismiss it as an action or if you cast it again. You can also attack with the flame, although doing so ends the spell. When you cast this spell, or as an action on a later turn, you can hurl the flame at a creature within 30 feet of you. Make a ranged spell attack. On a hit, the target takes 1d8 fire damage."
+    description_ru: "В вашей руке появляется мерцающее пламя. Это пламя сохраняется на протяжении длительности заклинания и не причиняет вреда ни вам, ни вашему снаряжению. Пламя испускает яркий свет в радиусе 10 футов и тусклый свет ещё на 10 футов. Заклинание оканчивается, если вы прекращаете его действием или накладываете снова. Вы также можете атаковать пламенем, но это завершит заклинание. Накладывая это заклинание, или действием в последующий ход, вы можете метнуть пламя в существо в пределах 30 футов от вас. Совершите дальнобойную атаку заклинанием. При попадании цель получает 1к8 урона огнём."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8)."
+      ru: "Урон этого заклинания увеличивается на 1к8, когда вы достигаете 5-го уровня (2к8), 11-го уровня (3к8) и 17-го уровня (4к8)."
+    damage:
+      dice: "1d8"
+      type: fire
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/produce_flame/
+    srd_section: "SRD 5.1 §Spells / Produce Flame"
+  - id: ray-of-frost
+    name_en: "Ray of Frost"
+    name_ru: "Луч холода"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 1d8 cold damage, and its speed is reduced by 10 feet until the start of your next turn."
+    description_ru: "Морозный луч сине-белого света устремляется к существу в пределах дистанции. Совершите дальнобойную атаку заклинанием по цели. При попадании цель получает 1к8 урона холодом, а её скорость уменьшается на 10 футов до начала вашего следующего хода."
+    at_higher_levels:
+      en: "The spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8)."
+      ru: "Урон этого заклинания увеличивается на 1к8, когда вы достигаете 5-го уровня (2к8), 11-го уровня (3к8) и 17-го уровня (4к8)."
+    damage:
+      dice: "1d8"
+      type: cold
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/ray_of_frost/
+    srd_section: "SRD 5.1 §Spells / Ray of Frost"
+  - id: resistance
+    name_en: "Resistance"
+    name_ru: "Сопротивление"
+    level: 0
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A miniature cloak." }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [cleric, druid]
+    description_en: "You touch one willing creature. Once before the spell ends, the target can roll a d4 and add the number rolled to one saving throw of its choice. It can roll the die before or after making the saving throw. The spell then ends."
+    description_ru: "Вы касаетесь одного согласного существа. До окончания заклинания цель один раз может бросить 1к4 и прибавить выпавшее число к одному спасброску по своему выбору. Она может бросить кость до или после совершения спасброска. Заклинание после этого оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/resistance/
+    srd_section: "SRD 5.1 §Spells / Resistance"
+  - id: sacred-flame
+    name_en: "Sacred Flame"
+    name_ru: "Священное пламя"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw."
+    description_ru: "Подобное пламени сияние нисходит на существо, которое вы можете видеть в пределах дистанции. Цель должна преуспеть в спасброске Ловкости, иначе получит 1к8 урона излучением. Цель не получает преимущества от укрытия для этого спасброска."
+    at_higher_levels:
+      en: "The spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8)."
+      ru: "Урон этого заклинания увеличивается на 1к8, когда вы достигаете 5-го уровня (2к8), 11-го уровня (3к8) и 17-го уровня (4к8)."
+    damage:
+      dice: "1d8"
+      type: radiant
+    attack: null
+    save:
+      ability: dex
+      half_on_success: false
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/sacred_flame/
+    srd_section: "SRD 5.1 §Spells / Sacred Flame"
+  - id: shillelagh
+    name_en: "Shillelagh"
+    name_ru: "Дубинка"
+    level: 0
+    school: transmutation
+    casting_time: "1 bonus action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "Mistletoe, a shamrock leaf, and a club or quarterstaff." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [druid]
+    description_en: "The wood of a club or a quarterstaff you are holding is imbued with nature's power. For the duration, you can use your spellcasting ability instead of Strength for the attack and damage rolls of melee attacks using that weapon, and the weapon's damage die becomes a d8. The weapon also becomes magical, if it isn't already. The spell ends if you cast it again or if you let go of the weapon."
+    description_ru: "Дерево дубинки или боевого посоха, который вы держите, наполняется силой природы. На время действия заклинания вы можете использовать характеристику заклинания вместо Силы для бросков атаки и урона ближнего боя этим оружием, и кость урона оружия становится к8. Оружие также становится магическим, если оно ещё им не является. Заклинание оканчивается, если вы накладываете его снова или выпускаете оружие из рук."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/shillelagh/
+    srd_section: "SRD 5.1 §Spells / Shillelagh"
+  - id: shocking-grasp
+    name_en: "Shocking Grasp"
+    name_ru: "Электрический разряд"
+    level: 0
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "Lightning springs from your hand to deliver a shock to a creature you try to touch. Make a melee spell attack against the target. You have advantage on the attack roll if the target is wearing armor made of metal. On a hit, the target takes 1d8 lightning damage, and it can't take reactions until the start of its next turn."
+    description_ru: "Молния срывается с вашей руки, чтобы поразить существо, которого вы пытаетесь коснуться. Совершите рукопашную атаку заклинанием по цели. Вы совершаете бросок атаки с преимуществом, если цель носит доспех из металла. При попадании цель получает 1к8 урона электричеством и не может совершать реакции до начала своего следующего хода."
+    at_higher_levels:
+      en: "The spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8)."
+      ru: "Урон этого заклинания увеличивается на 1к8, когда вы достигаете 5-го уровня (2к8), 11-го уровня (3к8) и 17-го уровня (4к8)."
+    damage:
+      dice: "1d8"
+      type: lightning
+    attack:
+      kind: melee_spell
+    save: null
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/shocking_grasp/
+    srd_section: "SRD 5.1 §Spells / Shocking Grasp"
+  - id: spare-the-dying
+    name_en: "Spare the Dying"
+    name_ru: "Уход за умирающим"
+    level: 0
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "You touch a living creature that has 0 hit points. The creature becomes stable. This spell has no effect on undead or constructs."
+    description_ru: "Вы касаетесь живого существа, имеющего 0 хитов. Это существо стабилизируется. Это заклинание не оказывает действия на нежить и конструктов."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/spare_the_dying/
+    srd_section: "SRD 5.1 §Spells / Spare the Dying"
+  - id: thaumaturgy
+    name_en: "Thaumaturgy"
+    name_ru: "Чудотворство"
+    level: 0
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: false, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "You manifest a minor wonder, a sign of supernatural power, within range. You create one of the following magical effects within range. - Your voice booms up to three times as loud as normal for 1 minute. - You cause flames to flicker, brighten, dim, or change color for 1 minute. - You cause harmless tremors in the ground for 1 minute. - You create an instantaneous sound that originates from a point of your choice within range, such as a rumble of thunder, the cry of a raven, or ominous whispers. - You instantaneously cause an unlocked door or window to fly open or slam shut. - You alter the appearance of your eyes for 1 minute. If you cast this spell multiple times, you can have up to three of its 1-minute effects active at a time, and you can dismiss such an effect as an action."
+    description_ru: "Вы являете малое чудо, знак сверхъестественной силы, в пределах дистанции. Вы создаёте один из следующих магических эффектов в пределах дистанции: - Ваш голос гремит втрое громче обычного на протяжении 1 минуты. - Вы заставляете пламя мерцать, разгораться, тускнеть или менять цвет на 1 минуту. - Вы вызываете безвредные содрогания земли на 1 минуту. - Вы создаёте мгновенный звук, исходящий из выбранной вами точки в пределах дистанции, такой как раскат грома, крик ворона или зловещий шёпот. - Вы мгновенно заставляете незапертую дверь или окно распахнуться или захлопнуться. - Вы изменяете внешний вид своих глаз на 1 минуту. Если вы накладываете это заклинание несколько раз, у вас одновременно может быть до трёх его минутных эффектов, и вы можете прекратить любой такой эффект действием."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/thaumaturgy/
+    srd_section: "SRD 5.1 §Spells / Thaumaturgy"
+  - id: true-strike
+    name_en: "True Strike"
+    name_ru: "Точный удар"
+    level: 0
+    school: divination
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: false, s: true, m: null }
+    duration: "1 round"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "You extend your hand and point a finger at a target in range. Your magic grants you a brief insight into the target's defenses. On your next turn, you gain advantage on your first attack roll against the target, provided that this spell hasn't ended."
+    description_ru: "Вы протягиваете руку и указываете пальцем на цель в пределах дистанции. Магия даёт вам краткое озарение касательно защиты цели. В свой следующий ход вы совершаете с преимуществом свой первый бросок атаки против этой цели, при условии, что заклинание не окончилось."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/true_strike/
+    srd_section: "SRD 5.1 §Spells / True Strike"
+  - id: vicious-mockery
+    name_en: "Vicious Mockery"
+    name_ru: "Язвительная насмешка"
+    level: 0
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: false, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard]
+    description_en: "You unleash a string of insults laced with subtle enchantments at a creature you can see within range. If the target can hear you (though it need not understand you), it must succeed on a Wisdom saving throw or take 1d4 psychic damage and have disadvantage on the next attack roll it makes before the end of its next turn."
+    description_ru: "Вы выплёскиваете в существо, которое можете видеть в пределах дистанции, поток оскорблений, наполненных тонкими чарами. Если цель может вас слышать (понимать вас ей не обязательно), она должна преуспеть в спасброске Мудрости, иначе получит 1к4 урона психической энергией и совершит с помехой свой следующий бросок атаки, совершаемый до конца её следующего хода."
+    at_higher_levels:
+      en: "This spell's damage increases by 1d4 when you reach 5th level (2d4), 11th level (3d4), and 17th level (4d4)."
+      ru: "Урон этого заклинания увеличивается на 1к4, когда вы достигаете 5-го уровня (2к4), 11-го уровня (3к4) и 17-го уровня (4к4)."
+    damage:
+      dice: "1d4"
+      type: psychic
+    attack: null
+    save:
+      ability: wis
+      half_on_success: false
+    scales_with_level: cantrip-scaling
+    source_url: https://5thsrd.org/spellcasting/spells/vicious_mockery/
+    srd_section: "SRD 5.1 §Spells / Vicious Mockery"
+  - id: alarm
+    name_en: "Alarm"
+    name_ru: "Тревога"
+    level: 1
+    school: abjuration
+    casting_time: "1 minute"
+    range_ft: 30
+    components: { v: true, s: true, m: "A tiny bell and a piece of fine silver wire." }
+    duration: "8 hours"
+    ritual: true
+    concentration: false
+    classes: [ranger, wizard]
+    description_en: "You set an alarm against unwanted intrusion. Choose a door, a window, or an area within range that is no larger than a 20-foot cube. Until the spell ends, an alarm alerts you whenever a Tiny or larger creature touches or enters the warded area. When you cast the spell, you can designate creatures that won't set off the alarm. You also choose whether the alarm is mental or audible. A mental alarm alerts you with a ping in your mind if you are within 1 mile of the warded area. This ping awakens you if you are sleeping. An audible alarm produces the sound of a hand bell for 10 seconds within 60 feet."
+    description_ru: "Вы устанавливаете тревогу против непрошеного вторжения. Выберите дверь, окно или область в пределах дистанции, не превышающую куб с длиной ребра 20 футов. Пока заклинание активно, оно оповещает вас каждый раз, когда существо размером не меньше Крошечного касается защищённой области или входит в неё. Накладывая заклинание, вы можете указать существ, которые не будут вызывать тревогу. Вы также выбираете, будет ли тревога мысленной или слышимой. Мысленная тревога оповещает вас сигналом в разуме, если вы находитесь в пределах 1 мили от защищённой области. Этот сигнал пробуждает вас, если вы спите. Слышимая тревога издаёт звук ручного колокольчика в течение 10 секунд в пределах 60 футов."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/alarm/
+    srd_section: "SRD 5.1 §Spells / Alarm"
+  - id: animal-friendship
+    name_en: "Animal Friendship"
+    name_ru: "Дружба с животными"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A morsel of food." }
+    duration: "24 hours"
+    ritual: false
+    concentration: false
+    classes: [bard, druid, ranger]
+    description_en: "This spell lets you convince a beast that you mean it no harm. Choose a beast that you can see within range. It must see and hear you. If the beast's Intelligence is 4 or higher, the spell fails. Otherwise, the beast must succeed on a Wisdom saving throw or be charmed by you for the spell's duration. If you or one of your companions harms the target, the spells ends."
+    description_ru: "Это заклинание позволяет вам убедить зверя в том, что вы не желаете ему вреда. Выберите зверя, которого вы можете видеть в пределах дистанции. Он должен видеть и слышать вас. Если у зверя Интеллект 4 или больше, заклинание не работает. В противном случае зверь должен преуспеть в спасброске Мудрости, иначе становится очарованным вами на время действия заклинания. Если вы или ваши спутники причиняют цели вред, заклинание оканчивается."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can affect one additional beast for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одного дополнительного зверя за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save:
+      ability: int
+      half_on_success: false
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/animal_friendship/
+    srd_section: "SRD 5.1 §Spells / Animal Friendship"
+  - id: bane
+    name_en: "Bane"
+    name_ru: "Проклятье"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A drop of blood." }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric]
+    description_en: "Up to three creatures of your choice that you can see within range must make charisma saving throws. Whenever a target that fails this saving throw makes an attack roll or a saving throw before the spell ends, the target must roll a d4 and subtract the number rolled from the attack roll or saving throw."
+    description_ru: "До трёх существ на ваш выбор, которых вы можете видеть в пределах дистанции, должны совершить спасброски Харизмы. Каждый раз, когда цель, провалившая этот спасбросок, совершает бросок атаки или спасбросок до окончания заклинания, она должна бросить 1к4 и вычесть выпавшее число из результата броска атаки или спасброска."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одно дополнительное существо за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save:
+      ability: cha
+      half_on_success: false
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/bane/
+    srd_section: "SRD 5.1 §Spells / Bane"
+  - id: bless
+    name_en: "Bless"
+    name_ru: "Благословение"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A sprinkling of holy water." }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin]
+    description_en: "You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw."
+    description_ru: "Вы благословляете до трёх существ по вашему выбору в пределах дистанции. Каждый раз, когда цель совершает бросок атаки или спасбросок до окончания заклинания, она может бросить 1к4 и прибавить выпавшее число к результату броска атаки или спасброска."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одно дополнительное существо за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/bless/
+    srd_section: "SRD 5.1 §Spells / Bless"
+  - id: burning-hands
+    name_en: "Burning Hands"
+    name_ru: "Огненные ладони"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Self (15-foot cone)"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric, sorcerer, warlock, wizard]
+    description_en: "As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a dexterity saving throw. A creature takes 3d6 fire damage on a failed save, or half as much damage on a successful one. The fire ignites any flammable objects in the area that aren't being worn or carried."
+    description_ru: "Когда вы держите свои руки большими пальцами вместе с расставленными пальцами, из ваших вытянутых пальцев вырывается тонкая пелена пламени. Каждое существо в 15-футовом конусе должно совершить спасбросок Ловкости. Существо получает 3к6 урона огнём при провале или половину этого урона при успехе. Огонь поджигает все воспламеняемые предметы в области, которые не носятся и не находятся в чьих-либо руках."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, урон увеличивается на 1к6 за каждый уровень ячейки выше 1-го."
+    damage:
+      dice: "3d6"
+      type: fire
+    attack: null
+    save:
+      ability: dex
+      half_on_success: true
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/burning_hands/
+    srd_section: "SRD 5.1 §Spells / Burning Hands"
+  - id: charm-person
+    name_en: "Charm Person"
+    name_ru: "Очарование личности"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid, sorcerer, warlock, wizard]
+    description_en: "You attempt to charm a humanoid you can see within range. It must make a wisdom saving throw, and does so with advantage if you or your companions are fighting it. If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it. The charmed creature regards you as a friendly acquaintance. When the spell ends, the creature knows it was charmed by you."
+    description_ru: "Вы пытаетесь очаровать гуманоида, которого можете видеть в пределах дистанции. Цель должна совершить спасбросок Мудрости, причём с преимуществом, если вы или ваши спутники сражаетесь с ней. Если она провалит спасбросок, она будет очарована вами, пока заклинание не окончится или пока вы или ваши спутники не причините ей вред. Очарованное существо относится к вам как к дружественному знакомому. Когда заклинание оканчивается, существо понимает, что было вами очаровано."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st. The creatures must be within 30 feet of each other when you target them."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одно дополнительное существо за каждый уровень ячейки выше 1-го. Эти существа должны находиться в пределах 30 футов друг от друга, когда вы выбираете их целями."
+    damage: null
+    attack: null
+    save:
+      ability: wis
+      half_on_success: false
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/charm_person/
+    srd_section: "SRD 5.1 §Spells / Charm Person"
+  - id: color-spray
+    name_en: "Color Spray"
+    name_ru: "Цветные брызги"
+    level: 1
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Self (15-foot cone)"
+    components: { v: true, s: true, m: "A pinch of powder or sand that is colored red, yellow, and blue." }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "A dazzling array of flashing, colored light springs from your hand. Roll 6d10; the total is how many hit points of creatures this spell can effect. Creatures in a 15-foot cone originating from you are affected in ascending order of their current hit points (ignoring unconscious creatures and creatures that can't see). Starting with the creature that has the lowest current hit points, each creature affected by this spell is blinded until the spell ends. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points. A creature's hit points must be equal to or less than the remaining total for that creature to be affected."
+    description_ru: "Ослепительная россыпь вспыхивающего разноцветного света бьёт из вашей ладони. Бросьте 6к10; полученная сумма - количество хитов существ, которое это заклинание может затронуть. Существа в 15-футовом конусе, исходящем от вас, попадают под действие в порядке возрастания их текущих хитов (бессознательные существа и существа, не способные видеть, игнорируются). Начиная с существа с наименьшим количеством хитов, каждое существо, затронутое этим заклинанием, ослеплено до окончания заклинания. Вычитайте хиты каждого существа из оставшейся суммы перед переходом к существу со следующим наименьшим количеством хитов. Чтобы существо было затронуто, его хиты должны быть равны или меньше оставшейся суммы."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d10 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, бросьте дополнительно 2к10 за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/color_spray/
+    srd_section: "SRD 5.1 §Spells / Color Spray"
+  - id: command
+    name_en: "Command"
+    name_ru: "Приказ"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: false, m: null }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [cleric, paladin, warlock]
+    description_en: "You speak a one-word command to a creature you can see within range. The target must succeed on a wisdom saving throw or follow the command on its next turn. The spell has no effect if the target is undead, if it doesn't understand your language, or if your command is directly harmful to it. Some typical commands and their effects follow. You might issue a command other than one described here. If you do so, the DM determines how the target behaves. If the target can't follow your command, the spell ends **Approach.** The target moves toward you by the shortest and most direct route, ending its turn if it moves within 5 feet of you. **Drop** The target drops whatever it is holding and then ends its turn. **Flee.** The target spends its turn moving away from you by the fastest available means. **Grovel.** The target falls prone and then ends its turn. **Halt.** The target doesn't move and takes no actions. A flying creature stays aloft, provided that it is able to do so. If it must move to stay aloft, it flies the minimum distance needed to remain in the air."
+    description_ru: "Вы произносите однословный приказ существу, которое можете видеть в пределах дистанции. Цель должна преуспеть в спасброске Мудрости, иначе будет вынуждена выполнять приказ в свой следующий ход. Заклинание не действует, если цель - нежить, если она не понимает ваш язык, или если ваш приказ прямо ей вредит. Ниже приведены несколько типичных приказов и их эффекты. Вы можете отдать и иной приказ, не описанный здесь. В этом случае Мастер определяет, как ведёт себя цель. Если цель не может выполнить ваш приказ, заклинание оканчивается. Подойди. Цель кратчайшим и прямейшим маршрутом перемещается к вам и оканчивает ход, оказавшись в пределах 5 футов от вас. Брось. Цель бросает то, что она держит, и затем оканчивает свой ход. Беги. Цель тратит свой ход на максимально быстрое удаление от вас. Пресмыкайся. Цель падает ничком и оканчивает свой ход. Стой. Цель не двигается и не совершает действий. Летающее существо остаётся в воздухе, если способно на это. Если оно должно двигаться, чтобы оставаться в воздухе, оно пролетает минимальное расстояние, необходимое для этого."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can affect one additional creature for each slot level above 1st. The creatures must be within 30 feet of each other when you target them."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одно дополнительное существо за каждый уровень ячейки выше 1-го. Эти существа должны находиться в пределах 30 футов друг от друга, когда вы выбираете их целями."
+    damage: null
+    attack: null
+    save:
+      ability: wis
+      half_on_success: false
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/command/
+    srd_section: "SRD 5.1 §Spells / Command"
+  - id: comprehend-languages
+    name_en: "Comprehend Languages"
+    name_ru: "Понимание языков"
+    level: 1
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "A pinch of soot and salt." }
+    duration: "1 hour"
+    ritual: true
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "For the duration, you understand the literal meaning of any spoken language that you hear. You also understand any written language that you see, but you must be touching the surface on which the words are written. It takes about 1 minute to read one page of text. This spell doesn't decode secret messages in a text or a glyph, such as an arcane sigil, that isn't part of a written language."
+    description_ru: "На время действия заклинания вы понимаете дословный смысл любого устного языка, который слышите. Вы также понимаете любой письменный язык, который видите, но при этом должны касаться поверхности, на которой написан текст. Прочтение одной страницы текста занимает примерно 1 минуту. Это заклинание не расшифровывает тайные сообщения в тексте или знак, такой как мистическая печать, не являющийся частью письменного языка."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/comprehend_languages/
+    srd_section: "SRD 5.1 §Spells / Comprehend Languages"
+  - id: create-or-destroy-water
+    name_en: "Create or Destroy Water"
+    name_ru: "Сотворение или уничтожение воды"
+    level: 1
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A drop of water if creating water, or a few grains of sand if destroying it." }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric, druid]
+    description_en: "You either create or destroy water. **Create Water.** You create up to 10 gallons of clean water within range in an open container. Alternatively, the water falls as rain in a 30-foot cube within range **Destroy Water.** You destroy up to 10 gallons of water in an open container within range. Alternatively, you destroy fog in a 30-foot cube within range."
+    description_ru: "Вы создаёте или уничтожаете воду. Сотворение воды. Вы создаёте до 10 галлонов чистой воды в пределах дистанции в открытом контейнере. Также вода может выпасть в виде дождя в кубе с длиной ребра 30 футов в пределах дистанции. Уничтожение воды. Вы уничтожаете до 10 галлонов воды в открытом контейнере в пределах дистанции. Также вы можете уничтожить туман в кубе с длиной ребра 30 футов в пределах дистанции."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you create or destroy 10 additional gallons of water, or the size of the cube increases by 5 feet, for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы создаёте или уничтожаете дополнительно 10 галлонов воды, или размер куба увеличивается на 5 футов за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/create_or_destroy_water/
+    srd_section: "SRD 5.1 §Spells / Create or Destroy Water"
+  - id: cure-wounds
+    name_en: "Cure Wounds"
+    name_ru: "Лечение ран"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid, paladin, ranger]
+    description_en: "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs."
+    description_ru: "Существо, которого вы касаетесь, восстанавливает количество хитов, равное 1к8 + модификатор вашей характеристики заклинания. Это заклинание не оказывает действия на нежить и конструктов."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, восстанавливаемое количество хитов увеличивается на 1к8 за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/cure_wounds/
+    srd_section: "SRD 5.1 §Spells / Cure Wounds"
+  - id: detect-evil-and-good
+    name_en: "Detect Evil and Good"
+    name_ru: "Обнаружение зла и добра"
+    level: 1
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin]
+    description_en: "For the duration, you know if there is an aberration, celestial, elemental, fey, fiend, or undead within 30 feet of you, as well as where the creature is located. Similarly, you know if there is a place or object within 30 feet of you that has been magically consecrated or desecrated. The spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt."
+    description_ru: "На время действия заклинания вы знаете, есть ли в пределах 30 футов от вас аберрация, небожитель, элементаль, фея, исчадие или нежить, а также где это существо находится. Также вы знаете, есть ли в пределах 30 футов от вас место или предмет, который был магически освящён или осквернён. Заклинание может проникать сквозь большинство барьеров, но блокируется 1 футом камня, 1 дюймом обычного металла, тонким листом свинца или 3 футами древесины или земли."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/detect_evil_and_good/
+    srd_section: "SRD 5.1 §Spells / Detect Evil and Good"
+  - id: detect-magic
+    name_en: "Detect Magic"
+    name_ru: "Обнаружение магии"
+    level: 1
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: true
+    concentration: true
+    classes: [bard, cleric, druid, paladin, ranger, sorcerer, wizard]
+    description_en: "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any. The spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt."
+    description_ru: "На время действия заклинания вы ощущаете присутствие магии в пределах 30 футов от вас. Если вы ощутили таким образом магию, вы можете действием увидеть слабую ауру вокруг видимого существа или предмета в области, которые несут магию, и узнаёте школу магии, если она есть. Заклинание может проникать сквозь большинство барьеров, но блокируется 1 футом камня, 1 дюймом обычного металла, тонким листом свинца или 3 футами древесины или земли."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/detect_magic/
+    srd_section: "SRD 5.1 §Spells / Detect Magic"
+  - id: detect-poison-and-disease
+    name_en: "Detect Poison and Disease"
+    name_ru: "Обнаружение яда и болезни"
+    level: 1
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "A yew leaf." }
+    duration: "10 minutes"
+    ritual: true
+    concentration: true
+    classes: [cleric, druid, paladin, ranger]
+    description_en: "For the duration, you can sense the presence and location of poisons, poisonous creatures, and diseases within 30 feet of you. You also identify the kind of poison, poisonous creature, or disease in each case. The spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt."
+    description_ru: "На время действия заклинания вы можете ощущать присутствие и местоположение ядов, ядовитых существ и болезней в пределах 30 футов от вас. Вы также определяете вид яда, ядовитого существа или болезни в каждом случае. Заклинание может проникать сквозь большинство барьеров, но блокируется 1 футом камня, 1 дюймом обычного металла, тонким листом свинца или 3 футами древесины или земли."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/detect_poison_and_disease/
+    srd_section: "SRD 5.1 §Spells / Detect Poison and Disease"
+  - id: disguise-self
+    name_en: "Disguise Self"
+    name_ru: "Маскировка"
+    level: 1
+    school: illusion
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, sorcerer, wizard]
+    description_en: "You make yourself - including your clothing, armor, weapons, and other belongings on your person - look different until the spell ends or until you use your action to dismiss it. You can seem 1 foot shorter or taller and can appear thin, fat, or in between. You can't change your body type, so you must adopt a form that has the same basic arrangement of limbs. Otherwise, the extent of the illusion is up to you. The changes wrought by this spell fail to hold up to physical inspection. For example, if you use this spell to add a hat to your outfit, objects pass through the hat, and anyone who touches it would feel nothing or would feel your head and hair. If you use this spell to appear thinner than you are, the hand of someone who reaches out to touch you would bump into you while it was seemingly still in midair. To discern that you are disguised, a creature can use its action to inspect your apperance and must succeed on an Intelligence (Investigation) check against your spell save DC."
+    description_ru: "Вы изменяете свой облик - включая одежду, доспехи, оружие и прочие носимые на себе предметы - пока заклинание не окончится или пока вы не прекратите его действием. Вы можете показаться на 1 фут ниже или выше и можете выглядеть стройным, толстым или обычным. Вы не можете изменить тип своего тела, поэтому должны принимать форму с тем же базовым строением конечностей. В остальном степень иллюзии - на ваше усмотрение. Изменения, создаваемые этим заклинанием, не выдерживают физической проверки. Например, если вы используете это заклинание, чтобы добавить шляпу к своему наряду, предметы проходят сквозь шляпу, и тот, кто прикоснулся бы к ней, ничего не почувствовал бы или коснулся бы вашей головы и волос. Если вы используете это заклинание, чтобы казаться стройнее, чем вы есть, рука кого-то, кто протянулся бы коснуться вас, наткнулась бы на вас, пока всё ещё, казалось бы, оставаясь в воздухе. Чтобы понять, что вы замаскированы, существо может действием изучить ваш облик и должно преуспеть в проверке Интеллекта (Расследование) против Сл вашего спасброска заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/disguise_self/
+    srd_section: "SRD 5.1 §Spells / Disguise Self"
+  - id: divine-favor
+    name_en: "Divine Favor"
+    name_ru: "Божественная благосклонность"
+    level: 1
+    school: evocation
+    casting_time: "1 bonus action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin]
+    description_en: "Your prayer empowers you with divine radiance. Until the spell ends, your weapon attacks deal an extra 1d4 radiant damage on a hit."
+    description_ru: "Ваша молитва наполняет вас божественным сиянием. До окончания заклинания ваши атаки оружием причиняют дополнительно 1к4 урона излучением при попадании."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/divine_favor/
+    srd_section: "SRD 5.1 §Spells / Divine Favor"
+  - id: entangle
+    name_en: "Entangle"
+    name_ru: "Опутывание"
+    level: 1
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 90
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [druid]
+    description_en: "Grasping weeds and vines sprout from the ground in a 20-foot square starting form a point within range. For the duration, these plants turn the ground in the area into difficult terrain. A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends. A creature restrained by the plants can use its action to make a Strength check against your spell save DC. On a success, it frees itself. When the spell ends, the conjured plants wilt away."
+    description_ru: "Цепкие сорняки и лианы прорастают из земли в области 20 футов на 20 футов, исходящей из точки в пределах дистанции. На время действия заклинания эти растения превращают землю в этой области в труднопроходимую местность. Существо в этой области в момент наложения заклинания должно преуспеть в спасброске Силы, иначе будет схвачено опутывающими растениями до окончания заклинания. Существо, схваченное растениями, может действием совершить проверку Силы против Сл вашего спасброска заклинания. При успехе оно освобождается. Когда заклинание оканчивается, призванные растения вянут."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: str
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/entangle/
+    srd_section: "SRD 5.1 §Spells / Entangle"
+  - id: expeditious-retreat
+    name_en: "Expeditious Retreat"
+    name_ru: "Стремительное отступление"
+    level: 1
+    school: transmutation
+    casting_time: "1 bonus action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: false
+    concentration: true
+    classes: [sorcerer, warlock, wizard]
+    description_en: "This spell allows you to move at an incredible pace. When you cast this spell, and then as a bonus action on each of your turns until the spell ends, you can take the Dash action."
+    description_ru: "Это заклинание позволяет вам перемещаться с невероятной скоростью. Накладывая это заклинание, а затем бонусным действием в каждый свой ход до его окончания, вы можете совершать действие Рывок."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/expeditious_retreat/
+    srd_section: "SRD 5.1 §Spells / Expeditious Retreat"
+  - id: faerie-fire
+    name_en: "Faerie Fire"
+    name_ru: "Огонёк феи"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: false, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, cleric, druid, warlock]
+    description_en: "Each object in a 20-foot cube within range is outlined in blue, green, or violet light (your choice). Any creature in the area when the spell is cast is also outlined in light if it fails a dexterity saving throw. For the duration, objects and affected creatures shed dim light in a 10-foot radius. Any attack roll against an affected creature or object has advantage if the attacker can see it, and the affected creature or object can't benefit from being invisible."
+    description_ru: "Каждый предмет в кубе с длиной ребра 20 футов в пределах дистанции очерчен синим, зелёным или фиолетовым светом (на ваш выбор). Любое существо в этой области в момент наложения заклинания также очерчивается светом, если провалит спасбросок Ловкости. На время действия заклинания объекты и затронутые существа испускают тусклый свет в радиусе 10 футов. Все броски атаки по затронутым существам или предметам совершаются с преимуществом, если атакующий может их видеть, и эти существа или предметы не получают преимуществ от невидимости."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: dex
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/faerie_fire/
+    srd_section: "SRD 5.1 §Spells / Faerie Fire"
+  - id: false-life
+    name_en: "False Life"
+    name_ru: "Ложная жизнь"
+    level: 1
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: "A small amount of alcohol or distilled spirits." }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "Bolstering yourself with a necromantic facsimile of life, you gain 1d4 + 4 temporary hit points for the duration."
+    description_ru: "Подкрепляя себя некромантическим подобием жизни, вы получаете 1к4 + 4 временных хита на время действия заклинания."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you gain 5 additional temporary hit points for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы получаете дополнительно 5 временных хитов за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/false_life/
+    srd_section: "SRD 5.1 §Spells / False Life"
+  - id: feather-fall
+    name_en: "Feather Fall"
+    name_ru: "Падение пёрышком"
+    level: 1
+    school: transmutation
+    casting_time: "1 reaction"
+    range_ft: 60
+    components: { v: true, s: false, m: "A small feather or a piece of down." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, wizard]
+    description_en: "Choose up to five falling creatures within range. A falling creature's rate of descent slows to 60 feet per round until the spell ends. If the creature lands before the spell ends, it takes no falling damage and can land on its feet, and the spell ends for that creature."
+    description_ru: "Выберите до пяти падающих существ в пределах дистанции. Скорость падения каждого существа снижается до 60 футов в раунд, пока заклинание не окончится. Если существо приземляется до окончания заклинания, оно не получает урон от падения и может приземлиться на ноги, и заклинание для этого существа оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/feather_fall/
+    srd_section: "SRD 5.1 §Spells / Feather Fall"
+  - id: find-familiar
+    name_en: "Find Familiar"
+    name_ru: "Поиск фамильяра"
+    level: 1
+    school: conjuration
+    casting_time: "1 hour"
+    range_ft: 10
+    components: { v: true, s: true, m: "10 gp worth of charcoal, incense, and herbs that must be consumed by fire in a brass brazier" }
+    duration: "Instantaneous"
+    ritual: true
+    concentration: false
+    classes: [wizard]
+    description_en: "You gain the service of a familiar, a spirit that takes an animal form you choose: bat, cat, crab, frog (toad), hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel. Appearing in an unoccupied space within range, the familiar has the statistics of the chosen form, though it is a celestial, fey, or fiend (your choice) instead of a beast. Your familiar acts independently of you, but it always obeys your commands. In combat, it rolls its own initiative and acts on its own turn. A familiar can't attack, but it can take other actions as normal. When the familiar drops to 0 hit points, it disappears, leaving behind no physical form. It reappears after you cast this spell again. While your familiar is within 100 feet of you, you can communicate with it telepathically. Additionally, as an action, you can see through your familiar's eyes and hear what it hears until the start of your next turn, gaining the benefits of any special senses that the familiar has. During this time, you are deaf and blind with regard to your own senses. As an action, you can temporarily dismiss your familiar. It disappears into a pocket dimension where it awaits your summons. Alternatively, you can dismiss it forever. As an action while it is temporarily dismissed, you can cause it to reappear in any unoccupied space within 30 feet of you. You can't have more than one familiar at a time. If you cast this spell while you already have a familiar, you instead cause it to adopt a new form. Choose one of the forms from the above list. Your familiar transforms into the chosen creature. Finally, when you cast a spell with a range of touch, your familiar can deliver the spell as if it had cast the spell. Your familiar must be within 100 feet of you, and it must use its reaction to deliver the spell when you cast it. If the spell requires an attack roll, you use your attack modifier for the roll."
+    description_ru: "Вы получаете услуги фамильяра - духа, принимающего форму животного на ваш выбор: летучая мышь, кошка, краб, лягушка (жаба), ястреб, ящерица, осьминог, сова, ядовитая змея, рыба (килька), крыса, ворон, морской конёк, паук или ласка. Появляясь в свободном пространстве в пределах дистанции, фамильяр имеет характеристики выбранной формы, но является небожителем, феей или исчадием (на ваш выбор) вместо зверя. Ваш фамильяр действует независимо от вас, но всегда подчиняется вашим командам. В бою он бросает свою инициативу и действует в свой собственный ход. Фамильяр не может атаковать, но может совершать прочие действия как обычно. Когда хиты фамильяра опускаются до 0, он исчезает, не оставляя физической формы. Он появляется вновь, когда вы накладываете это заклинание заново. Пока ваш фамильяр находится в пределах 100 футов от вас, вы можете общаться с ним телепатически. Кроме того, действием вы можете видеть глазами своего фамильяра и слышать то, что слышит он, до начала вашего следующего хода, получая преимущества любых особых чувств, которыми обладает фамильяр. В это время вы глухи и слепы по отношению к собственным чувствам. Действием вы можете временно отослать своего фамильяра. Он исчезает в карманном измерении, где ждёт вашего призыва. Также вы можете отослать его навсегда. Действием, пока он временно отослан, вы можете заставить его появиться вновь в любом свободном пространстве в пределах 30 футов от вас. У вас не может быть более одного фамильяра одновременно. Если вы накладываете это заклинание, уже имея фамильяра, вы вместо этого заставляете его принять новую форму. Выберите одну из форм из приведённого выше списка. Ваш фамильяр преобразуется в выбранное существо. Наконец, когда вы накладываете заклинание с дистанцией «Касание», ваш фамильяр может доставить заклинание, как если бы он сам его наложил. Ваш фамильяр должен находиться в пределах 100 футов от вас и должен использовать свою реакцию для доставки заклинания, когда вы его накладываете. Если заклинание требует броска атаки, вы используете свой модификатор атаки."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/find_familiar/
+    srd_section: "SRD 5.1 §Spells / Find Familiar"
+  - id: floating-disk
+    name_en: "Floating Disk"
+    name_ru: "Парящий диск Тэнсера"
+    level: 1
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A drop of mercury." }
+    duration: "1 hour"
+    ritual: true
+    concentration: false
+    classes: [wizard]
+    description_en: "This spell creates a circular, horizontal plane of force, 3 feet in diameter and 1 inch thick, that floats 3 feet above the ground in an unoccupied space of your choice that you can see within range. The disk remains for the duration, and can hold up to 500 pounds. If more weight is placed on it, the spell ends, and everything on the disk falls to the ground. The disk is immobile while you are within 20 feet of it. If you move more than 20 feet away from it, the disk follows you so that it remains within 20 feet of you. If can move across uneven terrain, up or down stairs, slopes and the like, but it can't cross an elevation change of 10 feet or more. For example, the disk can't move across a 10-foot-deep pit, nor could it leave such a pit if it was created at the bottom. If you move more than 100 feet away from the disk (typically because it can't move around an obstacle to follow you), the spell ends."
+    description_ru: "Это заклинание создаёт круглую горизонтальную плоскость силы диаметром 3 фута и толщиной 1 дюйм, парящую в 3 футах над землёй в свободном пространстве по вашему выбору, которое вы можете видеть в пределах дистанции. Диск существует на протяжении длительности заклинания и может удерживать до 500 фунтов. Если на него поместить больше веса, заклинание оканчивается, и всё, что было на диске, падает на землю. Диск неподвижен, пока вы находитесь в пределах 20 футов от него. Если вы удаляетесь от него более чем на 20 футов, диск следует за вами так, чтобы оставаться в пределах 20 футов от вас. Он может перемещаться по неровной местности, вверх или вниз по лестницам, склонам и тому подобному, но не способен пересекать перепад высоты в 10 футов или больше. Например, диск не может пересечь яму глубиной 10 футов, как и не может выбраться из такой ямы, если был создан на её дне. Если вы удалитесь от диска более чем на 100 футов (обычно потому, что он не может обогнуть препятствие, следуя за вами), заклинание оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/floating_disk/
+    srd_section: "SRD 5.1 §Spells / Floating Disk"
+  - id: fog-cloud
+    name_en: "Fog Cloud"
+    name_ru: "Облако тумана"
+    level: 1
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: true
+    classes: [cleric, druid, ranger, sorcerer, wizard]
+    description_en: "You create a 20-foot-radius sphere of fog centered on a point within range. The sphere spreads around corners, and its area is heavily obscured. It lasts for the duration or until a wind of moderate or greater speed (at least 10 miles per hour) disperses it."
+    description_ru: "Вы создаёте сферу из тумана радиусом 20 футов с центром в точке в пределах дистанции. Сфера огибает углы, и её область сильно затенена. Она существует на протяжении длительности заклинания или до тех пор, пока ветер умеренной или большей силы (не менее 10 миль в час) не развеет её."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the radius of the fog increases by 20 feet for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, радиус тумана увеличивается на 20 футов за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/fog_cloud/
+    srd_section: "SRD 5.1 §Spells / Fog Cloud"
+  - id: goodberry
+    name_en: "Goodberry"
+    name_ru: "Ягоды"
+    level: 1
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A sprig of mistletoe." }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [druid, ranger]
+    description_en: "Up to ten berries appear in your hand and are infused with magic for the duration. A creature can use its action to eat one berry. Eating a berry restores 1 hit point, and the berry provides enough nourishment to sustain a creature for one day. The berries lose their potency if they have not been consumed within 24 hours of the casting of this spell."
+    description_ru: "В вашей руке появляется до десяти ягод, наполненных магией на время действия заклинания. Существо может действием съесть одну ягоду. Поедание ягоды восстанавливает 1 хит, и одна ягода обеспечивает существу пропитание на один день. Ягоды теряют свою силу, если их не съели в течение 24 часов после наложения заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/goodberry/
+    srd_section: "SRD 5.1 §Spells / Goodberry"
+  - id: grease
+    name_en: "Grease"
+    name_ru: "Жир"
+    level: 1
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "A bit of pork rind or butter." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [wizard]
+    description_en: "Slick grease covers the ground in a 10-foot square centered on a point within range and turns it into difficult terrain for the duration. When the grease appears, each creature standing in its area must succeed on a dexterity saving throw or fall prone. A creature that enters the area or ends its turn there must also succeed on a dexterity saving throw or fall prone."
+    description_ru: "Скользкий жир покрывает землю в квадрате со стороной 10 футов с центром в точке в пределах дистанции и превращает её в труднопроходимую местность на время действия заклинания. Когда жир появляется, каждое существо, стоящее в его области, должно преуспеть в спасброске Ловкости, иначе упадёт ничком. Существо, входящее в эту область или оканчивающее в ней свой ход, тоже должно преуспеть в спасброске Ловкости, иначе упадёт ничком."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: dex
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/grease/
+    srd_section: "SRD 5.1 §Spells / Grease"
+  - id: guiding-bolt
+    name_en: "Guiding Bolt"
+    name_ru: "Направленный снаряд"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "A flash of light streaks toward a creature of your choice within range. Make a ranged spell attack against the target. On a hit, the target takes 4d6 radiant damage, and the next attack roll made against this target before the end of your next turn has advantage, thanks to the mystical dim light glittering on the target until then."
+    description_ru: "Вспышка света устремляется к выбранному вами существу в пределах дистанции. Совершите дальнобойную атаку заклинанием по цели. При попадании цель получает 4к6 урона излучением, и следующий бросок атаки против этой цели до конца вашего следующего хода совершается с преимуществом благодаря мистическому тусклому свету, мерцающему на цели до этого момента."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, урон увеличивается на 1к6 за каждый уровень ячейки выше 1-го."
+    damage:
+      dice: "4d6"
+      type: radiant
+    attack:
+      kind: ranged_spell
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/guiding_bolt/
+    srd_section: "SRD 5.1 §Spells / Guiding Bolt"
+  - id: healing-word
+    name_en: "Healing Word"
+    name_ru: "Лечащее слово"
+    level: 1
+    school: evocation
+    casting_time: "1 bonus action"
+    range_ft: 60
+    components: { v: true, s: false, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid]
+    description_en: "A creature of your choice that you can see within range regains hit points equal to 1d4 + your spellcasting ability modifier. This spell has no effect on undead or constructs."
+    description_ru: "Существо на ваш выбор, которое вы можете видеть в пределах дистанции, восстанавливает количество хитов, равное 1к4 + модификатор вашей характеристики заклинания. Это заклинание не оказывает действия на нежить и конструктов."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d4 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, восстанавливаемое количество хитов увеличивается на 1к4 за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/healing_word/
+    srd_section: "SRD 5.1 §Spells / Healing Word"
+  - id: hellish-rebuke
+    name_en: "Hellish Rebuke"
+    name_ru: "Адское возмездие"
+    level: 1
+    school: evocation
+    casting_time: "1 reaction"
+    range_ft: 60
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [warlock]
+    description_en: "You point your finger, and the creature that damaged you is momentarily surrounded by hellish flames. The creature must make a Dexterity saving throw. It takes 2d10 fire damage on a failed save, or half as much damage on a successful one."
+    description_ru: "Вы указываете пальцем, и существо, нанёсшее вам урон, на мгновение окутывается адским пламенем. Существо должно совершить спасбросок Ловкости. Оно получает 2к10 урона огнём при провале или половину этого урона при успехе."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d10 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, урон увеличивается на 1к10 за каждый уровень ячейки выше 1-го."
+    damage:
+      dice: "2d10"
+      type: fire
+    attack: null
+    save:
+      ability: dex
+      half_on_success: true
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/hellish_rebuke/
+    srd_section: "SRD 5.1 §Spells / Hellish Rebuke"
+  - id: heroism
+    name_en: "Heroism"
+    name_ru: "Героизм"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, paladin]
+    description_en: "A willing creature you touch is imbued with bravery. Until the spell ends, the creature is immune to being frightened and gains temporary hit points equal to your spellcasting ability modifier at the start of each of its turns. When the spell ends, the target loses any remaining temporary hit points from this spell."
+    description_ru: "Согласное существо, которого вы касаетесь, наполняется храбростью. До окончания заклинания существо имеет иммунитет к испугу и получает в начале каждого своего хода временные хиты в количестве, равном модификатору вашей характеристики заклинания. Когда заклинание оканчивается, цель теряет все оставшиеся временные хиты от этого заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/heroism/
+    srd_section: "SRD 5.1 §Spells / Heroism"
+  - id: hideous-laughter
+    name_en: "Hideous Laughter"
+    name_ru: "Тошнотворный смех"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 30
+    components: { v: true, s: true, m: "Tiny tarts and a feather that is waved in the air." }
+    duration: "1 minute"
+    ritual: false
+    concentration: true
+    classes: [bard, warlock, wizard]
+    description_en: "A creature of your choice that you can see within range perceives everything as hilariously funny and falls into fits of laughter if this spell affects it. The target must succeed on a wisdom saving throw or fall prone, becoming incapacitated and unable to stand up for the duration. A creature with an Intelligence score of 4 or less isn't affected. At the end of each of its turns, and each time it takes damage, the target can make another wisdom saving throw. The target had advantage on the saving throw if it's triggered by damage. On a success, the spell ends."
+    description_ru: "Существо на ваш выбор, которое вы можете видеть в пределах дистанции, начинает воспринимать всё как уморительно смешное и впадает в приступы хохота, если заклинание его затронет. Цель должна преуспеть в спасброске Мудрости, иначе упадёт ничком, становясь недееспособной и неспособной встать на время действия заклинания. Существо с показателем Интеллекта 4 или менее не затрагивается. В конце каждого своего хода и каждый раз, получая урон, цель может совершать ещё один спасбросок Мудрости. Цель совершает спасбросок с преимуществом, если он вызван уроном. При успехе заклинание оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: wis
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/hideous_laughter/
+    srd_section: "SRD 5.1 §Spells / Hideous Laughter"
+  - id: hunters-mark
+    name_en: "Hunter's Mark"
+    name_ru: "Метка охотника"
+    level: 1
+    school: divination
+    casting_time: "1 bonus action"
+    range_ft: 90
+    components: { v: true, s: false, m: null }
+    duration: "1 hour"
+    ritual: false
+    concentration: true
+    classes: [ranger]
+    description_en: "You choose a creature you can see within range and mystically mark it as your quarry. Until the spell ends, you deal an extra 1d6 damage to the target whenever you hit it with a weapon attack, and you have advantage on any Wisdom (Perception) or Wisdom (Survival) check you make to find it. If the target drops to 0 hit points before this spell ends, you can use a bonus action on a subsequent turn of yours to mark a new creature."
+    description_ru: "Вы выбираете существо, которое можете видеть в пределах дистанции, и мистически метите его как свою добычу. До окончания заклинания вы причиняете дополнительно 1к6 урона цели при каждом попадании по ней атакой оружием и совершаете с преимуществом любую проверку Мудрости (Восприятие) или Мудрости (Выживание) для её обнаружения. Если хиты цели опускаются до 0 до окончания заклинания, вы можете бонусным действием в свой последующий ход пометить новое существо."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 3rd or 4th level, you can maintain your concentration on the spell for up to 8 hours. When you use a spell slot of 5th level or higher, you can maintain your concentration on the spell for up to 24 hours."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 3-го или 4-го уровня, вы можете поддерживать концентрацию на заклинании до 8 часов. Если вы используете ячейку 5-го уровня или выше, вы можете поддерживать концентрацию до 24 часов."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/hunters_mark/
+    srd_section: "SRD 5.1 §Spells / Hunter's Mark"
+  - id: identify
+    name_en: "Identify"
+    name_ru: "Опознание"
+    level: 1
+    school: divination
+    casting_time: "1 minute"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A pearl worth at least 100gp and an owl feather." }
+    duration: "Instantaneous"
+    ritual: true
+    concentration: false
+    classes: [bard, cleric, wizard]
+    description_en: "You choose one object that you must touch throughout the casting of the spell. If it is a magic item or some other magic-imbued object, you learn its properties and how to use them, whether it requires attunement to use, and how many charges it has, if any. You learn whether any spells are affecting the item and what they are. If the item was created by a spell, you learn which spell created it. If you instead touch a creature throughout the casting, you learn what spells, if any, are currently affecting it."
+    description_ru: "Вы выбираете один предмет, которого должны касаться на протяжении всего наложения заклинания. Если это магический предмет или иной магически наполненный объект, вы узнаёте его свойства и способ их использования, требует ли он настройки и сколько у него зарядов, если они есть. Вы узнаёте, действуют ли на этот предмет какие-либо заклинания и какие именно. Если предмет был создан заклинанием, вы узнаёте, каким. Если же вы коснётесь существа в течение наложения заклинания, вы узнаёте, какие заклинания, если они есть, на него в настоящий момент действуют."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/identify/
+    srd_section: "SRD 5.1 §Spells / Identify"
+  - id: illusory-script
+    name_en: "Illusory Script"
+    name_ru: "Иллюзорный текст"
+    level: 1
+    school: illusion
+    casting_time: "1 minute"
+    range_ft: "Touch"
+    components: { v: false, s: true, m: "A lead-based ink worth at least 10gp, which this spell consumes." }
+    duration: "10 days"
+    ritual: true
+    concentration: false
+    classes: [bard, warlock, wizard]
+    description_en: "You write on parchment, paper, or some other suitable writing material and imbue it with a potent illusion that lasts for the duration. To you and any creatures you designate when you cast the spell, the writing appears normal, written in your hand, and conveys whatever meaning you intended when you wrote the text. To all others, the writing appears as if it were written in an unknown or magical script that is unintelligible. Alternatively, you can cause the writing to appear to be an entirely different message, written in a different hand and language, though the language must be one you know. Should the spell be dispelled, the original script and the illusion both disappear. A creature with truesight can read the hidden message."
+    description_ru: "Вы пишете на пергаменте, бумаге или другом подходящем для письма материале и наполняете написанное мощной иллюзией, существующей на протяжении длительности заклинания. Для вас и любых выбранных вами при наложении заклинания существ написанное выглядит обычно, написано вашей рукой и передаёт тот смысл, что вы вкладывали при письме. Для всех остальных написанное выглядит так, будто оно написано на неизвестном или магическом письме, и нечитаемо. Также вы можете сделать так, чтобы написанное выглядело совершенно иным сообщением, написанным другим почерком и на другом языке, при условии, что этот язык вам известен. Если заклинание развеется, исчезнут и оригинальный текст, и иллюзия. Существо с истинным зрением может прочитать скрытое сообщение."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/illusory_script/
+    srd_section: "SRD 5.1 §Spells / Illusory Script"
+  - id: inflict-wounds
+    name_en: "Inflict Wounds"
+    name_ru: "Причинение ран"
+    level: 1
+    school: necromancy
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "Make a melee spell attack against a creature you can reach. On a hit, the target takes 3d10 necrotic damage."
+    description_ru: "Совершите рукопашную атаку заклинанием по существу, до которого вы можете дотянуться. При попадании цель получает 3к10 урона некротической энергией."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d10 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, урон увеличивается на 1к10 за каждый уровень ячейки выше 1-го."
+    damage:
+      dice: "3d10"
+      type: necrotic
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/inflict_wounds/
+    srd_section: "SRD 5.1 §Spells / Inflict Wounds"
+  - id: jump
+    name_en: "Jump"
+    name_ru: "Прыжок"
+    level: 1
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A grasshopper's hind leg." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [druid, ranger, sorcerer, wizard]
+    description_en: "You touch a creature. The creature's jump distance is tripled until the spell ends."
+    description_ru: "Вы касаетесь существа. Дальность прыжка этого существа утраивается до окончания заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/jump/
+    srd_section: "SRD 5.1 §Spells / Jump"
+  - id: longstrider
+    name_en: "Longstrider"
+    name_ru: "Большие шаги"
+    level: 1
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A pinch of dirt." }
+    duration: "1 hour"
+    ritual: false
+    concentration: false
+    classes: [bard, druid, ranger, wizard]
+    description_en: "You touch a creature. The target's speed increases by 10 feet until the spell ends."
+    description_ru: "Вы касаетесь существа. Скорость цели увеличивается на 10 футов до окончания заклинания."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each spell slot above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, вы можете подвергнуть его действию одно дополнительное существо за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/longstrider/
+    srd_section: "SRD 5.1 §Spells / Longstrider"
+  - id: mage-armor
+    name_en: "Mage Armor"
+    name_ru: "Доспехи мага"
+    level: 1
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "A piece of cured leather." }
+    duration: "8 hours"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "You touch a willing creature who isn't wearing armor, and a protective magical force surrounds it until the spell ends. The target's base AC becomes 13 + its Dexterity modifier. The spell ends if the target dons armor or if you dismiss the spell as an action."
+    description_ru: "Вы касаетесь согласного существа, не одетого в доспех, и до окончания заклинания его окружает защитная магическая сила. Базовый КД цели становится равным 13 + её модификатор Ловкости. Заклинание оканчивается, если цель надевает доспех или если вы прекращаете заклинание действием."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/mage_armor/
+    srd_section: "SRD 5.1 §Spells / Mage Armor"
+  - id: magic-missile
+    name_en: "Magic Missile"
+    name_ru: "Волшебная стрела"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: 120
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several."
+    description_ru: "Вы создаёте три светящихся дротика из магической силы. Каждый дротик попадает в существо по вашему выбору, которое вы можете видеть в пределах дистанции. Дротик причиняет 1к4 + 1 урона силовым полем своей цели. Все дротики ударяют одновременно, и вы можете направить их в одно существо или в разных."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, заклинание создаёт один дополнительный дротик за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/magic_missile/
+    srd_section: "SRD 5.1 §Spells / Magic Missile"
+  - id: protection-from-evil-and-good
+    name_en: "Protection from Evil and Good"
+    name_ru: "Защита от зла и добра"
+    level: 1
+    school: abjuration
+    casting_time: "1 action"
+    range_ft: "Touch"
+    components: { v: true, s: true, m: "Holy water or powdered silver and iron, which the spell consumes." }
+    duration: "10 minutes"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin, warlock, wizard]
+    description_en: "Until the spell ends, one willing creature you touch is protected against certain types of creatures: aberrations, celestials, elementals, fey, fiends, and undead. The protection grants several benefits. Creatures of those types have disadvantage on attack rolls against the target. The target also can't be charmed, frightened, or possessed by them. If the target is already charmed, frightened, or possessed by such a creature, the target has advantage on any new saving throw against the relevant effect."
+    description_ru: "До окончания заклинания одно согласное существо, которого вы касаетесь, защищено от определённых видов существ: аберраций, небожителей, элементалей, фей, исчадий и нежити. Защита даёт несколько преимуществ. Существа этих видов совершают с помехой броски атаки по цели. Цель также не может быть очарована, испугана или одержима ими. Если цель уже очарована, испугана или одержима таким существом, она совершает с преимуществом любые новые спасброски против соответствующего эффекта."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/protection_from_evil_and_good/
+    srd_section: "SRD 5.1 §Spells / Protection from Evil and Good"
+  - id: purify-food-and-drink
+    name_en: "Purify Food and Drink"
+    name_ru: "Очищение пищи и питья"
+    level: 1
+    school: transmutation
+    casting_time: "1 action"
+    range_ft: 10
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: true
+    concentration: false
+    classes: [cleric, druid, paladin]
+    description_en: "All nonmagical food and drink within a 5-foot radius sphere centered on a point of your choice within range is purified and rendered free of poison and disease."
+    description_ru: "Вся немагическая пища и питьё в сфере радиусом 5 футов с центром в точке по вашему выбору в пределах дистанции очищаются от ядов и болезней."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/purify_food_and_drink/
+    srd_section: "SRD 5.1 §Spells / Purify Food and Drink"
+  - id: sanctuary
+    name_en: "Sanctuary"
+    name_ru: "Святилище"
+    level: 1
+    school: abjuration
+    casting_time: "1 bonus action"
+    range_ft: 30
+    components: { v: true, s: true, m: "A small silver mirror." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [cleric]
+    description_en: "You ward a creature within range against attack. Until the spell ends, any creature who targets the warded creature with an attack or a harmful spell must first make a wisdom saving throw. On a failed save, the creature must choose a new target or lose the attack or spell. This spell doesn't protect the warded creature from area effects, such as the explosion of a fireball. If the warded creature makes an attack or casts a spell that affects an enemy creature, this spell ends."
+    description_ru: "Вы оберегаете существо в пределах дистанции от атаки. До окончания заклинания любое существо, выбирающее охраняемое существо целью атаки или вредоносного заклинания, должно сначала совершить спасбросок Мудрости. При провале существо должно выбрать новую цель или потерять атаку или заклинание. Это заклинание не защищает охраняемое существо от эффектов области, таких как взрыв огненного шара. Если охраняемое существо совершает атаку или накладывает заклинание, влияющее на враждебное существо, заклинание оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save:
+      ability: wis
+      half_on_success: false
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/sanctuary/
+    srd_section: "SRD 5.1 §Spells / Sanctuary"
+  - id: shield
+    name_en: "Shield"
+    name_ru: "Щит"
+    level: 1
+    school: abjuration
+    casting_time: "1 reaction"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "1 round"
+    ritual: false
+    concentration: false
+    classes: [sorcerer, wizard]
+    description_en: "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile."
+    description_ru: "Невидимый барьер из магической силы появляется и защищает вас. До начала вашего следующего хода вы получаете +5 к КД, в том числе против вызвавшей это атаки, и не получаете урона от волшебной стрелы."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/shield/
+    srd_section: "SRD 5.1 §Spells / Shield"
+  - id: shield-of-faith
+    name_en: "Shield of Faith"
+    name_ru: "Щит веры"
+    level: 1
+    school: abjuration
+    casting_time: "1 bonus action"
+    range_ft: 60
+    components: { v: true, s: true, m: "A small parchment with a bit of holy text written on it." }
+    duration: "10 minutes"
+    ritual: false
+    concentration: true
+    classes: [cleric, paladin]
+    description_en: "A shimmering field appears and surrounds a creature of your choice within range, granting it a +2 bonus to AC for the duration."
+    description_ru: "Мерцающее поле появляется и окружает существо по вашему выбору в пределах дистанции, давая ему +2 к КД на время действия заклинания."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/shield_of_faith/
+    srd_section: "SRD 5.1 §Spells / Shield of Faith"
+  - id: silent-image
+    name_en: "Silent Image"
+    name_ru: "Безмолвный образ"
+    level: 1
+    school: illusion
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "A bit of fleece." }
+    duration: "10 minutes"
+    ritual: false
+    concentration: true
+    classes: [bard, sorcerer, wizard]
+    description_en: "You create the image of an object, a creature, or some other visible phenomenon that is no larger than a 15-foot cube. The image appears at a spot within range and lasts for the duration. The image is purely visual; it isn't accompanied by sound, smell, or other sensory effects. You can use your action to cause the image to move to any spot within range. As the image changes location, you can alter its appearance so that its movements appear natural for the image. For example, if you create an image of a creature and move it, you can alter the image so that it appears to be walking. Physical interaction with the image reveals it to be an illusion, because things can pass through it. A creature that uses its action to examine the image can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the creature can see through the image."
+    description_ru: "Вы создаёте образ предмета, существа или иного видимого явления, не превышающего куб с длиной ребра 15 футов. Образ появляется в точке в пределах дистанции и существует на протяжении длительности заклинания. Образ полностью визуальный; он не сопровождается звуками, запахами или другими сенсорными эффектами. Вы можете действием перемещать образ в любую точку в пределах дистанции. По мере перемещения образа вы можете изменять его внешний вид так, чтобы движения выглядели естественно для этого образа. Например, если вы создадите образ существа и переместите его, вы сможете изменить образ так, чтобы он выглядел идущим. Физическое взаимодействие с образом выявляет, что это иллюзия, поскольку сквозь него можно проходить. Существо, использующее своё действие, чтобы изучить образ, может определить, что это иллюзия, успешно совершив проверку Интеллекта (Расследование) против Сл вашего спасброска заклинания. Если существо распознало иллюзию как таковую, оно сможет видеть сквозь образ."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/silent_image/
+    srd_section: "SRD 5.1 §Spells / Silent Image"
+  - id: sleep
+    name_en: "Sleep"
+    name_ru: "Сон"
+    level: 1
+    school: enchantment
+    casting_time: "1 action"
+    range_ft: 90
+    components: { v: true, s: true, m: "A pinch of fine sand, rose petals, or a cricket." }
+    duration: "1 minute"
+    ritual: false
+    concentration: false
+    classes: [bard, sorcerer, warlock, wizard]
+    description_en: "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points (ignoring unconscious creatures). Starting with the creature that has the lowest current hit points, each creature affected by this spell falls unconscious until the spell ends, the sleeper takes damage, or someone uses an action to shake or slap the sleeper awake. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points. A creature's hit points must be equal to or less than the remaining total for that creature to be affected. Undead and creatures immune to being charmed aren't affected by this spell."
+    description_ru: "Это заклинание погружает существ в магический сон. Бросьте 5к8; полученная сумма - количество хитов существ, которое это заклинание может затронуть. Существа в пределах 20 футов от точки по вашему выбору в пределах дистанции попадают под действие в порядке возрастания их текущих хитов (бессознательные существа игнорируются). Начиная с существа с наименьшим количеством хитов, каждое существо, затронутое этим заклинанием, оказывается без сознания, пока заклинание не окончится, пока спящий не получит урон, или пока кто-нибудь не разбудит его действием, потряся или ударив. Вычитайте хиты каждого существа из оставшейся суммы перед переходом к существу со следующим наименьшим количеством хитов. Чтобы существо было затронуто, его хиты должны быть равны или меньше оставшейся суммы. Нежить и существа, имеющие иммунитет к очарованию, не затрагиваются этим заклинанием."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, бросьте дополнительно 2к8 за каждый уровень ячейки выше 1-го."
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/sleep/
+    srd_section: "SRD 5.1 §Spells / Sleep"
+  - id: speak-with-animals
+    name_en: "Speak with Animals"
+    name_ru: "Разговор с животными"
+    level: 1
+    school: divination
+    casting_time: "1 action"
+    range_ft: "Self"
+    components: { v: true, s: true, m: null }
+    duration: "10 minutes"
+    ritual: true
+    concentration: false
+    classes: [bard, cleric, druid, ranger]
+    description_en: "You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at a minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the DM's discretion."
+    description_ru: "Вы получаете способность понимать речь зверей и устно общаться с ними на время действия заклинания. Знания и осведомлённость многих зверей ограничены их разумом, но как минимум звери могут давать вам сведения о близлежащих местах и чудовищах, в том числе о всём, что они могут воспринимать или воспринимали в течение последнего дня. По усмотрению Мастера вы можете убедить зверя оказать вам небольшую услугу."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/speak_with_animals/
+    srd_section: "SRD 5.1 §Spells / Speak with Animals"
+  - id: thunderwave
+    name_en: "Thunderwave"
+    name_ru: "Громовая волна"
+    level: 1
+    school: evocation
+    casting_time: "1 action"
+    range_ft: "Self (15-foot cube)"
+    components: { v: true, s: true, m: null }
+    duration: "Instantaneous"
+    ritual: false
+    concentration: false
+    classes: [bard, cleric, druid, sorcerer, wizard]
+    description_en: "A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a constitution saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and isn't pushed. In addition, unsecured objects that are completely within the area of effect are automatically pushed 10 feet away from you by the spell's effect, and the spell emits a thunderous boom audible out to 300 feet."
+    description_ru: "Волна громовой силы исходит от вас. Каждое существо в кубе с длиной ребра 15 футов, исходящем от вас, должно совершить спасбросок Телосложения. При провале существо получает 2к8 урона звуком и отталкивается на 10 футов от вас. При успехе существо получает половину этого урона и не отталкивается. Кроме того, незакреплённые предметы, полностью находящиеся в области действия, автоматически отталкиваются на 10 футов от вас эффектом заклинания, и заклинание издаёт громовой раскат, слышимый на расстоянии до 300 футов."
+    at_higher_levels:
+      en: "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d8 for each slot level above 1st."
+      ru: "Если вы накладываете это заклинание, используя ячейку заклинания 2-го уровня или выше, урон увеличивается на 1к8 за каждый уровень ячейки выше 1-го."
+    damage:
+      dice: "2d8"
+      type: thunder
+    attack: null
+    save:
+      ability: con
+      half_on_success: true
+    scales_with_level: upcast
+    source_url: https://5thsrd.org/spellcasting/spells/thunderwave/
+    srd_section: "SRD 5.1 §Spells / Thunderwave"
+  - id: unseen-servant
+    name_en: "Unseen Servant"
+    name_ru: "Невидимый слуга"
+    level: 1
+    school: conjuration
+    casting_time: "1 action"
+    range_ft: 60
+    components: { v: true, s: true, m: "A piece of string and a bit of wood." }
+    duration: "1 hour"
+    ritual: true
+    concentration: false
+    classes: [bard, warlock, wizard]
+    description_en: "This spell creates an invisible, mindless, shapeless force that performs simple tasks at your command until the spell ends. The servant springs into existence in an unoccupied space on the ground within range. It has AC 10, 1 hit point, and a Strength of 2, and it can't attack. If it drops to 0 hit points, the spell ends. Once on each of your turns as a bonus action, you can mentally command the servant to move up to 15 feet and interact with an object. The servant can perform simple tasks that a human servant could do, such as fetching things, cleaning, mending, folding clothes, lighting fires, serving food, and pouring wind. Once you give the command, the servant performs the task to the best of its ability until it completes the task, then waits for your next command. If you command the servant to perform a task that would move it more than 60 feet away from you, the spell ends."
+    description_ru: "Это заклинание создаёт невидимую, бездумную, бесформенную силу, выполняющую простые поручения по вашей команде, пока заклинание не окончится. Слуга появляется в свободном пространстве на земле в пределах дистанции. У него КД 10, 1 хит и Сила 2, и он не может атаковать. Если его хиты опускаются до 0, заклинание оканчивается. Раз в свой ход бонусным действием вы можете мысленно приказать слуге переместиться на расстояние до 15 футов и взаимодействовать с предметом. Слуга может выполнять простые задачи, которые мог бы выполнить человеческий слуга, такие как приносить вещи, прибираться, чинить, складывать одежду, разжигать огонь, подавать еду и наливать вино. Получив команду, слуга выполняет задачу в меру своих сил до её завершения, а затем ожидает вашей следующей команды. Если вы прикажете слуге выполнить задачу, которая потребует от него удалиться от вас более чем на 60 футов, заклинание оканчивается."
+    at_higher_levels:
+      en: null
+      ru: null
+    damage: null
+    attack: null
+    save: null
+    scales_with_level: null
+    source_url: https://5thsrd.org/spellcasting/spells/unseen_servant/
+    srd_section: "SRD 5.1 §Spells / Unseen Servant"
