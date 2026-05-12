@@ -108,6 +108,8 @@ export interface CharCreationSlice {
 
 const MAX_ROLL_ATTEMPTS = 3;
 
+const DRAFT_KEYS = new Set(Object.keys(EMPTY_DRAFT) as Array<keyof CharacterDraft>);
+
 function rollOneAbility(): number {
   const rolls: number[] = [1, 2, 3, 4].map(() => Math.floor(Math.random() * 6) + 1);
   rolls.sort((a, b) => a - b);
@@ -148,7 +150,16 @@ export const createCharCreationSlice: StateCreator<CharCreationSlice, [], [], Ch
           },
         };
       }),
-    applyAiSuggestion: (patch) => set((s) => ({ charCreation: { ...s.charCreation, ...patch } })),
+    applyAiSuggestion: (patch) =>
+      set((s) => {
+        const safe: Partial<CharacterDraft> = {};
+        for (const [key, value] of Object.entries(patch)) {
+          if (DRAFT_KEYS.has(key as keyof CharacterDraft)) {
+            (safe as Record<string, unknown>)[key] = value;
+          }
+        }
+        return { charCreation: { ...s.charCreation, ...safe } };
+      }),
     setIsAssisting: (assisting) =>
       set((s) => ({ charCreation: { ...s.charCreation, isAssisting: assisting } })),
     resetDraft: () =>

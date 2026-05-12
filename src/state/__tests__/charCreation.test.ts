@@ -72,4 +72,23 @@ describe('charCreation slice', () => {
     expect(EMPTY_DRAFT.classId).toBeNull();
     expect(EMPTY_DRAFT.abilities.str).toBe(10);
   });
+
+  it('setIsAssisting toggles the assisting flag', () => {
+    const store = buildStore();
+    store.getState().charCreation.setIsAssisting(true);
+    expect(store.getState().charCreation.isAssisting).toBe(true);
+    store.getState().charCreation.setIsAssisting(false);
+    expect(store.getState().charCreation.isAssisting).toBe(false);
+  });
+
+  it('applyAiSuggestion ignores keys not in CharacterDraft (e.g. action names)', () => {
+    const store = buildStore();
+    const before = store.getState().charCreation.setActiveTab;
+    store.getState().charCreation.applyAiSuggestion({
+      classId: 'wizard',
+      setActiveTab: 'malicious' as unknown as never, // attempt to overwrite action
+    } as never);
+    expect(store.getState().charCreation.classId).toBe('wizard');
+    expect(store.getState().charCreation.setActiveTab).toBe(before); // unchanged
+  });
 });

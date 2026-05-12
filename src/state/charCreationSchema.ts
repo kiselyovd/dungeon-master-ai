@@ -3,15 +3,7 @@
  * Used by persistStorage to validate the stored char_creation_draft JSON.
  */
 import * as v from 'valibot';
-
-const AbilityScoresSchema = v.object({
-  str: v.number(),
-  dex: v.number(),
-  con: v.number(),
-  int: v.number(),
-  wis: v.number(),
-  cha: v.number(),
-});
+import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 
 const AbilityMethodSchema = v.nullable(
   v.picklist(['point_buy', 'standard_array', '4d6_drop_lowest']),
@@ -25,13 +17,6 @@ const EquipmentSlotSchema = v.object({
   itemId: v.nullable(v.string()),
   customName: v.nullable(v.string()),
   fromBackground: v.boolean(),
-});
-
-const InventoryItemSchema = v.object({
-  id: v.string(),
-  name: v.string(),
-  count: v.number(),
-  icon: v.optional(v.string()),
 });
 
 const PersonalityFlagSchema = v.object({
@@ -52,7 +37,8 @@ const WizardTabSchema = v.picklist([
   'review',
 ]);
 
-export const CharCreationDraftSchema = v.object({
+// Strict schema (all fields required) - useful for full-draft validation.
+export const StrictCharCreationDraftSchema = v.object({
   classId: v.nullable(v.string()),
   subclassId: v.nullable(v.string()),
   raceId: v.nullable(v.string()),
@@ -82,3 +68,8 @@ export const CharCreationDraftSchema = v.object({
   portraitPrompt: v.nullable(v.string()),
   activeTab: WizardTabSchema,
 });
+
+// Forward-tolerant schema for persistence reads - all fields optional.
+// Allows old persisted drafts to survive when new fields are added by future tasks.
+// The Zustand merge callback fills missing fields from EMPTY_DRAFT defaults.
+export const CharCreationDraftSchema = v.partial(StrictCharCreationDraftSchema);

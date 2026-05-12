@@ -39,6 +39,7 @@ import {
   type ProvidersMap,
   type SettingsData,
 } from './settings';
+import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 import { strongholdSecretsStore } from './strongholdSecretsStore';
 
 const LEGACY_SECRETS_FILE = 'secrets.json';
@@ -108,15 +109,6 @@ const CurrentSceneSchema = v.nullable(
 const OnboardingCompletedSchema = v.boolean();
 const HeroClassSchema = v.nullable(v.string());
 
-const AbilityScoresSchema = v.object({
-  str: v.number(),
-  dex: v.number(),
-  con: v.number(),
-  int: v.number(),
-  wis: v.number(),
-  cha: v.number(),
-});
-
 const SavingThrowProfSchema = v.object({
   str: v.optional(v.boolean()),
   dex: v.optional(v.boolean()),
@@ -139,13 +131,6 @@ const SkillProfSchema = v.object({
   persuasion: v.optional(v.boolean()),
   stealth: v.optional(v.boolean()),
   survival: v.optional(v.boolean()),
-});
-
-const InventoryItemSchema = v.object({
-  id: v.string(),
-  name: v.string(),
-  count: v.number(),
-  icon: v.optional(v.string()),
 });
 
 const PcSchema = v.object({
