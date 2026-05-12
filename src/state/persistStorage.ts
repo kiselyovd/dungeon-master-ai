@@ -22,6 +22,8 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
+import type { CharacterDraft, WizardTab } from './charCreation';
+import { CharCreationDraftSchema } from './charCreationSchema';
 import type { OnboardingData } from './onboarding';
 import type { PcData } from './pc';
 import {
@@ -57,6 +59,7 @@ const KEY_CURRENT_SCENE = 'current_scene';
 const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
 const KEY_HERO_CLASS = 'hero_class';
 const KEY_PC = 'pc';
+const KEY_CHAR_CREATION_DRAFT = 'char_creation_draft';
 
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
@@ -172,6 +175,7 @@ export interface PersistedSettings {
   session?: Partial<SessionData>;
   onboarding?: Partial<OnboardingData>;
   pc?: Partial<PcData>;
+  charCreation?: Partial<CharacterDraft & { activeTab: WizardTab }>;
 }
 
 export const persistStorage: PersistStorage<PersistedSettings> = {
@@ -192,6 +196,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       onboardingRaw,
       heroClassRaw,
       pcRaw,
+      charCreationRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -208,6 +213,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_ONBOARDING_COMPLETED),
       settingsStore.get(KEY_HERO_CLASS),
       settingsStore.get(KEY_PC),
+      settingsStore.get(KEY_CHAR_CREATION_DRAFT),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -225,6 +231,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const onboardingParsed = v.safeParse(OnboardingCompletedSchema, onboardingRaw);
     const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
     const pcParsed = v.safeParse(PcSchema, pcRaw);
+    const charCreationParsed = v.safeParse(CharCreationDraftSchema, charCreationRaw);
 
     if (
       !providersParsed.success &&
@@ -241,7 +248,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !sceneParsed.success &&
       !onboardingParsed.success &&
       !heroClassParsed.success &&
-      !pcParsed.success
+      !pcParsed.success &&
+      !charCreationParsed.success
     ) {
       return null;
     }
@@ -277,7 +285,14 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       pc.heroClass = heroClassParsed.output;
     }
 
-    return { state: { settings, session, onboarding, pc }, version: 0 };
+    const stateOut: PersistedSettings = { settings, session, onboarding, pc };
+    if (charCreationParsed.success) {
+      stateOut.charCreation = charCreationParsed.output as Partial<
+        CharacterDraft & { activeTab: WizardTab }
+      >;
+    }
+
+    return { state: stateOut, version: 0 };
   },
 
   async setItem(_name, value): Promise<void> {
@@ -285,6 +300,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const session = value.state.session ?? {};
     const onboarding = value.state.onboarding ?? {};
     const pc = value.state.pc ?? {};
+    const charCreation = value.state.charCreation;
     const writes: Promise<unknown>[] = [];
     if (settings.providers !== undefined) {
       writes.push(secretsStore.set(KEY_PROVIDERS, settings.providers));
@@ -338,6 +354,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (pc.name !== undefined || pc.heroClass !== undefined) {
       writes.push(settingsStore.set(KEY_PC, pc));
     }
+    if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
+      writes.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -361,6 +380,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_ONBOARDING_COMPLETED),
       settingsStore.delete(KEY_HERO_CLASS),
       settingsStore.delete(KEY_PC),
+      settingsStore.delete(KEY_CHAR_CREATION_DRAFT),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },

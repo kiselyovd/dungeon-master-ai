@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type CharCreationSlice, createCharCreationSlice } from './charCreation';
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
 import { createJournalSlice, type JournalSlice } from './journal';
@@ -23,7 +24,8 @@ export type AppState = ChatSlice &
   SessionSlice &
   OnboardingSlice &
   PcSlice &
-  SavesSlice;
+  SavesSlice &
+  CharCreationSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -41,6 +43,7 @@ export const useStore = create<AppState>()(
       ...createOnboardingSlice(...a),
       ...createPcSlice(...a),
       ...createSavesSlice(...a),
+      ...createCharCreationSlice(...a),
     }),
     {
       name: PERSIST_NAME,
@@ -87,6 +90,33 @@ export const useStore = create<AppState>()(
           skillProfs: state.pc.skillProfs,
           inventory: state.pc.inventory,
         },
+        charCreation: {
+          classId: state.charCreation.classId,
+          subclassId: state.charCreation.subclassId,
+          raceId: state.charCreation.raceId,
+          subraceId: state.charCreation.subraceId,
+          backgroundId: state.charCreation.backgroundId,
+          abilityMethod: state.charCreation.abilityMethod,
+          abilities: state.charCreation.abilities,
+          abilityRollHistory: state.charCreation.abilityRollHistory,
+          pointBuyRemaining: state.charCreation.pointBuyRemaining,
+          skillProfs: state.charCreation.skillProfs,
+          spells: state.charCreation.spells,
+          equipmentMode: state.charCreation.equipmentMode,
+          equipmentSlots: state.charCreation.equipmentSlots,
+          equipmentInventory: state.charCreation.equipmentInventory,
+          goldRemaining: state.charCreation.goldRemaining,
+          personalityFlags: state.charCreation.personalityFlags,
+          ideals: state.charCreation.ideals,
+          bonds: state.charCreation.bonds,
+          flaws: state.charCreation.flaws,
+          backstory: state.charCreation.backstory,
+          name: state.charCreation.name,
+          alignment: state.charCreation.alignment,
+          portraitUrl: state.charCreation.portraitUrl,
+          portraitPrompt: state.charCreation.portraitPrompt,
+          activeTab: state.charCreation.activeTab,
+        },
       }),
       // Preserve action functions on the in-memory slice objects when the
       // persisted (data-only) snapshot is merged back in.
@@ -110,6 +140,10 @@ export const useStore = create<AppState>()(
           pc: {
             ...currentState.pc,
             ...(persisted.pc ?? {}),
+          },
+          charCreation: {
+            ...currentState.charCreation,
+            ...(persisted.charCreation ?? {}),
           },
         };
       },
