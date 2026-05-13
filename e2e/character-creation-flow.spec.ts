@@ -167,7 +167,10 @@ test('character creation wizard walks from Class to Begin Adventure', async ({ p
   const anthropicKey = page.getByLabel(/api.*key/i).first();
   if (await anthropicKey.isVisible({ timeout: 3000 }).catch(() => false)) {
     await anthropicKey.fill('sk-ant-test-dummy-key');
-    await page.getByRole('button', { name: /begin setup|begin|next|finish/i }).last().click();
+    await page
+      .getByRole('button', { name: /begin setup|begin|next|finish/i })
+      .last()
+      .click();
   }
 
   // Now in the wizard. Verify the tabs strip is visible.
