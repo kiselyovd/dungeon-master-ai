@@ -94,5 +94,12 @@
   "bonds": "Привязанности",
   "flaws": "Слабости",
   "backstory": "Бэкстори",
-  "generate": "Сгенерировать"
+  "generate": "Сгенерировать",
+  "portrait_title": "Портрет",
+  "portrait_empty": "Портрета ещё нет",
+  "portrait_alt": "Портрет персонажа",
+  "portrait_prompt_label": "Промпт",
+  "generating": "Генерируется...",
+  "skip_portrait": "Пропустить портрет",
+  "portrait_generation_failed": "Генерация не удалась: {{error}}"
 }

@@ -94,5 +94,12 @@
   "bonds": "Bonds",
   "flaws": "Flaws",
   "backstory": "Backstory",
-  "generate": "Generate"
+  "generate": "Generate",
+  "portrait_title": "Portrait",
+  "portrait_empty": "No portrait yet",
+  "portrait_alt": "Character portrait",
+  "portrait_prompt_label": "Prompt",
+  "generating": "Generating...",
+  "skip_portrait": "Skip portrait",
+  "portrait_generation_failed": "Generation failed: {{error}}"
 }
