@@ -24,5 +24,8 @@
   "tab_equipment_name": "Equipment",
   "tab_persona_name": "Persona",
   "tab_portrait_name": "Portrait",
-  "tab_review_name": "Review"
+  "tab_review_name": "Review",
+  "class_picker_title": "Choose your class",
+  "subclass_picker_title": "Choose your subclass",
+  "surprise_me": "Surprise me"
 }

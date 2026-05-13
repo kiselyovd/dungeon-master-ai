@@ -24,5 +24,8 @@
   "tab_equipment_name": "Снаряжение",
   "tab_persona_name": "Личность",
   "tab_portrait_name": "Портрет",
-  "tab_review_name": "Обзор"
+  "tab_review_name": "Обзор",
+  "class_picker_title": "Выбери свой класс",
+  "subclass_picker_title": "Выбери свой подкласс",
+  "surprise_me": "Удиви меня"
 }
