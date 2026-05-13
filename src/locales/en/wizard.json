@@ -14,5 +14,15 @@
   "ability_int": "INT",
   "ability_wis": "WIS",
   "ability_cha": "CHA",
-  "inventory": "Inventory"
+  "inventory": "Inventory",
+  "tab_class_name": "Class",
+  "tab_race_name": "Race",
+  "tab_background_name": "Background",
+  "tab_abilities_name": "Abilities",
+  "tab_skills_name": "Skills",
+  "tab_spells_name": "Spells",
+  "tab_equipment_name": "Equipment",
+  "tab_persona_name": "Persona",
+  "tab_portrait_name": "Portrait",
+  "tab_review_name": "Review"
 }

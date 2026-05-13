@@ -14,5 +14,15 @@
   "ability_int": "ИНТ",
   "ability_wis": "МДР",
   "ability_cha": "ХАР",
-  "inventory": "Инвентарь"
+  "inventory": "Инвентарь",
+  "tab_class_name": "Класс",
+  "tab_race_name": "Раса",
+  "tab_background_name": "Происхождение",
+  "tab_abilities_name": "Характеристики",
+  "tab_skills_name": "Навыки",
+  "tab_spells_name": "Заклинания",
+  "tab_equipment_name": "Снаряжение",
+  "tab_persona_name": "Личность",
+  "tab_portrait_name": "Портрет",
+  "tab_review_name": "Обзор"
 }
