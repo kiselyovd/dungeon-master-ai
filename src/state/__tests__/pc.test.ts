@@ -193,4 +193,43 @@ describe('pc slice additive setters', () => {
     store.getState().pc.replaceFromDraft({ name: 'Test' });
     expect(store.getState().pc.setHp).toBe(beforeSetHp);
   });
+
+  it('replaceFromDraft writes all known PcData keys through to state', () => {
+    const store = buildStore();
+    store.getState().pc.replaceFromDraft({ name: 'Tav', hp: 22 });
+    const pc = store.getState().pc;
+    expect(pc.name).toBe('Tav');
+    expect(pc.hp).toBe(22);
+  });
+
+  it('replaceFromDraft silently drops keys that are not in PcData', () => {
+    const store = buildStore();
+    store.getState().pc.applyPreset('fighter');
+    const beforeName = store.getState().pc.name;
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately passing an unknown key to test the runtime allowlist
+    store.getState().pc.replaceFromDraft({ randomKey: 'x', evilKey: 42 } as any);
+    const pc = store.getState().pc as unknown as Record<string, unknown>;
+    expect(pc.randomKey).toBeUndefined();
+    expect(pc.evilKey).toBeUndefined();
+    // Other state is untouched.
+    expect(store.getState().pc.name).toBe(beforeName);
+    expect(store.getState().pc.heroClass).toBe('fighter');
+  });
+
+  it('replaceFromDraft with a partial patch leaves untouched keys alone', () => {
+    const store = buildStore();
+    store.getState().pc.applyPreset('wizard');
+    const beforeAc = store.getState().pc.ac;
+    const beforeRace = store.getState().pc.race;
+    const beforeInventoryLen = store.getState().pc.inventory.length;
+
+    store.getState().pc.replaceFromDraft({ name: 'Gale' });
+
+    const pc = store.getState().pc;
+    expect(pc.name).toBe('Gale');
+    expect(pc.ac).toBe(beforeAc);
+    expect(pc.race).toBe(beforeRace);
+    expect(pc.inventory.length).toBe(beforeInventoryLen);
+    expect(pc.heroClass).toBe('wizard');
+  });
 });

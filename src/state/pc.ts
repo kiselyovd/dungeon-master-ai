@@ -90,6 +90,37 @@ export interface PcData {
   inventory: InventoryItem[];
 }
 
+/**
+ * Runtime allowlist of valid `PcData` keys. Used by `replaceFromDraft` to
+ * filter unknown keys out of a `Partial<PcData>` patch before spreading it
+ * into state - mirrors the `DRAFT_KEYS` pattern in `charCreation.ts`.
+ *
+ * Declared as an explicit string-literal array (not `new Set(Object.keys(EMPTY_PC))`)
+ * to avoid a temporal-ordering coupling with `EMPTY_PC`, which is defined
+ * further down the file. Keep this in sync with `PcData` and `EMPTY_PC`.
+ */
+export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
+  'heroClass',
+  'name',
+  'race',
+  'subclass',
+  'background',
+  'alignment',
+  'level',
+  'experience',
+  'experienceNext',
+  'hp',
+  'hpMax',
+  'ac',
+  'initiative',
+  'speedFt',
+  'proficiencyBonus',
+  'abilities',
+  'savingThrowProfs',
+  'skillProfs',
+  'inventory',
+]);
+
 export interface PcActions {
   setHeroClass: (heroClass: string | null) => void;
   /** Overwrite the whole PC with the preset for the given class. */
@@ -391,11 +422,17 @@ export const createPcSlice: StateCreator<PcSlice, [], [], PcSlice> = (set) => ({
     setName: (name) => set((s) => ({ pc: { ...s.pc, name } })),
     setAbilities: (abilities) => set((s) => ({ pc: { ...s.pc, abilities } })),
     replaceFromDraft: (patch) =>
-      set((s) => ({
-        pc: {
-          ...s.pc,
-          ...patch,
-        },
-      })),
+      set((s) => {
+        // Runtime allowlist: silently drop any keys not in `PcData` so a
+        // mistyped or hostile payload cannot inject arbitrary fields onto
+        // the slice. Mirrors `applyAiSuggestion` in `charCreation.ts`.
+        const safe: Partial<PcData> = {};
+        for (const [key, value] of Object.entries(patch)) {
+          if (PC_DATA_KEYS.has(key as keyof PcData)) {
+            (safe as Record<string, unknown>)[key] = value;
+          }
+        }
+        return { pc: { ...s.pc, ...safe } };
+      }),
   },
 });
