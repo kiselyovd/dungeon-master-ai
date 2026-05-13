@@ -1,5 +1,6 @@
 import type { CharacterDraft } from '../../state/charCreation';
 import type { AbilityScores } from '../../state/pc';
+import { abilityMod, savingThrowMod, skillMod } from '../../state/pc';
 
 export interface LiveSheetAbilityRow {
   score: number;
@@ -28,7 +29,7 @@ export interface LiveSheet {
   className: string | null;
   raceName: string | null;
   backgroundName: string | null;
-  subclassName: string | null;
+  subclassId: string | null;
   subraceName: string | null;
   level: number;
   hp: number | null;
@@ -71,9 +72,8 @@ const SKILL_TO_ABILITY: Record<string, keyof AbilityScores> = {
 
 const ALL_SKILLS = Object.keys(SKILL_TO_ABILITY);
 
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
+/** Level 1 proficiency bonus is always 2 (PHB 5e). */
+const LEVEL_1_PROFICIENCY_BONUS = 2;
 
 interface MinimalCompendium {
   races: Array<{
@@ -82,7 +82,12 @@ interface MinimalCompendium {
     name_ru: string;
     speed: number;
     ability_score_increases: Partial<AbilityScores>;
-    subraces: Array<{ id: string; name_en: string; name_ru: string }>;
+    subraces: Array<{
+      id: string;
+      name_en: string;
+      name_ru: string;
+      additional_asi?: Partial<AbilityScores>;
+    }>;
   }>;
   classes: Array<{
     id: string;
@@ -99,30 +104,44 @@ interface MinimalCompendium {
   }>;
 }
 
+function finalAbilityScore(
+  base: number,
+  ability: keyof AbilityScores,
+  race: MinimalCompendium['races'][number] | null,
+  subrace: MinimalCompendium['races'][number]['subraces'][number] | null,
+): number {
+  const raceBoost = race?.ability_score_increases[ability] ?? 0;
+  const subraceBoost = subrace?.additional_asi?.[ability] ?? 0;
+  return base + raceBoost + subraceBoost;
+}
+
 export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompendium): LiveSheet {
-  const klass = draft.classId ? compendium.classes.find((c) => c.id === draft.classId) : null;
-  const race = draft.raceId ? compendium.races.find((r) => r.id === draft.raceId) : null;
+  const klass = draft.classId
+    ? (compendium.classes.find((c) => c.id === draft.classId) ?? null)
+    : null;
+  const race = draft.raceId ? (compendium.races.find((r) => r.id === draft.raceId) ?? null) : null;
   const subrace =
     race && draft.subraceId
       ? (race.subraces.find((sr) => sr.id === draft.subraceId) ?? null)
       : null;
   const bg = draft.backgroundId
-    ? compendium.backgrounds.find((b) => b.id === draft.backgroundId)
+    ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
     : null;
 
   const abilities: Record<keyof AbilityScores, LiveSheetAbilityRow> = {} as never;
   for (const k of ABILITY_KEYS) {
-    abilities[k] = { score: draft.abilities[k], mod: abilityMod(draft.abilities[k]) };
+    const finalScore = finalAbilityScore(draft.abilities[k], k, race, subrace);
+    abilities[k] = { score: finalScore, mod: abilityMod(finalScore) };
   }
 
-  const proficiencyBonus = 2;
+  const proficiencyBonus = LEVEL_1_PROFICIENCY_BONUS;
 
   const savingThrows: Record<keyof AbilityScores, LiveSheetSavingThrow> = {} as never;
   const profSaves = new Set((klass?.saving_throw_proficiencies ?? []) as string[]);
   for (const k of ABILITY_KEYS) {
     const prof = profSaves.has(k);
     savingThrows[k] = {
-      mod: abilities[k].mod + (prof ? proficiencyBonus : 0),
+      mod: savingThrowMod(abilities[k].score, prof, proficiencyBonus),
       proficient: prof,
     };
   }
@@ -134,16 +153,16 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
     const ability = SKILL_TO_ABILITY[skill] as keyof AbilityScores;
     const prof = bgSkills.has(skill) || draftSkills.has(skill);
     skills[skill] = {
-      mod: abilities[ability].mod + (prof ? proficiencyBonus : 0),
+      mod: skillMod(abilities[ability].score, prof, proficiencyBonus),
       proficient: prof,
     };
   }
 
   const conMod = abilities.con.mod;
-  const hpMax = klass ? klass.hit_die + conMod : null;
+  const hpMax = klass ? Math.max(1, klass.hit_die + conMod) : null;
   const hp = hpMax;
 
-  const initiative = klass ? abilities.dex.mod : null;
+  const initiative = abilities.dex.mod;
   const speedFt = race ? race.speed : null;
 
   const items: LiveSheetInventoryItem[] = [];
@@ -164,7 +183,9 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
   const inventoryOverflow = Math.max(0, items.length - 3);
 
   const hasSpells = draft.spells.cantrips.length > 0 || draft.spells.level1.length > 0;
-  const spellsPreview = hasSpells ? draft.spells : null;
+  const spellsPreview = hasSpells
+    ? { cantrips: [...draft.spells.cantrips], level1: [...draft.spells.level1] }
+    : null;
 
   const placeholder = !klass ? 'pick_class_to_begin' : null;
 
@@ -172,7 +193,7 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
     name: draft.name || null,
     className: klass ? klass.name_en : null,
     raceName: race ? race.name_en : null,
-    subclassName: draft.subclassId,
+    subclassId: draft.subclassId,
     subraceName: subrace ? subrace.name_en : null,
     backgroundName: bg ? bg.name_en : null,
     level: 1,
