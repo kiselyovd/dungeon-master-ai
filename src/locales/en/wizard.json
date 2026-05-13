@@ -93,6 +93,52 @@
   "remove_from_inventory": "Remove",
   "current_inventory": "Inventory",
   "persona_title": "Persona",
+  "personality_flags_title": "Personality Flags",
+  "flag_bg_trait": "Personality trait",
+  "flag_bg_bond": "Bond",
+  "flag_align_trait": "Tone",
+  "flag_align_quirk": "Quirk",
+  "flag_race_trait": "Heritage",
+  "flag_race_quirk": "Mannerism",
+  "custom_option": "Custom...",
+  "align_pool": {
+    "LG": {
+      "traits": { "0": "Honorable", "1": "Devout", "2": "Compassionate", "3": "Just" },
+      "quirks": { "0": "Self-righteous", "1": "Inflexible", "2": "Preachy", "3": "Overly cautious" }
+    },
+    "NG": {
+      "traits": { "0": "Kind-hearted", "1": "Generous", "2": "Earnest", "3": "Hopeful" },
+      "quirks": { "0": "Naive", "1": "Soft on enemies", "2": "Easily fooled", "3": "Sentimental" }
+    },
+    "CG": {
+      "traits": { "0": "Free-spirited", "1": "Bold", "2": "Warm", "3": "Idealistic" },
+      "quirks": { "0": "Reckless", "1": "Defies orders", "2": "Impulsive", "3": "Brash" }
+    },
+    "LN": {
+      "traits": { "0": "Disciplined", "1": "Stoic", "2": "Loyal", "3": "Principled" },
+      "quirks": { "0": "Cold", "1": "Rigid", "2": "Aloof", "3": "Stubborn" }
+    },
+    "TN": {
+      "traits": { "0": "Pragmatic", "1": "Balanced", "2": "Observant", "3": "Adaptable" },
+      "quirks": { "0": "Detached", "1": "Indifferent", "2": "Noncommittal", "3": "Fence-sitting" }
+    },
+    "CN": {
+      "traits": { "0": "Free", "1": "Unpredictable", "2": "Self-reliant", "3": "Restless" },
+      "quirks": { "0": "Flighty", "1": "Untrustworthy", "2": "Erratic", "3": "Selfish" }
+    },
+    "LE": {
+      "traits": { "0": "Calculating", "1": "Methodical", "2": "Ambitious", "3": "Patient" },
+      "quirks": { "0": "Ruthless", "1": "Manipulative", "2": "Vindictive", "3": "Cold-blooded" }
+    },
+    "NE": {
+      "traits": { "0": "Self-interested", "1": "Pragmatic", "2": "Cunning", "3": "Watchful" },
+      "quirks": { "0": "Deceitful", "1": "Greedy", "2": "Backstabbing", "3": "Indifferent" }
+    },
+    "CE": {
+      "traits": { "0": "Volatile", "1": "Wild", "2": "Defiant", "3": "Fearless" },
+      "quirks": { "0": "Cruel", "1": "Vengeful", "2": "Destructive", "3": "Sadistic" }
+    }
+  },
   "name": "Name",
   "alignment": "Alignment",
   "ideals": "Ideals",

@@ -24,7 +24,16 @@ export interface EquipmentSlot {
   fromBackground: boolean;
 }
 
+export type PersonalityFlagSlotId =
+  | 'bg-trait'
+  | 'bg-bond'
+  | 'align-trait'
+  | 'align-quirk'
+  | 'race-trait'
+  | 'race-quirk';
+
 export interface PersonalityFlag {
+  slotId: PersonalityFlagSlotId;
   source: 'background' | 'alignment' | 'race';
   flag: string;
 }

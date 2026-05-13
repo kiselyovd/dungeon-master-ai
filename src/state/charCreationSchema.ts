@@ -20,6 +20,14 @@ const EquipmentSlotSchema = v.object({
 });
 
 const PersonalityFlagSchema = v.object({
+  slotId: v.picklist([
+    'bg-trait',
+    'bg-bond',
+    'align-trait',
+    'align-quirk',
+    'race-trait',
+    'race-quirk',
+  ]),
   source: v.picklist(['background', 'alignment', 'race']),
   flag: v.string(),
 });
