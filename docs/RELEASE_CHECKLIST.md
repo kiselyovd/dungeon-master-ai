@@ -65,3 +65,16 @@
 
 - [ ] `git tag v0.5.5-m4.5` (lightweight, local-only until M5 close)
 - [ ] On the M5 push, include this tag
+
+## M6: Character creation wizard
+
+- [ ] Fresh install, walk through onboarding (2 steps: Welcome + Connect AI)
+- [ ] Wizard mounts automatically once onboarding completes
+- [ ] Walk: Class -> Race -> Background -> Abilities -> Skills -> Spells (caster path) -> Equipment -> Persona -> Portrait -> Review
+- [ ] Surprise me on Class tab fills all 9 other tabs (visible progress)
+- [ ] Per-field Generate sparkles on Persona fill name / ideals / bonds / flaws / backstory
+- [ ] Live test chat on Review tab streams an NPC reply
+- [ ] Begin Adventure transitions to game with the fully-customised PC visible in CharFab
+- [ ] Right-click CharFab -> Create new character -> wizard re-opens in edit mode
+- [ ] Settings -> Character section -> Re-create character also opens wizard in edit mode
+- [ ] Close app mid-wizard, relaunch: draft resumed on the same tab
