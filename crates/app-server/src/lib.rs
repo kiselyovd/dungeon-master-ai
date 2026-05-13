@@ -43,6 +43,10 @@ pub fn router(state: AppState) -> Router {
             get(routes::srd::get_weapon_properties),
         )
         .route(
+            "/character/assist",
+            post(routes::character_assist::post_character_assist),
+        )
+        .route(
             "/sessions/{session_id}/messages",
             get(routes::messages::list_messages),
         )
