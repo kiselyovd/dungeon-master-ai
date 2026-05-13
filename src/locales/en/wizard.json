@@ -31,5 +31,15 @@
   "race_picker_title": "Choose your race",
   "subrace_picker_title": "Choose a subrace",
   "background_picker_title": "Choose your background",
-  "background_srd_limit_note": "SRD 5.1 ships only Acolyte. More will appear as content grows."
+  "background_srd_limit_note": "SRD 5.1 ships only Acolyte. More will appear as content grows.",
+  "abilities_title": "Distribute your ability scores",
+  "abilities_method_label": "Method",
+  "ability_method_point_buy": "Point Buy 27",
+  "ability_method_standard_array": "Standard Array",
+  "ability_method_4d6_drop_lowest": "4d6 drop lowest",
+  "point_buy_remaining": "{{remaining}} points left",
+  "standard_array_hint": "Each value can be assigned to one ability:",
+  "roll_set": "Roll set ({{remaining}} left)",
+  "increment": "Increase {{ability}}",
+  "decrement": "Decrease {{ability}}"
 }

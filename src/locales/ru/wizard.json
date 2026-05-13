@@ -31,5 +31,15 @@
   "race_picker_title": "Выбери свою расу",
   "subrace_picker_title": "Выбери подрасу",
   "background_picker_title": "Выбери background",
-  "background_srd_limit_note": "В SRD 5.1 есть только Acolyte. Остальные появятся при расширении компендиума."
+  "background_srd_limit_note": "В SRD 5.1 есть только Acolyte. Остальные появятся при расширении компендиума.",
+  "abilities_title": "Распредели характеристики",
+  "abilities_method_label": "Метод",
+  "ability_method_point_buy": "Point Buy 27",
+  "ability_method_standard_array": "Стандартный набор",
+  "ability_method_4d6_drop_lowest": "4d6 со сбросом меньшего",
+  "point_buy_remaining": "{{remaining}} очков осталось",
+  "standard_array_hint": "Каждое значение можно назначить одной характеристике:",
+  "roll_set": "Бросить набор (осталось {{remaining}})",
+  "increment": "Увеличить {{ability}}",
+  "decrement": "Уменьшить {{ability}}"
 }
