@@ -32,11 +32,13 @@ function persistLocalModeConfig(): void {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Optional callback invoked when the user wants to re-create their character. */
+  onRequestCharacterRecreate?: () => void;
 }
 
 const FORM_ID = 'settings-form';
 
-export function SettingsModal({ open, onClose }: Props) {
+export function SettingsModal({ open, onClose, onRequestCharacterRecreate }: Props) {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
 
@@ -116,7 +118,11 @@ export function SettingsModal({ open, onClose }: Props) {
           {t('save_error_prefix')} {submitError}
         </div>
       )}
-      <SettingsForm formId={FORM_ID} onSubmit={onSubmit} />
+      <SettingsForm
+        formId={FORM_ID}
+        onSubmit={onSubmit}
+        {...(onRequestCharacterRecreate ? { onRequestCharacterRecreate } : {})}
+      />
     </Modal>
   );
 }

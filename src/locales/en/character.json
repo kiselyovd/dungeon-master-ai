@@ -57,5 +57,7 @@
 
   "empty_title": "No character yet",
   "empty_desc": "Run the onboarding wizard to create your hero.",
-  "empty_action": "Go to onboarding"
+  "empty_action": "Go to onboarding",
+
+  "create_new_character": "Create new character"
 }

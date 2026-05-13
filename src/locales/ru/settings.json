@@ -29,5 +29,8 @@
   "save_error_prefix": "Не удалось сохранить настройки:",
   "scene_transitions_label": "Переходы между сценами",
   "scene_transitions_helper": "Проигрывать короткий ролик при смене сцены (не чаще одного раза в 30 секунд).",
-  "scene_transitions_toggle": "Включено"
+  "scene_transitions_toggle": "Включено",
+
+  "character_section_title": "Персонаж",
+  "recreate_character": "Пересоздать персонажа"
 }

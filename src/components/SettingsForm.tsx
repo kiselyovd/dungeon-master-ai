@@ -39,6 +39,8 @@ interface SettingsFormProps {
   onSubmit: (submission: SettingsSubmission) => Promise<void> | void;
   /** Form id so an external Save button can `requestSubmit()` from outside the form tree. */
   formId?: string;
+  /** Optional callback invoked when the user wants to re-create their character. */
+  onRequestCharacterRecreate?: () => void;
 }
 
 /**
@@ -56,7 +58,7 @@ interface SettingsFormProps {
  * wired to `POST /agent-settings`. M4 lights up local-mistralrs as the
  * third provider option (radio-card UI deferred to a later polish pass).
  */
-export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
+export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: SettingsFormProps) {
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
   // Read the live ModelId from the localMode slice at submit time. We read
@@ -218,6 +220,25 @@ export function SettingsForm({ onSubmit, formId }: SettingsFormProps) {
               )}
             </Field>
           </div>
+
+          {onRequestCharacterRecreate && (
+            <section
+              style={{
+                marginTop: 24,
+                paddingTop: 16,
+                borderTop: '1px solid rgba(212,175,55,0.15)',
+              }}
+            >
+              <h3>{t('character_section_title')}</h3>
+              <button
+                type="button"
+                className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                onClick={() => onRequestCharacterRecreate()}
+              >
+                {t('recreate_character')}
+              </button>
+            </section>
+          )}
         </div>
       )}
 

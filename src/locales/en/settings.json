@@ -29,5 +29,8 @@
   "save_error_prefix": "Could not save settings:",
   "scene_transitions_label": "Scene transitions",
   "scene_transitions_helper": "Play a short cinematic when the scene changes (debounced to once per 30s).",
-  "scene_transitions_toggle": "Enabled"
+  "scene_transitions_toggle": "Enabled",
+
+  "character_section_title": "Character",
+  "recreate_character": "Re-create character"
 }

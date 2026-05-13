@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
 import { CharacterSheet } from './components/CharacterSheet';
+import { CharacterWizard } from './components/CharacterWizard';
 import { CharFab } from './components/CharFab';
 import { ChatPanel } from './components/ChatPanel';
 import { ChatResizer } from './components/ChatResizer';
@@ -83,6 +84,7 @@ function App() {
   const [localModeOpen, setLocalModeOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
+  const [wizardReopen, setWizardReopen] = useState(false);
 
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
@@ -104,6 +106,7 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
+  const pcHeroClass = useStore((s) => s.pc.heroClass);
   const savesOpen = useStore((s) => s.saves.isOpen);
   const lastQuickSaveAt = useStore((s) => s.saves.lastQuickSaveAt);
   const { open: openSaves, quickSave } = useSaves();
@@ -289,7 +292,10 @@ function App() {
             speedFt={30}
           />
         )}
-        <CharFab onOpen={() => setCharacterSheetOpen(true)} />
+        <CharFab
+          onOpen={() => setCharacterSheetOpen(true)}
+          onOpenWizard={() => setWizardReopen(true)}
+        />
       </main>
 
       <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
@@ -299,7 +305,14 @@ function App() {
 
       <StatusBar provider={providerLabel} model={modelLabel} status={providerStatus} />
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onRequestCharacterRecreate={() => {
+          setSettingsOpen(false);
+          setWizardReopen(true);
+        }}
+      />
       <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
       {pendingUpdate && (
         <UpdateAvailableModal
@@ -322,6 +335,8 @@ function App() {
       />
       <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
       {!onboardingCompleted && <Onboarding />}
+      {onboardingCompleted && !pcHeroClass && <CharacterWizard mode="initial" />}
+      {wizardReopen && <CharacterWizard mode="edit" onClose={() => setWizardReopen(false)} />}
       <SceneTransitionOverlay />
       <SplashOverlay />
     </div>
