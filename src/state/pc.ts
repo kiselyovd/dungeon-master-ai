@@ -98,6 +98,9 @@ export interface PcActions {
   setAc: (ac: number) => void;
   addInventoryItem: (item: InventoryItem) => void;
   removeInventoryItem: (id: string) => void;
+  setName: (name: string) => void;
+  setAbilities: (abilities: AbilityScores) => void;
+  replaceFromDraft: (patch: Partial<PcData>) => void;
 }
 
 export interface PcSlice {
@@ -383,6 +386,15 @@ export const createPcSlice: StateCreator<PcSlice, [], [], PcSlice> = (set) => ({
         pc: {
           ...s.pc,
           inventory: s.pc.inventory.filter((it) => it.id !== id),
+        },
+      })),
+    setName: (name) => set((s) => ({ pc: { ...s.pc, name } })),
+    setAbilities: (abilities) => set((s) => ({ pc: { ...s.pc, abilities } })),
+    replaceFromDraft: (patch) =>
+      set((s) => ({
+        pc: {
+          ...s.pc,
+          ...patch,
         },
       })),
   },

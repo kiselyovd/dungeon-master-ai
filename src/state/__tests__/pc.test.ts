@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import {
   abilityMod,
   createPcSlice,
@@ -8,6 +9,10 @@ import {
   savingThrowMod,
   skillMod,
 } from '../pc';
+
+function buildStore() {
+  return createStore<PcSlice>()((...a) => ({ ...createPcSlice(...a) }));
+}
 
 function freshStore() {
   return create<PcSlice>()((...a) => ({
@@ -142,5 +147,50 @@ describe('skillMod / savingThrowMod', () => {
     // CHA 8 -> mod -1. With prof bonus +2 and prof flag => +1.
     expect(skillMod(8, true, 2)).toBe(1);
     expect(skillMod(8, false, 2)).toBe(-1);
+  });
+});
+
+describe('pc slice additive setters', () => {
+  it('setName updates name', () => {
+    const store = buildStore();
+    store.getState().pc.setName('Astarion');
+    expect(store.getState().pc.name).toBe('Astarion');
+  });
+
+  it('setAbilities replaces the full ability block', () => {
+    const store = buildStore();
+    store.getState().pc.setAbilities({
+      str: 18,
+      dex: 14,
+      con: 16,
+      int: 10,
+      wis: 12,
+      cha: 8,
+    });
+    expect(store.getState().pc.abilities.str).toBe(18);
+    expect(store.getState().pc.abilities.cha).toBe(8);
+  });
+
+  it('replaceFromDraft writes provided fields into pc', () => {
+    const store = buildStore();
+    store.getState().pc.replaceFromDraft({
+      heroClass: 'wizard',
+      name: 'Gale',
+      race: 'High Elf',
+      level: 1,
+      hp: 8,
+      hpMax: 8,
+      ac: 12,
+      abilities: { str: 9, dex: 14, con: 12, int: 17, wis: 13, cha: 10 },
+    });
+    expect(store.getState().pc.name).toBe('Gale');
+    expect(store.getState().pc.abilities.int).toBe(17);
+  });
+
+  it('replaceFromDraft preserves action functions on the slice', () => {
+    const store = buildStore();
+    const beforeSetHp = store.getState().pc.setHp;
+    store.getState().pc.replaceFromDraft({ name: 'Test' });
+    expect(store.getState().pc.setHp).toBe(beforeSetHp);
   });
 });
