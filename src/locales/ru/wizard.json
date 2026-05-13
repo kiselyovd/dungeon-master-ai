@@ -27,5 +27,9 @@
   "tab_review_name": "Обзор",
   "class_picker_title": "Выбери свой класс",
   "subclass_picker_title": "Выбери свой подкласс",
-  "surprise_me": "Удиви меня"
+  "surprise_me": "Удиви меня",
+  "race_picker_title": "Выбери свою расу",
+  "subrace_picker_title": "Выбери подрасу",
+  "background_picker_title": "Выбери background",
+  "background_srd_limit_note": "В SRD 5.1 есть только Acolyte. Остальные появятся при расширении компендиума."
 }

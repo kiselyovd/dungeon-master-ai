@@ -27,5 +27,9 @@
   "tab_review_name": "Review",
   "class_picker_title": "Choose your class",
   "subclass_picker_title": "Choose your subclass",
-  "surprise_me": "Surprise me"
+  "surprise_me": "Surprise me",
+  "race_picker_title": "Choose your race",
+  "subrace_picker_title": "Choose a subrace",
+  "background_picker_title": "Choose your background",
+  "background_srd_limit_note": "SRD 5.1 ships only Acolyte. More will appear as content grows."
 }
