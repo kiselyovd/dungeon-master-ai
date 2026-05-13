@@ -103,11 +103,7 @@ export function PortraitTab() {
             >
               {busy ? t('generating') : t('generate')}
             </button>
-            <button
-              type="button"
-              className="dm-wizard-btn-secondary"
-              onClick={skip}
-            >
+            <button type="button" className="dm-wizard-btn-secondary" onClick={skip}>
               {t('skip_portrait')}
             </button>
           </div>
