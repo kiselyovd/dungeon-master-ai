@@ -1,0 +1,18 @@
+{
+  "live_sheet_label": "Живой лист персонажа",
+  "pick_a_class_to_begin": "Выбери класс, чтобы начать",
+  "placeholder_hero": "Герой",
+  "no_race": "Без расы",
+  "hp": "HP",
+  "ac": "AC",
+  "init": "Иниц",
+  "speed": "Скр",
+  "ft": "фт",
+  "ability_str": "СИЛ",
+  "ability_dex": "ЛОВ",
+  "ability_con": "ВЫН",
+  "ability_int": "ИНТ",
+  "ability_wis": "МДР",
+  "ability_cha": "ХАР",
+  "inventory": "Инвентарь"
+}

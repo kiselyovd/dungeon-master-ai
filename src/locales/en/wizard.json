@@ -1,0 +1,18 @@
+{
+  "live_sheet_label": "Live character sheet",
+  "pick_a_class_to_begin": "Pick a class to begin",
+  "placeholder_hero": "Hero",
+  "no_race": "No race",
+  "hp": "HP",
+  "ac": "AC",
+  "init": "INIT",
+  "speed": "SPD",
+  "ft": "ft",
+  "ability_str": "STR",
+  "ability_dex": "DEX",
+  "ability_con": "CON",
+  "ability_int": "INT",
+  "ability_wis": "WIS",
+  "ability_cha": "CHA",
+  "inventory": "Inventory"
+}

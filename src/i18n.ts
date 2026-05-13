@@ -14,6 +14,7 @@ import enOnboarding from './locales/en/onboarding.json';
 import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
 import enUpdater from './locales/en/updater.json';
+import enWizard from './locales/en/wizard.json';
 import ruAgent from './locales/ru/agent.json';
 import ruCharacter from './locales/ru/character.json';
 import ruChat from './locales/ru/chat.json';
@@ -27,6 +28,7 @@ import ruOnboarding from './locales/ru/onboarding.json';
 import ruSaves from './locales/ru/saves.json';
 import ruSettings from './locales/ru/settings.json';
 import ruUpdater from './locales/ru/updater.json';
+import ruWizard from './locales/ru/wizard.json';
 
 void i18n
   .use(LanguageDetector)
@@ -49,6 +51,7 @@ void i18n
       'onboarding',
       'saves',
       'character',
+      'wizard',
     ],
     resources: {
       en: {
@@ -65,6 +68,7 @@ void i18n
         onboarding: enOnboarding,
         saves: enSaves,
         character: enCharacter,
+        wizard: enWizard,
       },
       ru: {
         common: ruCommon,
@@ -80,6 +84,7 @@ void i18n
         onboarding: ruOnboarding,
         saves: ruSaves,
         character: ruCharacter,
+        wizard: ruWizard,
       },
     },
     interpolation: { escapeValue: false },

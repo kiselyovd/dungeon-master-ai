@@ -17,6 +17,7 @@ import enLocalMode from './locales/en/local_mode.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
+import enWizard from './locales/en/wizard.json';
 
 declare module 'react-i18next' {
   interface CustomTypeOptions {
@@ -32,6 +33,7 @@ declare module 'react-i18next' {
       combat: typeof enCombat;
       agent: typeof enAgent;
       local_mode: typeof enLocalMode;
+      wizard: typeof enWizard;
     };
   }
 }
