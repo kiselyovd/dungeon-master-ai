@@ -1,9 +1,108 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AdventuringGear, Armor, Compendium, Cost, Weapon } from '../../api/srd';
-import type { EquipmentMode } from '../../state/charCreation';
+import type {
+  AdventuringGear,
+  Armor,
+  Background,
+  Class,
+  Compendium,
+  Cost,
+  Weapon,
+} from '../../api/srd';
+import type { EquipmentMode, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 import { useStore } from '../../state/useStore';
+
+interface RawStartingEquipmentEntry {
+  option_letter: string;
+  items: string[];
+}
+
+interface ChoiceGroup {
+  /** stable id, e.g. `class-0` */
+  slotId: string;
+  /** options keyed by option_letter (e.g. 'a', 'b', 'c', or 'fixed') */
+  options: Record<string, string[]>;
+  /** preserve original option order for stable iteration */
+  optionOrder: string[];
+  /** true if this group is a single `fixed` entry (no real choice) */
+  isFixed: boolean;
+}
+
+function readClassStartingEquipment(klass: Class): RawStartingEquipmentEntry[] {
+  const raw = (klass as unknown as { starting_equipment?: unknown }).starting_equipment;
+  if (!Array.isArray(raw)) return [];
+  const out: RawStartingEquipmentEntry[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const obj = entry as { option_letter?: unknown; items?: unknown };
+    const letter = typeof obj.option_letter === 'string' ? obj.option_letter : null;
+    if (!letter) continue;
+    if (!Array.isArray(obj.items)) continue;
+    const items: string[] = obj.items.filter((x): x is string => typeof x === 'string');
+    out.push({ option_letter: letter, items });
+  }
+  return out;
+}
+
+function readBackgroundStartingEquipment(bg: Background): string[] {
+  const raw = (bg as unknown as { starting_equipment?: unknown }).starting_equipment;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === 'string');
+}
+
+/**
+ * Group consecutive non-fixed entries (e.g. `a`/`b`/`c`) into one choice group.
+ * Each `fixed` entry becomes its own group.
+ */
+export function buildChoiceGroups(entries: RawStartingEquipmentEntry[]): ChoiceGroup[] {
+  const groups: ChoiceGroup[] = [];
+  let current: ChoiceGroup | null = null;
+  let idx = 0;
+
+  function flush() {
+    if (current) {
+      groups.push(current);
+      current = null;
+    }
+  }
+
+  for (const entry of entries) {
+    if (entry.option_letter === 'fixed') {
+      flush();
+      groups.push({
+        slotId: `class-${idx++}`,
+        options: { fixed: entry.items },
+        optionOrder: ['fixed'],
+        isFixed: true,
+      });
+      continue;
+    }
+    if (!current) {
+      current = {
+        slotId: `class-${idx++}`,
+        options: {},
+        optionOrder: [],
+        isFixed: false,
+      };
+    }
+    // If we have already seen this letter in the current group, the YAML restarted
+    // a new choice group with letter 'a' again - flush and start fresh.
+    if (current.options[entry.option_letter] !== undefined) {
+      flush();
+      current = {
+        slotId: `class-${idx++}`,
+        options: {},
+        optionOrder: [],
+        isFixed: false,
+      };
+    }
+    current.options[entry.option_letter] = entry.items;
+    current.optionOrder.push(entry.option_letter);
+  }
+  flush();
+  return groups;
+}
 
 type FilterChip = 'all' | 'weapons' | 'armor' | 'gear';
 
@@ -64,6 +163,17 @@ function readStartingGold(comp: Compendium, classId: string | null): number {
   return typeof raw === 'number' ? raw : 80;
 }
 
+function buildSlotForGroup(group: ChoiceGroup, optionLetter: string): EquipmentSlot {
+  const items = group.options[optionLetter] ?? [];
+  return {
+    slotId: group.slotId,
+    category: 'gear',
+    itemId: optionLetter,
+    customName: items.join(', '),
+    fromBackground: false,
+  };
+}
+
 export function EquipmentTab({ compendium }: { compendium: Compendium }) {
   const { t, i18n } = useTranslation('wizard');
   const mode = useStore((s) => s.charCreation.equipmentMode);
@@ -72,6 +182,40 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
   const gold = useStore((s) => s.charCreation.goldRemaining);
   const strength = useStore((s) => s.charCreation.abilities.str);
   const classId = useStore((s) => s.charCreation.classId);
+  const backgroundId = useStore((s) => s.charCreation.backgroundId);
+  const slots = useStore((s) => s.charCreation.equipmentSlots);
+
+  const klass = classId ? (compendium.classes.find((c) => c.id === classId) ?? null) : null;
+  const bg = backgroundId
+    ? (compendium.backgrounds.find((b) => b.id === backgroundId) ?? null)
+    : null;
+  const entries = klass ? readClassStartingEquipment(klass) : [];
+  const groups = buildChoiceGroups(entries);
+  const bgItems = bg ? readBackgroundStartingEquipment(bg) : [];
+
+  // Hydrate equipmentSlots from class choice groups on entry to package mode,
+  // or when the class changes after entering package mode. We recompute groups
+  // inside the effect so its dependency list stays small (mode + classId), and
+  // we don't accidentally re-hydrate on every render.
+  useEffect(() => {
+    if (mode !== 'package') return;
+    if (!classId) return;
+    const klassNow = compendium.classes.find((c) => c.id === classId) ?? null;
+    if (!klassNow) return;
+    const groupsNow = buildChoiceGroups(readClassStartingEquipment(klassNow));
+    const slotsNow = useStore.getState().charCreation.equipmentSlots;
+    if (
+      slotsNow.length === groupsNow.length &&
+      slotsNow.every((s, i) => s.slotId === groupsNow[i]?.slotId)
+    ) {
+      return;
+    }
+    const hydrated = groupsNow.map((g) => {
+      const firstLetter = g.optionOrder[0] ?? 'fixed';
+      return buildSlotForGroup(g, firstLetter);
+    });
+    setDraftField('equipmentSlots', hydrated);
+  }, [mode, classId, compendium, setDraftField]);
 
   function pickMode(m: EquipmentMode) {
     setDraftField('equipmentMode', m);
@@ -82,6 +226,13 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
     } else {
       setDraftField('equipmentSlots', []);
     }
+  }
+
+  function pickOption(group: ChoiceGroup, optionLetter: string) {
+    const next = slots.map((s) =>
+      s.slotId === group.slotId ? buildSlotForGroup(group, optionLetter) : s,
+    );
+    setDraftField('equipmentSlots', next);
   }
 
   return (
@@ -108,9 +259,14 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
       </div>
 
       {mode === 'package' && (
-        <div style={{ color: 'var(--color-text-muted)' }}>
-          <p>{t('equipment_package_note')}</p>
-        </div>
+        <PackageMode
+          classId={classId}
+          groups={groups}
+          slots={slots}
+          backgroundItems={bgItems}
+          backgroundPresent={bg !== null}
+          onPick={pickOption}
+        />
       )}
 
       {mode === 'gold' && (
@@ -137,6 +293,112 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
         />
       )}
     </section>
+  );
+}
+
+interface PackageModeProps {
+  classId: string | null;
+  groups: ChoiceGroup[];
+  slots: EquipmentSlot[];
+  backgroundItems: string[];
+  backgroundPresent: boolean;
+  onPick: (group: ChoiceGroup, optionLetter: string) => void;
+}
+
+function PackageMode({
+  classId,
+  groups,
+  slots,
+  backgroundItems,
+  backgroundPresent,
+  onPick,
+}: PackageModeProps) {
+  const { t } = useTranslation('wizard');
+
+  if (!classId) {
+    return (
+      <div style={{ color: 'var(--color-text-muted)' }}>
+        <p>{t('equipment_select_class_first')}</p>
+      </div>
+    );
+  }
+
+  const slotById = new Map(slots.map((s) => [s.slotId, s]));
+  const hasEmptySlot = groups.some((g) => {
+    const s = slotById.get(g.slotId);
+    return !s || s.itemId === null;
+  });
+
+  return (
+    <div>
+      <section style={{ marginBottom: 16 }}>
+        <h3>{t('equipment_class_items_title')}</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {groups.map((g, i) => {
+            const slot = slotById.get(g.slotId);
+            const selected = slot?.itemId ?? g.optionOrder[0] ?? 'fixed';
+            const resolved = slot?.customName ?? '';
+            const selectId = `eq-${g.slotId}`;
+            return (
+              <div
+                key={g.slotId}
+                style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+              >
+                <label
+                  htmlFor={selectId}
+                  style={{ minWidth: 110, color: 'var(--color-text-muted)' }}
+                >
+                  {t('equipment_choice')} {i + 1}
+                </label>
+                <select
+                  id={selectId}
+                  value={selected}
+                  disabled={g.isFixed}
+                  onChange={(e) => onPick(g, e.target.value)}
+                  style={{ padding: 6, minWidth: 200 }}
+                >
+                  {g.optionOrder.map((letter) => (
+                    <option key={letter} value={letter}>
+                      {(g.options[letter] ?? []).join(', ')}
+                    </option>
+                  ))}
+                </select>
+                {resolved.length > 0 && (
+                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{resolved}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {backgroundPresent && (
+        <section style={{ marginBottom: 16 }}>
+          <h3>{t('equipment_background_items_title')}</h3>
+          <ul style={{ paddingLeft: 20, color: 'var(--color-text-muted)' }}>
+            {backgroundItems.map((it) => (
+              <li key={it}>{it}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {hasEmptySlot && (
+        <div
+          role="status"
+          style={{
+            fontSize: 12,
+            color: 'var(--color-text-muted)',
+            padding: '6px 10px',
+            border: '1px solid rgba(212,175,55,0.3)',
+            borderRadius: 4,
+            display: 'inline-block',
+          }}
+        >
+          {t('equipment_empty_warning')}
+        </div>
+      )}
+    </div>
   );
 }
 
