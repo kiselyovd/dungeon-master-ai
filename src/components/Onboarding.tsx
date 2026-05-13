@@ -1,10 +1,6 @@
 import { Fragment, type ReactNode, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postSettings } from '../api/providers';
-import classCleric from '../assets/class-cleric.png';
-import classFighter from '../assets/class-fighter.png';
-import classRogue from '../assets/class-rogue.png';
-import classWizard from '../assets/class-wizard.png';
 import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_LOCAL_CONTEXT_WINDOW,
@@ -16,30 +12,21 @@ import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 
 /**
- * First-run Onboarding wizard (P2.12). Three steps: Welcome, Connect AI,
- * Create hero. Mounted by `App.tsx` over the entire UI when
- * `state.onboarding.completed` is `false`; once the user finishes step 3
- * we flip the flag, persist the chosen provider config + hero class, and
- * dismount.
+ * First-run Onboarding wizard (P2.12). Two steps: Welcome, Connect AI.
+ * Mounted by `App.tsx` over the entire UI when `state.onboarding.completed`
+ * is `false`; once the user finishes step 2 we flip the flag and dismount.
+ * CharacterWizard is then mounted by App.tsx (condition: !pc.heroClass) to
+ * let the user create their hero.
  *
  * Provider sub-forms keep things light: Anthropic and OpenAI-compat get
  * inline validation (the same `parseApiKey` / `parseBaseUrl` helpers the
  * Settings form uses), and Local renders an explainer pointing at the
- * Settings -> Provider tab. The aspirational "Model file picker" from
- * the design jsx is deliberately not replicated here - the embedded
- * runtime needs more than a path string anyway, so onboarding stays the
- * fast-path while Settings owns the full configuration surface.
- *
- * Step 3 always saves a class (defaults to "fighter") because the rest
- * of the app relies on a non-null hero from this point on. Skipping
- * counts as accepting the default.
+ * Settings -> Provider tab.
  */
 
-type Step = 0 | 1 | 2;
+type Step = 0 | 1;
 
 type ProviderChoice = 'anthropic' | 'openai-compat' | 'local-mistralrs';
-
-type HeroClassId = 'fighter' | 'wizard' | 'rogue' | 'cleric';
 
 interface OnboardingProps {
   /** Optional callback invoked after persistence; primarily for tests. */
@@ -58,20 +45,14 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState('https://api.openai.com/v1');
   const [openaiKey, setOpenaiKey] = useState('');
   const [openaiModel, setOpenaiModel] = useState('');
-  const [heroClass, setHeroClass] = useState<HeroClassId>('fighter');
 
   const setActiveProvider = useStore((s) => s.settings.setActiveProvider);
   const setProviderConfig = useStore((s) => s.settings.setProviderConfig);
-  const setHeroClassInStore = useStore((s) => s.pc.setHeroClass);
   const completeOnboarding = useStore((s) => s.onboarding.complete);
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
 
-  const stepLabels: readonly string[] = [
-    t('step_welcome'),
-    t('step_connect_ai'),
-    t('step_create_hero'),
-  ];
+  const stepLabels: readonly string[] = [t('step_welcome'), t('step_connect_ai')];
 
   const advanceFromStep2 = (): void => {
     const errors = validateProviderChoice(providerChoice, {
@@ -85,7 +66,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       return;
     }
     setProviderErrors({});
-    setStep(2);
+    void finalize();
   };
 
   const finalize = async (): Promise<void> => {
@@ -124,7 +105,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       });
     }
     setActiveProvider(providerChoice);
-    setHeroClassInStore(heroClass);
     completeOnboarding();
 
     // Push the new provider to the backend so the chat path is wired up
@@ -206,22 +186,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             errors={providerErrors}
             onBack={() => setStep(0)}
             onNext={advanceFromStep2}
-          />
-        )}
-        {step === 2 && (
-          <Step3
-            titleId={titleId}
-            t={t}
-            heroClass={heroClass}
-            onHeroClassChange={setHeroClass}
-            onBack={() => setStep(1)}
-            onSkip={() => {
-              // Skip == accept the current default and finalize.
-              void finalize();
-            }}
-            onBegin={() => {
-              void finalize();
-            }}
           />
         )}
       </div>
@@ -437,87 +401,8 @@ function Step2({
           className="dm-onboarding-btn dm-onboarding-btn-primary"
           onClick={onNext}
         >
-          {t('next')}
+          {t('step2_finish_cta')}
           <Icons.ChevronRight size={14} />
-        </button>
-      </div>
-    </>
-  );
-}
-
-// ---- Step 3 ------------------------------------------------------------
-
-interface Step3Props {
-  titleId: string;
-  t: (key: string) => string;
-  heroClass: HeroClassId;
-  onHeroClassChange: (heroClass: HeroClassId) => void;
-  onBack: () => void;
-  onSkip: () => void;
-  onBegin: () => void;
-}
-
-function Step3({ titleId, t, heroClass, onHeroClassChange, onBack, onSkip, onBegin }: Step3Props) {
-  const classes: readonly {
-    id: HeroClassId;
-    icon: ReactNode;
-    art: string;
-  }[] = [
-    { id: 'fighter', icon: <Icons.Sword size={22} />, art: classFighter },
-    { id: 'wizard', icon: <Icons.Wand size={22} />, art: classWizard },
-    { id: 'rogue', icon: <Icons.Bow size={22} />, art: classRogue },
-    { id: 'cleric', icon: <Icons.Star size={22} />, art: classCleric },
-  ];
-
-  return (
-    <>
-      <div className="dm-onboarding-tag">{t('step3_tag')}</div>
-      <h1 id={titleId} className="dm-onboarding-title">
-        {t('step3_title')}
-      </h1>
-      <p className="dm-onboarding-desc">{t('step3_desc')}</p>
-
-      <div className="dm-class-grid" role="radiogroup" aria-label={t('step3_title')}>
-        {classes.map((c) => (
-          // biome-ignore lint/a11y/useSemanticElements: rich card content (icon + name + desc) needs a button surface; native <input type="radio"> cannot host this layout
-          <button
-            key={c.id}
-            type="button"
-            role="radio"
-            aria-checked={heroClass === c.id}
-            className={`dm-class-card${heroClass === c.id ? ' is-selected' : ''}`}
-            onClick={() => onHeroClassChange(c.id)}
-          >
-            <div className="dm-class-card-art">
-              <img src={c.art} alt="" className="dm-class-card-art-img" />
-              <div className="dm-class-card-icon">{c.icon}</div>
-            </div>
-            <div className="dm-class-card-name">{t(`class_${c.id}_name`)}</div>
-            <div className="dm-class-card-desc">{t(`class_${c.id}_desc`)}</div>
-          </button>
-        ))}
-      </div>
-
-      <div className="dm-onboarding-actions">
-        <button type="button" className="dm-onboarding-skip" onClick={onSkip}>
-          {t('skip')}
-        </button>
-        <button
-          type="button"
-          className="dm-onboarding-btn dm-onboarding-btn-secondary"
-          onClick={onBack}
-          aria-label={t('back')}
-        >
-          <Icons.ChevronLeft size={14} />
-          {t('back')}
-        </button>
-        <button
-          type="button"
-          className="dm-onboarding-btn dm-onboarding-btn-primary"
-          onClick={onBegin}
-        >
-          <Icons.Sparkle size={14} />
-          {t('begin')}
         </button>
       </div>
     </>

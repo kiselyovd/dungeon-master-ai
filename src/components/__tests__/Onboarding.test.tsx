@@ -7,12 +7,13 @@ import { Onboarding } from '../Onboarding';
 
 /**
  * Onboarding test suite. The flow is:
- *   step 1 (Welcome) -> step 2 (Connect AI) -> step 3 (Create hero) -> finalize.
+ *   step 1 (Welcome) -> step 2 (Connect AI) -> finalize.
  *
  * The tests below lock down: the default first-render lands on step 1, the
  * step transitions advance/return correctly, the provider radios reveal the
- * right sub-form, validation gates step 2 -> step 3, the final "Begin" button
- * persists provider + class + the onboarding flag through the Zustand slices.
+ * right sub-form, validation gates step 2 -> finalize, and the final
+ * "Begin Setup" button persists provider + the onboarding flag through the
+ * Zustand slices. pc.heroClass is NOT set here - CharacterWizard owns that.
  *
  * postSettings hits `/settings` over fetch; we stub `globalThis.fetch` so the
  * fire-and-forget POST inside `finalize()` does not fall through to undici.
@@ -83,40 +84,19 @@ describe('Onboarding', () => {
     expect(screen.queryByLabelText(/API key/i)).toBeNull();
   });
 
-  it('blocks step 2 -> step 3 when the Anthropic API key is empty', async () => {
+  it('blocks step 2 -> finalize when the Anthropic API key is empty', async () => {
     const user = userEvent.setup();
     render(<Onboarding />);
     await user.click(screen.getByRole('button', { name: /Configure provider/i }));
     // Default choice is Anthropic; the key input is empty.
-    await user.click(screen.getByRole('button', { name: /Continue/i }));
+    await user.click(screen.getByRole('button', { name: /Begin Setup/i }));
 
     // Still on step 2 (the heading is the Step-2 title).
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Choose a provider/i);
     expect(screen.getByRole('alert')).toHaveTextContent(/required/i);
   });
 
-  it('Step 3 hero class selection updates the visible selection', async () => {
-    const user = userEvent.setup();
-    render(<Onboarding />);
-    await user.click(screen.getByRole('button', { name: /Configure provider/i }));
-    // Selecting Local skips API key entry and lets us reach step 3 quickly.
-    await user.click(screen.getByRole('radio', { name: /Local/i }));
-    await user.click(screen.getByRole('button', { name: /Continue/i }));
-
-    // Default selection is Fighter.
-    const fighter = screen.getByRole('radio', { name: /Fighter/i });
-    expect(fighter).toHaveAttribute('aria-checked', 'true');
-
-    const wizard = screen.getByRole('radio', { name: /Wizard/i });
-    await user.click(wizard);
-    expect(wizard).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: /Fighter/i })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
-  });
-
-  it('Begin adventure persists the provider, hero class, and completion flag', async () => {
+  it('Begin Setup persists the provider and completion flag (heroClass NOT set here)', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     render(<Onboarding onComplete={onComplete} />);
@@ -124,59 +104,38 @@ describe('Onboarding', () => {
     await user.click(screen.getByRole('button', { name: /Configure provider/i }));
     // Type a valid API key so step 2 validation passes.
     await user.type(screen.getByLabelText(/^API key/i), 'sk-ant-test-1234567890');
-    await user.click(screen.getByRole('button', { name: /Continue/i }));
-
-    // Step 3: pick Cleric, then Begin.
-    await user.click(screen.getByRole('radio', { name: /Cleric/i }));
-    await user.click(screen.getByRole('button', { name: /Begin adventure/i }));
+    await user.click(screen.getByRole('button', { name: /Begin Setup/i }));
 
     const state = useStore.getState();
     expect(state.onboarding.completed).toBe(true);
-    expect(state.pc.heroClass).toBe('cleric');
     expect(state.settings.activeProvider).toBe('anthropic');
     expect(state.settings.providers.anthropic).not.toBeNull();
     expect(state.settings.providers.anthropic?.apiKey).toBe('sk-ant-test-1234567890');
     expect(onComplete).toHaveBeenCalledTimes(1);
-  });
-
-  it('Skip on step 3 still completes onboarding with the default Fighter class', async () => {
-    const user = userEvent.setup();
-    render(<Onboarding />);
-
-    await user.click(screen.getByRole('button', { name: /Configure provider/i }));
-    await user.click(screen.getByRole('radio', { name: /Local/i }));
-    await user.click(screen.getByRole('button', { name: /Continue/i }));
-
-    await user.click(screen.getByRole('button', { name: /Skip for now/i }));
-
-    const state = useStore.getState();
-    expect(state.onboarding.completed).toBe(true);
-    // Default class persists when the user skips through.
-    expect(state.pc.heroClass).toBe('fighter');
+    // heroClass is NOT set by onboarding - CharacterWizard owns that step.
+    expect(state.pc.heroClass).toBeNull();
   });
 
   it('exposes the dialog landmark with aria-modal and a stepper labelled by the i18n key', () => {
     render(<Onboarding />);
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    // The stepper carries an aria-label and contains the three step labels.
+    // The stepper carries an aria-label and contains the two step labels.
     const stepper = within(dialog).getByLabelText(/Onboarding progress/i);
     expect(stepper).toBeInTheDocument();
     expect(within(stepper).getByText('Welcome')).toBeInTheDocument();
     expect(within(stepper).getByText('Connect AI')).toBeInTheDocument();
-    expect(within(stepper).getByText('Create hero')).toBeInTheDocument();
   });
 
   it('marks completed steps with is-done and the active step with is-active', async () => {
     const user = userEvent.setup();
     render(<Onboarding />);
 
-    // Step 1 is active; the others are neither active nor done yet.
+    // Step 1 is active; the other is neither active nor done yet.
     const stepperInitial = screen.getByLabelText(/Onboarding progress/i);
     const initialItems = within(stepperInitial).getAllByRole('listitem');
     expect(initialItems[0]?.className).toMatch(/is-active/);
     expect(initialItems[1]?.className).not.toMatch(/is-active/);
-    expect(initialItems[2]?.className).not.toMatch(/is-active/);
 
     await user.click(screen.getByRole('button', { name: /Configure provider/i }));
 
@@ -213,11 +172,6 @@ describe('Onboarding', () => {
 
     // Step 2: still present after Continue.
     await user.click(screen.getByRole('button', { name: /Configure provider/i }));
-    expect(screen.getByRole('group', { name: /Language|Язык/i })).toBeInTheDocument();
-
-    // Step 3: still present after picking Local + Continue.
-    await user.click(screen.getByRole('radio', { name: /Local/i }));
-    await user.click(screen.getByRole('button', { name: /Continue/i }));
     expect(screen.getByRole('group', { name: /Language|Язык/i })).toBeInTheDocument();
   });
 });
