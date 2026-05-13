@@ -69,5 +69,22 @@
   "spells_not_caster": "This class does not cast spells at level 1.",
   "spells_filter_placeholder": "Filter by name...",
   "cantrips_section": "Cantrips ({{chosen}} / {{quota}})",
-  "level1_section": "Level 1 spells ({{chosen}} / {{quota}})"
+  "level1_section": "Level 1 spells ({{chosen}} / {{quota}})",
+  "equipment_title": "Equipment",
+  "equipment_mode_label": "Mode",
+  "equipment_mode_package": "Class package",
+  "equipment_mode_gold": "Starting gold",
+  "equipment_package_note": "Your class starting equipment will be assigned at Begin Adventure. Per-slot customisation is coming soon.",
+  "gold_remaining": "Gold",
+  "weight_carried": "Weight",
+  "gp": "gp",
+  "lb": "lb",
+  "filter_all": "All",
+  "filter_weapons": "Weapons",
+  "filter_armor": "Armor",
+  "filter_gear": "Gear",
+  "search_placeholder": "Search...",
+  "add_to_inventory": "Add to inventory",
+  "remove_from_inventory": "Remove",
+  "current_inventory": "Inventory"
 }

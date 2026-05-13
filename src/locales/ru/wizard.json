@@ -69,5 +69,22 @@
   "spells_not_caster": "Этот класс не творит заклинания на 1 уровне.",
   "spells_filter_placeholder": "Фильтр по имени...",
   "cantrips_section": "Заговоры ({{chosen}} / {{quota}})",
-  "level1_section": "Заклинания 1 уровня ({{chosen}} / {{quota}})"
+  "level1_section": "Заклинания 1 уровня ({{chosen}} / {{quota}})",
+  "equipment_title": "Снаряжение",
+  "equipment_mode_label": "Режим",
+  "equipment_mode_package": "Пакет класса",
+  "equipment_mode_gold": "Стартовое золото",
+  "equipment_package_note": "Стартовое снаряжение класса будет назначено при Begin Adventure. Покомнатная настройка появится позже.",
+  "gold_remaining": "Золото",
+  "weight_carried": "Вес",
+  "gp": "зм",
+  "lb": "фт",
+  "filter_all": "Все",
+  "filter_weapons": "Оружие",
+  "filter_armor": "Доспехи",
+  "filter_gear": "Снаряжение",
+  "search_placeholder": "Поиск...",
+  "add_to_inventory": "Взять",
+  "remove_from_inventory": "Удалить",
+  "current_inventory": "Инвентарь"
 }
