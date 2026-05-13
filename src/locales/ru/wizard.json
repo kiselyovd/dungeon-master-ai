@@ -86,5 +86,13 @@
   "search_placeholder": "Поиск...",
   "add_to_inventory": "Взять",
   "remove_from_inventory": "Удалить",
-  "current_inventory": "Инвентарь"
+  "current_inventory": "Инвентарь",
+  "persona_title": "Личность",
+  "name": "Имя",
+  "alignment": "Мировоззрение",
+  "ideals": "Идеалы",
+  "bonds": "Привязанности",
+  "flaws": "Слабости",
+  "backstory": "Бэкстори",
+  "generate": "Сгенерировать"
 }

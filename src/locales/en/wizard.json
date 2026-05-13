@@ -86,5 +86,13 @@
   "search_placeholder": "Search...",
   "add_to_inventory": "Add to inventory",
   "remove_from_inventory": "Remove",
-  "current_inventory": "Inventory"
+  "current_inventory": "Inventory",
+  "persona_title": "Persona",
+  "name": "Name",
+  "alignment": "Alignment",
+  "ideals": "Ideals",
+  "bonds": "Bonds",
+  "flaws": "Flaws",
+  "backstory": "Backstory",
+  "generate": "Generate"
 }
