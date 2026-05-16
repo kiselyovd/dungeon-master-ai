@@ -7,6 +7,7 @@ pub mod error;
 pub mod image;
 pub mod local_runtime;
 pub mod models;
+pub mod providers;
 pub mod routes;
 pub mod secrets;
 pub mod state;
@@ -61,7 +62,9 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/saves/{save_id}",
             get(routes::saves::get_save).delete(routes::saves::delete_save),
-        );
+        )
+        .route("/providers/catalog", get(routes::providers::get_catalog))
+        .route("/providers/{id}/caps", get(routes::providers::get_caps));
 
     #[cfg(feature = "with-local-runtime")]
     let r = r
