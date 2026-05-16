@@ -25,6 +25,39 @@ async fn get_providers_catalog_returns_chat_image_video_keys() {
 }
 
 #[tokio::test]
+async fn catalog_lists_5_image_providers() {
+    let server = TestServer::start().await;
+    let body: Value = reqwest::get(server.url("/providers/catalog"))
+        .await
+        .expect("request")
+        .json()
+        .await
+        .expect("json");
+    let image_ids: Vec<&str> = body["image"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["id"].as_str().unwrap())
+        .collect();
+    assert!(image_ids.contains(&"local-sdxl-lightning"));
+    assert!(image_ids.contains(&"replicate"));
+    assert_eq!(body["image"].as_array().unwrap().len(), 5);
+}
+
+#[tokio::test]
+async fn catalog_lists_only_ltx_video_in_m7_dm() {
+    let server = TestServer::start().await;
+    let body: Value = reqwest::get(server.url("/providers/catalog"))
+        .await
+        .expect("request")
+        .json()
+        .await
+        .expect("json");
+    assert_eq!(body["video"].as_array().unwrap().len(), 1);
+    assert_eq!(body["video"][0]["id"], "local-ltx-video");
+}
+
+#[tokio::test]
 async fn catalog_anthropic_has_three_curated_models_with_haiku_default() {
     let server = TestServer::start().await;
     let body: Value = reqwest::get(server.url("/providers/catalog"))

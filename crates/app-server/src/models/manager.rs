@@ -60,18 +60,18 @@ impl DownloadManager {
     }
 
     pub async fn start(&self, id: ModelId) -> Result<(), String> {
-        let m = lookup(id).ok_or_else(|| format!("unknown model {id:?}"))?;
+        let m = lookup(&id).ok_or_else(|| format!("unknown model {id:?}"))?;
         let state = self.state.clone();
         let events = self.events.clone();
         state.write().await.insert(
-            id,
+            id.clone(),
             DownloadStatus::Downloading {
                 bytes_done: 0,
                 total_bytes: Some(m.size_bytes_estimate),
             },
         );
 
-        let handle = match m.kind {
+        let handle = match &m.kind {
             ModelKind::GgufFile => {
                 let url = format!(
                     "https://huggingface.co/{}/resolve/main/{}",
@@ -79,29 +79,30 @@ impl DownloadManager {
                 );
                 let dest = self.base_dir.join(m.hf_filename);
                 let sha = m.sha256.to_string();
+                let id_for_task = id.clone();
                 tokio::spawn(async move {
                     match download_to(&url, &dest, &sha, events.clone()).await {
                         Ok(res) => {
                             state.write().await.insert(
-                                id,
+                                id_for_task.clone(),
                                 DownloadStatus::Completed {
                                     bytes_total: res.bytes_downloaded,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Completed {
-                                id,
+                                id: id_for_task,
                                 bytes_total: res.bytes_downloaded,
                             });
                         }
                         Err(e) => {
                             state.write().await.insert(
-                                id,
+                                id_for_task.clone(),
                                 DownloadStatus::Failed {
                                     reason: e.to_string(),
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
-                                id,
+                                id: id_for_task,
                                 reason: e.to_string(),
                             });
                         }
@@ -112,6 +113,7 @@ impl DownloadManager {
                 let endpoints = self.endpoints.clone();
                 let dest_dir = self.base_dir.join(m.hf_repo);
                 let hf_repo = m.hf_repo;
+                let id_for_task = id.clone();
                 tokio::spawn(async move {
                     match download_diffusers_repo(
                         &endpoints,
@@ -124,30 +126,38 @@ impl DownloadManager {
                     {
                         Ok(res) => {
                             state.write().await.insert(
-                                id,
+                                id_for_task.clone(),
                                 DownloadStatus::Completed {
                                     bytes_total: res.bytes_total,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Completed {
-                                id,
+                                id: id_for_task,
                                 bytes_total: res.bytes_total,
                             });
                         }
                         Err(e) => {
                             state.write().await.insert(
-                                id,
+                                id_for_task.clone(),
                                 DownloadStatus::Failed {
                                     reason: e.to_string(),
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
-                                id,
+                                id: id_for_task,
                                 reason: e.to_string(),
                             });
                         }
                     }
                 })
+            }
+            // New M7-DM ModelKinds will get download handlers in Phase E
+            // (sidecar setup) — for now, reject the start so the user gets a
+            // clear error instead of a silent no-op.
+            other => {
+                return Err(format!(
+                    "download handler for ModelKind {other:?} not yet wired (Phase E)"
+                ));
             }
         };
         self.handles.write().await.insert(id, handle);
@@ -158,8 +168,8 @@ impl DownloadManager {
         if let Some(h) = self.handles.write().await.remove(&id) {
             h.abort();
         }
-        if let Some(m) = lookup(id) {
-            match m.kind {
+        if let Some(m) = lookup(&id) {
+            match &m.kind {
                 ModelKind::GgufFile => {
                     let dest = self.base_dir.join(m.hf_filename);
                     let _ = tokio::fs::remove_file(&dest).await;
@@ -167,6 +177,10 @@ impl DownloadManager {
                 ModelKind::DiffusersFolder => {
                     let dest_dir = self.base_dir.join(m.hf_repo);
                     let _ = tokio::fs::remove_dir_all(&dest_dir).await;
+                }
+                _ => {
+                    // For new ModelKinds, file cleanup will be wired together
+                    // with their download handler in Phase E.
                 }
             }
         }

@@ -146,9 +146,116 @@ pub const CHAT_CATALOG: &[ProviderCatalogEntry] = &[
     },
 ];
 
-// IMAGE_CATALOG + VIDEO_CATALOG filled in Task B.5.
-pub const IMAGE_CATALOG: &[ProviderCatalogEntry] = &[];
-pub const VIDEO_CATALOG: &[ProviderCatalogEntry] = &[];
+const fn caps_media_local() -> Capabilities {
+    // Image/Video local providers don't participate in the chat capability
+    // matrix; reuse the struct to keep the catalog row shape uniform.
+    Capabilities {
+        vision_input: false,
+        reasoning: false,
+        tool_calls: false,
+        streaming: false,
+    }
+}
+
+pub const IMAGE_CATALOG: &[ProviderCatalogEntry] = &[
+    ProviderCatalogEntry {
+        id: "local-sdxl-lightning",
+        display_name: "Local: SDXL-Lightning (Balanced)",
+        mode: ProviderMode::Local,
+        modality: ProviderModality::Image,
+        curated_models: &[CuratedModelEntry {
+            model_id: "sdxl-lightning-4step",
+            display_name: "SDXL-Lightning 4-step",
+            capabilities: caps_media_local(),
+            default: true,
+        }],
+        requires_api_key: false,
+        requires_base_url: false,
+        supports_discovery: false,
+        license: "Apache 2.0",
+    },
+    ProviderCatalogEntry {
+        id: "local-sdxl-turbo",
+        display_name: "Local: SDXL-Turbo (Fast)",
+        mode: ProviderMode::Local,
+        modality: ProviderModality::Image,
+        curated_models: &[CuratedModelEntry {
+            model_id: "sdxl-turbo-fp16",
+            display_name: "SDXL-Turbo fp16",
+            capabilities: caps_media_local(),
+            default: true,
+        }],
+        requires_api_key: false,
+        requires_base_url: false,
+        supports_discovery: false,
+        license: "SAI NC",
+    },
+    ProviderCatalogEntry {
+        id: "local-nunchaku-flux",
+        display_name: "Local: Nunchaku FLUX (Quality)",
+        mode: ProviderMode::Local,
+        modality: ProviderModality::Image,
+        curated_models: &[CuratedModelEntry {
+            model_id: "flux-dev-int4-turbo-alpha-8step",
+            display_name: "FLUX.1-dev INT4 + Turbo-Alpha 8-step",
+            capabilities: caps_media_local(),
+            default: true,
+        }],
+        requires_api_key: false,
+        requires_base_url: false,
+        supports_discovery: false,
+        license: "FLUX-dev NC",
+    },
+    ProviderCatalogEntry {
+        id: "local-z-image-turbo",
+        display_name: "Local: Z-Image-Turbo (Quality-OSS)",
+        mode: ProviderMode::Local,
+        modality: ProviderModality::Image,
+        curated_models: &[CuratedModelEntry {
+            model_id: "z-image-turbo-svdq-int4",
+            display_name: "Z-Image-Turbo 6B SVDQ-INT4",
+            capabilities: caps_media_local(),
+            default: true,
+        }],
+        requires_api_key: false,
+        requires_base_url: false,
+        supports_discovery: false,
+        license: "Apache 2.0",
+    },
+    ProviderCatalogEntry {
+        id: "replicate",
+        display_name: "Replicate (cloud)",
+        mode: ProviderMode::Cloud,
+        modality: ProviderModality::Image,
+        curated_models: &[CuratedModelEntry {
+            model_id: "stability-ai/sdxl",
+            display_name: "SDXL (Stability)",
+            capabilities: caps_media_local(),
+            default: true,
+        }],
+        requires_api_key: true,
+        requires_base_url: false,
+        supports_discovery: true,
+        license: "varies per model",
+    },
+];
+
+pub const VIDEO_CATALOG: &[ProviderCatalogEntry] = &[ProviderCatalogEntry {
+    id: "local-ltx-video",
+    display_name: "Local: LTX-Video 0.9.6 distilled",
+    mode: ProviderMode::Local,
+    modality: ProviderModality::Video,
+    curated_models: &[CuratedModelEntry {
+        model_id: "ltx-video-0.9.6-distilled",
+        display_name: "LTX-Video 0.9.6 distilled",
+        capabilities: caps_media_local(),
+        default: true,
+    }],
+    requires_api_key: false,
+    requires_base_url: false,
+    supports_discovery: false,
+    license: "LTX (re-check before GA)",
+}];
 
 pub fn find_chat_entry(id: &str) -> Option<&'static ProviderCatalogEntry> {
     CHAT_CATALOG.iter().find(|e| e.id == id)
@@ -201,5 +308,22 @@ mod tests {
     #[test]
     fn find_chat_entry_unknown_returns_none() {
         assert!(find_chat_entry("not-a-provider").is_none());
+    }
+
+    #[test]
+    fn image_catalog_has_4_local_presets_plus_replicate() {
+        let ids: Vec<_> = IMAGE_CATALOG.iter().map(|e| e.id).collect();
+        assert!(ids.contains(&"local-sdxl-turbo"));
+        assert!(ids.contains(&"local-sdxl-lightning"));
+        assert!(ids.contains(&"local-nunchaku-flux"));
+        assert!(ids.contains(&"local-z-image-turbo"));
+        assert!(ids.contains(&"replicate"));
+        assert_eq!(IMAGE_CATALOG.len(), 5);
+    }
+
+    #[test]
+    fn video_catalog_has_only_ltx_in_m7_dm() {
+        assert_eq!(VIDEO_CATALOG.len(), 1);
+        assert_eq!(VIDEO_CATALOG[0].id, "local-ltx-video");
     }
 }

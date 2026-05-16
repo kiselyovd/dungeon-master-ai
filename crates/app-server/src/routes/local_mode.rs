@@ -93,9 +93,9 @@ pub async fn download_progress(
             let event_id = match &ev {
                 DownloadEvent::Progress { id, .. }
                 | DownloadEvent::Completed { id, .. }
-                | DownloadEvent::Failed { id, .. } => *id,
+                | DownloadEvent::Failed { id, .. } => id,
             };
-            if event_id != model_id {
+            if event_id != &model_id {
                 return None;
             }
             let payload = serde_json::to_string(&ev).ok()?;
@@ -111,7 +111,7 @@ pub async fn runtime_status(State(state): State<AppState>) -> Json<RegistrySnaps
 
 pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, AppError> {
     let cfg = state.local_mode_config();
-    let model = lookup(cfg.selected_llm)
+    let model = lookup(&cfg.selected_llm)
         .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;
     let llm_path = state.models_dir().join(model.hf_filename);
     if !llm_path.exists() {

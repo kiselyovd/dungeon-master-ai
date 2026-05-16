@@ -101,7 +101,7 @@ pub async fn post_settings(
             state.set_default_model(model);
         }
         ProviderConfig::LocalMistralrs { model_id, port } => {
-            let manifest = lookup(model_id)
+            let manifest = lookup(&model_id)
                 .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
             let model_name = manifest.hf_filename.to_string();
             state.set_provider(Arc::new(MistralrsLocalProvider::new(
