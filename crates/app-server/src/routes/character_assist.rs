@@ -72,6 +72,14 @@ pub struct TestChatTurn {
 pub enum AssistParams {
     Field {
         field: AssistField,
+        #[serde(default)]
+        slot_id: Option<String>,
+        #[serde(default)]
+        source: Option<String>,
+        #[serde(default)]
+        source_label: Option<String>,
+        #[serde(default)]
+        pool: Option<Vec<String>>,
     },
     TestChat {
         user_message: String,
@@ -119,7 +127,7 @@ fn build_user_text(req: &CharacterAssistReq) -> Result<String, AppError> {
     let context_json = serde_json::to_string(&req.context)
         .map_err(|e| AppError::BadRequest(format!("invalid context: {e}")))?;
     match &req.params {
-        AssistParams::Field { field } => {
+        AssistParams::Field { field, .. } => {
             Ok(format!("Field: {field:?}\nDraft: {context_json}"))
         }
         AssistParams::Full {} => {
