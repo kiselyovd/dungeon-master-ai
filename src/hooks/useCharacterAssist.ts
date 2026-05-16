@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import {
   type AssistField,
+  type FlagContext,
   streamCharacterField,
   streamFullCharacter,
   streamTestChat,
@@ -20,7 +21,7 @@ const FIELD_MAP: Partial<Record<AssistField, DirectFieldKey>> = {
 };
 
 export interface UseCharacterAssist {
-  generateField: (field: AssistField) => Promise<void>;
+  generateField: (field: AssistField, flagContext?: FlagContext) => Promise<void>;
   surpriseMe: () => Promise<void>;
   runTestChat: (userMessage: string, history: TestChatTurn[]) => Promise<string>;
   cancel: () => void;
@@ -59,6 +60,7 @@ export function useCharacterAssist(): UseCharacterAssist {
   const setIsAssisting = useStore((s) => s.charCreation.setIsAssisting);
   const setDraftField = useStore((s) => s.charCreation.setDraftField);
   const applyAiSuggestion = useStore((s) => s.charCreation.applyAiSuggestion);
+  const upsertPersonalityFlag = useStore((s) => s.charCreation.upsertPersonalityFlag);
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
 
   const draftRef = useRef<CharacterDraft>(snapshotDraft(useStore.getState()));
@@ -72,21 +74,23 @@ export function useCharacterAssist(): UseCharacterAssist {
   const abortRef = useRef<AbortController | null>(null);
 
   const generateField = useCallback(
-    async (field: AssistField): Promise<void> => {
+    async (field: AssistField, flagContext?: FlagContext): Promise<void> => {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
       setIsAssisting(true);
       let accum = '';
       const target = FIELD_MAP[field];
+      const isFlag = field === 'personality_flag';
       try {
         await streamCharacterField({
           field,
+          flagContext,
           draft: draftRef.current,
           locale: uiLanguage,
           signal: abortRef.current.signal,
           onToken: (text) => {
             accum += text;
-            if (target) {
+            if (target && !isFlag) {
               setDraftField(target, accum);
             }
           },
@@ -94,6 +98,12 @@ export function useCharacterAssist(): UseCharacterAssist {
             /* swallow - caller may surface via separate channel later */
           },
           onDone: () => {
+            if (isFlag && flagContext) {
+              const trimmed = accum.trim();
+              if (trimmed.length > 0) {
+                upsertPersonalityFlag(flagContext.slotId, flagContext.source, trimmed);
+              }
+            }
             setIsAssisting(false);
           },
         });
@@ -101,7 +111,7 @@ export function useCharacterAssist(): UseCharacterAssist {
         setIsAssisting(false);
       }
     },
-    [uiLanguage, setIsAssisting, setDraftField],
+    [uiLanguage, setIsAssisting, setDraftField, upsertPersonalityFlag],
   );
 
   const surpriseMe = useCallback(async (): Promise<void> => {

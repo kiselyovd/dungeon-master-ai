@@ -1,4 +1,4 @@
-import type { CharacterDraft, TestChatTurn } from '../state/charCreation';
+import type { CharacterDraft, PersonalityFlagSlotId, TestChatTurn } from '../state/charCreation';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 import { parseSseEvents } from './sse';
@@ -14,7 +14,7 @@ export type AssistField =
   | 'item_name';
 
 export interface FlagContext {
-  slotId: string;
+  slotId: PersonalityFlagSlotId;
   source: 'background' | 'alignment' | 'race';
   sourceLabel: string;
   pool: string[];
