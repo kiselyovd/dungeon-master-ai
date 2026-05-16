@@ -82,3 +82,6 @@
 - [ ] EquipmentTab Package mode: background items + background.starting_gold land in pc.inventory (open CharacterSheet -> Inventory)
 - [ ] EquipmentTab Gold mode: residual floor(goldRemaining) gold-pieces row appears in pc.inventory; catalog item icons promoted to canonical keys (sword/bow/shield)
 - [ ] Review warning surfaces 'some equipment choices are unresolved' when a wildcard slot has no resolvedItemIds; user can still Begin Adventure (literal-name fallback row)
+- [ ] PersonaTab: click sparkle on each of the 6 personality-flag slots. Each generates a short single-sentence flag from the LLM; slot enters custom-mode automatically.
+- [ ] Sparkle disabled while another assist is in flight (visible during long generations).
+- [ ] Sparkle with no background/race/alignment selected still works (pool is empty; LLM writes a fresh entry).
