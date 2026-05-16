@@ -78,3 +78,7 @@
 - [ ] Right-click CharFab -> Create new character -> wizard re-opens in edit mode
 - [ ] Settings -> Character section -> Re-create character also opens wizard in edit mode
 - [ ] Close app mid-wizard, relaunch: draft resumed on the same tab
+- [ ] EquipmentTab Package mode: inline wildcard chooser appears for 'any X weapon' options; pick resolves into pc.inventory at Begin Adventure
+- [ ] EquipmentTab Package mode: background items + background.starting_gold land in pc.inventory (open CharacterSheet -> Inventory)
+- [ ] EquipmentTab Gold mode: residual floor(goldRemaining) gold-pieces row appears in pc.inventory; catalog item icons promoted to canonical keys (sword/bow/shield)
+- [ ] Review warning surfaces 'some equipment choices are unresolved' when a wildcard slot has no resolvedItemIds; user can still Begin Adventure (literal-name fallback row)
