@@ -153,19 +153,33 @@ pub trait LlmProvider: Send + Sync {
 
     fn name(&self) -> &'static str;
 
-    /// Whether this provider supports tool-calling. Providers that return false
-    /// will receive an empty tools list; the orchestrator will not call
-    /// `stream_chat` with tool-call enabled requests.
-    fn supports_tools(&self) -> bool {
-        true
+    /// Per-model capability lookup. Implementations consult their per-model
+    /// table (e.g. catalog entry, name-pattern inference) and return the right
+    /// caps for the requested model.
+    fn capabilities_for_model(&self, model_id: &str) -> Capabilities;
+
+    /// The model id this provider would use for the next request (its
+    /// configured default). Used by `capabilities()` and by routers that need a
+    /// concrete model name without re-passing it.
+    fn active_model(&self) -> &str;
+
+    /// Capabilities of the currently-active model. Default impl routes through
+    /// `capabilities_for_model(self.active_model())`.
+    fn capabilities(&self) -> Capabilities {
+        self.capabilities_for_model(self.active_model())
     }
 
-    /// Whether this provider's model accepts image content parts. Default
-    /// `false`; providers that wrap genai (Anthropic, OpenAI-compat,
-    /// mistralrs) override to `true`. Used today only for tests and reading
-    /// the capability matrix; not enforced server-side.
+    /// Whether this provider supports tool-calling for the active model.
+    /// Derived from `capabilities()`. The orchestrator passes an empty tools
+    /// list when this returns false.
+    fn supports_tools(&self) -> bool {
+        self.capabilities().tool_calls
+    }
+
+    /// Whether this provider's active model accepts image content parts.
+    /// Derived from `capabilities()`.
     fn supports_vision(&self) -> bool {
-        false
+        self.capabilities().vision_input
     }
 }
 

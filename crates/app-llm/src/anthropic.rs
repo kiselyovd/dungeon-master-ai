@@ -9,14 +9,21 @@ use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::genai_common::{classify_genai_error, convert_messages, pump_genai_stream};
-use crate::provider::{ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
+use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
+
+pub const DEFAULT_ANTHROPIC_MODEL: &str = "claude-haiku-4-5-20251001";
 
 pub struct AnthropicProvider {
     client: Client,
+    default_model: String,
 }
 
 impl AnthropicProvider {
     pub fn new(api_key: String) -> Self {
+        Self::with_default_model(api_key, DEFAULT_ANTHROPIC_MODEL.to_string())
+    }
+
+    pub fn with_default_model(api_key: String, default_model: String) -> Self {
         let key = Arc::new(api_key);
         let resolver =
             AuthResolver::from_resolver_fn(move |_iden: ModelIden| -> Result<
@@ -26,7 +33,10 @@ impl AnthropicProvider {
                 Ok(Some(AuthData::from_single(key.as_str().to_string())))
             });
         let client = Client::builder().with_auth_resolver(resolver).build();
-        Self { client }
+        Self {
+            client,
+            default_model,
+        }
     }
 
     fn build_options(req: &ChatRequest) -> ChatOptions {
@@ -66,16 +76,71 @@ impl LlmProvider for AnthropicProvider {
         "anthropic"
     }
 
-    fn supports_tools(&self) -> bool {
-        true
+    fn capabilities_for_model(&self, model_id: &str) -> Capabilities {
+        let lc = model_id.to_ascii_lowercase();
+        if lc.contains("opus-4")
+            || lc.contains("sonnet-4")
+            || lc.contains("haiku-4")
+        {
+            Capabilities {
+                vision_input: true,
+                reasoning: true,
+                tool_calls: true,
+                streaming: true,
+            }
+        } else {
+            Capabilities {
+                vision_input: false,
+                reasoning: false,
+                tool_calls: true,
+                streaming: true,
+            }
+        }
     }
 
-    fn supports_vision(&self) -> bool {
-        true
+    fn active_model(&self) -> &str {
+        &self.default_model
     }
 }
 
 #[allow(dead_code)]
 fn anthropic_kind() -> AdapterKind {
     AdapterKind::Anthropic
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn anthropic_caps_claude_4_models_all_true() {
+        let p = AnthropicProvider::new("dummy".into());
+        for id in [
+            "claude-opus-4-7",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+        ] {
+            let caps = p.capabilities_for_model(id);
+            assert!(caps.vision_input, "vision for {id}");
+            assert!(caps.reasoning, "reasoning for {id}");
+            assert!(caps.tool_calls, "tools for {id}");
+            assert!(caps.streaming, "streaming for {id}");
+        }
+    }
+
+    #[test]
+    fn anthropic_caps_unknown_model_conservative_default() {
+        let p = AnthropicProvider::new("dummy".into());
+        let caps = p.capabilities_for_model("claude-something-from-the-future");
+        assert!(!caps.vision_input);
+        assert!(!caps.reasoning);
+        assert!(caps.tool_calls);
+        assert!(caps.streaming);
+    }
+
+    #[test]
+    fn anthropic_active_model_is_default_haiku() {
+        let p = AnthropicProvider::new("dummy".into());
+        assert_eq!(p.active_model(), "claude-haiku-4-5-20251001");
+    }
 }

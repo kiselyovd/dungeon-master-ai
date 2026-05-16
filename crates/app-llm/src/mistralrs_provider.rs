@@ -3,7 +3,7 @@
 //! Settings UI and tracing can distinguish it from BYO-OpenAI-compat targets.
 
 use crate::openai_compat::OpenAICompatProvider;
-use crate::provider::{ChatRequest, ChunkStream, LlmError, LlmProvider};
+use crate::provider::{Capabilities, ChatRequest, ChunkStream, LlmError, LlmProvider};
 use async_trait::async_trait;
 
 pub struct MistralrsLocalProvider {
@@ -45,8 +45,26 @@ impl LlmProvider for MistralrsLocalProvider {
         self.inner.stream_chat(req).await
     }
 
-    fn supports_vision(&self) -> bool {
-        true
+    fn capabilities_for_model(&self, model_id: &str) -> Capabilities {
+        let lc = model_id.to_ascii_lowercase();
+        // Qwen3.x family is uniformly VL+thinking in upstream naming as of
+        // 2026; bare "qwen3.5-*-instruct" without -vl is also a vision model.
+        // Older Qwen2.5 family ships separate -vl variants for vision.
+        let vision_input = lc.contains("qwen3")
+            || lc.contains("-vl")
+            || lc.contains("vision");
+        let reasoning = lc.contains("qwen3"); // built-in <think>...</think>
+        let tool_calls = lc.contains("instruct") || lc.contains("qwen3");
+        Capabilities {
+            vision_input,
+            reasoning,
+            tool_calls,
+            streaming: true,
+        }
+    }
+
+    fn active_model(&self) -> &str {
+        &self.model
     }
 }
 
@@ -70,5 +88,39 @@ mod tests {
     fn model_returned_via_accessor() {
         let p = MistralrsLocalProvider::new(37000, "qwen3.5-4b".into());
         assert_eq!(p.model(), "qwen3.5-4b");
+    }
+
+    #[test]
+    fn qwen3_5_caps_all_true_vision_reasoning_tools() {
+        let p = MistralrsLocalProvider::new(37000, "qwen3.5-4b".into());
+        let caps = p.capabilities_for_model("qwen3.5-4b");
+        assert!(caps.vision_input);
+        assert!(caps.reasoning);
+        assert!(caps.tool_calls);
+        assert!(caps.streaming);
+    }
+
+    #[test]
+    fn qwen2_5_non_vl_no_vision() {
+        let p = MistralrsLocalProvider::new(37000, "qwen2.5-7b-instruct".into());
+        let caps = p.capabilities_for_model("qwen2.5-7b-instruct");
+        assert!(!caps.vision_input);
+        assert!(caps.tool_calls);
+    }
+
+    #[test]
+    fn qwen2_5_vl_has_vision() {
+        let p =
+            MistralrsLocalProvider::new(37000, "qwen2.5-vl-7b-instruct".into());
+        assert!(
+            p.capabilities_for_model("qwen2.5-vl-7b-instruct")
+                .vision_input
+        );
+    }
+
+    #[test]
+    fn active_model_is_constructor_arg() {
+        let p = MistralrsLocalProvider::new(37000, "qwen3.5-9b".into());
+        assert_eq!(p.active_model(), "qwen3.5-9b");
     }
 }

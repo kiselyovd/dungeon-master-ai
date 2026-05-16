@@ -19,10 +19,12 @@ use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::genai_common::{classify_genai_error, convert_messages, pump_genai_stream};
-use crate::provider::{ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
+use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub struct OpenAICompatProvider {
     client: Client,
+    default_model: String,
+    capabilities_override: Option<Capabilities>,
 }
 
 impl OpenAICompatProvider {
@@ -51,7 +53,24 @@ impl OpenAICompatProvider {
             .with_service_target_resolver(resolver)
             .build();
 
-        Self { client }
+        Self {
+            client,
+            default_model: String::new(),
+            capabilities_override: None,
+        }
+    }
+
+    /// Chainable: set the model id used by `active_model()` and `capabilities()`.
+    pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
+        self.default_model = model.into();
+        self
+    }
+
+    /// Chainable: user-supplied capability override (settings UI disclosure
+    /// for openai-compat where the inferred caps are wrong for a custom model).
+    pub fn with_capabilities_override(mut self, caps: Option<Capabilities>) -> Self {
+        self.capabilities_override = caps;
+        self
     }
 
     fn build_options(req: &ChatRequest) -> ChatOptions {
@@ -91,11 +110,75 @@ impl LlmProvider for OpenAICompatProvider {
         "openai-compat"
     }
 
-    fn supports_tools(&self) -> bool {
-        true
+    fn capabilities_for_model(&self, model_id: &str) -> Capabilities {
+        if let Some(caps) = self.capabilities_override {
+            return caps;
+        }
+        let lc = model_id.to_ascii_lowercase();
+        let vision_input =
+            lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
+        let reasoning =
+            lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4");
+        Capabilities {
+            vision_input,
+            reasoning,
+            tool_calls: true,
+            streaming: true,
+        }
     }
 
-    fn supports_vision(&self) -> bool {
-        true
+    fn active_model(&self) -> &str {
+        &self.default_model
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openai_compat_unknown_model_conservative_defaults() {
+        let p = OpenAICompatProvider::new("http://x".into(), "k".into());
+        let caps = p.capabilities_for_model("custom-fine-tune-v0.42");
+        assert!(!caps.vision_input);
+        assert!(!caps.reasoning);
+        assert!(caps.tool_calls);
+        assert!(caps.streaming);
+    }
+
+    #[test]
+    fn openai_compat_infers_o_series_reasoning() {
+        let p = OpenAICompatProvider::new("http://x".into(), "k".into());
+        assert!(p.capabilities_for_model("o3-mini").reasoning);
+        assert!(p.capabilities_for_model("o4-mini").reasoning);
+    }
+
+    #[test]
+    fn openai_compat_infers_vision_for_known_models() {
+        let p = OpenAICompatProvider::new("http://x".into(), "k".into());
+        assert!(p.capabilities_for_model("gpt-4o").vision_input);
+        assert!(p.capabilities_for_model("gpt-5").vision_input);
+        assert!(!p.capabilities_for_model("text-davinci-003").vision_input);
+    }
+
+    #[test]
+    fn openai_compat_capabilities_override_wins() {
+        let p = OpenAICompatProvider::new("http://x".into(), "k".into())
+            .with_capabilities_override(Some(Capabilities {
+                vision_input: true,
+                reasoning: true,
+                tool_calls: true,
+                streaming: true,
+            }));
+        let caps = p.capabilities_for_model("custom-tiny-model");
+        assert!(caps.vision_input);
+        assert!(caps.reasoning);
+    }
+
+    #[test]
+    fn openai_compat_active_model_is_settable() {
+        let p =
+            OpenAICompatProvider::new("http://x".into(), "k".into()).with_default_model("gpt-5");
+        assert_eq!(p.active_model(), "gpt-5");
     }
 }
