@@ -13,6 +13,13 @@ export type AssistField =
   | 'personality_flag'
   | 'item_name';
 
+export interface FlagContext {
+  slotId: string;
+  source: 'background' | 'alignment' | 'race';
+  sourceLabel: string;
+  pool: string[];
+}
+
 interface StreamCommon {
   draft: CharacterDraft;
   locale: 'en' | 'ru';
@@ -23,6 +30,7 @@ interface StreamCommon {
 
 export interface StreamCharacterFieldArgs extends StreamCommon {
   field: AssistField;
+  flagContext?: FlagContext | undefined;
   onToken: (text: string) => void;
 }
 
@@ -111,11 +119,18 @@ function lastSepEnd(s: string): number | null {
 export async function streamCharacterField(args: StreamCharacterFieldArgs): Promise<void> {
   let resp: Response;
   try {
+    const params: Record<string, unknown> = { field: args.field };
+    if (args.flagContext) {
+      params.slot_id = args.flagContext.slotId;
+      params.source = args.flagContext.source;
+      params.source_label = args.flagContext.sourceLabel;
+      params.pool = args.flagContext.pool;
+    }
     resp = await postAssist(
       {
         kind: 'field',
         context: args.draft,
-        params: { field: args.field },
+        params,
         locale: args.locale,
       },
       args.signal,
