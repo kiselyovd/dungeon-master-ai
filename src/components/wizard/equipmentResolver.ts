@@ -8,7 +8,7 @@
  * decisions behind the heuristics.
  */
 
-import type { Compendium, Weapon } from '../../api/srd';
+import type { Background, Compendium, Weapon } from '../../api/srd';
 import type { EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 
@@ -375,4 +375,72 @@ export function resolveEquipmentSlots(
   }
 
   return mergeInventoryRows(rows);
+}
+
+/**
+ * Read a background's starting_equipment list, defensively coercing the
+ * untyped Compendium field. Returns [] for null backgrounds.
+ */
+export function readBackgroundStartingEquipment(bg: Background | null): string[] {
+  if (!bg) return [];
+  const raw = (bg as unknown as { starting_equipment?: unknown }).starting_equipment;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === 'string');
+}
+
+export interface GoldRowInput {
+  equipmentMode: 'package' | 'gold' | null;
+  goldRemaining: number;
+}
+
+/**
+ * Compute the gold-pieces InventoryItem row(s) for the resolver:
+ * - Package mode: emits bg.starting_gold (if defined and > 0).
+ * - Gold mode: emits floor(goldRemaining) if > 0.
+ * - null mode: empty.
+ */
+export function computeGoldRows(input: GoldRowInput, bg: Background | null): InventoryItem[] {
+  if (input.equipmentMode === 'package') {
+    const startingGold = bg?.starting_gold;
+    if (typeof startingGold === 'number' && startingGold > 0) {
+      return [{ id: 'gold', name: 'Gold pieces', count: startingGold, icon: 'coin' }];
+    }
+    return [];
+  }
+  if (input.equipmentMode === 'gold') {
+    const floored = Math.floor(input.goldRemaining);
+    if (floored > 0) {
+      return [{ id: 'gold', name: 'Gold pieces', count: floored, icon: 'coin' }];
+    }
+    return [];
+  }
+  return [];
+}
+
+/**
+ * Rewrite a Gold-mode-bought InventoryItem's icon to the canonical CharacterSheet
+ * icon key by re-looking up its id in the catalog. Returns the row unchanged
+ * if the id is not found.
+ */
+export function promoteIcon(row: InventoryItem, compendium: Compendium): InventoryItem {
+  const w = compendium.equipment.weapons.find((x) => x.id === row.id);
+  if (w) {
+    return { ...row, icon: iconFor({ id: w.id, name_en: w.name_en, category: 'weapon' }) };
+  }
+  const a = compendium.equipment.armor.find((x) => x.id === row.id);
+  if (a) {
+    return { ...row, icon: iconFor({ id: a.id, name_en: a.name_en, category: 'armor' }) };
+  }
+  const g = compendium.equipment.adventuring_gear.find((x) => x.id === row.id);
+  if (g) {
+    return {
+      ...row,
+      icon: iconFor({
+        id: g.id,
+        name_en: g.name_en,
+        category: isPack(g.id, g.name_en) ? 'pack' : 'gear',
+      }),
+    };
+  }
+  return row;
 }

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { Compendium } from '../../../api/srd';
+import type { Background, Compendium } from '../../../api/srd';
 import type { EquipmentSlot } from '../../../state/charCreation';
 import {
+  computeGoldRows,
   filterCompendiumByWildcard,
   iconFor,
   lookupItemByName,
   mergeInventoryRows,
   parseEquipmentString,
+  promoteIcon,
+  readBackgroundStartingEquipment,
   resolveEquipmentSlots,
 } from '../equipmentResolver';
 
@@ -446,5 +449,76 @@ describe('resolveEquipmentSlots', () => {
     ];
     const out = resolveEquipmentSlots(slots, [], comp);
     expect(out).toEqual([{ id: 'handaxe', name: 'Handaxe', count: 2, icon: 'sword' }]);
+  });
+});
+
+const ACOLYTE_BG = {
+  id: 'acolyte',
+  name_en: 'Acolyte',
+  name_ru: '',
+  skill_proficiencies: [],
+  tool_proficiencies: [],
+  language_proficiencies: {},
+  starting_equipment: ['a holy symbol', 'vestments'],
+  starting_gold: 15,
+  feature: { name_en: '', name_ru: '', description: '' },
+  suggested_characteristics: {},
+} as unknown as Background;
+
+describe('readBackgroundStartingEquipment', () => {
+  it('returns the string list from a background', () => {
+    expect(readBackgroundStartingEquipment(ACOLYTE_BG)).toEqual(['a holy symbol', 'vestments']);
+  });
+  it('returns [] for null', () => {
+    expect(readBackgroundStartingEquipment(null)).toEqual([]);
+  });
+});
+
+describe('computeGoldRows', () => {
+  it('Package mode + Acolyte (15 gp) -> one gold row of 15', () => {
+    expect(computeGoldRows({ equipmentMode: 'package', goldRemaining: 0 }, ACOLYTE_BG)).toEqual([
+      { id: 'gold', name: 'Gold pieces', count: 15, icon: 'coin' },
+    ]);
+  });
+
+  it('Gold mode + 42.5 residual -> one gold row of 42 (floored)', () => {
+    expect(computeGoldRows({ equipmentMode: 'gold', goldRemaining: 42.5 }, ACOLYTE_BG)).toEqual([
+      { id: 'gold', name: 'Gold pieces', count: 42, icon: 'coin' },
+    ]);
+  });
+
+  it('Gold mode + 0 residual -> no row', () => {
+    expect(computeGoldRows({ equipmentMode: 'gold', goldRemaining: 0 }, ACOLYTE_BG)).toEqual([]);
+  });
+
+  it('Package mode + bg without starting_gold -> no row', () => {
+    const noGoldBg = { ...ACOLYTE_BG, starting_gold: undefined } as unknown as Background;
+    expect(computeGoldRows({ equipmentMode: 'package', goldRemaining: 0 }, noGoldBg)).toEqual([]);
+  });
+
+  it('mode null -> no row', () => {
+    expect(computeGoldRows({ equipmentMode: null, goldRemaining: 0 }, ACOLYTE_BG)).toEqual([]);
+  });
+});
+
+describe('promoteIcon', () => {
+  it('rewrites generic category icon (gear) to canonical icon for catalog item', () => {
+    const before = { id: 'longsword', name: 'Longsword', count: 1, icon: 'weapon' };
+    expect(promoteIcon(before, MINI_COMPENDIUM)).toEqual({
+      id: 'longsword',
+      name: 'Longsword',
+      count: 1,
+      icon: 'sword',
+    });
+  });
+
+  it('rewrites armor category icon to shield', () => {
+    const before = { id: 'chain-mail', name: 'Chain Mail', count: 1, icon: 'armor' };
+    expect(promoteIcon(before, MINI_COMPENDIUM).icon).toBe('shield');
+  });
+
+  it('preserves row when catalog miss', () => {
+    const before = { id: 'mystery', name: 'Mystery', count: 1, icon: 'scroll' };
+    expect(promoteIcon(before, MINI_COMPENDIUM)).toEqual(before);
   });
 });
