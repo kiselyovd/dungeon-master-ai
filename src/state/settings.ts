@@ -165,14 +165,11 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     setSceneTransitionsEnabled: (sceneTransitionsEnabled) =>
       set((s) => ({ settings: { ...s.settings, sceneTransitionsEnabled } })),
 
-    setImageEnabled: (imageEnabled) =>
-      set((s) => ({ settings: { ...s.settings, imageEnabled } })),
-    setImagePreset: (imagePreset) =>
-      set((s) => ({ settings: { ...s.settings, imagePreset } })),
+    setImageEnabled: (imageEnabled) => set((s) => ({ settings: { ...s.settings, imageEnabled } })),
+    setImagePreset: (imagePreset) => set((s) => ({ settings: { ...s.settings, imagePreset } })),
     setImageStyleLora: (imageStyleLora) =>
       set((s) => ({ settings: { ...s.settings, imageStyleLora } })),
-    setVideoEnabled: (videoEnabled) =>
-      set((s) => ({ settings: { ...s.settings, videoEnabled } })),
+    setVideoEnabled: (videoEnabled) => set((s) => ({ settings: { ...s.settings, videoEnabled } })),
     setVideoMode: (videoMode) => set((s) => ({ settings: { ...s.settings, videoMode } })),
     setVisionEnabled: (visionEnabled) =>
       set((s) => ({ settings: { ...s.settings, visionEnabled } })),

@@ -119,7 +119,7 @@ function canonicaliseLocalMistralrsModel(modelPath: unknown): string {
   if (typeof modelPath !== 'string') return DEFAULTS_V2.chat.activeModelId;
   // Map old underscore form (qwen3_5_4b) to dotted slug (qwen3.5-4b).
   const m = modelPath.match(/^qwen3_5_(0_8b|2b|4b|9b)$/);
-  if (m && m[1]) {
+  if (m?.[1]) {
     const size = m[1].replace('_', '.');
     return `qwen3.5-${size}`;
   }

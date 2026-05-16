@@ -23,7 +23,8 @@ import styles from './SettingsForm.module.css';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
-type Tab = 'provider' | 'model';
+type Tab = 'provider' | 'image' | 'video' | 'model';
+const TAB_ORDER: readonly Tab[] = ['provider', 'image', 'video', 'model'];
 
 export interface SettingsSubmission {
   provider: ProviderConfig;
@@ -79,18 +80,15 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
   const [errors, setErrors] = useState<DraftErrors>({});
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      setActiveTab((prev) => (prev === 'provider' ? 'model' : 'provider'));
-      // Move focus to the newly-active tab. Note: `activeTab` here still
-      // holds the previous value at the moment the keypress fires, so we
-      // focus the OPPOSITE tab. The rAF runs after React updates the DOM,
-      // by which time `tabIndex` on the now-active tab is `0`.
-      const targetId = activeTab === 'provider' ? 'settings-tab-model' : 'settings-tab-provider';
-      requestAnimationFrame(() => {
-        document.getElementById(targetId)?.focus();
-      });
-    }
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const idx = TAB_ORDER.indexOf(activeTab);
+    const delta = e.key === 'ArrowLeft' ? -1 : 1;
+    const next = TAB_ORDER[(idx + delta + TAB_ORDER.length) % TAB_ORDER.length] ?? 'provider';
+    setActiveTab(next);
+    requestAnimationFrame(() => {
+      document.getElementById(`settings-tab-${next}`)?.focus();
+    });
   };
 
   const onSave = async () => {
@@ -144,6 +142,32 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
         <button
           type="button"
           role="tab"
+          id="settings-tab-image"
+          aria-controls="settings-panel-image"
+          aria-selected={activeTab === 'image'}
+          tabIndex={activeTab === 'image' ? 0 : -1}
+          onKeyDown={onTabKeyDown}
+          className={`${styles.tab} ${activeTab === 'image' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('image')}
+        >
+          {t('tab_image')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="settings-tab-video"
+          aria-controls="settings-panel-video"
+          aria-selected={activeTab === 'video'}
+          tabIndex={activeTab === 'video' ? 0 : -1}
+          onKeyDown={onTabKeyDown}
+          className={`${styles.tab} ${activeTab === 'video' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('video')}
+        >
+          {t('tab_video')}
+        </button>
+        <button
+          type="button"
+          role="tab"
           id="settings-tab-model"
           aria-controls="settings-panel-model"
           aria-selected={activeTab === 'model'}
@@ -152,7 +176,7 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
           className={`${styles.tab} ${activeTab === 'model' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('model')}
         >
-          {t('tab_model')}
+          {t('tab_behavior')}
         </button>
       </div>
 
@@ -242,6 +266,18 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
         </div>
       )}
 
+      {activeTab === 'image' && (
+        <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
+          <ImageTab />
+        </div>
+      )}
+
+      {activeTab === 'video' && (
+        <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
+          <VideoTab />
+        </div>
+      )}
+
       {activeTab === 'model' && (
         <div role="tabpanel" id="settings-panel-model" aria-labelledby="settings-tab-model">
           <ModelTab
@@ -252,6 +288,7 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
             }}
             onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
           />
+          <BehaviorExtras />
         </div>
       )}
 
@@ -759,4 +796,122 @@ function buildConfig(
     default:
       return assertNeverProvider(kind);
   }
+}
+
+// ---- M7-DM image / video / behavior-extras sub-forms --------------------
+
+const IMAGE_PRESETS = [
+  { id: 'fast', restricted: true },
+  { id: 'balanced', restricted: false },
+  { id: 'quality', restricted: true },
+  { id: 'quality-oss', restricted: false },
+  { id: 'cloud', restricted: false },
+] as const;
+
+function ImageTab() {
+  const { t } = useTranslation('settings');
+  const enabled = useStore((s) => s.settings.imageEnabled);
+  const preset = useStore((s) => s.settings.imagePreset);
+  const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
+  const setImageEnabled = useStore((s) => s.settings.setImageEnabled);
+  const setImagePreset = useStore((s) => s.settings.setImagePreset);
+  return (
+    <section className={styles.section}>
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => setImageEnabled(e.target.checked)}
+        />
+        <span>{t('image_enable')}</span>
+      </label>
+      <fieldset disabled={!enabled}>
+        <legend>{t('image_preset')}</legend>
+        {IMAGE_PRESETS.map((p) => (
+          <label key={p.id} className={styles.radioRow}>
+            <input
+              type="radio"
+              name="image-preset"
+              value={p.id}
+              checked={preset === p.id}
+              disabled={licenseRestricted && p.restricted}
+              onChange={() => setImagePreset(p.id)}
+            />
+            <span>{t(`image_preset_${p.id.replace('-', '_')}` as const)}</span>
+          </label>
+        ))}
+      </fieldset>
+    </section>
+  );
+}
+
+const VIDEO_MODES = ['prerecorded', 'live', 'race'] as const;
+
+function VideoTab() {
+  const { t } = useTranslation('settings');
+  const enabled = useStore((s) => s.settings.videoEnabled);
+  const mode = useStore((s) => s.settings.videoMode);
+  const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
+  const setVideoEnabled = useStore((s) => s.settings.setVideoEnabled);
+  const setVideoMode = useStore((s) => s.settings.setVideoMode);
+  return (
+    <section className={styles.section}>
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={licenseRestricted}
+          onChange={(e) => setVideoEnabled(e.target.checked)}
+        />
+        <span>{t('video_enable')}</span>
+      </label>
+      <fieldset disabled={!enabled || licenseRestricted}>
+        <legend>{t('video_mode')}</legend>
+        {VIDEO_MODES.map((m) => (
+          <label key={m} className={styles.radioRow}>
+            <input
+              type="radio"
+              name="video-mode"
+              value={m}
+              checked={mode === m}
+              onChange={() => setVideoMode(m)}
+            />
+            <span>{t(`video_mode_${m}` as const)}</span>
+          </label>
+        ))}
+      </fieldset>
+    </section>
+  );
+}
+
+function BehaviorExtras() {
+  const { t } = useTranslation('settings');
+  const licenseRestrictedMode = useStore((s) => s.settings.licenseRestrictedMode);
+  const setLicenseRestrictedMode = useStore((s) => s.settings.setLicenseRestrictedMode);
+  const agentMaxRounds = useStore((s) => s.settings.agentMaxRounds);
+  const setAgentMaxRounds = useStore((s) => s.settings.setAgentMaxRounds);
+  return (
+    <section className={styles.section}>
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={licenseRestrictedMode}
+          onChange={(e) => setLicenseRestrictedMode(e.target.checked)}
+        />
+        <span>{t('license_restricted_mode')}</span>
+      </label>
+      <Field label={t('agent_max_rounds')}>
+        {(p) => (
+          <input
+            {...p}
+            type="number"
+            min={1}
+            max={32}
+            value={agentMaxRounds}
+            onChange={(e) => setAgentMaxRounds(Number(e.target.value) || 8)}
+          />
+        )}
+      </Field>
+    </section>
+  );
 }
