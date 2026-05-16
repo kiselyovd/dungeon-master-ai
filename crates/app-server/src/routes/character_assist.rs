@@ -27,6 +27,10 @@ const PROMPT_CHAT_EN: &str =
     include_str!("../../../../prompts/character_assist_chat_en.txt");
 const PROMPT_CHAT_RU: &str =
     include_str!("../../../../prompts/character_assist_chat_ru.txt");
+const PROMPT_FLAG_EN: &str =
+    include_str!("../../../../prompts/character_assist_flag_en.txt");
+const PROMPT_FLAG_RU: &str =
+    include_str!("../../../../prompts/character_assist_flag_ru.txt");
 
 // ---------------------------------------------------------------------------
 // Wire types
@@ -108,12 +112,17 @@ fn apply_character_patch_tool() -> Tool {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn pick_prompt(kind: &AssistKind, locale: &str) -> &'static str {
+fn pick_prompt(kind: &AssistKind, field: Option<&AssistField>, locale: &str) -> &'static str {
     let is_ru = locale.starts_with("ru");
     match kind {
-        AssistKind::Field => {
-            if is_ru { PROMPT_FIELD_RU } else { PROMPT_FIELD_EN }
-        }
+        AssistKind::Field => match field {
+            Some(AssistField::PersonalityFlag) => {
+                if is_ru { PROMPT_FLAG_RU } else { PROMPT_FLAG_EN }
+            }
+            _ => {
+                if is_ru { PROMPT_FIELD_RU } else { PROMPT_FIELD_EN }
+            }
+        },
         AssistKind::Full => {
             if is_ru { PROMPT_FULL_RU } else { PROMPT_FULL_EN }
         }
@@ -127,6 +136,35 @@ fn build_user_text(req: &CharacterAssistReq) -> Result<String, AppError> {
     let context_json = serde_json::to_string(&req.context)
         .map_err(|e| AppError::BadRequest(format!("invalid context: {e}")))?;
     match &req.params {
+        AssistParams::Field {
+            field: AssistField::PersonalityFlag,
+            slot_id,
+            source,
+            source_label,
+            pool,
+        } => {
+            let Some(slot_id) = slot_id else {
+                return Err(AppError::BadRequest("missing_slot_id".into()));
+            };
+            let source = source.as_deref().unwrap_or("unknown");
+            let source_label = source_label.as_deref().unwrap_or("");
+            let pool_block = match pool {
+                Some(items) if !items.is_empty() => {
+                    let lines: Vec<String> =
+                        items.iter().map(|s| format!("- {s}")).collect();
+                    format!("Pool:\n{}", lines.join("\n"))
+                }
+                _ => "Pool: (empty - generate a fresh entry)".to_string(),
+            };
+            let source_line = if source_label.is_empty() {
+                format!("Source: {source}")
+            } else {
+                format!("Source: {source} ({source_label})")
+            };
+            Ok(format!(
+                "Slot: {slot_id}\n{source_line}\n{pool_block}\nDraft: {context_json}"
+            ))
+        }
         AssistParams::Field { field, .. } => {
             Ok(format!("Field: {field:?}\nDraft: {context_json}"))
         }
@@ -167,7 +205,11 @@ pub async fn post_character_assist(
 ) -> Result<impl IntoResponse, AppError> {
     let provider = state.provider();
     let model = state.default_model();
-    let prompt = pick_prompt(&req.kind, &req.locale);
+    let field_ref = match &req.params {
+        AssistParams::Field { field, .. } => Some(field),
+        _ => None,
+    };
+    let prompt = pick_prompt(&req.kind, field_ref, &req.locale);
     let user_text = build_user_text(&req)?;
 
     let is_full = req.kind == AssistKind::Full;
