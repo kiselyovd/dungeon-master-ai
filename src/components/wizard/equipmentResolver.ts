@@ -9,6 +9,7 @@
  */
 
 import type { Compendium, Weapon } from '../../api/srd';
+import type { EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 
 export interface ParsedItemDescriptor {
@@ -153,19 +154,25 @@ function isPack(id: string, name_en: string): boolean {
 export function lookupItemByName(nameKey: string, compendium: Compendium): CatalogItem | null {
   const targetLower = nameKey.toLowerCase();
   const targetSlug = slugify(nameKey);
+  // Word-flip slug for "light crossbow" -> "crossbow-light" pattern (SRD lists
+  // weapons as "Crossbow, light" but YAML refs and players say "light crossbow").
+  const words = targetLower.split(/\s+/);
+  const flippedSlug = words.length === 2 ? `${words[1]}-${words[0]}` : '';
+  const matchesSlug = (id: string): boolean =>
+    id === targetSlug || (flippedSlug !== '' && id === flippedSlug);
 
   for (const w of compendium.equipment.weapons) {
-    if (w.name_en.toLowerCase() === targetLower || w.id === targetSlug) {
+    if (w.name_en.toLowerCase() === targetLower || matchesSlug(w.id)) {
       return { id: w.id, name_en: w.name_en, category: 'weapon' };
     }
   }
   for (const a of compendium.equipment.armor) {
-    if (a.name_en.toLowerCase() === targetLower || a.id === targetSlug) {
+    if (a.name_en.toLowerCase() === targetLower || matchesSlug(a.id)) {
       return { id: a.id, name_en: a.name_en, category: 'armor' };
     }
   }
   for (const g of compendium.equipment.adventuring_gear) {
-    if (g.name_en.toLowerCase() === targetLower || g.id === targetSlug) {
+    if (g.name_en.toLowerCase() === targetLower || matchesSlug(g.id)) {
       return {
         id: g.id,
         name_en: g.name_en,
@@ -248,4 +255,124 @@ export function filterCompendiumByWildcard(nameKey: string, compendium: Compendi
     return weapons.filter((w) => w.category.startsWith('simple_'));
   }
   return weapons;
+}
+
+function inventoryRowFromItem(item: CatalogItem, count: number): InventoryItem {
+  return {
+    id: item.id,
+    name: item.name_en,
+    count,
+    icon: iconFor(item),
+  };
+}
+
+function resolveSlotChunk(
+  chunk: string,
+  slot: EquipmentSlot,
+  compendium: Compendium,
+): InventoryItem | null {
+  const parsed = parseEquipmentString(chunk);
+  const item = lookupItemByName(parsed.nameKey, compendium);
+  if (item) {
+    return inventoryRowFromItem(item, parsed.count);
+  }
+  if (parsed.isWildcard) {
+    return {
+      id: `unresolved-${slot.slotId}`,
+      name: chunk,
+      count: parsed.count,
+      icon: 'sword',
+    };
+  }
+  // Concrete miss - dev-only signal.
+  console.warn('[equipmentResolver] catalog miss for chunk', chunk, 'in slot', slot.slotId);
+  return null;
+}
+
+function slugifyForId(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function resolveBackgroundChunk(raw: string, compendium: Compendium): InventoryItem | null {
+  const parsed = parseEquipmentString(raw);
+  // Background pouches like "a pouch containing 15 gp" are gold-only - skip
+  // (gold flows through computeGoldRows separately).
+  if (/^pouch containing/.test(parsed.nameKey)) {
+    return null;
+  }
+  const item = lookupItemByName(parsed.nameKey, compendium);
+  if (item) {
+    return inventoryRowFromItem(item, parsed.count);
+  }
+  // Background item miss - literal-name fallback row (no console.warn;
+  // background prose often does not match catalog items, that's expected).
+  return {
+    id: `bg-${slugifyForId(parsed.nameKey)}`,
+    name: parsed.nameKey,
+    count: parsed.count,
+    icon: 'scroll',
+  };
+}
+
+/**
+ * Top-level resolver. Walks the user-picked class slots first, then the
+ * background's flat starting-equipment list. Returns a deduped InventoryItem
+ * list ready to drop into `pc.inventory`.
+ */
+export function resolveEquipmentSlots(
+  slots: EquipmentSlot[],
+  backgroundItems: string[],
+  compendium: Compendium,
+): InventoryItem[] {
+  const rows: InventoryItem[] = [];
+
+  for (const slot of slots) {
+    if (slot.resolvedItemIds.length > 0) {
+      for (const id of slot.resolvedItemIds) {
+        const w = compendium.equipment.weapons.find((x) => x.id === id);
+        if (w) {
+          rows.push(inventoryRowFromItem({ id: w.id, name_en: w.name_en, category: 'weapon' }, 1));
+          continue;
+        }
+        const a = compendium.equipment.armor.find((x) => x.id === id);
+        if (a) {
+          rows.push(inventoryRowFromItem({ id: a.id, name_en: a.name_en, category: 'armor' }, 1));
+          continue;
+        }
+        const g = compendium.equipment.adventuring_gear.find((x) => x.id === id);
+        if (g) {
+          rows.push(
+            inventoryRowFromItem(
+              {
+                id: g.id,
+                name_en: g.name_en,
+                category: isPack(g.id, g.name_en) ? 'pack' : 'gear',
+              },
+              1,
+            ),
+          );
+        }
+      }
+      continue;
+    }
+    const customName = slot.customName ?? '';
+    if (!customName) continue;
+    for (const chunk of customName
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)) {
+      const row = resolveSlotChunk(chunk, slot, compendium);
+      if (row) rows.push(row);
+    }
+  }
+
+  for (const raw of backgroundItems) {
+    const row = resolveBackgroundChunk(raw, compendium);
+    if (row) rows.push(row);
+  }
+
+  return mergeInventoryRows(rows);
 }

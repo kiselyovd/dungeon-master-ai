@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Compendium } from '../../../api/srd';
+import type { EquipmentSlot } from '../../../state/charCreation';
 import {
   filterCompendiumByWildcard,
   iconFor,
   lookupItemByName,
   mergeInventoryRows,
   parseEquipmentString,
+  resolveEquipmentSlots,
 } from '../equipmentResolver';
 
 const MINI_COMPENDIUM = {
@@ -319,5 +321,130 @@ describe('filterCompendiumByWildcard', () => {
   it('unknown wildcard returns all weapons (defensive default)', () => {
     const r = filterCompendiumByWildcard('exotic weapon', COMP);
     expect(r.length).toBe(3);
+  });
+});
+
+describe('resolveEquipmentSlots', () => {
+  it('returns empty when no slots and no background items', () => {
+    expect(resolveEquipmentSlots([], [], MINI_COMPENDIUM)).toEqual([]);
+  });
+
+  it('resolves a concrete slot (chain mail) into one inventory row', () => {
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-0',
+        category: 'gear',
+        itemId: 'a',
+        customName: 'chain mail',
+        fromBackground: false,
+        resolvedItemIds: [],
+      },
+    ];
+    const out = resolveEquipmentSlots(slots, [], MINI_COMPENDIUM);
+    expect(out).toEqual([{ id: 'chain-mail', name: 'Chain Mail', count: 1, icon: 'shield' }]);
+  });
+
+  it('resolves a multi-item slot (light crossbow + 20 bolts) into two rows', () => {
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-1',
+        category: 'gear',
+        itemId: 'a',
+        customName: 'light crossbow, 20 bolts',
+        fromBackground: false,
+        resolvedItemIds: [],
+      },
+    ];
+    const out = resolveEquipmentSlots(slots, [], MINI_COMPENDIUM);
+    expect(out).toEqual([
+      { id: 'crossbow-light', name: 'Crossbow, light', count: 1, icon: 'bow' },
+      { id: 'crossbow-bolts-20', name: 'Crossbow bolts (20)', count: 1, icon: 'scroll' },
+    ]);
+  });
+
+  it('uses resolvedItemIds when a wildcard slot has them set', () => {
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-2',
+        category: 'gear',
+        itemId: 'b',
+        customName: 'any martial melee weapon',
+        fromBackground: false,
+        resolvedItemIds: ['longsword'],
+      },
+    ];
+    const out = resolveEquipmentSlots(slots, [], MINI_COMPENDIUM);
+    expect(out).toEqual([{ id: 'longsword', name: 'Longsword', count: 1, icon: 'sword' }]);
+  });
+
+  it('falls back to literal name when wildcard slot is unresolved', () => {
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-2',
+        category: 'gear',
+        itemId: 'b',
+        customName: 'any martial melee weapon',
+        fromBackground: false,
+        resolvedItemIds: [],
+      },
+    ];
+    const out = resolveEquipmentSlots(slots, [], MINI_COMPENDIUM);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.id).toBe('unresolved-class-2');
+    expect(out[0]?.name).toBe('any martial melee weapon');
+    expect(out[0]?.count).toBe(1);
+  });
+
+  it('merges background items into inventory and dedups across sources', () => {
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-0',
+        category: 'gear',
+        itemId: 'a',
+        customName: 'longsword',
+        fromBackground: false,
+        resolvedItemIds: [],
+      },
+    ];
+    const bgItems = ['longsword'];
+    const out = resolveEquipmentSlots(slots, bgItems, MINI_COMPENDIUM);
+    expect(out).toEqual([{ id: 'longsword', name: 'Longsword', count: 2, icon: 'sword' }]);
+  });
+
+  it('handles "two handaxes" producing handaxe with count=2', () => {
+    const comp = {
+      ...MINI_COMPENDIUM,
+      equipment: {
+        ...MINI_COMPENDIUM.equipment,
+        weapons: [
+          ...MINI_COMPENDIUM.equipment.weapons,
+          {
+            id: 'handaxe',
+            name_en: 'Handaxe',
+            name_ru: '',
+            category: 'simple_melee',
+            cost: { gp: 5 },
+            damage: { dice: '1d6', type: 'slashing' },
+            weight_lb: 2,
+            properties: [],
+            range_ft: {},
+            source_url: '',
+            srd_section: '',
+          },
+        ],
+      },
+    } as unknown as Compendium;
+    const slots: EquipmentSlot[] = [
+      {
+        slotId: 'class-3',
+        category: 'gear',
+        itemId: 'b',
+        customName: 'two handaxes',
+        fromBackground: false,
+        resolvedItemIds: [],
+      },
+    ];
+    const out = resolveEquipmentSlots(slots, [], comp);
+    expect(out).toEqual([{ id: 'handaxe', name: 'Handaxe', count: 2, icon: 'sword' }]);
   });
 });
