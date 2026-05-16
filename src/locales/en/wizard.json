@@ -149,6 +149,7 @@
   "flaws": "Flaws",
   "backstory": "Backstory",
   "generate": "Generate",
+  "flag_generate_aria": "Generate this personality flag",
   "portrait_title": "Portrait",
   "portrait_empty": "No portrait yet",
   "portrait_alt": "Character portrait",

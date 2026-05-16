@@ -169,6 +169,23 @@ export function PersonaTab(props: { compendium: Compendium }) {
     return personalityFlags.find((f) => f.slotId === slotId)?.flag ?? '';
   }
 
+  function sourceLabelFor(slotId: PersonalityFlagSlotId): string {
+    if (slotId === 'bg-trait' || slotId === 'bg-bond') {
+      if (!background) return '';
+      return lang === 'ru' ? background.name_ru : background.name_en;
+    }
+    if (slotId === 'race-trait' || slotId === 'race-quirk') {
+      if (!race) return '';
+      const raceName = lang === 'ru' ? race.name_ru : race.name_en;
+      if (subrace) {
+        const subName = lang === 'ru' ? subrace.name_ru : subrace.name_en;
+        return `${raceName} (${subName})`;
+      }
+      return raceName;
+    }
+    return alignment ?? '';
+  }
+
   function sparkle(field: AssistField) {
     return (
       <button
@@ -243,6 +260,23 @@ export function PersonaTab(props: { compendium: Compendium }) {
                   style={{ flex: 1, padding: 6 }}
                 />
               )}
+              <button
+                type="button"
+                className="dm-wizard-sparkle"
+                aria-label={t('flag_generate_aria')}
+                disabled={isAssisting}
+                onClick={() => {
+                  setCustomMode((m) => ({ ...m, [def.slotId]: true }));
+                  void generateField('personality_flag', {
+                    slotId: def.slotId,
+                    source: def.source,
+                    sourceLabel: sourceLabelFor(def.slotId),
+                    pool: poolFor(def.slotId),
+                  });
+                }}
+              >
+                {t('generate')}
+              </button>
             </div>
           );
         })}

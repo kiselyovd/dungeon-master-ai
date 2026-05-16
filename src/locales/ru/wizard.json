@@ -169,6 +169,7 @@
   "flaws": "Слабости",
   "backstory": "Бэкстори",
   "generate": "Сгенерировать",
+  "flag_generate_aria": "Сгенерировать этот personality flag",
   "portrait_title": "Портрет",
   "portrait_empty": "Портрета ещё нет",
   "portrait_alt": "Портрет персонажа",
