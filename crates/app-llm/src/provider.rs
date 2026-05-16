@@ -132,6 +132,21 @@ pub enum LlmError {
 
 pub type ChunkStream = BoxStream<'static, Result<ChatChunk, LlmError>>;
 
+/// Per-model capability flags. Used by the catalog + UI to gate toggles and by
+/// the agent loop to skip unsupported operations. Wired into `LlmProvider` via
+/// `capabilities_for_model`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Capabilities {
+    #[serde(default)]
+    pub vision_input: bool,
+    #[serde(default)]
+    pub reasoning: bool,
+    #[serde(default)]
+    pub tool_calls: bool,
+    #[serde(default)]
+    pub streaming: bool,
+}
+
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError>;
@@ -213,6 +228,37 @@ mod tests {
             }
             _ => panic!("expected User"),
         }
+    }
+
+    #[test]
+    fn capabilities_default_is_all_false() {
+        let c = Capabilities::default();
+        assert!(!c.vision_input);
+        assert!(!c.reasoning);
+        assert!(!c.tool_calls);
+        assert!(!c.streaming);
+    }
+
+    #[test]
+    fn capabilities_serde_round_trip() {
+        let c = Capabilities {
+            vision_input: true,
+            reasoning: false,
+            tool_calls: true,
+            streaming: true,
+        };
+        let v = serde_json::to_value(c).unwrap();
+        assert_eq!(
+            v,
+            json!({
+                "vision_input": true,
+                "reasoning": false,
+                "tool_calls": true,
+                "streaming": true
+            })
+        );
+        let back: Capabilities = serde_json::from_value(v).unwrap();
+        assert_eq!(back, c);
     }
 
     #[test]
