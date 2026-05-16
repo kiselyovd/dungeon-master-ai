@@ -14,6 +14,10 @@ pub enum GpuOwner {
     None = 0,
     Llm = 1,
     Image = 2,
+    /// M7-DM: video generation (LTX-Video local sidecar) holding the GPU.
+    /// Same single-owner contract as Image: caller must `release_gpu_to_llm`
+    /// after the clip completes.
+    Video = 3,
 }
 
 impl From<u8> for GpuOwner {
@@ -21,6 +25,7 @@ impl From<u8> for GpuOwner {
         match value {
             1 => GpuOwner::Llm,
             2 => GpuOwner::Image,
+            3 => GpuOwner::Video,
             _ => GpuOwner::None,
         }
     }
@@ -76,6 +81,18 @@ impl RuntimeRegistry {
         }
         self.gpu_owner
             .store(GpuOwner::Image as u8, Ordering::SeqCst);
+        Ok(())
+    }
+
+    /// Same contract as `acquire_gpu_for_image` but marks Video ownership;
+    /// LTX-Video generation (~20-30s) goes through this path. Image and Video
+    /// share the same single-owner mutex so they serialise naturally.
+    pub async fn acquire_gpu_for_video(&self) -> Result<(), String> {
+        if self.gpu_owner() == GpuOwner::Llm {
+            self.llm.stop().await.map_err(|e| e.to_string())?;
+        }
+        self.gpu_owner
+            .store(GpuOwner::Video as u8, Ordering::SeqCst);
         Ok(())
     }
 

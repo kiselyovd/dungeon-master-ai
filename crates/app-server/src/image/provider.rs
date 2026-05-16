@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 /// Input to any image generation request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ImagePrompt {
     /// 30-word content description (LLM-generated).
     pub content_prompt: String,
@@ -14,6 +14,10 @@ pub struct ImagePrompt {
     pub scene_id: Option<String>,
     /// NPC ids present in the scene (sorted before cache key hash).
     pub npc_ids: Vec<String>,
+    /// M7-DM: backend preset for the local image sidecar's PipelineDispatcher
+    /// (`fast`/`balanced`/`quality`/`quality-oss`). Cloud providers ignore this.
+    #[serde(default)]
+    pub backend_preset: Option<String>,
 }
 
 /// Raw image bytes returned by a provider.

@@ -18,12 +18,17 @@ use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider}
 const REQUEST_TIMEOUT_SECS: u64 = 120;
 const DEFAULT_STEPS: u32 = 4;
 
-pub struct LocalSdxlSidecarProvider {
+pub struct LocalImageSidecarProvider {
     base_url: String,
     client: reqwest::Client,
 }
 
-impl LocalSdxlSidecarProvider {
+/// Backwards-compat alias for callers from M4/M5; new code should use the
+/// generic name since the same provider talks to the multi-backend dispatcher
+/// (Fast/Balanced/Quality/Quality-OSS) in M7-DM, not just SDXL-Turbo.
+pub type LocalSdxlSidecarProvider = LocalImageSidecarProvider;
+
+impl LocalImageSidecarProvider {
     pub fn new(base_url: impl Into<String>) -> Self {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
@@ -37,12 +42,21 @@ impl LocalSdxlSidecarProvider {
 }
 
 #[async_trait]
-impl ImageProvider for LocalSdxlSidecarProvider {
+impl ImageProvider for LocalImageSidecarProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
+        // backend_preset is propagated to the Python dispatcher so it picks the
+        // right backend slot (fast=SDXL-Turbo, balanced=SDXL-Lightning,
+        // quality=Nunchaku-FLUX, quality-oss=Z-Image-Turbo). Falling back to
+        // 'fast' keeps M4/M5 behavior when the field is absent.
+        let preset = prompt
+            .backend_preset
+            .clone()
+            .unwrap_or_else(|| "fast".to_string());
         let body = serde_json::json!({
             "prompt": prompt.content_prompt,
             "seed": 0,
             "steps": DEFAULT_STEPS,
+            "preset": preset,
         });
         let resp = self
             .client
@@ -118,6 +132,7 @@ mod tests {
                 style_preset: "dark_fantasy".into(),
                 scene_id: Some("scene-1".into()),
                 npc_ids: vec![],
+                backend_preset: Some("balanced".into()),
             })
             .await
             .unwrap();
@@ -140,6 +155,7 @@ mod tests {
                 style_preset: "dark_fantasy".into(),
                 scene_id: None,
                 npc_ids: vec![],
+                backend_preset: None,
             })
             .await;
         assert!(matches!(result, Err(ImageError::Provider(_))));
