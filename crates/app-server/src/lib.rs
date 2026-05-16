@@ -64,7 +64,8 @@ pub fn router(state: AppState) -> Router {
             get(routes::saves::get_save).delete(routes::saves::delete_save),
         )
         .route("/providers/catalog", get(routes::providers::get_catalog))
-        .route("/providers/{id}/caps", get(routes::providers::get_caps));
+        .route("/providers/{id}/caps", get(routes::providers::get_caps))
+        .route("/settings/v2", post(routes::settings::post_settings_v2));
 
     #[cfg(feature = "with-local-runtime")]
     let r = r
