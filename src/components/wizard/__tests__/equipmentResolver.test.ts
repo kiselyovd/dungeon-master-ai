@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Compendium } from '../../../api/srd';
-import { iconFor, lookupItemByName, parseEquipmentString } from '../equipmentResolver';
+import {
+  filterCompendiumByWildcard,
+  iconFor,
+  lookupItemByName,
+  mergeInventoryRows,
+  parseEquipmentString,
+} from '../equipmentResolver';
 
 const MINI_COMPENDIUM = {
   races: [],
@@ -249,5 +255,69 @@ describe('iconFor', () => {
   });
   it('gold row -> coin', () => {
     expect(iconFor({ id: 'gold', name_en: 'Gold pieces', category: 'gear' })).toBe('coin');
+  });
+});
+
+describe('mergeInventoryRows', () => {
+  it('returns empty when input empty', () => {
+    expect(mergeInventoryRows([])).toEqual([]);
+  });
+
+  it('preserves order and first-seen name/icon', () => {
+    const rows = [
+      { id: 'longsword', name: 'Longsword', count: 1, icon: 'sword' },
+      { id: 'shield', name: 'Shield', count: 1, icon: 'shield' },
+    ];
+    expect(mergeInventoryRows(rows)).toEqual(rows);
+  });
+
+  it('sums counts for duplicate ids', () => {
+    const rows = [
+      { id: 'javelin', name: 'Javelin', count: 1, icon: 'sword' },
+      { id: 'javelin', name: 'Javelin', count: 3, icon: 'sword' },
+    ];
+    expect(mergeInventoryRows(rows)).toEqual([
+      { id: 'javelin', name: 'Javelin', count: 4, icon: 'sword' },
+    ]);
+  });
+});
+
+describe('filterCompendiumByWildcard', () => {
+  const COMP = {
+    ...MINI_COMPENDIUM,
+    equipment: {
+      ...MINI_COMPENDIUM.equipment,
+      weapons: [
+        ...MINI_COMPENDIUM.equipment.weapons,
+        {
+          id: 'handaxe',
+          name_en: 'Handaxe',
+          name_ru: '',
+          category: 'simple_melee',
+          cost: { gp: 5 },
+          damage: { dice: '1d6', type: 'slashing' },
+          weight_lb: 2,
+          properties: [],
+          range_ft: {},
+          source_url: '',
+          srd_section: '',
+        },
+      ],
+    },
+  } as unknown as Compendium;
+
+  it('"martial melee weapon" -> only martial_melee weapons', () => {
+    const r = filterCompendiumByWildcard('martial melee weapon', COMP);
+    expect(r.map((w) => w.id)).toEqual(['longsword']);
+  });
+
+  it('"simple weapon" -> all simple_* weapons', () => {
+    const r = filterCompendiumByWildcard('simple weapon', COMP);
+    expect(r.map((w) => w.id).sort()).toEqual(['crossbow-light', 'handaxe']);
+  });
+
+  it('unknown wildcard returns all weapons (defensive default)', () => {
+    const r = filterCompendiumByWildcard('exotic weapon', COMP);
+    expect(r.length).toBe(3);
   });
 });

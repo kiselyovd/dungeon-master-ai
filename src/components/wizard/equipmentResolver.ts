@@ -8,7 +8,8 @@
  * decisions behind the heuristics.
  */
 
-import type { Compendium } from '../../api/srd';
+import type { Compendium, Weapon } from '../../api/srd';
+import type { InventoryItem } from '../../state/pc';
 
 export interface ParsedItemDescriptor {
   count: number;
@@ -190,4 +191,61 @@ export function iconFor(item: { id: string; name_en: string; category: string })
   }
   if (item.category === 'pack') return 'scroll';
   return 'scroll';
+}
+
+/**
+ * Collapse duplicate ids in order, summing counts. First-write wins for
+ * `name` and `icon` so existing rows keep their identity when later
+ * additions reuse the same id.
+ */
+export function mergeInventoryRows(rows: InventoryItem[]): InventoryItem[] {
+  const byId = new Map<string, InventoryItem>();
+  const order: string[] = [];
+  for (const row of rows) {
+    const existing = byId.get(row.id);
+    if (existing) {
+      byId.set(row.id, { ...existing, count: existing.count + row.count });
+    } else {
+      byId.set(row.id, { ...row });
+      order.push(row.id);
+    }
+  }
+  const out: InventoryItem[] = [];
+  for (const id of order) {
+    const row = byId.get(id);
+    if (row) out.push(row);
+  }
+  return out;
+}
+
+/**
+ * Filter the weapon catalog for a wildcard nameKey returned by
+ * parseEquipmentString. Falls back to "all weapons" if the wildcard text is
+ * not recognised, so the user can still pick something useful.
+ *
+ * YAML uses underscore-form weapon categories (verified):
+ *   simple_melee, simple_ranged, martial_melee, martial_ranged
+ */
+export function filterCompendiumByWildcard(nameKey: string, compendium: Compendium): Weapon[] {
+  const key = nameKey.toLowerCase();
+  const weapons = compendium.equipment.weapons;
+  if (key === 'martial melee weapon') {
+    return weapons.filter((w) => w.category === 'martial_melee');
+  }
+  if (key === 'simple melee weapon') {
+    return weapons.filter((w) => w.category === 'simple_melee');
+  }
+  if (key === 'simple ranged weapon') {
+    return weapons.filter((w) => w.category === 'simple_ranged');
+  }
+  if (key === 'martial ranged weapon') {
+    return weapons.filter((w) => w.category === 'martial_ranged');
+  }
+  if (key === 'martial weapon') {
+    return weapons.filter((w) => w.category.startsWith('martial_'));
+  }
+  if (key === 'simple weapon') {
+    return weapons.filter((w) => w.category.startsWith('simple_'));
+  }
+  return weapons;
 }
