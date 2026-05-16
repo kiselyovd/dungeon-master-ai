@@ -123,6 +123,7 @@ export function PersonaTab(props: { compendium: Compendium }) {
   const personalityFlags = useStore((s) => s.charCreation.personalityFlags);
   const isAssisting = useStore((s) => s.charCreation.isAssisting);
   const setDraftField = useStore((s) => s.charCreation.setDraftField);
+  const upsertPersonalityFlag = useStore((s) => s.charCreation.upsertPersonalityFlag);
   const { generateField } = useCharacterAssist();
 
   // Local UI state: which slots are currently in "custom" entry mode.
@@ -166,26 +167,6 @@ export function PersonaTab(props: { compendium: Compendium }) {
 
   function valueFor(slotId: PersonalityFlagSlotId): string {
     return personalityFlags.find((f) => f.slotId === slotId)?.flag ?? '';
-  }
-
-  function upsertFlag(
-    slotId: PersonalityFlagSlotId,
-    source: PersonalityFlag['source'],
-    flag: string,
-  ): void {
-    const existing = personalityFlags.filter((f) => f.slotId !== slotId);
-    if (flag.length === 0) {
-      setDraftField('personalityFlags', existing);
-      return;
-    }
-    setDraftField('personalityFlags', [...existing, { slotId, source, flag }]);
-  }
-
-  function clearFlag(slotId: PersonalityFlagSlotId): void {
-    setDraftField(
-      'personalityFlags',
-      personalityFlags.filter((f) => f.slotId !== slotId),
-    );
   }
 
   function sparkle(field: AssistField) {
@@ -235,14 +216,12 @@ export function PersonaTab(props: { compendium: Compendium }) {
                   const v = e.target.value;
                   if (v === '') {
                     setCustomMode((m) => ({ ...m, [def.slotId]: false }));
-                    clearFlag(def.slotId);
+                    upsertPersonalityFlag(def.slotId, def.source, '');
                   } else if (v === '__custom__') {
                     setCustomMode((m) => ({ ...m, [def.slotId]: true }));
-                    // Preserve any prior free-text; otherwise leave the store untouched
-                    // until the user types something into the inline input.
                   } else {
                     setCustomMode((m) => ({ ...m, [def.slotId]: false }));
-                    upsertFlag(def.slotId, def.source, v);
+                    upsertPersonalityFlag(def.slotId, def.source, v);
                   }
                 }}
                 style={{ flex: 1, padding: 6 }}
@@ -260,7 +239,7 @@ export function PersonaTab(props: { compendium: Compendium }) {
                   id={customInputId}
                   aria-label={`${t(def.labelKey)} custom`}
                   value={isPreset ? '' : current}
-                  onChange={(e) => upsertFlag(def.slotId, def.source, e.target.value)}
+                  onChange={(e) => upsertPersonalityFlag(def.slotId, def.source, e.target.value)}
                   style={{ flex: 1, padding: 6 }}
                 />
               )}

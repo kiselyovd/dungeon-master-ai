@@ -113,6 +113,11 @@ export interface CharCreationActions {
   applyAiSuggestion: (patch: Partial<CharacterDraft>) => void;
   setIsAssisting: (assisting: boolean) => void;
   resetDraft: () => void;
+  upsertPersonalityFlag: (
+    slotId: PersonalityFlagSlotId,
+    source: PersonalityFlag['source'],
+    flag: string,
+  ) => void;
 }
 
 export interface CharCreationSlice {
@@ -188,5 +193,11 @@ export const createCharCreationSlice: StateCreator<CharCreationSlice, [], [], Ch
           isAssisting: false,
         },
       })),
+    upsertPersonalityFlag: (slotId, source, flag) =>
+      set((s) => {
+        const existing = s.charCreation.personalityFlags.filter((f) => f.slotId !== slotId);
+        const next = flag.length === 0 ? existing : [...existing, { slotId, source, flag }];
+        return { charCreation: { ...s.charCreation, personalityFlags: next } };
+      }),
   },
 });
