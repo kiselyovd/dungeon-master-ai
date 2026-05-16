@@ -8,6 +8,8 @@
  * decisions behind the heuristics.
  */
 
+import type { Compendium } from '../../api/srd';
+
 export interface ParsedItemDescriptor {
   count: number;
   nameKey: string;
@@ -75,7 +77,7 @@ export function parseEquipmentString(raw: string): ParsedItemDescriptor {
   }
   if (count === 1) {
     const m = working.match(/^(\d+)\s+/);
-    if (m && m[1]) {
+    if (m?.[1]) {
       count = parseInt(m[1], 10);
       working = working.replace(/^\d+\s+/, '');
     }
@@ -119,4 +121,73 @@ export function parseEquipmentString(raw: string): ParsedItemDescriptor {
     isWildcard,
     ifProficient,
   };
+}
+
+export interface CatalogItem {
+  id: string;
+  name_en: string;
+  category: 'weapon' | 'armor' | 'gear' | 'pack';
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function isPack(id: string, name_en: string): boolean {
+  if (id.endsWith('-pack') || id === 'pack') return true;
+  return /pack/i.test(name_en);
+}
+
+/**
+ * Look up a catalog item by its display name or id-form. Returns the first
+ * match across weapons, armor, and adventuring_gear (which holds packs too).
+ *
+ * Match order:
+ * 1. case-insensitive name_en exact match
+ * 2. slug of nameKey == item.id
+ */
+export function lookupItemByName(nameKey: string, compendium: Compendium): CatalogItem | null {
+  const targetLower = nameKey.toLowerCase();
+  const targetSlug = slugify(nameKey);
+
+  for (const w of compendium.equipment.weapons) {
+    if (w.name_en.toLowerCase() === targetLower || w.id === targetSlug) {
+      return { id: w.id, name_en: w.name_en, category: 'weapon' };
+    }
+  }
+  for (const a of compendium.equipment.armor) {
+    if (a.name_en.toLowerCase() === targetLower || a.id === targetSlug) {
+      return { id: a.id, name_en: a.name_en, category: 'armor' };
+    }
+  }
+  for (const g of compendium.equipment.adventuring_gear) {
+    if (g.name_en.toLowerCase() === targetLower || g.id === targetSlug) {
+      return {
+        id: g.id,
+        name_en: g.name_en,
+        category: isPack(g.id, g.name_en) ? 'pack' : 'gear',
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Map a CatalogItem (or a gold/special row) to a canonical icon key matching
+ * the `Icons` keys used by CharacterSheet ('sword', 'bow', 'shield', 'potion',
+ * 'coin', 'scroll').
+ */
+export function iconFor(item: { id: string; name_en: string; category: string }): string {
+  if (item.id === 'gold') return 'coin';
+  if (/potion/i.test(item.id) || /potion/i.test(item.name_en)) return 'potion';
+  if (item.category === 'armor' || item.id === 'shield') return 'shield';
+  if (item.category === 'weapon') {
+    if (/bow/i.test(item.id) || /bow/i.test(item.name_en)) return 'bow';
+    return 'sword';
+  }
+  if (item.category === 'pack') return 'scroll';
+  return 'scroll';
 }

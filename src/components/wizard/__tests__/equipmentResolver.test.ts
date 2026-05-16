@@ -1,5 +1,87 @@
 import { describe, expect, it } from 'vitest';
-import { parseEquipmentString } from '../equipmentResolver';
+import type { Compendium } from '../../../api/srd';
+import { iconFor, lookupItemByName, parseEquipmentString } from '../equipmentResolver';
+
+const MINI_COMPENDIUM = {
+  races: [],
+  classes: [],
+  backgrounds: [],
+  spells: [],
+  equipment: {
+    weapons: [
+      {
+        id: 'longsword',
+        name_en: 'Longsword',
+        name_ru: '',
+        category: 'martial_melee',
+        cost: { gp: 15 },
+        damage: { dice: '1d8', type: 'slashing' },
+        weight_lb: 3,
+        properties: [],
+        range_ft: {},
+        source_url: '',
+        srd_section: '',
+      },
+      {
+        id: 'crossbow-light',
+        name_en: 'Crossbow, light',
+        name_ru: '',
+        category: 'simple_ranged',
+        cost: { gp: 25 },
+        damage: { dice: '1d8', type: 'piercing' },
+        weight_lb: 5,
+        properties: [],
+        range_ft: { normal: 80, long: 320 },
+        source_url: '',
+        srd_section: '',
+      },
+    ],
+    armor: [
+      {
+        id: 'chain-mail',
+        name_en: 'Chain Mail',
+        name_ru: '',
+        category: 'heavy',
+        cost: { gp: 75 },
+        ac_base: 16,
+        stealth_disadvantage: true,
+        weight_lb: 55,
+        source_url: '',
+        srd_section: '',
+      },
+      {
+        id: 'shield',
+        name_en: 'Shield',
+        name_ru: '',
+        category: 'shield',
+        cost: { gp: 10 },
+        ac_base: 2,
+        stealth_disadvantage: false,
+        weight_lb: 6,
+        source_url: '',
+        srd_section: '',
+      },
+    ],
+    adventuring_gear: [
+      {
+        id: 'explorers-pack',
+        name_en: "Explorer's Pack",
+        name_ru: '',
+        cost: { gp: 10 },
+        weight_lb: 59,
+      },
+      {
+        id: 'crossbow-bolts-20',
+        name_en: 'Crossbow bolts (20)',
+        name_ru: '',
+        cost: { gp: 1 },
+        weight_lb: 1.5,
+      },
+    ],
+  },
+  feats: [],
+  weapon_properties: [],
+} as unknown as Compendium;
 
 describe('parseEquipmentString', () => {
   it('handles plain concrete item: "longsword"', () => {
@@ -100,5 +182,72 @@ describe('parseEquipmentString', () => {
       isWildcard: false,
       ifProficient: false,
     });
+  });
+});
+
+describe('lookupItemByName', () => {
+  it('finds exact case-insensitive name match in weapons', () => {
+    const r = lookupItemByName('longsword', MINI_COMPENDIUM);
+    expect(r).toEqual({ id: 'longsword', name_en: 'Longsword', category: 'weapon' });
+  });
+
+  it('finds slug fallback for comma-name: "crossbow-light"', () => {
+    const r = lookupItemByName('crossbow-light', MINI_COMPENDIUM);
+    expect(r).toEqual({ id: 'crossbow-light', name_en: 'Crossbow, light', category: 'weapon' });
+  });
+
+  it('finds armor: "chain mail"', () => {
+    const r = lookupItemByName('chain mail', MINI_COMPENDIUM);
+    expect(r).toEqual({ id: 'chain-mail', name_en: 'Chain Mail', category: 'armor' });
+  });
+
+  it('classifies pack from id suffix: "explorers-pack"', () => {
+    const r = lookupItemByName('explorers-pack', MINI_COMPENDIUM);
+    expect(r).toEqual({ id: 'explorers-pack', name_en: "Explorer's Pack", category: 'pack' });
+  });
+
+  it('finds pack by name_en: "explorer\'s pack"', () => {
+    const r = lookupItemByName("explorer's pack", MINI_COMPENDIUM);
+    expect(r?.id).toBe('explorers-pack');
+    expect(r?.category).toBe('pack');
+  });
+
+  it('returns null on miss', () => {
+    const r = lookupItemByName('flugelhorn', MINI_COMPENDIUM);
+    expect(r).toBeNull();
+  });
+
+  it('finds ammo bundle by id', () => {
+    const r = lookupItemByName('crossbow-bolts-20', MINI_COMPENDIUM);
+    expect(r).toEqual({
+      id: 'crossbow-bolts-20',
+      name_en: 'Crossbow bolts (20)',
+      category: 'gear',
+    });
+  });
+});
+
+describe('iconFor', () => {
+  it('shield armor -> shield', () => {
+    expect(iconFor({ id: 'shield', name_en: 'Shield', category: 'armor' })).toBe('shield');
+  });
+  it('chain mail -> shield', () => {
+    expect(iconFor({ id: 'chain-mail', name_en: 'Chain Mail', category: 'armor' })).toBe('shield');
+  });
+  it('crossbow weapon -> bow', () => {
+    expect(iconFor({ id: 'crossbow-light', name_en: 'Crossbow, light', category: 'weapon' })).toBe(
+      'bow',
+    );
+  });
+  it('longsword weapon -> sword', () => {
+    expect(iconFor({ id: 'longsword', name_en: 'Longsword', category: 'weapon' })).toBe('sword');
+  });
+  it("explorer's pack -> scroll", () => {
+    expect(iconFor({ id: 'explorers-pack', name_en: "Explorer's Pack", category: 'pack' })).toBe(
+      'scroll',
+    );
+  });
+  it('gold row -> coin', () => {
+    expect(iconFor({ id: 'gold', name_en: 'Gold pieces', category: 'gear' })).toBe('coin');
   });
 });
