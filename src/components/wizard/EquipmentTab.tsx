@@ -12,6 +12,7 @@ import type {
 import type { EquipmentMode, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 import { useStore } from '../../state/useStore';
+import { filterCompendiumByWildcard, parseEquipmentString } from './equipmentResolver';
 
 interface RawStartingEquipmentEntry {
   option_letter: string;
@@ -236,6 +237,11 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
     setDraftField('equipmentSlots', next);
   }
 
+  function pickWildcardItem(slotId: string, itemId: string) {
+    const next = slots.map((s) => (s.slotId === slotId ? { ...s, resolvedItemIds: [itemId] } : s));
+    setDraftField('equipmentSlots', next);
+  }
+
   return (
     <section>
       <h2>{t('equipment_title')}</h2>
@@ -266,7 +272,9 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
           slots={slots}
           backgroundItems={bgItems}
           backgroundPresent={bg !== null}
+          compendium={compendium}
           onPick={pickOption}
+          onPickWildcard={pickWildcardItem}
         />
       )}
 
@@ -303,7 +311,9 @@ interface PackageModeProps {
   slots: EquipmentSlot[];
   backgroundItems: string[];
   backgroundPresent: boolean;
+  compendium: Compendium;
   onPick: (group: ChoiceGroup, optionLetter: string) => void;
+  onPickWildcard: (slotId: string, itemId: string) => void;
 }
 
 function PackageMode({
@@ -312,7 +322,9 @@ function PackageMode({
   slots,
   backgroundItems,
   backgroundPresent,
+  compendium,
   onPick,
+  onPickWildcard,
 }: PackageModeProps) {
   const { t } = useTranslation('wizard');
 
@@ -367,6 +379,12 @@ function PackageMode({
                 {resolved.length > 0 && (
                   <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{resolved}</span>
                 )}
+                <WildcardChooser
+                  slot={slot}
+                  compendium={compendium}
+                  onPick={onPickWildcard}
+                  t={t}
+                />
               </div>
             );
           })}
@@ -399,6 +417,52 @@ function PackageMode({
           {t('equipment_empty_warning')}
         </div>
       )}
+    </div>
+  );
+}
+
+interface WildcardChooserProps {
+  slot: EquipmentSlot | undefined;
+  compendium: Compendium;
+  onPick: (slotId: string, itemId: string) => void;
+  t: ReturnType<typeof useTranslation<'wizard'>>['t'];
+}
+
+function WildcardChooser({ slot, compendium, onPick, t }: WildcardChooserProps) {
+  if (!slot) return null;
+  const chunks = (slot.customName ?? '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const wildcardChunks = chunks
+    .map((c) => ({ raw: c, parsed: parseEquipmentString(c) }))
+    .filter((x) => x.parsed.isWildcard);
+  if (wildcardChunks.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 110 }}>
+      {wildcardChunks.map((w, wi) => {
+        const options = filterCompendiumByWildcard(w.parsed.nameKey, compendium);
+        const selectedId = slot.resolvedItemIds[wi] ?? '';
+        const ariaLabel = t('equipment_wildcard_aria', { wildcard: w.raw });
+        return (
+          <select
+            key={`${slot.slotId}-wildcard-${wi}`}
+            aria-label={ariaLabel}
+            value={selectedId}
+            onChange={(e) => onPick(slot.slotId, e.target.value)}
+            style={{ padding: 6, minWidth: 200 }}
+          >
+            <option value="" disabled>
+              {t('equipment_wildcard_placeholder')}
+            </option>
+            {options.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.name_en}
+              </option>
+            ))}
+          </select>
+        );
+      })}
     </div>
   );
 }

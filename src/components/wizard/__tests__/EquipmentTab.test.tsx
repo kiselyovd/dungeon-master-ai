@@ -66,7 +66,7 @@ const compendium = {
         id: 'longsword',
         name_en: 'Longsword',
         name_ru: 'Длинный меч',
-        category: 'martial',
+        category: 'martial_melee',
         cost: { gp: 15 },
         damage: { dice: '1d8', type: 'slashing' },
         weight_lb: 3,
@@ -166,6 +166,62 @@ describe('EquipmentTab', () => {
       // Re-render via state update propagates to the existing render automatically;
       // assert the warning is now visible.
       expect(await screen.findByText(/some slots are empty/i)).toBeInTheDocument();
+    });
+
+    describe('wildcard chooser', () => {
+      it('renders an inner select for a wildcard slot', async () => {
+        render(<EquipmentTab compendium={compendium} />);
+        await userEvent.click(screen.getByRole('radio', { name: /package/i }));
+        const slots = useStore
+          .getState()
+          .charCreation.equipmentSlots.map((s, i) =>
+            i === 1 ? { ...s, itemId: 'wild', customName: 'any martial melee weapon' } : s,
+          );
+        useStore.getState().charCreation.setDraftField('equipmentSlots', slots);
+        const innerSelect = await screen.findByLabelText(/choose a concrete weapon/i);
+        expect(innerSelect).toBeInTheDocument();
+      });
+
+      it('picking inner option sets resolvedItemIds on the matching slot', async () => {
+        render(<EquipmentTab compendium={compendium} />);
+        await userEvent.click(screen.getByRole('radio', { name: /package/i }));
+        const slots = useStore
+          .getState()
+          .charCreation.equipmentSlots.map((s, i) =>
+            i === 1 ? { ...s, itemId: 'wild', customName: 'any martial melee weapon' } : s,
+          );
+        useStore.getState().charCreation.setDraftField('equipmentSlots', slots);
+        const innerSelect = await screen.findByLabelText(/choose a concrete weapon/i);
+        await userEvent.selectOptions(innerSelect, 'longsword');
+        const slot = useStore
+          .getState()
+          .charCreation.equipmentSlots.find((s) => s.slotId === 'class-1');
+        expect(slot?.resolvedItemIds).toEqual(['longsword']);
+      });
+
+      it('switching outer back to a concrete option clears resolvedItemIds', async () => {
+        render(<EquipmentTab compendium={compendium} />);
+        await userEvent.click(screen.getByRole('radio', { name: /package/i }));
+        const slots = useStore.getState().charCreation.equipmentSlots.map((s, i) =>
+          i === 1
+            ? {
+                ...s,
+                itemId: 'wild',
+                customName: 'any martial melee weapon',
+                resolvedItemIds: ['longsword'],
+              }
+            : s,
+        );
+        useStore.getState().charCreation.setDraftField('equipmentSlots', slots);
+        const outerSelects = screen.getAllByLabelText(/choice 2/i) as HTMLSelectElement[];
+        const outer = outerSelects[0];
+        if (!outer) throw new Error('expected choice-2 select');
+        await userEvent.selectOptions(outer, 'b');
+        const slot = useStore
+          .getState()
+          .charCreation.equipmentSlots.find((s) => s.slotId === 'class-1');
+        expect(slot?.resolvedItemIds).toEqual([]);
+      });
     });
   });
 });
