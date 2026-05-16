@@ -5,6 +5,14 @@ import { useCharacterAssist } from '../../hooks/useCharacterAssist';
 import type { TestChatTurn } from '../../state/charCreation';
 import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
+import {
+  computeGoldRows,
+  mergeInventoryRows,
+  parseEquipmentString,
+  promoteIcon,
+  readBackgroundStartingEquipment,
+  resolveEquipmentSlots,
+} from './equipmentResolver';
 
 interface Warning {
   code: string;
@@ -17,7 +25,7 @@ export interface ReviewTabProps {
   onClose?: () => void;
 }
 
-export function ReviewTab({ mode, onClose }: ReviewTabProps) {
+export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
   const { t } = useTranslation('wizard');
   const draft = useStore((s) => s.charCreation);
   const resetDraft = useStore((s) => s.charCreation.resetDraft);
@@ -37,6 +45,18 @@ export function ReviewTab({ mode, onClose }: ReviewTabProps) {
   if (!draft.name) warnings.push({ code: 'no_name', severity: 'warn' });
   if (draft.equipmentMode === null) warnings.push({ code: 'no_equipment', severity: 'warn' });
 
+  if (draft.equipmentMode === 'package') {
+    const unresolved = draft.equipmentSlots.some((slot) => {
+      if (slot.resolvedItemIds.length > 0) return false;
+      const chunks = (slot.customName ?? '')
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      return chunks.some((c) => parseEquipmentString(c).isWildcard);
+    });
+    if (unresolved) warnings.push({ code: 'unresolved_wildcard', severity: 'warn' });
+  }
+
   const blocking = warnings.some((w) => w.severity === 'block');
 
   async function sendTestChat() {
@@ -55,6 +75,36 @@ export function ReviewTab({ mode, onClose }: ReviewTabProps) {
     if (mode === 'edit') {
       if (!window.confirm(t('confirm_replace_character'))) return;
     }
+    const bg = draft.backgroundId
+      ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
+      : null;
+    const bgItems = readBackgroundStartingEquipment(bg);
+
+    const resolvedFromSlots =
+      draft.equipmentMode === 'package'
+        ? resolveEquipmentSlots(draft.equipmentSlots, bgItems, compendium)
+        : [];
+
+    const fromGold =
+      draft.equipmentMode === 'gold'
+        ? draft.equipmentInventory.map((it) => promoteIcon(it, compendium))
+        : [];
+
+    const bgItemsForGold =
+      draft.equipmentMode === 'gold' && bg ? resolveEquipmentSlots([], bgItems, compendium) : [];
+
+    const goldRows = computeGoldRows(
+      { equipmentMode: draft.equipmentMode, goldRemaining: draft.goldRemaining },
+      bg,
+    );
+
+    const inventory = mergeInventoryRows([
+      ...resolvedFromSlots,
+      ...fromGold,
+      ...bgItemsForGold,
+      ...goldRows,
+    ]);
+
     replaceFromDraft({
       heroClass: draft.classId,
       name: draft.name || 'Hero',
@@ -64,7 +114,7 @@ export function ReviewTab({ mode, onClose }: ReviewTabProps) {
       alignment: draft.alignment,
       level: 1,
       abilities: draft.abilities,
-      inventory: draft.equipmentInventory,
+      inventory,
     });
     resetDraft();
     completeOnboarding();
