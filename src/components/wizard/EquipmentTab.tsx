@@ -171,6 +171,7 @@ function buildSlotForGroup(group: ChoiceGroup, optionLetter: string): EquipmentS
     itemId: optionLetter,
     customName: items.join(', '),
     fromBackground: false,
+    resolvedItemIds: [],
   };
 }
 

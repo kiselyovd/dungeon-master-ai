@@ -17,6 +17,7 @@ const EquipmentSlotSchema = v.object({
   itemId: v.nullable(v.string()),
   customName: v.nullable(v.string()),
   fromBackground: v.boolean(),
+  resolvedItemIds: v.array(v.string()),
 });
 
 const PersonalityFlagSchema = v.object({

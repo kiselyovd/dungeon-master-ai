@@ -22,6 +22,14 @@ export interface EquipmentSlot {
   itemId: string | null;
   customName: string | null;
   fromBackground: boolean;
+  /**
+   * Compendium item IDs the user committed to. Populated when the slot's
+   * picked option contains a wildcard token (e.g. "any martial melee weapon")
+   * and the inline chooser in EquipmentTab resolves it to a concrete weapon.
+   * Empty for concrete-only options; the resolver parses `customName` in
+   * that case.
+   */
+  resolvedItemIds: string[];
 }
 
 export type PersonalityFlagSlotId =
