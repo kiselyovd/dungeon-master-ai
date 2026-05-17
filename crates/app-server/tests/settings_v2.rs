@@ -320,6 +320,96 @@ async fn post_settings_v2_rebuilds_local_mistralrs_provider() {
     );
 }
 
+#[tokio::test]
+async fn post_settings_v2_rebuilds_local_mistralrs_with_custom_mmproj_model() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("local-mistralrs".into());
+    body["chat"]["active_model_id"] =
+        Value::String("custom:Qwen/Qwen2.5-VL-7B-Instruct-GGUF".into());
+    body["chat"]["providers"] = json!({
+        "local-mistralrs": {
+            "model_id": {
+                "custom": {
+                    "hf_repo": "Qwen/Qwen2.5-VL-7B-Instruct-GGUF",
+                    "gguf_filename": "qwen2.5-vl-7b-instruct-q4_k_m.gguf",
+                    "mmproj_filename": "mmproj-qwen2.5-vl-7b-f16.gguf"
+                }
+            },
+            "port": 9876
+        }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200, "body: {:?}", res.text().await);
+    assert_eq!(server.state.provider().name(), "local-mistralrs");
+    assert_eq!(
+        server.state.default_model(),
+        "qwen2.5-vl-7b-instruct-q4_k_m.gguf",
+        "default_model must come from manifest_for(Custom).hf_filename",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_local_mistralrs_with_custom_no_mmproj() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("local-mistralrs".into());
+    body["chat"]["active_model_id"] = Value::String("custom:llama".into());
+    body["chat"]["providers"] = json!({
+        "local-mistralrs": {
+            "model_id": {
+                "custom": {
+                    "hf_repo": "TheBloke/Llama-2-7B-Chat-GGUF",
+                    "gguf_filename": "llama-2-7b-chat.Q4_K_M.gguf"
+                }
+            },
+            "port": 9876
+        }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200, "body: {:?}", res.text().await);
+    assert_eq!(server.state.provider().name(), "local-mistralrs");
+    assert_eq!(
+        server.state.default_model(),
+        "llama-2-7b-chat.Q4_K_M.gguf",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_local_mistralrs_custom_missing_gguf_filename() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("local-mistralrs".into());
+    body["chat"]["active_model_id"] = Value::String("custom:broken".into());
+    body["chat"]["providers"] = json!({
+        "local-mistralrs": {
+            "model_id": {
+                "custom": {
+                    "hf_repo": "x/y"
+                }
+            },
+            "port": 9876
+        }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
 // ---- image provider rebuild ----
 
 #[tokio::test]
