@@ -168,20 +168,36 @@ pub async fn post_agent_settings(
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
-/// M7-DM: validate-only endpoint for the v2 settings shape. Phase D wires
-/// this from the new 4-tab UI; the provider-rebuild path lands in H.x once
-/// the per-modality dispatch surface is in place. For now we accept the
-/// payload, run the validation gates, and return 200 (or 400 with the gate
-/// rejection message) so the frontend round-trip is exercisable.
+/// M7-DM: v2 settings endpoint. Validates the payload, then wires the agent-
+/// side fields (tool_availability + behavior knobs) into the live AgentConfig.
+/// The provider-rebuild path (chat/image/video provider construction from the
+/// per-modality `providers` slices) lands in a later M7.5-DM step; secrets and
+/// provider swaps continue to flow through the legacy `POST /settings` for now.
 pub async fn post_settings_v2(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(cfg): Json<SettingsConfigV2>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     validate_settings_v2(&cfg)?;
+    let mut agent_cfg = state.agent_config();
+    agent_cfg.tool_availability = crate::agent::tools::ToolAvailability {
+        image: cfg.image.enabled,
+        video: cfg.video.enabled,
+    };
+    agent_cfg.system_prompt = cfg.behavior.system_prompt.clone();
+    agent_cfg.temperature = cfg.behavior.temperature;
+    agent_cfg.max_rounds = cfg.behavior.agent_max_rounds as usize;
+    state.set_agent_config(agent_cfg);
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
 pub fn validate_settings_v2(cfg: &SettingsConfigV2) -> Result<(), AppError> {
+    // Temperature gate mirrors the legacy /agent-settings range so the v2
+    // path can't smuggle in out-of-spec values that the LLM provider rejects.
+    if !(0.0..=2.0).contains(&cfg.behavior.temperature) {
+        return Err(AppError::BadRequest(
+            "temperature must be between 0.0 and 2.0".into(),
+        ));
+    }
     // Reasoning gate: rejecting requests where the user toggled reasoning on
     // for a model whose curated capabilities say no.
     if cfg.chat.reasoning_enabled {

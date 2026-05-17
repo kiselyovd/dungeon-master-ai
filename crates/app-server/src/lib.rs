@@ -125,6 +125,7 @@ pub mod test_support {
 
     pub struct TestServer {
         pub addr: SocketAddr,
+        pub state: AppState,
         _handle: tokio::task::JoinHandle<()>,
     }
 
@@ -142,7 +143,7 @@ pub mod test_support {
             db: sqlx::SqlitePool,
         ) -> Self {
             let state = AppState::new(llm, "mock".into(), db);
-            let app = router(state);
+            let app = router(state.clone());
             let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
             let addr = listener.local_addr().expect("addr");
             let handle = tokio::spawn(async move {
@@ -150,6 +151,7 @@ pub mod test_support {
             });
             Self {
                 addr,
+                state,
                 _handle: handle,
             }
         }

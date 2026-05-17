@@ -78,3 +78,108 @@ async fn post_settings_v2_rejects_unknown_provider() {
         .expect("request");
     assert_eq!(res.status(), 400);
 }
+
+#[tokio::test]
+async fn post_settings_v2_disables_image_tool_when_image_disabled() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["enabled"] = Value::Bool(false);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        !server.state.agent_config().tool_availability.image,
+        "expected tool_availability.image=false after image.enabled=false",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_enables_image_tool_when_image_enabled() {
+    use app_server::agent::orchestrator::AgentConfig;
+    use app_server::agent::tools::ToolAvailability;
+    let server = TestServer::start().await;
+    server.state.set_agent_config(AgentConfig {
+        tool_availability: ToolAvailability {
+            image: false,
+            video: false,
+        },
+        ..AgentConfig::default()
+    });
+    let body = baseline();
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.agent_config().tool_availability.image,
+        "expected tool_availability.image=true after image.enabled=true",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_video_flag_mirrors_video_enabled() {
+    use app_server::agent::orchestrator::AgentConfig;
+    use app_server::agent::tools::ToolAvailability;
+    let server = TestServer::start().await;
+    server.state.set_agent_config(AgentConfig {
+        tool_availability: ToolAvailability {
+            image: false,
+            video: false,
+        },
+        ..AgentConfig::default()
+    });
+    let mut body = baseline();
+    body["video"]["enabled"] = Value::Bool(true);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.agent_config().tool_availability.video,
+        "expected tool_availability.video=true after video.enabled=true",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_propagates_behavior_fields_to_agent_config() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["behavior"]["system_prompt"] = Value::String("You are a strict DM.".into());
+    body["behavior"]["temperature"] = json!(0.42);
+    body["behavior"]["agent_max_rounds"] = json!(12);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let cfg = server.state.agent_config();
+    assert_eq!(cfg.system_prompt, "You are a strict DM.");
+    assert!((cfg.temperature - 0.42).abs() < 1e-6);
+    assert_eq!(cfg.max_rounds, 12);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_out_of_range_temperature() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["behavior"]["temperature"] = json!(2.5);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
