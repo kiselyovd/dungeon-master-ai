@@ -23,7 +23,7 @@ import styles from './SettingsForm.module.css';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
-type Tab = 'provider' | 'image' | 'video' | 'model';
+export type Tab = 'provider' | 'image' | 'video' | 'model';
 const TAB_ORDER: readonly Tab[] = ['provider', 'image', 'video', 'model'];
 
 export interface SettingsSubmission {
@@ -42,6 +42,8 @@ interface SettingsFormProps {
   formId?: string;
   /** Optional callback invoked when the user wants to re-create their character. */
   onRequestCharacterRecreate?: () => void;
+  /** Optional tab to select on mount; falls back to 'provider'. */
+  initialTab?: Tab;
 }
 
 /**
@@ -59,7 +61,12 @@ interface SettingsFormProps {
  * wired to `POST /agent-settings`. M4 lights up local-mistralrs as the
  * third provider option (radio-card UI deferred to a later polish pass).
  */
-export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: SettingsFormProps) {
+export function SettingsForm({
+  onSubmit,
+  formId,
+  onRequestCharacterRecreate,
+  initialTab,
+}: SettingsFormProps) {
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
   // Read the live ModelId from the localMode slice at submit time. We read
@@ -68,7 +75,7 @@ export function SettingsForm({ onSubmit, formId, onRequestCharacterRecreate }: S
   // every form rerender to also rebuild on unrelated download progress.
   const localModeSelection = useStore((s) => s.localMode.selectedLlm);
 
-  const [activeTab, setActiveTab] = useState<Tab>('provider');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'provider');
   // Drafts and activeKind are seeded once from the slice on mount and live
   // independently afterwards. SettingsModal unmounts the form on close
   // (`if (!open) return null`), so the next open re-seeds from the latest slice.

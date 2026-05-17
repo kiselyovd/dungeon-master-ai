@@ -25,5 +25,11 @@
   "video_overlay_starting": "Starting video generation...",
   "video_overlay_progress": "Generating video... {{percent}}%",
   "video_overlay_eta": "~{{seconds}}s remaining",
-  "video_overlay_error_generic": "Video generation failed"
+  "video_overlay_error_generic": "Video generation failed",
+  "image_modality": "Image",
+  "video_modality": "Video",
+  "chat_provider_settings": "Chat provider settings",
+  "image_gen_settings": "Image gen settings",
+  "video_gen_settings": "Video gen settings",
+  "modality_off": "off"
 }

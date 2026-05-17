@@ -25,5 +25,11 @@
   "video_overlay_starting": "Запуск генерации видео...",
   "video_overlay_progress": "Генерируем видео... {{percent}}%",
   "video_overlay_eta": "~{{seconds}} с осталось",
-  "video_overlay_error_generic": "Не удалось сгенерировать видео"
+  "video_overlay_error_generic": "Не удалось сгенерировать видео",
+  "image_modality": "Картинки",
+  "video_modality": "Видео",
+  "chat_provider_settings": "Настройки чат-провайдера",
+  "image_gen_settings": "Настройки генерации картинок",
+  "video_gen_settings": "Настройки генерации видео",
+  "modality_off": "выкл"
 }

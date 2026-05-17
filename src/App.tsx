@@ -81,6 +81,9 @@ function App() {
   const { t } = useTranslation('common');
   const { t: tSettings } = useTranslation('settings');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'provider' | 'image' | 'video'>(
+    'provider',
+  );
   const [localModeOpen, setLocalModeOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
@@ -177,6 +180,10 @@ function App() {
   );
   const providerStatus = activeProviderConfig === null ? 'error' : 'connected';
   const modelLabel = getProviderModel(useStore.getState());
+  const imageEnabled = useStore((s) => s.settings.imageEnabled);
+  const imagePreset = useStore((s) => s.settings.imagePreset);
+  const videoEnabled = useStore((s) => s.settings.videoEnabled);
+  const videoMode = useStore((s) => s.settings.videoMode);
   const npcList = Object.values(npcRecords);
 
   return (
@@ -303,11 +310,22 @@ function App() {
         <ChatPanel />
       </aside>
 
-      <StatusBar provider={providerLabel} model={modelLabel} status={providerStatus} />
+      <StatusBar
+        provider={providerLabel}
+        model={modelLabel}
+        status={providerStatus}
+        image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
+        video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
+        onOpenSettings={(tab) => {
+          setSettingsInitialTab(tab === 'chat' ? 'provider' : tab);
+          setSettingsOpen(true);
+        }}
+      />
 
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        initialTab={settingsInitialTab}
         onRequestCharacterRecreate={() => {
           setSettingsOpen(false);
           setWizardReopen(true);

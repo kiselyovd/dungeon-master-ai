@@ -5,7 +5,7 @@ import { postSettings } from '../api/providers';
 import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
-import { SettingsForm, type SettingsSubmission } from './SettingsForm';
+import { SettingsForm, type SettingsSubmission, type Tab as SettingsTab } from './SettingsForm';
 import styles from './SettingsModal.module.css';
 
 /**
@@ -34,11 +34,13 @@ interface Props {
   onClose: () => void;
   /** Optional callback invoked when the user wants to re-create their character. */
   onRequestCharacterRecreate?: () => void;
+  /** Optional tab to focus on open. Forwarded to SettingsForm.initialTab. */
+  initialTab?: SettingsTab;
 }
 
 const FORM_ID = 'settings-form';
 
-export function SettingsModal({ open, onClose, onRequestCharacterRecreate }: Props) {
+export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initialTab }: Props) {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
 
@@ -122,6 +124,7 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate }: Pro
         formId={FORM_ID}
         onSubmit={onSubmit}
         {...(onRequestCharacterRecreate ? { onRequestCharacterRecreate } : {})}
+        {...(initialTab ? { initialTab } : {})}
       />
     </Modal>
   );
