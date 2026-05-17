@@ -168,11 +168,13 @@ pub async fn post_agent_settings(
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
-/// M7-DM: v2 settings endpoint. Validates the payload, then wires the agent-
-/// side fields (tool_availability + behavior knobs) into the live AgentConfig.
-/// The provider-rebuild path (chat/image/video provider construction from the
-/// per-modality `providers` slices) lands in a later M7.5-DM step; secrets and
-/// provider swaps continue to flow through the legacy `POST /settings` for now.
+/// M7-DM: v2 settings endpoint. Validates the payload, wires the agent-side
+/// fields (tool_availability + behavior knobs) into the live AgentConfig, then
+/// reconstructs the chat LlmProvider from `chat.providers[activeProviderId]`
+/// (mirrors the legacy `POST /settings` dispatch for the 3 known kinds).
+/// Image and video provider rebuild from `image.providers` / `video.providers`
+/// is a follow-up M7.5-DM step; for now those modalities keep using whichever
+/// provider was set via `POST /agent-settings` (Replicate) or never set at all.
 pub async fn post_settings_v2(
     State(state): State<AppState>,
     Json(cfg): Json<SettingsConfigV2>,
@@ -187,7 +189,107 @@ pub async fn post_settings_v2(
     agent_cfg.temperature = cfg.behavior.temperature;
     agent_cfg.max_rounds = cfg.behavior.agent_max_rounds as usize;
     state.set_agent_config(agent_cfg);
+    let (provider, model_name) = build_chat_provider(&cfg.chat, state.secrets_repo()).await?;
+    state.set_provider(provider);
+    state.set_default_model(model_name);
     Ok(Json(serde_json::json!({ "status": "ok" })))
+}
+
+/// Per-provider config carried inside `chat.providers[active_provider_id]`.
+/// One variant per chat provider known to the catalog. Mirrors the legacy
+/// `ProviderConfig` enum but reads from v2 shape: the model name comes from
+/// `chat.active_model_id` for cloud providers, while local-mistralrs nests
+/// `model_id` (ModelId enum) + `port` here so the manifest lookup works.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AnthropicSlice {
+    api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OpenAICompatSlice {
+    base_url: String,
+    #[serde(default)]
+    api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalMistralrsSlice {
+    model_id: ModelId,
+    port: u16,
+}
+
+async fn build_chat_provider(
+    chat: &ChatConfig,
+    secrets: Arc<dyn crate::secrets::SecretsRepo>,
+) -> Result<(Arc<dyn app_llm::LlmProvider>, String), AppError> {
+    let slice = chat
+        .providers
+        .get(&chat.active_provider_id)
+        .ok_or_else(|| {
+            AppError::BadRequest(format!(
+                "providers.{} config missing",
+                chat.active_provider_id
+            ))
+        })?;
+    match chat.active_provider_id.as_str() {
+        "anthropic" => {
+            let cfg: AnthropicSlice = serde_json::from_value(slice.clone())
+                .map_err(|e| AppError::BadRequest(format!("invalid anthropic slice: {e}")))?;
+            if cfg.api_key.trim().is_empty() {
+                return Err(AppError::BadRequest("api_key must not be empty".into()));
+            }
+            if chat.active_model_id.trim().is_empty() {
+                return Err(AppError::BadRequest("active_model_id must not be empty".into()));
+            }
+            secrets
+                .set("anthropic_api_key", &cfg.api_key)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            let provider: Arc<dyn app_llm::LlmProvider> =
+                Arc::new(AnthropicProvider::new(cfg.api_key));
+            Ok((provider, chat.active_model_id.clone()))
+        }
+        "openai-compat" => {
+            let cfg: OpenAICompatSlice = serde_json::from_value(slice.clone())
+                .map_err(|e| AppError::BadRequest(format!("invalid openai-compat slice: {e}")))?;
+            if cfg.base_url.trim().is_empty() {
+                return Err(AppError::BadRequest("base_url must not be empty".into()));
+            }
+            if chat.active_model_id.trim().is_empty() {
+                return Err(AppError::BadRequest("active_model_id must not be empty".into()));
+            }
+            if !cfg.api_key.trim().is_empty() {
+                secrets
+                    .set("openai_compat_api_key", &cfg.api_key)
+                    .await
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
+            }
+            let provider: Arc<dyn app_llm::LlmProvider> = Arc::new(OpenAICompatProvider::new(
+                cfg.base_url,
+                cfg.api_key,
+            ));
+            Ok((provider, chat.active_model_id.clone()))
+        }
+        "local-mistralrs" => {
+            let cfg: LocalMistralrsSlice = serde_json::from_value(slice.clone()).map_err(|e| {
+                AppError::BadRequest(format!("invalid local-mistralrs slice: {e}"))
+            })?;
+            let manifest = lookup(&cfg.model_id)
+                .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
+            let model_name = manifest.hf_filename.to_string();
+            let provider: Arc<dyn app_llm::LlmProvider> = Arc::new(MistralrsLocalProvider::new(
+                cfg.port,
+                model_name.clone(),
+            ));
+            Ok((provider, model_name))
+        }
+        other => Err(AppError::BadRequest(format!(
+            "unknown chat provider: {other}"
+        ))),
+    }
 }
 
 pub fn validate_settings_v2(cfg: &SettingsConfigV2) -> Result<(), AppError> {

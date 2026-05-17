@@ -183,3 +183,134 @@ async fn post_settings_v2_rejects_out_of_range_temperature() {
         .expect("request");
     assert_eq!(res.status(), 400);
 }
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_anthropic_provider() {
+    let server = TestServer::start().await;
+    assert_eq!(server.state.provider().name(), "mock");
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert_eq!(server.state.provider().name(), "anthropic");
+    assert_eq!(server.state.default_model(), "claude-haiku-4-5-20251001");
+}
+
+#[tokio::test]
+async fn post_settings_v2_persists_anthropic_api_key_to_secrets_repo() {
+    let server = TestServer::start().await;
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let stored = server
+        .state
+        .secrets_repo()
+        .get("anthropic_api_key")
+        .await
+        .expect("repo get");
+    assert_eq!(stored, Some("sk-test".to_string()));
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_anthropic_without_api_key() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["providers"]["anthropic"]["api_key"] = Value::String(String::new());
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_anthropic_without_provider_config_slice() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["providers"] = json!({});
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_openai_compat_provider() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("openai-compat".into());
+    body["chat"]["active_model_id"] = Value::String("gpt-4o".into());
+    body["chat"]["providers"] = json!({
+        "openai-compat": { "base_url": "https://api.openai.com", "api_key": "sk-oc" }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert_eq!(server.state.provider().name(), "openai-compat");
+    assert_eq!(server.state.default_model(), "gpt-4o");
+    let stored = server
+        .state
+        .secrets_repo()
+        .get("openai_compat_api_key")
+        .await
+        .expect("repo get");
+    assert_eq!(stored, Some("sk-oc".to_string()));
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_openai_compat_without_base_url() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("openai-compat".into());
+    body["chat"]["active_model_id"] = Value::String("gpt-4o".into());
+    body["chat"]["providers"] = json!({
+        "openai-compat": { "base_url": "", "api_key": "sk-oc" }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_local_mistralrs_provider() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("local-mistralrs".into());
+    body["chat"]["active_model_id"] = Value::String("qwen3.5-4b".into());
+    body["chat"]["providers"] = json!({
+        "local-mistralrs": { "model_id": "qwen3_5_4b", "port": 9876 }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert_eq!(server.state.provider().name(), "local-mistralrs");
+    assert!(
+        server.state.default_model().contains("qwen3.5-4b"),
+        "expected default_model to derive from manifest filename, got {}",
+        server.state.default_model(),
+    );
+}
