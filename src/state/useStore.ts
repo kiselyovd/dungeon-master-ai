@@ -60,6 +60,7 @@ export const useStore = create<AppState>()(
           replicateApiKey: state.settings.replicateApiKey,
           chatPanelWidth: state.settings.chatPanelWidth,
           sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
+          discoveredCatalogs: state.settings.discoveredCatalogs,
         },
         session: {
           activeCampaignId: state.session.activeCampaignId,

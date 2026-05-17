@@ -37,6 +37,7 @@ async function clearStores() {
     settings.delete('current_scene'),
     settings.delete('onboarding_completed'),
     settings.delete('hero_class'),
+    settings.delete('discovered_catalogs'),
   ]);
 }
 
@@ -228,6 +229,72 @@ describe('persistStorage', () => {
 
     const loaded = await persistStorage.getItem('any');
     expect(loaded?.state.pc?.heroClass).toBeNull();
+  });
+
+  it('writes discoveredCatalogs to plaintext settings.json (NOT Stronghold)', async () => {
+    const cat = {
+      cacheKey: 'h',
+      cachedAt: '2026-05-17T12:00:00Z',
+      source: 'curated' as const,
+      models: [
+        {
+          model_id: 'claude-opus-4-7',
+          display_name: 'Claude Opus 4.7',
+          capabilities: {
+            vision_input: true,
+            reasoning: true,
+            tool_calls: true,
+            streaming: true,
+          },
+          source: 'curated' as const,
+          context_length: 1_000_000,
+        },
+      ],
+    };
+    await persistStorage.setItem('any', {
+      state: {
+        settings: { discoveredCatalogs: { anthropic: cat } },
+      },
+      version: 0,
+    });
+    expect(await settings.get('discovered_catalogs')).toEqual({ anthropic: cat });
+    // Must NOT have leaked into Stronghold.
+    expect(await strongholdSecretsStore.get('discovered_catalogs')).toBeUndefined();
+  });
+
+  it('round-trips discoveredCatalogs through getItem', async () => {
+    const cat = {
+      cacheKey: 'h',
+      cachedAt: '2026-05-17T12:00:00Z',
+      source: 'discovered-api' as const,
+      models: [],
+      next_cursor: null,
+    };
+    await persistStorage.setItem('any', {
+      state: {
+        settings: { discoveredCatalogs: { 'openai-compat': cat } },
+      },
+      version: 0,
+    });
+    const loaded = await persistStorage.getItem('any');
+    expect(loaded?.state.settings?.discoveredCatalogs?.['openai-compat']).toEqual(cat);
+  });
+
+  it('omits discoveredCatalogs from load when nothing is on disk', async () => {
+    // Just write any unrelated bit so getItem returns non-null.
+    await persistStorage.setItem('any', {
+      state: { settings: { uiLanguage: 'en' } },
+      version: 0,
+    });
+    const loaded = await persistStorage.getItem('any');
+    const dc = loaded?.state.settings?.discoveredCatalogs;
+    expect(dc === undefined || JSON.stringify(dc) === '{}').toBe(true);
+  });
+
+  it('removeItem also clears discovered_catalogs from settings.json', async () => {
+    await settings.set('discovered_catalogs', { anthropic: { cacheKey: 'h', models: [] } });
+    await persistStorage.removeItem('any');
+    expect(await settings.get('discovered_catalogs')).toBeUndefined();
   });
 
   it('removeItem clears the vault, the legacy file, and the prefs file', async () => {

@@ -61,6 +61,7 @@ const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
 const KEY_HERO_CLASS = 'hero_class';
 const KEY_PC = 'pc';
 const KEY_CHAR_CREATION_DRAFT = 'char_creation_draft';
+const KEY_DISCOVERED_CATALOGS = 'discovered_catalogs';
 
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
@@ -108,6 +109,39 @@ const CurrentSceneSchema = v.nullable(
 );
 const OnboardingCompletedSchema = v.boolean();
 const HeroClassSchema = v.nullable(v.string());
+
+const DiscoveredCapabilitiesSchema = v.object({
+  vision_input: v.boolean(),
+  reasoning: v.boolean(),
+  tool_calls: v.boolean(),
+  streaming: v.boolean(),
+});
+const DiscoveredModelSourceSchema = v.picklist([
+  'curated',
+  'discovered-api',
+  'discovered-hf-hub',
+  'custom-hf',
+]);
+const DiscoveredModelEntrySchema = v.object({
+  model_id: v.string(),
+  display_name: v.string(),
+  capabilities: DiscoveredCapabilitiesSchema,
+  source: DiscoveredModelSourceSchema,
+  context_length: v.optional(v.nullable(v.number())),
+  price_per_million_input: v.optional(v.nullable(v.number())),
+  price_per_million_output: v.optional(v.nullable(v.number())),
+});
+const DiscoveredCatalogSchema = v.object({
+  cacheKey: v.string(),
+  cachedAt: v.string(),
+  source: DiscoveredModelSourceSchema,
+  models: v.array(DiscoveredModelEntrySchema),
+  next_cursor: v.optional(v.nullable(v.string())),
+});
+const DiscoveredCatalogsMapSchema = v.record(
+  ProviderKindSchema,
+  v.nullable(DiscoveredCatalogSchema),
+);
 
 const SavingThrowProfSchema = v.object({
   str: v.optional(v.boolean()),
@@ -182,6 +216,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       heroClassRaw,
       pcRaw,
       charCreationRaw,
+      discoveredCatalogsRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -199,6 +234,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_HERO_CLASS),
       settingsStore.get(KEY_PC),
       settingsStore.get(KEY_CHAR_CREATION_DRAFT),
+      settingsStore.get(KEY_DISCOVERED_CATALOGS),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -217,6 +253,10 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
     const pcParsed = v.safeParse(PcSchema, pcRaw);
     const charCreationParsed = v.safeParse(CharCreationDraftSchema, charCreationRaw);
+    const discoveredCatalogsParsed = v.safeParse(
+      DiscoveredCatalogsMapSchema,
+      discoveredCatalogsRaw,
+    );
 
     if (
       !providersParsed.success &&
@@ -234,7 +274,8 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !onboardingParsed.success &&
       !heroClassParsed.success &&
       !pcParsed.success &&
-      !charCreationParsed.success
+      !charCreationParsed.success &&
+      !discoveredCatalogsParsed.success
     ) {
       return null;
     }
@@ -250,6 +291,10 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
     if (sceneTransitionsParsed.success) {
       settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;
+    }
+    if (discoveredCatalogsParsed.success) {
+      settings.discoveredCatalogs =
+        discoveredCatalogsParsed.output as SettingsData['discoveredCatalogs'];
     }
 
     const session: Partial<SessionData> = {};
@@ -342,6 +387,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
       writes.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
     }
+    if (settings.discoveredCatalogs !== undefined) {
+      writes.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -366,6 +414,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_HERO_CLASS),
       settingsStore.delete(KEY_PC),
       settingsStore.delete(KEY_CHAR_CREATION_DRAFT),
+      settingsStore.delete(KEY_DISCOVERED_CATALOGS),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },
