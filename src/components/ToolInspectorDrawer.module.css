@@ -123,6 +123,43 @@
   color: var(--color-fg-muted);
 }
 
+.handlerPill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.handlerEngine {
+  color: var(--color-fg-secondary);
+  border-color: var(--color-border-subtle);
+  background: var(--color-bg-deep);
+}
+
+.handlerImage,
+.handlerVideo,
+.handlerLocal {
+  color: var(--color-accent);
+  border-color: var(--color-border-accent);
+  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-bg-deep));
+}
+
+.handlerCloud {
+  color: var(--color-fg-muted);
+  border-color: var(--color-border-subtle);
+  background: color-mix(in oklab, var(--color-fg-muted) 8%, var(--color-bg-deep));
+}
+
+.handlerError {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: color-mix(in oklab, var(--color-danger) 12%, var(--color-bg-deep));
+}
+
 .curlBtn {
   background: var(--color-bg-deep);
   border: 1px solid var(--color-border-subtle);

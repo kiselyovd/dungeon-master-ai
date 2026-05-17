@@ -11,6 +11,7 @@ const pendingEntry = {
   isError: false,
   round: 1,
   timestamp: '2026-05-08T11:00:00Z',
+  handledBy: 'engine',
 };
 
 const settledEntry = {

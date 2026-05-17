@@ -8,5 +8,6 @@
   "inspector_empty": "No tool calls yet.",
   "inspector_copy_curl": "Copy as cURL",
   "inspector_request": "Request",
-  "inspector_response": "Response"
+  "inspector_response": "Response",
+  "inspector_handled_by": "Handled by: {{handler}}"
 }

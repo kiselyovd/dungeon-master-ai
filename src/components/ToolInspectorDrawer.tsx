@@ -43,10 +43,21 @@ export function ToolInspectorDrawer({ entries, isOpen, onClose }: Props) {
   );
 }
 
+function handlerStyleClass(handledBy: string): string {
+  if (handledBy === 'engine') return styles.handlerEngine ?? '';
+  if (handledBy.startsWith('image')) return styles.handlerImage ?? '';
+  if (handledBy.startsWith('video')) return styles.handlerVideo ?? '';
+  if (handledBy.startsWith('local-')) return styles.handlerLocal ?? '';
+  return styles.handlerCloud ?? '';
+}
+
 function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
   const { t } = useTranslation('agent');
   const [expanded, setExpanded] = useState(false);
   const statusLabel = entry.result === null ? 'pending' : entry.isError ? 'fail' : 'success';
+  const handlerCls = entry.isError
+    ? (styles.handlerError ?? '')
+    : handlerStyleClass(entry.handledBy);
 
   const copyAsCurl = () => {
     const port = getCachedBackendPort();
@@ -67,6 +78,12 @@ function InspectorEntry({ entry }: { entry: ToolLogEntry }) {
           aria-expanded={expanded}
         >
           <span className={styles.entryName}>{entry.toolName}</span>
+          <span
+            className={`${styles.handlerPill} ${handlerCls}`}
+            title={t('inspector_handled_by', { handler: entry.handledBy })}
+          >
+            {entry.handledBy}
+          </span>
           <span className={`${styles.entryStatus} ${styles[`status_${statusLabel}`]}`}>
             {statusLabel}
           </span>

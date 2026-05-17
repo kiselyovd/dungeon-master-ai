@@ -28,6 +28,7 @@ export interface AgentTurnOptions {
     result: unknown,
     isError: boolean,
     round: number,
+    handledBy: string,
   ) => void;
   onAgentDone: (totalRounds: number) => void;
 }
@@ -105,7 +106,16 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
     }
     case 'tool_call_result': {
       const p = safeParseToolCallResult(data);
-      if (p) opts.onToolCallResult(p.id, p.tool_name, p.args, p.result, p.is_error, p.round);
+      if (p)
+        opts.onToolCallResult(
+          p.id,
+          p.tool_name,
+          p.args,
+          p.result,
+          p.is_error,
+          p.round,
+          p.handled_by,
+        );
       break;
     }
     case 'agent_done': {

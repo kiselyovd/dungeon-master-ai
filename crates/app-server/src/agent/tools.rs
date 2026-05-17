@@ -7,6 +7,18 @@
 use app_llm::Tool;
 use serde_json::json;
 
+/// M7.5-DM: classify which subsystem handles a given tool. Surfaced to the
+/// frontend Tool Inspector as a pill so the user can see at a glance whether
+/// a tool ran inside the rules engine (deterministic) or was delegated to an
+/// external provider (e.g. image gen). Returns a stable kebab-case string the
+/// frontend maps to a CSS class.
+pub fn classify_handler(tool_name: &str) -> &'static str {
+    match tool_name {
+        "generate_image" => "image-provider",
+        _ => "engine",
+    }
+}
+
 /// Which modality-specific tools to include in the catalog. M7-DM addition:
 /// when image generation is disabled in Settings, omit `generate_image` so
 /// the LLM doesn't try to call something that will fail.
@@ -272,6 +284,23 @@ mod tests {
             video: false,
         });
         assert!(!tools.iter().any(|t| t.name == "generate_image"));
+    }
+
+    #[test]
+    fn classify_handler_routes_generate_image_to_image_provider() {
+        assert_eq!(classify_handler("generate_image"), "image-provider");
+    }
+
+    #[test]
+    fn classify_handler_routes_engine_tools_to_engine() {
+        for name in ["roll_dice", "apply_damage", "set_scene", "query_rules"] {
+            assert_eq!(classify_handler(name), "engine");
+        }
+    }
+
+    #[test]
+    fn classify_handler_treats_unknown_tools_as_engine() {
+        assert_eq!(classify_handler("future-tool-x"), "engine");
     }
 
     #[test]

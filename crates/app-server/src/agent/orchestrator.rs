@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::agent::context_builder::build_context;
 use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::{ToolAvailability, all_tools_with};
+use crate::agent::tools::{ToolAvailability, all_tools_with, classify_handler};
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -79,6 +79,11 @@ pub enum AgentEvent {
         result: Value,
         is_error: bool,
         round: usize,
+        /// M7.5-DM: stable kebab-case label identifying which subsystem ran
+        /// this tool ("engine", "image-provider", ...). The Tool Inspector
+        /// surfaces it as a pill so users can tell engine deterministic
+        /// rolls apart from external provider delegations.
+        handled_by: String,
     },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
@@ -237,6 +242,7 @@ impl AgentOrchestrator {
                         result: result_val.clone(),
                         is_error,
                         round: total_rounds,
+                        handled_by: classify_handler(&tc.name).to_string(),
                     })
                     .await
                     .is_err()

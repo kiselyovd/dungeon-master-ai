@@ -13,6 +13,17 @@ const entries = [
     isError: false,
     round: 1,
     timestamp: '2026-05-07T12:00:00Z',
+    handledBy: 'engine',
+  },
+  {
+    id: 'c2',
+    toolName: 'generate_image',
+    args: { prompt: 'dark dungeon' },
+    result: { status: 'queued' },
+    isError: false,
+    round: 1,
+    timestamp: '2026-05-07T12:00:01Z',
+    handledBy: 'image-provider',
   },
 ];
 
@@ -36,6 +47,16 @@ describe('ToolInspectorDrawer', () => {
 
   it('has copy-as-cURL button per entry', () => {
     render(<ToolInspectorDrawer entries={entries} isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /copy.*curl/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /copy.*curl/i }).length).toBeGreaterThan(0);
+  });
+
+  it('renders handled_by pill with engine label for built-in tools', () => {
+    render(<ToolInspectorDrawer entries={entries} isOpen={true} onClose={vi.fn()} />);
+    expect(screen.getByText(/^engine$/i)).toBeInTheDocument();
+  });
+
+  it('renders handled_by pill with image-provider label for generate_image', () => {
+    render(<ToolInspectorDrawer entries={entries} isOpen={true} onClose={vi.fn()} />);
+    expect(screen.getByText(/image-provider/i)).toBeInTheDocument();
   });
 });

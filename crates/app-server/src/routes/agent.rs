@@ -128,6 +128,7 @@ fn persist_event(
             result,
             is_error,
             round,
+            handled_by: _,
         } => {
             flush_round_if_changed(*round, state, pool, session_id);
             if let Ok(mut s) = state.lock() {
@@ -234,6 +235,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             result,
             is_error,
             round,
+            handled_by,
         } => Event::default()
             .event("tool_call_result")
             .json_data(serde_json::json!({
@@ -243,6 +245,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "result": result,
                 "is_error": is_error,
                 "round": round,
+                "handled_by": handled_by,
             }))
             .expect("tool_call_result json"),
         AgentEvent::AgentDone { total_rounds } => Event::default()

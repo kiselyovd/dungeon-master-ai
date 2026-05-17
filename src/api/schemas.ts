@@ -81,6 +81,7 @@ export const ToolCallResultSchema = v.object({
   result: v.unknown(),
   is_error: v.boolean(),
   round: v.number(),
+  handled_by: v.optional(v.string(), 'engine'),
 });
 
 export const AgentDoneSchema = v.object({
