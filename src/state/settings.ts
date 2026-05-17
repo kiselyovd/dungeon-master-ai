@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { DiscoveredCatalog, DiscoveredCatalogsMap } from './discoveredCatalogs';
 import type {
   AnthropicConfig,
   LocalMistralRsConfig,
@@ -58,6 +59,10 @@ export interface SettingsData {
   reasoningBudget: ReasoningBudget;
   licenseRestrictedMode: boolean;
   agentMaxRounds: number;
+
+  // M7.5-DM: cached results of POST /providers/discover, keyed by ProviderKind.
+  // Plaintext (settings.json), NOT secret - public model lists.
+  discoveredCatalogs: DiscoveredCatalogsMap;
 }
 
 export interface SettingsActions {
@@ -83,6 +88,11 @@ export interface SettingsActions {
   setReasoningBudget: (budget: ReasoningBudget) => void;
   setLicenseRestrictedMode: (on: boolean) => void;
   setAgentMaxRounds: (n: number) => void;
+
+  // M7.5-DM
+  setDiscoveredCatalog: (providerId: ProviderKind, catalog: DiscoveredCatalog) => void;
+  clearDiscoveredCatalog: (providerId: ProviderKind) => void;
+  invalidateProviderCatalog: (providerId: ProviderKind) => void;
 }
 
 function clampChatWidth(width: number): number {
@@ -125,6 +135,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     reasoningBudget: 'medium',
     licenseRestrictedMode: false,
     agentMaxRounds: 8,
+    discoveredCatalogs: {},
 
     setActiveProvider: (activeProvider) =>
       set((s) => ({ settings: { ...s.settings, activeProvider } })),
@@ -181,5 +192,29 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
       set((s) => ({ settings: { ...s.settings, licenseRestrictedMode } })),
     setAgentMaxRounds: (agentMaxRounds) =>
       set((s) => ({ settings: { ...s.settings, agentMaxRounds } })),
+
+    setDiscoveredCatalog: (providerId, catalog) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          discoveredCatalogs: { ...s.settings.discoveredCatalogs, [providerId]: catalog },
+        },
+      })),
+
+    clearDiscoveredCatalog: (providerId) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          discoveredCatalogs: { ...s.settings.discoveredCatalogs, [providerId]: null },
+        },
+      })),
+
+    invalidateProviderCatalog: (providerId) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          discoveredCatalogs: { ...s.settings.discoveredCatalogs, [providerId]: null },
+        },
+      })),
   },
 });

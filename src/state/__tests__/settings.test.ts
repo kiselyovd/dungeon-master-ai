@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { create } from 'zustand';
+import type { DiscoveredCatalog } from '../discoveredCatalogs';
 import {
   createSettingsSlice,
   DEFAULT_CHAT_WIDTH,
@@ -83,5 +84,60 @@ describe('SettingsSlice chat panel width', () => {
     const store = freshSettingsStore();
     store.getState().settings.setChatPanelWidth(Number.NaN);
     expect(store.getState().settings.chatPanelWidth).toBe(DEFAULT_CHAT_WIDTH);
+  });
+});
+
+describe('SettingsSlice discoveredCatalogs', () => {
+  const fakeCat = (overrides: Partial<DiscoveredCatalog> = {}): DiscoveredCatalog => ({
+    cacheKey: 'k',
+    cachedAt: '2026-05-17T12:00:00Z',
+    source: 'curated',
+    models: [],
+    ...overrides,
+  });
+
+  it('defaults discoveredCatalogs to an empty object', () => {
+    const store = freshSettingsStore();
+    expect(store.getState().settings.discoveredCatalogs).toEqual({});
+  });
+
+  it('setDiscoveredCatalog stores a catalog under provider key', () => {
+    const store = freshSettingsStore();
+    const cat = fakeCat({ cacheKey: 'h1' });
+    store.getState().settings.setDiscoveredCatalog('anthropic', cat);
+    expect(store.getState().settings.discoveredCatalogs.anthropic).toBe(cat);
+  });
+
+  it('setDiscoveredCatalog overwrites an existing entry for the same provider', () => {
+    const store = freshSettingsStore();
+    const first = fakeCat({ cacheKey: 'a' });
+    const second = fakeCat({ cacheKey: 'b', source: 'discovered-api' });
+    store.getState().settings.setDiscoveredCatalog('openai-compat', first);
+    store.getState().settings.setDiscoveredCatalog('openai-compat', second);
+    expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBe(second);
+  });
+
+  it('setDiscoveredCatalog for one provider leaves others untouched', () => {
+    const store = freshSettingsStore();
+    const a = fakeCat({ cacheKey: 'a' });
+    const b = fakeCat({ cacheKey: 'b', source: 'discovered-api' });
+    store.getState().settings.setDiscoveredCatalog('anthropic', a);
+    store.getState().settings.setDiscoveredCatalog('openai-compat', b);
+    expect(store.getState().settings.discoveredCatalogs.anthropic).toBe(a);
+    expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBe(b);
+  });
+
+  it('clearDiscoveredCatalog sets the entry to null', () => {
+    const store = freshSettingsStore();
+    store.getState().settings.setDiscoveredCatalog('anthropic', fakeCat());
+    store.getState().settings.clearDiscoveredCatalog('anthropic');
+    expect(store.getState().settings.discoveredCatalogs.anthropic).toBeNull();
+  });
+
+  it('invalidateProviderCatalog clears the entry too', () => {
+    const store = freshSettingsStore();
+    store.getState().settings.setDiscoveredCatalog('anthropic', fakeCat());
+    store.getState().settings.invalidateProviderCatalog('anthropic');
+    expect(store.getState().settings.discoveredCatalogs.anthropic).toBeNull();
   });
 });
