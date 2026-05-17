@@ -23,7 +23,7 @@ use tokio_stream::StreamExt;
 
 use crate::error::AppError;
 use crate::local_runtime::{port::discover_free_port, RegistrySnapshot};
-use crate::models::manifest::{lookup, ModelId};
+use crate::models::manifest::{manifest_for, ModelId};
 use crate::models::DownloadEvent;
 use crate::state::AppState;
 
@@ -111,7 +111,7 @@ pub async fn runtime_status(State(state): State<AppState>) -> Json<RegistrySnaps
 
 pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, AppError> {
     let cfg = state.local_mode_config();
-    let model = lookup(&cfg.selected_llm)
+    let model = manifest_for(&cfg.selected_llm)
         .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;
     let llm_path = state.models_dir().join(model.hf_filename);
     if !llm_path.exists() {

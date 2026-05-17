@@ -16,7 +16,7 @@ use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
 use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
 use crate::image::stub::LocalImageSidecarProvider;
-use crate::models::manifest::{lookup, ModelId};
+use crate::models::manifest::{manifest_for, ModelId};
 use crate::providers::catalog::{
     find_chat_entry, find_entry_any_modality, IMAGE_CATALOG, VIDEO_CATALOG,
 };
@@ -113,7 +113,7 @@ pub async fn post_settings(
             state.set_default_model(model);
         }
         ProviderConfig::LocalMistralrs { model_id, port } => {
-            let manifest = lookup(&model_id)
+            let manifest = manifest_for(&model_id)
                 .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
             let model_name = manifest.hf_filename.to_string();
             state.set_provider(Arc::new(MistralrsLocalProvider::new(
@@ -291,7 +291,7 @@ async fn build_chat_provider(
             let cfg: LocalMistralrsSlice = serde_json::from_value(slice.clone()).map_err(|e| {
                 AppError::BadRequest(format!("invalid local-mistralrs slice: {e}"))
             })?;
-            let manifest = lookup(&cfg.model_id)
+            let manifest = manifest_for(&cfg.model_id)
                 .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
             let model_name = manifest.hf_filename.to_string();
             let provider: Arc<dyn app_llm::LlmProvider> = Arc::new(MistralrsLocalProvider::new(

@@ -3,7 +3,7 @@
 //! resolution.
 
 use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent, HfEndpoints};
-use crate::models::manifest::{lookup, ModelId, ModelKind};
+use crate::models::manifest::{manifest_for, ModelId, ModelKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -60,7 +60,7 @@ impl DownloadManager {
     }
 
     pub async fn start(&self, id: ModelId) -> Result<(), String> {
-        let m = lookup(&id).ok_or_else(|| format!("unknown model {id:?}"))?;
+        let m = manifest_for(&id).ok_or_else(|| format!("unknown model {id:?}"))?;
         let state = self.state.clone();
         let events = self.events.clone();
         state.write().await.insert(
@@ -151,6 +151,58 @@ impl DownloadManager {
                     }
                 })
             }
+            ModelKind::GgufWithMmproj { mmproj_filename } => {
+                let gguf_url = format!(
+                    "https://huggingface.co/{}/resolve/main/{}",
+                    m.hf_repo, m.hf_filename
+                );
+                let gguf_dest = self.base_dir.join(m.hf_filename);
+                let mmproj_url = format!(
+                    "https://huggingface.co/{}/resolve/main/{}",
+                    m.hf_repo, mmproj_filename
+                );
+                let mmproj_dest = self.base_dir.join(mmproj_filename);
+                let sha = m.sha256.to_string();
+                let id_for_task = id.clone();
+                let id_for_event = id.clone();
+                tokio::spawn(async move {
+                    // Sequential: gguf first (sha-checked), then mmproj
+                    // (no sha — Custom mmproj filenames are user-supplied).
+                    // mistral.rs vision pipeline expects both files in the
+                    // same dir, so we treat them as a single unit.
+                    let outcome = match download_to(&gguf_url, &gguf_dest, &sha, events.clone()).await {
+                        Ok(g) => match download_to(&mmproj_url, &mmproj_dest, "", events.clone()).await {
+                            Ok(mm) => Ok(g.bytes_downloaded + mm.bytes_downloaded),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    };
+                    match outcome {
+                        Ok(bytes_total) => {
+                            state.write().await.insert(
+                                id_for_task,
+                                DownloadStatus::Completed { bytes_total },
+                            );
+                            let _ = events.send(DownloadEvent::Completed {
+                                id: id_for_event,
+                                bytes_total,
+                            });
+                        }
+                        Err(reason) => {
+                            state.write().await.insert(
+                                id_for_task,
+                                DownloadStatus::Failed {
+                                    reason: reason.clone(),
+                                },
+                            );
+                            let _ = events.send(DownloadEvent::Failed {
+                                id: id_for_event,
+                                reason,
+                            });
+                        }
+                    }
+                })
+            }
             // New M7-DM ModelKinds will get download handlers in Phase E
             // (sidecar setup) — for now, reject the start so the user gets a
             // clear error instead of a silent no-op.
@@ -168,7 +220,7 @@ impl DownloadManager {
         if let Some(h) = self.handles.write().await.remove(&id) {
             h.abort();
         }
-        if let Some(m) = lookup(&id) {
+        if let Some(m) = manifest_for(&id) {
             match &m.kind {
                 ModelKind::GgufFile => {
                     let dest = self.base_dir.join(m.hf_filename);
@@ -177,6 +229,12 @@ impl DownloadManager {
                 ModelKind::DiffusersFolder => {
                     let dest_dir = self.base_dir.join(m.hf_repo);
                     let _ = tokio::fs::remove_dir_all(&dest_dir).await;
+                }
+                ModelKind::GgufWithMmproj { mmproj_filename } => {
+                    let gguf_dest = self.base_dir.join(m.hf_filename);
+                    let mmproj_dest = self.base_dir.join(mmproj_filename);
+                    let _ = tokio::fs::remove_file(&gguf_dest).await;
+                    let _ = tokio::fs::remove_file(&mmproj_dest).await;
                 }
                 _ => {
                     // For new ModelKinds, file cleanup will be wired together
@@ -210,5 +268,52 @@ mod tests {
             m.status(ModelId::Qwen3_5_0_8b).await,
             DownloadStatus::Idle
         ));
+    }
+
+    #[tokio::test]
+    async fn cancel_custom_with_mmproj_removes_both_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        tokio::fs::write(tmp.path().join("model.gguf"), b"fake")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("mmproj-model.gguf"), b"fake")
+            .await
+            .unwrap();
+        let m = DownloadManager::new(tmp.path().to_path_buf());
+        let id = ModelId::Custom {
+            hf_repo: "x/y".into(),
+            gguf_filename: "model.gguf".into(),
+            mmproj_filename: Some("mmproj-model.gguf".into()),
+        };
+        m.cancel(id.clone()).await;
+        assert!(
+            !tmp.path().join("model.gguf").exists(),
+            "main gguf must be removed"
+        );
+        assert!(
+            !tmp.path().join("mmproj-model.gguf").exists(),
+            "mmproj must be removed"
+        );
+        assert!(matches!(m.status(id).await, DownloadStatus::Idle));
+    }
+
+    #[tokio::test]
+    async fn cancel_custom_no_mmproj_removes_single_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        tokio::fs::write(tmp.path().join("solo.gguf"), b"fake")
+            .await
+            .unwrap();
+        let m = DownloadManager::new(tmp.path().to_path_buf());
+        let id = ModelId::Custom {
+            hf_repo: "x/y".into(),
+            gguf_filename: "solo.gguf".into(),
+            mmproj_filename: None,
+        };
+        m.cancel(id.clone()).await;
+        assert!(
+            !tmp.path().join("solo.gguf").exists(),
+            "gguf must be removed"
+        );
+        assert!(matches!(m.status(id).await, DownloadStatus::Idle));
     }
 }
