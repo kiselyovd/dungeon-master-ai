@@ -85,3 +85,64 @@
 - [ ] PersonaTab: click sparkle on each of the 6 personality-flag slots. Each generates a short single-sentence flag from the LLM; slot enters custom-mode automatically.
 - [ ] Sparkle disabled while another assist is in flight (visible during long generations).
 - [ ] Sparkle with no background/race/alignment selected still works (pool is empty; LLM writes a fresh entry).
+
+## M7-DM Provider Registry + Media Local Stack - manual smoke
+
+### Setup
+- [ ] Fresh install (no settings.json): launch -> onboarding renders -> Settings opens with v2 shape applied (DEFAULTS_V2)
+- [ ] Upgrade install (M5/M6 settings.json on disk): launch -> Settings reflects migrated v2 shape; no "settings reset" toast
+- [ ] Corrupt settings.json -> launch -> defaults applied + one-shot toast "Settings could not be read..."
+
+### Chat tab (Provider tab id, label "Chat")
+- [ ] Switch provider -> sub-form swaps (Anthropic API key field vs OpenAI-compat base URL+key vs Local mistralrs runtime controls)
+- [ ] Save with each provider and confirm POST /settings/v2 returns 200 (Network tab)
+- [ ] Toggle Save under license-restricted mode + Quality preset -> 400 with "preset blocked" message
+
+### Image tab
+- [ ] 5 preset radio cards visible; Balanced is default selection
+- [ ] License-restricted off: all 5 presets selectable
+- [ ] License-restricted on: Fast (SAI NC) and Quality (FLUX-dev NC) greyed out; Balanced / Quality-OSS / Cloud remain
+- [ ] Disable image generation -> all preset radios disabled
+
+### Video tab
+- [ ] Default state: enable checkbox unchecked, mode picker disabled
+- [ ] Enable -> 3 mode radios become interactive (prerecorded / live / race)
+- [ ] License-restricted on -> entire Video tab is disabled (per spec §8.3)
+- [ ] Scene transition with mode=prerecorded -> picks bundled mp4 by scene tag (no backend call)
+- [ ] Scene transition with mode=live, LTX-Video model not downloaded -> falls back to bundled mp4 + warning toast
+
+### Behavior tab
+- [ ] Renamed from "Model" but existing system prompt + temperature + replicate api key inputs still work
+- [ ] license_restricted_mode toggle flips Image/Video gates immediately
+- [ ] agent_max_rounds number input clamps 1..32
+
+### Provider Registry API surface
+- [ ] GET /providers/catalog returns { chat:[3], image:[5], video:[1] } with curated_models per entry
+- [ ] GET /providers/anthropic/caps?model=claude-opus-4-7 -> all true
+- [ ] GET /providers/openai-compat/caps?model=o3-mini -> reasoning:true, vision_input:false
+- [ ] GET /providers/local-mistralrs/caps?model=qwen3.5-4b -> all true (VL+thinking)
+- [ ] GET /providers/unknown-provider/caps -> 404
+
+### Dynamic Discovery
+- [ ] POST /providers/discover { provider_id: "anthropic" } -> 3 curated Claude 4 models
+- [ ] POST /providers/discover { provider_id: "openai-compat", base_url, api_key } -> /v1/models response normalised with capability inference
+- [ ] POST /providers/discover { provider_id: "local-mistralrs", search_query: "qwen vl" } -> HF Hub results with vision-language caps inferred from tags
+- [ ] POST /providers/discover { provider_id: "replicate", api_key } -> cursor-paginated model list
+- [ ] POST /providers/discover { provider_id: "not-a-provider" } -> 404 UnsupportedProvider
+- [ ] Replicate without api_key -> 502
+
+### Agent loop
+- [ ] Default agent run includes generate_image tool definition (visible in tool inspector)
+- [ ] When AgentConfig.tool_availability.image=false, generate_image is omitted from the tool list
+- [ ] Core tools (roll_dice / apply_damage / query_rules) are ALWAYS present regardless of modality flags
+
+### Chat composer vision gate (H.5)
+- [ ] settings.visionEnabled=true: paste image + drag-drop image both accepted (stages in ComposerAttachments)
+- [ ] settings.visionEnabled=false: paste image -> stagingError shows "Multimodal input is disabled..."; drag-drop also rejected with same toast
+- [ ] visionEnabled toggle in Settings does NOT affect text-only chat
+
+### Deferred to M7.5-DM (NOT in scope for this manual smoke)
+- Real SDXL-Lightning / Nunchaku FLUX / Z-Image-Turbo / LTX-Video model loaders (sidecar backends raise NotImplementedError on load() today; full GPU smoke needs RTX 3080 + ~20 GB model downloads)
+- Frontend useDiscoverProvider hook + ModelSelector "Discovered" + "Search HF" sections + "Add Custom HF repo" modal
+- Tool Inspector handled_by_provider pill rendering
+- StatusBar Chat/Image/Video modality indicators

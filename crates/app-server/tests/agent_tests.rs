@@ -29,6 +29,7 @@ async fn orchestrator_emits_text_events_from_mock() {
         temperature: 0.7,
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
+        tool_availability: app_server::agent::tools::ToolAvailability::all(),
     };
 
     let req = AgentTurnRequest {
@@ -87,6 +88,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
         temperature: 0.7,
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
+        tool_availability: app_server::agent::tools::ToolAvailability::all(),
     };
     let req = AgentTurnRequest {
         campaign_id: uuid::Uuid::new_v4(),
@@ -140,6 +142,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
         temperature: 0.7,
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
+        tool_availability: app_server::agent::tools::ToolAvailability::all(),
     };
     let req = AgentTurnRequest {
         campaign_id: uuid::Uuid::new_v4(),
