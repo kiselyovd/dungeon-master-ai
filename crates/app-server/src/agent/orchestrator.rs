@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::agent::context_builder::build_context;
 use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::all_tools;
+use crate::agent::tools::{ToolAvailability, all_tools_with};
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -32,6 +32,11 @@ pub struct AgentConfig {
     /// Must match the model used to build the SRD retriever's corpus.
     /// Resolved against `app_domain::srd::embedder::parse_embedding_model`.
     pub embedding_model: String,
+    /// M7-DM: which modality-specific tool definitions to expose to the LLM.
+    /// Defaults to all-on for backwards compatibility; the agent route flips
+    /// flags off when the user disables image/video in Settings v2 so the LLM
+    /// stops trying to call disabled tools.
+    pub tool_availability: ToolAvailability,
 }
 
 impl Default for AgentConfig {
@@ -42,6 +47,7 @@ impl Default for AgentConfig {
             temperature: 0.7,
             max_rounds: 8,
             embedding_model: app_domain::srd::embedder::DEFAULT_EMBEDDING_MODEL.into(),
+            tool_availability: ToolAvailability::all(),
         }
     }
 }
@@ -120,7 +126,7 @@ impl AgentOrchestrator {
             self.config.system_prompt.clone()
         });
 
-        let tools = all_tools();
+        let tools = all_tools_with(self.config.tool_availability);
         let mut messages: Vec<ChatMessage> = req.history;
         messages.push(ChatMessage::user_text(req.player_message.clone()));
 

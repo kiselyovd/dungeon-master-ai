@@ -7,9 +7,48 @@
 use app_llm::Tool;
 use serde_json::json;
 
+/// Which modality-specific tools to include in the catalog. M7-DM addition:
+/// when image generation is disabled in Settings, omit `generate_image` so
+/// the LLM doesn't try to call something that will fail.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ToolAvailability {
+    pub image: bool,
+    pub video: bool,
+}
+
+impl ToolAvailability {
+    pub const fn all() -> Self {
+        Self {
+            image: true,
+            video: true,
+        }
+    }
+}
+
 /// The full set of tools exposed to the LLM.
 /// Descriptions are in English per bilingual discipline (tool names stay English).
+///
+/// Equivalent to `all_tools_with(ToolAvailability::all())`. Existing M3..M6
+/// callers stay on this signature.
 pub fn all_tools() -> Vec<Tool> {
+    all_tools_with(ToolAvailability::all())
+}
+
+/// M7-DM: build the tool catalog filtered by which modalities the user has
+/// enabled in Settings. Image/video tool definitions are omitted when their
+/// modality is disabled.
+pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
+    let mut tools = all_tools_core();
+    if availability.image {
+        tools.push(generate_image_tool());
+    }
+    // generate_video tool definition is added in M7.5-DM once the video tool
+    // executor lands. For now, video gen runs out-of-band via the SSE route.
+    let _ = availability.video;
+    tools
+}
+
+fn all_tools_core() -> Vec<Tool> {
     vec![
         Tool {
             name: "roll_dice".into(),
@@ -188,18 +227,6 @@ pub fn all_tools() -> Vec<Tool> {
             }),
         },
         Tool {
-            name: "generate_image".into(),
-            description: "Generate a scene illustration. Rate limited: call at most once per scene change.".into(),
-            parameters: json!({
-                "type": "object",
-                "properties": {
-                    "prompt": { "type": "string", "description": "30-word content description" },
-                    "style": { "type": "string", "enum": ["dark_fantasy","portrait","map"] }
-                },
-                "required": ["prompt"]
-            }),
-        },
-        Tool {
             name: "query_rules".into(),
             description: "Look up D&D 5e SRD rules relevant to a question. Returns the top matching rule chunks.".into(),
             parameters: json!({
@@ -211,4 +238,51 @@ pub fn all_tools() -> Vec<Tool> {
             }),
         },
     ]
+}
+
+fn generate_image_tool() -> Tool {
+    Tool {
+        name: "generate_image".into(),
+        description: "Generate a scene illustration. Rate limited: call at most once per scene change.".into(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "30-word content description" },
+                "style": { "type": "string", "enum": ["dark_fantasy","portrait","map"] }
+            },
+            "required": ["prompt"]
+        }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_tools_default_includes_generate_image() {
+        let tools = all_tools();
+        assert!(tools.iter().any(|t| t.name == "generate_image"));
+    }
+
+    #[test]
+    fn all_tools_with_image_disabled_omits_generate_image() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        assert!(!tools.iter().any(|t| t.name == "generate_image"));
+    }
+
+    #[test]
+    fn all_tools_always_includes_core_tools() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"roll_dice"));
+        assert!(names.contains(&"apply_damage"));
+        assert!(names.contains(&"query_rules"));
+    }
 }

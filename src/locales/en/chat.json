@@ -25,5 +25,6 @@
   "resize_handle_label": "Resize chat panel",
   "typing_indicator": "Dungeon Master is writing",
   "image_preview": "image preview",
-  "image": "image"
+  "image": "image",
+  "vision_disabled": "Multimodal input is disabled — turn it on in Settings → Chat."
 }

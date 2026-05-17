@@ -30,6 +30,11 @@ export function ChatPanel() {
   const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
   const { refetch: refetchSession } = useSession();
   const sessionLoadError = useStore((s) => s.session.loadError);
+  // M7-DM: vision input gate. When the user has explicitly disabled multimodal
+  // input in Settings.Chat (or the active model lacks vision capability), the
+  // paperclip is hidden and paste/drag of image files is rejected with a hint
+  // in the staging error slot. Text-only chat is unaffected.
+  const visionEnabled = useStore((s) => s.settings.visionEnabled);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -118,6 +123,10 @@ export function ChatPanel() {
     }
     if (files.length > 0) {
       e.preventDefault();
+      if (!visionEnabled) {
+        setStagingError(t('vision_disabled'));
+        return;
+      }
       void addFiles(files);
     }
   };
@@ -132,7 +141,12 @@ export function ChatPanel() {
   const onDrop = (e: ReactDragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files.length > 0) void addFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files.length === 0) return;
+    if (!visionEnabled) {
+      setStagingError(t('vision_disabled'));
+      return;
+    }
+    void addFiles(e.dataTransfer.files);
   };
 
   // Window-level ESC also aborts an in-flight stream so the user can hit it
