@@ -11,6 +11,7 @@ pub mod providers;
 pub mod saves;
 pub mod settings;
 pub mod srd;
+pub mod video;
 
 use serde::Deserialize;
 use uuid::Uuid;

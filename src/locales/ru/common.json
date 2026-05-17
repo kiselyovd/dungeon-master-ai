@@ -21,5 +21,9 @@
   "campaign_default": "Без названия",
   "scene_step": "Шаг {{count}}",
   "skip": "Пропустить",
-  "scene_transition_label": "Смена сцены"
+  "scene_transition_label": "Смена сцены",
+  "video_overlay_starting": "Запуск генерации видео...",
+  "video_overlay_progress": "Генерируем видео... {{percent}}%",
+  "video_overlay_eta": "~{{seconds}} с осталось",
+  "video_overlay_error_generic": "Не удалось сгенерировать видео"
 }

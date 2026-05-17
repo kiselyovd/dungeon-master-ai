@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from backends import GenerationBackend, PromptParams
+from backends.ltx_video import LtxVideoBackend
 from backends.nunchaku_flux import NunchakuFluxBackend
 from backends.sdxl_lightning import SdxlLightningBackend
 from backends.sdxl_turbo import SdxlTurboBackend
@@ -33,7 +34,7 @@ class PipelineDispatcher:
             "balanced": SdxlLightningBackend(),
             "quality": NunchakuFluxBackend(),
             "quality-oss": ZImageTurboBackend(),
-            # 'ltx-video' registered in F.2
+            "ltx-video": LtxVideoBackend(),
         })
 
     @classmethod

@@ -77,11 +77,27 @@ def test_dispatcher_unknown_backend_raises():
         d.generate("not-a-backend", PromptParams(text="x"))
 
 
-def test_production_dispatcher_registers_four_image_backends():
+def test_production_dispatcher_registers_4_image_plus_ltx_video():
     d = PipelineDispatcher.production()
-    assert set(d.backends.keys()) == {"fast", "balanced", "quality", "quality-oss"}
-    for backend in d.backends.values():
-        assert backend.modality == "image"
+    assert set(d.backends.keys()) == {
+        "fast",
+        "balanced",
+        "quality",
+        "quality-oss",
+        "ltx-video",
+    }
+    image_backends = [b for b in d.backends.values() if b.modality == "image"]
+    video_backends = [b for b in d.backends.values() if b.modality == "video"]
+    assert len(image_backends) == 4
+    assert len(video_backends) == 1
+
+
+def test_ltx_video_load_raises_not_implemented_in_m7_dm():
+    from backends.ltx_video import LtxVideoBackend
+
+    backend = LtxVideoBackend()
+    with pytest.raises(NotImplementedError, match="M7.5-DM"):
+        backend.load()
 
 
 def test_sdxl_lightning_load_raises_not_implemented_in_m7_dm():

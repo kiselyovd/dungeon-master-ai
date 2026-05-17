@@ -33,6 +33,7 @@ struct AppStateInner {
     agent_config: RwLock<AgentConfig>,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
     image_provider: RwLock<Option<Arc<dyn crate::image::provider::ImageProvider>>>,
+    video_provider: RwLock<Option<Arc<dyn crate::video::VideoProvider>>>,
     local_mode_config: RwLock<LocalModeConfig>,
     download_manager: Arc<DownloadManager>,
     runtime_registry: Arc<RuntimeRegistry>,
@@ -61,6 +62,7 @@ impl AppState {
                 agent_config: RwLock::new(AgentConfig::default()),
                 srd_retriever: RwLock::new(None),
                 image_provider: RwLock::new(None),
+                video_provider: RwLock::new(None),
                 local_mode_config: RwLock::new(LocalModeConfig::default()),
                 download_manager,
                 runtime_registry,
@@ -152,6 +154,38 @@ impl AppState {
             .image_provider
             .write()
             .expect("image provider lock poisoned") = Some(provider);
+    }
+
+    pub fn clear_image_provider(&self) {
+        *self
+            .inner
+            .image_provider
+            .write()
+            .expect("image provider lock poisoned") = None;
+    }
+
+    pub fn video_provider(&self) -> Option<Arc<dyn crate::video::VideoProvider>> {
+        self.inner
+            .video_provider
+            .read()
+            .expect("video provider lock poisoned")
+            .clone()
+    }
+
+    pub fn set_video_provider(&self, provider: Arc<dyn crate::video::VideoProvider>) {
+        *self
+            .inner
+            .video_provider
+            .write()
+            .expect("video provider lock poisoned") = Some(provider);
+    }
+
+    pub fn clear_video_provider(&self) {
+        *self
+            .inner
+            .video_provider
+            .write()
+            .expect("video provider lock poisoned") = None;
     }
 
     pub fn local_mode_config(&self) -> LocalModeConfig {

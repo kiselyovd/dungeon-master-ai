@@ -11,6 +11,7 @@ pub mod providers;
 pub mod routes;
 pub mod secrets;
 pub mod state;
+pub mod video;
 
 use axum::Router;
 use axum::routing::{get, post};
@@ -65,7 +66,8 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/providers/catalog", get(routes::providers::get_catalog))
         .route("/providers/{id}/caps", get(routes::providers::get_caps))
-        .route("/settings/v2", post(routes::settings::post_settings_v2));
+        .route("/settings/v2", post(routes::settings::post_settings_v2))
+        .route("/video/generate", post(routes::video::post_video_generate));
 
     #[cfg(feature = "with-local-runtime")]
     let r = r
