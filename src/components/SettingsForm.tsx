@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
 import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../hooks/useModelDownload';
 import type { ModelId, VramStrategy } from '../state/localMode';
@@ -18,6 +19,7 @@ import {
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
 import { ModelDownloadCard } from './ModelDownloadCard';
+import { ModelSelector } from './ModelSelector';
 import { RuntimeStatusPill } from './RuntimeStatusPill';
 import styles from './SettingsForm.module.css';
 
@@ -321,6 +323,10 @@ function AnthropicFields({
   onChange: (d: AnthropicDraft) => void;
 }) {
   const { t } = useTranslation('settings');
+  const discovery = useDiscoverProvider({
+    providerId: 'anthropic',
+    apiKey: draft.apiKey,
+  });
   return (
     <>
       <Field label={t('api_key_label')} error={errors.apiKey}>
@@ -337,14 +343,16 @@ function AnthropicFields({
         )}
       </Field>
       <Field label={t('model_label')} error={errors.model}>
-        {(p) => (
-          <input
-            {...p}
-            type="text"
+        {() => (
+          <ModelSelector
             value={draft.model}
-            onChange={(e) => onChange({ ...draft, model: e.target.value })}
+            onChange={(model) => onChange({ ...draft, model })}
+            models={discovery.models}
+            status={discovery.status}
+            error={discovery.error}
+            onDiscover={discovery.discover}
+            lastCachedAt={discovery.lastCachedAt}
             placeholder={DEFAULT_ANTHROPIC_MODEL}
-            className={styles.fullWidth}
           />
         )}
       </Field>
@@ -368,6 +376,11 @@ function OpenaiCompatFields({
   onChange: (d: OpenaiCompatDraft) => void;
 }) {
   const { t } = useTranslation('settings');
+  const discovery = useDiscoverProvider({
+    providerId: 'openai-compat',
+    baseUrl: draft.baseUrl,
+    apiKey: draft.apiKey,
+  });
   return (
     <>
       <Field label={t('base_url_label')} helper={t('base_url_helper')} error={errors.baseUrl}>
@@ -396,14 +409,16 @@ function OpenaiCompatFields({
         )}
       </Field>
       <Field label={t('model_label')} error={errors.model}>
-        {(p) => (
-          <input
-            {...p}
-            type="text"
+        {() => (
+          <ModelSelector
             value={draft.model}
-            onChange={(e) => onChange({ ...draft, model: e.target.value })}
+            onChange={(model) => onChange({ ...draft, model })}
+            models={discovery.models}
+            status={discovery.status}
+            error={discovery.error}
+            onDiscover={discovery.discover}
+            lastCachedAt={discovery.lastCachedAt}
             placeholder="qwen3-1.7b"
-            className={styles.fullWidth}
           />
         )}
       </Field>

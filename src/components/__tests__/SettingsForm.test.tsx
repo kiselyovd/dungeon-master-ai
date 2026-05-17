@@ -2,8 +2,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
+import { postDiscover } from '../../api/discovery';
 import { useStore } from '../../state/useStore';
 import { SettingsForm, type SettingsSubmission } from '../SettingsForm';
+
+vi.mock('../../api/discovery', () => ({
+  postDiscover: vi.fn(),
+}));
+
+const postDiscoverMock = vi.mocked(postDiscover);
 
 /**
  * SettingsForm focuses on the local-mistralrs branch added in M4. The
@@ -139,5 +146,100 @@ describe('SettingsForm', () => {
       modelPath: 'qwen3_5_2b',
       contextWindow: 8192,
     });
+  });
+});
+
+describe('SettingsForm model discovery integration', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+    postDiscoverMock.mockReset();
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ llm: { state: 'off' }, image: { state: 'off' } })),
+    ) as unknown as typeof fetch;
+  });
+
+  it('renders a ModelSelector inside the Anthropic sub-form (Discover button visible)', () => {
+    render(<SettingsForm onSubmit={() => {}} />);
+    // Default provider is anthropic - Discover button should be visible.
+    expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
+  });
+
+  it('clicking Discover triggers postDiscover for the anthropic provider', async () => {
+    postDiscoverMock.mockResolvedValueOnce({
+      models: [
+        {
+          model_id: 'claude-opus-4-7',
+          display_name: 'Claude Opus 4.7',
+          capabilities: {
+            vision_input: true,
+            reasoning: true,
+            tool_calls: true,
+            streaming: true,
+          },
+          source: 'curated',
+          context_length: 1_000_000,
+        },
+      ],
+      cached_at: new Date().toISOString(),
+      source: 'curated',
+      next_cursor: null,
+    });
+
+    render(<SettingsForm onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
+    await waitFor(() => expect(postDiscoverMock).toHaveBeenCalled());
+    const call = postDiscoverMock.mock.calls[0]?.[0] as { provider_id: string };
+    expect(call.provider_id).toBe('anthropic');
+  });
+
+  it('clicking a discovered model row updates the model draft', async () => {
+    postDiscoverMock.mockResolvedValueOnce({
+      models: [
+        {
+          model_id: 'claude-haiku-4-5-20251001',
+          display_name: 'Claude Haiku 4.5',
+          capabilities: {
+            vision_input: true,
+            reasoning: true,
+            tool_calls: true,
+            streaming: true,
+          },
+          source: 'curated',
+          context_length: 200_000,
+        },
+      ],
+      cached_at: new Date().toISOString(),
+      source: 'curated',
+      next_cursor: null,
+    });
+
+    render(<SettingsForm onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
+    const row = await screen.findByRole('option', { name: /claude haiku 4\.5/i });
+    fireEvent.click(row);
+
+    // The free-text input is the only textbox in the Anthropic sub-form's
+    // model section; its value should now reflect the picked model_id.
+    const textInput = screen.getByLabelText(/model id/i);
+    expect(textInput).toHaveValue('claude-haiku-4-5-20251001');
+  });
+
+  it('switching to openai-compat shows a ModelSelector backed by openai-compat discovery', async () => {
+    const user = userEvent.setup();
+    render(<SettingsForm onSubmit={() => {}} />);
+    await user.selectOptions(screen.getByRole('combobox', { name: /Provider/i }), 'openai-compat');
+    // The Discover button is still present in the openai-compat sub-form.
+    expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
+
+    postDiscoverMock.mockResolvedValueOnce({
+      models: [],
+      cached_at: new Date().toISOString(),
+      source: 'discovered-api',
+      next_cursor: null,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
+    await waitFor(() => expect(postDiscoverMock).toHaveBeenCalled());
+    const call = postDiscoverMock.mock.calls[0]?.[0] as { provider_id: string };
+    expect(call.provider_id).toBe('openai-compat');
   });
 });
