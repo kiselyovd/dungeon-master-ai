@@ -49,5 +49,22 @@
   "scene_transitions_toggle": "Enabled",
 
   "character_section_title": "Character",
-  "recreate_character": "Re-create character"
+  "recreate_character": "Re-create character",
+
+  "discover_models": "Discover models",
+  "discovering": "Discovering...",
+  "section_recommended": "Recommended",
+  "section_discovered": "Discovered",
+  "section_custom_hf": "Custom HF repo",
+  "section_search_hf": "Search Hugging Face",
+  "model_filter_placeholder": "Filter models...",
+  "model_filter_aria_label": "Filter model list",
+  "model_id_aria_label": "Model id",
+  "model_selector_text_placeholder": "Type a model id or use Discover",
+  "model_selector_custom_disabled_helper": "Coming soon - custom Hugging Face repo loader.",
+  "model_selector_search_disabled_helper": "Coming soon - full Hugging Face search.",
+  "last_cached_at": "Cached at {{time}}",
+  "cap_vision": "Vision",
+  "cap_reasoning": "Reasoning",
+  "cap_tools": "Tools"
 }

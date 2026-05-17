@@ -1,0 +1,192 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.freeText {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-fg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.freeText:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.discoverRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.discoverButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: var(--color-fg-inverse);
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.discoverButton:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.discoverButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.discoverButton:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+.cacheNote {
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.errorBanner {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-fg-primary);
+  font-size: 0.875rem;
+}
+
+.filterInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-fg-primary);
+  font-size: 0.875rem;
+}
+
+.filterInput:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionLabel {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  background: var(--color-bg-raised);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-fg-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.row:hover {
+  background: var(--color-bg-overlay);
+  border-color: var(--color-border-subtle);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.rowSelected {
+  background: var(--color-accent-tint);
+  border-color: var(--color-border-accent);
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowDisplayName {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-fg-primary);
+}
+
+.rowModelId {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowPills {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pill {
+  padding: 2px 8px;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-fg-secondary);
+}
+
+.placeholderHelper {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+  font-style: italic;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-deep);
+}

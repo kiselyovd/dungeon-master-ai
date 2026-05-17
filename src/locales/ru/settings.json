@@ -49,5 +49,22 @@
   "scene_transitions_toggle": "Включено",
 
   "character_section_title": "Персонаж",
-  "recreate_character": "Пересоздать персонажа"
+  "recreate_character": "Пересоздать персонажа",
+
+  "discover_models": "Найти модели",
+  "discovering": "Поиск...",
+  "section_recommended": "Рекомендованные",
+  "section_discovered": "Найденные",
+  "section_custom_hf": "Свой репозиторий HF",
+  "section_search_hf": "Поиск Hugging Face",
+  "model_filter_placeholder": "Фильтр моделей...",
+  "model_filter_aria_label": "Фильтр списка моделей",
+  "model_id_aria_label": "Идентификатор модели",
+  "model_selector_text_placeholder": "Введите id модели или нажмите Найти",
+  "model_selector_custom_disabled_helper": "Скоро - загрузка своего репозитория Hugging Face.",
+  "model_selector_search_disabled_helper": "Скоро - полный поиск по Hugging Face.",
+  "last_cached_at": "Кэш от {{time}}",
+  "cap_vision": "Зрение",
+  "cap_reasoning": "Рассуждения",
+  "cap_tools": "Инструменты"
 }
