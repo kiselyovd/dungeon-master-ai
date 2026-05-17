@@ -140,6 +140,7 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
             .start_with_retry("dmai-image-sidecar", img_args, img_port, 3)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
+        state.set_media_sidecar_url(Some(format!("http://127.0.0.1:{img_port}")));
     }
     Ok(StatusCode::OK)
 }
@@ -147,5 +148,6 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
 pub async fn runtime_stop(State(state): State<AppState>) -> StatusCode {
     let _ = state.runtime_registry().llm.stop().await;
     let _ = state.runtime_registry().image.stop().await;
+    state.set_media_sidecar_url(None);
     StatusCode::OK
 }

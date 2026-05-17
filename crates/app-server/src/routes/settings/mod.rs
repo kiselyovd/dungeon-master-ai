@@ -15,9 +15,13 @@ use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
 
 use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
+use crate::image::stub::LocalImageSidecarProvider;
 use crate::models::manifest::{lookup, ModelId};
-use crate::providers::catalog::{find_chat_entry, find_entry_any_modality};
+use crate::providers::catalog::{
+    find_chat_entry, find_entry_any_modality, IMAGE_CATALOG, VIDEO_CATALOG,
+};
 use crate::state::AppState;
+use crate::video::LocalVideoSidecarProvider;
 
 /// Tagged union of provider configurations the user can pick in Settings.
 ///
@@ -192,6 +196,16 @@ pub async fn post_settings_v2(
     let (provider, model_name) = build_chat_provider(&cfg.chat, state.secrets_repo()).await?;
     state.set_provider(provider);
     state.set_default_model(model_name);
+
+    match build_image_provider(&cfg.image, state.secrets_repo(), state.media_sidecar_url()).await?
+    {
+        Some(p) => state.set_image_provider(p),
+        None => state.clear_image_provider(),
+    }
+    match build_video_provider(&cfg.video, state.media_sidecar_url())? {
+        Some(p) => state.set_video_provider(p),
+        None => state.clear_video_provider(),
+    }
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
@@ -292,6 +306,77 @@ async fn build_chat_provider(
     }
 }
 
+/// Cloud (Replicate) needs an api_key; the 4 local presets need only the
+/// shared media sidecar URL (PipelineDispatcher routes by `preset` field).
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReplicateImageSlice {
+    api_key: String,
+}
+
+async fn build_image_provider(
+    image: &ImageConfig,
+    secrets: Arc<dyn crate::secrets::SecretsRepo>,
+    sidecar_url: Option<String>,
+) -> Result<Option<Arc<dyn crate::image::provider::ImageProvider>>, AppError> {
+    if !image.enabled {
+        return Ok(None);
+    }
+    match image.active_provider_id.as_str() {
+        "replicate" => {
+            let slice = image
+                .providers
+                .get("replicate")
+                .ok_or_else(|| AppError::BadRequest("providers.replicate config missing".into()))?;
+            let cfg: ReplicateImageSlice = serde_json::from_value(slice.clone())
+                .map_err(|e| AppError::BadRequest(format!("invalid replicate slice: {e}")))?;
+            if cfg.api_key.trim().is_empty() {
+                return Err(AppError::BadRequest(
+                    "replicate api_key must not be empty".into(),
+                ));
+            }
+            secrets
+                .set("replicate_api_key", &cfg.api_key)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            Ok(Some(Arc::new(ReplicateProvider::new(cfg.api_key))))
+        }
+        id if id.starts_with("local-") => {
+            let url = sidecar_url.ok_or_else(|| {
+                AppError::BadRequest(
+                    "media sidecar not running; start it via /local/runtime/start first".into(),
+                )
+            })?;
+            Ok(Some(Arc::new(LocalImageSidecarProvider::new(url))))
+        }
+        other => Err(AppError::BadRequest(format!(
+            "unknown image provider: {other}"
+        ))),
+    }
+}
+
+fn build_video_provider(
+    video: &VideoConfig,
+    sidecar_url: Option<String>,
+) -> Result<Option<Arc<dyn crate::video::VideoProvider>>, AppError> {
+    if !video.enabled {
+        return Ok(None);
+    }
+    match video.active_provider_id.as_str() {
+        id if id.starts_with("local-") => {
+            let url = sidecar_url.ok_or_else(|| {
+                AppError::BadRequest(
+                    "media sidecar not running; start it via /local/runtime/start first".into(),
+                )
+            })?;
+            Ok(Some(Arc::new(LocalVideoSidecarProvider::new(url))))
+        }
+        other => Err(AppError::BadRequest(format!(
+            "unknown video provider: {other}"
+        ))),
+    }
+}
+
 pub fn validate_settings_v2(cfg: &SettingsConfigV2) -> Result<(), AppError> {
     // Temperature gate mirrors the legacy /agent-settings range so the v2
     // path can't smuggle in out-of-spec values that the LLM provider rejects.
@@ -347,11 +432,31 @@ pub fn validate_settings_v2(cfg: &SettingsConfigV2) -> Result<(), AppError> {
             _ => {}
         }
     }
-    // Validate provider ids exist in catalog (any modality).
+    // Validate provider ids exist in catalog (any modality for chat is
+    // historically tolerant; image/video are tightened to their own catalogs
+    // because /settings/v2 dispatches construction off active_provider_id).
     if find_entry_any_modality(&cfg.chat.active_provider_id).is_none() {
         return Err(AppError::BadRequest(format!(
             "unknown chat provider: {}",
             cfg.chat.active_provider_id
+        )));
+    }
+    if !IMAGE_CATALOG
+        .iter()
+        .any(|e| e.id == cfg.image.active_provider_id)
+    {
+        return Err(AppError::BadRequest(format!(
+            "unknown image provider: {}",
+            cfg.image.active_provider_id
+        )));
+    }
+    if !VIDEO_CATALOG
+        .iter()
+        .any(|e| e.id == cfg.video.active_provider_id)
+    {
+        return Err(AppError::BadRequest(format!(
+            "unknown video provider: {}",
+            cfg.video.active_provider_id
         )));
     }
     Ok(())

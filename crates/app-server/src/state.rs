@@ -34,6 +34,14 @@ struct AppStateInner {
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
     image_provider: RwLock<Option<Arc<dyn crate::image::provider::ImageProvider>>>,
     video_provider: RwLock<Option<Arc<dyn crate::video::VideoProvider>>>,
+    /// Shared base URL for the Python sidecar that hosts BOTH image and video
+    /// backends (single port, single GPU mutex, PipelineDispatcher hot-swaps).
+    /// Populated by `runtime_start` after the sidecar spawn succeeds; cleared
+    /// by `runtime_stop`. Read by `build_image_provider` /
+    /// `build_video_provider` in /settings/v2 to construct LocalImage /
+    /// LocalVideo sidecar providers without the frontend having to know the
+    /// dynamically-discovered port.
+    media_sidecar_url: RwLock<Option<String>>,
     local_mode_config: RwLock<LocalModeConfig>,
     download_manager: Arc<DownloadManager>,
     runtime_registry: Arc<RuntimeRegistry>,
@@ -63,6 +71,7 @@ impl AppState {
                 srd_retriever: RwLock::new(None),
                 image_provider: RwLock::new(None),
                 video_provider: RwLock::new(None),
+                media_sidecar_url: RwLock::new(None),
                 local_mode_config: RwLock::new(LocalModeConfig::default()),
                 download_manager,
                 runtime_registry,
@@ -186,6 +195,22 @@ impl AppState {
             .video_provider
             .write()
             .expect("video provider lock poisoned") = None;
+    }
+
+    pub fn media_sidecar_url(&self) -> Option<String> {
+        self.inner
+            .media_sidecar_url
+            .read()
+            .expect("media sidecar url lock poisoned")
+            .clone()
+    }
+
+    pub fn set_media_sidecar_url(&self, url: Option<String>) {
+        *self
+            .inner
+            .media_sidecar_url
+            .write()
+            .expect("media sidecar url lock poisoned") = url;
     }
 
     pub fn local_mode_config(&self) -> LocalModeConfig {

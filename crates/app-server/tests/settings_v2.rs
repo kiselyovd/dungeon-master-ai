@@ -13,9 +13,9 @@ fn baseline() -> Value {
         },
         "image": {
             "enabled": true,
-            "active_provider_id": "local-sdxl-lightning",
-            "active_model_id": "sdxl-lightning-4step",
-            "providers": {},
+            "active_provider_id": "replicate",
+            "active_model_id": "stability-ai/sdxl",
+            "providers": { "replicate": { "api_key": "sk-rep" } },
             "preset": "balanced",
             "style_lora": null,
         },
@@ -135,6 +135,11 @@ async fn post_settings_v2_video_flag_mirrors_video_enabled() {
         },
         ..AgentConfig::default()
     });
+    // Local video provider needs a sidecar URL to construct, else the rebuild
+    // step returns 400 and the agent_config update is rolled back implicitly.
+    server
+        .state
+        .set_media_sidecar_url(Some("http://127.0.0.1:8765".into()));
     let mut body = baseline();
     body["video"]["enabled"] = Value::Bool(true);
     let res = reqwest::Client::new()
@@ -313,4 +318,206 @@ async fn post_settings_v2_rebuilds_local_mistralrs_provider() {
         "expected default_model to derive from manifest filename, got {}",
         server.state.default_model(),
     );
+}
+
+// ---- image provider rebuild ----
+
+#[tokio::test]
+async fn post_settings_v2_clears_image_provider_when_image_disabled() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["enabled"] = Value::Bool(false);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.image_provider().is_none(),
+        "expected image_provider to be None after image.enabled=false",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_replicate_image_provider() {
+    let server = TestServer::start().await;
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let p = server
+        .state
+        .image_provider()
+        .expect("image provider should be Some for replicate");
+    assert!(
+        p.cost_per_image() > 0.0,
+        "expected cloud provider (cost>0), got {}",
+        p.cost_per_image()
+    );
+    let stored = server
+        .state
+        .secrets_repo()
+        .get("replicate_api_key")
+        .await
+        .expect("repo get");
+    assert_eq!(stored, Some("sk-rep".to_string()));
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_replicate_without_api_key() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["providers"]["replicate"]["api_key"] = Value::String(String::new());
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_local_image_provider_when_sidecar_running() {
+    let server = TestServer::start().await;
+    server
+        .state
+        .set_media_sidecar_url(Some("http://127.0.0.1:8765".into()));
+    let mut body = baseline();
+    body["image"]["active_provider_id"] = Value::String("local-sdxl-lightning".into());
+    body["image"]["active_model_id"] = Value::String("sdxl-lightning-4step".into());
+    body["image"]["providers"] = json!({});
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let p = server
+        .state
+        .image_provider()
+        .expect("image provider should be Some for local");
+    assert_eq!(
+        p.cost_per_image(),
+        0.0,
+        "expected local provider (cost==0), got {}",
+        p.cost_per_image()
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_local_image_without_sidecar_url() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["active_provider_id"] = Value::String("local-sdxl-lightning".into());
+    body["image"]["active_model_id"] = Value::String("sdxl-lightning-4step".into());
+    body["image"]["providers"] = json!({});
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_replicate_without_provider_config_slice() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["providers"] = json!({});
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_unknown_image_provider() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["image"]["active_provider_id"] = Value::String("not-a-real-image-provider".into());
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+// ---- video provider rebuild ----
+
+#[tokio::test]
+async fn post_settings_v2_clears_video_provider_when_video_disabled() {
+    let server = TestServer::start().await;
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.video_provider().is_none(),
+        "expected video_provider to be None when video.enabled=false in baseline",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rebuilds_local_video_provider_when_sidecar_running() {
+    let server = TestServer::start().await;
+    server
+        .state
+        .set_media_sidecar_url(Some("http://127.0.0.1:8765".into()));
+    let mut body = baseline();
+    body["video"]["enabled"] = Value::Bool(true);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.video_provider().is_some(),
+        "expected video_provider to be Some after enabled=true with sidecar URL",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_local_video_without_sidecar_url() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["video"]["enabled"] = Value::Bool(true);
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn post_settings_v2_rejects_unknown_video_provider() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["video"]["active_provider_id"] = Value::String("not-a-real-video-provider".into());
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 400);
 }
