@@ -235,6 +235,70 @@ pub fn lookup(id: &ModelId) -> Option<&'static ModelManifest> {
     MANIFEST.iter().find(|m| &m.id == id)
 }
 
+/// Like `lookup`, but also resolves `ModelId::Custom` by synthesising a
+/// `&'static ModelManifest` via `Box::leak`. Per-`ModelId` cache keeps repeated
+/// calls from leaking fresh allocations — a single Custom entry leaks ~200
+/// bytes total regardless of how many times it's resolved.
+///
+/// `sha256` is empty (integrity check skipped — Custom GGUFs are user-trusted
+/// by entry). `size_bytes_estimate` / `vram_bytes_estimate` are 0 (progress
+/// bars handle `total_bytes: None` by going indeterminate).
+pub fn manifest_for(id: &ModelId) -> Option<&'static ModelManifest> {
+    if let Some(m) = lookup(id) {
+        return Some(m);
+    }
+    match id {
+        ModelId::Custom {
+            hf_repo,
+            gguf_filename,
+            mmproj_filename,
+        } => {
+            let mut cache = custom_manifest_cache().lock().ok()?;
+            if let Some(existing) = cache.get(id) {
+                return Some(*existing);
+            }
+            let hf_repo_static: &'static str = Box::leak(hf_repo.clone().into_boxed_str());
+            let hf_filename_static: &'static str =
+                Box::leak(gguf_filename.clone().into_boxed_str());
+            let display_static: &'static str =
+                Box::leak(format!("Custom: {hf_repo}/{gguf_filename}").into_boxed_str());
+            let kind = match mmproj_filename {
+                Some(name) => {
+                    let mmproj_static: &'static str =
+                        Box::leak(name.clone().into_boxed_str());
+                    ModelKind::GgufWithMmproj {
+                        mmproj_filename: mmproj_static,
+                    }
+                }
+                None => ModelKind::GgufFile,
+            };
+            let leaked: &'static ModelManifest = Box::leak(Box::new(ModelManifest {
+                id: id.clone(),
+                display_name: display_static,
+                size_bytes_estimate: 0,
+                vram_bytes_estimate: 0,
+                sha256: "",
+                hf_repo: hf_repo_static,
+                hf_filename: hf_filename_static,
+                kind,
+                requires: &[],
+            }));
+            cache.insert(id.clone(), leaked);
+            Some(leaked)
+        }
+        _ => None,
+    }
+}
+
+fn custom_manifest_cache() -> &'static std::sync::Mutex<
+    std::collections::HashMap<ModelId, &'static ModelManifest>,
+> {
+    static CACHE: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<ModelId, &'static ModelManifest>>,
+    > = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
 /// Walk the dependency graph for a target model and return a topologically
 /// ordered list (deps first, target last) with duplicates removed.
 ///
@@ -327,5 +391,59 @@ mod tests {
         };
         let order = resolve_download_order(&id);
         assert_eq!(order.len(), 1);
+    }
+
+    #[test]
+    fn manifest_for_static_model_matches_lookup() {
+        let id = ModelId::Qwen3_5_4b;
+        let via_lookup = lookup(&id).expect("static model resolves via lookup");
+        let via_for = manifest_for(&id).expect("static model resolves via manifest_for");
+        assert_eq!(via_for.hf_filename, via_lookup.hf_filename);
+        assert_eq!(via_for.hf_repo, via_lookup.hf_repo);
+        assert!(std::ptr::eq(via_for, via_lookup));
+    }
+
+    #[test]
+    fn manifest_for_custom_no_mmproj_kind_is_gguf_file() {
+        let id = ModelId::Custom {
+            hf_repo: "ggml-org/some-llm-GGUF".into(),
+            gguf_filename: "model-q4_k_m.gguf".into(),
+            mmproj_filename: None,
+        };
+        let m = manifest_for(&id).expect("Custom variant must resolve");
+        assert_eq!(m.hf_repo, "ggml-org/some-llm-GGUF");
+        assert_eq!(m.hf_filename, "model-q4_k_m.gguf");
+        assert_eq!(m.sha256, "");
+        assert_eq!(m.size_bytes_estimate, 0);
+        assert!(matches!(m.kind, ModelKind::GgufFile));
+    }
+
+    #[test]
+    fn manifest_for_custom_with_mmproj_kind_is_gguf_with_mmproj() {
+        let id = ModelId::Custom {
+            hf_repo: "Qwen/Qwen2.5-VL-7B-Instruct-GGUF".into(),
+            gguf_filename: "qwen2.5-vl-7b-instruct-q4_k_m.gguf".into(),
+            mmproj_filename: Some("mmproj-qwen2.5-vl-7b-f16.gguf".into()),
+        };
+        let m = manifest_for(&id).expect("Custom variant must resolve");
+        match &m.kind {
+            ModelKind::GgufWithMmproj { mmproj_filename } => {
+                let mmproj: &str = mmproj_filename;
+                assert_eq!(mmproj, "mmproj-qwen2.5-vl-7b-f16.gguf");
+            }
+            other => panic!("expected GgufWithMmproj, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn manifest_for_custom_caches_static_reference() {
+        let id = ModelId::Custom {
+            hf_repo: "cached/repo".into(),
+            gguf_filename: "cached.gguf".into(),
+            mmproj_filename: None,
+        };
+        let a = manifest_for(&id).expect("first call resolves") as *const ModelManifest;
+        let b = manifest_for(&id).expect("second call resolves") as *const ModelManifest;
+        assert_eq!(a, b, "second call must return the cached reference");
     }
 }
