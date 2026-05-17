@@ -52,10 +52,10 @@ export const DiscoveryResponseSchema = v.object({
 
 export interface DiscoverParams {
   provider_id: string;
-  base_url?: string;
-  api_key?: string;
-  search_query?: string;
-  cursor?: string;
+  base_url?: string | undefined;
+  api_key?: string | undefined;
+  search_query?: string | undefined;
+  cursor?: string | undefined;
 }
 
 export interface DiscoveryResponse {

@@ -44,8 +44,8 @@ export type DiscoveredCatalogsMap = Partial<Record<ProviderKind, DiscoveredCatal
 
 export interface CacheKeyInput {
   providerId: string;
-  baseUrl?: string;
-  apiKey?: string;
+  baseUrl?: string | undefined;
+  apiKey?: string | undefined;
 }
 
 export async function deriveCacheKey(input: CacheKeyInput): Promise<string> {
