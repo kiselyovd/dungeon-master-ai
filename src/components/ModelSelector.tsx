@@ -12,6 +12,7 @@
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ResolvedModelEntry } from '../state/discoveredCatalogs';
+import { CustomHfRepoModal, type CustomModelInput } from './CustomHfRepoModal';
 import styles from './ModelSelector.module.css';
 
 export interface ModelSelectorProps {
@@ -23,6 +24,13 @@ export interface ModelSelectorProps {
   onDiscover: () => void;
   lastCachedAt: string | null;
   placeholder?: string;
+  /**
+   * When provided, the Custom HF repo section renders an "Add custom Hugging
+   * Face model" button that opens CustomHfRepoModal; the saved payload is
+   * passed to this callback. Currently wired by LocalMistralRsFields only;
+   * other call sites omit it and keep the helper-text placeholder.
+   */
+  onCustomSave?: (input: CustomModelInput) => void;
 }
 
 function formatTokens(n: number | undefined | null): string {
@@ -51,9 +59,11 @@ export function ModelSelector({
   onDiscover,
   lastCachedAt,
   placeholder,
+  onCustomSave,
 }: ModelSelectorProps) {
   const { t } = useTranslation('settings');
   const [query, setQuery] = useState('');
+  const [customModalOpen, setCustomModalOpen] = useState(false);
   const textId = useId();
   const filterId = useId();
 
@@ -149,11 +159,35 @@ export function ModelSelector({
       ) : null}
 
       <Section label={t('section_custom_hf')}>
-        <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
+        {onCustomSave ? (
+          <>
+            <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
+            <button
+              type="button"
+              className={styles.discoverButton}
+              onClick={() => setCustomModalOpen(true)}
+            >
+              {t('model_selector_custom_add_button')}
+            </button>
+          </>
+        ) : (
+          <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
+        )}
       </Section>
       <Section label={t('section_search_hf')}>
         <p className={styles.placeholderHelper}>{t('model_selector_search_disabled_helper')}</p>
       </Section>
+
+      {onCustomSave ? (
+        <CustomHfRepoModal
+          open={customModalOpen}
+          onClose={() => setCustomModalOpen(false)}
+          onSave={(input) => {
+            onCustomSave(input);
+            setCustomModalOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

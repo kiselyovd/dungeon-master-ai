@@ -18,6 +18,7 @@ import {
 } from '../state/providers';
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
+import { CustomHfRepoModal } from './CustomHfRepoModal';
 import { ModelDownloadCard } from './ModelDownloadCard';
 import { ModelSelector } from './ModelSelector';
 import { RuntimeStatusPill } from './RuntimeStatusPill';
@@ -462,6 +463,7 @@ function LocalMistralRsFields() {
   const { t } = useTranslation('settings');
   const { t: tLocal } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
+  const [customModalOpen, setCustomModalOpen] = useState(false);
   // Poll runtime status so the pills + the toWireConfig port lookup reflect
   // the current sidecar state. While the local-mistralrs panel is mounted
   // we always poll - the user is actively configuring it, so the original
@@ -535,6 +537,40 @@ function LocalMistralRsFields() {
       {LOCAL_LLMS.map((m) => (
         <LocalModelCard key={m.id} entry={m} isLlm />
       ))}
+
+      <div className={styles.localCustomBlock}>
+        {lm.customLlmOverride ? (
+          <div className={styles.localCustomRow}>
+            <span className={styles.localCustomLabel}>
+              {lm.customLlmOverride.hf_repo}/{lm.customLlmOverride.gguf_filename}
+              {lm.customLlmOverride.mmproj_filename
+                ? ` (+${lm.customLlmOverride.mmproj_filename})`
+                : ''}
+            </span>
+            <button type="button" onClick={() => lm.setCustomLlmOverride(null)}>
+              {t('custom_modal_cancel')}
+            </button>
+          </div>
+        ) : (
+          <p className={styles.localCustomHelper}>{t('model_selector_custom_helper')}</p>
+        )}
+        <button
+          type="button"
+          className={styles.localCustomAddButton}
+          onClick={() => setCustomModalOpen(true)}
+        >
+          {t('model_selector_custom_add_button')}
+        </button>
+      </div>
+
+      <CustomHfRepoModal
+        open={customModalOpen}
+        onClose={() => setCustomModalOpen(false)}
+        onSave={(input) => {
+          lm.setCustomLlmOverride(input);
+          setCustomModalOpen(false);
+        }}
+      />
 
       <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
       <LocalModelCard

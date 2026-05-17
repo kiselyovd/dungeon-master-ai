@@ -57,6 +57,43 @@
   font-family: inherit;
 }
 
+.localCustomBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.localCustomRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.localCustomLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 11px);
+  color: var(--color-fg-primary);
+  word-break: break-all;
+}
+
+.localCustomHelper {
+  margin: 0;
+  font-size: var(--text-xs, 11px);
+  color: var(--color-fg-muted);
+}
+
+.localCustomAddButton {
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-3);
+  font-family: "Cinzel", serif;
+  font-size: var(--text-xs, 11px);
+  cursor: pointer;
+}
+
 .tabNav {
   display: flex;
   gap: var(--space-1);

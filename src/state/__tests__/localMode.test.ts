@@ -62,4 +62,24 @@ describe('LocalModeSlice', () => {
     expect(r.llm).toEqual({ state: 'ready', port: 37000 });
     expect(r.image).toEqual({ state: 'failed', reason: 'crashed' });
   });
+
+  it('customLlmOverride starts null', () => {
+    expect(freshStore().getState().localMode.customLlmOverride).toBeNull();
+  });
+
+  it('setCustomLlmOverride stores and clears the descriptor', () => {
+    const store = freshStore();
+    store.getState().localMode.setCustomLlmOverride({
+      hf_repo: 'Qwen/Qwen2.5-VL-7B-Instruct-GGUF',
+      gguf_filename: 'qwen2.5-vl-7b-instruct-q4_k_m.gguf',
+      mmproj_filename: 'mmproj-qwen2.5-vl-7b-f16.gguf',
+    });
+    expect(store.getState().localMode.customLlmOverride).toEqual({
+      hf_repo: 'Qwen/Qwen2.5-VL-7B-Instruct-GGUF',
+      gguf_filename: 'qwen2.5-vl-7b-instruct-q4_k_m.gguf',
+      mmproj_filename: 'mmproj-qwen2.5-vl-7b-f16.gguf',
+    });
+    store.getState().localMode.setCustomLlmOverride(null);
+    expect(store.getState().localMode.customLlmOverride).toBeNull();
+  });
 });

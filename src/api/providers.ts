@@ -77,18 +77,23 @@ function toWireConfig(c: ProviderConfig): Record<string, unknown> {
       // sidecar port (see crates/app-server/src/routes/settings.rs). Read it
       // from the runtime snapshot in the Zustand store; if the runtime is
       // not ready yet the user has to start it first.
-      const runtime = useStore.getState().localMode.runtime.llm;
+      const lm = useStore.getState().localMode;
+      const runtime = lm.runtime.llm;
       if (runtime.state !== 'ready') {
         throw new ChatError(
           'provider_error',
           'local runtime is not ready - start the runtime in Settings before saving.',
         );
       }
+      // When the user entered a Custom HF GGUF via CustomHfRepoModal, it
+      // overrides the preset selection so the backend swaps to
+      // ModelId::Custom { hf_repo, gguf_filename, mmproj_filename? }.
+      const modelIdWire: unknown = lm.customLlmOverride
+        ? { custom: lm.customLlmOverride }
+        : c.modelPath;
       return {
         kind: 'local-mistralrs',
-        // The frontend stores the ModelId string in `modelPath`; the backend
-        // accepts it as `model_id` and looks up the on-disk path itself.
-        model_id: c.modelPath,
+        model_id: modelIdWire,
         port: runtime.port,
       };
     }

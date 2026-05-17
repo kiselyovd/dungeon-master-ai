@@ -213,4 +213,67 @@ describe('ModelSelector', () => {
     );
     expect(screen.getByText(/cached at/i)).toBeInTheDocument();
   });
+
+  it('does NOT render an Add-custom-model button when onCustomSave is omitted', () => {
+    render(
+      <ModelSelector
+        value=""
+        onChange={() => {}}
+        models={[]}
+        status="idle"
+        error={null}
+        onDiscover={() => {}}
+        lastCachedAt={null}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /add custom hugging face model/i })).toBeNull();
+  });
+
+  it('renders an Add-custom-model button and opens CustomHfRepoModal on click', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(
+      <ModelSelector
+        value=""
+        onChange={() => {}}
+        models={[]}
+        status="idle"
+        error={null}
+        onDiscover={() => {}}
+        lastCachedAt={null}
+        onCustomSave={() => {}}
+      />,
+    );
+    const button = screen.getByRole('button', { name: /add custom hugging face model/i });
+    expect(button).toBeInTheDocument();
+    await user.click(button);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('Save inside the modal invokes onCustomSave with the entered payload and closes it', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onCustomSave = vi.fn();
+    render(
+      <ModelSelector
+        value=""
+        onChange={() => {}}
+        models={[]}
+        status="idle"
+        error={null}
+        onDiscover={() => {}}
+        lastCachedAt={null}
+        onCustomSave={onCustomSave}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /add custom hugging face model/i }));
+    await user.type(screen.getByLabelText(/hugging face repo/i), 'TheBloke/Test-GGUF');
+    await user.type(screen.getByLabelText(/gguf filename/i), 'test.gguf');
+    await user.click(screen.getByRole('button', { name: /add model/i }));
+    expect(onCustomSave).toHaveBeenCalledWith({
+      hf_repo: 'TheBloke/Test-GGUF',
+      gguf_filename: 'test.gguf',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });
