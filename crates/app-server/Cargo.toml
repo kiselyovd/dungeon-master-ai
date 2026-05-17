@@ -32,6 +32,7 @@ fastembed = { version = "4", default-features = false, features = ["ort-download
 sha2 = "0.10"
 base64 = "0.22"
 iota_stronghold = "2"
+urlencoding = "2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

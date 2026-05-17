@@ -11,6 +11,10 @@ use crate::providers::catalog::{
     CHAT_CATALOG, IMAGE_CATALOG, ProviderCatalogEntry, VIDEO_CATALOG, find_chat_entry,
     find_entry_any_modality,
 };
+use crate::providers::discovery::{
+    AnthropicCurated, DiscoverParams, DiscoveryError, DiscoveryResult, DiscoverySource,
+    HfHubSearch, OpenAIV1Models, ReplicateSearch,
+};
 
 #[derive(Serialize)]
 pub struct CatalogResponse {
@@ -60,4 +64,31 @@ pub async fn get_caps(
     // Silence unused warning when no chat provider matches.
     let _ = find_chat_entry(&id);
     Ok(Json(caps))
+}
+
+pub async fn post_discover(
+    Json(params): Json<DiscoverParams>,
+) -> Result<Json<DiscoveryResult>, StatusCode> {
+    let provider_id = params.provider_id.clone();
+    let result = dispatch_discovery(&provider_id, params).await;
+    match result {
+        Ok(r) => Ok(Json(r)),
+        Err(DiscoveryError::UnsupportedProvider(_)) => Err(StatusCode::NOT_FOUND),
+        Err(DiscoveryError::Unauthorized) => Err(StatusCode::UNAUTHORIZED),
+        Err(DiscoveryError::RateLimit) => Err(StatusCode::TOO_MANY_REQUESTS),
+        Err(_) => Err(StatusCode::BAD_GATEWAY),
+    }
+}
+
+async fn dispatch_discovery(
+    provider_id: &str,
+    params: DiscoverParams,
+) -> Result<DiscoveryResult, DiscoveryError> {
+    match provider_id {
+        "anthropic" => AnthropicCurated.discover(params).await,
+        "openai" | "openai-compat" => OpenAIV1Models::default().discover(params).await,
+        "local-mistralrs" => HfHubSearch::default().discover(params).await,
+        "replicate" => ReplicateSearch::default().discover(params).await,
+        unknown => Err(DiscoveryError::UnsupportedProvider(unknown.to_string())),
+    }
 }

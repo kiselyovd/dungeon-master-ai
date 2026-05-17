@@ -5,6 +5,7 @@
 //! Video slot is added in Task F.3.
 
 pub mod catalog;
+pub mod discovery;
 pub mod registry;
 
 pub use catalog::{
