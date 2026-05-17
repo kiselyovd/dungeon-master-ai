@@ -149,7 +149,7 @@ export function ModelSelector({
       ) : null}
 
       <Section label={t('section_custom_hf')}>
-        <p className={styles.placeholderHelper}>{t('model_selector_custom_disabled_helper')}</p>
+        <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
       </Section>
       <Section label={t('section_search_hf')}>
         <p className={styles.placeholderHelper}>{t('model_selector_search_disabled_helper')}</p>
