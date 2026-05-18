@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a new capability or improvement
+title: "[feat] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain point are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone target (optional)
+      placeholder: "M10-DM"
