@@ -226,6 +226,7 @@ pub async fn post_character_assist(
         temperature: Some(0.7),
         tools,
         system_prompt: Some(prompt.into()),
+        reasoning: None,
     };
 
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(32);
@@ -307,6 +308,9 @@ pub async fn post_character_assist(
                     {
                         return;
                     }
+                }
+                Ok(ChatChunk::ThinkingDelta { .. }) => {
+                    // Thinking content is not surfaced in character-assist SSE.
                 }
                 Ok(ChatChunk::Done { .. }) => break,
                 Err(e) => {

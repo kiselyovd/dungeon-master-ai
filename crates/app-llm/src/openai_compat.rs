@@ -18,7 +18,7 @@ use genai::{Client, ModelIden, ServiceTarget};
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::genai_common::{classify_genai_error, convert_messages, pump_genai_stream};
+use crate::genai_common::{build_chat_options, classify_genai_error, convert_messages, pump_genai_stream};
 use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub struct OpenAICompatProvider {
@@ -74,7 +74,8 @@ impl OpenAICompatProvider {
     }
 
     fn build_options(req: &ChatRequest) -> ChatOptions {
-        let mut options = ChatOptions::default();
+        // Start with reasoning options if present, then layer in max_tokens/temperature.
+        let mut options = build_chat_options(req.reasoning).unwrap_or_default();
         if let Some(max) = req.max_tokens {
             options = options.with_max_tokens(max);
         }
@@ -118,7 +119,7 @@ impl LlmProvider for OpenAICompatProvider {
         let vision_input =
             lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
         let reasoning =
-            lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4");
+            lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4") || lc.contains("gpt-5");
         Capabilities {
             vision_input,
             reasoning,
@@ -151,6 +152,17 @@ mod tests {
         let p = OpenAICompatProvider::new("http://x".into(), "k".into());
         assert!(p.capabilities_for_model("o3-mini").reasoning);
         assert!(p.capabilities_for_model("o4-mini").reasoning);
+    }
+
+    #[test]
+    fn openai_compat_o1_o3_o4_gpt5_report_reasoning_true() {
+        let p = OpenAICompatProvider::new("http://x".into(), "k".into());
+        for model in ["o1", "o1-mini", "o3", "o3-mini", "o4-mini", "gpt-5"] {
+            assert!(
+                p.capabilities_for_model(model).reasoning,
+                "expected reasoning=true for {model}"
+            );
+        }
     }
 
     #[test]

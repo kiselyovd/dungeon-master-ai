@@ -99,7 +99,15 @@ pub(crate) async fn pump_genai_stream(
                     return;
                 }
             }
-            Ok(ChatStreamEvent::ReasoningChunk(_)) => continue,
+            Ok(ChatStreamEvent::ReasoningChunk(c)) => {
+                if tx
+                    .send(Ok(ChatChunk::ThinkingDelta { text: c.content }))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
             Ok(ChatStreamEvent::ThoughtSignatureChunk(_)) => continue,
             Ok(ChatStreamEvent::ToolCallChunk(tc)) => {
                 let call_id = tc.tool_call.call_id.clone();
@@ -179,6 +187,20 @@ pub(crate) async fn pump_genai_stream(
     }
 }
 
+/// Build a `genai::chat::ChatOptions` from an optional `ReasoningSpec`.
+/// Returns `None` when reasoning is not requested (providers can pass `None`
+/// to genai and get the same behaviour as before).
+pub(crate) fn build_chat_options(
+    reasoning: Option<crate::provider::ReasoningSpec>,
+) -> Option<genai::chat::ChatOptions> {
+    let spec = reasoning?;
+    Some(
+        genai::chat::ChatOptions::default()
+            .with_reasoning_effort(spec.to_genai_effort())
+            .with_capture_reasoning_content(true),
+    )
+}
+
 /// Map a genai error string into our `LlmError` taxonomy. Kept in this module
 /// so providers do not need to duplicate it.
 pub(crate) fn classify_genai_error(msg: String) -> LlmError {
@@ -241,5 +263,17 @@ mod tests {
             classify_genai_error("rate limit hit".into()),
             LlmError::RateLimit
         ));
+    }
+
+    #[test]
+    fn build_chat_options_none_when_no_reasoning() {
+        assert!(build_chat_options(None).is_none());
+    }
+
+    #[test]
+    fn build_chat_options_some_when_reasoning_set() {
+        use crate::provider::ReasoningSpec;
+        let opts = build_chat_options(Some(ReasoningSpec::Medium));
+        assert!(opts.is_some(), "expected Some(ChatOptions) for ReasoningSpec::Medium");
     }
 }

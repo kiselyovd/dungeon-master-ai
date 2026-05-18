@@ -63,6 +63,12 @@ pub async fn post_settings_v2(
     agent_cfg.system_prompt = cfg.behavior.system_prompt.clone();
     agent_cfg.temperature = cfg.behavior.temperature;
     agent_cfg.max_rounds = cfg.behavior.agent_max_rounds as usize;
+    agent_cfg.reasoning_enabled = cfg.chat.reasoning_enabled;
+    agent_cfg.reasoning_budget = match cfg.chat.reasoning_budget {
+        crate::routes::settings::v2::ReasoningBudget::Low => app_llm::ReasoningSpec::Low,
+        crate::routes::settings::v2::ReasoningBudget::Medium => app_llm::ReasoningSpec::Medium,
+        crate::routes::settings::v2::ReasoningBudget::High => app_llm::ReasoningSpec::High,
+    };
 
     // Build the full registry to completion BEFORE taking the write lock.
     // If any sub-build fails, the prior registry stays untouched.

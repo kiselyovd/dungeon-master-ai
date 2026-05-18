@@ -8,6 +8,8 @@ pub struct MockProvider {
     scripted: Mutex<Vec<ChatChunk>>,
     capabilities: Capabilities,
     model: String,
+    /// Optional thinking/reasoning chunks to emit BEFORE the scripted chunks.
+    thinking_chunks: Vec<String>,
 }
 
 impl MockProvider {
@@ -24,6 +26,7 @@ impl MockProvider {
                 streaming: true,
             },
             model: "mock-default".to_string(),
+            thinking_chunks: Vec::new(),
         }
     }
 
@@ -44,16 +47,28 @@ impl MockProvider {
         self.model = model.into();
         self
     }
+
+    /// Prepend thinking/reasoning delta chunks before the scripted chunks.
+    /// Each string in `chunks` becomes a `ChatChunk::ThinkingDelta`. Chainable.
+    pub fn with_thinking_chunks(mut self, chunks: Vec<String>) -> Self {
+        self.thinking_chunks = chunks;
+        self
+    }
 }
 
 #[async_trait]
 impl LlmProvider for MockProvider {
     async fn stream_chat(&self, _req: ChatRequest) -> Result<ChunkStream, LlmError> {
-        let chunks: Vec<ChatChunk> = {
+        let mut all_chunks: Vec<ChatChunk> = self
+            .thinking_chunks
+            .iter()
+            .map(|t| ChatChunk::ThinkingDelta { text: t.clone() })
+            .collect();
+        {
             let mut guard = self.scripted.lock().expect("mock provider lock poisoned");
-            std::mem::take(&mut *guard)
-        };
-        let stream = stream::iter(chunks.into_iter().map(Ok)).boxed();
+            all_chunks.extend(std::mem::take(&mut *guard));
+        }
+        let stream = stream::iter(all_chunks.into_iter().map(Ok)).boxed();
         Ok(stream)
     }
 

@@ -43,6 +43,7 @@ async fn openai_compat_streams_text_then_done() {
         temperature: Some(0.0),
         tools: Vec::new(),
         system_prompt: None,
+        reasoning: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
@@ -58,6 +59,9 @@ async fn openai_compat_streams_text_then_done() {
             }
             ChatChunk::Done { .. } => {
                 saw_done = true;
+            }
+            ChatChunk::ThinkingDelta { .. } => {
+                // Allowed - reasoning models may emit thinking content.
             }
             ChatChunk::ToolCallStart { .. }
             | ChatChunk::ToolCallArgsDelta { .. }

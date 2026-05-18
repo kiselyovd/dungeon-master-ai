@@ -62,6 +62,33 @@ pub struct ChatRequest {
     /// Optional system prompt override. If None, provider uses its default.
     #[serde(default)]
     pub system_prompt: Option<String>,
+    /// When `Some`, the provider asks the model to allocate a thinking budget
+    /// before producing the final answer. Mapped to provider-specific shapes
+    /// inside each adapter via genai's `ChatOptions::reasoning_effort`.
+    #[serde(default)]
+    pub reasoning: Option<ReasoningSpec>,
+}
+
+/// User-facing reasoning budget tier. Adapters translate to provider semantics:
+/// Anthropic -> `thinking: { type: enabled|adaptive, budget_tokens }`
+/// OpenAI o-series + gpt-5 -> `reasoning.effort`
+/// Other providers -> no-op (capabilities.reasoning = false)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningSpec {
+    Low,
+    Medium,
+    High,
+}
+
+impl ReasoningSpec {
+    pub fn to_genai_effort(self) -> genai::chat::ReasoningEffort {
+        match self {
+            Self::Low => genai::chat::ReasoningEffort::Low,
+            Self::Medium => genai::chat::ReasoningEffort::Medium,
+            Self::High => genai::chat::ReasoningEffort::High,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -98,6 +125,10 @@ impl ChatMessage {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatChunk {
     TextDelta { text: String },
+    /// Thinking/reasoning delta from the model. Emitted by providers whose
+    /// active model supports reasoning (Anthropic claude-opus-4-7/sonnet-4-6,
+    /// OpenAI o-series, gpt-5). Consumers render this in a collapsible UI.
+    ThinkingDelta { text: String },
     /// The LLM started a tool-call block; args will follow as deltas.
     ToolCallStart { id: String, name: String },
     /// Streaming fragment of the JSON args for an in-progress tool-call.
@@ -251,6 +282,41 @@ mod tests {
         assert!(!c.reasoning);
         assert!(!c.tool_calls);
         assert!(!c.streaming);
+    }
+
+    #[test]
+    fn reasoning_spec_to_genai_effort_maps_all_variants() {
+        use genai::chat::ReasoningEffort;
+        assert!(matches!(
+            ReasoningSpec::Low.to_genai_effort(),
+            ReasoningEffort::Low
+        ));
+        assert!(matches!(
+            ReasoningSpec::Medium.to_genai_effort(),
+            ReasoningEffort::Medium
+        ));
+        assert!(matches!(
+            ReasoningSpec::High.to_genai_effort(),
+            ReasoningEffort::High
+        ));
+    }
+
+    #[test]
+    fn reasoning_spec_serde_lowercase() {
+        let v = serde_json::to_value(ReasoningSpec::Medium).unwrap();
+        assert_eq!(v, serde_json::json!("medium"));
+        let back: ReasoningSpec = serde_json::from_value(v).unwrap();
+        assert_eq!(back, ReasoningSpec::Medium);
+    }
+
+    #[test]
+    fn chat_request_reasoning_field_defaults_none() {
+        let req: ChatRequest = serde_json::from_value(serde_json::json!({
+            "messages": [],
+            "model": "test",
+        }))
+        .unwrap();
+        assert_eq!(req.reasoning, None);
     }
 
     #[test]

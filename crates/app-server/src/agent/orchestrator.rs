@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use app_domain::srd::retriever::SrdRetriever;
-use app_llm::{ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ToolCall};
+use app_llm::{ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ReasoningSpec, ToolCall};
 use futures::StreamExt;
 use serde_json::Value;
 use sqlx::SqlitePool;
@@ -37,6 +37,10 @@ pub struct AgentConfig {
     /// flags off when the user disables image/video in Settings v2 so the LLM
     /// stops trying to call disabled tools.
     pub tool_availability: ToolAvailability,
+    /// M8-DM: whether to enable thinking/reasoning mode for the chat provider.
+    pub reasoning_enabled: bool,
+    /// M8-DM: the reasoning budget tier when enabled. Defaults to Medium.
+    pub reasoning_budget: ReasoningSpec,
 }
 
 impl Default for AgentConfig {
@@ -48,6 +52,8 @@ impl Default for AgentConfig {
             max_rounds: 8,
             embedding_model: app_domain::srd::embedder::DEFAULT_EMBEDDING_MODEL.into(),
             tool_availability: ToolAvailability::all(),
+            reasoning_enabled: false,
+            reasoning_budget: ReasoningSpec::Medium,
         }
     }
 }
@@ -85,6 +91,9 @@ pub enum AgentEvent {
         /// rolls apart from external provider delegations.
         handled_by: String,
     },
+    /// M8-DM: streaming thinking/reasoning text from the LLM. UI renders this
+    /// in a collapsible pill above the assistant bubble.
+    ReasoningText { text: String },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
 }
@@ -147,6 +156,11 @@ impl AgentOrchestrator {
                 temperature: Some(self.config.temperature),
                 tools: tools.clone(),
                 system_prompt: Some(system_context.clone()),
+                reasoning: if self.config.reasoning_enabled {
+                    Some(self.config.reasoning_budget)
+                } else {
+                    None
+                },
             };
 
             let mut stream = match self.provider.stream_chat(chat_req).await {
@@ -166,6 +180,15 @@ impl AgentOrchestrator {
 
             while let Some(chunk) = stream.next().await {
                 match chunk {
+                    Ok(ChatChunk::ThinkingDelta { text }) => {
+                        if tx
+                            .send(AgentEvent::ReasoningText { text })
+                            .await
+                            .is_err()
+                        {
+                            return Ok(());
+                        }
+                    }
                     Ok(ChatChunk::TextDelta { text }) => {
                         round_text.push_str(&text);
                         if tx.send(AgentEvent::TextDelta { text }).await.is_err() {

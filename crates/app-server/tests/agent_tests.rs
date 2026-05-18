@@ -1,4 +1,4 @@
-use app_llm::{ChatChunk, FinishReason, MockProvider, ToolCall};
+use app_llm::{ChatChunk, FinishReason, MockProvider, ReasoningSpec, ToolCall};
 use app_server::agent::orchestrator::AgentEvent;
 use app_server::agent::orchestrator::{AgentConfig, AgentOrchestrator, AgentTurnRequest};
 use app_server::agent::tool_executor::execute_tool;
@@ -30,6 +30,7 @@ async fn orchestrator_emits_text_events_from_mock() {
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
         tool_availability: app_server::agent::tools::ToolAvailability::all(),
+        ..AgentConfig::default()
     };
 
     let req = AgentTurnRequest {
@@ -89,6 +90,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
         tool_availability: app_server::agent::tools::ToolAvailability::all(),
+        ..AgentConfig::default()
     };
     let req = AgentTurnRequest {
         campaign_id: uuid::Uuid::new_v4(),
@@ -143,6 +145,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
         max_rounds: 8,
         embedding_model: "multilingual-e5-small".into(),
         tool_availability: app_server::agent::tools::ToolAvailability::all(),
+        ..AgentConfig::default()
     };
     let req = AgentTurnRequest {
         campaign_id: uuid::Uuid::new_v4(),
@@ -361,4 +364,99 @@ async fn journal_endpoint_returns_entries_after_agent_appends() {
     let entries: Vec<serde_json::Value> = resp.json().await.unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0]["chapter"].as_str(), Some("Chapter 1"));
+}
+
+// M8-DM: orchestrator ThinkingDelta -> AgentEvent::ReasoningText e2e
+#[tokio::test]
+async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
+    let pool = test_pool().await;
+    let mock = Arc::new(
+        MockProvider::new(vec![
+            ChatChunk::TextDelta { text: "The answer is 42.".into() },
+            ChatChunk::Done { reason: FinishReason::Stop },
+        ])
+        .with_thinking_chunks(vec!["Step 1: think.".into(), " Step 2: conclude.".into()]),
+    );
+
+    let config = AgentConfig {
+        model: "mock".into(),
+        system_prompt: "DM".into(),
+        temperature: 0.7,
+        max_rounds: 8,
+        embedding_model: "multilingual-e5-small".into(),
+        tool_availability: app_server::agent::tools::ToolAvailability::all(),
+        reasoning_enabled: true,
+        reasoning_budget: ReasoningSpec::Medium,
+    };
+
+    let req = AgentTurnRequest {
+        campaign_id: uuid::Uuid::new_v4(),
+        session_id: uuid::Uuid::new_v4(),
+        player_message: "What is the meaning of life?".into(),
+        history: vec![],
+    };
+
+    let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
+    let orch = AgentOrchestrator::new(mock, pool, config, None);
+    orch.run(req, tx).await.unwrap();
+
+    let mut reasoning_texts: Vec<String> = Vec::new();
+    let mut text = String::new();
+    let mut done = false;
+    while let Some(ev) = rx.recv().await {
+        match ev {
+            AgentEvent::ReasoningText { text: t } => reasoning_texts.push(t),
+            AgentEvent::TextDelta { text: t } => text.push_str(&t),
+            AgentEvent::AgentDone { .. } => {
+                done = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(reasoning_texts, vec!["Step 1: think.", " Step 2: conclude."]);
+    assert_eq!(text, "The answer is 42.");
+    assert!(done);
+}
+
+// M8-DM: SSE stream carries reasoning_text event type when mock emits ThinkingDelta
+#[tokio::test]
+async fn agent_endpoint_streams_reasoning_text_event() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let mock = Arc::new(
+        MockProvider::new(vec![
+            ChatChunk::TextDelta { text: "Narration.".into() },
+            ChatChunk::Done { reason: FinishReason::Stop },
+        ])
+        .with_thinking_chunks(vec!["Internal reasoning.".into()]),
+    );
+    let server = TestServer::start_with(mock, pool).await;
+
+    let client = Client::new();
+    let resp = client
+        .post(server.url("/agent/turn"))
+        .header("content-type", "application/json")
+        .body(
+            r#"{"player_message":"Go!","history":[],"campaign_id":"00000000-0000-0000-0000-000000000001","session_id":"00000000-0000-0000-0000-000000000002"}"#,
+        )
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body = resp.text().await.unwrap();
+    assert!(
+        body.contains("reasoning_text"),
+        "expected reasoning_text event in: {body}"
+    );
+    assert!(
+        body.contains("Internal reasoning."),
+        "expected thinking text in: {body}"
+    );
+    assert!(
+        body.contains("text_delta"),
+        "expected text_delta event in: {body}"
+    );
 }

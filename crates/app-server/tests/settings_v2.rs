@@ -1,3 +1,4 @@
+use app_llm::ReasoningSpec;
 use app_server::test_support::TestServer;
 use serde_json::{Value, json};
 
@@ -610,4 +611,49 @@ async fn post_settings_v2_rejects_unknown_video_provider() {
         .await
         .expect("request");
     assert_eq!(res.status(), 400);
+}
+
+// ---- M8-DM reasoning wiring ----
+
+#[tokio::test]
+async fn post_settings_v2_wires_reasoning_enabled_and_budget_to_agent_config() {
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    // Use claude-opus-4-7 which has reasoning=true in catalog.
+    body["chat"]["active_model_id"] = Value::String("claude-opus-4-7".into());
+    body["chat"]["reasoning_enabled"] = Value::Bool(true);
+    body["chat"]["reasoning_budget"] = Value::String("high".into());
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let cfg = server.state.agent_config();
+    assert!(cfg.reasoning_enabled, "expected reasoning_enabled=true in AgentConfig");
+    assert_eq!(
+        cfg.reasoning_budget,
+        ReasoningSpec::High,
+        "expected reasoning_budget=High in AgentConfig"
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_reasoning_disabled_keeps_defaults() {
+    let server = TestServer::start().await;
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    let cfg = server.state.agent_config();
+    assert!(!cfg.reasoning_enabled, "reasoning_enabled should be false from baseline");
+    assert_eq!(
+        cfg.reasoning_budget,
+        ReasoningSpec::Medium,
+        "reasoning_budget should default to Medium"
+    );
 }

@@ -113,6 +113,9 @@ fn persist_event(
     session_id: &str,
 ) {
     match ev {
+        AgentEvent::ReasoningText { .. } => {
+            // Thinking/reasoning text is transient UI-only; not persisted to history.
+        }
         AgentEvent::TextDelta { text } => {
             if let Ok(mut s) = state.lock() {
                 s.text_buf.push_str(text);
@@ -212,6 +215,10 @@ fn flush_pending(state: &Arc<Mutex<PersistState>>, pool: &SqlitePool, session_id
 
 fn agent_event_to_sse(ev: AgentEvent) -> Event {
     match ev {
+        AgentEvent::ReasoningText { text } => Event::default()
+            .event("reasoning_text")
+            .json_data(serde_json::json!({ "text": text }))
+            .expect("reasoning_text json"),
         AgentEvent::TextDelta { text } => Event::default()
             .event("text_delta")
             .json_data(serde_json::json!({ "text": text }))

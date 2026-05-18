@@ -52,6 +52,7 @@ async fn anthropic_emits_tool_call_chunks_for_roll_dice() {
         temperature: Some(0.0),
         tools: vec![roll_dice],
         system_prompt: None,
+        reasoning: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
@@ -91,6 +92,9 @@ async fn anthropic_emits_tool_call_chunks_for_roll_dice() {
             }
             ChatChunk::TextDelta { .. } => {
                 // Allowed - some models emit a small preamble before the tool call.
+            }
+            ChatChunk::ThinkingDelta { .. } => {
+                // Allowed - reasoning models may emit thinking before tool use.
             }
         }
     }

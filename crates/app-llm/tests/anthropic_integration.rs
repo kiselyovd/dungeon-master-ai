@@ -22,6 +22,7 @@ async fn anthropic_streams_real_response_when_key_present() {
         temperature: Some(0.0),
         tools: Vec::new(),
         system_prompt: None,
+        reasoning: None,
     };
 
     let mut stream = provider.stream_chat(req).await.expect("stream opens");
@@ -31,6 +32,9 @@ async fn anthropic_streams_real_response_when_key_present() {
         match chunk.expect("chunk") {
             ChatChunk::TextDelta { text: t } => text.push_str(&t),
             ChatChunk::Done { .. } => saw_done = true,
+            ChatChunk::ThinkingDelta { .. } => {
+                // Thinking content may appear with reasoning-capable models; ignore here.
+            }
             ChatChunk::ToolCallStart { .. }
             | ChatChunk::ToolCallArgsDelta { .. }
             | ChatChunk::ToolCallDone { .. } => {

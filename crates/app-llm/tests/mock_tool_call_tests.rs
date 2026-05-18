@@ -25,6 +25,7 @@ async fn mock_emits_tool_call_then_text() {
         temperature: None,
         tools: vec![],
         system_prompt: None,
+        reasoning: None,
     };
     let mut stream = mock.stream_chat(req).await.unwrap();
     let mut names = vec![];
@@ -53,6 +54,7 @@ async fn mock_set_chunks_replaces_queue_for_round_two() {
         temperature: None,
         tools: vec![],
         system_prompt: None,
+        reasoning: None,
     };
     let mut s1 = mock.stream_chat(req1).await.unwrap();
     while s1.next().await.is_some() {}
@@ -73,6 +75,7 @@ async fn mock_set_chunks_replaces_queue_for_round_two() {
         temperature: None,
         tools: vec![],
         system_prompt: None,
+        reasoning: None,
     };
     let mut s2 = mock.stream_chat(req2).await.unwrap();
     let mut text = String::new();

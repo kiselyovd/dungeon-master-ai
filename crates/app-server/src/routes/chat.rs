@@ -198,6 +198,7 @@ pub async fn chat(
         temperature: req.temperature,
         tools: Vec::new(),
         system_prompt: None,
+        reasoning: None,
     };
 
     let provider = state.provider();
@@ -240,6 +241,10 @@ pub async fn chat(
                         .event("done")
                         .json_data(serde_json::json!({ "reason": reason }))
                         .expect("json_data")
+                }
+                Ok(ChatChunk::ThinkingDelta { .. }) => {
+                    // Legacy /chat endpoint does not surface thinking content.
+                    Event::default().comment("thinking_chunk_dropped")
                 }
                 Ok(ChatChunk::ToolCallStart { .. })
                 | Ok(ChatChunk::ToolCallArgsDelta { .. })

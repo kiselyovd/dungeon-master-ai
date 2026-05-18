@@ -8,7 +8,7 @@ use genai::resolver::{AuthData, AuthResolver};
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::genai_common::{classify_genai_error, convert_messages, pump_genai_stream};
+use crate::genai_common::{build_chat_options, classify_genai_error, convert_messages, pump_genai_stream};
 use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub const DEFAULT_ANTHROPIC_MODEL: &str = "claude-haiku-4-5-20251001";
@@ -40,7 +40,8 @@ impl AnthropicProvider {
     }
 
     fn build_options(req: &ChatRequest) -> ChatOptions {
-        let mut options = ChatOptions::default();
+        // Start with reasoning options if present, then layer in max_tokens/temperature.
+        let mut options = build_chat_options(req.reasoning).unwrap_or_default();
         if let Some(max) = req.max_tokens {
             options = options.with_max_tokens(max);
         }
@@ -111,6 +112,13 @@ fn anthropic_kind() -> AdapterKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn anthropic_caps_opus_4_7_has_reasoning() {
+        let p = AnthropicProvider::new("dummy".into());
+        let caps = p.capabilities_for_model("claude-opus-4-7");
+        assert!(caps.reasoning, "claude-opus-4-7 must report reasoning=true");
+    }
 
     #[test]
     fn anthropic_caps_claude_4_models_all_true() {

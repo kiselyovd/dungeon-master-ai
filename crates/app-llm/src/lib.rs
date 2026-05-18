@@ -14,7 +14,7 @@ pub use mock::MockProvider;
 pub use openai_compat::OpenAICompatProvider;
 pub use provider::{
     Capabilities, ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError,
-    LlmProvider, MessagePart, Tool, ToolCall, ToolResult,
+    LlmProvider, MessagePart, ReasoningSpec, Tool, ToolCall, ToolResult,
 };
 pub use sidecar_launcher::{
     MockSidecarLauncher, NullSidecarLauncher, SidecarError, SidecarHandle, SidecarLauncher,
