@@ -177,8 +177,10 @@ async fn build_chat_provider(
                 .set("anthropic_api_key", &cfg.api_key)
                 .await
                 .map_err(|e| AppError::Internal(e.to_string()))?;
-            let provider: Arc<dyn app_llm::LlmProvider> =
+            let raw: Arc<dyn app_llm::LlmProvider> =
                 Arc::new(AnthropicProvider::new(cfg.api_key));
+            let provider: Arc<dyn app_llm::LlmProvider> =
+                Arc::new(app_llm::RetryableProvider::new(raw));
             Ok((provider, chat.active_model_id.clone()))
         }
         "openai-compat" => {
@@ -196,10 +198,12 @@ async fn build_chat_provider(
                     .await
                     .map_err(|e| AppError::Internal(e.to_string()))?;
             }
-            let provider: Arc<dyn app_llm::LlmProvider> = Arc::new(OpenAICompatProvider::new(
+            let raw: Arc<dyn app_llm::LlmProvider> = Arc::new(OpenAICompatProvider::new(
                 cfg.base_url,
                 cfg.api_key,
             ));
+            let provider: Arc<dyn app_llm::LlmProvider> =
+                Arc::new(app_llm::RetryableProvider::new(raw));
             Ok((provider, chat.active_model_id.clone()))
         }
         "local-mistralrs" => {
@@ -267,7 +271,11 @@ async fn build_image_provider(
                 .set("replicate_api_key", &cfg.api_key)
                 .await
                 .map_err(|e| AppError::Internal(e.to_string()))?;
-            Ok(Some(Arc::new(ReplicateProvider::new(cfg.api_key))))
+            let raw: Arc<dyn crate::image::provider::ImageProvider> =
+                Arc::new(ReplicateProvider::new(cfg.api_key));
+            Ok(Some(Arc::new(crate::image::RetryableImageProvider::new(
+                raw,
+            ))))
         }
         id if id.starts_with("local-") => {
             let url = sidecar_url.ok_or_else(|| {
