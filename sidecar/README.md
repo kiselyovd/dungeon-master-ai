@@ -35,31 +35,38 @@ pyinstaller --noconfirm --clean build_spec.spec
 The resulting `dist/dmai-image-sidecar/` directory ships into
 `src-tauri/binaries/python_sidecar_<target-triple>/` for Tauri's `externalBin`.
 
-## Nunchaku install (Quality backend, optional)
+## Nunchaku install (Quality + Quality-OSS backends, optional)
 
 `nunchaku` is intentionally NOT in `requirements.txt` - PyPI has a different
 unrelated package under the same name (a Bayesian sampler library). The real
-SVDQuant Nunchaku from mit-han-lab ships prebuilt wheels via their HF mirror.
+SVDQuant Nunchaku from nunchaku-tech ships prebuilt wheels via GitHub Releases
+(the mit-han-lab HF mirror is frozen at 0.3.1; v1.x and Z-Image support live
+on GitHub).
 
-Install on Windows + Python 3.12 + torch 2.5:
+Install on Windows + Python 3.12 + torch 2.8:
 
-    pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.3.1+torch2.5-cp312-cp312-win_amd64.whl
+    gh release download v1.2.1 --repo nunchaku-tech/nunchaku \
+      --pattern "nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl"
+    uv pip install nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl
 
-Adjust the URL per your Python + torch version - browse the wheel list at
-https://huggingface.co/mit-han-lab/nunchaku/tree/main.
+Adjust the asset pattern per your Python + torch + CUDA version - browse
+https://github.com/nunchaku-tech/nunchaku/releases.
 
-Without it the `quality` backend (Nunchaku FLUX-dev INT4) raises
-NotImplementedError. The `balanced` (SDXL-Lightning Apache 2.0) backend stays
-fully functional and is the recommended default anyway.
+Without nunchaku the `quality` (Nunchaku FLUX-dev INT4) and `quality-oss`
+(Z-Image-Turbo SVDQ INT4 r128) backends are unavailable. The `balanced`
+(SDXL-Lightning Apache 2.0) backend stays fully functional and is the
+recommended default anyway.
 
 ## Torch CUDA install
 
 torch is NOT in requirements.txt because PyPI ships CPU-only wheels by default
-on Windows. Install with CUDA 12.1 wheels:
+on Windows. Install with CUDA 12.8 wheels:
 
-    uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1
+    uv pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.8.0 torchvision==0.23.0
 
-torch 2.5.1 is the minimum compatible version for nunchaku 0.3.1 (cp312).
+torch 2.8 is the minimum compatible version for the nunchaku 1.2.x cp312
+win_amd64 wheel. CUDA 12.8 toolkit on the host is NOT required - the wheel
+bundles its own cudart.
 
 ## diffusers from git main
 
