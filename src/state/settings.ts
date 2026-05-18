@@ -27,9 +27,14 @@ export const MAX_CHAT_WIDTH = 640;
 export const DEFAULT_CHAT_WIDTH = 480;
 
 /**
- * Persisted half of the settings slice. Kept as a separate type so the
- * persist middleware's `partialize` can pick exactly these fields without
- * dragging in the action functions, which are not serialisable.
+ * Runtime app state for the settings slice. FLAT shape, canonical for every
+ * component, hook, slice, and test that reads settings. Persisted by
+ * `persistStorage` as flat key-value pairs to settings.json.
+ *
+ * For the NESTED wire shape sent to `POST /settings/v2` (and for the v1->v2
+ * migration on first boot), see `SettingsConfigV2` in `./settingsMigration.ts`.
+ * The conversion from this flat shape to the v2 wire shape happens at the
+ * network boundary in `src/api/settings.ts::postSettingsV2`.
  */
 export interface SettingsData {
   activeProvider: ProviderKind;

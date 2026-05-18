@@ -1,4 +1,15 @@
 /**
+ * ## Role
+ *
+ * `SettingsConfigV2` is the WIRE SHAPE for two things:
+ * 1. The body of `POST /settings/v2` (sent by SettingsModal on save).
+ * 2. The input/output of the legacy v1 -> v2 migration on first boot.
+ *
+ * For the runtime app state used by components, see `SettingsData` in
+ * `./settings.ts` (flat, the canonical type for the UI).
+ */
+
+/**
  * M7-DM hard-cutover settings migration.
  *
  * Reads the persisted settings JSON, returns a normalised v2 shape with

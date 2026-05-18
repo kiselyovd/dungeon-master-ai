@@ -63,6 +63,17 @@ const KEY_PC = 'pc';
 const KEY_CHAR_CREATION_DRAFT = 'char_creation_draft';
 const KEY_DISCOVERED_CATALOGS = 'discovered_catalogs';
 
+const KEY_IMAGE_ENABLED = 'image_enabled';
+const KEY_IMAGE_PRESET = 'image_preset';
+const KEY_IMAGE_STYLE_LORA = 'image_style_lora';
+const KEY_VIDEO_ENABLED = 'video_enabled';
+const KEY_VIDEO_MODE = 'video_mode';
+const KEY_VISION_ENABLED = 'vision_enabled';
+const KEY_REASONING_ENABLED = 'reasoning_enabled';
+const KEY_REASONING_BUDGET = 'reasoning_budget';
+const KEY_LICENSE_RESTRICTED_MODE = 'license_restricted_mode';
+const KEY_AGENT_MAX_ROUNDS = 'agent_max_rounds';
+
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
@@ -109,6 +120,12 @@ const CurrentSceneSchema = v.nullable(
 );
 const OnboardingCompletedSchema = v.boolean();
 const HeroClassSchema = v.nullable(v.string());
+
+const ImagePresetSchema = v.picklist(['fast', 'balanced', 'quality', 'quality-oss', 'cloud']);
+const VideoModeSchema = v.picklist(['prerecorded', 'live', 'race']);
+const ReasoningBudgetSchema = v.picklist(['low', 'medium', 'high']);
+const AgentMaxRoundsSchema = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50));
+const StyleLoraSchema = v.nullable(v.string());
 
 const DiscoveredCapabilitiesSchema = v.object({
   vision_input: v.boolean(),
@@ -217,6 +234,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       pcRaw,
       charCreationRaw,
       discoveredCatalogsRaw,
+      imageEnabledRaw,
+      imagePresetRaw,
+      imageStyleLoraRaw,
+      videoEnabledRaw,
+      videoModeRaw,
+      visionEnabledRaw,
+      reasoningEnabledRaw,
+      reasoningBudgetRaw,
+      licenseRestrictedModeRaw,
+      agentMaxRoundsRaw,
     ] = await Promise.all([
       getSecret(KEY_PROVIDERS),
       settingsStore.get(KEY_ACTIVE_PROVIDER),
@@ -235,6 +262,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_PC),
       settingsStore.get(KEY_CHAR_CREATION_DRAFT),
       settingsStore.get(KEY_DISCOVERED_CATALOGS),
+      settingsStore.get(KEY_IMAGE_ENABLED),
+      settingsStore.get(KEY_IMAGE_PRESET),
+      settingsStore.get(KEY_IMAGE_STYLE_LORA),
+      settingsStore.get(KEY_VIDEO_ENABLED),
+      settingsStore.get(KEY_VIDEO_MODE),
+      settingsStore.get(KEY_VISION_ENABLED),
+      settingsStore.get(KEY_REASONING_ENABLED),
+      settingsStore.get(KEY_REASONING_BUDGET),
+      settingsStore.get(KEY_LICENSE_RESTRICTED_MODE),
+      settingsStore.get(KEY_AGENT_MAX_ROUNDS),
     ]);
 
     const providersParsed = v.safeParse(ProvidersMapSchema, providersRaw);
@@ -257,6 +294,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       DiscoveredCatalogsMapSchema,
       discoveredCatalogsRaw,
     );
+    const imageEnabledParsed = v.safeParse(v.boolean(), imageEnabledRaw);
+    const imagePresetParsed = v.safeParse(ImagePresetSchema, imagePresetRaw);
+    const imageStyleLoraParsed = v.safeParse(StyleLoraSchema, imageStyleLoraRaw);
+    const videoEnabledParsed = v.safeParse(v.boolean(), videoEnabledRaw);
+    const videoModeParsed = v.safeParse(VideoModeSchema, videoModeRaw);
+    const visionEnabledParsed = v.safeParse(v.boolean(), visionEnabledRaw);
+    const reasoningEnabledParsed = v.safeParse(v.boolean(), reasoningEnabledRaw);
+    const reasoningBudgetParsed = v.safeParse(ReasoningBudgetSchema, reasoningBudgetRaw);
+    const licenseRestrictedModeParsed = v.safeParse(v.boolean(), licenseRestrictedModeRaw);
+    const agentMaxRoundsParsed = v.safeParse(AgentMaxRoundsSchema, agentMaxRoundsRaw);
 
     if (
       !providersParsed.success &&
@@ -275,7 +322,17 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !heroClassParsed.success &&
       !pcParsed.success &&
       !charCreationParsed.success &&
-      !discoveredCatalogsParsed.success
+      !discoveredCatalogsParsed.success &&
+      !imageEnabledParsed.success &&
+      !imagePresetParsed.success &&
+      !imageStyleLoraParsed.success &&
+      !videoEnabledParsed.success &&
+      !videoModeParsed.success &&
+      !visionEnabledParsed.success &&
+      !reasoningEnabledParsed.success &&
+      !reasoningBudgetParsed.success &&
+      !licenseRestrictedModeParsed.success &&
+      !agentMaxRoundsParsed.success
     ) {
       return null;
     }
@@ -296,6 +353,18 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settings.discoveredCatalogs =
         discoveredCatalogsParsed.output as SettingsData['discoveredCatalogs'];
     }
+    if (imageEnabledParsed.success) settings.imageEnabled = imageEnabledParsed.output;
+    if (imagePresetParsed.success) settings.imagePreset = imagePresetParsed.output;
+    if (imageStyleLoraParsed.success) settings.imageStyleLora = imageStyleLoraParsed.output;
+    if (videoEnabledParsed.success) settings.videoEnabled = videoEnabledParsed.output;
+    if (videoModeParsed.success) settings.videoMode = videoModeParsed.output;
+    if (visionEnabledParsed.success) settings.visionEnabled = visionEnabledParsed.output;
+    if (reasoningEnabledParsed.success) settings.reasoningEnabled = reasoningEnabledParsed.output;
+    if (reasoningBudgetParsed.success) settings.reasoningBudget = reasoningBudgetParsed.output;
+    if (licenseRestrictedModeParsed.success) {
+      settings.licenseRestrictedMode = licenseRestrictedModeParsed.output;
+    }
+    if (agentMaxRoundsParsed.success) settings.agentMaxRounds = agentMaxRoundsParsed.output;
 
     const session: Partial<SessionData> = {};
     if (campaignParsed.success) session.activeCampaignId = campaignParsed.output;
@@ -390,6 +459,36 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.discoveredCatalogs !== undefined) {
       writes.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
     }
+    if (settings.imageEnabled !== undefined) {
+      writes.push(settingsStore.set(KEY_IMAGE_ENABLED, settings.imageEnabled));
+    }
+    if (settings.imagePreset !== undefined) {
+      writes.push(settingsStore.set(KEY_IMAGE_PRESET, settings.imagePreset));
+    }
+    if (settings.imageStyleLora !== undefined) {
+      writes.push(settingsStore.set(KEY_IMAGE_STYLE_LORA, settings.imageStyleLora));
+    }
+    if (settings.videoEnabled !== undefined) {
+      writes.push(settingsStore.set(KEY_VIDEO_ENABLED, settings.videoEnabled));
+    }
+    if (settings.videoMode !== undefined) {
+      writes.push(settingsStore.set(KEY_VIDEO_MODE, settings.videoMode));
+    }
+    if (settings.visionEnabled !== undefined) {
+      writes.push(settingsStore.set(KEY_VISION_ENABLED, settings.visionEnabled));
+    }
+    if (settings.reasoningEnabled !== undefined) {
+      writes.push(settingsStore.set(KEY_REASONING_ENABLED, settings.reasoningEnabled));
+    }
+    if (settings.reasoningBudget !== undefined) {
+      writes.push(settingsStore.set(KEY_REASONING_BUDGET, settings.reasoningBudget));
+    }
+    if (settings.licenseRestrictedMode !== undefined) {
+      writes.push(settingsStore.set(KEY_LICENSE_RESTRICTED_MODE, settings.licenseRestrictedMode));
+    }
+    if (settings.agentMaxRounds !== undefined) {
+      writes.push(settingsStore.set(KEY_AGENT_MAX_ROUNDS, settings.agentMaxRounds));
+    }
     await Promise.all(writes);
     await Promise.all([secretsStore.save(), settingsStore.save()]);
   },
@@ -415,6 +514,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_PC),
       settingsStore.delete(KEY_CHAR_CREATION_DRAFT),
       settingsStore.delete(KEY_DISCOVERED_CATALOGS),
+      settingsStore.delete(KEY_IMAGE_ENABLED),
+      settingsStore.delete(KEY_IMAGE_PRESET),
+      settingsStore.delete(KEY_IMAGE_STYLE_LORA),
+      settingsStore.delete(KEY_VIDEO_ENABLED),
+      settingsStore.delete(KEY_VIDEO_MODE),
+      settingsStore.delete(KEY_VISION_ENABLED),
+      settingsStore.delete(KEY_REASONING_ENABLED),
+      settingsStore.delete(KEY_REASONING_BUDGET),
+      settingsStore.delete(KEY_LICENSE_RESTRICTED_MODE),
+      settingsStore.delete(KEY_AGENT_MAX_ROUNDS),
     ]);
     await Promise.all([secretsStore.save(), legacySecretsStore.save(), settingsStore.save()]);
   },

@@ -61,6 +61,17 @@ export const useStore = create<AppState>()(
           chatPanelWidth: state.settings.chatPanelWidth,
           sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
           discoveredCatalogs: state.settings.discoveredCatalogs,
+          // M7-DM additions (now persisted)
+          imageEnabled: state.settings.imageEnabled,
+          imagePreset: state.settings.imagePreset,
+          imageStyleLora: state.settings.imageStyleLora,
+          videoEnabled: state.settings.videoEnabled,
+          videoMode: state.settings.videoMode,
+          visionEnabled: state.settings.visionEnabled,
+          reasoningEnabled: state.settings.reasoningEnabled,
+          reasoningBudget: state.settings.reasoningBudget,
+          licenseRestrictedMode: state.settings.licenseRestrictedMode,
+          agentMaxRounds: state.settings.agentMaxRounds,
         },
         session: {
           activeCampaignId: state.session.activeCampaignId,

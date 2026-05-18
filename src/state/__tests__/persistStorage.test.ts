@@ -2,6 +2,7 @@ import { LazyStore } from '@tauri-apps/plugin-store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { persistStorage } from '../persistStorage';
 import type { AnthropicConfig, ApiKey } from '../providers';
+import type { SettingsData } from '../settings';
 import { strongholdSecretsStore } from '../strongholdSecretsStore';
 
 /**
@@ -38,6 +39,16 @@ async function clearStores() {
     settings.delete('onboarding_completed'),
     settings.delete('hero_class'),
     settings.delete('discovered_catalogs'),
+    settings.delete('image_enabled'),
+    settings.delete('image_preset'),
+    settings.delete('image_style_lora'),
+    settings.delete('video_enabled'),
+    settings.delete('video_mode'),
+    settings.delete('vision_enabled'),
+    settings.delete('reasoning_enabled'),
+    settings.delete('reasoning_budget'),
+    settings.delete('license_restricted_mode'),
+    settings.delete('agent_max_rounds'),
   ]);
 }
 
@@ -295,6 +306,76 @@ describe('persistStorage', () => {
     await settings.set('discovered_catalogs', { anthropic: { cacheKey: 'h', models: [] } });
     await persistStorage.removeItem('any');
     expect(await settings.get('discovered_catalogs')).toBeUndefined();
+  });
+
+  // M7-DM field round-trip coverage
+  const M7_DM_FIELDS = [
+    { key: 'imageEnabled', value: true },
+    { key: 'imageEnabled', value: false },
+    { key: 'imagePreset', value: 'fast' as const },
+    { key: 'imagePreset', value: 'balanced' as const },
+    { key: 'imagePreset', value: 'quality' as const },
+    { key: 'imagePreset', value: 'quality-oss' as const },
+    { key: 'imagePreset', value: 'cloud' as const },
+    { key: 'imageStyleLora', value: 'cinematic' },
+    { key: 'imageStyleLora', value: null },
+    { key: 'videoEnabled', value: true },
+    { key: 'videoEnabled', value: false },
+    { key: 'videoMode', value: 'prerecorded' as const },
+    { key: 'videoMode', value: 'live' as const },
+    { key: 'videoMode', value: 'race' as const },
+    { key: 'visionEnabled', value: true },
+    { key: 'reasoningEnabled', value: true },
+    { key: 'reasoningBudget', value: 'low' as const },
+    { key: 'reasoningBudget', value: 'medium' as const },
+    { key: 'reasoningBudget', value: 'high' as const },
+    { key: 'licenseRestrictedMode', value: true },
+    { key: 'agentMaxRounds', value: 1 },
+    { key: 'agentMaxRounds', value: 12 },
+    { key: 'agentMaxRounds', value: 50 },
+  ] as const;
+
+  it.each(M7_DM_FIELDS)('persists settings.$key = $value across round-trip', async ({
+    key,
+    value,
+  }) => {
+    await persistStorage.setItem('test', {
+      state: { settings: { [key]: value } as Partial<SettingsData> },
+      version: 0,
+    });
+    const loaded = await persistStorage.getItem('test');
+    expect(loaded?.state.settings?.[key]).toEqual(value);
+  });
+
+  it('removeItem clears all M7-DM fields from settings.json', async () => {
+    await persistStorage.setItem('any', {
+      state: {
+        settings: {
+          imageEnabled: true,
+          imagePreset: 'quality',
+          imageStyleLora: 'cinematic',
+          videoEnabled: true,
+          videoMode: 'live',
+          visionEnabled: true,
+          reasoningEnabled: true,
+          reasoningBudget: 'high',
+          licenseRestrictedMode: true,
+          agentMaxRounds: 10,
+        },
+      },
+      version: 0,
+    });
+    await persistStorage.removeItem('any');
+    expect(await settings.get('image_enabled')).toBeUndefined();
+    expect(await settings.get('image_preset')).toBeUndefined();
+    expect(await settings.get('image_style_lora')).toBeUndefined();
+    expect(await settings.get('video_enabled')).toBeUndefined();
+    expect(await settings.get('video_mode')).toBeUndefined();
+    expect(await settings.get('vision_enabled')).toBeUndefined();
+    expect(await settings.get('reasoning_enabled')).toBeUndefined();
+    expect(await settings.get('reasoning_budget')).toBeUndefined();
+    expect(await settings.get('license_restricted_mode')).toBeUndefined();
+    expect(await settings.get('agent_max_rounds')).toBeUndefined();
   });
 
   it('removeItem clears the vault, the legacy file, and the prefs file', async () => {
