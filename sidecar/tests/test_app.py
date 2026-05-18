@@ -120,3 +120,20 @@ def test_generate_defaults_to_fast_backend_when_field_omitted(app_with_weights):
     r = TestClient(app).post("/generate", json={"prompt": "x"})
     assert r.status_code == 200
     assert len(stub.calls) == 1
+
+
+def test_backends_endpoint_reports_installed_state(tmp_path):
+    """Each backend reports installed=True iff weights_dir/<id>/ exists."""
+    from app import create_app
+
+    (tmp_path / "fast").mkdir()
+
+    app = create_app(tmp_path)
+    r = TestClient(app).get("/backends")
+    assert r.status_code == 200
+    rows = {b["id"]: b for b in r.json()["backends"]}
+    assert set(rows.keys()) == {"fast", "balanced", "quality", "quality-oss", "ltx-video"}
+    assert rows["fast"]["installed"] is True
+    assert rows["balanced"]["installed"] is False
+    assert rows["ltx-video"]["modality"] == "video"
+    assert rows["balanced"]["modality"] == "image"
