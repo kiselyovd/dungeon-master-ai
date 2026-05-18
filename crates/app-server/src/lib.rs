@@ -4,6 +4,7 @@ pub mod agent;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod hf;
 pub mod image;
 pub mod license;
 pub mod local_runtime;
