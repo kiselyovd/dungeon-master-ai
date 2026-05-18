@@ -16,7 +16,7 @@ from backends.protocol import GenerationBackend, PromptParams
 class LtxVideoBackend:
     name: ClassVar[str] = "ltx-video"
     modality: ClassVar[Literal["video"]] = "video"
-    vram_estimate_bytes: ClassVar[int] = 9 * 1024**3
+    vram_estimate_bytes: ClassVar[int] = 7 * 1024**3
 
     def __init__(self, weights_dir: Optional[Path] = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
@@ -29,7 +29,9 @@ class LtxVideoBackend:
     def load(self) -> None:
         if self._pipe is not None:
             return
-        assert_vram_free(9 * 1024**3)
+        # 7 GB preflight: T5 encodes once and offloads; peak during diffusion
+        # is transformer (~4-5 GB) + VAE slicing/tiling (~1-2 GB) on 10 GB Ampere.
+        assert_vram_free(7 * 1024**3)
 
         import torch  # noqa: PLC0415
         from diffusers import LTXPipeline  # noqa: PLC0415
