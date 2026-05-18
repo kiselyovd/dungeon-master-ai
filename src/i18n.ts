@@ -8,6 +8,7 @@ import enCombat from './locales/en/combat.json';
 import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enJournal from './locales/en/journal.json';
+import enLocalLlm from './locales/en/local_llm.json';
 import enLocalMode from './locales/en/local_mode.json';
 import enNpc from './locales/en/npc.json';
 import enOnboarding from './locales/en/onboarding.json';
@@ -22,6 +23,7 @@ import ruCombat from './locales/ru/combat.json';
 import ruCommon from './locales/ru/common.json';
 import ruErrors from './locales/ru/errors.json';
 import ruJournal from './locales/ru/journal.json';
+import ruLocalLlm from './locales/ru/local_llm.json';
 import ruLocalMode from './locales/ru/local_mode.json';
 import ruNpc from './locales/ru/npc.json';
 import ruOnboarding from './locales/ru/onboarding.json';
@@ -48,6 +50,7 @@ void i18n
       'agent',
       'updater',
       'local_mode',
+      'local_llm',
       'onboarding',
       'saves',
       'character',
@@ -65,6 +68,7 @@ void i18n
         agent: enAgent,
         updater: enUpdater,
         local_mode: enLocalMode,
+        local_llm: enLocalLlm,
         onboarding: enOnboarding,
         saves: enSaves,
         character: enCharacter,
@@ -81,6 +85,7 @@ void i18n
         agent: ruAgent,
         updater: ruUpdater,
         local_mode: ruLocalMode,
+        local_llm: ruLocalLlm,
         onboarding: ruOnboarding,
         saves: ruSaves,
         character: ruCharacter,

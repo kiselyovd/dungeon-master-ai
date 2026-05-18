@@ -1,0 +1,8 @@
+{
+  "no_models_installed": "No models installed. Use Manage downloads or Search Hugging Face below to add one.",
+  "choose_active_model": "Choose active local model",
+  "manage_downloads": "Manage downloads",
+  "search_hf": "Search Hugging Face",
+  "installed_count": "{{installed}} / {{total}} installed",
+  "active_model_section": "Active model"
+}

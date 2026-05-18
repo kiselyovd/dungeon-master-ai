@@ -1,0 +1,8 @@
+{
+  "no_models_installed": "Нет установленных моделей. Используйте Управление загрузками или Поиск на Hugging Face ниже.",
+  "choose_active_model": "Выберите активную локальную модель",
+  "manage_downloads": "Управление загрузками",
+  "search_hf": "Поиск на Hugging Face",
+  "installed_count": "{{installed}} / {{total}} установлено",
+  "active_model_section": "Активная модель"
+}
