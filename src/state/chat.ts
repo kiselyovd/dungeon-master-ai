@@ -50,12 +50,14 @@ export interface ChatSlice {
   chat: {
     messages: ChatMessage[];
     streamingAssistant: string | null;
+    streamingReasoning: string | null;
     isStreaming: boolean;
     lastError: ChatErrorPayload | null;
     abortController: AbortController | null;
 
     appendUser: (content: string, parts?: MessagePart[]) => void;
     appendAssistantDelta: (delta: string) => void;
+    appendReasoningDelta: (text: string) => void;
     finalizeAssistant: () => void;
     /** Replace the entire history (used after loading from /sessions/:id/messages). */
     setMessages: (messages: ChatMessage[]) => void;
@@ -75,6 +77,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
   chat: {
     messages: [],
     streamingAssistant: null,
+    streamingReasoning: null,
     isStreaming: false,
     lastError: null,
     abortController: null,
@@ -106,10 +109,21 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       }));
     },
 
+    appendReasoningDelta: (text) => {
+      if (text.length === 0) return;
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          streamingReasoning: (s.chat.streamingReasoning ?? '') + text,
+        },
+      }));
+    },
+
     finalizeAssistant: () => {
       const current = get().chat.streamingAssistant;
       if (current === null || current.length === 0) {
-        if (current === '') set((s) => ({ chat: { ...s.chat, streamingAssistant: null } }));
+        if (current === '')
+          set((s) => ({ chat: { ...s.chat, streamingAssistant: null, streamingReasoning: null } }));
         return;
       }
       set((s) => ({
@@ -120,6 +134,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             { id: newMessageId(), role: 'assistant', content: current },
           ],
           streamingAssistant: null,
+          streamingReasoning: null,
         },
       }));
     },
@@ -130,6 +145,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           ...s.chat,
           messages: [],
           streamingAssistant: null,
+          streamingReasoning: null,
           lastError: null,
         },
       })),

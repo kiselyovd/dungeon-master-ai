@@ -48,6 +48,10 @@ export function useAgentTurn() {
 
           onTextDelta: appendDelta,
 
+          onReasoningDelta: (text) => {
+            useStore.getState().chat.appendReasoningDelta(text);
+          },
+
           onToolCallStart: (id, toolName, round) => {
             addPending(id, toolName, {}, round);
           },

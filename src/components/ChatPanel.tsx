@@ -18,6 +18,7 @@ import { Icons } from '../ui/Icons';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
+import { ReasoningPill } from './ReasoningPill';
 import { TypingIndicator } from './TypingIndicator';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -35,6 +36,7 @@ export function ChatPanel() {
   // paperclip is hidden and paste/drag of image files is rejected with a hint
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
+  const streamingReasoning = useStore((s) => s.chat.streamingReasoning);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -207,6 +209,10 @@ export function ChatPanel() {
         )}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
+            <ReasoningPill
+              thinkingText={streamingReasoning ?? ''}
+              streaming={isStreaming && !streamingReasoning}
+            />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
                 <TypingIndicator />

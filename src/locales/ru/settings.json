@@ -81,5 +81,12 @@
   "last_cached_at": "Кэш от {{time}}",
   "cap_vision": "Зрение",
   "cap_reasoning": "Рассуждения",
-  "cap_tools": "Инструменты"
+  "cap_tools": "Инструменты",
+  "reasoning_section_label": "Размышление",
+  "reasoning_enable_label": "Включить размышление",
+  "reasoning_budget_label": "Бюджет размышления",
+  "reasoning_budget_low": "Низкий",
+  "reasoning_budget_medium": "Средний",
+  "reasoning_budget_high": "Высокий",
+  "reasoning_unsupported_hint": "Выбранная модель не поддерживает размышление."
 }

@@ -18,6 +18,7 @@ import {
 } from '../state/providers';
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
+import { activeProviderCaps } from '../utils/capabilities';
 import { CustomHfRepoModal } from './CustomHfRepoModal';
 import { ModelDownloadCard } from './ModelDownloadCard';
 import { ModelSelector } from './ModelSelector';
@@ -231,6 +232,8 @@ export function SettingsForm({
           )}
 
           {activeKind === 'local-mistralrs' && <LocalMistralRsFields />}
+
+          <ReasoningSection activeKind={activeKind} drafts={drafts} />
 
           <div className={styles.languages}>
             <Field label={t('language_ui_label')}>
@@ -939,6 +942,53 @@ function VideoTab() {
         ))}
       </fieldset>
     </section>
+  );
+}
+
+function ReasoningSection({
+  activeKind,
+  drafts,
+}: {
+  activeKind: ProviderKind;
+  drafts: DraftState;
+}) {
+  const { t } = useTranslation('settings');
+  const slice = useStore((s) => s.settings);
+
+  const modelId =
+    activeKind === 'anthropic'
+      ? drafts.anthropic.model
+      : activeKind === 'openai-compat'
+        ? drafts['openai-compat'].model
+        : '';
+
+  const caps = activeProviderCaps(activeKind, modelId);
+
+  return (
+    <fieldset disabled={!caps.reasoning} className={styles.fieldset}>
+      <legend>{t('reasoning_section_label')}</legend>
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={slice.reasoningEnabled}
+          onChange={(e) => slice.setReasoningEnabled(e.target.checked)}
+        />
+        <span>{t('reasoning_enable_label')}</span>
+      </label>
+      <label className={styles.checkboxRow}>
+        {t('reasoning_budget_label')}
+        <select
+          value={slice.reasoningBudget}
+          onChange={(e) => slice.setReasoningBudget(e.target.value as 'low' | 'medium' | 'high')}
+          disabled={!slice.reasoningEnabled || !caps.reasoning}
+        >
+          <option value="low">{t('reasoning_budget_low')}</option>
+          <option value="medium">{t('reasoning_budget_medium')}</option>
+          <option value="high">{t('reasoning_budget_high')}</option>
+        </select>
+      </label>
+      {!caps.reasoning && <p className={styles.hint}>{t('reasoning_unsupported_hint')}</p>}
+    </fieldset>
   );
 }
 

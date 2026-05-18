@@ -81,5 +81,12 @@
   "last_cached_at": "Cached at {{time}}",
   "cap_vision": "Vision",
   "cap_reasoning": "Reasoning",
-  "cap_tools": "Tools"
+  "cap_tools": "Tools",
+  "reasoning_section_label": "Reasoning",
+  "reasoning_enable_label": "Enable reasoning",
+  "reasoning_budget_label": "Reasoning budget",
+  "reasoning_budget_low": "Low",
+  "reasoning_budget_medium": "Medium",
+  "reasoning_budget_high": "High",
+  "reasoning_unsupported_hint": "The selected model does not support reasoning."
 }

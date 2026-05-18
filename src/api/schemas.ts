@@ -106,3 +106,14 @@ export function safeParseAgentDone(data: unknown): AgentDonePayload | null {
   const r = v.safeParse(AgentDoneSchema, data);
   return r.success ? r.output : null;
 }
+
+export const ReasoningTextSchema = v.object({
+  text: v.string(),
+});
+
+export type ReasoningTextPayload = v.InferOutput<typeof ReasoningTextSchema>;
+
+export function safeParseReasoningText(data: unknown): ReasoningTextPayload | null {
+  const r = v.safeParse(ReasoningTextSchema, data);
+  return r.success ? r.output : null;
+}

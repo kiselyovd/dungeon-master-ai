@@ -26,5 +26,7 @@
   "typing_indicator": "Dungeon Master is writing",
   "image_preview": "image preview",
   "image": "image",
-  "vision_disabled": "Multimodal input is disabled — turn it on in Settings → Chat."
+  "vision_disabled": "Multimodal input is disabled — turn it on in Settings → Chat.",
+  "reasoning_thinking_label": "thinking",
+  "reasoning_streaming_label": "thinking..."
 }

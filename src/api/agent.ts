@@ -4,6 +4,7 @@ import { ChatError } from './errors';
 import {
   safeParseAgentDone,
   safeParseDone,
+  safeParseReasoningText,
   safeParseStreamError,
   safeParseText,
   safeParseToolCallResult,
@@ -31,6 +32,7 @@ export interface AgentTurnOptions {
     handledBy: string,
   ) => void;
   onAgentDone: (totalRounds: number) => void;
+  onReasoningDelta?: (text: string) => void;
 }
 
 /**
@@ -116,6 +118,11 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
           p.round,
           p.handled_by,
         );
+      break;
+    }
+    case 'reasoning_text': {
+      const p = safeParseReasoningText(data);
+      if (p && opts.onReasoningDelta) opts.onReasoningDelta(p.text);
       break;
     }
     case 'agent_done': {
