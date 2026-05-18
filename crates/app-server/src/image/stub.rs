@@ -1,11 +1,15 @@
-//! Local SDXL sidecar provider.
+//! Local image sidecar provider.
 //!
 //! HTTP-loopback adapter to the Python FastAPI sidecar (see `sidecar/app.py`).
-//! The sidecar accepts JSON `{prompt, seed, steps}` and returns
-//! `{image_b64, mime}`. We decode base64 here and surface raw bytes through
-//! the shared `ImageProvider` trait so callers (the agent's `generate_image`
-//! tool, M4.5 multimodal flows) do not need to know whether the bytes came
-//! from a cloud Replicate response or a local Python process.
+//! The sidecar accepts JSON `{prompt, seed, steps, backend, ...}` and returns
+//! `{image_b64|video_b64, mime}`. We decode base64 here and surface raw bytes
+//! through the shared `ImageProvider` trait so callers (the agent's
+//! `generate_image` tool, M4.5 multimodal flows) do not need to know whether
+//! the bytes came from a cloud Replicate response or a local Python process.
+//!
+//! The `backend` field selects which dispatcher slot handles the request:
+//! fast (SDXL-Turbo), balanced (SDXL-Lightning), quality (Nunchaku-FLUX),
+//! quality-oss (Z-Image-Turbo), or ltx-video.
 
 use std::time::Duration;
 
@@ -22,11 +26,6 @@ pub struct LocalImageSidecarProvider {
     base_url: String,
     client: reqwest::Client,
 }
-
-/// Backwards-compat alias for callers from M4/M5; new code should use the
-/// generic name since the same provider talks to the multi-backend dispatcher
-/// (Fast/Balanced/Quality/Quality-OSS) in M7-DM, not just SDXL-Turbo.
-pub type LocalSdxlSidecarProvider = LocalImageSidecarProvider;
 
 impl LocalImageSidecarProvider {
     pub fn new(base_url: impl Into<String>) -> Self {
@@ -46,9 +45,9 @@ impl ImageProvider for LocalImageSidecarProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         // backend_preset is propagated to the Python dispatcher so it picks the
         // right backend slot (fast=SDXL-Turbo, balanced=SDXL-Lightning,
-        // quality=Nunchaku-FLUX, quality-oss=Z-Image-Turbo). Falling back to
-        // 'fast' keeps M4/M5 behavior when the field is absent.
-        let preset = prompt
+        // quality=Nunchaku-FLUX, quality-oss=Z-Image-Turbo, ltx-video).
+        // Falling back to 'fast' keeps M4/M5 behavior when the field is absent.
+        let backend = prompt
             .backend_preset
             .clone()
             .unwrap_or_else(|| "fast".to_string());
@@ -56,7 +55,7 @@ impl ImageProvider for LocalImageSidecarProvider {
             "prompt": prompt.content_prompt,
             "seed": 0,
             "steps": DEFAULT_STEPS,
-            "preset": preset,
+            "backend": backend,
         });
         let resp = self
             .client
@@ -125,7 +124,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let provider = LocalSdxlSidecarProvider::new(server.uri());
+        let provider = LocalImageSidecarProvider::new(server.uri());
         let result = provider
             .generate(ImagePrompt {
                 content_prompt: "a tavern at dusk".into(),
@@ -148,7 +147,7 @@ mod tests {
             .respond_with(ResponseTemplate::new(503))
             .mount(&server)
             .await;
-        let provider = LocalSdxlSidecarProvider::new(server.uri());
+        let provider = LocalImageSidecarProvider::new(server.uri());
         let result = provider
             .generate(ImagePrompt {
                 content_prompt: "x".into(),
