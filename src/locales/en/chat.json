@@ -12,7 +12,7 @@
   "attachment_lightbox_close": "Close",
   "header_title": "The Adventure",
   "header_meta": "SCENE {{scene}} · TURN {{turn}}",
-  "hint_keyboard": "Enter — send · Shift+Enter — new line",
+  "hint_keyboard": "Enter - send · Shift+Enter - new line",
   "welcome_title": "A new adventure",
   "welcome_text": "Type below to begin. Describe an action, ask a question, or speak to the world.",
   "bubble_user_label": "User: {{preview}}",
@@ -26,7 +26,7 @@
   "typing_indicator": "Dungeon Master is writing",
   "image_preview": "image preview",
   "image": "image",
-  "vision_disabled": "Multimodal input is disabled — turn it on in Settings → Chat.",
+  "vision_disabled": "Multimodal input is disabled - turn it on in Settings → Chat.",
   "reasoning_thinking_label": "thinking",
   "reasoning_streaming_label": "thinking..."
 }

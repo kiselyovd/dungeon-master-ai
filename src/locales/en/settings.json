@@ -7,7 +7,7 @@
   "image_enable": "Enable image generation",
   "image_preset": "Preset",
   "image_preset_fast": "Fast (SDXL-Turbo, SAI NC)",
-  "image_preset_balanced": "Balanced (SDXL-Lightning, Apache 2.0) — default",
+  "image_preset_balanced": "Balanced (SDXL-Lightning, Apache 2.0) - default",
   "image_preset_quality": "Quality (Nunchaku FLUX, FLUX-dev NC)",
   "image_preset_quality_oss": "Quality-OSS (Z-Image-Turbo, Apache 2.0)",
   "image_preset_cloud": "Cloud (Replicate / 3rd party)",
