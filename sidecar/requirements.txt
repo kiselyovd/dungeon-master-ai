@@ -1,9 +1,16 @@
-torch==2.4.1
-diffusers==0.30.3
+# Install torch separately with CUDA 12.1 wheel:
+#   uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.4.1 torchvision==0.19.1
+# torch is NOT listed here because it has platform-specific wheels (cu121 on Windows, cu124 on Linux,
+# CPU on macOS). The CI/build steps pin the right wheel per target; this file lists the rest.
+diffusers==0.33.1
 transformers==4.46.0
 accelerate==0.34.2
 safetensors==0.4.5
+peft==0.13.2
+sentencepiece==0.2.0
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 pillow==10.4.0
 pydantic==2.9.2
+huggingface-hub>=0.27,<0.30
+# nunchaku is intentionally NOT here - platform-specific, install per sidecar/README.md
