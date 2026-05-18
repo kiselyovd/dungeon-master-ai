@@ -1,23 +1,22 @@
-"""LTX-Video 0.9.6 distilled backend (~20-28s/clip, 704x480) on RTX 3080.
+"""LTX-Video backend (text-to-video, opt-in via Settings).
 
-Shares T5xxl text encoder with FLUX Quality preset via the manifest's
-requires graph. NOTE: full diffusers LTXPipeline wiring deferred to
-M7.5-DM (model download + GPU smoke); skeleton ships here so the
-PipelineDispatcher can register it and the Rust SSE route has a target.
-"""
+License: LTX open. On 3080 10GB at 704x480, 97 frames, 8 steps: ~22 s/clip.
+Uses diffusers LTXPipeline directly against the Lightricks/LTX-Video diffusers
+folder. ComfyUI GGUF Q8 path deferred to M9-DM+."""
 from __future__ import annotations
 
-import io
+import tempfile
 from pathlib import Path
 from typing import Callable, ClassVar, Literal, Optional
 
+from backends._capabilities import assert_vram_free
 from backends.protocol import GenerationBackend, PromptParams
 
 
 class LtxVideoBackend:
     name: ClassVar[str] = "ltx-video"
     modality: ClassVar[Literal["video"]] = "video"
-    vram_estimate_bytes: ClassVar[int] = 8 * 1024**3
+    vram_estimate_bytes: ClassVar[int] = 9 * 1024**3
 
     def __init__(self, weights_dir: Optional[Path] = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
@@ -25,24 +24,70 @@ class LtxVideoBackend:
         self._progress_callback: Optional[Callable[[float], None]] = None
 
     def set_progress_callback(self, cb: Callable[[float], None]) -> None:
-        """Wired by the HTTP layer when streaming SSE so each diffusion step
-        emits a Progress event to the client."""
         self._progress_callback = cb
 
     def load(self) -> None:
         if self._pipe is not None:
             return
-        # Real: `from diffusers import LTXPipeline` + distilled checkpoint
-        # + T5xxl encoder (shared via manifest deps). Deferred M7.5-DM.
-        raise NotImplementedError(
-            "LtxVideoBackend.load() is wired in M7.5-DM; "
-            "use the pre-recorded mp4 library fallback for now."
-        )
+        assert_vram_free(9 * 1024**3)
+
+        import torch  # noqa: PLC0415
+        from diffusers import LTXPipeline  # noqa: PLC0415
+
+        repo_dir = self._weights_dir / "ltx-video" / "ltx-video"
+        pipe = LTXPipeline.from_pretrained(
+            str(repo_dir),
+            torch_dtype=torch.bfloat16,
+        ).to("cuda" if torch.cuda.is_available() else "cpu")
+
+        pipe.vae.enable_slicing()
+        pipe.vae.enable_tiling()
+        self._pipe = pipe
 
     def unload(self) -> None:
-        self._pipe = None
+        if self._pipe is not None:
+            self._pipe = None
+            try:
+                import torch  # noqa: PLC0415
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass
 
-    def generate(self, params: PromptParams) -> bytes:  # pragma: no cover
+    def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
-        del params
-        return io.BytesIO().getvalue()
+
+        import torch  # noqa: PLC0415
+        from diffusers.utils import export_to_video  # noqa: PLC0415
+
+        steps = params.steps or 8
+        frames = params.frame_count or 97
+        cb = self._progress_callback
+
+        def _on_step(_pipe, i, _t, kw):
+            if cb is not None:
+                cb((i + 1) / steps)
+            return kw
+
+        height = params.resolution[1] if params.resolution[1] >= 256 else 480
+        width = params.resolution[0] if params.resolution[0] >= 256 else 704
+
+        generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
+        result = self._pipe(
+            prompt=params.text,
+            negative_prompt=params.negative or "worst quality, blurry, low detail",
+            num_inference_steps=steps,
+            num_frames=frames,
+            height=height,
+            width=width,
+            generator=generator,
+            callback_on_step_end=_on_step,
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            export_to_video(result.frames[0], str(tmp_path), fps=24)
+            return tmp_path.read_bytes()
+        finally:
+            tmp_path.unlink(missing_ok=True)

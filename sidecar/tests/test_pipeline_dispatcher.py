@@ -92,11 +92,3 @@ def test_production_dispatcher_registers_4_image_plus_ltx_video():
     assert len(video_backends) == 1
 
 
-def test_ltx_video_load_raises_not_implemented_in_m7_dm():
-    from backends.ltx_video import LtxVideoBackend
-
-    backend = LtxVideoBackend()
-    with pytest.raises(NotImplementedError, match="M7.5-DM"):
-        backend.load()
-
-
