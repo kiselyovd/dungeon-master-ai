@@ -31,5 +31,8 @@
   "filter_sort": "Порядок сортировки",
   "sort_downloads": "По загрузкам",
   "sort_likes": "По лайкам",
-  "sort_recent": "По дате обновления"
+  "sort_recent": "По дате обновления",
+  "search_placeholder": "Поиск HuggingFace (например qwen3 thinking)",
+  "search": "Поиск",
+  "searching": "Поиск..."
 }

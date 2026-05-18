@@ -1,0 +1,20 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchBar {
+  display: flex;
+  gap: 8px;
+}
+
+.searchBar input {
+  flex: 1;
+  padding: 6px 8px;
+}
+
+.error {
+  color: rgba(220, 100, 100, 0.9);
+  font-size: 13px;
+}
