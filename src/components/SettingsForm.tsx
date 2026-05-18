@@ -26,8 +26,8 @@ import styles from './SettingsForm.module.css';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
-export type Tab = 'provider' | 'image' | 'video' | 'model';
-const TAB_ORDER: readonly Tab[] = ['provider', 'image', 'video', 'model'];
+export type Tab = 'provider' | 'image' | 'video' | 'behavior';
+const TAB_ORDER: readonly Tab[] = ['provider', 'image', 'video', 'behavior'];
 
 export interface SettingsSubmission {
   provider: ProviderConfig;
@@ -178,13 +178,13 @@ export function SettingsForm({
         <button
           type="button"
           role="tab"
-          id="settings-tab-model"
-          aria-controls="settings-panel-model"
-          aria-selected={activeTab === 'model'}
-          tabIndex={activeTab === 'model' ? 0 : -1}
+          id="settings-tab-behavior"
+          aria-controls="settings-panel-behavior"
+          aria-selected={activeTab === 'behavior'}
+          tabIndex={activeTab === 'behavior' ? 0 : -1}
           onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'model' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('model')}
+          className={`${styles.tab} ${activeTab === 'behavior' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('behavior')}
         >
           {t('tab_behavior')}
         </button>
@@ -288,8 +288,8 @@ export function SettingsForm({
         </div>
       )}
 
-      {activeTab === 'model' && (
-        <div role="tabpanel" id="settings-panel-model" aria-labelledby="settings-tab-model">
+      {activeTab === 'behavior' && (
+        <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
           <ModelTab
             draft={{
               systemPrompt: drafts.systemPrompt,

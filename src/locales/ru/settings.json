@@ -4,7 +4,6 @@
   "tab_image": "Изображения",
   "tab_video": "Видео",
   "tab_behavior": "Поведение",
-  "tab_model": "Модель",
   "image_enable": "Включить генерацию изображений",
   "image_preset": "Пресет",
   "image_preset_fast": "Быстрый (SDXL-Turbo, SAI NC)",

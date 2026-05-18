@@ -4,7 +4,6 @@
   "tab_image": "Image",
   "tab_video": "Video",
   "tab_behavior": "Behavior",
-  "tab_model": "Model",
   "image_enable": "Enable image generation",
   "image_preset": "Preset",
   "image_preset_fast": "Fast (SDXL-Turbo, SAI NC)",
