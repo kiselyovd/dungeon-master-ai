@@ -52,6 +52,19 @@ const fn caps_all_true() -> Capabilities {
     }
 }
 
+/// Capabilities for Qwen3 local models hosted via mistralrs-server. Vision
+/// and tool-calls are real, but reasoning is OFF until mistralrs surfaces
+/// `reasoning_content` or `<think>` markers in its OpenAI-compat SSE stream
+/// (see mistralrs_provider.rs note - M9-DM probe RED, 2026-05-19).
+const fn caps_qwen3_local_no_reasoning() -> Capabilities {
+    Capabilities {
+        vision_input: true,
+        reasoning: false,
+        tool_calls: true,
+        streaming: true,
+    }
+}
+
 const fn caps_text_with_tools() -> Capabilities {
     Capabilities {
         vision_input: false,
@@ -71,25 +84,25 @@ pub const CHAT_CATALOG: &[ProviderCatalogEntry] = &[
             CuratedModelEntry {
                 model_id: "qwen3.5-0.8b",
                 display_name: "Qwen3.5-0.8B (Q4_K_M, VL+thinking)",
-                capabilities: caps_all_true(),
+                capabilities: caps_qwen3_local_no_reasoning(),
                 default: false,
             },
             CuratedModelEntry {
                 model_id: "qwen3.5-2b",
                 display_name: "Qwen3.5-2B (Q4_K_M, VL+thinking)",
-                capabilities: caps_all_true(),
+                capabilities: caps_qwen3_local_no_reasoning(),
                 default: false,
             },
             CuratedModelEntry {
                 model_id: "qwen3.5-4b",
                 display_name: "Qwen3.5-4B (Q4_K_M, VL+thinking)",
-                capabilities: caps_all_true(),
+                capabilities: caps_qwen3_local_no_reasoning(),
                 default: true,
             },
             CuratedModelEntry {
                 model_id: "qwen3.5-9b",
                 display_name: "Qwen3.5-9B (Q4_K_M, VL+thinking)",
-                capabilities: caps_all_true(),
+                capabilities: caps_qwen3_local_no_reasoning(),
                 default: false,
             },
         ],

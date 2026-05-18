@@ -1,6 +1,13 @@
 //! `MistralrsLocalProvider` is a thin wrapper over `OpenAICompatProvider`,
 //! pinned to a localhost port and tagged with a distinct provider name so the
 //! Settings UI and tracing can distinguish it from BYO-OpenAI-compat targets.
+//!
+//! NOTE (M9-DM, 2026-05-19): mistralrs-server 0.6.x does not surface
+//! `reasoning_content` for Qwen3 thinking models in the OpenAI-compat SSE
+//! delta. The `chat_template_kwargs: { enable_thinking: true }` body field is
+//! not wired here for that reason. Revisit on mistralrs 0.7+ or after an
+//! upstream PR enables a dedicated thinking channel. Until then, every
+//! local-mistralrs catalog entry pins `caps.reasoning = false`.
 
 use crate::openai_compat::OpenAICompatProvider;
 use crate::provider::{Capabilities, ChatRequest, ChunkStream, LlmError, LlmProvider};
