@@ -19,7 +19,7 @@ pub mod testing;
 pub mod video;
 
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -76,7 +76,24 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/local-llm/active-model",
             post(routes::local_llm::set_active_model),
-        );
+        )
+        .route(
+            "/hf/token",
+            post(routes::hf::post_token).delete(routes::hf::delete_token),
+        )
+        .route("/hf/token/status", get(routes::hf::get_token_status))
+        .route("/hf/search", get(routes::hf::search))
+        // Wildcard capture so `Qwen/Qwen3-4B` style ids reach the handler
+        // intact - axum's plain `{repo_id}` would stop at the embedded slash,
+        // and `{*repo_id}` is only legal as the final segment. We therefore
+        // front-load the action verb ("license") and let the repo id occupy
+        // the wildcard tail.
+        .route(
+            "/hf/model/license/{*repo_id}",
+            get(routes::hf::license_check),
+        )
+        .route("/hf/manifest/add", post(routes::hf::add_manifest))
+        .route("/hf/manifest/{id}", delete(routes::hf::delete_manifest));
 
     #[cfg(feature = "with-local-runtime")]
     let r = r
