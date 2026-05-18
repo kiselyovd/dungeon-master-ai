@@ -307,7 +307,48 @@ impl AppState {
 mod tests {
     use super::*;
     use app_llm::MockProvider;
+    use async_trait::async_trait;
     use sqlx::SqlitePool;
+
+    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+    use crate::video::provider::{
+        VideoCapabilities, VideoError, VideoPrompt, VideoProvider, VideoStream,
+    };
+
+    /// Dummy ImageProvider whose `generate` is unused: the registry tests only
+    /// need a distinguishable Arc<dyn ImageProvider> identity, never a call.
+    struct DummyImageProvider;
+
+    #[async_trait]
+    impl ImageProvider for DummyImageProvider {
+        async fn generate(&self, _prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
+            unreachable!("DummyImageProvider::generate must not be called in registry tests")
+        }
+        fn estimated_seconds(&self) -> u32 {
+            0
+        }
+        fn cost_per_image(&self) -> f32 {
+            0.0
+        }
+    }
+
+    /// Dummy VideoProvider whose `generate` is unused for the same reason.
+    struct DummyVideoProvider;
+
+    #[async_trait]
+    impl VideoProvider for DummyVideoProvider {
+        async fn generate(&self, _prompt: VideoPrompt) -> Result<VideoStream, VideoError> {
+            unreachable!("DummyVideoProvider::generate must not be called in registry tests")
+        }
+        fn capabilities(&self) -> VideoCapabilities {
+            VideoCapabilities {
+                duration_range_secs: (0, 0),
+                max_resolution: (0, 0),
+                supports_image_init: false,
+                avg_seconds_per_clip: 0,
+            }
+        }
+    }
 
     async fn test_state() -> AppState {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -326,20 +367,57 @@ mod tests {
     #[tokio::test]
     async fn set_provider_preserves_image_video() {
         let s = test_state().await;
-        // Swap chat via legacy setter - other slots must stay None.
-        s.set_provider(Arc::new(MockProvider::new(vec![])));
+
+        // Pre-populate both media slots so we can prove they survive a chat
+        // swap (the original test left them None, so a bug that NULLED them
+        // would have gone undetected).
+        let image: Arc<dyn ImageProvider> = Arc::new(DummyImageProvider);
+        let video: Arc<dyn VideoProvider> = Arc::new(DummyVideoProvider);
+        s.set_image_provider(image.clone());
+        s.set_video_provider(video.clone());
+
+        // Swap chat via the legacy setter with a distinguishable active model.
+        let new_chat: Arc<dyn LlmProvider> =
+            Arc::new(MockProvider::new(vec![]).with_active_model("post-swap"));
+        s.set_provider(new_chat.clone());
+
         let reg = s.registry();
-        assert_eq!(reg.chat.name(), "mock");
-        assert!(reg.image.is_none());
-        assert!(reg.video.is_none());
+        // Chat actually moved to the new instance.
+        assert!(Arc::ptr_eq(&reg.chat, &new_chat));
+        assert_eq!(reg.chat.active_model(), "post-swap");
+        // Image and video Arc identities are preserved bit-for-bit.
+        let kept_image = reg.image.as_ref().expect("image slot lost");
+        let kept_video = reg.video.as_ref().expect("video slot lost");
+        assert!(Arc::ptr_eq(kept_image, &image));
+        assert!(Arc::ptr_eq(kept_video, &video));
     }
 
     #[tokio::test]
     async fn swap_registry_replaces_all_three_atomically() {
         let s = test_state().await;
-        let new_reg =
-            crate::providers::ProviderRegistry::new(Arc::new(MockProvider::new(vec![])));
+        // Sanity: pre-swap there is no media.
+        assert!(s.image_provider().is_none());
+        assert!(s.video_provider().is_none());
+
+        // Build a brand-new registry that populates ALL three slots so we can
+        // prove the swap installs every slot, not just chat.
+        let chat: Arc<dyn LlmProvider> =
+            Arc::new(MockProvider::new(vec![]).with_active_model("new-chat"));
+        let image: Arc<dyn ImageProvider> = Arc::new(DummyImageProvider);
+        let video: Arc<dyn VideoProvider> = Arc::new(DummyVideoProvider);
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: chat.clone(),
+            image: Some(image.clone()),
+            video: Some(video.clone()),
+        };
         s.swap_registry(new_reg);
-        assert_eq!(s.provider().name(), "mock");
+
+        let reg = s.registry();
+        assert!(Arc::ptr_eq(&reg.chat, &chat));
+        assert_eq!(reg.chat.active_model(), "new-chat");
+        let installed_image = reg.image.as_ref().expect("image slot empty after swap");
+        let installed_video = reg.video.as_ref().expect("video slot empty after swap");
+        assert!(Arc::ptr_eq(installed_image, &image));
+        assert!(Arc::ptr_eq(installed_video, &video));
     }
 }
