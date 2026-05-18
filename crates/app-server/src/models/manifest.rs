@@ -30,6 +30,7 @@ pub enum ModelId {
     // image (NEW for M7-DM)
     SdxlLightningBase,
     SdxlLightning4StepLora,
+    FluxDevBase,
     NunchakuFluxDevInt4,
     NunchakuFluxTurboAlpha8stepLora,
     ZImageTurboSvdq,
@@ -161,6 +162,19 @@ pub const MANIFEST: &[ModelManifest] = &[
     },
     // --- image: Quality preset (FLUX-dev NC) ---
     ModelManifest {
+        id: ModelId::FluxDevBase,
+        display_name: "FLUX.1-dev base (encoders + VAE + scheduler)",
+        size_bytes_estimate: 9_000 * 1024 * 1024,
+        vram_bytes_estimate: 2_000 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "black-forest-labs/FLUX.1-dev",
+        // hf_filename "*" with allow_patterns filter at download time excludes
+        // transformer/ subfolder (Nunchaku INT4 replaces it).
+        hf_filename: "*",
+        kind: ModelKind::DiffusersFolder,
+        requires: &[],
+    },
+    ModelManifest {
         id: ModelId::NunchakuFluxDevInt4,
         display_name: "Nunchaku FLUX.1-dev INT4 (SVDQuant W4A4)",
         size_bytes_estimate: 6_500 * 1024 * 1024,
@@ -169,7 +183,7 @@ pub const MANIFEST: &[ModelManifest] = &[
         hf_repo: "mit-han-lab/nunchaku-flux.1-dev",
         hf_filename: "svdq-int4_r32-flux.1-dev.safetensors",
         kind: ModelKind::NunchakuSvdquant,
-        requires: &[ModelId::T5xxlEncoder],
+        requires: &[ModelId::FluxDevBase],
     },
     ModelManifest {
         id: ModelId::NunchakuFluxTurboAlpha8stepLora,
@@ -334,13 +348,14 @@ mod tests {
         assert!(ids.contains(&&ModelId::SdxlTurbo));
         assert!(ids.contains(&&ModelId::SdxlLightningBase));
         assert!(ids.contains(&&ModelId::SdxlLightning4StepLora));
+        assert!(ids.contains(&&ModelId::FluxDevBase));
         assert!(ids.contains(&&ModelId::NunchakuFluxDevInt4));
         assert!(ids.contains(&&ModelId::NunchakuFluxTurboAlpha8stepLora));
         assert!(ids.contains(&&ModelId::ZImageTurboSvdq));
         assert!(ids.contains(&&ModelId::Qwen3_4bTextEncoder));
         assert!(ids.contains(&&ModelId::T5xxlEncoder));
         assert!(ids.contains(&&ModelId::LtxVideo09_6Distilled));
-        assert_eq!(MANIFEST.len(), 13);
+        assert_eq!(MANIFEST.len(), 14);
     }
 
     #[test]
@@ -369,17 +384,17 @@ mod tests {
     }
 
     #[test]
-    fn resolve_download_order_for_flux_includes_t5_first() {
+    fn resolve_download_order_for_flux_pulls_base_before_nunchaku_transformer() {
         let order = resolve_download_order(&ModelId::NunchakuFluxDevInt4);
-        let t5_idx = order
+        let base_idx = order
             .iter()
-            .position(|m| matches!(m, ModelId::T5xxlEncoder))
+            .position(|m| matches!(m, ModelId::FluxDevBase))
             .unwrap();
         let flux_idx = order
             .iter()
             .position(|m| matches!(m, ModelId::NunchakuFluxDevInt4))
             .unwrap();
-        assert!(t5_idx < flux_idx);
+        assert!(base_idx < flux_idx);
     }
 
     #[test]
