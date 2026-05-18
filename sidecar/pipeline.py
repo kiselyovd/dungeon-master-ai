@@ -27,10 +27,10 @@ class PipelineDispatcher:
     def production(cls, weights_dir: Optional[Path] = None) -> "PipelineDispatcher":
         return cls({
             "fast": SdxlTurboBackend(weights_dir),
-            "balanced": SdxlLightningBackend(),
-            "quality": NunchakuFluxBackend(),
-            "quality-oss": ZImageTurboBackend(),
-            "ltx-video": LtxVideoBackend(),
+            "balanced": SdxlLightningBackend(weights_dir),
+            "quality": NunchakuFluxBackend(weights_dir),
+            "quality-oss": ZImageTurboBackend(weights_dir),
+            "ltx-video": LtxVideoBackend(weights_dir),
         })
 
     @classmethod

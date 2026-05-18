@@ -8,7 +8,8 @@ NOTE: Real wiring deferred to M7.5-DM (upstream package + GPU smoke).
 from __future__ import annotations
 
 import io
-from typing import ClassVar, Literal
+from pathlib import Path
+from typing import ClassVar, Literal, Optional
 
 from backends.protocol import GenerationBackend, PromptParams
 
@@ -18,7 +19,8 @@ class ZImageTurboBackend:
     modality: ClassVar[Literal["image"]] = "image"
     vram_estimate_bytes: ClassVar[int] = int(5.5 * 1024**3)
 
-    def __init__(self) -> None:
+    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+        self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
         self._pipe = None
 
     def load(self) -> None:

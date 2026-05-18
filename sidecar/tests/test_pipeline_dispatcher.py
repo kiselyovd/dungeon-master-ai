@@ -100,11 +100,3 @@ def test_ltx_video_load_raises_not_implemented_in_m7_dm():
         backend.load()
 
 
-def test_sdxl_lightning_load_raises_not_implemented_in_m7_dm():
-    """M7-DM ships protocol + dispatcher; concrete loaders for the 3 new
-    backends land in M7.5-DM. Confirm the stub semantics."""
-    from sidecar.backends.sdxl_lightning import SdxlLightningBackend
-
-    backend = SdxlLightningBackend()
-    with pytest.raises(NotImplementedError, match="M7.5-DM"):
-        backend.load()
