@@ -8,10 +8,12 @@ pub mod image;
 pub mod license;
 pub mod local_runtime;
 pub mod models;
+pub mod paths;
 pub mod providers;
 pub mod routes;
 pub mod secrets;
 pub mod state;
+pub mod telemetry;
 pub mod testing;
 pub mod video;
 

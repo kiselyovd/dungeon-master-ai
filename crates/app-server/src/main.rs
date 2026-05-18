@@ -15,7 +15,8 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_tracing();
+    let _telemetry = app_server::telemetry::init_telemetry()
+        .context("init telemetry")?;
     let settings = Settings::from_env();
 
     let llm: Arc<dyn LlmProvider> = match settings.anthropic_api_key.clone() {
@@ -199,11 +200,3 @@ fn resolve_default_db_path() -> std::path::PathBuf {
     exe_dir.join("data.db")
 }
 
-fn init_tracing() {
-    use tracing_subscriber::EnvFilter;
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .json()
-        .init();
-}
