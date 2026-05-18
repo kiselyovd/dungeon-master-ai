@@ -1,10 +1,12 @@
-"""Quality-OSS preset (Z-Image-Turbo 6B, Apache 2.0).
+"""Quality-OSS preset (Z-Image-Turbo 6B SVDQuant INT4, Apache 2.0).
 
 License: Apache 2.0 - the commercial-safe quality choice.
-On 3080 10GB: target 3-5 s/image at 1024x1024 8 steps.
+On 3080 10GB: target 3-5 s/image at 1024x1024 8 steps via SVDQuant INT4 r128.
 
-Requires diffusers 0.39+ (ZImagePipeline) and transformers 4.51+ (Qwen3Model).
-Unblocked 2026-05-18 by bumping diffusers to git main + transformers to 4.57."""
+Requires diffusers 0.39+ (ZImagePipeline), transformers 4.51+ (Qwen3Model), and
+nunchaku 1.1.0+ (NunchakuZImageTransformer2DModel).
+Unblocked 2026-05-18 evening via nunchaku-tech/nunchaku-z-image-turbo SVDQ release
+and nunchaku 1.2.1 wheel (torch 2.8 + cu128)."""
 from __future__ import annotations
 
 import io
@@ -13,6 +15,44 @@ from typing import ClassVar, Literal, Optional
 
 from backends._capabilities import assert_vram_free
 from backends.protocol import GenerationBackend, PromptParams
+
+
+def _patch_nunchaku_zimage_forward(transformer_cls) -> None:
+    """Workaround for nunchaku 1.2.1 vs diffusers main signature drift.
+
+    nunchaku's NunchakuZImageTransformer2DModel.forward calls
+    super().forward(x, t, cap_feats, patch_size, f_patch_size, return_dict)
+    positionally, but diffusers main inserted controlnet_block_samples /
+    siglip_feats / image_noise_mask BETWEEN return_dict and patch_size, so
+    patch_size=2 lands in the controlnet_block_samples slot and trips a
+    'argument of type int is not iterable' deep in the unified-sequence loop.
+    Fix until nunchaku ships a release that uses keyword args."""
+    if getattr(transformer_cls, "_dm_ai_forward_patched", False):
+        return
+    from nunchaku.models.transformers.transformer_zimage import (  # noqa: PLC0415
+        NunchakuZImageRopeHook,
+    )
+    base_forward = transformer_cls.__mro__[1].forward  # diffusers ZImageTransformer2DModel.forward
+
+    def _patched(self, x, t, cap_feats, patch_size=2, f_patch_size=1, return_dict=True):
+        rope_hook = NunchakuZImageRopeHook()
+        self.register_rope_hook(rope_hook)
+        try:
+            return base_forward(
+                self,
+                x,
+                t,
+                cap_feats,
+                return_dict=return_dict,
+                patch_size=patch_size,
+                f_patch_size=f_patch_size,
+            )
+        finally:
+            self.unregister_rope_hook()
+            del rope_hook
+
+    transformer_cls.forward = _patched
+    transformer_cls._dm_ai_forward_patched = True
 
 
 class ZImageTurboBackend:
@@ -31,16 +71,32 @@ class ZImageTurboBackend:
 
         import torch  # noqa: PLC0415
         from diffusers import ZImagePipeline  # noqa: PLC0415
+        from nunchaku import NunchakuZImageTransformer2DModel  # noqa: PLC0415
 
-        repo_dir = self._weights_dir / "quality-oss" / "z-image-turbo"
-        # BF16 not FP16: 6B params @ FP16 produced NaN on RTX 3080 (verified
-        # 2026-05-18). BF16 has the same memory footprint with stable dynamic
-        # range. Until mit-han-lab ships an SVDQ-INT4 release this is the only
-        # working dtype on 10 GB Ampere.
+        _patch_nunchaku_zimage_forward(NunchakuZImageTransformer2DModel)
+
+        base_dir = self._weights_dir / "quality-oss" / "z-image-turbo"
+        svdq_path = self._weights_dir / "quality-oss" / "svdq-int4_r128-z-image-turbo.safetensors"
+
+        # INT4 rank 128: balanced quality/speed default for SVDQuant on Ampere.
+        # FP4 variants forbidden on RTX 3080 (no native FP4 hardware).
+        transformer = NunchakuZImageTransformer2DModel.from_pretrained(
+            str(svdq_path), torch_dtype=torch.bfloat16
+        )
         pipe = ZImagePipeline.from_pretrained(
-            str(repo_dir),
+            str(base_dir),
+            transformer=transformer,
             torch_dtype=torch.bfloat16,
-        ).to("cuda" if torch.cuda.is_available() else "cpu")
+            low_cpu_mem_usage=False,
+        )
+        if torch.cuda.is_available():
+            # Z-Image-Turbo full stack (SVDQ transformer 4 GB + Qwen3-4B encoder 4 GB +
+            # VAE 0.5 GB) lands at ~11.5 GB resident which is over 10 GB on 3080,
+            # causing unified-memory paging and ~50 s/step. model_cpu_offload keeps
+            # only the active component on GPU (peak ~6-7 GB), restoring fast path.
+            pipe.enable_model_cpu_offload()
+        else:
+            pipe = pipe.to("cpu")
         self._pipe = pipe
 
     def unload(self) -> None:
@@ -59,6 +115,7 @@ class ZImageTurboBackend:
         import torch  # noqa: PLC0415
 
         generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
+        # guidance_scale=0.0 mandatory for Turbo models (distilled, no CFG path).
         image = self._pipe(
             prompt=params.text,
             negative_prompt=params.negative,
