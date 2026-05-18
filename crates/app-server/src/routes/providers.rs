@@ -13,7 +13,7 @@ use crate::providers::catalog::{
 };
 use crate::providers::discovery::{
     AnthropicCurated, DiscoverParams, DiscoveryError, DiscoveryResult, DiscoverySource,
-    HfHubSearch, OpenAIV1Models, ReplicateSearch,
+    HfHubSearch, OpenAIV1Models, ReplicateSearch, merge_recommended, recommended_for,
 };
 
 #[derive(Serialize)]
@@ -84,11 +84,22 @@ async fn dispatch_discovery(
     provider_id: &str,
     params: DiscoverParams,
 ) -> Result<DiscoveryResult, DiscoveryError> {
-    match provider_id {
-        "anthropic" => AnthropicCurated.discover(params).await,
-        "openai" | "openai-compat" => OpenAIV1Models::default().discover(params).await,
-        "local-mistralrs" => HfHubSearch::default().discover(params).await,
-        "replicate" => ReplicateSearch::default().discover(params).await,
-        unknown => Err(DiscoveryError::UnsupportedProvider(unknown.to_string())),
+    let mut result = match provider_id {
+        "anthropic" => AnthropicCurated.discover(params).await?,
+        "openai" | "openai-compat" => OpenAIV1Models::default().discover(params).await?,
+        "local-mistralrs" => HfHubSearch::default().discover(params).await?,
+        "replicate" => ReplicateSearch::default().discover(params).await?,
+        unknown => return Err(DiscoveryError::UnsupportedProvider(unknown.to_string())),
+    };
+    // Prepend per-provider hardcoded Recommended models (deduped by
+    // model_id) so the frontend's "Recommended" section always has
+    // sensible starter picks for openai-compat and local-mistralrs.
+    // Anthropic already returns all Curated so the merge is a no-op
+    // for it; Replicate returns empty recommended.
+    let recommended = recommended_for(provider_id);
+    if !recommended.is_empty() {
+        let discovered = std::mem::take(&mut result.models);
+        result.models = merge_recommended(recommended, discovered);
     }
+    Ok(result)
 }
