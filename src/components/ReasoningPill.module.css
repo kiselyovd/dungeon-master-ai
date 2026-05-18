@@ -1,46 +1,7 @@
-.container {
+.reasoningPill {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.pill {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: var(--color-accent-tint, rgba(212, 175, 55, 0.12));
-  border: 1px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
-  border-radius: var(--radius-pill, 9999px);
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 0.85em;
-  color: var(--color-accent-soft, #f0d57a);
-  cursor: pointer;
-}
-
-.pill:hover {
-  background: var(--color-accent-soft, #f0d57a);
-  color: var(--color-bg-dark, #14101a);
-}
-
-.icon {
-  font-size: 1.1em;
-}
-
-.content {
-  font-family: var(--font-jetbrains, "JetBrains Mono", monospace);
-  font-size: 0.85em;
-  white-space: pre-wrap;
-  padding: 12px;
-  border-left: 2px solid var(--color-border-accent, rgba(212, 175, 55, 0.4));
-  margin-left: 12px;
-  color: var(--color-text-muted, #b8a888);
-}
-
-/* M9-DM polish: collapsible reasoning summary + live thinking pill. */
-.reasoningPill {
+  gap: 6px;
   margin: 8px 0;
   transition:
     max-height 250ms ease-out,
@@ -49,6 +10,42 @@
 
 .reasoningPill[data-reduced-motion="true"] {
   transition: none;
+}
+
+.summaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: rgba(212, 175, 55, 0.75);
+  font-family: var(--font-jetbrains, "JetBrains Mono", monospace);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.summaryButton:hover {
+  background: rgba(212, 175, 55, 0.08);
+  color: rgba(232, 224, 208, 0.9);
+}
+
+.summaryButton:focus-visible {
+  outline: 2px solid rgba(212, 175, 55, 0.55);
+  outline-offset: 2px;
+}
+
+.chevron {
+  display: inline-block;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.body {
+  overflow: hidden;
 }
 
 .thinkingText {
@@ -61,42 +58,6 @@
   background: rgba(212, 175, 55, 0.04);
   border-left: 2px solid rgba(212, 175, 55, 0.25);
   border-radius: 0 4px 4px 0;
-}
-
-.noDropcap::first-letter {
-  /* Prevent any inherited drop-cap styling from leaking into reasoning text. */
-  initial-letter: 1;
-  font-size: inherit;
-  float: none;
-}
-
-.summaryButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(212, 175, 55, 0.06);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 4px;
-  color: rgba(232, 224, 208, 0.75);
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-
-.summaryButton:hover {
-  background: rgba(212, 175, 55, 0.12);
-}
-
-.chevron {
-  font-size: 10px;
-  color: #d4af37;
-}
-
-.body {
-  margin-top: 6px;
 }
 
 /*
@@ -114,4 +75,15 @@
   background: rgba(212, 175, 55, 0.04);
   border-left: 2px solid rgba(212, 175, 55, 0.25);
   border-radius: 0 4px 4px 0;
+}
+
+.noDropcap {
+  /* Marker class consumed by MessageBubble.module.css to disable the
+     ::first-letter drop-cap on reasoning content. */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reasoningPill {
+    transition: none;
+  }
 }
