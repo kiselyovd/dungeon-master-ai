@@ -5,12 +5,14 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod image;
+pub mod license;
 pub mod local_runtime;
 pub mod models;
 pub mod providers;
 pub mod routes;
 pub mod secrets;
 pub mod state;
+pub mod testing;
 pub mod video;
 
 use axum::Router;

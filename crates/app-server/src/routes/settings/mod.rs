@@ -16,6 +16,7 @@ use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
 use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
 use crate::image::stub::LocalImageSidecarProvider;
+use crate::license::is_oss_license;
 use crate::models::manifest::{manifest_for, ModelId};
 use crate::providers::catalog::{
     find_chat_entry, find_entry_any_modality, IMAGE_CATALOG, VIDEO_CATALOG,
@@ -70,13 +71,28 @@ pub async fn post_settings_v2(
         crate::routes::settings::v2::ReasoningBudget::High => app_llm::ReasoningSpec::High,
     };
 
+    let license_restricted = cfg.behavior.license_restricted_mode;
+
     // Build the full registry to completion BEFORE taking the write lock.
     // If any sub-build fails, the prior registry stays untouched.
     let (chat_provider, model_name) =
-        build_chat_provider(&cfg.chat, state.secrets_repo()).await?;
-    let image_provider =
-        build_image_provider(&cfg.image, state.secrets_repo(), state.media_sidecar_url()).await?;
-    let video_provider = build_video_provider(&cfg.video, state.media_sidecar_url())?;
+        build_chat_provider(&cfg.chat, state.secrets_repo(), license_restricted).await?;
+    let image_provider = build_image_provider(
+        &cfg.image,
+        state.secrets_repo(),
+        state.media_sidecar_url(),
+        license_restricted,
+    )
+    .await?;
+    let video_provider =
+        build_video_provider(&cfg.video, state.media_sidecar_url(), license_restricted)?;
+
+    // license_restricted_no_compat: surfaces to UI when the user toggled
+    // restriction on but their active image/video provider got filtered out.
+    // Lets the frontend show "no compatible OSS providers for this modality".
+    let no_compat = license_restricted
+        && ((cfg.image.enabled && image_provider.is_none())
+            || (cfg.video.enabled && video_provider.is_none()));
 
     let new_registry = crate::providers::ProviderRegistry {
         chat: chat_provider,
@@ -89,7 +105,10 @@ pub async fn post_settings_v2(
     state.swap_registry(new_registry);
     state.set_default_model(model_name);
 
-    Ok(Json(serde_json::json!({ "status": "ok" })))
+    Ok(Json(serde_json::json!({
+        "status": "ok",
+        "license_restricted_no_compat": no_compat,
+    })))
 }
 
 /// Per-provider config carried inside `chat.providers[active_provider_id]`.
@@ -121,7 +140,20 @@ struct LocalMistralrsSlice {
 async fn build_chat_provider(
     chat: &ChatConfig,
     secrets: Arc<dyn crate::secrets::SecretsRepo>,
+    license_restricted: bool,
 ) -> Result<(Arc<dyn app_llm::LlmProvider>, String), AppError> {
+    // License-restricted mode: chat is mandatory, so a non-OSS active chat
+    // provider is a hard error (not a silent filter as for image/video).
+    if license_restricted {
+        if let Some(entry) = find_chat_entry(&chat.active_provider_id) {
+            if !is_oss_license(entry.license) {
+                return Err(AppError::BadRequest(format!(
+                    "chat provider '{}' blocked by license_restricted_mode (license: {})",
+                    chat.active_provider_id, entry.license
+                )));
+            }
+        }
+    }
     let slice = chat
         .providers
         .get(&chat.active_provider_id)
@@ -201,9 +233,22 @@ async fn build_image_provider(
     image: &ImageConfig,
     secrets: Arc<dyn crate::secrets::SecretsRepo>,
     sidecar_url: Option<String>,
+    license_restricted: bool,
 ) -> Result<Option<Arc<dyn crate::image::provider::ImageProvider>>, AppError> {
     if !image.enabled {
         return Ok(None);
+    }
+    // License-restricted: filter non-OSS image providers silently. The frontend
+    // surfaces this via the `license_restricted_no_compat` response field.
+    if license_restricted {
+        if let Some(entry) = IMAGE_CATALOG
+            .iter()
+            .find(|e| e.id == image.active_provider_id)
+        {
+            if !is_oss_license(entry.license) {
+                return Ok(None);
+            }
+        }
     }
     match image.active_provider_id.as_str() {
         "replicate" => {
@@ -241,9 +286,22 @@ async fn build_image_provider(
 fn build_video_provider(
     video: &VideoConfig,
     sidecar_url: Option<String>,
+    license_restricted: bool,
 ) -> Result<Option<Arc<dyn crate::video::VideoProvider>>, AppError> {
     if !video.enabled {
         return Ok(None);
+    }
+    // License-restricted: filter non-OSS video providers silently. LTX-Video
+    // is OpenRAIL-M (research-only), so it gets dropped in restricted mode.
+    if license_restricted {
+        if let Some(entry) = VIDEO_CATALOG
+            .iter()
+            .find(|e| e.id == video.active_provider_id)
+        {
+            if !is_oss_license(entry.license) {
+                return Ok(None);
+            }
+        }
     }
     match video.active_provider_id.as_str() {
         id if id.starts_with("local-") => {
