@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+markers = [
+    "gpu: requires CUDA and downloaded weights; skipped unless RUN_GPU_TESTS=1",
+]
