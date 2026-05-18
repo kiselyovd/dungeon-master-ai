@@ -4,5 +4,8 @@
   "manage_downloads": "Manage downloads",
   "search_hf": "Search Hugging Face",
   "installed_count": "{{installed}} / {{total}} installed",
-  "active_model_section": "Active model"
+  "active_model_section": "Active model",
+  "download": "Download",
+  "delete": "Delete",
+  "download_error": "Download failed"
 }
