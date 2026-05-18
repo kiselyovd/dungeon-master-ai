@@ -13,4 +13,8 @@ uvicorn[standard]==0.32.0
 pillow==10.4.0
 pydantic==2.9.2
 huggingface-hub>=0.27,<0.30
+# Video export deps (for LTX-Video MP4 generation via diffusers.utils.export_to_video):
+opencv-python==4.10.0.84
+imageio==2.36.1
+imageio-ffmpeg==0.5.1
 # nunchaku is intentionally NOT here - platform-specific, install per sidecar/README.md
