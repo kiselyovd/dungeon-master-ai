@@ -60,3 +60,13 @@ on Windows. Install with CUDA 12.1 wheels:
     uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1
 
 torch 2.5.1 is the minimum compatible version for nunchaku 0.3.1 (cp312).
+
+## diffusers from git main
+
+requirements.txt pins `diffusers @ git+https://github.com/huggingface/diffusers.git@main`
+because the Quality-OSS backend (Z-Image-Turbo) needs `ZImagePipeline` and
+`ZImageTransformer2DModel`, which only landed in unreleased 0.36+ dev. Switch back
+to a pinned release once 0.36 (or whichever version ships ZImagePipeline) is on PyPI.
+
+transformers is pinned `>=4.51,<5.0` because Z-Image-Turbo's text encoder is
+Qwen3 (added in 4.51) but transformers 5.x removed symbols diffusers still imports.

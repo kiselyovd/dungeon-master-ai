@@ -1,20 +1,34 @@
-# Install torch separately with CUDA 12.1 wheel:
-#   uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.4.1 torchvision==0.19.1
-# torch is NOT listed here because it has platform-specific wheels (cu121 on Windows, cu124 on Linux,
-# CPU on macOS). The CI/build steps pin the right wheel per target; this file lists the rest.
-diffusers==0.33.1
-transformers==4.46.0
+# Install torch separately with CUDA 12.1 wheel (NOT in this file because of
+# platform-specific wheels: cu121 on Windows, cu124 on Linux, CPU on macOS):
+#   uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1
+# torch 2.5.1 minimum for nunchaku 0.3.1 cp312 wheel.
+
+# diffusers pinned to git main (~0.39.0.dev0) until 0.36 ships stable.
+# Needed for ZImagePipeline + ZImageTransformer2DModel (Quality-OSS backend).
+diffusers @ git+https://github.com/huggingface/diffusers.git@main
+
+# transformers 4.51+ needed for Qwen3Model (Z-Image-Turbo text encoder).
+# Capped < 5.0 because transformers 5.x removed FLAX_WEIGHTS_NAME and other
+# symbols diffusers main still imports.
+transformers>=4.51,<5.0
+
+# peft 0.17+ required by diffusers 0.39 dep check.
+peft>=0.17
+
 accelerate==0.34.2
-safetensors==0.4.5
-peft==0.13.2
+safetensors>=0.4.5
 sentencepiece==0.2.0
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 pillow==10.4.0
 pydantic==2.9.2
-huggingface-hub>=0.27,<0.30
+huggingface-hub>=0.27
+
 # Video export deps (for LTX-Video MP4 generation via diffusers.utils.export_to_video):
 opencv-python==4.10.0.84
 imageio==2.36.1
 imageio-ffmpeg==0.5.1
-# nunchaku is intentionally NOT here - platform-specific, install per sidecar/README.md
+
+# nunchaku is intentionally NOT here - PyPI 'nunchaku' is an unrelated Bayesian sampler.
+# Install the real mit-han-lab SVDQuant Nunchaku from their HF wheel mirror;
+# see sidecar/README.md "Nunchaku install" section.

@@ -17,7 +17,6 @@ from backends.z_image_turbo import ZImageTurboBackend  # noqa: E402
 
 
 @pytest.mark.gpu
-@pytest.mark.skip(reason="upstream blocker: needs diffusers 0.36 + transformers 4.51")
 def test_z_image_turbo_smokes_on_cuda(gpu_weights_dir):
     backend = ZImageTurboBackend(weights_dir=gpu_weights_dir)
     backend.load()
@@ -28,13 +27,9 @@ def test_z_image_turbo_smokes_on_cuda(gpu_weights_dir):
         resolution=(1024, 1024),
     ))
     backend.unload()
-    assert out[:8] == b"\x89PNG\r\n\x1a\n"
+    assert out[:8] == b"\x89PNG\r\n\x1a\n", f"not a PNG: {out[:16]!r}"
     assert len(out) > 100_000
 
-
-def test_z_image_turbo_load_raises_until_upstream_unblocks():
-    """Verification that the deferred backend correctly raises with a clear
-    message that points users to Balanced or Quality."""
-    backend = ZImageTurboBackend()
-    with pytest.raises(NotImplementedError, match="diffusers 0.36"):
-        backend.load()
+    samples_dir = Path(__file__).parent.parent.parent / "samples"
+    samples_dir.mkdir(exist_ok=True)
+    (samples_dir / "quality-oss-wizard.png").write_bytes(out)
