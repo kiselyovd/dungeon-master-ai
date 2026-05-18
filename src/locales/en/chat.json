@@ -28,5 +28,12 @@
   "image": "image",
   "vision_disabled": "Multimodal input is disabled - turn it on in Settings → Chat.",
   "reasoning_thinking_label": "thinking",
-  "reasoning_streaming_label": "thinking..."
+  "reasoning_streaming_label": "thinking...",
+  "reasoning": {
+    "thinking": "Thinking...",
+    "collapsed_label": "Reasoning {{tokens}} tok",
+    "thinking_with_tokens": "Thinking... {{tokens}} tok",
+    "expand": "Show reasoning",
+    "collapse": "Hide reasoning"
+  }
 }

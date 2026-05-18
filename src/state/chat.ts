@@ -54,10 +54,23 @@ export interface ChatSlice {
     isStreaming: boolean;
     lastError: ChatErrorPayload | null;
     abortController: AbortController | null;
+    /**
+     * M9-DM: per-turn reasoning aggregation. Keyed by turn id (assistant
+     * message id once known, or a transient stream id while in-flight). The
+     * single-active `streamingReasoning` field above is kept for back-compat
+     * with the current ChatPanel render path; this map is the forward-compat
+     * shape for multi-turn / re-render scenarios introduced by tasks landing
+     * after the M9 ReasoningPill polish.
+     */
+    reasoningStreams: Map<string, string>;
 
     appendUser: (content: string, parts?: MessagePart[]) => void;
     appendAssistantDelta: (delta: string) => void;
     appendReasoningDelta: (text: string) => void;
+    /** Append a reasoning delta for a specific turn id. */
+    appendReasoning: (turnId: string, delta: string) => void;
+    /** Marker hook for end-of-reasoning; reserved for future totalTokens propagation. */
+    finalizeReasoning: (turnId: string) => void;
     finalizeAssistant: () => void;
     /** Replace the entire history (used after loading from /sessions/:id/messages). */
     setMessages: (messages: ChatMessage[]) => void;
@@ -81,6 +94,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
     isStreaming: false,
     lastError: null,
     abortController: null,
+    reasoningStreams: new Map<string, string>(),
 
     appendUser: (content, parts) =>
       set((s) => {
@@ -119,6 +133,21 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       }));
     },
 
+    appendReasoning: (turnId, delta) => {
+      if (delta.length === 0) return;
+      set((s) => {
+        const next = new Map(s.chat.reasoningStreams);
+        next.set(turnId, (next.get(turnId) ?? '') + delta);
+        return { chat: { ...s.chat, reasoningStreams: next } };
+      });
+    },
+
+    finalizeReasoning: (_turnId) => {
+      // Marker action for future totalTokens propagation from the
+      // reasoning_text_end SSE event. Currently a no-op: the UI flips
+      // ReasoningPill.isStreaming via the next text_delta arrival.
+    },
+
     finalizeAssistant: () => {
       const current = get().chat.streamingAssistant;
       if (current === null || current.length === 0) {
@@ -146,6 +175,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           messages: [],
           streamingAssistant: null,
           streamingReasoning: null,
+          reasoningStreams: new Map<string, string>(),
           lastError: null,
         },
       })),

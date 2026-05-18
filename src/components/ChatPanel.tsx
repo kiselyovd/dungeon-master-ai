@@ -210,8 +210,8 @@ export function ChatPanel() {
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
             <ReasoningPill
-              thinkingText={streamingReasoning ?? ''}
-              streaming={isStreaming && !streamingReasoning}
+              text={streamingReasoning ?? ''}
+              isStreaming={isStreaming && !streamingReasoning}
             />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>

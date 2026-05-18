@@ -38,3 +38,63 @@
   margin-left: 12px;
   color: var(--color-text-muted, #b8a888);
 }
+
+/* M9-DM polish: collapsible reasoning summary + live thinking pill. */
+.reasoningPill {
+  margin: 8px 0;
+  transition:
+    max-height 250ms ease-out,
+    opacity 200ms ease-out;
+}
+
+.reasoningPill[data-reduced-motion="true"] {
+  transition: none;
+}
+
+.thinkingText {
+  font-family: var(--font-jetbrains, "JetBrains Mono", monospace);
+  color: rgba(232, 224, 208, 0.55);
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.65;
+  padding: 12px 16px;
+  background: rgba(212, 175, 55, 0.04);
+  border-left: 2px solid rgba(212, 175, 55, 0.25);
+  border-radius: 0 4px 4px 0;
+}
+
+.noDropcap::first-letter {
+  /* Prevent any inherited drop-cap styling from leaking into reasoning text. */
+  initial-letter: 1;
+  font-size: inherit;
+  float: none;
+}
+
+.summaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+  color: rgba(232, 224, 208, 0.75);
+  font-family: var(--font-cinzel, "Cinzel", serif);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.summaryButton:hover {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.chevron {
+  font-size: 10px;
+  color: #d4af37;
+}
+
+.body {
+  margin-top: 6px;
+}

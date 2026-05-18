@@ -30,5 +30,12 @@
   "image": "изображение",
   "vision_disabled": "Мультимодальный ввод выключен - включи его в Настройках, в Чате.",
   "reasoning_thinking_label": "размышление",
-  "reasoning_streaming_label": "размышляю..."
+  "reasoning_streaming_label": "размышляю...",
+  "reasoning": {
+    "thinking": "Размышляет...",
+    "collapsed_label": "Рассуждение {{tokens}} ток",
+    "thinking_with_tokens": "Размышляет... {{tokens}} ток",
+    "expand": "Показать рассуждение",
+    "collapse": "Скрыть рассуждение"
+  }
 }
