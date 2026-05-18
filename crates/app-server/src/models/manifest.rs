@@ -33,8 +33,8 @@ pub enum ModelId {
     FluxDevBase,
     NunchakuFluxDevInt4,
     NunchakuFluxTurboAlpha8stepLora,
+    ZImageTurboBase,
     ZImageTurboSvdq,
-    Qwen3_4bTextEncoder,
     T5xxlEncoder,
 
     // video (NEW for M7-DM, opt-in)
@@ -73,8 +73,6 @@ pub enum ModelKind {
     SafetensorsSingleFile,
     /// SVDQuant W4A4 INT4 single-file (e.g. Nunchaku FLUX).
     NunchakuSvdquant,
-    /// SVDQ INT4 model directory (e.g. Z-Image-Turbo).
-    SvdqInt4Folder,
     /// LTX-Video distilled checkpoint.
     LtxVideoSafetensors,
 }
@@ -198,28 +196,31 @@ pub const MANIFEST: &[ModelManifest] = &[
     },
     // --- image: Quality-OSS preset ---
     ModelManifest {
-        id: ModelId::ZImageTurboSvdq,
-        display_name: "Z-Image-Turbo 6B SVDQ-INT4",
-        size_bytes_estimate: 5_500 * 1024 * 1024,
-        vram_bytes_estimate: 5_500 * 1024 * 1024,
+        id: ModelId::ZImageTurboBase,
+        display_name: "Z-Image-Turbo base (VAE + Qwen3-4B encoder + scheduler)",
+        size_bytes_estimate: 30_000 * 1024 * 1024,
+        vram_bytes_estimate: 4_500 * 1024 * 1024,
         sha256: "",
-        hf_repo: "mit-han-lab/z-image-turbo-svdq-int4",
-        hf_filename: "*",
-        kind: ModelKind::SvdqInt4Folder,
-        requires: &[ModelId::Qwen3_4bTextEncoder],
-    },
-    // --- shared text encoders ---
-    ModelManifest {
-        id: ModelId::Qwen3_4bTextEncoder,
-        display_name: "Qwen3-4B (text encoder for Z-Image)",
-        size_bytes_estimate: 3_000 * 1024 * 1024,
-        vram_bytes_estimate: 3_000 * 1024 * 1024,
-        sha256: "",
-        hf_repo: "Qwen/Qwen3-4B",
+        // Full diffusers folder; SVDQ transformer below replaces transformer/.
+        hf_repo: "Tongyi-MAI/Z-Image-Turbo",
         hf_filename: "*",
         kind: ModelKind::DiffusersFolder,
         requires: &[],
     },
+    ModelManifest {
+        id: ModelId::ZImageTurboSvdq,
+        display_name: "Z-Image-Turbo 6B SVDQ-INT4 r128",
+        size_bytes_estimate: 4_010 * 1024 * 1024,
+        vram_bytes_estimate: 4_500 * 1024 * 1024,
+        sha256: "",
+        // Quantization weights live at nunchaku-tech (mirrored at nunchaku-ai).
+        // Loader: NunchakuZImageTransformer2DModel.from_pretrained.
+        hf_repo: "nunchaku-tech/nunchaku-z-image-turbo",
+        hf_filename: "svdq-int4_r128-z-image-turbo.safetensors",
+        kind: ModelKind::SafetensorsSingleFile,
+        requires: &[ModelId::ZImageTurboBase],
+    },
+    // --- shared text encoders ---
     ModelManifest {
         id: ModelId::T5xxlEncoder,
         display_name: "T5-XXL Encoder (FLUX + LTX shared)",
@@ -234,12 +235,12 @@ pub const MANIFEST: &[ModelManifest] = &[
     // --- video (opt-in) ---
     ModelManifest {
         id: ModelId::LtxVideo09_6Distilled,
-        display_name: "LTX-Video 0.9.6 distilled",
+        display_name: "LTX-Video 2B 0.9.6 distilled",
         size_bytes_estimate: 6_000 * 1024 * 1024,
-        vram_bytes_estimate: 8_000 * 1024 * 1024,
+        vram_bytes_estimate: 7_000 * 1024 * 1024,
         sha256: "",
         hf_repo: "Lightricks/LTX-Video",
-        hf_filename: "ltx-video-2b-v0.9.6-distilled.safetensors",
+        hf_filename: "ltxv-2b-0.9.6-distilled-04-25.safetensors",
         kind: ModelKind::LtxVideoSafetensors,
         requires: &[ModelId::T5xxlEncoder],
     },
@@ -351,8 +352,8 @@ mod tests {
         assert!(ids.contains(&&ModelId::FluxDevBase));
         assert!(ids.contains(&&ModelId::NunchakuFluxDevInt4));
         assert!(ids.contains(&&ModelId::NunchakuFluxTurboAlpha8stepLora));
+        assert!(ids.contains(&&ModelId::ZImageTurboBase));
         assert!(ids.contains(&&ModelId::ZImageTurboSvdq));
-        assert!(ids.contains(&&ModelId::Qwen3_4bTextEncoder));
         assert!(ids.contains(&&ModelId::T5xxlEncoder));
         assert!(ids.contains(&&ModelId::LtxVideo09_6Distilled));
         assert_eq!(MANIFEST.len(), 14);

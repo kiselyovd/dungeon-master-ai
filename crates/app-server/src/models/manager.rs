@@ -3,7 +3,7 @@
 //! resolution.
 
 use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent, HfEndpoints};
-use crate::models::manifest::{manifest_for, ModelId, ModelKind};
+use crate::models::manifest::{manifest_for, ModelId, ModelKind, ModelManifest};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -203,17 +203,59 @@ impl DownloadManager {
                     }
                 })
             }
-            // New M7-DM ModelKinds will get download handlers in Phase E
-            // (sidecar setup) — for now, reject the start so the user gets a
-            // clear error instead of a silent no-op.
-            other => {
-                return Err(format!(
-                    "download handler for ModelKind {other:?} not yet wired (Phase E)"
-                ));
-            }
+            ModelKind::SafetensorsSingleFile
+            | ModelKind::NunchakuSvdquant
+            | ModelKind::LtxVideoSafetensors => self.spawn_single_file_download(id.clone(), m, state),
         };
         self.handles.write().await.insert(id, handle);
         Ok(())
+    }
+
+    /// Download a single safetensors file. Shared by SafetensorsSingleFile,
+    /// NunchakuSvdquant, and LtxVideoSafetensors kinds - all three resolve to
+    /// `https://huggingface.co/{hf_repo}/resolve/main/{hf_filename}` and land
+    /// at `base_dir / hf_filename`.
+    fn spawn_single_file_download(
+        &self,
+        id: ModelId,
+        m: &'static ModelManifest,
+        state: Arc<RwLock<HashMap<ModelId, DownloadStatus>>>,
+    ) -> JoinHandle<()> {
+        let events = self.events.clone();
+        let url = format!(
+            "https://huggingface.co/{}/resolve/main/{}",
+            m.hf_repo, m.hf_filename
+        );
+        let dest = self.base_dir.join(m.hf_filename);
+        let sha = m.sha256.to_string();
+        tokio::spawn(async move {
+            match download_to(&url, &dest, &sha, events.clone()).await {
+                Ok(res) => {
+                    state.write().await.insert(
+                        id.clone(),
+                        DownloadStatus::Completed {
+                            bytes_total: res.bytes_downloaded,
+                        },
+                    );
+                    let _ = events.send(DownloadEvent::Completed {
+                        id,
+                        bytes_total: res.bytes_downloaded,
+                    });
+                }
+                Err(e) => {
+                    state.write().await.insert(
+                        id.clone(),
+                        DownloadStatus::Failed {
+                            reason: e.to_string(),
+                        },
+                    );
+                    let _ = events.send(DownloadEvent::Failed {
+                        id,
+                        reason: e.to_string(),
+                    });
+                }
+            }
+        })
     }
 
     pub async fn cancel(&self, id: ModelId) {
@@ -236,9 +278,11 @@ impl DownloadManager {
                     let _ = tokio::fs::remove_file(&gguf_dest).await;
                     let _ = tokio::fs::remove_file(&mmproj_dest).await;
                 }
-                _ => {
-                    // For new ModelKinds, file cleanup will be wired together
-                    // with their download handler in Phase E.
+                ModelKind::SafetensorsSingleFile
+                | ModelKind::NunchakuSvdquant
+                | ModelKind::LtxVideoSafetensors => {
+                    let dest = self.base_dir.join(m.hf_filename);
+                    let _ = tokio::fs::remove_file(&dest).await;
                 }
             }
         }
@@ -315,5 +359,39 @@ mod tests {
             "gguf must be removed"
         );
         assert!(matches!(m.status(id).await, DownloadStatus::Idle));
+    }
+
+    /// Generic single-file cancel coverage for the 3 new wired ModelKinds. We
+    /// can't smoke `start()` without real HF network; cancel exercises the
+    /// match arm + the `remove_file(base_dir.join(hf_filename))` cleanup path.
+    async fn assert_single_file_cancel_removes(id: ModelId) {
+        let m = crate::models::manifest::manifest_for(&id).expect("static manifest entry");
+        let tmp = tempfile::tempdir().unwrap();
+        tokio::fs::write(tmp.path().join(m.hf_filename), b"fake")
+            .await
+            .unwrap();
+        let mgr = DownloadManager::new(tmp.path().to_path_buf());
+        mgr.cancel(id.clone()).await;
+        assert!(
+            !tmp.path().join(m.hf_filename).exists(),
+            "{} must be removed",
+            m.hf_filename
+        );
+        assert!(matches!(mgr.status(id).await, DownloadStatus::Idle));
+    }
+
+    #[tokio::test]
+    async fn cancel_safetensors_single_file_removes_file() {
+        assert_single_file_cancel_removes(ModelId::SdxlLightning4StepLora).await;
+    }
+
+    #[tokio::test]
+    async fn cancel_nunchaku_svdquant_removes_file() {
+        assert_single_file_cancel_removes(ModelId::NunchakuFluxDevInt4).await;
+    }
+
+    #[tokio::test]
+    async fn cancel_ltx_video_safetensors_removes_file() {
+        assert_single_file_cancel_removes(ModelId::LtxVideo09_6Distilled).await;
     }
 }
