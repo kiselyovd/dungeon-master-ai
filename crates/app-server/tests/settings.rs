@@ -354,7 +354,9 @@ async fn post_settings_v2_updates_system_prompt_and_temperature() {
     assert_eq!(resp.status(), 200);
 
     let updated: serde_json::Value = resp.json().await.expect("json");
-    assert_eq!(updated, json!({ "status": "ok" }));
+    assert_eq!(updated["status"], "ok");
+    // license_restricted_no_compat is false in this fixture (license_restricted_mode=false).
+    assert_eq!(updated["license_restricted_no_compat"], false);
 
     // Verify the agent config was updated.
     let agent_cfg = server.state.agent_config();
