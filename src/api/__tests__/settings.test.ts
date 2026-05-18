@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SettingsData } from '../../state/settings';
-import { useStore } from '../../state/useStore';
 import { setBackendPortForTesting } from '../client';
 import { postSettingsV2, toV2Wire } from '../settings';
 
@@ -94,11 +93,40 @@ describe('toV2Wire', () => {
     s.providers['openai-compat'] = null;
     expect(() => toV2Wire(s)).toThrow(/no configured slice/);
   });
+
+  it('emits replicate api_key in image.providers when preset is cloud', () => {
+    const s = baseSettings();
+    s.imagePreset = 'cloud';
+    s.replicateApiKey = 'r8-test-key';
+    const wire = toV2Wire(s);
+    expect(wire.image.active_provider_id).toBe('replicate');
+    expect(wire.image.providers).toEqual({ replicate: { api_key: 'r8-test-key' } });
+  });
+
+  it('emits empty image.providers when cloud preset selected but replicate key is null', () => {
+    const s = baseSettings();
+    s.imagePreset = 'cloud';
+    s.replicateApiKey = null;
+    const wire = toV2Wire(s);
+    expect(wire.image.providers).toEqual({});
+  });
+
+  it('emits empty image.providers for non-cloud presets even with replicate key set', () => {
+    const s = baseSettings();
+    s.imagePreset = 'balanced';
+    s.replicateApiKey = 'r8-test-key';
+    const wire = toV2Wire(s);
+    expect(wire.image.providers).toEqual({});
+  });
 });
 
 describe('postSettingsV2', () => {
   beforeEach(() => {
     setBackendPortForTesting(9999);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('POSTs the wire to /settings/v2', async () => {
@@ -128,6 +156,3 @@ describe('postSettingsV2', () => {
     await expect(postSettingsV2(baseSettings())).rejects.toThrow(/invalid api_key/);
   });
 });
-
-// Silence unused import warning - useStore is available for future local-mistralrs tests
-void useStore;

@@ -100,7 +100,10 @@ export function toV2Wire(settings: SettingsData): V2Wire {
       enabled: settings.imageEnabled,
       active_provider_id: presetMapping.providerId,
       active_model_id: presetMapping.modelId,
-      providers: {},
+      providers:
+        settings.imagePreset === 'cloud' && settings.replicateApiKey
+          ? { replicate: { api_key: settings.replicateApiKey } }
+          : {},
       preset: settings.imagePreset,
       style_lora: settings.imageStyleLora,
     },
