@@ -88,5 +88,10 @@
   "reasoning_budget_low": "Low",
   "reasoning_budget_medium": "Medium",
   "reasoning_budget_high": "High",
-  "reasoning_unsupported_hint": "The selected model does not support reasoning."
+  "reasoning_unsupported_hint": "The selected model does not support reasoning.",
+  "license_banner_active_preset_blocked": "Active {{modality}} preset '{{name}}' is non-OSS. Switch to a permitted preset or disable license-restricted mode.",
+  "license_banner_modality_image": "image",
+  "license_banner_modality_video": "video",
+  "license_restricted_tooltip": "Disabled because license-restricted mode is on and this provider is not OSS.",
+  "license_restricted_marker": "(non-OSS)"
 }

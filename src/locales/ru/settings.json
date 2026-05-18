@@ -88,5 +88,10 @@
   "reasoning_budget_low": "Низкий",
   "reasoning_budget_medium": "Средний",
   "reasoning_budget_high": "Высокий",
-  "reasoning_unsupported_hint": "Выбранная модель не поддерживает размышление."
+  "reasoning_unsupported_hint": "Выбранная модель не поддерживает размышление.",
+  "license_banner_active_preset_blocked": "Активный пресет '{{name}}' для {{modality}} не OSS. Переключитесь на разрешённый пресет или отключите лицензионно-ограниченный режим.",
+  "license_banner_modality_image": "изображений",
+  "license_banner_modality_video": "видео",
+  "license_restricted_tooltip": "Отключено: включён OSS-only режим, а этот провайдер не OSS.",
+  "license_restricted_marker": "(non-OSS)"
 }

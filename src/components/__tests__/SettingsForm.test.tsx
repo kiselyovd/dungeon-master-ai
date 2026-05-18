@@ -6,6 +6,12 @@ import { postDiscover } from '../../api/discovery';
 import { useStore } from '../../state/useStore';
 import { SettingsForm, type SettingsSubmission } from '../SettingsForm';
 
+function setupFetchStub() {
+  return vi.fn(
+    async () => new Response(JSON.stringify({ llm: { state: 'off' }, image: { state: 'off' } })),
+  ) as unknown as typeof fetch;
+}
+
 vi.mock('../../api/discovery', () => ({
   postDiscover: vi.fn(),
 }));
@@ -146,6 +152,83 @@ describe('SettingsForm', () => {
       modelPath: 'qwen3_5_2b',
       contextWindow: 8192,
     });
+  });
+});
+
+describe('ImageTab license-restricted gating', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+    globalThis.fetch = setupFetchStub();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('disables non-OSS preset radios when licenseRestrictedMode is on', async () => {
+    const user = userEvent.setup();
+    useStore.setState((s) => ({
+      settings: { ...s.settings, licenseRestrictedMode: true },
+    }));
+    render(<SettingsForm onSubmit={() => {}} initialTab="image" />);
+
+    await user.click(screen.getByRole('tab', { name: /Image/i }));
+
+    // Fast (SAI NC) and Quality (FLUX-dev NC) should be disabled
+    const fastRadio = screen.getByRole('radio', { name: /Fast/i });
+    const qualityRadio = screen.getByRole('radio', { name: /Quality \(Nunchaku/i });
+    expect(fastRadio).toBeDisabled();
+    expect(qualityRadio).toBeDisabled();
+
+    // Balanced (Apache 2.0) and Quality-OSS (Apache 2.0) should be enabled
+    const balancedRadio = screen.getByRole('radio', { name: /Balanced/i });
+    const qualityOssRadio = screen.getByRole('radio', { name: /Quality-OSS/i });
+    expect(balancedRadio).not.toBeDisabled();
+    expect(qualityOssRadio).not.toBeDisabled();
+  });
+
+  it('renders LicenseRestrictedBanner when active preset is non-OSS and restriction is on', async () => {
+    useStore.setState((s) => ({
+      settings: { ...s.settings, imagePreset: 'quality', licenseRestrictedMode: true },
+    }));
+    render(<SettingsForm onSubmit={() => {}} initialTab="image" />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/Nunchaku FLUX/);
+  });
+
+  it('does not render banner when active preset is OSS', async () => {
+    useStore.setState((s) => ({
+      settings: { ...s.settings, imagePreset: 'balanced', licenseRestrictedMode: true },
+    }));
+    render(<SettingsForm onSubmit={() => {}} initialTab="image" />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('VideoTab license-restricted gating', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+    globalThis.fetch = setupFetchStub();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('disables enable toggle when LTX is non-OSS and restriction is on', async () => {
+    useStore.setState((s) => ({
+      settings: { ...s.settings, licenseRestrictedMode: true },
+    }));
+    render(<SettingsForm onSubmit={() => {}} initialTab="video" />);
+
+    const enableCheckbox = screen.getByRole('checkbox', { name: /Enable video generation/i });
+    expect(enableCheckbox).toBeDisabled();
   });
 });
 

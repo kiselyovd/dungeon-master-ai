@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { imageEntryForPreset, VIDEO_CATALOG } from '../api/providers-catalog';
 import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
 import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../hooks/useModelDownload';
@@ -19,7 +20,9 @@ import {
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
 import { activeProviderCaps } from '../utils/capabilities';
+import { isOssLicense } from '../utils/license';
 import { CustomHfRepoModal } from './CustomHfRepoModal';
+import { LicenseRestrictedBanner } from './LicenseRestrictedBanner';
 import { ModelDownloadCard } from './ModelDownloadCard';
 import { ModelSelector } from './ModelSelector';
 import { RuntimeStatusPill } from './RuntimeStatusPill';
@@ -862,11 +865,11 @@ function buildConfig(
 // ---- M7-DM image / video / behavior-extras sub-forms --------------------
 
 const IMAGE_PRESETS = [
-  { id: 'fast', restricted: true },
-  { id: 'balanced', restricted: false },
-  { id: 'quality', restricted: true },
-  { id: 'quality-oss', restricted: false },
-  { id: 'cloud', restricted: false },
+  { id: 'fast' },
+  { id: 'balanced' },
+  { id: 'quality' },
+  { id: 'quality-oss' },
+  { id: 'cloud' },
 ] as const;
 
 function ImageTab() {
@@ -876,8 +879,15 @@ function ImageTab() {
   const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
   const setImageEnabled = useStore((s) => s.settings.setImageEnabled);
   const setImagePreset = useStore((s) => s.settings.setImagePreset);
+
+  const activeEntry = imageEntryForPreset(preset);
+  const activeIsBlocked =
+    licenseRestricted && activeEntry != null && !isOssLicense(activeEntry.license);
+  const bannerPresetName = activeIsBlocked ? activeEntry?.display_name : null;
+
   return (
     <section className={styles.section}>
+      <LicenseRestrictedBanner modality="image" activePresetName={bannerPresetName} />
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
@@ -888,19 +898,30 @@ function ImageTab() {
       </label>
       <fieldset disabled={!enabled}>
         <legend>{t('image_preset')}</legend>
-        {IMAGE_PRESETS.map((p) => (
-          <label key={p.id} className={styles.radioRow}>
-            <input
-              type="radio"
-              name="image-preset"
-              value={p.id}
-              checked={preset === p.id}
-              disabled={licenseRestricted && p.restricted}
-              onChange={() => setImagePreset(p.id)}
-            />
-            <span>{t(`image_preset_${p.id.replace('-', '_')}` as const)}</span>
-          </label>
-        ))}
+        {IMAGE_PRESETS.map((p) => {
+          const entry = imageEntryForPreset(p.id);
+          const isBlocked = licenseRestricted && entry != null && !isOssLicense(entry.license);
+          return (
+            <label
+              key={p.id}
+              className={styles.radioRow}
+              title={isBlocked ? t('license_restricted_tooltip') : undefined}
+            >
+              <input
+                type="radio"
+                name="image-preset"
+                value={p.id}
+                checked={preset === p.id}
+                disabled={isBlocked}
+                onChange={() => setImagePreset(p.id)}
+              />
+              <span>
+                {t(`image_preset_${p.id.replace('-', '_')}` as const)}
+                {isBlocked ? ` ${t('license_restricted_marker')}` : ''}
+              </span>
+            </label>
+          );
+        })}
       </fieldset>
     </section>
   );
@@ -915,18 +936,30 @@ function VideoTab() {
   const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
   const setVideoEnabled = useStore((s) => s.settings.setVideoEnabled);
   const setVideoMode = useStore((s) => s.settings.setVideoMode);
+
+  // Video v1 has exactly one provider (local-ltx-video). If its license is
+  // non-OSS and restriction is on, disable the enable toggle and show a banner.
+  const videoProvider = VIDEO_CATALOG[0];
+  const videoProviderBlocked =
+    licenseRestricted && videoProvider != null && !isOssLicense(videoProvider.license);
+  const bannerVideoName = videoProviderBlocked ? videoProvider?.display_name : null;
+
   return (
     <section className={styles.section}>
-      <label className={styles.checkboxRow}>
+      <LicenseRestrictedBanner modality="video" activePresetName={bannerVideoName} />
+      <label
+        className={styles.checkboxRow}
+        title={videoProviderBlocked ? t('license_restricted_tooltip') : undefined}
+      >
         <input
           type="checkbox"
           checked={enabled}
-          disabled={licenseRestricted}
+          disabled={videoProviderBlocked}
           onChange={(e) => setVideoEnabled(e.target.checked)}
         />
         <span>{t('video_enable')}</span>
       </label>
-      <fieldset disabled={!enabled || licenseRestricted}>
+      <fieldset disabled={!enabled || videoProviderBlocked}>
         <legend>{t('video_mode')}</legend>
         {VIDEO_MODES.map((m) => (
           <label key={m} className={styles.radioRow}>
