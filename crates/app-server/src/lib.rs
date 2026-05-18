@@ -70,7 +70,12 @@ pub fn router(state: AppState) -> Router {
         .route("/providers/{id}/caps", get(routes::providers::get_caps))
         .route("/providers/discover", post(routes::providers::post_discover))
         .route("/settings/v2", post(routes::settings::post_settings_v2))
-        .route("/video/generate", post(routes::video::post_video_generate));
+        .route("/video/generate", post(routes::video::post_video_generate))
+        .route("/local-llm/manifest", get(routes::local_llm::get_manifest))
+        .route(
+            "/local-llm/active-model",
+            post(routes::local_llm::set_active_model),
+        );
 
     #[cfg(feature = "with-local-runtime")]
     let r = r

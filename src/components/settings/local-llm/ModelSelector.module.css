@@ -1,0 +1,14 @@
+.modelSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-family: var(--font-jetbrains, "JetBrains Mono", monospace);
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  color: rgba(232, 224, 208, 0.85);
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+}

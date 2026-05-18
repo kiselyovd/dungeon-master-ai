@@ -7,5 +7,6 @@
   "active_model_section": "Active model",
   "download": "Download",
   "delete": "Delete",
-  "download_error": "Download failed"
+  "download_error": "Download failed",
+  "hf_coming_soon": "Coming in next commit."
 }

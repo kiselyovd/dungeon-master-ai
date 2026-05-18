@@ -7,5 +7,6 @@
   "active_model_section": "Активная модель",
   "download": "Скачать",
   "delete": "Удалить",
-  "download_error": "Ошибка загрузки"
+  "download_error": "Ошибка загрузки",
+  "hf_coming_soon": "Скоро."
 }

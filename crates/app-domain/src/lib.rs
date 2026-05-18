@@ -3,5 +3,6 @@
 pub mod combat;
 pub mod compendium;
 pub mod dice;
+pub mod local_llm;
 pub mod rng;
 pub mod srd;

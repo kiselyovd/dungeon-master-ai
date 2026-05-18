@@ -27,6 +27,26 @@ import { ModelDownloadCard } from './ModelDownloadCard';
 import { ModelSelector } from './ModelSelector';
 import { RuntimeStatusPill } from './RuntimeStatusPill';
 import styles from './SettingsForm.module.css';
+import { ModelSelector as LocalLlmModelSelector } from './settings/local-llm/ModelSelector';
+
+/**
+ * Map between the localMode slice `ModelId` enum (snake_case) and the wire
+ * id used by the new local-llm manifest endpoint (e.g. `qwen3.5-4b`). Lets the
+ * Settings -> Local LLM picker keep `localMode.selectedLlm` in sync with the
+ * value the backend manifest understands.
+ *
+ * Custom HF ids fall through (return null) - selection there flows through the
+ * separate `customLlmOverride` slot, not the manifest picker.
+ */
+const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
+  qwen3_5_0_8b: 'qwen3.5-0.8b',
+  qwen3_5_2b: 'qwen3.5-2b',
+  qwen3_5_4b: 'qwen3.5-4b',
+  qwen3_5_9b: 'qwen3.5-9b',
+};
+const WIRE_ID_TO_LOCAL_MODEL: Record<string, ModelId> = Object.fromEntries(
+  Object.entries(LOCAL_MODEL_WIRE_ID).map(([k, v]) => [v as string, k as ModelId]),
+);
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
@@ -535,9 +555,31 @@ function LocalMistralRsFields() {
     }
   }, [clearStopReset]);
 
+  // M9-DM Task 14: drop the new manifest-driven ModelSelector container in as
+  // a NEW section above the existing per-card controls. The legacy LOCAL_LLMS
+  // cards stay for one more commit; consolidation happens in a follow-up task
+  // once the HF search lands in Tasks 15-19.
+  const activeWireId = LOCAL_MODEL_WIRE_ID[lm.selectedLlm] ?? null;
+  const onActiveLocalChange = (wireId: string) => {
+    const mapped = WIRE_ID_TO_LOCAL_MODEL[wireId];
+    if (mapped) lm.selectModel(mapped);
+    // TODO(M9-DM): forward custom HF ids (not in LOCAL_MODEL_WIRE_ID) to the
+    // override slot here once HF search persists user manifests (Task 19).
+  };
+
   return (
     <div className={styles.localFields}>
       <div className={styles.localHint}>{t('local_runtime_hint')}</div>
+
+      {/* TODO(M9-DM): consolidate the LOCAL_LLMS cards into this picker once
+          the download wiring lands in Task 19. */}
+      <LocalLlmModelSelector
+        activeId={activeWireId}
+        onActiveChange={onActiveLocalChange}
+        // TODO(M9-DM): plumb session.agentTurnInFlight once the session slice
+        // exposes it; until then assume the user is not mid-turn (false).
+        agentTurnInFlight={false}
+      />
 
       <h3 className={styles.localHeading}>{tLocal('llm_models')}</h3>
       {LOCAL_LLMS.map((m) => (
