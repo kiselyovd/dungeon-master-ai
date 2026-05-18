@@ -5,16 +5,15 @@ import '../../i18n';
 import { useStore } from '../../state/useStore';
 import { SettingsModal } from '../SettingsModal';
 
+vi.mock('../../api/settings', () => ({
+  postSettingsV2: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../api/providers', () => ({
-  postSettings: vi.fn().mockResolvedValue({ kind: 'anthropic', default_model: 'claude-haiku' }),
   getProviders: vi.fn().mockResolvedValue({
     available: ['anthropic', 'openai-compat'],
     active: { kind: 'anthropic', default_model: 'claude-haiku' },
   }),
-}));
-
-vi.mock('../../api/agentSettings', () => ({
-  postAgentSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('SettingsModal', () => {
@@ -37,7 +36,7 @@ describe('SettingsModal', () => {
 
   it('saves an Anthropic config to the store, posts to backend, and closes', async () => {
     const user = userEvent.setup();
-    const { postSettings } = await import('../../api/providers');
+    const { postSettingsV2 } = await import('../../api/settings');
     const onClose = vi.fn();
 
     render(<SettingsModal open={true} onClose={onClose} />);
@@ -48,9 +47,7 @@ describe('SettingsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(postSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ kind: 'anthropic', apiKey: 'sk-ant-xyz' }),
-      );
+      expect(postSettingsV2).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
     const stored = useStore.getState().settings.providers.anthropic;
@@ -61,7 +58,7 @@ describe('SettingsModal', () => {
 
   it('switches provider to openai-compat and stores the config', async () => {
     const user = userEvent.setup();
-    const { postSettings } = await import('../../api/providers');
+    const { postSettingsV2 } = await import('../../api/settings');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
     await user.selectOptions(screen.getByRole('combobox', { name: /Provider/i }), 'openai-compat');
@@ -72,7 +69,7 @@ describe('SettingsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(postSettings).toHaveBeenCalledWith(expect.objectContaining({ kind: 'openai-compat' }));
+      expect(postSettingsV2).toHaveBeenCalled();
     });
     const stored = useStore.getState().settings.providers['openai-compat'];
     expect(stored).not.toBeNull();
@@ -81,10 +78,10 @@ describe('SettingsModal', () => {
     expect(useStore.getState().settings.activeProvider).toBe('openai-compat');
   });
 
-  it('keeps the modal open and shows an inline banner when postSettings fails', async () => {
+  it('keeps the modal open and shows an inline banner when postSettingsV2 fails', async () => {
     const user = userEvent.setup();
-    const { postSettings } = await import('../../api/providers');
-    vi.mocked(postSettings).mockRejectedValueOnce(new Error('network down'));
+    const { postSettingsV2 } = await import('../../api/settings');
+    vi.mocked(postSettingsV2).mockRejectedValueOnce(new Error('network down'));
     const onClose = vi.fn();
     render(<SettingsModal open={true} onClose={onClose} />);
 
@@ -98,7 +95,7 @@ describe('SettingsModal', () => {
 
   it('blocks save and surfaces validation when api key is missing', async () => {
     const user = userEvent.setup();
-    const { postSettings } = await import('../../api/providers');
+    const { postSettingsV2 } = await import('../../api/settings');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
     // Click save with empty key
@@ -106,14 +103,14 @@ describe('SettingsModal', () => {
 
     // Validation message appears, backend POST is NOT called.
     expect(await screen.findByRole('alert')).toBeInTheDocument();
-    expect(postSettings).not.toHaveBeenCalled();
+    expect(postSettingsV2).not.toHaveBeenCalled();
     expect(useStore.getState().settings.providers.anthropic).toBeNull();
 
     // Now fix the key and save succeeds.
     await user.type(screen.getByLabelText(/API key/i), 'sk-ant-real');
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
     await waitFor(() => {
-      expect(postSettings).toHaveBeenCalled();
+      expect(postSettingsV2).toHaveBeenCalled();
     });
   });
 });

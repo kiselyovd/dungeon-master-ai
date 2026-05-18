@@ -4,7 +4,7 @@
 //! - `/local/runtime/status` returns Off/Off snapshot before any sidecar boot.
 //! - `/local/download/{id}` POST happily kicks off (then aborts via cancel),
 //!   and DELETE returns 204 even from idle.
-//! - `/settings` `local-mistralrs` variant swaps the active provider.
+//! - `/settings/v2` `local-mistralrs` variant swaps the active provider.
 
 use app_server::test_support::TestServer;
 use reqwest::Client;
@@ -66,19 +66,51 @@ async fn download_cancel_returns_204_even_when_idle() {
 async fn local_mistralrs_provider_swap_via_settings() {
     let server = TestServer::start().await;
     let client = Client::new();
+    // POST /settings/v2 shape: nested with chat.providers["local-mistralrs"]
     let body = json!({
-        "kind": "local-mistralrs",
-        "model_id": "qwen3_5_2b",
-        "port": 37000
+        "chat": {
+            "active_provider_id": "local-mistralrs",
+            "active_model_id": "qwen3.5-2b-instruct-q4_k_m.gguf",
+            "providers": {
+                "local-mistralrs": { "model_id": "qwen3_5_2b", "port": 37000 }
+            },
+            "vision_enabled": false,
+            "reasoning_enabled": false,
+            "reasoning_budget": "medium"
+        },
+        "image": {
+            "enabled": false,
+            "active_provider_id": "local-sdxl-lightning",
+            "active_model_id": "sdxl-lightning-4step",
+            "providers": {},
+            "preset": "balanced",
+            "style_lora": null
+        },
+        "video": {
+            "enabled": false,
+            "active_provider_id": "local-ltx-video",
+            "active_model_id": "ltx-video-0.9.6-distilled",
+            "providers": {},
+            "mode": "prerecorded"
+        },
+        "behavior": {
+            "system_prompt": "",
+            "temperature": 0.7,
+            "ui_language": "en",
+            "narration_language": "en",
+            "license_restricted_mode": false,
+            "agent_max_rounds": 8,
+            "scene_transitions": "auto"
+        }
     });
     let resp = client
-        .post(server.url("/settings"))
+        .post(server.url("/settings/v2"))
         .json(&body)
         .send()
         .await
-        .expect("post settings");
+        .expect("post settings v2");
     assert_eq!(resp.status(), 200);
-    let info: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(info["kind"], "local-mistralrs");
-    assert_eq!(info["default_model"], "qwen3.5-2b-instruct-q4_k_m.gguf");
+    // After swapping, the active provider name should reflect local-mistralrs.
+    assert_eq!(server.state.provider().name(), "local-mistralrs");
+    assert_eq!(server.state.default_model(), "qwen3.5-2b-instruct-q4_k_m.gguf");
 }

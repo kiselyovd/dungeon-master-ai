@@ -1,14 +1,8 @@
 /**
- * HTTP wiring for the multi-provider settings endpoints exposed by app-server.
- *
- * The backend speaks snake_case on the wire but our frontend types are
- * camelCase, so we translate at this boundary. Adding a new provider kind in
- * the future means one new branch here, in `assertNeverProvider`-driven
- * exhaustive switches.
+ * HTTP wiring for the providers info endpoint exposed by app-server.
  */
 
-import { assertNeverProvider, type ProviderConfig, type ProviderKind } from '../state/providers';
-import { useStore } from '../state/useStore';
+import type { ProviderKind } from '../state/providers';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 
@@ -20,10 +14,6 @@ export interface ActiveProviderInfo {
 export interface ProvidersInfo {
   available: ProviderKind[];
   active: ActiveProviderInfo;
-}
-
-interface BackendError {
-  error?: { code?: string; message?: string };
 }
 
 export async function getProviders(): Promise<ProvidersInfo> {
@@ -38,66 +28,4 @@ export async function getProviders(): Promise<ProvidersInfo> {
     throw new ChatError('http_error', `GET /providers HTTP ${resp.status}`);
   }
   return (await resp.json()) as ProvidersInfo;
-}
-
-export async function postSettings(config: ProviderConfig): Promise<ActiveProviderInfo> {
-  const url = await backendUrl('/settings');
-  const body = JSON.stringify(toWireConfig(config));
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body,
-    });
-  } catch (e) {
-    throw ChatError.from(e);
-  }
-  if (!resp.ok) {
-    const parsed = (await resp.json().catch(() => ({}) as BackendError)) as BackendError;
-    const message = parsed.error?.message ?? `POST /settings HTTP ${resp.status}`;
-    throw new ChatError('provider_error', message);
-  }
-  return (await resp.json()) as ActiveProviderInfo;
-}
-
-function toWireConfig(c: ProviderConfig): Record<string, unknown> {
-  switch (c.kind) {
-    case 'anthropic':
-      return { kind: 'anthropic', api_key: c.apiKey, model: c.model };
-    case 'openai-compat':
-      return {
-        kind: 'openai-compat',
-        base_url: c.baseUrl,
-        api_key: c.apiKey,
-        model: c.model,
-      };
-    case 'local-mistralrs': {
-      // The backend `POST /settings` for local-mistralrs needs the live LLM
-      // sidecar port (see crates/app-server/src/routes/settings.rs). Read it
-      // from the runtime snapshot in the Zustand store; if the runtime is
-      // not ready yet the user has to start it first.
-      const lm = useStore.getState().localMode;
-      const runtime = lm.runtime.llm;
-      if (runtime.state !== 'ready') {
-        throw new ChatError(
-          'provider_error',
-          'local runtime is not ready - start the runtime in Settings before saving.',
-        );
-      }
-      // When the user entered a Custom HF GGUF via CustomHfRepoModal, it
-      // overrides the preset selection so the backend swaps to
-      // ModelId::Custom { hf_repo, gguf_filename, mmproj_filename? }.
-      const modelIdWire: unknown = lm.customLlmOverride
-        ? { custom: lm.customLlmOverride }
-        : c.modelPath;
-      return {
-        kind: 'local-mistralrs',
-        model_id: modelIdWire,
-        port: runtime.port,
-      };
-    }
-    default:
-      return assertNeverProvider(c);
-  }
 }

@@ -27,8 +27,6 @@ pub fn router(state: AppState) -> Router {
         .route("/agent/turn", post(routes::agent::post_agent_turn))
         .route("/chat", post(routes::chat::chat))
         .route("/providers", get(routes::settings::get_providers))
-        .route("/settings", post(routes::settings::post_settings))
-        .route("/agent-settings", post(routes::settings::post_agent_settings))
         .route("/combat/start", post(routes::combat::post_combat_start))
         .route("/combat/action", post(routes::combat::post_combat_action))
         .route("/combat/end", post(routes::combat::post_combat_end))

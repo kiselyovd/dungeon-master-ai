@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { postSettings } from '../api/providers';
+import { postSettingsV2 } from '../api/settings';
 import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_LOCAL_CONTEXT_WINDOW,
@@ -111,25 +111,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     // before the user hits send. Errors here are non-fatal: the same
     // POST happens from the Settings modal, so a transient miss can be
     // recovered there. We do not block the modal close on it.
-    if (providerChoice === 'anthropic' && apiKey !== null) {
-      void postSettings({
-        kind: 'anthropic',
-        apiKey,
-        model: DEFAULT_ANTHROPIC_MODEL,
-      }).catch(() => {});
-    } else if (
-      providerChoice === 'openai-compat' &&
-      openaiUrl !== null &&
-      openaiApiKey !== null &&
-      openaiModel.trim().length > 0
-    ) {
-      void postSettings({
-        kind: 'openai-compat',
-        baseUrl: openaiUrl,
-        apiKey: openaiApiKey,
-        model: openaiModel.trim(),
-      }).catch(() => {});
-    }
+    void postSettingsV2(useStore.getState().settings).catch(() => {});
 
     onComplete?.();
   };

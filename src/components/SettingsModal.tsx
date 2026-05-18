@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type AgentSettingsRequest, postAgentSettings } from '../api/agentSettings';
-import { postSettings } from '../api/providers';
+import { postSettingsV2 } from '../api/settings';
 import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -60,9 +59,6 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
   }, [open]);
 
   const onSubmit = async (submission: SettingsSubmission) => {
-    // Mutating the store fires the persist middleware, which writes through
-    // to secrets.json + settings.json. The App-level effect picks up the new
-    // uiLanguage and tells i18n to switch.
     setProviderConfig(submission.provider);
     setActiveProvider(submission.provider.kind);
     setUiLang(submission.uiLanguage);
@@ -71,28 +67,16 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
     setTemperature(submission.temperature);
     setReplicateApiKey(submission.replicateApiKey.length > 0 ? submission.replicateApiKey : null);
 
-    // Tell the backend to swap providers atomically and push the agent-loop
-    // knobs in the same save. The chat panel is occluded by this modal, so a
-    // network failure has to surface inline here - otherwise the user closes
-    // the modal believing the save succeeded and only sees the error after.
+    // Read the full settings after the store updates settle in this tick.
+    // Zustand updates are synchronous so .getState() now returns the merged shape.
     try {
-      await postSettings(submission.provider);
-      const agentReq: AgentSettingsRequest = {
-        temperature: submission.temperature,
-      };
-      if (submission.systemPrompt) agentReq.system_prompt = submission.systemPrompt;
-      if (submission.replicateApiKey.length > 0)
-        agentReq.replicate_api_key = submission.replicateApiKey;
-      await postAgentSettings(agentReq);
+      await postSettingsV2(useStore.getState().settings);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setSubmitError(message);
       return;
     }
 
-    // For local-mistralrs, also persist the Qwen variant + VRAM strategy so
-    // the runtime/start route picks them up. Fire-and-forget - /settings has
-    // already pinned the provider so the chat path will work either way.
     if (submission.provider.kind === 'local-mistralrs') {
       persistLocalModeConfig();
     }
