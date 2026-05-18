@@ -62,6 +62,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        # Soft-fail while the repo-level Dependency graph toggle is being
+        # rolled out. Flip to a hard failure once Settings -> Security ->
+        # Dependency graph is confirmed enabled (Task 12 manual step).
+        continue-on-error: true
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure

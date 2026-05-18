@@ -20,7 +20,10 @@ jobs:
       - name: Run actionlint
         run: |
           bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          ./actionlint -color
+          # Disable bundled shellcheck integration - we run shellcheck as a
+          # separate job and it issues false positives on matrix expansions
+          # inside inline run blocks (SC2193 on existing prebuild-sidecars.yml).
+          ./actionlint -color -shellcheck=
 
   typos:
     runs-on: ubuntu-22.04
