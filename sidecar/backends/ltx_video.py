@@ -1,8 +1,10 @@
 """LTX-Video backend (text-to-video, opt-in via Settings).
 
 License: LTX open. On 3080 10GB at 704x480, 97 frames, 8 steps: ~22 s/clip.
-Uses diffusers LTXPipeline directly against the Lightricks/LTX-Video diffusers
-folder. ComfyUI GGUF Q8 path deferred to M9-DM+."""
+Uses diffusers LTXVideoTransformer3DModel.from_single_file with the distilled
+2B 0.9.6 checkpoint, plugged into LTXPipeline against the same Lightricks/LTX-Video
+diffusers folder (which provides VAE, T5 encoder, scheduler, tokenizer).
+ComfyUI GGUF Q8 path deferred to M9-DM+."""
 from __future__ import annotations
 
 import tempfile
@@ -29,19 +31,30 @@ class LtxVideoBackend:
     def load(self) -> None:
         if self._pipe is not None:
             return
-        # 7 GB preflight: T5 encodes once and offloads; peak during diffusion
-        # is transformer (~4-5 GB) + VAE slicing/tiling (~1-2 GB) on 10 GB Ampere.
+        # 7 GB preflight: T5 offloads after text encode; diffusion peak is
+        # distilled 2B transformer (~3-4 GB BF16) + VAE slicing/tiling (~1-2 GB).
         assert_vram_free(7 * 1024**3)
 
         import torch  # noqa: PLC0415
-        from diffusers import LTXPipeline  # noqa: PLC0415
+        from diffusers import LTXPipeline, LTXVideoTransformer3DModel  # noqa: PLC0415
 
         repo_dir = self._weights_dir / "ltx-video" / "ltx-video"
+        distilled_path = self._weights_dir / "ltx-video" / "ltxv-2b-0.9.6-distilled-04-25.safetensors"
+
+        transformer = LTXVideoTransformer3DModel.from_single_file(
+            str(distilled_path), torch_dtype=torch.bfloat16
+        )
         pipe = LTXPipeline.from_pretrained(
             str(repo_dir),
+            transformer=transformer,
             torch_dtype=torch.bfloat16,
-        ).to("cuda" if torch.cuda.is_available() else "cpu")
-
+        )
+        if torch.cuda.is_available():
+            # model_cpu_offload swaps T5 out before diffusion to keep peak VRAM
+            # comfortably below 10 GB on RTX 3080 (matches Z-Image backend strategy).
+            pipe.enable_model_cpu_offload()
+        else:
+            pipe = pipe.to("cpu")
         pipe.vae.enable_slicing()
         pipe.vae.enable_tiling()
         self._pipe = pipe
