@@ -8,5 +8,14 @@
   "download": "Скачать",
   "delete": "Удалить",
   "download_error": "Ошибка загрузки",
-  "hf_coming_soon": "Скоро."
+  "hf_coming_soon": "Скоро.",
+  "hf_token_title": "Токен доступа Hugging Face",
+  "hf_token_label": "Токен (hf_...)",
+  "hf_token_status": "Токен",
+  "hf_token_not_set": "не задан",
+  "hf_token_add": "Добавить токен",
+  "hf_token_replace": "Заменить",
+  "hf_token_remove": "Удалить",
+  "save": "Сохранить",
+  "cancel": "Отмена"
 }

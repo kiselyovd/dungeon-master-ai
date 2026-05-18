@@ -8,5 +8,14 @@
   "download": "Download",
   "delete": "Delete",
   "download_error": "Download failed",
-  "hf_coming_soon": "Coming in next commit."
+  "hf_coming_soon": "Coming in next commit.",
+  "hf_token_title": "Hugging Face access token",
+  "hf_token_label": "Token (hf_...)",
+  "hf_token_status": "Token",
+  "hf_token_not_set": "not set",
+  "hf_token_add": "Add token",
+  "hf_token_replace": "Replace",
+  "hf_token_remove": "Remove",
+  "save": "Save",
+  "cancel": "Cancel"
 }
