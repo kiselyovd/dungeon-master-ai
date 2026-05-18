@@ -36,6 +36,7 @@ pub struct AgentTurnHttpRequest {
     pub model: Option<String>,
 }
 
+#[tracing::instrument(skip_all, fields(session_id = %req.session_id, campaign_id = %req.campaign_id))]
 pub async fn post_agent_turn(
     State(state): State<AppState>,
     Json(req): Json<AgentTurnHttpRequest>,

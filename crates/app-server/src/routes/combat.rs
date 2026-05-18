@@ -160,6 +160,10 @@ pub async fn post_combat_start(
     Ok(Sse::new(sse_stream).keep_alive(KeepAlive::default()))
 }
 
+#[tracing::instrument(skip_all, fields(
+    encounter_id = %req.encounter_id,
+    action_type = %req.action_type,
+))]
 pub async fn post_combat_action(
     State(_state): State<AppState>,
     Json(req): Json<CombatActionRequest>,

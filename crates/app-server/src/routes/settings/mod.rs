@@ -51,6 +51,12 @@ pub async fn get_providers(State(state): State<AppState>) -> Json<ProvidersInfo>
 /// builds all three provider slots to completion before acquiring any lock.
 /// If any sub-build fails, the prior registry stays untouched (no torn state).
 /// On success, the full registry is installed atomically via `swap_registry`.
+#[tracing::instrument(skip_all, fields(
+    chat_provider = %cfg.chat.active_provider_id,
+    image_provider = %cfg.image.active_provider_id,
+    video_provider = %cfg.video.active_provider_id,
+    license_restricted = cfg.behavior.license_restricted_mode,
+))]
 pub async fn post_settings_v2(
     State(state): State<AppState>,
     Json(cfg): Json<SettingsConfigV2>,
