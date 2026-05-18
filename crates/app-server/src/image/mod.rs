@@ -8,4 +8,7 @@
 pub mod cache;
 pub mod provider;
 pub mod replicate;
+pub mod retry;
 pub mod stub;
+
+pub use retry::{default_policy as image_default_retry_policy, RetryableImageProvider};
