@@ -1,0 +1,27 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD022": false,
+    "MD024": { "siblings_only": true },
+    "MD032": false,
+    "MD033": false,
+    "MD034": false,
+    "MD040": false,
+    "MD041": false,
+    "MD046": false,
+    "MD060": false
+  },
+  "ignores": [
+    "node_modules/",
+    "target/",
+    "dist/",
+    "samples/",
+    "playwright-report/",
+    "test-results/",
+    "**/.venv/",
+    "sidecar/.venv/",
+    "docs/superpowers/",
+    "docs/research/"
+  ]
+}

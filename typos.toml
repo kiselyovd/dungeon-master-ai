@@ -1,0 +1,30 @@
+[files]
+extend-exclude = [
+    "Cargo.lock",
+    "bun.lock",
+    "samples/**",
+    "target/**",
+    "dist/**",
+    "node_modules/**",
+    "src-tauri/gen/**",
+    "**/*.svg",
+    "src/styles/fonts.css",
+    "sidecar/build_spec.spec",
+]
+
+[default]
+# Identifiers (variable / function names) where these otherwise-typo-ish
+# substrings are intentional: `prompt_ba` (dice test fixture pair with
+# `prompt_ab`), `NdX` (dice notation in docstrings).
+extend-ignore-identifiers-re = [
+    "prompt_ba",
+    "image_cache_key",
+    "[Nn]dX",
+]
+
+[default.extend-words]
+crate = "crate"
+serde = "serde"
+tauri = "tauri"
+mistralrs = "mistralrs"
+unparseable = "unparseable"

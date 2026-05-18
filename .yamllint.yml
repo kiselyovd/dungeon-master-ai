@@ -1,0 +1,33 @@
+extends: default
+
+ignore: |
+  node_modules/
+  target/
+  dist/
+  samples/
+  playwright-report/
+  test-results/
+  **/.venv/
+  sidecar/.venv/
+  docs/superpowers/
+  docs/research/
+
+rules:
+  line-length:
+    max: 200
+    level: warning
+  document-start: disable
+  truthy:
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 2
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 2
+  commas:
+    max-spaces-after: -1
+  indentation:
+    indent-sequences: consistent

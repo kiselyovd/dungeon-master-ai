@@ -185,8 +185,8 @@ manual smoke list.
 ## [v0.1.0-m1] - 2026-04-28 - Tauri shell + chat skeleton
 
 ### Added
-- Tauri v2 shell (Rust workspace: `app-domain`, `app-llm`, `app-server`
-  + `src-tauri/`).
+- Tauri v2 shell (Rust workspace: `app-domain`, `app-llm`, `app-server`,
+  plus `src-tauri/`).
 - axum HTTP server as embedded backend, Tauri sidecar launch.
 - `LlmProvider` trait + `AnthropicProvider` (genai 0.6.0-beta.18 with
   native Anthropic prompt caching).

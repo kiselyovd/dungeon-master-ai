@@ -23,7 +23,7 @@ A multimodal, AI-powered D&D desktop application. Tauri v2 + React + Rust.
 
 - Desktop shell: Tauri v2 (Rust)
 - Frontend: React 19 + TypeScript + Vite + SWC + Zustand + react-i18next
-  + PixiJS v8 + valibot (runtime schemas)
+  - PixiJS v8 + valibot (runtime schemas)
 - Backend: Rust workspace - axum HTTP server, genai for LLM provider
   abstraction with hot-swap support behind `RwLock<Arc<dyn LlmProvider>>`
 - Toolchain: Bun (package manager + script runner) + Biome (lint + format)
