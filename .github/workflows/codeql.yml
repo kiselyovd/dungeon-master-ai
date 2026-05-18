@@ -1,0 +1,55 @@
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '23 4 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-22.04
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: rust
+            build-mode: manual
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: matrix.language == 'rust'
+        uses: ./.github/actions/setup-linux-gui-deps
+
+      - if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - if: matrix.language == 'rust'
+        uses: Swatinem/rust-cache@v2
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - if: matrix.build-mode == 'manual'
+        run: cargo build --workspace --all-features
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
