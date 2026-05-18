@@ -17,5 +17,19 @@
   "hf_token_replace": "Заменить",
   "hf_token_remove": "Удалить",
   "save": "Сохранить",
-  "cancel": "Отмена"
+  "cancel": "Отмена",
+  "hf_card_gated": "Закрытая модель - требуется согласие на Hugging Face",
+  "hf_card_unsupported": "Официально не поддерживается. Добавить на свой риск.",
+  "hf_add_anyway": "Добавить всё равно",
+  "hf_open_hf": "Открыть HF",
+  "filter_arch": "Фильтр архитектуры",
+  "filter_any_arch": "Любая архитектура",
+  "filter_size": "Фильтр размера",
+  "filter_any_size": "Любой размер",
+  "filter_license": "Фильтр лицензии",
+  "filter_any_license": "Любая лицензия",
+  "filter_sort": "Порядок сортировки",
+  "sort_downloads": "По загрузкам",
+  "sort_likes": "По лайкам",
+  "sort_recent": "По дате обновления"
 }

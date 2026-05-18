@@ -17,5 +17,19 @@
   "hf_token_replace": "Replace",
   "hf_token_remove": "Remove",
   "save": "Save",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "hf_card_gated": "Gated - requires acceptance on Hugging Face",
+  "hf_card_unsupported": "Not officially supported. Add anyway at your own risk.",
+  "hf_add_anyway": "Add anyway",
+  "hf_open_hf": "Open HF",
+  "filter_arch": "Architecture filter",
+  "filter_any_arch": "Any architecture",
+  "filter_size": "Size filter",
+  "filter_any_size": "Any size",
+  "filter_license": "License filter",
+  "filter_any_license": "Any license",
+  "filter_sort": "Sort order",
+  "sort_downloads": "Most downloads",
+  "sort_likes": "Most likes",
+  "sort_recent": "Recently updated"
 }
