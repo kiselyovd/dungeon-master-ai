@@ -16,24 +16,23 @@ use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
 /// Shared application state for axum handlers.
 ///
 /// Internally an `Arc<AppStateInner>` so cloning (axum's `State` extractor
-/// clones once per request) is cheap. The provider, default-model, and
-/// image-provider fields sit behind `RwLock<Arc<...>>` so the `POST /settings`
-/// and `POST /agent-settings` endpoints can swap them without locking out
-/// in-flight `/chat` streams: we read-lock just long enough to clone the
-/// inner `Arc`, then drop the guard before any `.await`.
+/// clones once per request) is cheap. All three provider slots (chat, image,
+/// video) are consolidated into a single `registry: RwLock<Arc<ProviderRegistry>>`
+/// so that `POST /settings/v2` can install a fully-built registry in one
+/// atomic write, eliminating the torn-state window that 3 separate set_*
+/// calls would leave behind. In-flight `/chat` streams read-lock just long
+/// enough to clone the inner `Arc`, then drop the guard before any `.await`.
 #[derive(Clone)]
 pub struct AppState {
     inner: Arc<AppStateInner>,
 }
 
 struct AppStateInner {
-    llm: RwLock<Arc<dyn LlmProvider>>,
+    registry: RwLock<Arc<crate::providers::ProviderRegistry>>,
     default_model: RwLock<Arc<String>>,
     db: SqlitePool,
     agent_config: RwLock<AgentConfig>,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
-    image_provider: RwLock<Option<Arc<dyn crate::image::provider::ImageProvider>>>,
-    video_provider: RwLock<Option<Arc<dyn crate::video::VideoProvider>>>,
     /// Shared base URL for the Python sidecar that hosts BOTH image and video
     /// backends (single port, single GPU mutex, PipelineDispatcher hot-swaps).
     /// Populated by `runtime_start` after the sidecar spawn succeeds; cleared
@@ -62,15 +61,14 @@ impl AppState {
             probe_always_fail(),
         ));
         let runtime_registry = Arc::new(RuntimeRegistry::new(llm_runtime, image_runtime));
+        let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
-                llm: RwLock::new(llm),
+                registry: RwLock::new(initial_registry),
                 default_model: RwLock::new(Arc::new(default_model)),
                 db,
                 agent_config: RwLock::new(AgentConfig::default()),
                 srd_retriever: RwLock::new(None),
-                image_provider: RwLock::new(None),
-                video_provider: RwLock::new(None),
                 media_sidecar_url: RwLock::new(None),
                 local_mode_config: RwLock::new(LocalModeConfig::default()),
                 download_manager,
@@ -81,19 +79,26 @@ impl AppState {
         }
     }
 
-    /// Snapshot the current provider. The lock is released before the caller
-    /// can `.await` on the returned `Arc` - critical, otherwise a long-running
-    /// chat stream would block subsequent provider swaps.
+    /// Snapshot the current chat provider. The lock is released before the
+    /// caller can `.await` on the returned `Arc` - critical, otherwise a
+    /// long-running chat stream would block subsequent provider swaps.
     pub fn provider(&self) -> Arc<dyn LlmProvider> {
         self.inner
-            .llm
+            .registry
             .read()
-            .expect("provider lock poisoned")
+            .expect("registry lock poisoned")
+            .chat
             .clone()
     }
 
     pub fn set_provider(&self, llm: Arc<dyn LlmProvider>) {
-        *self.inner.llm.write().expect("provider lock poisoned") = llm;
+        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: llm,
+            image: guard.image.clone(),
+            video: guard.video.clone(),
+        };
+        *guard = Arc::new(new_reg);
     }
 
     pub fn default_model(&self) -> String {
@@ -151,50 +156,74 @@ impl AppState {
 
     pub fn image_provider(&self) -> Option<Arc<dyn crate::image::provider::ImageProvider>> {
         self.inner
-            .image_provider
+            .registry
             .read()
-            .expect("image provider lock poisoned")
+            .expect("registry lock poisoned")
+            .image
             .clone()
     }
 
     pub fn set_image_provider(&self, provider: Arc<dyn crate::image::provider::ImageProvider>) {
-        *self
-            .inner
-            .image_provider
-            .write()
-            .expect("image provider lock poisoned") = Some(provider);
+        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: guard.chat.clone(),
+            image: Some(provider),
+            video: guard.video.clone(),
+        };
+        *guard = Arc::new(new_reg);
     }
 
     pub fn clear_image_provider(&self) {
-        *self
-            .inner
-            .image_provider
-            .write()
-            .expect("image provider lock poisoned") = None;
+        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: guard.chat.clone(),
+            image: None,
+            video: guard.video.clone(),
+        };
+        *guard = Arc::new(new_reg);
     }
 
     pub fn video_provider(&self) -> Option<Arc<dyn crate::video::VideoProvider>> {
         self.inner
-            .video_provider
+            .registry
             .read()
-            .expect("video provider lock poisoned")
+            .expect("registry lock poisoned")
+            .video
             .clone()
     }
 
     pub fn set_video_provider(&self, provider: Arc<dyn crate::video::VideoProvider>) {
-        *self
-            .inner
-            .video_provider
-            .write()
-            .expect("video provider lock poisoned") = Some(provider);
+        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: guard.chat.clone(),
+            image: guard.image.clone(),
+            video: Some(provider),
+        };
+        *guard = Arc::new(new_reg);
     }
 
     pub fn clear_video_provider(&self) {
-        *self
-            .inner
-            .video_provider
-            .write()
-            .expect("video provider lock poisoned") = None;
+        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let new_reg = crate::providers::ProviderRegistry {
+            chat: guard.chat.clone(),
+            image: guard.image.clone(),
+            video: None,
+        };
+        *guard = Arc::new(new_reg);
+    }
+
+    /// Atomic registry swap. Used by `POST /settings/v2` to install a brand-new
+    /// registry in one write under one lock, avoiding torn state across the
+    /// chat/image/video boundary that 3 separate set_* calls would leave behind
+    /// (a reader between calls could observe new chat with old image).
+    pub fn swap_registry(&self, new_registry: crate::providers::ProviderRegistry) {
+        *self.inner.registry.write().expect("registry lock poisoned") = Arc::new(new_registry);
+    }
+
+    /// Read-only snapshot of the full registry. Used by tests and future
+    /// atomic-read consumers that need a consistent view of all three slots.
+    pub fn registry(&self) -> Arc<crate::providers::ProviderRegistry> {
+        self.inner.registry.read().expect("registry lock poisoned").clone()
     }
 
     pub fn media_sidecar_url(&self) -> Option<String> {
@@ -271,5 +300,46 @@ impl AppState {
             .secrets_repo
             .write()
             .expect("secrets lock poisoned") = repo;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use app_llm::MockProvider;
+    use sqlx::SqlitePool;
+
+    async fn test_state() -> AppState {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        AppState::new(Arc::new(MockProvider::new(vec![])), "mock".into(), pool)
+    }
+
+    #[tokio::test]
+    async fn registry_initial_state_has_chat_no_media() {
+        let s = test_state().await;
+        let reg = s.registry();
+        assert_eq!(reg.chat.name(), "mock");
+        assert!(reg.image.is_none());
+        assert!(reg.video.is_none());
+    }
+
+    #[tokio::test]
+    async fn set_provider_preserves_image_video() {
+        let s = test_state().await;
+        // Swap chat via legacy setter - other slots must stay None.
+        s.set_provider(Arc::new(MockProvider::new(vec![])));
+        let reg = s.registry();
+        assert_eq!(reg.chat.name(), "mock");
+        assert!(reg.image.is_none());
+        assert!(reg.video.is_none());
+    }
+
+    #[tokio::test]
+    async fn swap_registry_replaces_all_three_atomically() {
+        let s = test_state().await;
+        let new_reg =
+            crate::providers::ProviderRegistry::new(Arc::new(MockProvider::new(vec![])));
+        s.swap_registry(new_reg);
+        assert_eq!(s.provider().name(), "mock");
     }
 }

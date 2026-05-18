@@ -172,13 +172,11 @@ pub async fn post_agent_settings(
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
-/// M7-DM: v2 settings endpoint. Validates the payload, wires the agent-side
+/// M8-DM: v2 settings endpoint. Validates the payload, wires the agent-side
 /// fields (tool_availability + behavior knobs) into the live AgentConfig, then
-/// reconstructs the chat LlmProvider from `chat.providers[activeProviderId]`
-/// (mirrors the legacy `POST /settings` dispatch for the 3 known kinds).
-/// Image and video provider rebuild from `image.providers` / `video.providers`
-/// is a follow-up M7.5-DM step; for now those modalities keep using whichever
-/// provider was set via `POST /agent-settings` (Replicate) or never set at all.
+/// builds all three provider slots to completion before acquiring any lock.
+/// If any sub-build fails, the prior registry stays untouched (no torn state).
+/// On success, the full registry is installed atomically via `swap_registry`.
 pub async fn post_settings_v2(
     State(state): State<AppState>,
     Json(cfg): Json<SettingsConfigV2>,
@@ -192,20 +190,26 @@ pub async fn post_settings_v2(
     agent_cfg.system_prompt = cfg.behavior.system_prompt.clone();
     agent_cfg.temperature = cfg.behavior.temperature;
     agent_cfg.max_rounds = cfg.behavior.agent_max_rounds as usize;
+
+    // Build the full registry to completion BEFORE taking the write lock.
+    // If any sub-build fails, the prior registry stays untouched.
+    let (chat_provider, model_name) =
+        build_chat_provider(&cfg.chat, state.secrets_repo()).await?;
+    let image_provider =
+        build_image_provider(&cfg.image, state.secrets_repo(), state.media_sidecar_url()).await?;
+    let video_provider = build_video_provider(&cfg.video, state.media_sidecar_url())?;
+
+    let new_registry = crate::providers::ProviderRegistry {
+        chat: chat_provider,
+        image: image_provider,
+        video: video_provider,
+    };
+
+    // All builds succeeded - now persist agent config + atomically swap registry.
     state.set_agent_config(agent_cfg);
-    let (provider, model_name) = build_chat_provider(&cfg.chat, state.secrets_repo()).await?;
-    state.set_provider(provider);
+    state.swap_registry(new_registry);
     state.set_default_model(model_name);
 
-    match build_image_provider(&cfg.image, state.secrets_repo(), state.media_sidecar_url()).await?
-    {
-        Some(p) => state.set_image_provider(p),
-        None => state.clear_image_provider(),
-    }
-    match build_video_provider(&cfg.video, state.media_sidecar_url())? {
-        Some(p) => state.set_video_provider(p),
-        None => state.clear_video_provider(),
-    }
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
