@@ -1,7 +1,7 @@
-# Install torch separately with CUDA 12.1 wheel (NOT in this file because of
-# platform-specific wheels: cu121 on Windows, cu124 on Linux, CPU on macOS):
-#   uv pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1
-# torch 2.5.1 minimum for nunchaku 0.3.1 cp312 wheel.
+# Install torch separately with CUDA 12.8 wheel (NOT in this file because of
+# platform-specific wheels: cu128 on Windows, CPU on macOS):
+#   uv pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.8.0 torchvision==0.23.0
+# torch 2.8 minimum for nunchaku 1.2.x cp312 win_amd64 wheel.
 
 # diffusers pinned to git main (~0.39.0.dev0) until 0.36 ships stable.
 # Needed for ZImagePipeline + ZImageTransformer2DModel (Quality-OSS backend).
@@ -15,7 +15,8 @@ transformers>=4.51,<5.0
 # peft 0.17+ required by diffusers 0.39 dep check.
 peft>=0.17
 
-accelerate==0.34.2
+# accelerate 1.x required by torch 2.8 (0.34 has incompatible meta-tensor handling).
+accelerate>=1.0
 safetensors>=0.4.5
 sentencepiece==0.2.0
 fastapi==0.115.0
@@ -30,5 +31,10 @@ imageio==2.36.1
 imageio-ffmpeg==0.5.1
 
 # nunchaku is intentionally NOT here - PyPI 'nunchaku' is an unrelated Bayesian sampler.
-# Install the real mit-han-lab SVDQuant Nunchaku from their HF wheel mirror;
-# see sidecar/README.md "Nunchaku install" section.
+# Install nunchaku 1.2.1+ from nunchaku-tech/nunchaku GitHub release assets (wheel by
+# torch+CUDA+python+OS triple). For RTX 3080 / Windows / Python 3.12:
+#   gh release download v1.2.1 --repo nunchaku-tech/nunchaku \
+#     --pattern "nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl"
+#   uv pip install nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl
+# nunchaku 1.1.0+ adds NunchakuZImageTransformer2DModel (used by Quality-OSS backend).
+# einops auto-installed as transitive dep.
