@@ -252,10 +252,10 @@ pub fn lookup(id: &ModelId) -> Option<&'static ModelManifest> {
 
 /// Like `lookup`, but also resolves `ModelId::Custom` by synthesising a
 /// `&'static ModelManifest` via `Box::leak`. Per-`ModelId` cache keeps repeated
-/// calls from leaking fresh allocations — a single Custom entry leaks ~200
+/// calls from leaking fresh allocations - a single Custom entry leaks ~200
 /// bytes total regardless of how many times it's resolved.
 ///
-/// `sha256` is empty (integrity check skipped — Custom GGUFs are user-trusted
+/// `sha256` is empty (integrity check skipped - Custom GGUFs are user-trusted
 /// by entry). `size_bytes_estimate` / `vram_bytes_estimate` are 0 (progress
 /// bars handle `total_bytes: None` by going indeterminate).
 pub fn manifest_for(id: &ModelId) -> Option<&'static ModelManifest> {

@@ -167,7 +167,7 @@ impl DownloadManager {
                 let id_for_event = id.clone();
                 tokio::spawn(async move {
                     // Sequential: gguf first (sha-checked), then mmproj
-                    // (no sha — Custom mmproj filenames are user-supplied).
+                    // (no sha - Custom mmproj filenames are user-supplied).
                     // mistral.rs vision pipeline expects both files in the
                     // same dir, so we treat them as a single unit.
                     let outcome = match download_to(&gguf_url, &gguf_dest, &sha, events.clone()).await {

@@ -2,10 +2,10 @@
  * M7-DM video generation client hook.
  *
  * Three modes (selected via Settings.videoMode):
- *  - `prerecorded` — never hits backend; resolves to a bundled mp4 by scene tag.
- *  - `live` — POSTs to /video/generate, streams VideoEvents over SSE, builds
+ *  - `prerecorded` - never hits backend; resolves to a bundled mp4 by scene tag.
+ *  - `live` - POSTs to /video/generate, streams VideoEvents over SSE, builds
  *    a Blob URL from the Done payload's mp4_bytes array.
- *  - `race` — kicks both live + prerecorded in parallel; first to resolve wins
+ *  - `race` - kicks both live + prerecorded in parallel; first to resolve wins
  *    (live cancelled on prerecorded win, prerecorded discarded on live win).
  *
  * When the LTX-Video model isn't downloaded yet (sidecar returns 503), live

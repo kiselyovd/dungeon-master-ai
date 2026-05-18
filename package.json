@@ -20,6 +20,7 @@
     "check": "biome check",
     "check:fix": "biome check --write",
     "typecheck": "tsc --noEmit",
+    "install-hooks": "bash scripts/install-pre-commit.sh",
     "e2e": "playwright test --config=e2e/playwright.config.ts"
   },
   "dependencies": {

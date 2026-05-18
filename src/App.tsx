@@ -32,7 +32,7 @@ import { Icons } from './ui/Icons';
 function getProviderModel(state: ReturnType<typeof useStore.getState>): string {
   const active = state.settings.activeProvider;
   const cfg = state.settings.providers[active];
-  if (cfg === null) return '—';
+  if (cfg === null) return '-';
   return 'model' in cfg ? cfg.model : cfg.modelPath;
 }
 

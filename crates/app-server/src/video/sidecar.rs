@@ -2,7 +2,7 @@
 //!
 //! Same sidecar process as image generation (E.x dispatcher pattern); the
 //! sidecar's `ltx-video` backend handles requests. Single port, single GPU
-//! mutex — image and video serialise naturally.
+//! mutex - image and video serialise naturally.
 
 use std::time::Duration;
 
