@@ -290,15 +290,7 @@ function App() {
             activeTokenId={currentTurnId}
           />
         )}
-        {combatActive && (
-          <ActionBar
-            actionUsed={false}
-            bonusUsed={false}
-            reactionUsed={false}
-            movementFt={30}
-            speedFt={30}
-          />
-        )}
+        {combatActive && <ActionBar />}
         <CharFab
           onOpen={() => setCharacterSheetOpen(true)}
           onOpenWizard={() => setWizardReopen(true)}
