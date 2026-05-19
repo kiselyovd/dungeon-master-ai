@@ -14,7 +14,8 @@ use tracing::{info, warn};
 use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
 
 const REPLICATE_API_BASE: &str = "https://api.replicate.com/v1";
-const SDXL_MODEL: &str = "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496ce96467a993d0b73da";
+const SDXL_MODEL: &str =
+    "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496ce96467a993d0b73da";
 const STYLE_PREAMBLE: &str = "dark fantasy oil painting, dramatic lighting, atmospheric, cinematic, Witcher 3 inspired, highly detailed";
 const MAX_POLL_SECS: u64 = 90;
 const POLL_INTERVAL_MS: u64 = 2500;
@@ -29,9 +30,7 @@ impl ReplicateProvider {
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
-            client: Client::builder()
-                .build()
-                .expect("reqwest client"),
+            client: Client::builder().build().expect("reqwest client"),
         }
     }
 
@@ -78,7 +77,8 @@ impl ImageProvider for ReplicateProvider {
             },
         };
 
-        let create_resp = self.client
+        let create_resp = self
+            .client
             .post(format!("{REPLICATE_API_BASE}/predictions"))
             .header("Authorization", format!("Token {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -109,11 +109,14 @@ impl ImageProvider for ReplicateProvider {
         let deadline = std::time::Instant::now() + Duration::from_secs(MAX_POLL_SECS);
         loop {
             if std::time::Instant::now() >= deadline {
-                return Err(ImageError::Timeout { secs: MAX_POLL_SECS });
+                return Err(ImageError::Timeout {
+                    secs: MAX_POLL_SECS,
+                });
             }
             sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
 
-            let poll_resp = self.client
+            let poll_resp = self
+                .client
                 .get(format!("{REPLICATE_API_BASE}/predictions/{prediction_id}"))
                 .header("Authorization", format!("Token {}", self.api_key))
                 .timeout(Duration::from_secs(PER_REQUEST_TIMEOUT_SECS))
@@ -138,20 +141,24 @@ impl ImageProvider for ReplicateProvider {
 
             match status.status.as_str() {
                 "succeeded" => {
-                    let url = status.output
+                    let url = status
+                        .output
                         .and_then(|o| o.into_iter().next())
                         .ok_or_else(|| ImageError::Provider("no output URL".into()))?;
 
                     info!(url = %url, "Replicate: image ready");
 
-                    let img_resp = self.client
+                    let img_resp = self
+                        .client
                         .get(&url)
                         .timeout(Duration::from_secs(PER_REQUEST_TIMEOUT_SECS))
                         .send()
                         .await
                         .map_err(|e| ImageError::Network(e.to_string()))?;
 
-                    let bytes = img_resp.bytes().await
+                    let bytes = img_resp
+                        .bytes()
+                        .await
                         .map_err(|e| ImageError::Network(e.to_string()))?;
 
                     return Ok(ImageBytes {

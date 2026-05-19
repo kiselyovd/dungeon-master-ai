@@ -21,8 +21,16 @@ fn two_combatants() -> (CombatantId, CombatantId, CombatResolver) {
         c
     };
     let order = InitiativeOrder::build(vec![
-        InitiativeEntry { id: a_id, roll: 18, dex_tiebreak: 2 },
-        InitiativeEntry { id: b_id, roll: 10, dex_tiebreak: 0 },
+        InitiativeEntry {
+            id: a_id,
+            roll: 18,
+            dex_tiebreak: 2,
+        },
+        InitiativeEntry {
+            id: b_id,
+            roll: 10,
+            dex_tiebreak: 0,
+        },
     ]);
     let mut combatants = HashMap::new();
     combatants.insert(a_id, a);
@@ -38,11 +46,18 @@ fn attack_on_own_turn_is_valid() {
         attacker: a_id,
         target: b_id,
         attack_modifier: 4,
-        damage_expr: DiceExpr { count: 1, die: app_domain::dice::Die::D8, modifier: 2 },
+        damage_expr: DiceExpr {
+            count: 1,
+            die: app_domain::dice::Die::D8,
+            modifier: 2,
+        },
         damage_type: DamageType::Slashing,
     };
     let result = resolver.resolve(action);
-    assert!(result.is_ok(), "attack on valid target should resolve: {result:?}");
+    assert!(
+        result.is_ok(),
+        "attack on valid target should resolve: {result:?}"
+    );
 }
 
 #[test]
@@ -53,11 +68,18 @@ fn attack_by_non_active_combatant_fails_validation() {
         attacker: b_id,
         target: a_id,
         attack_modifier: 2,
-        damage_expr: DiceExpr { count: 1, die: app_domain::dice::Die::D6, modifier: 0 },
+        damage_expr: DiceExpr {
+            count: 1,
+            die: app_domain::dice::Die::D6,
+            modifier: 0,
+        },
         damage_type: DamageType::Piercing,
     };
     let result = resolver.resolve(action);
-    assert!(matches!(result, Err(ValidationError::NotYourTurn)), "{result:?}");
+    assert!(
+        matches!(result, Err(ValidationError::NotYourTurn)),
+        "{result:?}"
+    );
 }
 
 #[test]
@@ -67,11 +89,18 @@ fn attack_on_self_fails_validation() {
         attacker: a_id,
         target: a_id,
         attack_modifier: 4,
-        damage_expr: DiceExpr { count: 1, die: app_domain::dice::Die::D8, modifier: 2 },
+        damage_expr: DiceExpr {
+            count: 1,
+            die: app_domain::dice::Die::D8,
+            modifier: 2,
+        },
         damage_type: DamageType::Slashing,
     };
     let result = resolver.resolve(action);
-    assert!(matches!(result, Err(ValidationError::InvalidTarget)), "{result:?}");
+    assert!(
+        matches!(result, Err(ValidationError::InvalidTarget)),
+        "{result:?}"
+    );
 }
 
 #[test]
@@ -81,7 +110,11 @@ fn successful_attack_produces_result_events() {
         attacker: a_id,
         target: b_id,
         attack_modifier: 8, // very high to ensure a hit
-        damage_expr: DiceExpr { count: 1, die: app_domain::dice::Die::D6, modifier: 0 },
+        damage_expr: DiceExpr {
+            count: 1,
+            die: app_domain::dice::Die::D6,
+            modifier: 0,
+        },
         damage_type: DamageType::Slashing,
     };
     let events = resolver.resolve(action).expect("should hit");

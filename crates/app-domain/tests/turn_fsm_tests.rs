@@ -1,4 +1,4 @@
-use app_domain::combat::turn_fsm::{TurnPhase, TurnState, advance_phase};
+use app_domain::combat::turn_fsm::{advance_phase, TurnPhase, TurnState};
 
 #[test]
 fn turn_starts_at_validate() {

@@ -268,9 +268,7 @@ mod tests {
             .mount(&server)
             .await;
         Mock::given(method("GET"))
-            .and(path(
-                "/stabilityai/sdxl-test/resolve/main/model_index.json",
-            ))
+            .and(path("/stabilityai/sdxl-test/resolve/main/model_index.json"))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(b"{}".to_vec()))
             .mount(&server)
             .await;

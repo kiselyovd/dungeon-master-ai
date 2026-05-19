@@ -54,10 +54,7 @@ async fn chat_streams_sse_text_deltas_then_done() {
 
     assert!(text.contains("event: text_delta"), "raw stream:\n{text}");
     assert!(text.contains("\"text\":\"Hello\""), "raw stream:\n{text}");
-    assert!(
-        text.contains("\"text\":\", world\""),
-        "raw stream:\n{text}"
-    );
+    assert!(text.contains("\"text\":\", world\""), "raw stream:\n{text}");
     assert!(text.contains("event: done"), "raw stream:\n{text}");
 }
 

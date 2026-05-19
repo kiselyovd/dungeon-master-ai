@@ -68,7 +68,9 @@ pub enum ModelKind {
     GgufFile,
     DiffusersFolder,
     /// VL GGUF that ships a separate mmproj GGUF.
-    GgufWithMmproj { mmproj_filename: &'static str },
+    GgufWithMmproj {
+        mmproj_filename: &'static str,
+    },
     /// Standalone .safetensors (e.g. LoRA, Turbo-Alpha).
     SafetensorsSingleFile,
     /// SVDQuant W4A4 INT4 single-file (e.g. Nunchaku FLUX).
@@ -279,8 +281,7 @@ pub fn manifest_for(id: &ModelId) -> Option<&'static ModelManifest> {
                 Box::leak(format!("Custom: {hf_repo}/{gguf_filename}").into_boxed_str());
             let kind = match mmproj_filename {
                 Some(name) => {
-                    let mmproj_static: &'static str =
-                        Box::leak(name.clone().into_boxed_str());
+                    let mmproj_static: &'static str = Box::leak(name.clone().into_boxed_str());
                     ModelKind::GgufWithMmproj {
                         mmproj_filename: mmproj_static,
                     }
@@ -305,9 +306,8 @@ pub fn manifest_for(id: &ModelId) -> Option<&'static ModelManifest> {
     }
 }
 
-fn custom_manifest_cache() -> &'static std::sync::Mutex<
-    std::collections::HashMap<ModelId, &'static ModelManifest>,
-> {
+fn custom_manifest_cache(
+) -> &'static std::sync::Mutex<std::collections::HashMap<ModelId, &'static ModelManifest>> {
     static CACHE: std::sync::OnceLock<
         std::sync::Mutex<std::collections::HashMap<ModelId, &'static ModelManifest>>,
     > = std::sync::OnceLock::new();

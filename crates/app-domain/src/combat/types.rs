@@ -97,7 +97,11 @@ pub struct SlotLevel(pub u8); // 1-9
 
 impl SlotLevel {
     pub fn new(level: u8) -> Option<Self> {
-        if (1..=9).contains(&level) { Some(Self(level)) } else { None }
+        if (1..=9).contains(&level) {
+            Some(Self(level))
+        } else {
+            None
+        }
     }
 }
 

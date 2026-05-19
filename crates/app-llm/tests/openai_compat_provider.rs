@@ -4,7 +4,9 @@
 //! This is the protocol used by LM Studio, Ollama (`/v1/`), llama.cpp server,
 //! vLLM, mistral.rs server, OpenRouter, Groq, DeepSeek, Together, etc.
 
-use app_llm::{ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, OpenAICompatProvider};
+use app_llm::{
+    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, OpenAICompatProvider,
+};
 use futures::StreamExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -71,7 +73,10 @@ async fn openai_compat_streams_text_then_done() {
         }
     }
 
-    assert_eq!(text, "Hello, world", "unexpected accumulated text: {text:?}");
+    assert_eq!(
+        text, "Hello, world",
+        "unexpected accumulated text: {text:?}"
+    );
     assert!(saw_done, "stream did not emit Done");
 }
 

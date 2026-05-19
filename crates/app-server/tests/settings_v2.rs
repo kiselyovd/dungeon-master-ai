@@ -1,6 +1,6 @@
 use app_llm::ReasoningSpec;
 use app_server::test_support::TestServer;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 fn baseline() -> Value {
     json!({
@@ -380,10 +380,7 @@ async fn post_settings_v2_rebuilds_local_mistralrs_with_custom_no_mmproj() {
         .expect("request");
     assert_eq!(res.status(), 200, "body: {:?}", res.text().await);
     assert_eq!(server.state.provider().name(), "local-mistralrs");
-    assert_eq!(
-        server.state.default_model(),
-        "llama-2-7b-chat.Q4_K_M.gguf",
-    );
+    assert_eq!(server.state.default_model(), "llama-2-7b-chat.Q4_K_M.gguf",);
 }
 
 #[tokio::test]
@@ -631,7 +628,10 @@ async fn post_settings_v2_wires_reasoning_enabled_and_budget_to_agent_config() {
         .expect("request");
     assert_eq!(res.status(), 200);
     let cfg = server.state.agent_config();
-    assert!(cfg.reasoning_enabled, "expected reasoning_enabled=true in AgentConfig");
+    assert!(
+        cfg.reasoning_enabled,
+        "expected reasoning_enabled=true in AgentConfig"
+    );
     assert_eq!(
         cfg.reasoning_budget,
         ReasoningSpec::High,
@@ -650,7 +650,10 @@ async fn post_settings_v2_reasoning_disabled_keeps_defaults() {
         .expect("request");
     assert_eq!(res.status(), 200);
     let cfg = server.state.agent_config();
-    assert!(!cfg.reasoning_enabled, "reasoning_enabled should be false from baseline");
+    assert!(
+        !cfg.reasoning_enabled,
+        "reasoning_enabled should be false from baseline"
+    );
     assert_eq!(
         cfg.reasoning_budget,
         ReasoningSpec::Medium,

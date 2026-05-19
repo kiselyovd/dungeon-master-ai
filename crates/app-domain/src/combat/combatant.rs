@@ -15,7 +15,12 @@ pub struct ActionBudget {
 
 impl ActionBudget {
     pub fn fresh(speed_ft: i32) -> Self {
-        Self { action: true, bonus_action: true, reaction: true, movement_ft: speed_ft }
+        Self {
+            action: true,
+            bonus_action: true,
+            reaction: true,
+            movement_ft: speed_ft,
+        }
     }
 
     pub fn refresh_for_new_turn(&mut self, speed_ft: i32) {
@@ -36,7 +41,11 @@ pub struct DeathSaves {
 
 impl DeathSaves {
     pub fn new() -> Self {
-        Self { successes: 0, failures: 0, stable: false }
+        Self {
+            successes: 0,
+            failures: 0,
+            stable: false,
+        }
     }
 
     pub fn record_success(&mut self) -> bool {
@@ -107,7 +116,9 @@ impl Combatant {
     }
 
     pub fn apply_healing(&mut self, amount: i32) {
-        if self.is_dead { return; }
+        if self.is_dead {
+            return;
+        }
         self.current_hp = (self.current_hp + amount).min(self.max_hp);
         if self.current_hp > 0 {
             self.death_saves = DeathSaves::new();

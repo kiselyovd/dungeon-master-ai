@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::types::{AbilityScore, CombatantId, CharacterId, DamageType, Position, SlotLevel};
+use super::types::{AbilityScore, CharacterId, CombatantId, DamageType, Position, SlotLevel};
 use crate::dice::RollDetail;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

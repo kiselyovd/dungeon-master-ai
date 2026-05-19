@@ -1,4 +1,4 @@
-use app_domain::combat::attack::{AttackOutcome, roll_attack};
+use app_domain::combat::attack::{roll_attack, AttackOutcome};
 use app_domain::combat::conditions::AttackModifier;
 use app_domain::rng::SeededRng;
 
@@ -42,7 +42,10 @@ fn hit_when_total_meets_ac() {
             _ => {}
         }
     }
-    assert!(hits > 30, "expected majority hits with +5 vs AC10, got {hits}");
+    assert!(
+        hits > 30,
+        "expected majority hits with +5 vs AC10, got {hits}"
+    );
 }
 
 #[test]
@@ -66,5 +69,8 @@ fn advantage_increases_hit_rate() {
             adv_hits += 1;
         }
     }
-    assert!(adv_hits >= normal_hits, "advantage should not decrease hit rate");
+    assert!(
+        adv_hits >= normal_hits,
+        "advantage should not decrease hit rate"
+    );
 }

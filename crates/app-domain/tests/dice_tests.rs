@@ -1,18 +1,29 @@
-use app_domain::dice::{Die, DiceExpr, roll_expr};
+use app_domain::dice::{roll_expr, DiceExpr, Die};
 use app_domain::rng::SeededRng;
 
 #[test]
 fn d20_result_is_in_range() {
     let mut rng = SeededRng::from_seed(42);
     for _ in 0..200 {
-        let result = roll_expr(&DiceExpr { count: 1, die: Die::D20, modifier: 0 }, &mut rng);
+        let result = roll_expr(
+            &DiceExpr {
+                count: 1,
+                die: Die::D20,
+                modifier: 0,
+            },
+            &mut rng,
+        );
         assert!((1..=20).contains(&result), "d20 out of range: {result}");
     }
 }
 
 #[test]
 fn seed_determinism_same_sequence() {
-    let expr = DiceExpr { count: 2, die: Die::D6, modifier: 3 };
+    let expr = DiceExpr {
+        count: 2,
+        die: Die::D6,
+        modifier: 3,
+    };
     let mut rng1 = SeededRng::from_seed(999);
     let mut rng2 = SeededRng::from_seed(999);
     let a = roll_expr(&expr, &mut rng1);
@@ -22,7 +33,11 @@ fn seed_determinism_same_sequence() {
 
 #[test]
 fn two_d6_plus_3_range() {
-    let expr = DiceExpr { count: 2, die: Die::D6, modifier: 3 };
+    let expr = DiceExpr {
+        count: 2,
+        die: Die::D6,
+        modifier: 3,
+    };
     let mut rng = SeededRng::from_seed(7);
     for _ in 0..500 {
         let result = roll_expr(&expr, &mut rng);
@@ -33,7 +48,11 @@ fn two_d6_plus_3_range() {
 #[test]
 fn individual_rolls_tracked() {
     use app_domain::dice::roll_expr_detailed;
-    let expr = DiceExpr { count: 3, die: Die::D6, modifier: 0 };
+    let expr = DiceExpr {
+        count: 3,
+        die: Die::D6,
+        modifier: 0,
+    };
     let mut rng = SeededRng::from_seed(1);
     let detail = roll_expr_detailed(&expr, &mut rng);
     assert_eq!(detail.rolls.len(), 3);

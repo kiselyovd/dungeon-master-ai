@@ -6,9 +6,7 @@ use app_llm::{LlmProvider, NullSidecarLauncher};
 use sqlx::SqlitePool;
 
 use crate::agent::orchestrator::AgentConfig;
-use crate::local_runtime::{
-    probe_always_fail, LocalRuntime, RegistrySnapshot, RuntimeRegistry,
-};
+use crate::local_runtime::{probe_always_fail, LocalRuntime, RegistrySnapshot, RuntimeRegistry};
 use crate::models::DownloadManager;
 use crate::routes::local_mode::LocalModeConfig;
 use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
@@ -147,11 +145,7 @@ impl AppState {
     }
 
     pub fn set_srd_retriever(&self, retriever: Arc<SrdRetriever>) {
-        *self
-            .inner
-            .srd_retriever
-            .write()
-            .expect("srd lock poisoned") = Some(retriever);
+        *self.inner.srd_retriever.write().expect("srd lock poisoned") = Some(retriever);
     }
 
     pub fn image_provider(&self) -> Option<Arc<dyn crate::image::provider::ImageProvider>> {
@@ -223,7 +217,11 @@ impl AppState {
     /// Read-only snapshot of the full registry. Used by tests and future
     /// atomic-read consumers that need a consistent view of all three slots.
     pub fn registry(&self) -> Arc<crate::providers::ProviderRegistry> {
-        self.inner.registry.read().expect("registry lock poisoned").clone()
+        self.inner
+            .registry
+            .read()
+            .expect("registry lock poisoned")
+            .clone()
     }
 
     pub fn media_sidecar_url(&self) -> Option<String> {

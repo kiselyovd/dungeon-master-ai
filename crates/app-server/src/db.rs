@@ -197,10 +197,7 @@ pub async fn save_list_by_session(
 }
 
 /// Load a single save by id, including the full `game_state` envelope.
-pub async fn save_load(
-    pool: &SqlitePool,
-    save_id: Uuid,
-) -> Result<Option<SaveRow>, sqlx::Error> {
+pub async fn save_load(pool: &SqlitePool, save_id: Uuid) -> Result<Option<SaveRow>, sqlx::Error> {
     let row = sqlx::query(
         r#"SELECT id, session_id, kind, title, summary, tag, created_at, turn_number, game_state
            FROM snapshots
@@ -213,13 +210,12 @@ pub async fn save_load(
 
     if let Some(r) = row {
         let game_state_str: String = r.try_get("game_state")?;
-        let game_state: serde_json::Value =
-            serde_json::from_str(&game_state_str).map_err(|e| {
-                sqlx::Error::Decode(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    e.to_string(),
-                )))
-            })?;
+        let game_state: serde_json::Value = serde_json::from_str(&game_state_str).map_err(|e| {
+            sqlx::Error::Decode(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                e.to_string(),
+            )))
+        })?;
         Ok(Some(SaveRow {
             id: parse_uuid_col(&r, "id")?,
             session_id: parse_uuid_col(&r, "session_id")?,
@@ -496,10 +492,11 @@ pub struct SrdChunkRow {
 }
 
 pub async fn srd_chunks_load_all(pool: &SqlitePool) -> Result<Vec<SrdChunkRow>, sqlx::Error> {
-    let rows =
-        sqlx::query("SELECT source_key, text_en, embedding FROM srd_chunks WHERE embedding IS NOT NULL")
-            .fetch_all(pool)
-            .await?;
+    let rows = sqlx::query(
+        "SELECT source_key, text_en, embedding FROM srd_chunks WHERE embedding IS NOT NULL",
+    )
+    .fetch_all(pool)
+    .await?;
 
     rows.into_iter()
         .map(|r| {
@@ -685,9 +682,8 @@ fn decode_message(
                 MessagePart::Text { text } => Some(text),
                 _ => None,
             });
-            let tool_calls: Vec<ToolCall> =
-                serde_json::from_str(tool_calls_json.unwrap_or("[]"))
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+            let tool_calls: Vec<ToolCall> = serde_json::from_str(tool_calls_json.unwrap_or("[]"))
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
             ChatMessage::AssistantWithToolCalls {
                 content,
                 tool_calls,

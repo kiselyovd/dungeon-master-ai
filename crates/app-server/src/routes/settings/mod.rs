@@ -7,8 +7,8 @@ pub use v2::{
 
 use std::sync::Arc;
 
-use axum::Json;
 use axum::extract::State;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
@@ -177,14 +177,15 @@ async fn build_chat_provider(
                 return Err(AppError::BadRequest("api_key must not be empty".into()));
             }
             if chat.active_model_id.trim().is_empty() {
-                return Err(AppError::BadRequest("active_model_id must not be empty".into()));
+                return Err(AppError::BadRequest(
+                    "active_model_id must not be empty".into(),
+                ));
             }
             secrets
                 .set("anthropic_api_key", &cfg.api_key)
                 .await
                 .map_err(|e| AppError::Internal(e.to_string()))?;
-            let raw: Arc<dyn app_llm::LlmProvider> =
-                Arc::new(AnthropicProvider::new(cfg.api_key));
+            let raw: Arc<dyn app_llm::LlmProvider> = Arc::new(AnthropicProvider::new(cfg.api_key));
             let provider: Arc<dyn app_llm::LlmProvider> =
                 Arc::new(app_llm::RetryableProvider::new(raw));
             Ok((provider, chat.active_model_id.clone()))
@@ -196,7 +197,9 @@ async fn build_chat_provider(
                 return Err(AppError::BadRequest("base_url must not be empty".into()));
             }
             if chat.active_model_id.trim().is_empty() {
-                return Err(AppError::BadRequest("active_model_id must not be empty".into()));
+                return Err(AppError::BadRequest(
+                    "active_model_id must not be empty".into(),
+                ));
             }
             if !cfg.api_key.trim().is_empty() {
                 secrets
@@ -204,25 +207,20 @@ async fn build_chat_provider(
                     .await
                     .map_err(|e| AppError::Internal(e.to_string()))?;
             }
-            let raw: Arc<dyn app_llm::LlmProvider> = Arc::new(OpenAICompatProvider::new(
-                cfg.base_url,
-                cfg.api_key,
-            ));
+            let raw: Arc<dyn app_llm::LlmProvider> =
+                Arc::new(OpenAICompatProvider::new(cfg.base_url, cfg.api_key));
             let provider: Arc<dyn app_llm::LlmProvider> =
                 Arc::new(app_llm::RetryableProvider::new(raw));
             Ok((provider, chat.active_model_id.clone()))
         }
         "local-mistralrs" => {
-            let cfg: LocalMistralrsSlice = serde_json::from_value(slice.clone()).map_err(|e| {
-                AppError::BadRequest(format!("invalid local-mistralrs slice: {e}"))
-            })?;
+            let cfg: LocalMistralrsSlice = serde_json::from_value(slice.clone())
+                .map_err(|e| AppError::BadRequest(format!("invalid local-mistralrs slice: {e}")))?;
             let manifest = manifest_for(&cfg.model_id)
                 .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
             let model_name = manifest.hf_filename.to_string();
-            let provider: Arc<dyn app_llm::LlmProvider> = Arc::new(MistralrsLocalProvider::new(
-                cfg.port,
-                model_name.clone(),
-            ));
+            let provider: Arc<dyn app_llm::LlmProvider> =
+                Arc::new(MistralrsLocalProvider::new(cfg.port, model_name.clone()));
             Ok((provider, model_name))
         }
         other => Err(AppError::BadRequest(format!(

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::dice::{Die, roll_one};
+use crate::dice::{roll_one, Die};
 use crate::rng::SeededRng;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

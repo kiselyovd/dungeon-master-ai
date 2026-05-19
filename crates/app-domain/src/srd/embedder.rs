@@ -107,9 +107,7 @@ pub fn embed_chunks(
     model: EmbeddingModel,
 ) -> Result<SrdRetriever, Box<dyn std::error::Error + Send + Sync>> {
     info!("initializing fastembed model: {:?}", model);
-    let model = TextEmbedding::try_new(
-        InitOptions::new(model).with_show_download_progress(true),
-    )?;
+    let model = TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))?;
 
     let texts: Vec<&str> = chunks.iter().map(|c| c.text_en.as_str()).collect();
     info!("embedding {} SRD chunks", texts.len());

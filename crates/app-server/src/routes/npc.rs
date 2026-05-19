@@ -1,8 +1,8 @@
-use axum::Json;
 use axum::extract::{Query, State};
+use axum::Json;
 
 use super::CampaignQuery;
-use crate::db::{NpcMemoryRow, npc_get_all};
+use crate::db::{npc_get_all, NpcMemoryRow};
 use crate::error::AppError;
 use crate::state::AppState;
 

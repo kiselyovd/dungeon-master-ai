@@ -167,7 +167,9 @@ mod tests {
     fn openai_compat_has_4_curated_entries() {
         let entries = recommended_for("openai-compat");
         assert_eq!(entries.len(), 4);
-        assert!(entries.iter().all(|e| matches!(e.source, ModelSource::Curated)));
+        assert!(entries
+            .iter()
+            .all(|e| matches!(e.source, ModelSource::Curated)));
         assert!(entries.iter().any(|e| e.model_id == "gpt-5"));
         assert!(entries.iter().any(|e| e.model_id == "o3-mini"));
     }
@@ -183,7 +185,9 @@ mod tests {
     fn local_mistralrs_has_3_qwen_entries() {
         let entries = recommended_for("local-mistralrs");
         assert_eq!(entries.len(), 3);
-        assert!(entries.iter().all(|e| matches!(e.source, ModelSource::Curated)));
+        assert!(entries
+            .iter()
+            .all(|e| matches!(e.source, ModelSource::Curated)));
         assert!(entries.iter().any(|e| e.model_id == "qwen3_5_4b"));
         assert!(entries.iter().any(|e| e.model_id == "qwen3_5_2b"));
         assert!(entries.iter().any(|e| e.model_id == "qwen3_5_9b"));
@@ -269,7 +273,10 @@ mod tests {
         ];
         let merged = merge_recommended(recommended, discovered);
         assert_eq!(
-            merged.iter().map(|e| e.model_id.as_str()).collect::<Vec<_>>(),
+            merged
+                .iter()
+                .map(|e| e.model_id.as_str())
+                .collect::<Vec<_>>(),
             vec!["rec-1", "disc-a", "disc-b"],
         );
     }

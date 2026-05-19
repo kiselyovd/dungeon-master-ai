@@ -14,7 +14,8 @@ fn apply_damage_rejects_negative() {
     let err = validate_tool_call(
         "apply_damage",
         json!({ "token_id": "abc", "amount": -5, "type": "fire" }),
-    ).unwrap_err();
+    )
+    .unwrap_err();
     assert!(matches!(err, ToolCallError::ValidationFailed(_)));
 }
 
@@ -22,8 +23,11 @@ fn apply_damage_rejects_negative() {
 
 #[test]
 fn set_scene_valid_exploration() {
-    let v = validate_tool_call("set_scene", json!({ "title": "Tavern", "mode": "exploration" }))
-        .unwrap();
+    let v = validate_tool_call(
+        "set_scene",
+        json!({ "title": "Tavern", "mode": "exploration" }),
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "set_scene");
 }
 
@@ -38,7 +42,8 @@ fn set_scene_rejects_invalid_mode() {
     let err = validate_tool_call(
         "set_scene",
         json!({ "title": "Tavern", "mode": "dungeon_crawl" }),
-    ).unwrap_err();
+    )
+    .unwrap_err();
     assert!(matches!(err, ToolCallError::ValidationFailed(_)));
 }
 
@@ -47,7 +52,8 @@ fn cast_spell_valid() {
     let v = validate_tool_call(
         "cast_spell",
         json!({ "caster_id": "p1", "spell": "magic_missile", "targets": ["e1"] }),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "cast_spell");
 }
 
@@ -56,7 +62,8 @@ fn cast_spell_rejects_empty_targets() {
     let err = validate_tool_call(
         "cast_spell",
         json!({ "caster_id": "p1", "spell": "magic_missile", "targets": [] }),
-    ).unwrap_err();
+    )
+    .unwrap_err();
     assert!(matches!(err, ToolCallError::ValidationFailed(_)));
 }
 
@@ -65,16 +72,15 @@ fn remember_npc_valid() {
     let v = validate_tool_call(
         "remember_npc",
         json!({ "name": "Mira", "fact": "She saved the party in session 2" }),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "remember_npc");
 }
 
 #[test]
 fn remember_npc_rejects_empty_fact() {
-    let err = validate_tool_call(
-        "remember_npc",
-        json!({ "name": "Mira", "fact": "" }),
-    ).unwrap_err();
+    let err =
+        validate_tool_call("remember_npc", json!({ "name": "Mira", "fact": "" })).unwrap_err();
     assert!(matches!(err, ToolCallError::ValidationFailed(_)));
 }
 
@@ -89,7 +95,8 @@ fn journal_append_valid() {
     let v = validate_tool_call(
         "journal_append",
         json!({ "entry_html": "<p>The party entered the dungeon.</p>" }),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "journal_append");
 }
 
@@ -107,8 +114,11 @@ fn quick_save_valid_no_label() {
 
 #[test]
 fn query_rules_valid() {
-    let v = validate_tool_call("query_rules", json!({ "question": "How does grappling work?" }))
-        .unwrap();
+    let v = validate_tool_call(
+        "query_rules",
+        json!({ "question": "How does grappling work?" }),
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "query_rules");
 }
 
@@ -117,7 +127,8 @@ fn generate_image_valid() {
     let v = validate_tool_call(
         "generate_image",
         json!({ "prompt": "Dark tavern with hooded figures", "style": "dark_fantasy" }),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(v.tool_name, "generate_image");
 }
 

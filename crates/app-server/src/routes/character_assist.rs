@@ -1,7 +1,7 @@
-use axum::Json;
 use axum::extract::State;
-use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
+use axum::Json;
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::json;
@@ -15,22 +15,14 @@ use app_llm::{ChatChunk, ChatMessage, ChatRequest, Tool};
 use crate::error::AppError;
 use crate::state::AppState;
 
-const PROMPT_FIELD_EN: &str =
-    include_str!("../../../../prompts/character_assist_field_en.txt");
-const PROMPT_FIELD_RU: &str =
-    include_str!("../../../../prompts/character_assist_field_ru.txt");
-const PROMPT_FULL_EN: &str =
-    include_str!("../../../../prompts/character_assist_full_en.txt");
-const PROMPT_FULL_RU: &str =
-    include_str!("../../../../prompts/character_assist_full_ru.txt");
-const PROMPT_CHAT_EN: &str =
-    include_str!("../../../../prompts/character_assist_chat_en.txt");
-const PROMPT_CHAT_RU: &str =
-    include_str!("../../../../prompts/character_assist_chat_ru.txt");
-const PROMPT_FLAG_EN: &str =
-    include_str!("../../../../prompts/character_assist_flag_en.txt");
-const PROMPT_FLAG_RU: &str =
-    include_str!("../../../../prompts/character_assist_flag_ru.txt");
+const PROMPT_FIELD_EN: &str = include_str!("../../../../prompts/character_assist_field_en.txt");
+const PROMPT_FIELD_RU: &str = include_str!("../../../../prompts/character_assist_field_ru.txt");
+const PROMPT_FULL_EN: &str = include_str!("../../../../prompts/character_assist_full_en.txt");
+const PROMPT_FULL_RU: &str = include_str!("../../../../prompts/character_assist_full_ru.txt");
+const PROMPT_CHAT_EN: &str = include_str!("../../../../prompts/character_assist_chat_en.txt");
+const PROMPT_CHAT_RU: &str = include_str!("../../../../prompts/character_assist_chat_ru.txt");
+const PROMPT_FLAG_EN: &str = include_str!("../../../../prompts/character_assist_flag_en.txt");
+const PROMPT_FLAG_RU: &str = include_str!("../../../../prompts/character_assist_flag_ru.txt");
 
 // ---------------------------------------------------------------------------
 // Wire types
@@ -117,17 +109,33 @@ fn pick_prompt(kind: &AssistKind, field: Option<&AssistField>, locale: &str) -> 
     match kind {
         AssistKind::Field => match field {
             Some(AssistField::PersonalityFlag) => {
-                if is_ru { PROMPT_FLAG_RU } else { PROMPT_FLAG_EN }
+                if is_ru {
+                    PROMPT_FLAG_RU
+                } else {
+                    PROMPT_FLAG_EN
+                }
             }
             _ => {
-                if is_ru { PROMPT_FIELD_RU } else { PROMPT_FIELD_EN }
+                if is_ru {
+                    PROMPT_FIELD_RU
+                } else {
+                    PROMPT_FIELD_EN
+                }
             }
         },
         AssistKind::Full => {
-            if is_ru { PROMPT_FULL_RU } else { PROMPT_FULL_EN }
+            if is_ru {
+                PROMPT_FULL_RU
+            } else {
+                PROMPT_FULL_EN
+            }
         }
         AssistKind::TestChat => {
-            if is_ru { PROMPT_CHAT_RU } else { PROMPT_CHAT_EN }
+            if is_ru {
+                PROMPT_CHAT_RU
+            } else {
+                PROMPT_CHAT_EN
+            }
         }
     }
 }
@@ -150,8 +158,7 @@ fn build_user_text(req: &CharacterAssistReq) -> Result<String, AppError> {
             let source_label = source_label.as_deref().unwrap_or("");
             let pool_block = match pool {
                 Some(items) if !items.is_empty() => {
-                    let lines: Vec<String> =
-                        items.iter().map(|s| format!("- {s}")).collect();
+                    let lines: Vec<String> = items.iter().map(|s| format!("- {s}")).collect();
                     format!("Pool:\n{}", lines.join("\n"))
                 }
                 _ => "Pool: (empty - generate a fresh entry)".to_string(),
@@ -165,13 +172,12 @@ fn build_user_text(req: &CharacterAssistReq) -> Result<String, AppError> {
                 "Slot: {slot_id}\n{source_line}\n{pool_block}\nDraft: {context_json}"
             ))
         }
-        AssistParams::Field { field, .. } => {
-            Ok(format!("Field: {field:?}\nDraft: {context_json}"))
-        }
-        AssistParams::Full {} => {
-            Ok(format!("Draft: {context_json}\nFill in remaining fields."))
-        }
-        AssistParams::TestChat { user_message, history } => {
+        AssistParams::Field { field, .. } => Ok(format!("Field: {field:?}\nDraft: {context_json}")),
+        AssistParams::Full {} => Ok(format!("Draft: {context_json}\nFill in remaining fields.")),
+        AssistParams::TestChat {
+            user_message,
+            history,
+        } => {
             let history_json = serde_json::to_string(
                 &history
                     .iter()
@@ -255,13 +261,9 @@ pub async fn post_character_assist(
         while let Some(chunk) = stream.next().await {
             match chunk {
                 Ok(ChatChunk::TextDelta { text }) => {
-                    if send_event(
-                        &tx,
-                        "token",
-                        &json!({"type":"token","text":text}),
-                    )
-                    .await
-                    .is_err()
+                    if send_event(&tx, "token", &json!({"type":"token","text":text}))
+                        .await
+                        .is_err()
                     {
                         return;
                     }

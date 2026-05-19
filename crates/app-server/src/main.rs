@@ -2,21 +2,18 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Context;
-use app_domain::srd::embedder::{
-    DEFAULT_EMBEDDING_MODEL, embedding_dim, parse_embedding_model,
-};
+use app_domain::srd::embedder::{embedding_dim, parse_embedding_model, DEFAULT_EMBEDDING_MODEL};
 use app_llm::{AnthropicProvider, LlmProvider, MockProvider};
 use app_server::secrets::StrongholdSecretsRepo;
-use app_server::{AppState, config::Settings, db::init_db, db::srd_chunks_clear, router};
-use sqlx::Row;
+use app_server::{config::Settings, db::init_db, db::srd_chunks_clear, router, AppState};
 use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::Row;
 use tokio::net::TcpListener;
 use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _telemetry = app_server::telemetry::init_telemetry()
-        .context("init telemetry")?;
+    let _telemetry = app_server::telemetry::init_telemetry().context("init telemetry")?;
     let settings = Settings::from_env();
 
     let llm: Arc<dyn LlmProvider> = match settings.anthropic_api_key.clone() {
@@ -85,8 +82,8 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!(
                 "invalid DMAI_EMBEDDING_MODEL='{requested_model_name}': {e}. Falling back to '{DEFAULT_EMBEDDING_MODEL}'."
             );
-            let m = parse_embedding_model(DEFAULT_EMBEDDING_MODEL)
-                .expect("default model must parse");
+            let m =
+                parse_embedding_model(DEFAULT_EMBEDDING_MODEL).expect("default model must parse");
             (DEFAULT_EMBEDDING_MODEL.to_string(), m)
         }
     };
@@ -136,7 +133,9 @@ async fn main() -> anyhow::Result<()> {
     );
     info!(?addr, "app-server listening");
 
-    axum::serve(listener, router(state)).await.context("serve")?;
+    axum::serve(listener, router(state))
+        .await
+        .context("serve")?;
     Ok(())
 }
 
@@ -185,7 +184,9 @@ fn resolve_vault_path() -> Option<std::path::PathBuf> {
         }
         Err(_) => resolve_default_db_path(),
     };
-    let parent = db_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let parent = db_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
     Some(parent.join("dmai-vault.hold"))
 }
 
@@ -199,4 +200,3 @@ fn resolve_default_db_path() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     exe_dir.join("data.db")
 }
-

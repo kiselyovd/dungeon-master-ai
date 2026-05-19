@@ -28,9 +28,8 @@ pub enum RuntimeStatus {
 /// Erased async closure used to probe a sidecar's HTTP health endpoint.
 /// Production wires `probe_real(ProbeConfig)`; tests pass `probe_always_ok` /
 /// `probe_always_fail` / a counter-based helper.
-pub type ProbeFn = Arc<
-    dyn Fn(&str) -> Pin<Box<dyn Future<Output = Result<(), ProbeError>> + Send>> + Send + Sync,
->;
+pub type ProbeFn =
+    Arc<dyn Fn(&str) -> Pin<Box<dyn Future<Output = Result<(), ProbeError>> + Send>> + Send + Sync>;
 
 pub struct LocalRuntime {
     launcher: Arc<dyn SidecarLauncher>,
@@ -127,9 +126,7 @@ pub fn probe_always_ok() -> ProbeFn {
 }
 
 pub fn probe_always_fail() -> ProbeFn {
-    Arc::new(|_url| {
-        Box::pin(async { Err(ProbeError::ExhaustedAttempts { attempts: 0 }) })
-    })
+    Arc::new(|_url| Box::pin(async { Err(ProbeError::ExhaustedAttempts { attempts: 0 }) }))
 }
 
 pub fn probe_real(cfg: ProbeConfig) -> ProbeFn {

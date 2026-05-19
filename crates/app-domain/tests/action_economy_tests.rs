@@ -1,4 +1,4 @@
-use app_domain::combat::action_economy::{ActionEconomyError, consume_action};
+use app_domain::combat::action_economy::{consume_action, ActionEconomyError};
 use app_domain::combat::combatant::ActionBudget;
 use app_domain::combat::types::ActionKind;
 

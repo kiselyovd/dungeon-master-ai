@@ -27,7 +27,10 @@ impl DamageResistance {
 
     pub fn get(&self, damage_type: DamageType) -> DamageRelation {
         let key = format!("{damage_type:?}").to_lowercase();
-        self.table.get(&key).copied().unwrap_or(DamageRelation::Normal)
+        self.table
+            .get(&key)
+            .copied()
+            .unwrap_or(DamageRelation::Normal)
     }
 }
 

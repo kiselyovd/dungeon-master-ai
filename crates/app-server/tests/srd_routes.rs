@@ -56,12 +56,10 @@ async fn equipment_endpoint_returns_three_buckets() {
         "weapons low"
     );
     assert!(!obj["armor"].as_array().expect("armor").is_empty());
-    assert!(
-        !obj["adventuring_gear"]
-            .as_array()
-            .expect("adventuring_gear")
-            .is_empty()
-    );
+    assert!(!obj["adventuring_gear"]
+        .as_array()
+        .expect("adventuring_gear")
+        .is_empty());
 }
 
 #[tokio::test]
@@ -78,5 +76,9 @@ async fn weapon_properties_endpoint_returns_at_least_ten() {
     let server = TestServer::start().await;
     let body = fetch_json(&server, "/srd/weapon-properties").await;
     let arr = body.as_array().expect("array");
-    assert!(arr.len() >= 10, "expected >=10 properties, got {}", arr.len());
+    assert!(
+        arr.len() >= 10,
+        "expected >=10 properties, got {}",
+        arr.len()
+    );
 }

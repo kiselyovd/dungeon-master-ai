@@ -18,9 +18,15 @@ async fn test_pool() -> SqlitePool {
 async fn orchestrator_emits_text_events_from_mock() {
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::TextDelta { text: "Hello ".into() },
-        ChatChunk::TextDelta { text: "adventurer.".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::TextDelta {
+            text: "Hello ".into(),
+        },
+        ChatChunk::TextDelta {
+            text: "adventurer.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
 
     let config = AgentConfig {
@@ -129,13 +135,18 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     // validate_tool_call returns UnknownTool, executor returns is_error=true.
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::ToolCallStart { id: "c2".into(), name: "fly_dragon".into() },
+        ChatChunk::ToolCallStart {
+            id: "c2".into(),
+            name: "fly_dragon".into(),
+        },
         ChatChunk::ToolCallArgsDelta {
             id: "c2".into(),
             args_fragment: r#"{"title":"The Tavern","mode":"exploration"}"#.into(),
         },
         ChatChunk::ToolCallDone { id: "c2".into() },
-        ChatChunk::Done { reason: FinishReason::ToolUse },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
     ]));
 
     let config = AgentConfig {
@@ -162,7 +173,11 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     let mut got_done = false;
     while let Some(ev) = rx.recv().await {
         match ev {
-            AgentEvent::ToolCallResult { tool_name, is_error, .. } => {
+            AgentEvent::ToolCallResult {
+                tool_name,
+                is_error,
+                ..
+            } => {
                 if tool_name == "fly_dragon" && is_error {
                     got_error_result = true;
                 }
@@ -174,7 +189,10 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
             _ => {}
         }
     }
-    assert!(got_error_result, "expected is_error=true result for unknown tool");
+    assert!(
+        got_error_result,
+        "expected is_error=true result for unknown tool"
+    );
     assert!(got_done);
 }
 
@@ -260,8 +278,14 @@ async fn agent_tool_call_result_contains_tool_name() {
 
     assert_eq!(resp.status(), 200);
     let body = resp.text().await.unwrap();
-    assert!(body.contains("tool_call_start"), "missing tool_call_start in: {body}");
-    assert!(body.contains("tool_call_result"), "missing tool_call_result in: {body}");
+    assert!(
+        body.contains("tool_call_start"),
+        "missing tool_call_start in: {body}"
+    );
+    assert!(
+        body.contains("tool_call_result"),
+        "missing tool_call_result in: {body}"
+    );
     assert!(body.contains("roll_dice"), "missing roll_dice in: {body}");
     assert!(body.contains("agent_done"), "missing agent_done in: {body}");
 }
@@ -347,11 +371,7 @@ async fn journal_endpoint_returns_entries_after_agent_appends() {
     .await
     .unwrap();
 
-    let server = TestServer::start_with(
-        std::sync::Arc::new(MockProvider::new(vec![])),
-        pool,
-    )
-    .await;
+    let server = TestServer::start_with(std::sync::Arc::new(MockProvider::new(vec![])), pool).await;
 
     let client = reqwest::Client::new();
     let resp = client
@@ -372,8 +392,12 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
     let pool = test_pool().await;
     let mock = Arc::new(
         MockProvider::new(vec![
-            ChatChunk::TextDelta { text: "The answer is 42.".into() },
-            ChatChunk::Done { reason: FinishReason::Stop },
+            ChatChunk::TextDelta {
+                text: "The answer is 42.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
         ])
         .with_thinking_chunks(vec!["Step 1: think.".into(), " Step 2: conclude.".into()]),
     );
@@ -414,7 +438,10 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
             _ => {}
         }
     }
-    assert_eq!(reasoning_texts, vec!["Step 1: think.", " Step 2: conclude."]);
+    assert_eq!(
+        reasoning_texts,
+        vec!["Step 1: think.", " Step 2: conclude."]
+    );
     assert_eq!(text, "The answer is 42.");
     assert!(done);
 }
@@ -427,8 +454,12 @@ async fn agent_endpoint_streams_reasoning_text_event() {
 
     let mock = Arc::new(
         MockProvider::new(vec![
-            ChatChunk::TextDelta { text: "Narration.".into() },
-            ChatChunk::Done { reason: FinishReason::Stop },
+            ChatChunk::TextDelta {
+                text: "Narration.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
         ])
         .with_thinking_chunks(vec!["Internal reasoning.".into()]),
     );

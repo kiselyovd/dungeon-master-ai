@@ -7,8 +7,8 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use base64::Engine;
 use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
@@ -94,8 +94,7 @@ impl VideoProvider for LocalVideoSidecarProvider {
                             // mp4_bytes is sent as base64 string for SSE
                             // friendliness; decode here so the rest of the
                             // app sees raw bytes per VideoEvent::Done shape.
-                            if let Some(b64) = value.get("mp4_bytes_b64").and_then(|v| v.as_str())
-                            {
+                            if let Some(b64) = value.get("mp4_bytes_b64").and_then(|v| v.as_str()) {
                                 if let Ok(bytes) = B64.decode(b64) {
                                     value["mp4_bytes"] = serde_json::Value::Array(
                                         bytes

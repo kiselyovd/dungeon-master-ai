@@ -27,8 +27,8 @@ pub async fn migrate_secrets_json(
     let mut migrated = Vec::new();
     if json_path.exists() {
         let raw = std::fs::read_to_string(&json_path)?;
-        let map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&raw)
-            .map_err(|e| SecretsError::Vault(e.to_string()))?;
+        let map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&raw).map_err(|e| SecretsError::Vault(e.to_string()))?;
         for (k, v) in map {
             if let Some(val) = v.as_str() {
                 dest.set(&k, val).await?;

@@ -19,7 +19,7 @@
 
 use app_domain::combat::validator::validate_tool_call;
 use app_llm::ToolCall;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
@@ -145,10 +145,7 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
                 tracing::warn!(error = %e, "sqlx write failed in execute_apply_damage");
                 return (json!({ "error": e.to_string() }), true);
             }
-            (
-                json!({ "new_hp": new_hp, "damage_dealt": amount }),
-                false,
-            )
+            (json!({ "new_hp": new_hp, "damage_dealt": amount }), false)
         }
         _ => (
             json!({ "error": "token not found", "token_id": token_id }),
@@ -157,11 +154,7 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     }
 }
 
-async fn execute_start_combat(
-    args: &Value,
-    pool: &SqlitePool,
-    session_id: Uuid,
-) -> (Value, bool) {
+async fn execute_start_combat(args: &Value, pool: &SqlitePool, session_id: Uuid) -> (Value, bool) {
     let encounter_id = uuid::Uuid::new_v4();
     let initiative_json = serde_json::to_string(&args["initiative_entries"]).unwrap_or_default();
     let now = chrono::Utc::now().to_rfc3339();
@@ -178,10 +171,7 @@ async fn execute_start_combat(
         tracing::warn!(error = %e, "sqlx write failed in execute_start_combat");
         return (json!({ "error": e.to_string() }), true);
     }
-    (
-        json!({ "encounter_id": encounter_id.to_string() }),
-        false,
-    )
+    (json!({ "encounter_id": encounter_id.to_string() }), false)
 }
 
 async fn execute_end_combat(pool: &SqlitePool) -> (Value, bool) {
@@ -286,11 +276,7 @@ async fn execute_remove_token(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     (json!({ "token_id": id, "status": "removed" }), false)
 }
 
-async fn execute_set_scene(
-    args: &Value,
-    _pool: &SqlitePool,
-    _campaign_id: Uuid,
-) -> (Value, bool) {
+async fn execute_set_scene(args: &Value, _pool: &SqlitePool, _campaign_id: Uuid) -> (Value, bool) {
     let title = args["title"].as_str().unwrap_or("Unnamed Scene");
     let subtitle = args.get("subtitle").and_then(|v| v.as_str()).unwrap_or("");
     let mode = args["mode"].as_str().unwrap_or("exploration");
@@ -318,11 +304,7 @@ async fn execute_cast_spell(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
     )
 }
 
-async fn execute_remember_npc(
-    args: &Value,
-    pool: &SqlitePool,
-    campaign_id: Uuid,
-) -> (Value, bool) {
+async fn execute_remember_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
     let Some(name) = args["name"].as_str() else {
         return (json!({ "error": "name is required" }), true);
     };
@@ -344,11 +326,7 @@ async fn execute_remember_npc(
     (json!({ "name": name, "status": "remembered" }), false)
 }
 
-async fn execute_recall_npc(
-    args: &Value,
-    pool: &SqlitePool,
-    campaign_id: Uuid,
-) -> (Value, bool) {
+async fn execute_recall_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
     let Some(name) = args["name"].as_str() else {
         return (json!({ "error": "name is required" }), true);
     };
@@ -392,11 +370,7 @@ async fn execute_journal_append(
     }
 }
 
-async fn execute_quick_save(
-    args: &Value,
-    pool: &SqlitePool,
-    session_id: Uuid,
-) -> (Value, bool) {
+async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -> (Value, bool) {
     let label = args
         .get("label")
         .and_then(|v| v.as_str())

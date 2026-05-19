@@ -40,13 +40,21 @@ async fn agent_turn_persists_user_and_assistant() {
     // The persistence side-effect spawns tokio tasks; let them settle.
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
-    let history = db::list_messages_by_session(&pool, SESSION_ID).await.unwrap();
-    assert!(history.len() >= 2, "expected user+assistant rows, got {history:?}");
+    let history = db::list_messages_by_session(&pool, SESSION_ID)
+        .await
+        .unwrap();
+    assert!(
+        history.len() >= 2,
+        "expected user+assistant rows, got {history:?}"
+    );
     assert!(matches!(&history[0], ChatMessage::User { .. }));
     let has_assistant = history
         .iter()
         .any(|m| matches!(m, ChatMessage::Assistant { content } if content.contains("footsteps")));
-    assert!(has_assistant, "no assistant row with narration; got {history:?}");
+    assert!(
+        has_assistant,
+        "no assistant row with narration; got {history:?}"
+    );
 }
 
 #[tokio::test]
@@ -89,7 +97,9 @@ async fn agent_turn_persists_assistant_with_tool_calls_and_tool_result() {
 
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-    let history = db::list_messages_by_session(&pool, SESSION_ID).await.unwrap();
+    let history = db::list_messages_by_session(&pool, SESSION_ID)
+        .await
+        .unwrap();
     assert!(matches!(&history[0], ChatMessage::User { .. }));
     let has_awtc = history
         .iter()
@@ -102,5 +112,9 @@ async fn agent_turn_persists_assistant_with_tool_calls_and_tool_result() {
         "no AssistantWithToolCalls row; got {} rows",
         history.len()
     );
-    assert!(has_tool_result, "no ToolResult row; got {} rows", history.len());
+    assert!(
+        has_tool_result,
+        "no ToolResult row; got {} rows",
+        history.len()
+    );
 }

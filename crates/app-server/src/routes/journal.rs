@@ -1,8 +1,8 @@
-use axum::Json;
 use axum::extract::{Query, State};
+use axum::Json;
 
 use super::CampaignQuery;
-use crate::db::{JournalEntry, journal_list};
+use crate::db::{journal_list, JournalEntry};
 use crate::error::AppError;
 use crate::state::AppState;
 

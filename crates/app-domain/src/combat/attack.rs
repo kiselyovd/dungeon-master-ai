@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::conditions::AttackModifier;
-use crate::dice::{Die, roll_one, roll_with_advantage, roll_with_disadvantage};
+use crate::dice::{roll_one, roll_with_advantage, roll_with_disadvantage, Die};
 use crate::rng::SeededRng;
 
 /// Design note: `AttackOutcome` uses an explicit `natural` field (the raw d20
@@ -46,12 +46,21 @@ pub fn roll_attack(
     let natural = total_with_mod - attack_modifier;
 
     if natural == 20 {
-        AttackOutcome::CriticalHit { natural, total: total_with_mod }
+        AttackOutcome::CriticalHit {
+            natural,
+            total: total_with_mod,
+        }
     } else if natural == 1 {
         AttackOutcome::CriticalMiss { natural }
     } else if total_with_mod >= target_ac {
-        AttackOutcome::Hit { natural, total: total_with_mod }
+        AttackOutcome::Hit {
+            natural,
+            total: total_with_mod,
+        }
     } else {
-        AttackOutcome::Miss { natural, total: total_with_mod }
+        AttackOutcome::Miss {
+            natural,
+            total: total_with_mod,
+        }
     }
 }

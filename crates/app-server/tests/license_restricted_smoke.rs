@@ -12,7 +12,11 @@ use axum::extract::State;
 use axum::Json;
 use serde_json::json;
 
-fn cfg_with(license_restricted: bool, chat: serde_json::Value, image: serde_json::Value) -> SettingsConfigV2 {
+fn cfg_with(
+    license_restricted: bool,
+    chat: serde_json::Value,
+    image: serde_json::Value,
+) -> SettingsConfigV2 {
     cfg_with_video(license_restricted, chat, image, false)
 }
 
@@ -118,7 +122,10 @@ async fn license_unrestricted_keeps_all_providers() {
 
     let reg = state.registry();
     assert_eq!(reg.chat.name(), "anthropic");
-    assert!(reg.image.is_some(), "replicate image provider should survive");
+    assert!(
+        reg.image.is_some(),
+        "replicate image provider should survive"
+    );
 }
 
 #[tokio::test]
@@ -141,7 +148,10 @@ async fn license_restricted_filters_non_oss_image_silently() {
 
     let reg = state.registry();
     assert_eq!(reg.chat.name(), "local-mistralrs");
-    assert!(reg.image.is_none(), "non-OSS image provider must be filtered out");
+    assert!(
+        reg.image.is_none(),
+        "non-OSS image provider must be filtered out"
+    );
 }
 
 #[tokio::test]
@@ -167,5 +177,8 @@ async fn license_restricted_with_video_enabled_filters_ltx() {
 
     let reg = state.registry();
     assert_eq!(reg.chat.name(), "local-mistralrs");
-    assert!(reg.video.is_none(), "LTX-Video must be filtered under restriction");
+    assert!(
+        reg.video.is_none(),
+        "LTX-Video must be filtered under restriction"
+    );
 }

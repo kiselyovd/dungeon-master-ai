@@ -57,9 +57,7 @@ impl LlmProvider for MistralrsLocalProvider {
         // Qwen3.x family is uniformly VL+thinking in upstream naming as of
         // 2026; bare "qwen3.5-*-instruct" without -vl is also a vision model.
         // Older Qwen2.5 family ships separate -vl variants for vision.
-        let vision_input = lc.contains("qwen3")
-            || lc.contains("-vl")
-            || lc.contains("vision");
+        let vision_input = lc.contains("qwen3") || lc.contains("-vl") || lc.contains("vision");
         let reasoning = lc.contains("qwen3"); // built-in <think>...</think>
         let tool_calls = lc.contains("instruct") || lc.contains("qwen3");
         Capabilities {
@@ -117,8 +115,7 @@ mod tests {
 
     #[test]
     fn qwen2_5_vl_has_vision() {
-        let p =
-            MistralrsLocalProvider::new(37000, "qwen2.5-vl-7b-instruct".into());
+        let p = MistralrsLocalProvider::new(37000, "qwen2.5-vl-7b-instruct".into());
         assert!(
             p.capabilities_for_model("qwen2.5-vl-7b-instruct")
                 .vision_input

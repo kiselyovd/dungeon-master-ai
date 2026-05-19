@@ -14,10 +14,10 @@
 //! `/hf/model/{repo_id}/license` so the wildcard sits at the tail. The
 //! frontend passes the id verbatim without URL-encoding the slash.
 
-use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;

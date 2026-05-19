@@ -1,9 +1,9 @@
 use std::convert::Infallible;
 
-use axum::Json;
 use axum::extract::State;
-use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
+use axum::Json;
 use futures::stream;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

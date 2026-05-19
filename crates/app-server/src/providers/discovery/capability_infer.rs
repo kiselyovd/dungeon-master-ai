@@ -20,14 +20,14 @@ pub fn infer_capabilities(provider_id: &str, model_id: &str, tags: &[String]) ->
             }
         }
         "openai" | "openai-compat" => {
-            caps.vision_input = lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
-            caps.reasoning =
-                lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4");
+            caps.vision_input =
+                lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
+            caps.reasoning = lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4");
         }
         "local-mistralrs" => {
-            let tag_vl =
-                tags.iter()
-                    .any(|t| t == "vision-language" || t == "vl" || t.contains("multimodal"));
+            let tag_vl = tags
+                .iter()
+                .any(|t| t == "vision-language" || t == "vl" || t.contains("multimodal"));
             caps.vision_input = tag_vl || lc.contains("-vl") || lc.contains("vision");
             caps.reasoning = lc.contains("qwen3") || tags.iter().any(|t| t == "thinking");
             caps.tool_calls = lc.contains("instruct")

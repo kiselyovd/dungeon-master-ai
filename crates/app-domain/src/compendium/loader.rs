@@ -22,8 +22,7 @@ pub struct Compendium {
     pub weapon_properties: Vec<WeaponProperty>,
 }
 
-const RACES_CLASSES_BACKGROUNDS_YAML: &str =
-    include_str!("data/races_classes_backgrounds.yaml");
+const RACES_CLASSES_BACKGROUNDS_YAML: &str = include_str!("data/races_classes_backgrounds.yaml");
 const SPELLS_0_1_YAML: &str = include_str!("data/spells_level_0_1.yaml");
 const SPELLS_2_AK_YAML: &str = include_str!("data/spells_level_2_a_k.yaml");
 const SPELLS_2_LZ_YAML: &str = include_str!("data/spells_level_2_l_z.yaml");
@@ -70,8 +69,7 @@ fn load() -> Compendium {
         serde_yaml::from_str(SPELLS_2_LZ_YAML).expect("spells_level_2_l_z.yaml must parse");
     let equipment: EquipmentBundle =
         serde_yaml::from_str(EQUIPMENT_YAML).expect("equipment.yaml must parse");
-    let feats: FeatsDoc =
-        serde_yaml::from_str(FEATS_YAML).expect("feats.yaml must parse");
+    let feats: FeatsDoc = serde_yaml::from_str(FEATS_YAML).expect("feats.yaml must parse");
     let weapon_properties: WeaponPropertiesDoc =
         serde_yaml::from_str(WEAPON_PROPERTIES_YAML).expect("weapon_properties.yaml must parse");
 
@@ -100,7 +98,11 @@ mod tests {
     #[test]
     fn compendium_loads_with_expected_counts() {
         let c = compendium();
-        assert!(c.races.len() >= 9, "SRD 5.1 has 9 base races, got {}", c.races.len());
+        assert!(
+            c.races.len() >= 9,
+            "SRD 5.1 has 9 base races, got {}",
+            c.races.len()
+        );
         assert!(
             c.classes.len() >= 12,
             "SRD 5.1 has 12 classes, got {}",
@@ -133,7 +135,11 @@ mod tests {
     fn spells_partition_covers_levels_0_1_2() {
         let c = compendium();
         let by_level = |lvl: i32| c.spells.iter().filter(|s| s.level == lvl).count();
-        assert!(by_level(0) >= 15, "cantrips count looks low: {}", by_level(0));
+        assert!(
+            by_level(0) >= 15,
+            "cantrips count looks low: {}",
+            by_level(0)
+        );
         assert!(by_level(1) >= 40, "lvl 1 spells low: {}", by_level(1));
         assert!(by_level(2) >= 40, "lvl 2 spells low: {}", by_level(2));
     }

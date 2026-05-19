@@ -16,8 +16,8 @@ use app_llm::sidecar_launcher::{SidecarError, SidecarHandle, SidecarLauncher};
 use async_trait::async_trait;
 use std::io;
 use tauri::AppHandle;
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
 
 pub struct TauriSidecarLauncher {
@@ -42,13 +42,10 @@ impl SidecarLauncher for TauriSidecarLauncher {
                 source: io::Error::new(io::ErrorKind::NotFound, e.to_string()),
             })?;
 
-        let (mut rx, child) = cmd
-            .args(args)
-            .spawn()
-            .map_err(|e| SidecarError::Spawn {
-                name: name.into(),
-                source: io::Error::other(e.to_string()),
-            })?;
+        let (mut rx, child) = cmd.args(args).spawn().map_err(|e| SidecarError::Spawn {
+            name: name.into(),
+            source: io::Error::other(e.to_string()),
+        })?;
 
         let pid = child.pid();
         let (line_tx, line_rx) = mpsc::channel(64);

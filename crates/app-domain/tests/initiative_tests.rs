@@ -2,7 +2,11 @@ use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
 use app_domain::combat::types::CombatantId;
 
 fn make_entry(id: CombatantId, roll: i32, dex: i32) -> InitiativeEntry {
-    InitiativeEntry { id, roll, dex_tiebreak: dex }
+    InitiativeEntry {
+        id,
+        roll,
+        dex_tiebreak: dex,
+    }
 }
 
 #[test]
@@ -25,10 +29,7 @@ fn order_sorts_highest_first() {
 fn tie_broken_by_dex() {
     let a = CombatantId::new();
     let b = CombatantId::new();
-    let order = InitiativeOrder::build(vec![
-        make_entry(a, 15, 1),
-        make_entry(b, 15, 3),
-    ]);
+    let order = InitiativeOrder::build(vec![make_entry(a, 15, 1), make_entry(b, 15, 3)]);
     assert_eq!(order.as_slice()[0].id, b, "higher DEX wins tie");
 }
 
@@ -43,10 +44,7 @@ fn current_starts_at_index_zero() {
 fn advance_wraps_and_increments_round() {
     let a = CombatantId::new();
     let b = CombatantId::new();
-    let mut order = InitiativeOrder::build(vec![
-        make_entry(a, 20, 0),
-        make_entry(b, 5, 0),
-    ]);
+    let mut order = InitiativeOrder::build(vec![make_entry(a, 20, 0), make_entry(b, 5, 0)]);
     assert_eq!(order.round(), 1);
     order.advance();
     assert_eq!(order.current().id, b);
