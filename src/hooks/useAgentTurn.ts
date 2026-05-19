@@ -3,6 +3,7 @@ import { streamAgentTurn } from '../api/agent';
 import { ChatError } from '../api/errors';
 import { DISPOSITIONS, type Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
+import { combatToolHandlers } from './useCombatToolHandlers';
 
 /**
  * Agent turn orchestrator hook. Replaces useChat.send for the M3 agent endpoint.
@@ -97,6 +98,18 @@ export function useAgentTurn() {
                   ],
                   updated_at: new Date().toISOString(),
                 });
+              }
+            }
+
+            if (!isError && combatToolHandlers[toolName] !== undefined) {
+              try {
+                combatToolHandlers[toolName]?.(
+                  (args ?? {}) as Record<string, unknown>,
+                  (result ?? {}) as Record<string, unknown>,
+                  useStore,
+                );
+              } catch (handlerErr) {
+                console.error(`[combat handler "${toolName}"] threw:`, handlerErr);
               }
             }
           },
