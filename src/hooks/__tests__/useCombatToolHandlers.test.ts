@@ -90,4 +90,20 @@ describe('combatToolHandlers', () => {
     expect(useStore.getState().combat.active).toBe(false);
     expect(useStore.getState().combat.tokens).toHaveLength(0);
   });
+
+  it('show_aoe_template adds an entry to aoeTemplates', () => {
+    combatToolHandlers['show_aoe_template']?.(
+      {
+        shape: 'sphere',
+        origin: { x: 60, y: 90 },
+        direction: 0,
+        size: 20,
+        school: 'conjuration',
+      },
+      {},
+      useStore,
+    );
+    expect(useStore.getState().combat.aoeTemplates).toHaveLength(1);
+    expect(useStore.getState().combat.aoeTemplates[0]?.shape).toBe('sphere');
+  });
 });

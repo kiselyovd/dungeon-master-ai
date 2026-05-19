@@ -1,4 +1,7 @@
-import type { CombatToken } from '../state/combat';
+import { useEffect } from 'react';
+import type { AoeTemplateEntry, CombatToken } from '../state/combat';
+import { useStore } from '../state/useStore';
+import { AoeTemplate } from './AoeTemplate';
 import { CombatToken as CombatTokenComponent } from './CombatToken';
 
 interface Props {
@@ -8,6 +11,7 @@ interface Props {
   widthCells: number;
   heightCells: number;
   onMoveToken?: (id: string, x: number, y: number) => void;
+  aoeTemplates?: AoeTemplateEntry[];
 }
 
 /**
@@ -15,6 +19,10 @@ interface Props {
  * positioned absolutely over the canvas. The 280ms cross-fade combat-entry
  * transition is driven by the .vtt-combat-overlay + .active CSS classes
  * (var(--t-slow)) defined in src/styles/combat.css.
+ *
+ * Also renders AoE templates with auto-expiry based on each entry's
+ * expiresAt timestamp. Templates already past their expiry are removed
+ * immediately; the rest are scheduled via setTimeout and cleared on unmount.
  */
 export function CombatOverlay({
   active,
@@ -23,9 +31,33 @@ export function CombatOverlay({
   widthCells,
   heightCells,
   onMoveToken,
+  aoeTemplates = [],
 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
+
+  const removeAoeTemplate = useStore((s) => s.combat.removeAoeTemplate);
+
+  useEffect(() => {
+    if (aoeTemplates.length === 0) return;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const now = Date.now();
+    for (const tmpl of aoeTemplates) {
+      const remaining = tmpl.expiresAt - now;
+      if (remaining <= 0) {
+        removeAoeTemplate(tmpl.id);
+        continue;
+      }
+      timeouts.push(
+        setTimeout(() => {
+          removeAoeTemplate(tmpl.id);
+        }, remaining),
+      );
+    }
+    return () => {
+      for (const id of timeouts) clearTimeout(id);
+    };
+  }, [aoeTemplates, removeAoeTemplate]);
 
   return (
     <div
@@ -46,6 +78,17 @@ export function CombatOverlay({
           token={token}
           cellSize={cellSize}
           {...(onMoveToken ? { onMove: onMoveToken } : {})}
+        />
+      ))}
+      {aoeTemplates.map((tmpl) => (
+        <AoeTemplate
+          key={tmpl.id}
+          shape={tmpl.shape}
+          originX={tmpl.originX}
+          originY={tmpl.originY}
+          cellSize={cellSize}
+          sizeInFt={tmpl.sizeInFt}
+          rotateDeg={tmpl.rotateDeg}
         />
       ))}
     </div>

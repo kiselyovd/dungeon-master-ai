@@ -12,6 +12,7 @@ beforeEach(() => {
       initiativeOrder: [],
       currentTurnId: null,
       round: 1,
+      aoeTemplates: [],
     },
   }));
 });
@@ -135,5 +136,34 @@ describe('combat slice', () => {
     expect(state.bonusUsed).toBe(false);
     expect(state.reactionUsed).toBe(false);
     expect(state.movementRemaining).toBe(30);
+  });
+
+  it('addAoeTemplate appends to aoeTemplates', () => {
+    useStore.getState().combat.addAoeTemplate({
+      id: 'aoe-1',
+      shape: 'sphere',
+      originX: 60,
+      originY: 90,
+      sizeInFt: 20,
+      school: 'conjuration',
+      rotateDeg: 0,
+      expiresAt: Date.now() + 3000,
+    });
+    expect(useStore.getState().combat.aoeTemplates).toHaveLength(1);
+  });
+
+  it('removeAoeTemplate removes by id', () => {
+    useStore.getState().combat.addAoeTemplate({
+      id: 'aoe-r',
+      shape: 'cone',
+      originX: 0,
+      originY: 0,
+      sizeInFt: 15,
+      school: 'evocation',
+      rotateDeg: 0,
+      expiresAt: Date.now() + 3000,
+    });
+    useStore.getState().combat.removeAoeTemplate('aoe-r');
+    expect(useStore.getState().combat.aoeTemplates).toHaveLength(0);
   });
 });

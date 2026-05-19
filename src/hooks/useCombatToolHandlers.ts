@@ -83,4 +83,34 @@ export const combatToolHandlers: Record<string, CombatToolHandler | undefined> =
   end_combat: (_args, _result, store) => {
     store.getState().combat.endCombat();
   },
+
+  show_aoe_template: (args, _result, store) => {
+    const shape = String(args['shape'] ?? 'sphere');
+    const origin = args['origin'] as { x?: unknown; y?: unknown } | undefined;
+    const originX = Number(origin?.x ?? 0);
+    const originY = Number(origin?.y ?? 0);
+    const rotateDeg = Number(args['direction'] ?? 0);
+    const sizeInFt = Number(args['size'] ?? 20);
+    const school = String(args['school'] ?? 'evocation');
+    const durationMs = Number(args['duration_ms'] ?? 3000);
+
+    const validShapes = ['cone', 'sphere', 'line', 'cube'] as const;
+    type ValidShape = (typeof validShapes)[number];
+    const resolvedShape: ValidShape = (validShapes as readonly string[]).includes(shape)
+      ? (shape as ValidShape)
+      : 'sphere';
+
+    const id = `aoe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+    store.getState().combat.addAoeTemplate({
+      id,
+      shape: resolvedShape,
+      originX,
+      originY,
+      sizeInFt,
+      school,
+      rotateDeg,
+      expiresAt: Date.now() + durationMs,
+    });
+  },
 };

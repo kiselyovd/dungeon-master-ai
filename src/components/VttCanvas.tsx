@@ -35,6 +35,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
   const moveToken = useStore((s) => s.combat.moveToken);
+  const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const [showGrid, setShowGrid] = useState(true);
   const [measureMode, setMeasureMode] = useState(false);
 
@@ -161,6 +162,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           widthCells={effectiveWidthCells}
           heightCells={effectiveHeightCells}
           onMoveToken={moveToken}
+          aoeTemplates={aoeTemplates}
         />
       </div>
 

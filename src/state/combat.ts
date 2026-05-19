@@ -1,4 +1,17 @@
 import type { StateCreator } from 'zustand';
+import type { AoeShape } from '../components/AoeTemplate';
+
+export interface AoeTemplateEntry {
+  id: string;
+  shape: AoeShape;
+  originX: number;
+  originY: number;
+  sizeInFt: number;
+  school: string;
+  rotateDeg: number;
+  /** Unix ms timestamp; auto-removed when Date.now() >= expiresAt. */
+  expiresAt: number;
+}
 
 export interface CombatToken {
   id: string;
@@ -28,6 +41,8 @@ export interface CombatSlice {
     reactionUsed: boolean;
     movementRemaining: number;
 
+    aoeTemplates: AoeTemplateEntry[];
+
     startCombat: (encounterId: string, tokens: CombatToken[]) => void;
     endCombat: () => void;
     applyDamage: (tokenId: string, amount: number) => void;
@@ -43,6 +58,9 @@ export interface CombatSlice {
     useReaction: () => void;
     moveBy: (distance: number) => void;
     endTurn: () => void;
+
+    addAoeTemplate: (template: AoeTemplateEntry) => void;
+    removeAoeTemplate: (id: string) => void;
   };
 }
 
@@ -61,6 +79,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
     initiativeOrder: [],
     currentTurnId: null,
     round: 1,
+    aoeTemplates: [],
     ...econReset(),
 
     startCombat: (encounterId, tokens) =>
@@ -87,6 +106,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: [],
           currentTurnId: null,
           round: 1,
+          aoeTemplates: [],
           ...econReset(),
         },
       })),
@@ -187,5 +207,18 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           },
         };
       }),
+
+    addAoeTemplate: (template) =>
+      set((s) => ({
+        combat: { ...s.combat, aoeTemplates: [...s.combat.aoeTemplates, template] },
+      })),
+
+    removeAoeTemplate: (id) =>
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          aoeTemplates: s.combat.aoeTemplates.filter((t) => t.id !== id),
+        },
+      })),
   },
 });
