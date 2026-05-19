@@ -15,15 +15,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-audit:
-    runs-on: ubuntu-22.04
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
+  # cargo-audit removed: it duplicates cargo-deny (which uses the same RustSec
+  # database) and OSV-Scanner (which adds bun.lock coverage) without offering
+  # a scope filter, so the gtk-rs / unic-* / bincode transitive tail from the
+  # Tauri stack drowned out every real finding. The one real advisory it
+  # flagged (rsa 0.9.10 Marvin Attack, transitive via stronghold) is tracked
+  # alongside the tauri 2.11.1 upgrade follow-up that OSV-Scanner already
+  # surfaces. cargo-deny + OSV-Scanner stay as the dual audit pair.
   cargo-deny:
     runs-on: ubuntu-22.04
     steps:
