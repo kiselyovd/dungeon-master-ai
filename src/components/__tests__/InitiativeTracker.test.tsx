@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { CombatToken } from '../../state/combat';
 import '../../i18n';
 import { InitiativeTracker } from '../InitiativeTracker';
@@ -38,5 +38,29 @@ describe('InitiativeTracker', () => {
     render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} activeTokenId="a" />);
     expect(screen.getByText('15/15')).toBeTruthy();
     expect(screen.getByText('7/7')).toBeTruthy();
+  });
+
+  it('clicking a row calls onSelect with the correct token id', () => {
+    const onSelect = vi.fn();
+    render(
+      <InitiativeTracker
+        tokens={tokens}
+        order={['a', 'b']}
+        round={1}
+        activeTokenId="a"
+        onSelect={onSelect}
+      />,
+    );
+    const goblinButton = screen.getByText('Goblin').closest('button');
+    expect(goblinButton).toBeTruthy();
+    if (goblinButton) fireEvent.click(goblinButton);
+    expect(onSelect).toHaveBeenCalledWith('b');
+  });
+
+  it('active card has is-active class and inactive card does not', () => {
+    render(<InitiativeTracker tokens={tokens} order={['a', 'b']} round={1} activeTokenId="a" />);
+    const cards = document.querySelectorAll('.dm-init-card');
+    expect(cards[0]?.classList.contains('is-active')).toBe(true);
+    expect(cards[1]?.classList.contains('is-active')).toBe(false);
   });
 });
