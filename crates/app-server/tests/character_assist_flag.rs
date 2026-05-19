@@ -33,9 +33,15 @@ fn empty_draft_json() -> serde_json::Value {
 async fn flag_stream_with_slot_and_pool_emits_tokens_and_done() {
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::TextDelta { text: "I idolize ".into() },
-        ChatChunk::TextDelta { text: "my faith's quiet martyr.".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::TextDelta {
+            text: "I idolize ".into(),
+        },
+        ChatChunk::TextDelta {
+            text: "my faith's quiet martyr.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();
@@ -70,8 +76,12 @@ async fn flag_stream_with_slot_and_pool_emits_tokens_and_done() {
 async fn flag_stream_with_empty_pool_still_succeeds() {
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::TextDelta { text: "A fresh entry.".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::TextDelta {
+            text: "A fresh entry.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();

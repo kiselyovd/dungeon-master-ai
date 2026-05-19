@@ -1,6 +1,6 @@
 use app_domain::combat::combatant::Combatant;
 use app_domain::combat::damage::{
-    DamageRelation, DamageResistance, apply_damage_to_combatant, compute_effective_damage,
+    apply_damage_to_combatant, compute_effective_damage, DamageRelation, DamageResistance,
 };
 use app_domain::combat::types::{CombatantId, DamageType};
 

@@ -59,7 +59,10 @@ pub fn validate_tool_call(
 fn validate_roll_dice(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("dice")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'dice' field".into()))?;
-    Ok(ValidatedToolCall { tool_name: "roll_dice".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "roll_dice".into(),
+        args,
+    })
 }
 
 fn validate_apply_damage(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
@@ -75,17 +78,26 @@ fn validate_apply_damage(args: Value) -> Result<ValidatedToolCall, ToolCallError
             "damage amount must be >= 0".into(),
         ));
     }
-    Ok(ValidatedToolCall { tool_name: "apply_damage".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "apply_damage".into(),
+        args,
+    })
 }
 
 fn validate_start_combat(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("initiative_entries")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'initiative_entries'".into()))?;
-    Ok(ValidatedToolCall { tool_name: "start_combat".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "start_combat".into(),
+        args,
+    })
 }
 
 fn validate_end_combat(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
-    Ok(ValidatedToolCall { tool_name: "end_combat".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "end_combat".into(),
+        args,
+    })
 }
 
 fn validate_add_token(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
@@ -93,33 +105,47 @@ fn validate_add_token(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
         args.get(field)
             .ok_or_else(|| ToolCallError::InvalidArgs(format!("missing '{field}'")))?;
     }
-    Ok(ValidatedToolCall { tool_name: "add_token".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "add_token".into(),
+        args,
+    })
 }
 
 fn validate_update_token(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("id")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'id'".into()))?;
-    Ok(ValidatedToolCall { tool_name: "update_token".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "update_token".into(),
+        args,
+    })
 }
 
 fn validate_remove_token(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("id")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'id'".into()))?;
-    Ok(ValidatedToolCall { tool_name: "remove_token".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "remove_token".into(),
+        args,
+    })
 }
 
 fn validate_set_scene(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("title")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'title'".into()))?;
-    let mode = args.get("mode")
+    let mode = args
+        .get("mode")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'mode'".into()))?;
     if !["exploration", "combat"].contains(&mode) {
-        return Err(ToolCallError::ValidationFailed(
-            format!("invalid mode '{}'; must be 'exploration' or 'combat'", mode),
-        ));
+        return Err(ToolCallError::ValidationFailed(format!(
+            "invalid mode '{}'; must be 'exploration' or 'combat'",
+            mode
+        )));
     }
-    Ok(ValidatedToolCall { tool_name: "set_scene".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "set_scene".into(),
+        args,
+    })
 }
 
 fn validate_cast_spell(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
@@ -135,33 +161,49 @@ fn validate_cast_spell(args: Value) -> Result<ValidatedToolCall, ToolCallError> 
             "cast_spell requires at least one target".into(),
         ));
     }
-    Ok(ValidatedToolCall { tool_name: "cast_spell".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "cast_spell".into(),
+        args,
+    })
 }
 
 fn validate_remember_npc(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
-    let name = args.get("name")
+    let name = args
+        .get("name")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'name'".into()))?;
     if name.trim().is_empty() {
-        return Err(ToolCallError::ValidationFailed("'name' must not be empty".into()));
+        return Err(ToolCallError::ValidationFailed(
+            "'name' must not be empty".into(),
+        ));
     }
-    let fact = args.get("fact")
+    let fact = args
+        .get("fact")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'fact'".into()))?;
     if fact.trim().is_empty() {
-        return Err(ToolCallError::ValidationFailed("'fact' must not be empty".into()));
+        return Err(ToolCallError::ValidationFailed(
+            "'fact' must not be empty".into(),
+        ));
     }
-    Ok(ValidatedToolCall { tool_name: "remember_npc".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "remember_npc".into(),
+        args,
+    })
 }
 
 fn validate_recall_npc(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("name")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'name'".into()))?;
-    Ok(ValidatedToolCall { tool_name: "recall_npc".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "recall_npc".into(),
+        args,
+    })
 }
 
 fn validate_journal_append(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
-    let html = args.get("entry_html")
+    let html = args
+        .get("entry_html")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'entry_html'".into()))?;
     if html.trim().is_empty() {
@@ -169,22 +211,32 @@ fn validate_journal_append(args: Value) -> Result<ValidatedToolCall, ToolCallErr
             "'entry_html' must not be empty".into(),
         ));
     }
-    Ok(ValidatedToolCall { tool_name: "journal_append".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "journal_append".into(),
+        args,
+    })
 }
 
 fn validate_quick_save(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     // label is optional; no required fields
-    Ok(ValidatedToolCall { tool_name: "quick_save".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "quick_save".into(),
+        args,
+    })
 }
 
 fn validate_query_rules(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     args.get("question")
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'question'".into()))?;
-    Ok(ValidatedToolCall { tool_name: "query_rules".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "query_rules".into(),
+        args,
+    })
 }
 
 fn validate_generate_image(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
-    let prompt = args.get("prompt")
+    let prompt = args
+        .get("prompt")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ToolCallError::InvalidArgs("missing 'prompt'".into()))?;
     if prompt.trim().is_empty() {
@@ -192,5 +244,8 @@ fn validate_generate_image(args: Value) -> Result<ValidatedToolCall, ToolCallErr
             "'prompt' must not be empty".into(),
         ));
     }
-    Ok(ValidatedToolCall { tool_name: "generate_image".into(), args })
+    Ok(ValidatedToolCall {
+        tool_name: "generate_image".into(),
+        args,
+    })
 }

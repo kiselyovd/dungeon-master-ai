@@ -4,9 +4,15 @@ use futures::StreamExt;
 #[tokio::test]
 async fn mock_provider_streams_scripted_text_then_done() {
     let provider = MockProvider::new(vec![
-        ChatChunk::TextDelta { text: "Hello".into() },
-        ChatChunk::TextDelta { text: ", world".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::TextDelta {
+            text: "Hello".into(),
+        },
+        ChatChunk::TextDelta {
+            text: ", world".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]);
 
     let req = ChatRequest {
@@ -27,7 +33,12 @@ async fn mock_provider_streams_scripted_text_then_done() {
 
     assert_eq!(collected.len(), 3);
     assert!(matches!(collected[0], ChatChunk::TextDelta { ref text } if text == "Hello"));
-    assert!(matches!(collected[2], ChatChunk::Done { reason: FinishReason::Stop }));
+    assert!(matches!(
+        collected[2],
+        ChatChunk::Done {
+            reason: FinishReason::Stop
+        }
+    ));
 }
 
 #[tokio::test]

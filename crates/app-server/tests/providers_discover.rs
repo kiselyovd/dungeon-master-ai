@@ -1,5 +1,5 @@
 use app_server::test_support::TestServer;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[tokio::test]
 async fn discover_anthropic_returns_curated_three_models() {

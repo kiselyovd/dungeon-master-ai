@@ -38,7 +38,11 @@ pub enum AttackModifier {
 pub fn condition_attack_modifier(condition: Condition, melee: bool) -> AttackModifier {
     match condition {
         Condition::Prone => {
-            if melee { AttackModifier::Advantage } else { AttackModifier::Disadvantage }
+            if melee {
+                AttackModifier::Advantage
+            } else {
+                AttackModifier::Disadvantage
+            }
         }
         Condition::Unconscious => AttackModifier::Advantage,
         _ => AttackModifier::Normal,

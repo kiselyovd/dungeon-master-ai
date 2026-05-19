@@ -150,9 +150,16 @@ async fn npc_upsert_appends_facts_to_existing() {
 async fn npc_get_all_returns_all_campaign_npcs() {
     let pool = in_memory_pool().await;
     let campaign_id = Uuid::new_v4();
-    npc_upsert_fact(&pool, campaign_id, "Mira", "fact a", "friendly", "innkeeper")
-        .await
-        .unwrap();
+    npc_upsert_fact(
+        &pool,
+        campaign_id,
+        "Mira",
+        "fact a",
+        "friendly",
+        "innkeeper",
+    )
+    .await
+    .unwrap();
     npc_upsert_fact(&pool, campaign_id, "Theron", "fact b", "hostile", "guard")
         .await
         .unwrap();

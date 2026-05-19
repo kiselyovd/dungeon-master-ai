@@ -1,5 +1,5 @@
-use app_domain::combat::ability_check::{CheckOutcome, roll_ability_check};
-use app_domain::combat::saving_throw::{SaveOutcome, roll_save};
+use app_domain::combat::ability_check::{roll_ability_check, CheckOutcome};
+use app_domain::combat::saving_throw::{roll_save, SaveOutcome};
 use app_domain::rng::SeededRng;
 
 #[test]
@@ -12,7 +12,10 @@ fn save_succeeds_when_total_meets_dc() {
             hits += 1;
         }
     }
-    assert!(hits > 70, "with +5 vs DC10 expected >70% success, got {hits}%");
+    assert!(
+        hits > 70,
+        "with +5 vs DC10 expected >70% success, got {hits}%"
+    );
 }
 
 #[test]
@@ -24,14 +27,25 @@ fn save_fails_when_total_misses_dc() {
             fails += 1;
         }
     }
-    assert!(fails > 70, "with -5 vs DC20 expected >70% failure, got {fails}%");
+    assert!(
+        fails > 70,
+        "with -5 vs DC20 expected >70% failure, got {fails}%"
+    );
 }
 
 #[test]
 fn concentration_check_dc_is_max_of_10_and_half_damage() {
     use app_domain::combat::saving_throw::concentration_check_dc;
-    assert_eq!(concentration_check_dc(8), 10, "damage 8 -> DC max(10, 4) = 10");
-    assert_eq!(concentration_check_dc(25), 12, "damage 25 -> DC max(10, 12) = 12");
+    assert_eq!(
+        concentration_check_dc(8),
+        10,
+        "damage 8 -> DC max(10, 4) = 10"
+    );
+    assert_eq!(
+        concentration_check_dc(25),
+        12,
+        "damage 25 -> DC max(10, 12) = 12"
+    );
 }
 
 #[test]

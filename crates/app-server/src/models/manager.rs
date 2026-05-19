@@ -170,19 +170,23 @@ impl DownloadManager {
                     // (no sha - Custom mmproj filenames are user-supplied).
                     // mistral.rs vision pipeline expects both files in the
                     // same dir, so we treat them as a single unit.
-                    let outcome = match download_to(&gguf_url, &gguf_dest, &sha, events.clone()).await {
-                        Ok(g) => match download_to(&mmproj_url, &mmproj_dest, "", events.clone()).await {
-                            Ok(mm) => Ok(g.bytes_downloaded + mm.bytes_downloaded),
-                            Err(e) => Err(e.to_string()),
-                        },
+                    let outcome = match download_to(&gguf_url, &gguf_dest, &sha, events.clone())
+                        .await
+                    {
+                        Ok(g) => {
+                            match download_to(&mmproj_url, &mmproj_dest, "", events.clone()).await {
+                                Ok(mm) => Ok(g.bytes_downloaded + mm.bytes_downloaded),
+                                Err(e) => Err(e.to_string()),
+                            }
+                        }
                         Err(e) => Err(e.to_string()),
                     };
                     match outcome {
                         Ok(bytes_total) => {
-                            state.write().await.insert(
-                                id_for_task,
-                                DownloadStatus::Completed { bytes_total },
-                            );
+                            state
+                                .write()
+                                .await
+                                .insert(id_for_task, DownloadStatus::Completed { bytes_total });
                             let _ = events.send(DownloadEvent::Completed {
                                 id: id_for_event,
                                 bytes_total,
@@ -205,7 +209,9 @@ impl DownloadManager {
             }
             ModelKind::SafetensorsSingleFile
             | ModelKind::NunchakuSvdquant
-            | ModelKind::LtxVideoSafetensors => self.spawn_single_file_download(id.clone(), m, state),
+            | ModelKind::LtxVideoSafetensors => {
+                self.spawn_single_file_download(id.clone(), m, state)
+            }
         };
         self.handles.write().await.insert(id, handle);
         Ok(())

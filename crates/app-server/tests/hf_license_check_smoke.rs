@@ -14,14 +14,12 @@ async fn license_accepted_when_200() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/api/models/Qwen/Qwen3-4B"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "id": "Qwen/Qwen3-4B",
-                "gated": false,
-                "tags": ["qwen3"],
-                "siblings": []
-            })),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": "Qwen/Qwen3-4B",
+            "gated": false,
+            "tags": ["qwen3"],
+            "siblings": []
+        })))
         .mount(&server)
         .await;
 

@@ -18,7 +18,9 @@ use genai::{Client, ModelIden, ServiceTarget};
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::genai_common::{build_chat_options, classify_genai_error, convert_messages, pump_genai_stream};
+use crate::genai_common::{
+    build_chat_options, classify_genai_error, convert_messages, pump_genai_stream,
+};
 use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub struct OpenAICompatProvider {
@@ -116,10 +118,11 @@ impl LlmProvider for OpenAICompatProvider {
             return caps;
         }
         let lc = model_id.to_ascii_lowercase();
-        let vision_input =
-            lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
-        let reasoning =
-            lc.starts_with("o1") || lc.starts_with("o3") || lc.starts_with("o4") || lc.contains("gpt-5");
+        let vision_input = lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
+        let reasoning = lc.starts_with("o1")
+            || lc.starts_with("o3")
+            || lc.starts_with("o4")
+            || lc.contains("gpt-5");
         Capabilities {
             vision_input,
             reasoning,

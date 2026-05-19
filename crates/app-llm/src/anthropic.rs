@@ -1,14 +1,16 @@
 use async_trait::async_trait;
 use futures::stream::StreamExt;
-use genai::Client;
-use genai::ModelIden;
 use genai::adapter::AdapterKind;
 use genai::chat::ChatOptions;
 use genai::resolver::{AuthData, AuthResolver};
+use genai::Client;
+use genai::ModelIden;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::genai_common::{build_chat_options, classify_genai_error, convert_messages, pump_genai_stream};
+use crate::genai_common::{
+    build_chat_options, classify_genai_error, convert_messages, pump_genai_stream,
+};
 use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub const DEFAULT_ANTHROPIC_MODEL: &str = "claude-haiku-4-5-20251001";
@@ -25,13 +27,11 @@ impl AnthropicProvider {
 
     pub fn with_default_model(api_key: String, default_model: String) -> Self {
         let key = Arc::new(api_key);
-        let resolver =
-            AuthResolver::from_resolver_fn(move |_iden: ModelIden| -> Result<
-                Option<AuthData>,
-                genai::resolver::Error,
-            > {
+        let resolver = AuthResolver::from_resolver_fn(
+            move |_iden: ModelIden| -> Result<Option<AuthData>, genai::resolver::Error> {
                 Ok(Some(AuthData::from_single(key.as_str().to_string())))
-            });
+            },
+        );
         let client = Client::builder().with_auth_resolver(resolver).build();
         Self {
             client,
@@ -79,10 +79,7 @@ impl LlmProvider for AnthropicProvider {
 
     fn capabilities_for_model(&self, model_id: &str) -> Capabilities {
         let lc = model_id.to_ascii_lowercase();
-        if lc.contains("opus-4")
-            || lc.contains("sonnet-4")
-            || lc.contains("haiku-4")
-        {
+        if lc.contains("opus-4") || lc.contains("sonnet-4") || lc.contains("haiku-4") {
             Capabilities {
                 vision_input: true,
                 reasoning: true,

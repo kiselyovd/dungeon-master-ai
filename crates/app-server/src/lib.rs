@@ -18,8 +18,8 @@ pub mod telemetry;
 pub mod testing;
 pub mod video;
 
-use axum::Router;
 use axum::routing::{delete, get, post};
+use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -69,7 +69,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/providers/catalog", get(routes::providers::get_catalog))
         .route("/providers/{id}/caps", get(routes::providers::get_caps))
-        .route("/providers/discover", post(routes::providers::post_discover))
+        .route(
+            "/providers/discover",
+            post(routes::providers::post_discover),
+        )
         .route("/settings/v2", post(routes::settings::post_settings_v2))
         .route("/video/generate", post(routes::video::post_video_generate))
         .route("/local-llm/manifest", get(routes::local_llm::get_manifest))
@@ -137,7 +140,11 @@ pub async fn router_with_mock_llm() -> Router {
         .await
         .expect("in-memory db");
     db::init_db(&pool).await.expect("migrate");
-    let state = AppState::new(Arc::new(app_llm::MockProvider::new(vec![])), "mock".into(), pool);
+    let state = AppState::new(
+        Arc::new(app_llm::MockProvider::new(vec![])),
+        "mock".into(),
+        pool,
+    );
     router(state)
 }
 
@@ -163,10 +170,7 @@ pub mod test_support {
             Self::start_with(Arc::new(app_llm::MockProvider::new(vec![])), pool).await
         }
 
-        pub async fn start_with(
-            llm: Arc<dyn app_llm::LlmProvider>,
-            db: sqlx::SqlitePool,
-        ) -> Self {
+        pub async fn start_with(llm: Arc<dyn app_llm::LlmProvider>, db: sqlx::SqlitePool) -> Self {
             let state = AppState::new(llm, "mock".into(), db);
             let app = router(state.clone());
             let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");

@@ -5,8 +5,8 @@
 //! the canonical SQLite source instead of localStorage.
 
 use app_llm::ChatMessage;
-use axum::Json;
 use axum::extract::{Path, State};
+use axum::Json;
 use serde::Serialize;
 
 use crate::error::AppError;

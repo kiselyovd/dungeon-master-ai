@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use app_domain::srd::retriever::SrdRetriever;
-use app_llm::{ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ReasoningSpec, ToolCall};
+use app_llm::{
+    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ReasoningSpec, ToolCall,
+};
 use futures::StreamExt;
 use serde_json::Value;
 use sqlx::SqlitePool;
@@ -19,7 +21,7 @@ use uuid::Uuid;
 
 use crate::agent::context_builder::build_context;
 use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::{ToolAvailability, all_tools_with, classify_handler};
+use crate::agent::tools::{all_tools_with, classify_handler, ToolAvailability};
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -181,11 +183,7 @@ impl AgentOrchestrator {
             while let Some(chunk) = stream.next().await {
                 match chunk {
                     Ok(ChatChunk::ThinkingDelta { text }) => {
-                        if tx
-                            .send(AgentEvent::ReasoningText { text })
-                            .await
-                            .is_err()
-                        {
+                        if tx.send(AgentEvent::ReasoningText { text }).await.is_err() {
                             return Ok(());
                         }
                     }

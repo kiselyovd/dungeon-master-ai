@@ -62,9 +62,7 @@ async fn chat_persists_user_and_assistant_messages_when_session_id_provided() {
 #[tokio::test]
 async fn chat_does_not_persist_when_session_id_omitted() {
     let provider = Arc::new(MockProvider::new(vec![
-        ChatChunk::TextDelta {
-            text: "ok".into(),
-        },
+        ChatChunk::TextDelta { text: "ok".into() },
         ChatChunk::Done {
             reason: FinishReason::Stop,
         },

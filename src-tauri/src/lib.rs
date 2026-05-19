@@ -2,8 +2,8 @@ use std::sync::Mutex;
 
 use tauri::async_runtime::spawn;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use tauri_plugin_shell::ShellExt;
 
 pub mod sidecar_launcher;
 

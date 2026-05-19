@@ -10,7 +10,7 @@ use app_llm::MockProvider;
 use app_server::db;
 use app_server::test_support::TestServer;
 use reqwest::Client;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[tokio::test]
 async fn save_round_trip_create_list_load_delete() {
@@ -176,14 +176,30 @@ async fn list_saves_orders_newest_first() {
 
     // Insert two saves with explicit ordering via unique created_at by using direct DB calls.
     let envelope = json!({"schema_version": 1, "state": {}});
-    let _id1 = db::save_insert(&pool, session_id, "manual", "first", "summary 1", "combat", &envelope)
-        .await
-        .unwrap();
+    let _id1 = db::save_insert(
+        &pool,
+        session_id,
+        "manual",
+        "first",
+        "summary 1",
+        "combat",
+        &envelope,
+    )
+    .await
+    .unwrap();
     // Sleep briefly to guarantee a strictly-larger created_at on save 2.
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    let id2 = db::save_insert(&pool, session_id, "auto", "second", "summary 2", "dialog", &envelope)
-        .await
-        .unwrap();
+    let id2 = db::save_insert(
+        &pool,
+        session_id,
+        "auto",
+        "second",
+        "summary 2",
+        "dialog",
+        &envelope,
+    )
+    .await
+    .unwrap();
 
     let server = TestServer::start_with(Arc::new(MockProvider::new(vec![])), pool).await;
     let listed: Vec<Value> = Client::new()

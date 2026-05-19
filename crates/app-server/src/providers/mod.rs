@@ -9,7 +9,8 @@ pub mod discovery;
 pub mod registry;
 
 pub use catalog::{
-    CHAT_CATALOG, CuratedModelEntry, IMAGE_CATALOG, ProviderCatalogEntry, ProviderModality,
-    ProviderMode, VIDEO_CATALOG, default_chat_model, find_chat_entry, find_entry_any_modality,
+    default_chat_model, find_chat_entry, find_entry_any_modality, CuratedModelEntry,
+    ProviderCatalogEntry, ProviderModality, ProviderMode, CHAT_CATALOG, IMAGE_CATALOG,
+    VIDEO_CATALOG,
 };
 pub use registry::ProviderRegistry;

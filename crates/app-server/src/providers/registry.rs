@@ -58,7 +58,8 @@ mod tests {
         async fn generate(
             &self,
             _prompt: crate::video::provider::VideoPrompt,
-        ) -> Result<crate::video::provider::VideoStream, crate::video::provider::VideoError> {
+        ) -> Result<crate::video::provider::VideoStream, crate::video::provider::VideoError>
+        {
             Err(crate::video::provider::VideoError::Provider("test".into()))
         }
 
@@ -78,7 +79,14 @@ mod tests {
         let video: Arc<dyn crate::video::provider::VideoProvider> = Arc::new(TestVideoProvider);
         let reg = ProviderRegistry::new(chat).with_video(video);
         assert!(reg.video.is_some());
-        assert_eq!(reg.video.as_ref().unwrap().capabilities().avg_seconds_per_clip, 1);
+        assert_eq!(
+            reg.video
+                .as_ref()
+                .unwrap()
+                .capabilities()
+                .avg_seconds_per_clip,
+            1
+        );
     }
 
     #[test]

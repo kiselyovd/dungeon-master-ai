@@ -1,5 +1,5 @@
-use rand::SeedableRng;
 use rand::rngs::SmallRng;
+use rand::SeedableRng;
 
 /// A seeded RNG wrapper. Wraps `SmallRng` (fast, non-crypto) with an explicit
 /// seed so that any combat sequence can be replayed deterministically by
@@ -11,7 +11,10 @@ pub struct SeededRng {
 
 impl SeededRng {
     pub fn from_seed(seed: u64) -> Self {
-        Self { inner: SmallRng::seed_from_u64(seed), seed }
+        Self {
+            inner: SmallRng::seed_from_u64(seed),
+            seed,
+        }
     }
 
     /// Generate a random seed from the OS entropy source (for new combats).

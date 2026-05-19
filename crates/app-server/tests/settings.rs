@@ -113,7 +113,11 @@ async fn post_settings_swaps_to_openai_compat() {
 
     let resp = Client::new()
         .post(server.url("/settings/v2"))
-        .json(&v2_openai_compat("http://localhost:1234", "sk-test", "qwen3-1.7b"))
+        .json(&v2_openai_compat(
+            "http://localhost:1234",
+            "sk-test",
+            "qwen3-1.7b",
+        ))
         .send()
         .await
         .expect("post /settings/v2");
@@ -150,12 +154,10 @@ async fn post_settings_swaps_to_anthropic_with_default_model() {
         .await
         .expect("json");
     assert_eq!(providers["active"]["kind"], "anthropic");
-    assert!(
-        providers["active"]["default_model"]
-            .as_str()
-            .unwrap_or("")
-            .starts_with("claude-")
-    );
+    assert!(providers["active"]["default_model"]
+        .as_str()
+        .unwrap_or("")
+        .starts_with("claude-"));
 }
 
 #[tokio::test]

@@ -53,7 +53,11 @@ pub fn roll_expr(expr: &DiceExpr, rng: &mut SeededRng) -> i32 {
 pub fn roll_expr_detailed(expr: &DiceExpr, rng: &mut SeededRng) -> RollDetail {
     let rolls: Vec<i32> = (0..expr.count).map(|_| roll_one(expr.die, rng)).collect();
     let total = rolls.iter().sum::<i32>() + expr.modifier;
-    RollDetail { rolls, modifier: expr.modifier, total }
+    RollDetail {
+        rolls,
+        modifier: expr.modifier,
+        total,
+    }
 }
 
 /// Roll 2d20, keep the higher. Returns `(kept_total, [roll1, roll2])`.

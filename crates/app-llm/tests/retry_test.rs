@@ -1,12 +1,12 @@
 //! Sub-task #3: retry semantics for LlmProvider wrapper.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use async_trait::async_trait;
 use app_llm::{
     Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider, RetryableProvider,
 };
+use async_trait::async_trait;
 use futures::stream;
 
 /// A mock provider that returns a configurable LlmError on the Nth call,
@@ -90,7 +90,11 @@ async fn retries_on_rate_limit_then_succeeds() {
     let wrapped = RetryableProvider::new(inner.clone());
     let res = wrapped.stream_chat(req()).await;
     assert!(res.is_ok(), "should succeed after retries");
-    assert_eq!(inner.call_count(), 3, "two failures + one success = 3 calls");
+    assert_eq!(
+        inner.call_count(),
+        3,
+        "two failures + one success = 3 calls"
+    );
 }
 
 #[tokio::test]

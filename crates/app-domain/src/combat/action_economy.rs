@@ -48,10 +48,7 @@ pub fn consume_action(
     }
 }
 
-pub fn consume_movement_ft(
-    budget: &mut ActionBudget,
-    feet: i32,
-) -> Result<(), ActionEconomyError> {
+pub fn consume_movement_ft(budget: &mut ActionBudget, feet: i32) -> Result<(), ActionEconomyError> {
     if budget.movement_ft < feet {
         return Err(ActionEconomyError::InsufficientMovement {
             have: budget.movement_ft,

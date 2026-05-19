@@ -124,18 +124,32 @@ impl ChatMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatChunk {
-    TextDelta { text: String },
+    TextDelta {
+        text: String,
+    },
     /// Thinking/reasoning delta from the model. Emitted by providers whose
     /// active model supports reasoning (Anthropic claude-opus-4-7/sonnet-4-6,
     /// OpenAI o-series, gpt-5). Consumers render this in a collapsible UI.
-    ThinkingDelta { text: String },
+    ThinkingDelta {
+        text: String,
+    },
     /// The LLM started a tool-call block; args will follow as deltas.
-    ToolCallStart { id: String, name: String },
+    ToolCallStart {
+        id: String,
+        name: String,
+    },
     /// Streaming fragment of the JSON args for an in-progress tool-call.
-    ToolCallArgsDelta { id: String, args_fragment: String },
+    ToolCallArgsDelta {
+        id: String,
+        args_fragment: String,
+    },
     /// The LLM finished the tool-call args. Consumer should now parse + execute.
-    ToolCallDone { id: String },
-    Done { reason: FinishReason },
+    ToolCallDone {
+        id: String,
+    },
+    Done {
+        reason: FinishReason,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

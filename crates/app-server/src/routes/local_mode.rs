@@ -88,7 +88,10 @@ pub async fn download_progress(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let rx = state.download_manager().events.subscribe();
     let stream = BroadcastStream::new(rx).filter_map(
-        move |res: Result<DownloadEvent, tokio_stream::wrappers::errors::BroadcastStreamRecvError>| {
+        move |res: Result<
+            DownloadEvent,
+            tokio_stream::wrappers::errors::BroadcastStreamRecvError,
+        >| {
             let ev = res.ok()?;
             let event_id = match &ev {
                 DownloadEvent::Progress { id, .. }

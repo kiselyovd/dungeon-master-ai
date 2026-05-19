@@ -33,9 +33,15 @@ fn empty_draft_json() -> serde_json::Value {
 async fn field_stream_emits_tokens_and_done() {
     let pool = test_pool().await;
     let mock = Arc::new(MockProvider::new(vec![
-        ChatChunk::TextDelta { text: "Astarion ".into() },
-        ChatChunk::TextDelta { text: "Ancunin".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::TextDelta {
+            text: "Astarion ".into(),
+        },
+        ChatChunk::TextDelta {
+            text: "Ancunin".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();
@@ -62,7 +68,8 @@ async fn field_stream_emits_tokens_and_done() {
 async fn full_stream_emits_draft_patch_and_done() {
     let pool = test_pool().await;
     // Streaming tool-call: Start -> ArgsDelta(s) -> Done -> Done(reason)
-    let json_args = r#"{"classId":"fighter","raceId":"human","backgroundId":"acolyte","name":"Roric"}"#;
+    let json_args =
+        r#"{"classId":"fighter","raceId":"human","backgroundId":"acolyte","name":"Roric"}"#;
     let mock = Arc::new(MockProvider::new(vec![
         ChatChunk::ToolCallStart {
             id: "call_1".into(),
@@ -72,8 +79,12 @@ async fn full_stream_emits_draft_patch_and_done() {
             id: "call_1".into(),
             args_fragment: json_args.into(),
         },
-        ChatChunk::ToolCallDone { id: "call_1".into() },
-        ChatChunk::Done { reason: FinishReason::ToolUse },
+        ChatChunk::ToolCallDone {
+            id: "call_1".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();
@@ -106,7 +117,9 @@ async fn test_chat_stream_emits_tokens() {
         ChatChunk::TextDelta {
             text: "What brings you?".into(),
         },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();
@@ -137,8 +150,12 @@ async fn full_stream_invalid_tool_call_returns_error_event() {
             id: "call_x".into(),
             name: "wrong_tool".into(),
         },
-        ChatChunk::ToolCallDone { id: "call_x".into() },
-        ChatChunk::Done { reason: FinishReason::Stop },
+        ChatChunk::ToolCallDone {
+            id: "call_x".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
     ]));
     let server = TestServer::start_with(mock, pool).await;
     let client = reqwest::Client::new();

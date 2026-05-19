@@ -1,11 +1,11 @@
 //! Sub-task #3: retry semantics for ImageProvider wrapper.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use async_trait::async_trait;
 use app_server::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
 use app_server::image::retry::RetryableImageProvider;
+use async_trait::async_trait;
 
 struct ScriptedImage {
     calls: AtomicUsize,

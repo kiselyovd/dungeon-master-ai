@@ -32,10 +32,7 @@ impl SecretsRepo for InMemorySecretsRepo {
     }
 
     async fn set(&self, key: &str, value: &str) -> Result<(), SecretsError> {
-        self.store
-            .write()
-            .await
-            .insert(key.into(), value.into());
+        self.store.write().await.insert(key.into(), value.into());
         Ok(())
     }
 
@@ -53,10 +50,7 @@ mod tests {
     async fn in_memory_repo_round_trips() {
         let repo = InMemorySecretsRepo::default();
         repo.set("anthropic", "sk-test").await.unwrap();
-        assert_eq!(
-            repo.get("anthropic").await.unwrap(),
-            Some("sk-test".into())
-        );
+        assert_eq!(repo.get("anthropic").await.unwrap(), Some("sk-test".into()));
         repo.delete("anthropic").await.unwrap();
         assert_eq!(repo.get("anthropic").await.unwrap(), None);
     }

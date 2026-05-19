@@ -50,7 +50,9 @@ pub async fn build_context(
 
     // Append NPC memory facts for NPCs currently in scope.
     // Phase G implements scene-scoped scope; for now we'd load all facts.
-    let npc_facts = load_all_npc_facts(pool, campaign_id).await.unwrap_or_default();
+    let npc_facts = load_all_npc_facts(pool, campaign_id)
+        .await
+        .unwrap_or_default();
     if !npc_facts.is_empty() {
         ctx.push_str("\n\n## Known NPCs\n");
         ctx.push_str(&npc_facts);
@@ -76,10 +78,7 @@ fn embed_player_message(
         .ok_or_else(|| "empty embedding".into())
 }
 
-async fn load_all_npc_facts(
-    _pool: &SqlitePool,
-    _campaign_id: Uuid,
-) -> Result<String, sqlx::Error> {
+async fn load_all_npc_facts(_pool: &SqlitePool, _campaign_id: Uuid) -> Result<String, sqlx::Error> {
     // Phase G wires this to the npc_memory table.
     // Stubbed in Task C1 to keep the build green until the table exists.
     Ok(String::new())

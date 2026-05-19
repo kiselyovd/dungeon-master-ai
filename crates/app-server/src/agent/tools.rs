@@ -255,7 +255,9 @@ fn all_tools_core() -> Vec<Tool> {
 fn generate_image_tool() -> Tool {
     Tool {
         name: "generate_image".into(),
-        description: "Generate a scene illustration. Rate limited: call at most once per scene change.".into(),
+        description:
+            "Generate a scene illustration. Rate limited: call at most once per scene change."
+                .into(),
         parameters: json!({
             "type": "object",
             "properties": {

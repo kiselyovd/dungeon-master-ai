@@ -1,6 +1,6 @@
-use axum::Json;
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use app_llm::{
@@ -8,12 +8,12 @@ use app_llm::{
 };
 
 use crate::providers::catalog::{
-    CHAT_CATALOG, IMAGE_CATALOG, ProviderCatalogEntry, VIDEO_CATALOG, find_chat_entry,
-    find_entry_any_modality,
+    find_chat_entry, find_entry_any_modality, ProviderCatalogEntry, CHAT_CATALOG, IMAGE_CATALOG,
+    VIDEO_CATALOG,
 };
 use crate::providers::discovery::{
-    AnthropicCurated, DiscoverParams, DiscoveryError, DiscoveryResult, DiscoverySource,
-    HfHubSearch, OpenAIV1Models, ReplicateSearch, merge_recommended, recommended_for,
+    merge_recommended, recommended_for, AnthropicCurated, DiscoverParams, DiscoveryError,
+    DiscoveryResult, DiscoverySource, HfHubSearch, OpenAIV1Models, ReplicateSearch,
 };
 
 #[derive(Serialize)]
@@ -41,11 +41,7 @@ pub async fn get_caps(
     Query(q): Query<CapsQuery>,
 ) -> Result<Json<Capabilities>, StatusCode> {
     let entry = find_entry_any_modality(&id).ok_or(StatusCode::NOT_FOUND)?;
-    if let Some(curated) = entry
-        .curated_models
-        .iter()
-        .find(|m| m.model_id == q.model)
-    {
+    if let Some(curated) = entry.curated_models.iter().find(|m| m.model_id == q.model) {
         return Ok(Json(curated.capabilities));
     }
     // Fall back to provider-specific inference for chat providers; image/video

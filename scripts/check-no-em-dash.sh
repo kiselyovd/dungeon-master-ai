@@ -5,6 +5,13 @@
 # (uses git ls-files so .gitignore is respected automatically).
 set -e
 
+# Without a UTF-8 locale, grep treats input as raw bytes and the bracket
+# expression [\xe2\x80\x94\xe2\x80\x93] matches any byte equal to e2/80/94/93,
+# producing false positives on any Cyrillic/Greek/CJK character that happens
+# to share a UTF-8 lead/continuation byte. GitHub Actions Ubuntu runners
+# default to C.UTF-8 only sometimes, so pin it explicitly.
+export LC_ALL=C.UTF-8
+
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 

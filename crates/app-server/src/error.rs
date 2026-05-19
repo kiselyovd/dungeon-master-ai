@@ -1,6 +1,6 @@
-use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use serde_json::json;
 use thiserror::Error;
 
@@ -32,7 +32,11 @@ impl IntoResponse for AppError {
                 self.to_string(),
             ),
             AppError::Llm(_) => (StatusCode::BAD_GATEWAY, "provider_error", self.to_string()),
-            AppError::Db(_) => (StatusCode::INTERNAL_SERVER_ERROR, "db_error", self.to_string()),
+            AppError::Db(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "db_error",
+                self.to_string(),
+            ),
             AppError::NotFound => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
             AppError::PayloadTooLarge(_) => (

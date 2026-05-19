@@ -162,11 +162,7 @@ pub(crate) async fn pump_genai_stream(
             Ok(ChatStreamEvent::End(_end)) => {
                 let had_tool_calls = !args_seen.is_empty();
                 for id in std::mem::take(&mut args_seen).into_keys() {
-                    if tx
-                        .send(Ok(ChatChunk::ToolCallDone { id }))
-                        .await
-                        .is_err()
-                    {
+                    if tx.send(Ok(ChatChunk::ToolCallDone { id })).await.is_err() {
                         return;
                     }
                 }
@@ -209,9 +205,7 @@ pub(crate) fn classify_genai_error(msg: String) -> LlmError {
         LlmError::RateLimit
     } else if lower.contains("auth") || lower.contains("api key") || lower.contains("401") {
         LlmError::AuthFailure
-    } else if lower.contains("network")
-        || lower.contains("connection")
-        || lower.contains("timeout")
+    } else if lower.contains("network") || lower.contains("connection") || lower.contains("timeout")
     {
         LlmError::Network(msg)
     } else {
@@ -274,6 +268,9 @@ mod tests {
     fn build_chat_options_some_when_reasoning_set() {
         use crate::provider::ReasoningSpec;
         let opts = build_chat_options(Some(ReasoningSpec::Medium));
-        assert!(opts.is_some(), "expected Some(ChatOptions) for ReasoningSpec::Medium");
+        assert!(
+            opts.is_some(),
+            "expected Some(ChatOptions) for ReasoningSpec::Medium"
+        );
     }
 }

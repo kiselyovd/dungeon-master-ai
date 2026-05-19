@@ -1,5 +1,5 @@
 use app_domain::combat::conditions::{
-    AttackModifier, Condition, attacker_condition_modifier, condition_attack_modifier,
+    attacker_condition_modifier, condition_attack_modifier, AttackModifier, Condition,
 };
 
 #[test]

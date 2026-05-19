@@ -1,7 +1,7 @@
-use axum::Json;
 use axum::extract::State;
-use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
+use axum::Json;
 use futures::stream::{Stream, StreamExt};
 use serde::{Deserialize, Deserializer};
 use std::convert::Infallible;
@@ -67,7 +67,9 @@ impl<'de> Deserialize<'de> for HttpMessage {
                     .and_then(|c| c.as_str())
                     .map(|s| s.to_string());
                 let tool_calls: Vec<ToolCall> = serde_json::from_value(
-                    v.get("tool_calls").cloned().unwrap_or_else(|| serde_json::json!([])),
+                    v.get("tool_calls")
+                        .cloned()
+                        .unwrap_or_else(|| serde_json::json!([])),
                 )
                 .map_err(|e| D::Error::custom(format!("invalid tool_calls: {e}")))?;
                 Ok(HttpMessage::AssistantWithToolCalls {
@@ -223,10 +225,7 @@ pub async fn chat(
                 }
                 Ok(ChatChunk::Done { reason }) => {
                     if let Some(sid) = session_id_for_assistant.clone() {
-                        let text = assistant_buf
-                            .lock()
-                            .map(|g| g.clone())
-                            .unwrap_or_default();
+                        let text = assistant_buf.lock().map(|g| g.clone()).unwrap_or_default();
                         if !text.is_empty() {
                             let pool = pool_for_assistant.clone();
                             tokio::spawn(async move {

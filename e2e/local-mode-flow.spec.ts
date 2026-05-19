@@ -1,12 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
-      invoke: async () => null,
-      transformCallback: () => 0,
-    };
-  });
+  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
 
   // Mock the Local Mode HTTP surface so the dev backend is not required.
   await page.route('**/local-mode/config', async (route) => {
@@ -55,7 +51,9 @@ test.beforeEach(async ({ page }) => {
 
 test('local mode modal opens, toggle persists, runtime status shows', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Local Mode/i }).click();
+  // Local Mode modal has no titlebar button - the only documented entry is
+  // the Ctrl+Shift+M keyboard shortcut wired in App.tsx.
+  await page.keyboard.press('Control+Shift+M');
   await expect(page.getByRole('dialog', { name: /local mode/i })).toBeVisible();
 
   const enableCheckbox = page.getByRole('checkbox', { name: /enable local mode/i });

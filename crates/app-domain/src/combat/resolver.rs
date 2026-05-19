@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use super::action_economy::consume_action;
-use super::attack::{AttackOutcome, roll_attack};
+use super::attack::{roll_attack, AttackOutcome};
 use super::combatant::Combatant;
 use super::conditions::AttackModifier;
-use super::damage::{DamageResistance, apply_damage_to_combatant};
+use super::damage::{apply_damage_to_combatant, DamageResistance};
 use super::initiative::InitiativeOrder;
 use super::result_events::{DamageApplication, DiceRoll, ResultEvents};
 use super::types::{ActionKind, CombatantId, DamageType};
-use crate::dice::{DiceExpr, roll_expr_detailed};
+use crate::dice::{roll_expr_detailed, DiceExpr};
 use crate::rng::SeededRng;
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
@@ -52,7 +52,11 @@ impl CombatResolver {
         order: InitiativeOrder,
         rng: SeededRng,
     ) -> Self {
-        Self { combatants, order, rng }
+        Self {
+            combatants,
+            order,
+            rng,
+        }
     }
 
     /// Phase 1 (Validate) + Phase 2 (Resolve) in one call.
@@ -99,8 +103,12 @@ impl CombatResolver {
 
         // --- Phase 2: Resolve ---
         let target_ac = self.combatants[&target_id].ac;
-        let attack_outcome =
-            roll_attack(attack_modifier, target_ac, AttackModifier::Normal, &mut self.rng);
+        let attack_outcome = roll_attack(
+            attack_modifier,
+            target_ac,
+            AttackModifier::Normal,
+            &mut self.rng,
+        );
 
         let mut events = ResultEvents::default();
 
@@ -109,7 +117,10 @@ impl CombatResolver {
                 // PHB crit: roll damage dice twice, add modifier once.
                 let normal_detail = roll_expr_detailed(&damage_expr, &mut self.rng);
                 let extra_detail = roll_expr_detailed(
-                    &DiceExpr { modifier: 0, ..damage_expr.clone() },
+                    &DiceExpr {
+                        modifier: 0,
+                        ..damage_expr.clone()
+                    },
                     &mut self.rng,
                 );
                 let raw_damage = normal_detail.total + extra_detail.rolls.iter().sum::<i32>();

@@ -21,7 +21,10 @@ pub struct TurnState {
 
 impl TurnState {
     pub fn new() -> Self {
-        Self { phase: TurnPhase::Validate, complete: false }
+        Self {
+            phase: TurnPhase::Validate,
+            complete: false,
+        }
     }
 }
 
@@ -34,7 +37,10 @@ impl Default for TurnState {
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TurnFsmError {
     #[error("expected phase {expected:?} but current phase is {current:?}")]
-    WrongPhase { current: TurnPhase, expected: TurnPhase },
+    WrongPhase {
+        current: TurnPhase,
+        expected: TurnPhase,
+    },
     #[error("turn is already complete")]
     AlreadyComplete,
 }
