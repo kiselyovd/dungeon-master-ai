@@ -11,7 +11,25 @@ import type { Page } from '@playwright/test';
  * `KEY_*` constants in `src/state/persistStorage.ts` (e.g.
  * `onboarding_completed`, `active_provider`, ...).
  */
+/**
+ * Pipe browser console output and uncaught errors into the Playwright test
+ * runner stdout. Without this, anything `console.error`'d during persist
+ * rehydration (which is where Onboarding-bypass mocks usually fail) stays
+ * invisible on CI and you get a 90-second timeout with no clue why.
+ */
+export function pipeBrowserConsole(page: Page): void {
+  page.on('console', (msg) => {
+    // eslint-disable-next-line no-console
+    console.log(`[browser-${msg.type()}] ${msg.text()}`);
+  });
+  page.on('pageerror', (err) => {
+    // eslint-disable-next-line no-console
+    console.log(`[browser-error] ${err.message}\n${err.stack ?? ''}`);
+  });
+}
+
 export async function mockTauri(page: Page, seed: Record<string, unknown> = {}): Promise<void> {
+  pipeBrowserConsole(page);
   await page.addInitScript((initialSeed: Record<string, unknown>) => {
     type StoreBucket = Map<string, unknown>;
     const buckets = new Map<number, StoreBucket>();
