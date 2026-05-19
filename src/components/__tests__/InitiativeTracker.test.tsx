@@ -63,4 +63,13 @@ describe('InitiativeTracker', () => {
     expect(cards[0]?.classList.contains('is-active')).toBe(true);
     expect(cards[1]?.classList.contains('is-active')).toBe(false);
   });
+
+  it('dead token name has is-dead class in initiative list', () => {
+    const deadTokens = [{ ...tokens[0]!, hp: 0 }, tokens[1]!];
+    render(
+      <InitiativeTracker tokens={deadTokens} order={['a', 'b']} round={1} activeTokenId="b" />,
+    );
+    const heroName = screen.getByText('Hero');
+    expect(heroName.className).toContain('is-dead');
+  });
 });

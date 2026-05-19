@@ -121,4 +121,36 @@ describe('CombatToken', () => {
     fireEvent.pointerUp(el, { pointerId: 1, clientX: 120, clientY: 135 });
     expect(onMove).not.toHaveBeenCalled();
   });
+
+  it('dead token (hp=0) has data-dead="true" on container', () => {
+    const dead = { ...baseToken, hp: 0 };
+    const { getByTestId } = render(<CombatToken token={dead} cellSize={30} />);
+    expect(getByTestId('combat-token-tok-1').dataset.dead).toBe('true');
+  });
+
+  it('dead token shows skull icon overlay', () => {
+    const dead = { ...baseToken, hp: 0 };
+    const { container } = render(<CombatToken token={dead} cellSize={30} />);
+    expect(container.querySelector('[data-testid="combat-token-skull"]')).toBeTruthy();
+  });
+
+  it('poisoned condition dot uses necromancy color', () => {
+    const token = { ...baseToken, conditions: ['poisoned'] };
+    const { container } = render(<CombatToken token={token} cellSize={30} />);
+    const dot = container.querySelector('span[aria-label="poisoned"]') as HTMLElement | null;
+    expect(dot).toBeTruthy();
+    expect(dot?.style.background).toBe('var(--magic-necromancy)');
+  });
+
+  it('condition dots have aria-labels', () => {
+    const token = { ...baseToken, conditions: ['stunned', 'prone'] };
+    const { container } = render(<CombatToken token={token} cellSize={30} />);
+    const dots = container.querySelectorAll('span[aria-label]');
+    // Filter to only conditions (not skull, not portrait fallback letter)
+    const conditionDots = Array.from(dots).filter((d) => {
+      const label = (d as HTMLElement).getAttribute('aria-label') ?? '';
+      return label === 'stunned' || label === 'prone';
+    });
+    expect(conditionDots.length).toBe(2);
+  });
 });

@@ -40,6 +40,17 @@ function hpColor(hp: number, maxHp: number): string {
   return 'var(--color-danger)';
 }
 
+const CONDITION_COLORS: Record<string, string> = {
+  poisoned: 'var(--magic-necromancy)',
+  stunned: 'var(--magic-enchantment)',
+  prone: 'var(--color-fg-muted)',
+  unconscious: 'var(--color-danger)',
+};
+
+function conditionColor(condition: string): string {
+  return CONDITION_COLORS[condition] ?? 'var(--color-warning)';
+}
+
 /**
  * CombatToken renders as a positioned HTML overlay above the VTT canvas.
  * Using HTML/CSS rather than PixiJS primitives keeps the token testable in
@@ -64,6 +75,7 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
+  const isDead = token.hp === 0;
   const portraitSrc =
     pcName !== null && token.name === pcName && pcHeroClass !== null
       ? (CLASS_TOKEN[pcHeroClass] ?? null)
@@ -191,6 +203,7 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
       <div
         data-testid={`combat-token-${token.id}`}
         data-active={token.isActive ? 'true' : undefined}
+        data-dead={isDead ? 'true' : undefined}
         onPointerDown={draggable ? onPointerDown : undefined}
         onPointerMove={draggable ? onPointerMove : undefined}
         onPointerUp={draggable ? onPointerEnd : undefined}
@@ -202,12 +215,17 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
           width: cellSize,
           height: cellSize,
           // Pulse pauses during drag so the active-token glow does not
-          // visually compete with the ghost + live position feedback.
+          // visually compete with the ghost + live position feedback. Dead
+          // tokens never pulse - the skull overlay is the only motion cue.
           animation:
-            token.isActive && !isDragging ? 'token-pulse 1.6s ease-in-out infinite' : undefined,
+            token.isActive && !isDragging && !isDead
+              ? 'token-pulse 1.6s ease-in-out infinite'
+              : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
           zIndex: isDragging ? 10 : undefined,
           touchAction: 'none',
+          filter: isDead ? 'grayscale(100%)' : undefined,
+          opacity: isDead ? 0.7 : undefined,
         }}
       >
         <div
@@ -233,6 +251,26 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
           }}
         >
           {portraitSrc === null && token.name.charAt(0).toUpperCase()}
+
+          {isDead && (
+            <div
+              data-testid="combat-token-skull"
+              role="img"
+              aria-label="Dead"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: Math.floor(cellSize * 0.4),
+                pointerEvents: 'none',
+                color: 'var(--color-fg-secondary)',
+              }}
+            >
+              {'☠'}
+            </div>
+          )}
 
           <div
             data-testid={`combat-token-${token.id}-ac`}
@@ -272,12 +310,14 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
               {visibleConditions.map((c) => (
                 <span
                   key={c}
+                  role="img"
+                  aria-label={c}
                   title={c}
                   style={{
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: 'var(--color-warning)',
+                    background: conditionColor(c),
                   }}
                 />
               ))}

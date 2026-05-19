@@ -292,6 +292,11 @@
   white-space: nowrap;
 }
 
+.dm-init-name.is-dead {
+  text-decoration: line-through;
+  color: var(--color-fg-muted);
+}
+
 .dm-init-meta {
   display: flex;
   align-items: center;
