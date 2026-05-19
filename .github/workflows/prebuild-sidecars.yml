@@ -31,7 +31,7 @@ jobs:
     env:
       MISTRALRS_VERSION: v0.8.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Run download script
         shell: bash
         run: |
@@ -40,7 +40,7 @@ jobs:
           else
             bash "scripts/${{ matrix.script }}" "${{ matrix.target }}"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mistralrs-${{ matrix.target }}
           path: src-tauri/binaries/mistralrs-server-${{ matrix.target }}*
