@@ -177,11 +177,10 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
                 tool_name,
                 is_error,
                 ..
-            } => {
-                if tool_name == "fly_dragon" && is_error {
-                    got_error_result = true;
-                }
+            } if tool_name == "fly_dragon" && is_error => {
+                got_error_result = true;
             }
+            AgentEvent::ToolCallResult { .. } => {}
             AgentEvent::AgentDone { .. } => {
                 got_done = true;
                 break;

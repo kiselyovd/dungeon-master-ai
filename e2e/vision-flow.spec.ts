@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { mockTauri } from './fixtures/tauri-mock';
 
 // __dirname is a CommonJS global; under ESM (which Playwright uses when
 // "type": "module" is set in package.json) it is undefined. Derive it from
@@ -8,12 +9,7 @@ import { expect, test } from '@playwright/test';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
-      invoke: async () => null,
-      transformCallback: () => 0,
-    };
-  });
+  await mockTauri(page, { onboarding_completed: true });
 
   // Mock the /chat SSE endpoint with a short scripted response.
   await page.route('**/chat', async (route) => {

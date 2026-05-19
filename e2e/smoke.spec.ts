@@ -1,16 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  // Stub the Tauri internals so the frontend can boot without the
-  // real shell. invoke() returns null (so backend_port resolves to
-  // null and api/client.ts hangs waiting for the backend-ready event,
-  // which is fine for layout-only tests since we never trigger /chat).
-  await page.addInitScript(() => {
-    (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
-      invoke: async () => null,
-      transformCallback: () => 0,
-    };
-  });
+  // Pre-seed `onboarding_completed` so the Onboarding modal does not
+  // mount and steal pointer events from the header buttons below.
+  await mockTauri(page, { onboarding_completed: true });
 });
 
 test('app renders header, grid placeholder, and chat panel', async ({ page }) => {

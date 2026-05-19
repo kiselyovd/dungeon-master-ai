@@ -1,12 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
-      invoke: async () => null,
-      transformCallback: () => 0,
-    };
-  });
+  await mockTauri(page, { onboarding_completed: true });
 
   // Mock the Local Mode HTTP surface so the dev backend is not required.
   await page.route('**/local-mode/config', async (route) => {
