@@ -29,6 +29,10 @@
   "map_layers": "Layers",
   "map_scale_5ft": "5 ft",
   "token_aria": "{{name}} {{hp}}/{{maxHp}} HP, AC {{ac}}",
+  "action_used_tooltip": "Already used this turn",
+  "bonus_used_tooltip": "Already used this turn",
+  "reaction_used_tooltip": "Already used this turn",
+  "movement_label": "{{remaining}}/{{total}} ft",
   "conditions": {
     "prone": "Prone",
     "grappled": "Grappled",
