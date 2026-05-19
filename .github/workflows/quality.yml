@@ -16,7 +16,7 @@ jobs:
   actionlint:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Run actionlint
         run: |
           bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
@@ -28,14 +28,14 @@ jobs:
   typos:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: crate-ci/typos@master
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: crate-ci/typos@aca895bf05aec0cb7dffa6f94495e923224d9f17 # master
 
   shellcheck:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: ludeeus/action-shellcheck@2.0.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           severity: error
           scandir: ./scripts
@@ -43,7 +43,7 @@ jobs:
   psscriptanalyzer:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
@@ -58,8 +58,8 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v16
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: DavidAnson/markdownlint-cli2-action@b4c9feab76d8025d1e83c653fa3990936df0e6c8 # v16
         with:
           globs: "**/*.md"
 
@@ -67,13 +67,13 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: karancode/yamllint-github-action@master
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: karancode/yamllint-github-action@4052d365f09b8d34eb552c363d1141fd60e2aeb2 # master
         with:
           yamllint_config_filepath: .yamllint.yml
 
   editorconfig:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: editorconfig-checker/action-editorconfig-checker@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: editorconfig-checker/action-editorconfig-checker@d2ed4fd072ae6f887e9407c909af0f585d2ad9f4 # v2
