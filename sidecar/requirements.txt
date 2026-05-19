@@ -18,17 +18,17 @@ peft>=0.17
 # accelerate 1.x required by torch 2.8 (0.34 has incompatible meta-tensor handling).
 accelerate>=1.0
 safetensors>=0.4.5
-sentencepiece==0.2.0
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
+sentencepiece==0.2.1
+fastapi==0.136.1
+uvicorn[standard]==0.47.0
 pillow==10.4.0
-pydantic==2.9.2
+pydantic==2.13.4
 huggingface-hub>=0.27
 
 # Video export deps (for LTX-Video MP4 generation via diffusers.utils.export_to_video):
-opencv-python==4.10.0.84
-imageio==2.36.1
-imageio-ffmpeg==0.5.1
+opencv-python==4.13.0.92
+imageio==2.37.3
+imageio-ffmpeg==0.6.0
 
 # nunchaku is intentionally NOT here - PyPI 'nunchaku' is an unrelated Bayesian sampler.
 # Install nunchaku 1.2.1+ from nunchaku-tech/nunchaku GitHub release assets (wheel by
