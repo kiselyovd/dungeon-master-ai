@@ -1,6 +1,7 @@
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../i18n';
 
 // Mock @pixi/react to avoid WebGL in jsdom.
 vi.mock('@pixi/react', () => ({
@@ -176,5 +177,32 @@ describe('VttCanvas', () => {
     expect(observer).toBeDefined();
     expect(observer?.targets[0]).toBeInstanceOf(HTMLElement);
     expect((observer?.targets[0] as HTMLElement).classList.contains('dm-vtt')).toBe(true);
+  });
+
+  it('grid toggle button loses is-active class after click', () => {
+    const { getByRole } = render(<VttCanvas />);
+    const gridBtn = getByRole('button', { name: /toggle grid|сетка/i });
+    expect(gridBtn.className).toContain('is-active');
+    fireEvent.click(gridBtn);
+    expect(gridBtn.className).not.toContain('is-active');
+  });
+
+  it('measure button activates measure mode and renders svg overlay', () => {
+    const { getByRole, container } = render(<VttCanvas />);
+    const measureBtn = getByRole('button', { name: /measure|измерить/i });
+    fireEvent.click(measureBtn);
+    expect(measureBtn.className).toContain('is-active');
+    expect(container.querySelector('[data-testid="measure-overlay"]')).toBeTruthy();
+  });
+
+  it('measure tool first click sets origin and mouse move shows distance tooltip with correct feet', () => {
+    const { getByRole, container } = render(<VttCanvas cellSize={30} />);
+    fireEvent.click(getByRole('button', { name: /measure|измерить/i }));
+    const overlay = container.querySelector('[data-testid="measure-overlay"]') as SVGElement;
+    fireEvent.click(overlay, { clientX: 60, clientY: 60 });
+    fireEvent.mouseMove(overlay, { clientX: 150, clientY: 60 });
+    const tooltip = container.querySelector('[data-testid="measure-tooltip"]');
+    expect(tooltip).toBeTruthy();
+    expect(tooltip?.textContent).toMatch(/15/);
   });
 });
