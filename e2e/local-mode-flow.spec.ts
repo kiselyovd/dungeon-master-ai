@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  await mockTauri(page, { onboarding_completed: true });
+  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
 
   // Mock the Local Mode HTTP surface so the dev backend is not required.
   await page.route('**/local-mode/config', async (route) => {

@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  // Pre-seed `onboarding_completed` so the Onboarding modal does not
-  // mount and steal pointer events from the header buttons below.
-  await mockTauri(page, { onboarding_completed: true });
+  // Pre-seed the persisted settings so neither the Onboarding modal nor
+  // the initial CharacterWizard mounts: both cover the whole viewport and
+  // would steal pointer events from the titlebar buttons below.
+  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
 });
 
 test('app renders header, grid placeholder, and chat panel', async ({ page }) => {

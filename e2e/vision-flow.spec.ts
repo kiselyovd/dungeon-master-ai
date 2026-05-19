@@ -9,7 +9,7 @@ import { mockTauri } from './fixtures/tauri-mock';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
-  await mockTauri(page, { onboarding_completed: true });
+  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
 
   // Mock the /chat SSE endpoint with a short scripted response.
   await page.route('**/chat', async (route) => {
