@@ -30,6 +30,15 @@ export function pipeBrowserConsole(page: Page): void {
 
 export async function mockTauri(page: Page, seed: Record<string, unknown> = {}): Promise<void> {
   pipeBrowserConsole(page);
+
+  // SplashOverlay polls /health every 250ms and only dismisses once it gets
+  // a 200 OK (or after a 30-second timeout). Return a benign 200 so the
+  // splash drops within the first tick and the rest of the UI becomes
+  // interactive. Tests that need a real sidecar response will override
+  // this with their own page.route call.
+  await page.route('**/health', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
   await page.addInitScript((initialSeed: Record<string, unknown>) => {
     type StoreBucket = Map<string, unknown>;
     const buckets = new Map<number, StoreBucket>();
@@ -46,6 +55,11 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
     const internals = {
       transformCallback: () => 0,
       invoke: async (cmd: string, args: { rid?: number; key?: string; value?: unknown }) => {
+        // The frontend calls `invoke('backend_port')` to learn where the
+        // axum sidecar is listening, then opens /health on it. We pretend
+        // the sidecar lives on a fixed port and intercept the HTTP request
+        // separately so the SplashOverlay dismisses immediately.
+        if (cmd === 'backend_port') return 31415;
         // plugin-store load returns a resource id for an empty store; we
         // pre-fill the bucket with the seed so the very first .get() call
         // already sees what the test asked for.
