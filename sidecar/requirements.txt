@@ -18,7 +18,7 @@ peft>=0.17
 # accelerate 1.x required by torch 2.8 (0.34 has incompatible meta-tensor handling).
 accelerate>=1.0
 safetensors>=0.4.5
-sentencepiece==0.2.0
+sentencepiece==0.2.1
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 pillow==10.4.0
