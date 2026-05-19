@@ -28,27 +28,18 @@ jobs:
         include:
           - language: javascript-typescript
             build-mode: none
+          # CodeQL Rust extractor (codeql v2.25+) only supports `none` build
+          # mode - it parses sources directly without a cargo build step.
+          # The earlier `manual` mode plan came from older docs.
           - language: rust
-            build-mode: manual
+            build-mode: none
     steps:
       - uses: actions/checkout@v4
-
-      - if: matrix.language == 'rust'
-        uses: ./.github/actions/setup-linux-gui-deps
-
-      - if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@stable
-
-      - if: matrix.language == 'rust'
-        uses: Swatinem/rust-cache@v2
 
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-
-      - if: matrix.build-mode == 'manual'
-        run: cargo build --workspace --all-features
 
       - uses: github/codeql-action/analyze@v3
         with:

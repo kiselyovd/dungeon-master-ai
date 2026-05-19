@@ -83,7 +83,10 @@ jobs:
       - name: Install Playwright browser
         run: bunx playwright install --with-deps chromium
       - name: Run e2e
-        run: bunx playwright test
+        # Use the package.json script so the e2e/playwright.config.ts path is
+        # picked up. A bare `bunx playwright test` would scan from repo root
+        # and pull vitest test files instead.
+        run: bun run e2e
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
