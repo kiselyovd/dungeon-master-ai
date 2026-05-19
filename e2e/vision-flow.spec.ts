@@ -1,5 +1,11 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+
+// __dirname is a CommonJS global; under ESM (which Playwright uses when
+// "type": "module" is set in package.json) it is undefined. Derive it from
+// import.meta.url so the fixture path resolves on the CI runner.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

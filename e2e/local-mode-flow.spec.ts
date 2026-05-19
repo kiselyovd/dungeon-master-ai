@@ -55,7 +55,9 @@ test.beforeEach(async ({ page }) => {
 
 test('local mode modal opens, toggle persists, runtime status shows', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Local Mode/i }).click();
+  // Local Mode modal has no titlebar button - the only documented entry is
+  // the Ctrl+Shift+M keyboard shortcut wired in App.tsx.
+  await page.keyboard.press('Control+Shift+M');
   await expect(page.getByRole('dialog', { name: /local mode/i })).toBeVisible();
 
   const enableCheckbox = page.getByRole('checkbox', { name: /enable local mode/i });
