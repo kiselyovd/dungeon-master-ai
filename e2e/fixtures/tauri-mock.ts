@@ -109,5 +109,16 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
     };
     (window as unknown as { __TAURI_INTERNALS__: typeof internals }).__TAURI_INTERNALS__ =
       internals;
+
+    // The Tauri event plugin lives in a sibling global. listen() resolves
+    // to a function that calls __TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener
+    // on cleanup; without this shim the persist hydrator throws on every
+    // unmount with "Cannot read properties of undefined (reading
+    // 'unregisterListener')" and blocks the UI from settling.
+    (
+      window as unknown as { __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener: () => void } }
+    ).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+      unregisterListener: () => {},
+    };
   }, seed);
 }
