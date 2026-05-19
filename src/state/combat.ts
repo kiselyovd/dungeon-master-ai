@@ -1,4 +1,17 @@
 import type { StateCreator } from 'zustand';
+import type { AoeShape } from '../components/AoeTemplate';
+
+export interface AoeTemplateEntry {
+  id: string;
+  shape: AoeShape;
+  originX: number;
+  originY: number;
+  sizeInFt: number;
+  school: string;
+  rotateDeg: number;
+  /** Unix ms timestamp; auto-removed when Date.now() >= expiresAt. */
+  expiresAt: number;
+}
 
 export interface CombatToken {
   id: string;
@@ -12,6 +25,8 @@ export interface CombatToken {
   isActive?: boolean;
 }
 
+export const DEFAULT_SPEED_FT = 30;
+
 export interface CombatSlice {
   combat: {
     active: boolean;
@@ -20,6 +35,13 @@ export interface CombatSlice {
     initiativeOrder: string[]; // ordered list of token ids
     currentTurnId: string | null;
     round: number;
+
+    actionUsed: boolean;
+    bonusUsed: boolean;
+    reactionUsed: boolean;
+    movementRemaining: number;
+
+    aoeTemplates: AoeTemplateEntry[];
 
     startCombat: (encounterId: string, tokens: CombatToken[]) => void;
     endCombat: () => void;
@@ -30,8 +52,24 @@ export interface CombatSlice {
     setCurrentTurn: (tokenId: string | null) => void;
     advanceRound: () => void;
     moveToken: (tokenId: string, x: number, y: number) => void;
+
+    useAction: () => void;
+    useBonus: () => void;
+    useReaction: () => void;
+    moveBy: (distance: number) => void;
+    endTurn: () => void;
+
+    addAoeTemplate: (template: AoeTemplateEntry) => void;
+    removeAoeTemplate: (id: string) => void;
   };
 }
+
+const econReset = () => ({
+  actionUsed: false,
+  bonusUsed: false,
+  reactionUsed: false,
+  movementRemaining: DEFAULT_SPEED_FT,
+});
 
 export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set) => ({
   combat: {
@@ -41,6 +79,8 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
     initiativeOrder: [],
     currentTurnId: null,
     round: 1,
+    aoeTemplates: [],
+    ...econReset(),
 
     startCombat: (encounterId, tokens) =>
       set((s) => ({
@@ -52,6 +92,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: tokens.map((t) => t.id),
           currentTurnId: tokens[0]?.id ?? null,
           round: 1,
+          ...econReset(),
         },
       })),
 
@@ -65,6 +106,8 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: [],
           currentTurnId: null,
           round: 1,
+          aoeTemplates: [],
+          ...econReset(),
         },
       })),
 
@@ -118,6 +161,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           ...s.combat,
           currentTurnId: tokenId,
           tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
+          ...econReset(),
         },
       })),
 
@@ -128,6 +172,52 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
         combat: {
           ...s.combat,
           tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
+        },
+      })),
+
+    useAction: () => set((s) => ({ combat: { ...s.combat, actionUsed: true } })),
+
+    useBonus: () => set((s) => ({ combat: { ...s.combat, bonusUsed: true } })),
+
+    useReaction: () => set((s) => ({ combat: { ...s.combat, reactionUsed: true } })),
+
+    moveBy: (distance) =>
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          movementRemaining: Math.max(0, s.combat.movementRemaining - distance),
+        },
+      })),
+
+    endTurn: () =>
+      set((s) => {
+        if (s.combat.initiativeOrder.length === 0) {
+          return { combat: s.combat };
+        }
+        const order = s.combat.initiativeOrder;
+        const idx = s.combat.currentTurnId ? order.indexOf(s.combat.currentTurnId) : -1;
+        const nextIdx = (idx + 1) % order.length;
+        const nextId = order[nextIdx] ?? null;
+        return {
+          combat: {
+            ...s.combat,
+            currentTurnId: nextId,
+            tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
+            ...econReset(),
+          },
+        };
+      }),
+
+    addAoeTemplate: (template) =>
+      set((s) => ({
+        combat: { ...s.combat, aoeTemplates: [...s.combat.aoeTemplates, template] },
+      })),
+
+    removeAoeTemplate: (id) =>
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          aoeTemplates: s.combat.aoeTemplates.filter((t) => t.id !== id),
         },
       })),
   },

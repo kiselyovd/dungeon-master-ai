@@ -49,4 +49,30 @@ describe('CombatOverlay', () => {
     expect(getByTestId('combat-token-a')).toBeTruthy();
     expect(getByTestId('combat-token-b')).toBeTruthy();
   });
+
+  it('renders AoeTemplate when aoeTemplates prop has entries', () => {
+    const templates = [
+      {
+        id: 'aoe-test',
+        shape: 'sphere' as const,
+        originX: 60,
+        originY: 90,
+        sizeInFt: 20,
+        school: 'conjuration',
+        rotateDeg: 0,
+        expiresAt: Date.now() + 3000,
+      },
+    ];
+    const { container } = render(
+      <CombatOverlay
+        active={true}
+        tokens={sampleTokens}
+        cellSize={30}
+        widthCells={20}
+        heightCells={20}
+        aoeTemplates={templates}
+      />,
+    );
+    expect(container.querySelector('[data-testid^="aoe-"]')).toBeTruthy();
+  });
 });

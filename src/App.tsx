@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
@@ -98,6 +98,7 @@ function App() {
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
+  const setCurrentTurn = useStore((s) => s.combat.setCurrentTurn);
   const journalEntries = useStore((s) => s.journal.entries);
   const journalOpen = useStore((s) => s.journal.isOpen);
   const closeJournal = useStore((s) => s.journal.close);
@@ -115,6 +116,15 @@ function App() {
   const { open: openSaves, quickSave } = useSaves();
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
+
+  const handleInitiativeSelect = useCallback(
+    (tokenId: string) => {
+      if (combatActive) {
+        setCurrentTurn(tokenId);
+      }
+    },
+    [combatActive, setCurrentTurn],
+  );
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -288,17 +298,10 @@ function App() {
             order={combatOrder}
             round={combatRound}
             activeTokenId={currentTurnId}
+            onSelect={handleInitiativeSelect}
           />
         )}
-        {combatActive && (
-          <ActionBar
-            actionUsed={false}
-            bonusUsed={false}
-            reactionUsed={false}
-            movementFt={30}
-            speedFt={30}
-          />
-        )}
+        {combatActive && <ActionBar />}
         <CharFab
           onOpen={() => setCharacterSheetOpen(true)}
           onOpenWizard={() => setWizardReopen(true)}

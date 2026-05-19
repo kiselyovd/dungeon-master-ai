@@ -38,6 +38,7 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
         {ordered.map((tok, index) => {
           const isActive = activeTokenId === tok.id || (activeTokenId === undefined && index === 0);
           const isDone = activeIndex >= 0 && index < activeIndex;
+          const isDead = tok.hp === 0;
           const hpPct = tok.maxHp > 0 ? (tok.hp / tok.maxHp) * 100 : 0;
           const hpClass = hpPct < 25 ? 'crit' : hpPct < 50 ? 'low' : '';
           return (
@@ -56,7 +57,7 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
               >
                 <div className="dm-init-init">{index + 1}</div>
                 <div className="dm-init-body">
-                  <div className="dm-init-name">{tok.name}</div>
+                  <div className={`dm-init-name${isDead ? ' is-dead' : ''}`}>{tok.name}</div>
                   <div className="dm-init-meta">
                     <span className="dm-init-ac" title={t('ac_label')}>
                       <Icons.Shield size={10} />

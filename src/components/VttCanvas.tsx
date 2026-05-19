@@ -1,7 +1,8 @@
 import { Application, extend } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import vttEmptyArt from '../assets/vtt-empty.png';
 import { useStore } from '../state/useStore';
@@ -35,8 +36,11 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
   const moveToken = useStore((s) => s.combat.moveToken);
+  const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const [showGrid, setShowGrid] = useState(true);
   const [measureMode, setMeasureMode] = useState(false);
+  const [measureOrigin, setMeasureOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [measureCurrent, setMeasureCurrent] = useState<{ x: number; y: number } | null>(null);
 
   // Container-driven canvas size. Initialised to defaults so the very first
   // render before ResizeObserver fires still produces a usable grid.
@@ -120,6 +124,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
     (g: PixiGraphics) => {
       g.clear();
       g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
+      if (!showGrid) return;
       // Vertical lines at 0, cellSize, 2*cellSize, ... and a closing line at
       // `width` so the right-most partial cell is bounded (avoids a dark
       // unstroked strip when width is not a clean multiple of cellSize).
@@ -141,8 +146,56 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
-    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height],
+    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid],
   );
+
+  const onMeasureClick = useCallback(
+    (e: ReactMouseEvent<SVGSVGElement>) => {
+      const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      if (measureOrigin === null) {
+        setMeasureOrigin({ x: px, y: py });
+        setMeasureCurrent({ x: px, y: py });
+      } else {
+        setMeasureOrigin(null);
+        setMeasureCurrent(null);
+      }
+    },
+    [measureOrigin],
+  );
+
+  const onMeasureMouseMove = useCallback(
+    (e: ReactMouseEvent<SVGSVGElement>) => {
+      if (measureOrigin === null) return;
+      const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+      setMeasureCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    },
+    [measureOrigin],
+  );
+
+  useEffect(() => {
+    if (!measureMode) {
+      setMeasureOrigin(null);
+      setMeasureCurrent(null);
+      return;
+    }
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMeasureOrigin(null);
+        setMeasureCurrent(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [measureMode]);
+
+  const measureDistanceFt = useMemo(() => {
+    if (measureOrigin === null || measureCurrent === null) return null;
+    const dx = measureCurrent.x - measureOrigin.x;
+    const dy = measureCurrent.y - measureOrigin.y;
+    return Math.round((Math.sqrt(dx * dx + dy * dy) / cellSize) * 5);
+  }, [measureOrigin, measureCurrent, cellSize]);
 
   const isEmpty = tokens.length === 0 && !combatActive;
 
@@ -161,7 +214,60 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           widthCells={effectiveWidthCells}
           heightCells={effectiveHeightCells}
           onMoveToken={moveToken}
+          aoeTemplates={aoeTemplates}
         />
+        {measureMode && (
+          // biome-ignore lint/a11y/useKeyWithClickEvents: Escape cancellation is handled at window level above; click is the only viable input for placing a measurement origin on a 2D map
+          <svg
+            data-testid="measure-overlay"
+            role="application"
+            aria-label={t('map_measure')}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width,
+              height,
+              cursor: measureOrigin === null ? 'crosshair' : 'cell',
+              pointerEvents: 'all',
+            }}
+            onClick={onMeasureClick}
+            onMouseMove={onMeasureMouseMove}
+          >
+            <title>{t('map_measure')}</title>
+            {measureOrigin !== null && measureCurrent !== null && (
+              <>
+                <line
+                  x1={measureOrigin.x}
+                  y1={measureOrigin.y}
+                  x2={measureCurrent.x}
+                  y2={measureCurrent.y}
+                  stroke="var(--color-accent)"
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                />
+                <circle
+                  cx={measureOrigin.x}
+                  cy={measureOrigin.y}
+                  r={4}
+                  fill="var(--color-accent)"
+                />
+                {measureDistanceFt !== null && (
+                  <text
+                    data-testid="measure-tooltip"
+                    x={measureCurrent.x + 8}
+                    y={measureCurrent.y - 8}
+                    fill="var(--color-fg-primary)"
+                    fontSize={12}
+                    fontFamily="var(--font-mono)"
+                  >
+                    {measureDistanceFt} ft
+                  </text>
+                )}
+              </>
+            )}
+          </svg>
+        )}
       </div>
 
       {isEmpty && (
