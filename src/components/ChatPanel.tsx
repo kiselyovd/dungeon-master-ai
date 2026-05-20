@@ -69,12 +69,19 @@ export function ChatPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
-  const { ref: historyRef, onScroll, scrollToBottom } = useStickyScroll(100);
+  const { ref: historyRef, onScroll, scrollToBottom, reset: resetScroll } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, chatStreamEvents.length, streamingAssistant, scrollToBottom]);
+
+  // Auto-dismiss the image staging error after 4 seconds.
+  useEffect(() => {
+    if (stagingError === null) return;
+    const id = setTimeout(() => setStagingError(null), 4000);
+    return () => clearTimeout(id);
+  }, [stagingError]);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -183,6 +190,7 @@ export function ChatPanel() {
     } else if (e.key === 'Escape' && isStreaming) {
       e.preventDefault();
       cancel();
+      resetScroll();
     }
   };
 
@@ -227,11 +235,14 @@ export function ChatPanel() {
   useEffect(() => {
     if (!isStreaming) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') cancel();
+      if (e.key === 'Escape') {
+        cancel();
+        resetScroll();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isStreaming, cancel]);
+  }, [isStreaming, cancel, resetScroll]);
 
   const isEmptyChat = messages.length === 0 && streamingAssistant === null && !isStreaming;
 
@@ -318,7 +329,7 @@ export function ChatPanel() {
           <div aria-live="polite" className={styles.streamWrapper}>
             <ReasoningPill
               text={streamingReasoning ?? ''}
-              isStreaming={isStreaming && !streamingReasoning}
+              isStreaming={isStreaming && streamingReasoning === null}
             />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
@@ -363,7 +374,10 @@ export function ChatPanel() {
             <button
               type="button"
               className={styles.sendBtn}
-              onClick={cancel}
+              onClick={() => {
+                cancel();
+                resetScroll();
+              }}
               aria-label={t('stop')}
             >
               <Icons.Stop size={14} />

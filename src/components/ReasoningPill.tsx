@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Icons } from '../ui/Icons';
 import styles from './ReasoningPill.module.css';
 
 export interface ReasoningPillProps {
@@ -51,7 +52,7 @@ export function ReasoningPill({ text, isStreaming, totalTokens }: ReasoningPillP
         data-reduced-motion={reducedMotion ? 'true' : 'false'}
         data-testid="reasoning-thinking"
       >
-        {t('reasoning.thinking_with_tokens', { tokens })}
+        {t('reasoning.thinking_with_tokens', { count: tokens })}
       </div>
     );
   }
@@ -67,10 +68,12 @@ export function ReasoningPill({ text, isStreaming, totalTokens }: ReasoningPillP
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
       >
-        {t('reasoning.collapsed_label', { tokens })}
-        <span aria-hidden className={styles.chevron}>
-          {expanded ? 'v' : '>'}
-        </span>
+        {t('reasoning.collapsed_label', { count: tokens })}
+        <Icons.ChevronRight
+          aria-hidden
+          size={10}
+          className={`${styles.chevron} ${expanded ? styles.chevronExpanded : ''}`}
+        />
       </button>
       {expanded && (
         <div className={`${styles.body} ${styles.bodyText}`} data-testid="reasoning-body">

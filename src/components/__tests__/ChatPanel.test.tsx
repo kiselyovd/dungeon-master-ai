@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { fetchSessionMessages } from '../../api/chat';
 import { ChatError } from '../../api/errors';
@@ -206,6 +206,43 @@ describe('ChatPanel', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
     expect(useStore.getState().chat.lastError?.code).toBe('rate_limit');
+  });
+
+  // B6: stagingError auto-dismiss
+  describe('B6 stagingError auto-dismiss', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('stagingError clears automatically after 4 seconds', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      render(<ChatPanel />);
+
+      const input = screen.getByPlaceholderText(/What do you do/i);
+      // Paste an oversized file to trigger a staging error
+      const bigFile = new File([new Uint8Array(6 * 1024 * 1024)], 'big.png', {
+        type: 'image/png',
+      });
+      await act(async () => {
+        fireEvent.paste(input, {
+          clipboardData: {
+            items: [{ kind: 'file', getAsFile: () => bigFile }],
+            types: ['Files'],
+            getData: () => '',
+          },
+        });
+      });
+
+      // The error message must appear
+      expect(screen.getByRole('status')).toBeInTheDocument();
+
+      // Advance 4 seconds - the error must auto-dismiss
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
   });
 
   // B2: inline ToolCallCard tests

@@ -9,6 +9,37 @@ import { useStore } from '../useStore';
  * sets _nextSeq to (max surviving sequenceIndex) + 1 (or 0 if nothing
  * survives) so subsequent appends stay monotonic.
  */
+/**
+ * B6: finalizeAssistant empty-stream placeholder - 1 case
+ *
+ * When a stream ends with streamingAssistant === '' (an empty string, not null),
+ * finalizeAssistant must append a placeholder message with content '(no response)'
+ * rather than silently dropping the turn.
+ */
+describe('chat.finalizeAssistant empty-stream placeholder', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+  });
+
+  it('writes a (no response) placeholder when streamingAssistant is an empty string', () => {
+    // Simulate a turn that started (streamingAssistant set to '') but produced no text
+    useStore.setState((s) => ({
+      chat: { ...s.chat, streamingAssistant: '' },
+    }));
+
+    useStore.getState().chat.finalizeAssistant();
+
+    const state = useStore.getState().chat;
+    expect(state.streamingAssistant).toBeNull();
+    // A placeholder message must have been appended
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]).toMatchObject({
+      role: 'assistant',
+      content: '(no response)',
+    });
+  });
+});
+
 describe('chat.truncateTo', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());

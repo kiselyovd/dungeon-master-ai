@@ -24,5 +24,11 @@ export function useStickyScroll(thresholdPx = 100) {
     el.scrollTop = el.scrollHeight;
   }, [shouldScroll]);
 
-  return { ref, onScroll, scrollToBottom, shouldScroll };
+  // Re-enable auto-scroll after a user-initiated cancel so the next response
+  // is scrolled into view rather than landing off-screen.
+  const reset = useCallback(() => {
+    setShouldScroll(true);
+  }, []);
+
+  return { ref, onScroll, scrollToBottom, shouldScroll, reset };
 }

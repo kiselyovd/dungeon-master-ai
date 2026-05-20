@@ -24,16 +24,17 @@
 
 .close {
   position: absolute;
-  top: -36px;
-  right: -36px;
+  top: 8px;
+  right: 8px;
   width: 32px;
   height: 32px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #000;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
   border: none;
-  font-size: 18px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   padding: 0;
 }

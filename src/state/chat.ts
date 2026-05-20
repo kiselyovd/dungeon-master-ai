@@ -206,11 +206,13 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     finalizeAssistant: () => {
       const current = get().chat.streamingAssistant;
-      if (current === null || current.length === 0) {
-        if (current === '')
-          set((s) => ({ chat: { ...s.chat, streamingAssistant: null, streamingReasoning: null } }));
-        return;
-      }
+      // null means no turn was ever started - nothing to finalize.
+      if (current === null) return;
+      // Empty string means a turn started but produced no text; write a placeholder
+      // so the conversation log always has a visible assistant entry.
+      // TODO: '(no response)' is a hardcoded English literal; if RU locale support
+      // is ever needed, move this to a locale key or localize at the render layer.
+      const content = current.length === 0 ? '(no response)' : current;
       set((s) => {
         const seq = s.chat._nextSeq;
         return {
@@ -219,7 +221,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             _nextSeq: seq + 1,
             messages: [
               ...s.chat.messages,
-              { id: newMessageId(), role: 'assistant', content: current, sequenceIndex: seq },
+              { id: newMessageId(), role: 'assistant', content, sequenceIndex: seq },
             ],
             streamingAssistant: null,
             streamingReasoning: null,
