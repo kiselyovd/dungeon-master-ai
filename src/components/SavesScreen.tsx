@@ -16,6 +16,7 @@ import saveThumbNpc from '../assets/save-thumb-npc.png';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
+import { DmConfirmModal } from './DmConfirmModal';
 
 const TAG_THUMB_SRC: Record<SaveTag, string> = {
   combat: saveThumbCombat,
@@ -128,6 +129,7 @@ export function SavesScreen() {
   // loadErrorKey: 'load_error' (with message) or 'load_generic_error' (no message).
   // null = no error; non-null = error string (always non-empty from rehydrateFromSave).
   const [loadErrorMsg, setLoadErrorMsg] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -195,10 +197,14 @@ export function SavesScreen() {
     });
   };
 
-  const onDelete = async () => {
+  const onDelete = () => {
     if (!selected) return;
-    // eslint-disable-next-line no-alert
-    if (typeof window !== 'undefined' && !window.confirm(t('confirm_delete'))) return;
+    setDeleteConfirmOpen(true);
+  };
+
+  const onDeleteConfirmed = async () => {
+    setDeleteConfirmOpen(false);
+    if (!selected) return;
     await deleteSave(selected.id);
   };
 
@@ -387,7 +393,7 @@ export function SavesScreen() {
                 <button type="button" className="dm-btn-tb" onClick={() => void onOverwrite()}>
                   <Icons.Save size={14} /> {t('overwrite')}
                 </button>
-                <button type="button" className="dm-btn-tb" onClick={() => void onDelete()}>
+                <button type="button" className="dm-btn-tb" onClick={onDelete}>
                   <Icons.X size={14} /> {t('delete')}
                 </button>
               </div>
@@ -395,6 +401,13 @@ export function SavesScreen() {
           )}
         </div>
       </div>
+
+      <DmConfirmModal
+        open={deleteConfirmOpen}
+        message={t('confirm_delete')}
+        onConfirm={() => void onDeleteConfirmed()} // void-wrapper: onDeleteConfirmed is async; DmConfirmModalProps.onConfirm expects () => void
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </div>
   );
 }

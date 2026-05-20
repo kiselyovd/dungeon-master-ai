@@ -111,6 +111,17 @@ describe('EquipmentTab', () => {
     expect(useStore.getState().charCreation.goldRemaining).toBeCloseTo(85, 2);
   });
 
+  it('remove button renders an SVG icon, not the literal text "x"', async () => {
+    render(<EquipmentTab compendium={compendium} />);
+    await userEvent.click(screen.getByRole('radio', { name: /gold/i }));
+    const addBtn = await screen.findByRole('button', { name: /add to inventory/i });
+    await userEvent.click(addBtn);
+    const removeBtn = screen.getByRole('button', { name: /remove/i });
+    // The button must contain an SVG (Icons.X) and NOT the bare text "x"
+    expect(removeBtn.querySelector('svg')).not.toBeNull();
+    expect(removeBtn.textContent?.trim()).not.toBe('x');
+  });
+
   describe('Package mode', () => {
     it('shows "select class first" hint when no class is picked', async () => {
       useStore.getState().charCreation.setDraftField('classId', null);

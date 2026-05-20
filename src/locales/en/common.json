@@ -3,6 +3,8 @@
   "loading": "Loading...",
   "save": "Save",
   "cancel": "Cancel",
+  "confirm": "Confirm",
+  "confirm_title": "Are you sure?",
   "close": "Close",
   "settings": "Settings",
   "local_mode": "Local Mode",

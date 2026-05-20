@@ -141,20 +141,51 @@ describe('SavesScreen', () => {
     });
   });
 
-  it('clicking Delete issues deleteSaveById on the selected row', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('clicking Delete opens DmConfirmModal (no window.confirm)', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
-      // The title appears once in the row + once in the right-page detail
-      // (auto-selected on mount), so use getAllByText.
       expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
     });
     await user.click(screen.getByRole('button', { name: /Delete/i }));
+    // The DmConfirmModal confirm button should now be visible
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeInTheDocument();
+    // window.confirm must NOT have been called
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('confirming the DmConfirmModal issues deleteSaveById on the selected row', async () => {
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Delete/i }));
+    // Confirm in the modal
+    await user.click(screen.getByRole('button', { name: /^confirm$/i }));
     await waitFor(() => {
       expect(deleteSaveByIdMock).toHaveBeenCalledWith('s1');
     });
-    confirmSpy.mockRestore();
+  });
+
+  it('cancelling the DmConfirmModal does NOT call deleteSaveById and closes the modal', async () => {
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    // Open the confirm modal
+    await user.click(screen.getByRole('button', { name: /Delete/i }));
+    expect(screen.getByRole('button', { name: /^confirm$/i })).toBeInTheDocument();
+    // Click Cancel
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    // The destructive action must NOT have run
+    expect(deleteSaveByIdMock).not.toHaveBeenCalled();
+    // The DmConfirmModal inner dialog must be gone (Modal renders null when closed);
+    // only the SavesScreen overlay dialog remains, so exactly one dialog element is present.
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 
   it('search box filters by title and summary', async () => {
