@@ -110,9 +110,9 @@ export interface ChatSlice {
     /**
      * Remove the message with the given id AND every message after it, then
      * clear all transient turn state (stream events, partial buffers, errors,
-     * reasoning streams).  _nextSeq is set to (max surviving sequenceIndex) + 1
-     * so subsequent appends stay monotonic and do not collide with earlier
-     * sequence indices.
+     * reasoning streams, and isStreaming).  _nextSeq is set to
+     * (max surviving sequenceIndex) + 1 so subsequent appends stay monotonic
+     * and do not collide with earlier sequence indices.
      *
      * @remarks Intended to be called when no turn is actively streaming. The
      * retry path guards `isStreaming` before calling this action. A caller that
@@ -165,9 +165,17 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       }),
 
     setMessages: (messages) =>
-      set((s) => ({
-        chat: { ...s.chat, messages },
-      })),
+      set((s) => {
+        // Recompute _nextSeq so it is always greater than every loaded message's
+        // sequenceIndex. Mirrors the same scan used in truncateTo.
+        let nextSeq = 0;
+        for (const m of messages) {
+          if (m.sequenceIndex !== undefined && m.sequenceIndex >= nextSeq) {
+            nextSeq = m.sequenceIndex + 1;
+          }
+        }
+        return { chat: { ...s.chat, messages, _nextSeq: nextSeq } };
+      }),
 
     appendAssistantDelta: (delta) => {
       if (delta.length === 0) return;
@@ -269,6 +277,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             reasoningStreams: new Map<string, string>(),
             lastError: null,
             abortController: null,
+            isStreaming: false,
           },
         };
       }),

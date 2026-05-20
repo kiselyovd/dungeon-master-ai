@@ -27,6 +27,7 @@
   "image_preview": "image preview",
   "image": "image",
   "vision_disabled": "Multimodal input is disabled - turn it on in Settings → Chat.",
+  "attachments_not_sent": "Image attachments are not sent yet - vision support is coming.",
   "reasoning_thinking_label": "thinking",
   "reasoning_streaming_label": "thinking...",
   "reasoning": {

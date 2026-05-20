@@ -208,6 +208,65 @@ describe('ChatPanel', () => {
     expect(useStore.getState().chat.lastError?.code).toBe('rate_limit');
   });
 
+  // Final-review: staged images are not sent - notice shown, text still sent
+  describe('staged-image send notice', () => {
+    it('shows attachments_not_sent notice when sending with staged images and still sends the text', async () => {
+      // Enable vision so paste actually stages the image (visionEnabled=false by default)
+      useStore.setState((s) => ({
+        settings: { ...s.settings, visionEnabled: true },
+      }));
+
+      const user = userEvent.setup();
+      // Keep the stream pending so the status element is still mounted when we assert
+      let resolveStream!: () => void;
+      const streamPending = new Promise<void>((resolve) => {
+        resolveStream = resolve;
+      });
+      streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
+        await streamPending;
+        opts.onTextDelta('reply');
+        opts.onAgentDone(1);
+      });
+
+      render(<ChatPanel />);
+      const input = screen.getByPlaceholderText(/What do you do/i);
+
+      // Stage an image via paste
+      const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+      const imageFile = new File([pngBytes], 'pic.png', { type: 'image/png' });
+      await user.click(input);
+      await act(async () => {
+        fireEvent.paste(input, {
+          clipboardData: {
+            items: [{ kind: 'file', getAsFile: () => imageFile }],
+            types: ['Files'],
+            getData: () => '',
+          },
+        });
+      });
+
+      // Type text so the Send button becomes enabled
+      await user.type(input, 'look around');
+      fireEvent.click(screen.getByRole('button', { name: /Send/i }));
+
+      // The notice must appear in the staging-error slot.
+      // Use getAllByRole because the TypingIndicator also carries role="status"
+      // while the stream is pending.
+      await waitFor(() => {
+        const statuses = screen.getAllByRole('status');
+        const notice = statuses.find((el) => /not sent yet/i.test(el.textContent ?? ''));
+        expect(notice).toBeTruthy();
+      });
+
+      // The text must still have been sent via streamAgentTurn
+      expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
+      expect(streamAgentTurnMock.mock.calls[0]?.[0].playerMessage).toBe('look around');
+
+      // Settle the stream to clean up
+      resolveStream();
+    });
+  });
+
   // B6: stagingError auto-dismiss
   describe('B6 stagingError auto-dismiss', () => {
     afterEach(() => {

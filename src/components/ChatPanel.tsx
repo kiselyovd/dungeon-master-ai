@@ -178,8 +178,14 @@ export function ChatPanel() {
     if (!canSend) return;
     const text = draft;
     setDraft('');
+    if (staged.length > 0) {
+      // Vision multipart is not yet wired to the backend. Surface a non-blocking
+      // notice so the user knows their attachments were not sent, then clear them.
+      setStagingError(t('attachments_not_sent'));
+    } else {
+      setStagingError(null);
+    }
     setStaged([]);
-    setStagingError(null);
     await send(text);
   };
 
