@@ -5,10 +5,10 @@
 }
 
 .sectionTitle {
-  font-family: var(--font-jetbrains, "JetBrains Mono", monospace);
+  font-family: var(--font-mono);
   font-size: 13px;
   letter-spacing: 0.6px;
-  color: rgba(232, 224, 208, 0.85);
+  color: var(--color-fg-secondary);
   margin: 0 0 6px 0;
   text-transform: uppercase;
 }

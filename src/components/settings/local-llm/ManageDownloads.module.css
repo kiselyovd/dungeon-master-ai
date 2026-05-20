@@ -1,0 +1,36 @@
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.row {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.rowContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.label {
+  flex: 1;
+}
+
+.progress {
+  margin-top: var(--space-1);
+  height: 4px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 2px;
+}
+
+.progressBar {
+  height: 100%;
+  background: rgba(212, 175, 55, 0.6);
+}
+
+.errorText {
+  color: rgba(220, 100, 100, 0.9);
+}

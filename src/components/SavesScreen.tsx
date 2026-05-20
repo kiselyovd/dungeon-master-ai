@@ -13,6 +13,7 @@ import saveThumbCombat from '../assets/save-thumb-combat.png';
 import saveThumbDialog from '../assets/save-thumb-dialog.png';
 import saveThumbExploration from '../assets/save-thumb-exploration.png';
 import saveThumbNpc from '../assets/save-thumb-npc.png';
+import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
 
@@ -120,6 +121,7 @@ export function SavesScreen() {
     selectSave,
     close,
   } = useSaves();
+  const { isClosing, triggerClose } = useClosingAnimation(close);
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -176,7 +178,7 @@ export function SavesScreen() {
     if (!mountedRef.current) return;
     setIsLoading(false);
     if (result.ok) {
-      close();
+      triggerClose();
     } else {
       // Store the raw error string (may be empty/generic); rendered via i18n keys below.
       setLoadErrorMsg(result.error);
@@ -228,12 +230,13 @@ export function SavesScreen() {
   return (
     <div
       className="dm-saves-overlay"
+      data-state={isClosing ? 'closing' : 'open'}
       role="dialog"
       aria-modal="true"
       aria-label={t('title')}
-      onClick={close}
+      onClick={triggerClose}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') close();
+        if (e.key === 'Escape') triggerClose();
       }}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation only - keyboard a11y is on the parent overlay */}
@@ -247,7 +250,7 @@ export function SavesScreen() {
         <button
           type="button"
           className="dm-saves-close"
-          onClick={close}
+          onClick={triggerClose}
           aria-label={t('close_aria')}
         >
           <Icons.X size={14} />

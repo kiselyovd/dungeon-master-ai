@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
@@ -112,5 +112,36 @@ describe('SettingsModal', () => {
     await waitFor(() => {
       expect(postSettingsV2).toHaveBeenCalled();
     });
+  });
+
+  it('modal content is removed from the DOM after Cancel is clicked and animation completes', async () => {
+    // Use fake timers so we can fast-forward the 280ms closing animation.
+    vi.useFakeTimers();
+    try {
+      // Simulate a controlled parent: open=true, then open=false after onClose fires.
+      let openState = true;
+      const onClose = vi.fn().mockImplementation(() => {
+        openState = false;
+      });
+
+      const { rerender } = render(<SettingsModal open={openState} onClose={onClose} />);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // Click Cancel - this calls triggerClose inside the hook.
+      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+
+      // Advance past the 280ms animation window.
+      await act(async () => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // onClose should have fired; re-render with open=false to match real App.tsx behaviour.
+      expect(onClose).toHaveBeenCalledOnce();
+      rerender(<SettingsModal open={false} onClose={onClose} />);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

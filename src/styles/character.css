@@ -4,8 +4,8 @@
  * docs/superpowers/design/components/onboarding.jsx (lines 167-271).
  *
  * Self-contained - re-uses theme tokens from theme.css. The modal sits
- * just above the VTT scrim (z-index 900) but below the onboarding
- * overlay (1000) so the first-run wizard always wins focus.
+ * at the modal tier (--z-modal), the same tier as Saves, CharacterWizard,
+ * and Onboarding; on first run only one modal is open at a time.
  */
 
 /* ---- FAB ------------------------------------------------------------- */
@@ -50,12 +50,36 @@
   font-size: var(--text-xs);
 }
 
+/* ---- Slide animations ------------------------------------------------ */
+
+@keyframes charSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes charSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+
 /* ---- Modal backdrop -------------------------------------------------- */
 
 .dm-modal-backdrop.dm-char-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,6 +101,11 @@
   padding: var(--space-6);
   position: relative;
   color: var(--color-fg-primary);
+  animation: charSlideIn var(--t-slow) ease both;
+}
+
+.dm-modal-backdrop.dm-char-backdrop[data-state="closing"] .dm-char {
+  animation: charSlideOut var(--t-slow) ease both;
 }
 
 .dm-modal-header {
@@ -93,10 +122,6 @@
   font-size: var(--text-xl);
   letter-spacing: var(--tracking-display);
   color: var(--color-accent);
-}
-
-.dm-display {
-  font-family: var(--font-display);
 }
 
 .dm-btn-icon {
@@ -120,12 +145,6 @@
   color: var(--color-fg-primary);
   border-color: var(--color-accent);
   background: transparent;
-}
-
-.dm-mono {
-  font-family: var(--font-mono);
-  font-feature-settings: "tnum";
-  letter-spacing: var(--tracking-mono);
 }
 
 /* ---- Header (portrait + info + xp) ---------------------------------- */

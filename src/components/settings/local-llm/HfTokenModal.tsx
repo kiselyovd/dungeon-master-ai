@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setToken } from '../../../api/hf';
+import { Button } from '../../../ui/Button';
+import { Modal } from '../../../ui/Modal';
+import styles from './HfTokenModal.module.css';
 
 export interface HfTokenModalProps {
   open: boolean;
@@ -13,14 +16,24 @@ export interface HfTokenModalProps {
  * `HfTokenRow` for both the "Add token" and "Replace" flows. On save the
  * token is POSTed to `/hf/token` via `api/hf.setToken`, then `onSaved` fires
  * so the parent can refresh status, and `onClose` runs to dismiss the modal.
+ *
+ * Focus-trap, ESC-to-close, and backdrop-click-to-close are all handled by
+ * the shared Modal primitive.
  */
 export function HfTokenModal({ open, onClose, onSaved }: HfTokenModalProps) {
   const { t } = useTranslation('local_llm');
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) {
+      setValue('');
+      setErr(null);
+    }
+  }, [open]);
 
   async function save() {
     setBusy(true);
@@ -30,54 +43,62 @@ export function HfTokenModal({ open, onClose, onSaved }: HfTokenModalProps) {
       onSaved();
       onClose();
     } catch (e) {
-      setErr(String(e));
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
   }
 
+  const canSave = value.trim().length > 0 && !busy;
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-    >
-      <div style={{ background: '#1a1611', padding: 24, borderRadius: 8, minWidth: 360 }}>
-        <h3>{t('hf_token_title')}</h3>
-        <label htmlFor="hf-token-input" style={{ display: 'block', marginBottom: 8 }}>
-          {t('hf_token_label')}
-        </label>
-        <input
-          id="hf-token-input"
-          type="password"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          style={{ width: '100%', padding: 8 }}
-        />
-        {err && <p style={{ color: 'crimson' }}>{err}</p>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button type="button" onClick={onClose} disabled={busy}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('hf_token_title')}
+      footer={
+        <>
+          <Button onClick={onClose} disabled={busy}>
             {t('cancel')}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!canSave}
             onClick={() => {
               void save();
             }}
-            disabled={busy || !value.trim()}
           >
             {t('save')}
-          </button>
-        </div>
+          </Button>
+        </>
+      }
+    >
+      <div className={styles.fieldRow}>
+        <label htmlFor={inputId} className={styles.label}>
+          {t('hf_token_label')}
+        </label>
+        <input
+          id={inputId}
+          type="password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className={styles.input}
+          aria-invalid={err != null}
+          aria-describedby={err != null ? errorId : undefined}
+          // biome-ignore lint/a11y/noAutofocus: token input should receive focus immediately when the modal opens
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && canSave) {
+              void save();
+            }
+          }}
+        />
+        {err && (
+          <p id={errorId} role="alert" className={styles.error}>
+            {err}
+          </p>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

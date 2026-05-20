@@ -1,0 +1,4 @@
+.option {
+  display: block;
+  padding: var(--space-1) 0;
+}

@@ -4,6 +4,28 @@
  * grid, and in-game day / session-duration cells are deferred to v2.
  */
 
+@keyframes savesScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes savesScaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
 .dm-saves-overlay {
   position: fixed;
   inset: 0;
@@ -11,7 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
   backdrop-filter: blur(2px);
 }
 
@@ -26,6 +48,11 @@
   height: min(720px, 92vh);
   position: relative;
   color: var(--color-fg-primary);
+  animation: savesScaleIn var(--t-slow) ease both;
+}
+
+.dm-saves-overlay[data-state="closing"] .dm-saves-tome {
+  animation: savesScaleOut var(--t-slow) ease both;
 }
 
 .dm-saves-close {
@@ -446,7 +473,7 @@
   border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   box-shadow: var(--glow-accent);
-  z-index: 1100;
+  z-index: var(--z-toast);
   font-family: var(--font-mono);
   display: flex;
   align-items: center;

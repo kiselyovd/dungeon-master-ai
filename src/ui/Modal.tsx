@@ -7,6 +7,10 @@ interface ModalProps {
   title: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
+  /** When provided, renders `data-state="closing"` on the dialog so the exit
+   * animation keyframe fires. Consumers that do not need an exit animation
+   * may omit this prop - it is fully optional and additive. */
+  closing?: boolean;
 }
 
 /**
@@ -19,7 +23,7 @@ interface ModalProps {
  * - Returns focus to the previously-focused element on close
  * - Backdrop click closes (consumers can stop propagation if undesired)
  */
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, closing }: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -83,6 +87,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
+      {...(closing !== undefined ? { 'data-state': closing ? 'closing' : 'open' } : {})}
     >
       <div
         ref={dialogRef}
@@ -91,6 +96,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         aria-labelledby={titleId}
         tabIndex={-1}
         className={styles.dialog}
+        {...(closing !== undefined ? { 'data-state': closing ? 'closing' : 'open' } : {})}
       >
         <h2 id={titleId} className={styles.title}>
           {title}

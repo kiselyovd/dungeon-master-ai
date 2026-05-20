@@ -4,6 +4,7 @@
   "manage_downloads": "Manage downloads",
   "search_hf": "Search Hugging Face",
   "installed_count": "{{installed}} / {{total}} installed",
+  "hf_search_count": "{{count}} models",
   "active_model_section": "Active model",
   "download": "Download",
   "delete": "Delete",

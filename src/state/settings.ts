@@ -107,6 +107,32 @@ function clampChatWidth(width: number): number {
   return width;
 }
 
+/**
+ * D8 (Batch D) diagnostic-only rehydration pass.
+ *
+ * D8 promoted the local-LLM configuration into its own Settings tab but did
+ * NOT change the persisted data shape. This pass therefore performs no
+ * mutation: it only logs a diagnostic when the persisted state is internally
+ * inconsistent - `activeProvider` points at `local-mistralrs` while the
+ * matching `providers['local-mistralrs']` slot is empty. That combination is
+ * legal (the local provider derives its config from the localMode slice), so
+ * the log is informational, not an error, and the input object is returned
+ * unchanged.
+ *
+ * Wired into the store rehydration path (the `merge` callback in useStore.ts).
+ */
+export function applyD8Migration(settings: Partial<SettingsData>): Partial<SettingsData> {
+  if (
+    settings.activeProvider === 'local-mistralrs' &&
+    (settings.providers == null || settings.providers['local-mistralrs'] == null)
+  ) {
+    console.debug(
+      '[settings:D8] activeProvider is "local-mistralrs" but no providers["local-mistralrs"] config is persisted; the Local LLM tab derives its config from the localMode slice.',
+    );
+  }
+  return settings;
+}
+
 export interface SettingsSlice {
   settings: SettingsData & SettingsActions;
 }

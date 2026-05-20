@@ -177,8 +177,7 @@ describe('ModelSelector', () => {
       />,
     );
     expect(screen.getByText(/Custom HF repo/i)).toBeInTheDocument();
-    const placeholders = screen.getAllByText(/coming soon/i);
-    expect(placeholders.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/point local-mistralrs/i)).toBeInTheDocument();
   });
 
   it('marks the selected row with aria-selected=true', () => {

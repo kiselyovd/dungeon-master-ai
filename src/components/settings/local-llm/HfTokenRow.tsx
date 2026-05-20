@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clearToken, getTokenStatus, type TokenStatus } from '../../../api/hf';
 import { HfTokenModal } from './HfTokenModal';
+import styles from './HfTokenRow.module.css';
 
 /**
  * Compact status row for the Hugging Face access token. Renders the masked
@@ -27,7 +28,7 @@ export function HfTokenRow() {
   }, [refresh]);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+    <div className={styles.row}>
       <span>
         {t('hf_token_status')}:{' '}
         {status.connected ? (

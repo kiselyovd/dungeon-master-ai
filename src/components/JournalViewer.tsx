@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import type { JournalEntry } from '../state/journal';
 import styles from './JournalViewer.module.css';
 
@@ -15,6 +16,7 @@ interface Props {
  */
 export function JournalViewer({ entries, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { isClosing, triggerClose } = useClosingAnimation(onClose);
   useEffect(() => {
     containerRef.current?.focus();
   }, []);
@@ -34,12 +36,13 @@ export function JournalViewer({ entries, onClose }: Props) {
   return (
     <div
       className={styles.overlay}
+      data-state={isClosing ? 'closing' : 'open'}
       role="dialog"
       aria-modal="true"
       aria-label={t('title')}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
-          onClose();
+          triggerClose();
         }
       }}
     >
@@ -49,7 +52,7 @@ export function JournalViewer({ entries, onClose }: Props) {
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={onClose}
+            onClick={triggerClose}
             aria-label={t('close')}
           >
             &#x2715;

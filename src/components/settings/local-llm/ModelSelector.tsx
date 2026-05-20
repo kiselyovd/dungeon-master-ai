@@ -86,7 +86,7 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
         />
       </CollapsibleCard>
 
-      <CollapsibleCard title={t('search_hf')} chip="12k+">
+      <CollapsibleCard title={t('search_hf')} chip={t('hf_search_count', { count: merged.length })}>
         <HfSearch />
       </CollapsibleCard>
     </div>

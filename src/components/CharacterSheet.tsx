@@ -25,6 +25,7 @@ import portraitFighter from '../assets/char-portrait-fighter.png';
 import portraitPaladin from '../assets/char-portrait-paladin.png';
 import portraitRogue from '../assets/char-portrait-rogue.png';
 import portraitWizard from '../assets/char-portrait-wizard.png';
+import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import {
   type AbilityScores,
   abilityMod,
@@ -103,16 +104,17 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
   const { t } = useTranslation('character');
   const pc = useStore((s) => s.pc);
   const resetOnboarding = useStore((s) => s.onboarding.reset);
+  const { isClosing, triggerClose } = useClosingAnimation(onClose);
 
   // Escape closes the modal.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') triggerClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, triggerClose]);
 
   // Pre-compute mods so the JSX stays tidy.
   const abilityMods = useMemo(() => {
@@ -127,19 +129,20 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
     return result;
   }, [pc.abilities]);
 
-  if (!open) return null;
+  if (!open && !isClosing) return null;
 
   // Empty state: no character has been created yet.
   if (pc.name === null) {
     return (
       <div
         className="dm-modal-backdrop dm-char-backdrop"
+        data-state={isClosing ? 'closing' : 'open'}
         role="dialog"
         aria-modal="true"
         aria-label={t('title')}
-        onClick={onClose}
+        onClick={triggerClose}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onClose();
+          if (e.key === 'Escape') triggerClose();
         }}
       >
         {/* biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation only - keyboard a11y is on the parent overlay */}
@@ -150,7 +153,7 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
             <button
               type="button"
               className="dm-btn-icon"
-              onClick={onClose}
+              onClick={triggerClose}
               aria-label={t('close_aria')}
             >
               <Icons.X size={14} />
@@ -164,7 +167,7 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
               className="dm-onboarding-btn dm-onboarding-btn-primary"
               onClick={() => {
                 resetOnboarding();
-                onClose();
+                triggerClose();
               }}
             >
               <Icons.Sparkle size={14} />
@@ -208,12 +211,13 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
   return (
     <div
       className="dm-modal-backdrop dm-char-backdrop"
+      data-state={isClosing ? 'closing' : 'open'}
       role="dialog"
       aria-modal="true"
       aria-label={t('title')}
-      onClick={onClose}
+      onClick={triggerClose}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+        if (e.key === 'Escape') triggerClose();
       }}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation only - keyboard a11y is on the parent overlay */}
@@ -224,7 +228,7 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
           <button
             type="button"
             className="dm-btn-icon"
-            onClick={onClose}
+            onClick={triggerClose}
             aria-label={t('close_aria')}
           >
             <Icons.X size={14} />

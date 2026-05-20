@@ -174,10 +174,6 @@ export function ModelSelector({
           <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
         )}
       </Section>
-      <Section label={t('section_search_hf')}>
-        <p className={styles.placeholderHelper}>{t('model_selector_search_disabled_helper')}</p>
-      </Section>
-
       {onCustomSave ? (
         <CustomHfRepoModal
           open={customModalOpen}

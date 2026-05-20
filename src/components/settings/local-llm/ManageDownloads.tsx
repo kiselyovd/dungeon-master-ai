@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { MergedEntry } from '../../../state/local_llm/manifest';
+import styles from './ManageDownloads.module.css';
 
 export interface ManageDownloadsProps {
   models: MergedEntry[];
@@ -11,7 +12,7 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
   const { t } = useTranslation('local_llm');
 
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+    <ul className={styles.list}>
       {models.map((m) => {
         const pct = m.downloadProgress !== undefined ? Math.round(m.downloadProgress * 100) : null;
         const isDownloading =
@@ -19,13 +20,9 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
           m.downloadState === 'downloading' ||
           m.downloadState === 'verifying';
         return (
-          <li
-            key={m.id}
-            data-testid="download-row"
-            style={{ padding: '8px 0', borderBottom: '1px solid rgba(212,175,55,0.1)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ flex: 1 }}>
+          <li key={m.id} data-testid="download-row" className={styles.row}>
+            <div className={styles.rowContent}>
+              <span className={styles.label}>
                 {m.display_name}{' '}
                 <small>
                   ({m.size_gb} GB, {m.license})
@@ -53,26 +50,14 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={pct}
-                style={{
-                  marginTop: 4,
-                  height: 4,
-                  background: 'rgba(212,175,55,0.1)',
-                  borderRadius: 2,
-                }}
+                className={styles.progress}
               >
-                <div
-                  style={{
-                    width: `${pct}%`,
-                    height: '100%',
-                    background: 'rgba(212,175,55,0.6)',
-                  }}
-                />
+                {/* width is runtime-computed from downloadProgress - kept inline */}
+                <div className={styles.progressBar} style={{ width: `${pct}%` }} />
               </div>
             )}
             {m.downloadState === 'error' && (
-              <small style={{ color: 'rgba(220, 100, 100, 0.9)' }}>
-                {m.errorMessage ?? t('download_error')}
-              </small>
+              <small className={styles.errorText}>{m.errorMessage ?? t('download_error')}</small>
             )}
           </li>
         );
