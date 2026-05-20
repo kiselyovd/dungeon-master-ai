@@ -201,6 +201,8 @@
 
 .dm-mono {
   font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  letter-spacing: var(--tracking-mono);
 }
 
 .dm-display {
