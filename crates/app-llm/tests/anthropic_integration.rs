@@ -1,3 +1,15 @@
+//! Live integration test: Anthropic Haiku 4.5 streams a real text response.
+//!
+//! This test is `#[ignore]` by default - it requires a real `ANTHROPIC_API_KEY`
+//! with credits. Run explicitly with:
+//!
+//! ```bash
+//! ANTHROPIC_API_KEY=sk-... cargo test -p app-llm --test anthropic_integration -- --ignored
+//! ```
+//!
+//! Verifies that a streamed chat request yields `TextDelta` chunks ending in a
+//! `Done`, with the model reply containing the expected token.
+
 use app_llm::{AnthropicProvider, ChatChunk, ChatMessage, ChatRequest, LlmProvider};
 use futures::StreamExt;
 
@@ -8,6 +20,7 @@ fn skip_unless_env() -> Option<String> {
 }
 
 #[tokio::test]
+#[ignore = "requires live Anthropic key with credits"]
 async fn anthropic_streams_real_response_when_key_present() {
     let Some(key) = skip_unless_env() else {
         eprintln!("skipped: ANTHROPIC_API_KEY not set");
