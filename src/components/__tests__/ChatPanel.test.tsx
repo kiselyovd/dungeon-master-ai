@@ -328,4 +328,168 @@ describe('ChatPanel', () => {
       expect(card).toHaveClass(errorClass);
     });
   });
+
+  // B5: retry flow tests
+  describe('B5 retry flow', () => {
+    it('retry rebuilds the agent turn from the last user message', async () => {
+      // Seed a completed two-message turn: user -> assistant
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          _nextSeq: 2,
+          messages: [
+            { id: 'u1', role: 'user', content: 'attack the goblin', sequenceIndex: 0 },
+            { id: 'a1', role: 'assistant', content: 'You strike!', sequenceIndex: 1 },
+          ],
+        },
+      }));
+
+      streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
+        opts.onTextDelta('You strike again!');
+        opts.onAgentDone(1);
+      });
+
+      render(<ChatPanel />);
+
+      // The assistant bubble's Retry button must be present (isNarrator = finalized assistant)
+      const retryBtn = screen.getByLabelText(/retry/i);
+      expect(retryBtn).toBeInTheDocument();
+
+      fireEvent.click(retryBtn);
+
+      await waitFor(() => {
+        expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
+      });
+      // The agent was called with the original user message text
+      expect(streamAgentTurnMock.mock.calls[0]?.[0].playerMessage).toBe('attack the goblin');
+
+      await waitFor(() => {
+        // The new assistant reply must be in the DOM
+        expect(screen.getByText('You strike again!')).toBeInTheDocument();
+      });
+
+      // There must still be exactly one user message (no duplicate)
+      const state = useStore.getState().chat;
+      const userMsgs = state.messages.filter((m) => m.role === 'user');
+      expect(userMsgs).toHaveLength(1);
+      expect(userMsgs[0]).toMatchObject({ content: 'attack the goblin' });
+    });
+
+    it('"Retrying..." indicator is visible during replay and gone once settled', async () => {
+      // Seed a completed turn so the Retry button is rendered.
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          _nextSeq: 2,
+          messages: [
+            { id: 'u1', role: 'user', content: 'search the room', sequenceIndex: 0 },
+            { id: 'a1', role: 'assistant', content: 'You find nothing.', sequenceIndex: 1 },
+          ],
+        },
+      }));
+
+      // Hold the stream open until we manually resolve.
+      let resolveStream!: () => void;
+      const streamPending = new Promise<void>((resolve) => {
+        resolveStream = resolve;
+      });
+      streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
+        await streamPending;
+        opts.onTextDelta('You find a key!');
+        opts.onAgentDone(1);
+      });
+
+      render(<ChatPanel />);
+
+      const retryBtn = screen.getByLabelText(/retry/i);
+      fireEvent.click(retryBtn);
+
+      // The retrying indicator must appear immediately (before the stream settles).
+      expect(screen.getByTestId('retrying-indicator')).toBeInTheDocument();
+
+      // Let the stream complete.
+      resolveStream();
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('retrying-indicator')).not.toBeInTheDocument();
+      });
+    });
+
+    it('retry is a no-op while a turn is already streaming', async () => {
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          _nextSeq: 2,
+          messages: [
+            { id: 'u1', role: 'user', content: 'first message', sequenceIndex: 0 },
+            { id: 'a1', role: 'assistant', content: 'first reply', sequenceIndex: 1 },
+          ],
+          isStreaming: true,
+        },
+      }));
+
+      render(<ChatPanel />);
+
+      // With isStreaming=true the Retry button must be disabled so clicking it is a no-op
+      const retryBtn = screen.getByLabelText(/retry/i);
+      expect(retryBtn).toBeDisabled();
+
+      fireEvent.click(retryBtn);
+
+      // streamAgentTurn must not be called at all
+      expect(streamAgentTurnMock).not.toHaveBeenCalled();
+    });
+
+    it('retry on intermediate assistant message rewinds to that turn and replays', async () => {
+      // Seed a 4-message conversation: user1 -> assistant1 -> user2 -> assistant2
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          _nextSeq: 4,
+          messages: [
+            { id: 'u1', role: 'user', content: 'first action', sequenceIndex: 0 },
+            { id: 'a1', role: 'assistant', content: 'first reply', sequenceIndex: 1 },
+            { id: 'u2', role: 'user', content: 'second action', sequenceIndex: 2 },
+            { id: 'a2', role: 'assistant', content: 'second reply', sequenceIndex: 3 },
+          ],
+        },
+      }));
+
+      streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
+        opts.onTextDelta('replayed reply');
+        opts.onAgentDone(1);
+      });
+
+      render(<ChatPanel />);
+
+      // Find the Retry button on the first assistant bubble (a1 = "first reply")
+      // There are two assistant bubbles; getAllByLabelText returns them in DOM order.
+      const retryBtns = screen.getAllByLabelText(/retry/i);
+      // First button belongs to a1 (the intermediate message)
+      const firstRetryBtn = retryBtns[0];
+      if (!firstRetryBtn) throw new Error('Expected at least one retry button');
+      fireEvent.click(firstRetryBtn);
+
+      await waitFor(() => {
+        expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
+      });
+
+      // send must have been called with the user message that preceded a1
+      expect(streamAgentTurnMock.mock.calls[0]?.[0].playerMessage).toBe('first action');
+
+      await waitFor(() => {
+        expect(screen.getByText('replayed reply')).toBeInTheDocument();
+      });
+
+      const state = useStore.getState().chat;
+      // user2 and a2 are gone; only user1 (re-appended by send) and the new assistant reply remain
+      const userMsgs = state.messages.filter((m) => m.role === 'user');
+      expect(userMsgs).toHaveLength(1);
+      expect(userMsgs[0]).toMatchObject({ content: 'first action' });
+
+      // The trailing messages (second action / second reply) must be gone
+      expect(state.messages.find((m) => m.content === 'second action')).toBeUndefined();
+      expect(state.messages.find((m) => m.content === 'second reply')).toBeUndefined();
+    });
+  });
 });

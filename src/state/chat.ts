@@ -107,6 +107,20 @@ export interface ChatSlice {
     setMessages: (messages: ChatMessage[]) => void;
     reset: () => void;
 
+    /**
+     * Remove the message with the given id AND every message after it, then
+     * clear all transient turn state (stream events, partial buffers, errors,
+     * reasoning streams).  _nextSeq is set to (max surviving sequenceIndex) + 1
+     * so subsequent appends stay monotonic and do not collide with earlier
+     * sequence indices.
+     *
+     * @remarks Intended to be called when no turn is actively streaming. The
+     * retry path guards `isStreaming` before calling this action. A caller that
+     * invokes it mid-stream will clear the abort controller without aborting the
+     * live request, leaving an orphaned in-flight fetch.
+     */
+    truncateTo: (messageId: string) => void;
+
     /** Mark the start of a stream and store the controller used to abort it. */
     beginStream: (controller: AbortController) => void;
     /** Mark the stream ended (success or error). Clears the controller. */
@@ -227,6 +241,35 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           lastError: null,
         },
       })),
+
+    truncateTo: (messageId) =>
+      set((s) => {
+        const cutIdx = s.chat.messages.findIndex((m) => m.id === messageId);
+        // If the message is not found, leave state unchanged.
+        if (cutIdx === -1) return s;
+        const surviving = s.chat.messages.slice(0, cutIdx);
+        // Compute the next sequence index so appends after the truncate are
+        // monotonically ordered and never collide with surviving message indices.
+        let nextSeq = 0;
+        for (const m of surviving) {
+          if (m.sequenceIndex !== undefined && m.sequenceIndex >= nextSeq) {
+            nextSeq = m.sequenceIndex + 1;
+          }
+        }
+        return {
+          chat: {
+            ...s.chat,
+            messages: surviving,
+            _nextSeq: nextSeq,
+            chatStreamEvents: [],
+            streamingAssistant: null,
+            streamingReasoning: null,
+            reasoningStreams: new Map<string, string>(),
+            lastError: null,
+            abortController: null,
+          },
+        };
+      }),
 
     beginStream: (controller) =>
       set((s) => ({

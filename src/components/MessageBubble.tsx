@@ -77,9 +77,13 @@ interface MessageBubbleProps {
   parts?: MessagePart[];
   /**
    * Called when the player clicks "Retry" on a finalized assistant bubble.
-   * The actual retry logic lands in B5; this is the wired-through callback.
    */
   onRetry?: () => void;
+  /**
+   * When true, the Retry button is rendered in a disabled state so the player
+   * cannot trigger a second turn while one is already streaming.
+   */
+  retryDisabled?: boolean;
   children: ReactNode;
 }
 
@@ -187,6 +191,7 @@ export function MessageBubble({
   streaming = false,
   parts,
   onRetry,
+  retryDisabled = false,
   children,
 }: MessageBubbleProps) {
   const { t } = useTranslation('chat');
@@ -268,6 +273,7 @@ export function MessageBubble({
               className={styles.actionBtn}
               aria-label={t('action_retry')}
               onClick={onRetry}
+              disabled={retryDisabled}
             >
               <Icons.Refresh size={14} />
             </button>

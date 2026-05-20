@@ -25,9 +25,6 @@ import { TypingIndicator } from './TypingIndicator';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-// B5 will replace this with the real retry handler. Module-level so a fresh
-// function is not allocated per message per render.
-const NOOP_RETRY = () => {};
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_MESSAGE = 4;
 
@@ -54,6 +51,7 @@ export function ChatPanel() {
   const { t: tTools } = useTranslation('tools');
   const { send, cancel } = useAgentTurn();
   const messages = useStore((s) => s.chat.messages);
+  const truncateTo = useStore((s) => s.chat.truncateTo);
   const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
   const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
   const isStreaming = useStore((s) => s.chat.isStreaming);
@@ -70,6 +68,7 @@ export function ChatPanel() {
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   const { ref: historyRef, onScroll, scrollToBottom } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
@@ -123,6 +122,50 @@ export function ChatPanel() {
   }, []);
 
   const canSend = !isStreaming && draft.trim().length > 0;
+
+  // Build a retry handler for a finalized assistant bubble identified by its
+  // message id. Clicking Retry must:
+  //   1. Find the user message immediately preceding this assistant turn.
+  //   2. truncateTo(userMessageId) - removes the user message AND the full
+  //      assistant turn (and any trailing messages) so there is no orphan.
+  //   3. send(userMessage.content) - re-appends the user message and replays.
+  // The user message is removed then re-added in the same tick, so visually it
+  // "stays" with no duplicate (see Nuance 1 in the B5 task brief).
+  const makeRetryHandler = useCallback(
+    (assistantMessageId: string) => () => {
+      // Read the live value to avoid a stale-closure race: two rapid clicks
+      // before re-render would both pass a closed-over isStreaming=false.
+      if (useStore.getState().chat.isStreaming) return;
+      const currentMessages = useStore.getState().chat.messages;
+      const aIdx = currentMessages.findIndex((m) => m.id === assistantMessageId);
+      if (aIdx === -1) return;
+      // Walk backward from the assistant message to find the triggering user message.
+      let userMsg: (typeof currentMessages)[number] | undefined;
+      for (let i = aIdx - 1; i >= 0; i--) {
+        if (currentMessages[i]?.role === 'user') {
+          userMsg = currentMessages[i];
+          break;
+        }
+      }
+      if (!userMsg) return;
+      const text = userMsg.content;
+      const userId = userMsg.id;
+      // Show the "Retrying..." indicator before truncating so there is no
+      // window where history is cleared but the indicator is not yet visible.
+      setIsRetrying(true);
+      // Remove the user message and everything after it (including the full
+      // assistant turn), then replay via send() which re-appends the user message.
+      truncateTo(userId);
+      void (async () => {
+        try {
+          await send(text);
+        } finally {
+          setIsRetrying(false);
+        }
+      })();
+    },
+    [truncateTo, send],
+  );
 
   const onSend = async () => {
     if (!canSend) return;
@@ -248,16 +291,29 @@ export function ChatPanel() {
             );
           }
           const m = entry.item;
+          // Only pass onRetry/retryDisabled to finalized assistant bubbles;
+          // user/system bubbles never show the retry tray (MessageBubble guards
+          // on isNarrator). exactOptionalPropertyTypes requires we omit the prop
+          // entirely rather than passing undefined.
+          const assistantProps =
+            m.role === 'assistant'
+              ? { onRetry: makeRetryHandler(m.id), retryDisabled: isStreaming }
+              : {};
           return m.parts !== undefined ? (
-            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts} onRetry={NOOP_RETRY}>
+            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts} {...assistantProps}>
               {m.content}
             </MessageBubble>
           ) : (
-            <MessageBubble key={m.id} chatRole={m.role} onRetry={NOOP_RETRY}>
+            <MessageBubble key={m.id} chatRole={m.role} {...assistantProps}>
               {m.content}
             </MessageBubble>
           );
         })}
+        {isRetrying && (
+          <div aria-live="polite" className={styles.retryingLabel} data-testid="retrying-indicator">
+            {t('retrying')}
+          </div>
+        )}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
             <ReasoningPill

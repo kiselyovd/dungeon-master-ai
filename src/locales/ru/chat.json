@@ -40,5 +40,6 @@
   },
   "action_copy": "Скопировать",
   "action_retry": "Повторить",
-  "action_save_journal": "Сохранить в журнал"
+  "action_save_journal": "Сохранить в журнал",
+  "retrying": "Повторяю..."
 }

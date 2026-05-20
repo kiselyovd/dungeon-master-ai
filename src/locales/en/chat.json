@@ -38,5 +38,6 @@
   },
   "action_copy": "Copy",
   "action_retry": "Retry",
-  "action_save_journal": "Save to Journal"
+  "action_save_journal": "Save to Journal",
+  "retrying": "Retrying..."
 }
