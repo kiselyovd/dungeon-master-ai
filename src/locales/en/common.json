@@ -34,5 +34,12 @@
   "modality_off": "off",
   "video_disabled_cta": "Scene transitions are enabled but video generation is off. Enable it to see live scene clips.",
   "video_enable_settings": "Enable video",
-  "dismiss": "Dismiss"
+  "dismiss": "Dismiss",
+  "preflight_title": "Setup required",
+  "preflight_missing_chat": "No chat provider is configured. Please finish setting up your AI provider to start playing.",
+  "preflight_missing_image": "Image generation is enabled but the cloud preset requires a Replicate API key. Add your key to continue using cloud images.",
+  "preflight_missing_video": "Video generation is enabled in live mode but requires a Replicate API key. Add your key or switch to pre-recorded mode.",
+  "preflight_finish_setup": "Finish setup",
+  "preflight_dismiss": "Dismiss",
+  "preflight_dont_ask_again": "Don't ask again for 24h"
 }
