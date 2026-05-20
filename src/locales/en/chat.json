@@ -35,5 +35,8 @@
     "thinking_with_tokens": "Thinking... {{tokens}} tok",
     "expand": "Show reasoning",
     "collapse": "Hide reasoning"
-  }
+  },
+  "action_copy": "Copy",
+  "action_retry": "Retry",
+  "action_save_journal": "Save to Journal"
 }

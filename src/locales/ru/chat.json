@@ -37,5 +37,8 @@
     "thinking_with_tokens": "Размышляет... {{tokens}} ток",
     "expand": "Показать рассуждение",
     "collapse": "Скрыть рассуждение"
-  }
+  },
+  "action_copy": "Скопировать",
+  "action_retry": "Повторить",
+  "action_save_journal": "Сохранить в журнал"
 }

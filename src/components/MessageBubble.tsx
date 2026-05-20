@@ -9,6 +9,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import type { ChatRole, MessagePart } from '../state/chat';
+import { useStore } from '../state/useStore';
+import { Icons } from '../ui/Icons';
 import { ImageLightboxModal } from './ImageLightboxModal';
 import styles from './MessageBubble.module.css';
 
@@ -73,6 +75,11 @@ interface MessageBubbleProps {
    * order (text paragraphs + inline images) instead of `children`.
    */
   parts?: MessagePart[];
+  /**
+   * Called when the player clicks "Retry" on a finalized assistant bubble.
+   * The actual retry logic lands in B5; this is the wired-through callback.
+   */
+  onRetry?: () => void;
   children: ReactNode;
 }
 
@@ -99,6 +106,35 @@ const MarkdownBody = memo(function MarkdownBody({ content }: { content: string }
 });
 
 const PREVIEW_MAX_CHARS = 120;
+
+/**
+ * Converts plain text to minimal safe HTML suitable for `entry_html` in the
+ * journal store.
+ *
+ * Steps:
+ *  1. HTML-escape special characters so no raw markup leaks.
+ *  2. Split on blank-line boundaries into paragraphs; wrap each in <p>...</p>.
+ *  3. Within a paragraph, convert lone newlines to <br>.
+ *  4. Drop empty paragraphs.
+ *
+ * TODO: markdown emphasis/headings are NOT converted to rich HTML here.
+ * Full markdown-to-HTML for journal entries is deferred - the spec originally
+ * intended Save-to-Journal to route through the backend `journal_append` tool
+ * which handles HTML conversion; B4 uses a direct slice call instead.
+ */
+function plainTextToEntryHtml(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return escaped
+    .split(/\n{2,}/)
+    .map((para) => para.replace(/\n/g, '<br>').trim())
+    .filter((para) => para.length > 0)
+    .map((para) => `<p>${para}</p>`)
+    .join('');
+}
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -150,6 +186,7 @@ export function MessageBubble({
   chatRole,
   streaming = false,
   parts,
+  onRetry,
   children,
 }: MessageBubbleProps) {
   const { t } = useTranslation('chat');
@@ -183,6 +220,27 @@ export function MessageBubble({
   const ariaLabel =
     imageCount > 0 ? `${baseLabel} ${t('bubble_images_suffix', { count: imageCount })}` : baseLabel;
 
+  const handleCopy = () => {
+    // The '' branch is unreachable for the tray path: the tray only renders on
+    // assistant bubbles, and assistant bubbles never carry parts (multimodal
+    // user messages); children is always a string here.
+    const text = typeof children === 'string' ? children : '';
+    navigator.clipboard.writeText(text).catch(() => undefined);
+  };
+
+  const handleSaveJournal = () => {
+    // Same note: the '' branch is unreachable on the tray path (see handleCopy).
+    const text = typeof children === 'string' ? children : '';
+    const state = useStore.getState();
+    state.journal.appendEntry({
+      id: crypto.randomUUID(),
+      campaign_id: state.session.activeCampaignId ?? '',
+      chapter: null,
+      entry_html: plainTextToEntryHtml(text),
+      created_at: new Date().toISOString(),
+    });
+  };
+
   return (
     <>
       <article
@@ -195,6 +253,34 @@ export function MessageBubble({
         data-testid="bubble"
       >
         {renderedBody}
+        {isNarrator && (
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label={t('action_copy')}
+              onClick={handleCopy}
+            >
+              <Icons.Copy size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label={t('action_retry')}
+              onClick={onRetry}
+            >
+              <Icons.Refresh size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label={t('action_save_journal')}
+              onClick={handleSaveJournal}
+            >
+              <Icons.BookOpen size={14} />
+            </button>
+          </div>
+        )}
       </article>
       {lightbox !== null && (
         <ImageLightboxModal

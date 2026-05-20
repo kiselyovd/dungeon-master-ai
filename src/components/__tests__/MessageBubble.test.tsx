@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MessagePart } from '../../state/chat';
+import { useStore } from '../../state/useStore';
 import { MessageBubble } from '../MessageBubble';
 import '../../i18n';
+
+beforeEach(() => {
+  useStore.setState(useStore.getInitialState());
+});
 
 describe('MessageBubble', () => {
   it('renders children when no parts are provided', () => {
@@ -166,5 +171,98 @@ describe('MessageBubble', () => {
     expect(codeUnlabeled!.className).toContain('fencedCode');
     // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
     expect(codeUnlabeled!.className).not.toContain('inlineCode');
+  });
+
+  // B4: hover action tray tests
+  describe('B4 hover action tray', () => {
+    // Restore navigator.clipboard after each test so the mock set in test (c)
+    // does not leak into subsequent tests.
+    afterEach(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        configurable: true,
+      });
+    });
+
+    it('(a) renders the action tray on a finalized assistant bubble', () => {
+      render(
+        <MessageBubble chatRole="assistant" onRetry={() => {}}>
+          The dragon stirs.
+        </MessageBubble>,
+      );
+      // The tray is CSS-hidden (opacity:0) by default but stays in the DOM. Query by aria-label directly.
+      const copyBtn = screen.getByLabelText(/copy/i);
+      const retryBtn = screen.getByLabelText(/retry/i);
+      const journalBtn = screen.getByLabelText(/save to journal/i);
+      expect(copyBtn).toBeInTheDocument();
+      expect(retryBtn).toBeInTheDocument();
+      expect(journalBtn).toBeInTheDocument();
+    });
+
+    it('(b) does NOT render the tray on a user bubble or a streaming assistant bubble', () => {
+      const { rerender } = render(
+        <MessageBubble chatRole="user">I approach the gate.</MessageBubble>,
+      );
+      // User bubbles never get the tray.
+      expect(screen.queryByLabelText(/copy/i)).toBeNull();
+      expect(screen.queryByLabelText(/retry/i)).toBeNull();
+      expect(screen.queryByLabelText(/save to journal/i)).toBeNull();
+
+      rerender(
+        <MessageBubble chatRole="assistant" streaming>
+          Partial...
+        </MessageBubble>,
+      );
+      expect(screen.queryByLabelText(/copy/i)).toBeNull();
+      expect(screen.queryByLabelText(/retry/i)).toBeNull();
+    });
+
+    it('(c) Copy button calls navigator.clipboard.writeText with the message content', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+
+      render(<MessageBubble chatRole="assistant">The tavern is quiet.</MessageBubble>);
+      fireEvent.click(screen.getByLabelText(/copy/i));
+      expect(writeText).toHaveBeenCalledWith('The tavern is quiet.');
+    });
+
+    it('(d) Save to Journal button calls journal.appendEntry with the message content', () => {
+      const appendEntry = vi.fn();
+      useStore.setState((s) => ({
+        ...s,
+        journal: { ...s.journal, appendEntry },
+      }));
+
+      render(<MessageBubble chatRole="assistant">A passage worth remembering.</MessageBubble>);
+      fireEvent.click(screen.getByLabelText(/save to journal/i));
+      expect(appendEntry).toHaveBeenCalledTimes(1);
+      // biome-ignore lint/style/noNonNullAssertion: guarded by toHaveBeenCalledTimes above
+      const arg = appendEntry.mock.calls[0]![0];
+      // entry_html is now paragraph-wrapped HTML, not raw text.
+      expect(arg.entry_html).toContain('A passage worth remembering.');
+      expect(arg.entry_html).toContain('<p>');
+      expect(arg.entry_html).toBe('<p>A passage worth remembering.</p>');
+    });
+
+    it('(e) Retry button calls the onRetry prop', () => {
+      const onRetry = vi.fn();
+      render(
+        <MessageBubble chatRole="assistant" onRetry={onRetry}>
+          Roll for initiative.
+        </MessageBubble>,
+      );
+      fireEvent.click(screen.getByLabelText(/retry/i));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('(f) tray buttons are focusable - Copy button accepts keyboard focus', () => {
+      render(<MessageBubble chatRole="assistant">The dragon stirs.</MessageBubble>);
+      const copyBtn = screen.getByLabelText(/copy/i);
+      copyBtn.focus();
+      expect(document.activeElement).toBe(copyBtn);
+    });
   });
 });

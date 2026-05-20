@@ -24,6 +24,10 @@ import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
+// B5 will replace this with the real retry handler. Module-level so a fresh
+// function is not allocated per message per render.
+const NOOP_RETRY = () => {};
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_MESSAGE = 4;
 
@@ -245,11 +249,11 @@ export function ChatPanel() {
           }
           const m = entry.item;
           return m.parts !== undefined ? (
-            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts}>
+            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts} onRetry={NOOP_RETRY}>
               {m.content}
             </MessageBubble>
           ) : (
-            <MessageBubble key={m.id} chatRole={m.role}>
+            <MessageBubble key={m.id} chatRole={m.role} onRetry={NOOP_RETRY}>
               {m.content}
             </MessageBubble>
           );
