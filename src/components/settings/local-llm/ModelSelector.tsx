@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useDownloadEvents } from '../../../hooks/useDownloadEvents';
 import { mergeManifests } from '../../../state/local_llm/manifest';
 import { useLocalLlmStore } from '../../../state/localLlm';
 import { ActiveModelPicker } from './ActiveModelPicker';
@@ -36,6 +37,10 @@ export interface ModelSelectorProps {
 export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: ModelSelectorProps) {
   const { t } = useTranslation('local_llm');
   const loadManifest = useLocalLlmStore((s) => s.loadManifest);
+  const startDownload = useLocalLlmStore((s) => s.startDownload);
+  const deleteModel = useLocalLlmStore((s) => s.deleteModel);
+
+  useDownloadEvents();
   // Re-derive `merged` whenever any of the four backing fields change. We
   // subscribe to each via its own selector so unrelated `loading` / `error`
   // updates do not force a re-render, and so the `useMemo` dependency array
@@ -76,12 +81,8 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
       >
         <ManageDownloads
           models={merged}
-          onDownload={() => {
-            // TODO(M9-DM): wire to DownloadManager via api/localLlm (Task 19).
-          }}
-          onDelete={() => {
-            // TODO(M9-DM): wire to DownloadManager via api/localLlm (Task 19).
-          }}
+          onDownload={(id) => void startDownload(id)}
+          onDelete={(id) => void deleteModel(id)}
         />
       </CollapsibleCard>
 

@@ -24,6 +24,10 @@ vi.mock('../../../../api/localLlm', () => ({
     download_states: {},
   })),
   setActiveLocalModel: vi.fn(async () => {}),
+  startModelDownload: vi.fn(async () => {}),
+  cancelOrDeleteModel: vi.fn(async () => {}),
+  // Returns a no-op cancel function; no real EventSource in jsdom.
+  subscribeDownloadEvents: vi.fn(async () => () => {}),
 }));
 
 describe('ModelSelector', () => {

@@ -90,3 +90,61 @@ export async function deleteSaveById(saveId: string): Promise<void> {
   const resp = await fetch(url, { method: 'DELETE' });
   if (!resp.ok) throw await readError(resp, 'delete save');
 }
+
+/**
+ * A single chat message as returned by GET /sessions/{id}/messages.
+ * Mirrors the backend `ChatMessage` enum serialized with `serde(tag = "role",
+ * rename_all = "snake_case")`.
+ *
+ * The full set of role variants the backend can return:
+ *   - "system"                   -> System { content }
+ *   - "user"                     -> User { parts }
+ *   - "assistant"                -> Assistant { content }
+ *   - "assistant_with_tool_calls"-> AssistantWithToolCalls { content?, tool_calls }
+ *   - "tool_result"              -> ToolResult(ToolResult)
+ *
+ * The chat UI (ChatRole in src/state/chat.ts) only renders "user" | "assistant" | "system".
+ * The extra variants are typed here accurately but filtered during V1 rehydration -
+ * see the comment in rehydrateFromSave.
+ */
+export interface SessionMessageWire {
+  role: 'user' | 'assistant' | 'system' | 'assistant_with_tool_calls' | 'tool_result';
+  content?: string;
+  parts?: Array<{
+    type: string;
+    text?: string;
+    mime?: string;
+    data_b64?: string;
+    name?: string | null;
+  }>;
+  /** Present on assistant_with_tool_calls variant. */
+  tool_calls?: unknown[];
+}
+
+interface MessagesResponse {
+  messages: SessionMessageWire[];
+}
+
+export async function fetchSessionMessages(
+  sessionId: string,
+  opts?: { limit?: number },
+): Promise<SessionMessageWire[]> {
+  const params = new URLSearchParams();
+  // NOTE: The backend GET /sessions/{id}/messages handler currently ignores
+  // query parameters and returns the FULL message history. The ?limit= param
+  // is sent for forward-compatibility only; the client-side slice below is
+  // what actually enforces the "last N messages" contract.
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit));
+  const query = params.size > 0 ? `?${params.toString()}` : '';
+  const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/messages${query}`);
+  const resp = await fetch(url);
+  if (!resp.ok) throw await readError(resp, 'fetch messages');
+  const json = (await resp.json()) as MessagesResponse;
+  // Client-side enforcement of the limit: slice to the last N messages in
+  // chronological order. This is the authoritative guard - see NOTE above.
+  const messages = json.messages;
+  if (opts?.limit !== undefined && messages.length > opts.limit) {
+    return messages.slice(-opts.limit);
+  }
+  return messages;
+}

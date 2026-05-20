@@ -8,6 +8,7 @@ import { CharacterWizard } from './components/CharacterWizard';
 import { CharFab } from './components/CharFab';
 import { ChatPanel } from './components/ChatPanel';
 import { ChatResizer } from './components/ChatResizer';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { InitiativeTracker } from './components/InitiativeTracker';
 import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
@@ -21,6 +22,7 @@ import { SplashOverlay } from './components/SplashOverlay';
 import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
+import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
@@ -117,6 +119,16 @@ function App() {
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
+  const handleOpenImageSettings = useCallback(() => {
+    setSettingsInitialTab('image');
+    setSettingsOpen(true);
+  }, []);
+
+  const handleOpenVideoSettings = useCallback(() => {
+    setSettingsInitialTab('video');
+    setSettingsOpen(true);
+  }, []);
+
   const handleInitiativeSelect = useCallback(
     (tokenId: string) => {
       if (combatActive) {
@@ -194,173 +206,199 @@ function App() {
   const imagePreset = useStore((s) => s.settings.imagePreset);
   const videoEnabled = useStore((s) => s.settings.videoEnabled);
   const videoMode = useStore((s) => s.settings.videoMode);
+  const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
 
   return (
-    <div className="dm-app">
-      <header className="dm-titlebar" data-tauri-drag-region>
-        <div className="dm-titlebar-left">
-          <div className="dm-app-mark">
-            <div className="dm-app-mark-glyph">
-              <Icons.D20 size={14} />
+    <ErrorBoundary level="top">
+      <div className="dm-app">
+        <header className="dm-titlebar" data-tauri-drag-region>
+          <div className="dm-titlebar-left">
+            <div className="dm-app-mark">
+              <div className="dm-app-mark-glyph">
+                <Icons.D20 size={14} />
+              </div>
+              <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
             </div>
-            <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
+            <div className="dm-titlebar-divider" />
+            <div className="dm-titlebar-campaign">
+              <Icons.Book size={12} />
+              <span>{t('campaign_default')}</span>
+            </div>
           </div>
-          <div className="dm-titlebar-divider" />
-          <div className="dm-titlebar-campaign">
-            <Icons.Book size={12} />
-            <span>{t('campaign_default')}</span>
+
+          <div className="dm-titlebar-center">
+            <ScenePill scene={currentScene} />
           </div>
-        </div>
 
-        <div className="dm-titlebar-center">
-          <ScenePill scene={currentScene} />
-        </div>
-
-        <div className="dm-titlebar-right">
-          <button
-            type="button"
-            className="dm-btn-tb"
-            onClick={openSaves}
-            aria-label={t('saves')}
-            title={t('saves')}
-          >
-            <Icons.Save size={13} />
-            <span>{t('saves')}</span>
-          </button>
-          <button
-            type="button"
-            className="dm-btn-tb"
-            onClick={openJournal}
-            aria-label={t('journal')}
-            title={t('journal')}
-          >
-            <Icons.Scroll size={13} />
-            <span>{t('journal')}</span>
-          </button>
-          <button
-            type="button"
-            className="dm-btn-tb"
-            onClick={openNpcs}
-            aria-label={t('npcs')}
-            title={t('npcs')}
-          >
-            <Icons.User size={13} />
-            <span>{t('npcs')}</span>
-          </button>
-          <div className="dm-titlebar-divider" />
-          <button
-            type="button"
-            className="dm-btn-tb dm-btn-tb-icon"
-            onClick={() => setSettingsOpen(true)}
-            aria-label={t('settings')}
-            title={t('settings')}
-          >
-            <Icons.Settings size={14} />
-          </button>
-          <div className="dm-window-controls">
+          <div className="dm-titlebar-right">
             <button
               type="button"
-              className="dm-window-ctrl"
-              onClick={() => void tauriWindowAction('minimize')}
-              aria-label={t('minimize')}
-              title={t('minimize')}
+              className="dm-btn-tb"
+              onClick={openSaves}
+              aria-label={t('saves')}
+              title={t('saves')}
             >
-              <Icons.Minimize size={10} />
+              <Icons.Save size={13} />
+              <span>{t('saves')}</span>
             </button>
             <button
               type="button"
-              className="dm-window-ctrl"
-              onClick={() => void tauriWindowAction('toggleMaximize')}
-              aria-label={t('maximize')}
-              title={t('maximize')}
+              className="dm-btn-tb"
+              onClick={openJournal}
+              aria-label={t('journal')}
+              title={t('journal')}
             >
-              <Icons.Square size={10} />
+              <Icons.Scroll size={13} />
+              <span>{t('journal')}</span>
             </button>
             <button
               type="button"
-              className="dm-window-ctrl dm-window-close"
-              onClick={() => void tauriWindowAction('close')}
-              aria-label={t('close')}
-              title={t('close')}
+              className="dm-btn-tb"
+              onClick={openNpcs}
+              aria-label={t('npcs')}
+              title={t('npcs')}
             >
-              <Icons.X size={10} />
+              <Icons.User size={13} />
+              <span>{t('npcs')}</span>
             </button>
+            <div className="dm-titlebar-divider" />
+            <button
+              type="button"
+              className="dm-btn-tb dm-btn-tb-icon"
+              onClick={() => setSettingsOpen(true)}
+              aria-label={t('settings')}
+              title={t('settings')}
+            >
+              <Icons.Settings size={14} />
+            </button>
+            <div className="dm-window-controls">
+              <button
+                type="button"
+                className="dm-window-ctrl"
+                onClick={() => void tauriWindowAction('minimize')}
+                aria-label={t('minimize')}
+                title={t('minimize')}
+              >
+                <Icons.Minimize size={10} />
+              </button>
+              <button
+                type="button"
+                className="dm-window-ctrl"
+                onClick={() => void tauriWindowAction('toggleMaximize')}
+                aria-label={t('maximize')}
+                title={t('maximize')}
+              >
+                <Icons.Square size={10} />
+              </button>
+              <button
+                type="button"
+                className="dm-window-ctrl dm-window-close"
+                onClick={() => void tauriWindowAction('close')}
+                aria-label={t('close')}
+                title={t('close')}
+              >
+                <Icons.X size={10} />
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="dm-vtt-panel">
-        <VttCanvas />
-        {combatActive && (
-          <InitiativeTracker
-            tokens={combatTokens}
-            order={combatOrder}
-            round={combatRound}
-            activeTokenId={currentTurnId}
-            onSelect={handleInitiativeSelect}
-          />
-        )}
-        {combatActive && <ActionBar />}
-        <CharFab
-          onOpen={() => setCharacterSheetOpen(true)}
-          onOpenWizard={() => setWizardReopen(true)}
-        />
-      </main>
+        <ErrorBoundary level="section">
+          <main className="dm-vtt-panel">
+            <VttCanvas />
+            {combatActive && (
+              <InitiativeTracker
+                tokens={combatTokens}
+                order={combatOrder}
+                round={combatRound}
+                activeTokenId={currentTurnId}
+                onSelect={handleInitiativeSelect}
+              />
+            )}
+            {combatActive && <ActionBar />}
+            <CharFab
+              onOpen={() => setCharacterSheetOpen(true)}
+              onOpenWizard={() => setWizardReopen(true)}
+            />
+          </main>
 
-      <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
-        <ChatResizer />
-        <ChatPanel />
-      </aside>
+          <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
+            <ChatResizer />
+            <ChatPanel />
+          </aside>
+        </ErrorBoundary>
 
-      <StatusBar
-        provider={providerLabel}
-        model={modelLabel}
-        status={providerStatus}
-        image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
-        video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
-        onOpenSettings={(tab) => {
-          setSettingsInitialTab(tab === 'chat' ? 'provider' : tab);
-          setSettingsOpen(true);
-        }}
-      />
-
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        initialTab={settingsInitialTab}
-        onRequestCharacterRecreate={() => {
-          setSettingsOpen(false);
-          setWizardReopen(true);
-        }}
-      />
-      <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
-      {pendingUpdate && (
-        <UpdateAvailableModal
-          version={pendingUpdate.version}
-          notes={pendingUpdate.notes}
-          onLater={dismissUpdate}
-          onUpdate={() => {
-            void pendingUpdate.install().finally(dismissUpdate);
+        <StatusBar
+          provider={providerLabel}
+          model={modelLabel}
+          status={providerStatus}
+          image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
+          video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
+          onOpenSettings={(tab) => {
+            setSettingsInitialTab(tab === 'chat' ? 'provider' : tab);
+            setSettingsOpen(true);
           }}
         />
-      )}
-      {journalOpen && <JournalViewer entries={journalEntries} onClose={closeJournal} />}
-      {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
-      {savesOpen && <SavesScreen />}
-      <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
-      <ToolInspectorDrawer
-        entries={toolEntries}
-        isOpen={inspectorOpen}
-        onClose={() => setInspectorOpen(false)}
-      />
-      <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-      {!onboardingCompleted && <Onboarding />}
-      {onboardingCompleted && !pcHeroClass && <CharacterWizard mode="initial" />}
-      {wizardReopen && <CharacterWizard mode="edit" onClose={() => setWizardReopen(false)} />}
-      <SceneTransitionOverlay />
-      <SplashOverlay />
-    </div>
+
+        <ErrorBoundary level="overlay">
+          <SettingsModal
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            initialTab={settingsInitialTab}
+            onRequestCharacterRecreate={() => {
+              setSettingsOpen(false);
+              setWizardReopen(true);
+            }}
+          />
+          <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
+          {pendingUpdate && (
+            <UpdateAvailableModal
+              version={pendingUpdate.version}
+              notes={pendingUpdate.notes}
+              onLater={dismissUpdate}
+              onUpdate={() => {
+                void pendingUpdate.install().finally(dismissUpdate);
+              }}
+            />
+          )}
+          {journalOpen && <JournalViewer entries={journalEntries} onClose={closeJournal} />}
+          {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
+          {savesOpen && <SavesScreen />}
+          <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
+          <ToolInspectorDrawer
+            entries={toolEntries}
+            isOpen={inspectorOpen}
+            onClose={() => setInspectorOpen(false)}
+          />
+          <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
+          {!onboardingCompleted && <Onboarding />}
+          {onboardingCompleted && !pcHeroClass && (
+            <CharacterWizard
+              mode="initial"
+              onOpenImageSettings={handleOpenImageSettings}
+              hidden={settingsOpen}
+            />
+          )}
+          {wizardReopen && (
+            <CharacterWizard
+              mode="edit"
+              onClose={() => setWizardReopen(false)}
+              onOpenImageSettings={handleOpenImageSettings}
+              hidden={settingsOpen}
+            />
+          )}
+          <SceneTransitionOverlay />
+          <VideoDisabledToast
+            videoEnabled={videoEnabled}
+            sceneTransitionsEnabled={sceneTransitionsEnabled}
+            sceneName={currentScene?.name ?? null}
+            onOpenVideoSettings={handleOpenVideoSettings}
+          />
+          <SplashOverlay />
+        </ErrorBoundary>
+      </div>
+    </ErrorBoundary>
   );
 }
 

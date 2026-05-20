@@ -31,5 +31,8 @@
   "chat_provider_settings": "Настройки чат-провайдера",
   "image_gen_settings": "Настройки генерации картинок",
   "video_gen_settings": "Настройки генерации видео",
-  "modality_off": "выкл"
+  "modality_off": "выкл",
+  "video_disabled_cta": "Смена сцен включена, но генерация видео отключена. Включите её, чтобы видеть живые клипы переходов.",
+  "video_enable_settings": "Включить видео",
+  "dismiss": "Закрыть"
 }

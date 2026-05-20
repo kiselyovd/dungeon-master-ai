@@ -74,4 +74,63 @@ describe('ManageDownloads', () => {
     fireEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('a');
   });
+
+  // 5 new cases for C4 wiring
+
+  it('queued status shows a progress bar', () => {
+    render(
+      <ManageDownloads
+        models={[entry('a', { downloadState: 'queued', downloadProgress: 0 })]}
+        onDownload={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('shows Cancel button during an active download', () => {
+    render(
+      <ManageDownloads
+        models={[entry('a', { downloadState: 'downloading', downloadProgress: 0.5 })]}
+        onDownload={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('clicking Cancel fires onDelete with the model id', () => {
+    const onDelete = vi.fn();
+    render(
+      <ManageDownloads
+        models={[entry('a', { downloadState: 'downloading', downloadProgress: 0.3 })]}
+        onDownload={() => {}}
+        onDelete={onDelete}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(onDelete).toHaveBeenCalledWith('a');
+  });
+
+  it('renders error text when downloadState is error', () => {
+    render(
+      <ManageDownloads
+        models={[entry('a', { downloadState: 'error', errorMessage: 'network timeout' })]}
+        onDownload={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText('network timeout')).toBeInTheDocument();
+  });
+
+  it('Download button re-appears after an error', () => {
+    render(
+      <ManageDownloads
+        models={[entry('a', { downloadState: 'error', errorMessage: 'net err' })]}
+        onDownload={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument();
+  });
 });

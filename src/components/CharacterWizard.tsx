@@ -21,6 +21,8 @@ export type CharacterWizardMode = 'initial' | 'edit';
 export interface CharacterWizardProps {
   mode: CharacterWizardMode;
   onClose?: () => void;
+  onOpenImageSettings?: () => void;
+  hidden?: boolean;
 }
 
 const TABS: readonly WizardTab[] = [
@@ -36,7 +38,12 @@ const TABS: readonly WizardTab[] = [
   'review',
 ];
 
-export function CharacterWizard({ mode, onClose }: CharacterWizardProps) {
+export function CharacterWizard({
+  mode,
+  onClose,
+  onOpenImageSettings,
+  hidden,
+}: CharacterWizardProps) {
   const { t } = useTranslation('wizard');
   const activeTab = useStore((s) => s.charCreation.activeTab);
   const setActiveTab = useStore((s) => s.charCreation.setActiveTab);
@@ -52,7 +59,11 @@ export function CharacterWizard({ mode, onClose }: CharacterWizardProps) {
   const sheet = compendium ? computeLiveSheet(draft, compendium) : null;
 
   return (
-    <div className="dm-wizard" role="dialog" aria-modal="true">
+    <div
+      className="dm-wizard"
+      style={hidden ? { display: 'none' } : undefined}
+      {...(!hidden ? { role: 'dialog', 'aria-modal': true } : {})}
+    >
       <div className="dm-wizard-strip" role="tablist">
         {TABS.map((tab) => (
           <button
@@ -76,7 +87,9 @@ export function CharacterWizard({ mode, onClose }: CharacterWizardProps) {
         {compendium && activeTab === 'spells' && <SpellsTab compendium={compendium} />}
         {compendium && activeTab === 'equipment' && <EquipmentTab compendium={compendium} />}
         {compendium && activeTab === 'persona' && <PersonaTab compendium={compendium} />}
-        {compendium && activeTab === 'portrait' && <PortraitTab />}
+        {compendium && activeTab === 'portrait' && (
+          <PortraitTab {...(onOpenImageSettings ? { onOpenSettings: onOpenImageSettings } : {})} />
+        )}
         {compendium && activeTab === 'review' && (
           <ReviewTab
             compendium={compendium}
