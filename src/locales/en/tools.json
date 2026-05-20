@@ -1,0 +1,15 @@
+{
+  "roll_dice": "Dungeon Master rolls the dice...",
+  "apply_damage": "Dungeon Master deals damage...",
+  "apply_healing": "Dungeon Master heals a creature...",
+  "add_condition": "Dungeon Master applies a condition...",
+  "remove_condition": "Dungeon Master removes a condition...",
+  "set_current_turn": "Dungeon Master advances the turn...",
+  "move_token": "Dungeon Master moves a token...",
+  "start_combat": "Dungeon Master starts combat...",
+  "end_combat": "Dungeon Master ends combat...",
+  "show_aoe_template": "Dungeon Master places an area template...",
+  "journal_append": "Dungeon Master writes in the journal...",
+  "remember_npc": "Dungeon Master records an NPC...",
+  "generate_image": "Dungeon Master conjures an image..."
+}

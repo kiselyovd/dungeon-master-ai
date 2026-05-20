@@ -31,4 +31,17 @@ describe('ImageLightboxModal', () => {
     fireEvent.click(screen.getByTestId('lightbox-image'));
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  // B6: close button inside the frame at top-right with autoFocus
+  it('renders close button inside the image frame and it receives focus on open', () => {
+    render(<ImageLightboxModal src="data:image/png;base64,aGk=" alt="test" onClose={() => {}} />);
+    const closeBtn = screen.getByRole('button', { name: /close/i });
+    expect(closeBtn).toBeInTheDocument();
+    // The close button must be inside the frame, not outside it
+    const image = screen.getByTestId('lightbox-image');
+    // Both share a parent .frame div; close button must be a sibling of the image
+    expect(image.parentElement).toContainElement(closeBtn);
+    // autoFocus - the close button should be the active element after render
+    expect(document.activeElement).toBe(closeBtn);
+  });
 });

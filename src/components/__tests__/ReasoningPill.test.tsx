@@ -4,12 +4,14 @@ import { ReasoningPill } from '../ReasoningPill';
 
 // Mock i18next. Returns translations with simple {{var}} interpolation so
 // tests can assert on the rendered, human-readable string (e.g. "Thinking...
-// 50 tok"). Legacy bare keys (reasoning_thinking_label / reasoning_streaming_label)
-// are passed through unchanged for the M8-era tests below.
+// 50 tok"). The mock t() receives the base plural key + { count } and falls
+// through to the _other template for any count != 1.
 const REASONING_DICT: Record<string, string> = {
-  'reasoning.thinking': 'Thinking...',
-  'reasoning.thinking_with_tokens': 'Thinking... {{tokens}} tok',
-  'reasoning.collapsed_label': 'Reasoning {{tokens}} tok',
+  // plural forms: _one / _other
+  'reasoning.thinking_with_tokens_one': 'Thinking... 1 tok',
+  'reasoning.thinking_with_tokens_other': 'Thinking... {{count}} tok',
+  'reasoning.collapsed_label_one': 'Reasoning 1 tok',
+  'reasoning.collapsed_label_other': 'Reasoning {{count}} tok',
   'reasoning.expand': 'Show reasoning',
   'reasoning.collapse': 'Hide reasoning',
 };
@@ -24,7 +26,13 @@ function interpolate(template: string, vars: Record<string, unknown>): string {
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, vars?: Record<string, unknown>) => {
-      const template = REASONING_DICT[key];
+      // Resolve plural suffix: count=1 -> _one, everything else -> _other.
+      // Falls back to exact key if no plural variant is found.
+      const count = vars && typeof vars.count === 'number' ? vars.count : undefined;
+      const suffix = count === 1 ? '_one' : count !== undefined ? '_other' : undefined;
+      const template =
+        (suffix !== undefined ? REASONING_DICT[`${key}${suffix}`] : undefined) ??
+        REASONING_DICT[key];
       if (template === undefined) return key;
       return vars ? interpolate(template, vars) : template;
     },
@@ -55,6 +63,30 @@ describe('ReasoningPill', () => {
   it('shows streaming label when isStreaming=true even with empty text', () => {
     render(<ReasoningPill text="" isStreaming={true} />);
     expect(screen.getByText(/Thinking\.\.\./i)).toBeInTheDocument();
+  });
+});
+
+describe('ReasoningPill B6 polish', () => {
+  it('shows Thinking... when isStreaming=true and no reasoning text has arrived yet (streamingReasoning === null)', () => {
+    // isStreaming prop should be true when streaming AND reasoning text is null
+    render(<ReasoningPill text="" isStreaming={true} />);
+    expect(screen.getByTestId('reasoning-thinking')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('shows collapsed token-count label once reasoning text is present (isStreaming=false)', () => {
+    // Once the first reasoning delta arrives, isStreaming=false flips to the
+    // collapsed summary button; chevron reflects collapsed state (aria-expanded=false)
+    render(<ReasoningPill text="step by step analysis" isStreaming={false} />);
+    const btn = screen.getByRole('button', { name: /Reasoning .* tok/i });
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAttribute('aria-expanded', 'false');
+    // The pill body must be hidden until expanded
+    expect(screen.queryByTestId('reasoning-body')).not.toBeInTheDocument();
+    // Clicking expands it
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('reasoning-body')).toBeInTheDocument();
   });
 });
 

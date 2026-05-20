@@ -29,13 +29,24 @@
   "image_preview": "просмотр изображения",
   "image": "изображение",
   "vision_disabled": "Мультимодальный ввод выключен - включи его в Настройках, в Чате.",
+  "attachments_not_sent": "Изображения не отправляются - поддержка визуального ввода ещё не добавлена.",
   "reasoning_thinking_label": "размышление",
   "reasoning_streaming_label": "размышляю...",
   "reasoning": {
     "thinking": "Размышляет...",
-    "collapsed_label": "Рассуждение {{tokens}} ток",
-    "thinking_with_tokens": "Размышляет... {{tokens}} ток",
+    "collapsed_label_one": "Рассуждение 1 токен",
+    "collapsed_label_few": "Рассуждение {{count}} токена",
+    "collapsed_label_many": "Рассуждение {{count}} токенов",
+    "collapsed_label_other": "Рассуждение {{count}} токенов",
+    "thinking_with_tokens_one": "Размышляет... 1 токен",
+    "thinking_with_tokens_few": "Размышляет... {{count}} токена",
+    "thinking_with_tokens_many": "Размышляет... {{count}} токенов",
+    "thinking_with_tokens_other": "Размышляет... {{count}} токенов",
     "expand": "Показать рассуждение",
     "collapse": "Скрыть рассуждение"
-  }
+  },
+  "action_copy": "Скопировать",
+  "action_retry": "Повторить",
+  "action_save_journal": "Сохранить в журнал",
+  "retrying": "Повторяю..."
 }

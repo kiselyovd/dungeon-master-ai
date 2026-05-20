@@ -8,27 +8,54 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
-import { useChat } from '../hooks/useChat';
+import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
-import type { StagedImage } from '../state/chat';
+import type { ChatMessage, ChatStreamEvent, StagedImage } from '../state/chat';
+import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
 import { ReasoningPill } from './ReasoningPill';
+import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_MESSAGE = 4;
+
+/** Map a ChatStreamEvent to the ToolLogEntry shape expected by ToolCallCard. */
+function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
+  return {
+    id: event.id,
+    toolName: event.toolName,
+    args: event.args,
+    result: event.result,
+    isError: event.isError,
+    round: event.round,
+    // Intentional empty shim: ChatStreamEvent carries no timestamp and ToolCallCard does not display it.
+    timestamp: '',
+    handledBy: 'engine',
+  };
+}
+
+type MergedItem = { kind: 'message'; item: ChatMessage } | { kind: 'event'; item: ChatStreamEvent };
 
 export function ChatPanel() {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
-  const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
+  const { t: tTools } = useTranslation('tools');
+  const { send, cancel } = useAgentTurn();
+  const messages = useStore((s) => s.chat.messages);
+  const truncateTo = useStore((s) => s.chat.truncateTo);
+  const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
+  const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
+  const isStreaming = useStore((s) => s.chat.isStreaming);
+  const lastError = useStore((s) => s.chat.lastError);
   const { refetch: refetchSession } = useSession();
   const sessionLoadError = useStore((s) => s.session.loadError);
   // M7-DM: vision input gate. When the user has explicitly disabled multimodal
@@ -41,12 +68,20 @@ export function ChatPanel() {
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
-  const { ref: historyRef, onScroll, scrollToBottom } = useStickyScroll(100);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const { ref: historyRef, onScroll, scrollToBottom, reset: resetScroll } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
   useEffect(() => {
     scrollToBottom();
-  }, [messages.length, streamingAssistant, scrollToBottom]);
+  }, [messages.length, chatStreamEvents.length, streamingAssistant, scrollToBottom]);
+
+  // Auto-dismiss the image staging error after 4 seconds.
+  useEffect(() => {
+    if (stagingError === null) return;
+    const id = setTimeout(() => setStagingError(null), 4000);
+    return () => clearTimeout(id);
+  }, [stagingError]);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -93,16 +128,65 @@ export function ChatPanel() {
     setStaged((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const canSend = !isStreaming && (draft.trim().length > 0 || staged.length > 0);
+  const canSend = !isStreaming && draft.trim().length > 0;
+
+  // Build a retry handler for a finalized assistant bubble identified by its
+  // message id. Clicking Retry must:
+  //   1. Find the user message immediately preceding this assistant turn.
+  //   2. truncateTo(userMessageId) - removes the user message AND the full
+  //      assistant turn (and any trailing messages) so there is no orphan.
+  //   3. send(userMessage.content) - re-appends the user message and replays.
+  // The user message is removed then re-added in the same tick, so visually it
+  // "stays" with no duplicate (see Nuance 1 in the B5 task brief).
+  const makeRetryHandler = useCallback(
+    (assistantMessageId: string) => () => {
+      // Read the live value to avoid a stale-closure race: two rapid clicks
+      // before re-render would both pass a closed-over isStreaming=false.
+      if (useStore.getState().chat.isStreaming) return;
+      const currentMessages = useStore.getState().chat.messages;
+      const aIdx = currentMessages.findIndex((m) => m.id === assistantMessageId);
+      if (aIdx === -1) return;
+      // Walk backward from the assistant message to find the triggering user message.
+      let userMsg: (typeof currentMessages)[number] | undefined;
+      for (let i = aIdx - 1; i >= 0; i--) {
+        if (currentMessages[i]?.role === 'user') {
+          userMsg = currentMessages[i];
+          break;
+        }
+      }
+      if (!userMsg) return;
+      const text = userMsg.content;
+      const userId = userMsg.id;
+      // Show the "Retrying..." indicator before truncating so there is no
+      // window where history is cleared but the indicator is not yet visible.
+      setIsRetrying(true);
+      // Remove the user message and everything after it (including the full
+      // assistant turn), then replay via send() which re-appends the user message.
+      truncateTo(userId);
+      void (async () => {
+        try {
+          await send(text);
+        } finally {
+          setIsRetrying(false);
+        }
+      })();
+    },
+    [truncateTo, send],
+  );
 
   const onSend = async () => {
     if (!canSend) return;
     const text = draft;
-    const images = staged;
     setDraft('');
+    if (staged.length > 0) {
+      // Vision multipart is not yet wired to the backend. Surface a non-blocking
+      // notice so the user knows their attachments were not sent, then clear them.
+      setStagingError(t('attachments_not_sent'));
+    } else {
+      setStagingError(null);
+    }
     setStaged([]);
-    setStagingError(null);
-    await send(text, images);
+    await send(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -112,6 +196,7 @@ export function ChatPanel() {
     } else if (e.key === 'Escape' && isStreaming) {
       e.preventDefault();
       cancel();
+      resetScroll();
     }
   };
 
@@ -156,13 +241,23 @@ export function ChatPanel() {
   useEffect(() => {
     if (!isStreaming) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') cancel();
+      if (e.key === 'Escape') {
+        cancel();
+        resetScroll();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isStreaming, cancel]);
+  }, [isStreaming, cancel, resetScroll]);
 
   const isEmptyChat = messages.length === 0 && streamingAssistant === null && !isStreaming;
+
+  // Merge finalized messages and inline tool-call events into one ordered list.
+  // Both draw sequenceIndex from the shared _nextSeq counter in the slice.
+  const mergedStream: MergedItem[] = [
+    ...messages.map((m) => ({ kind: 'message' as const, item: m })),
+    ...chatStreamEvents.map((e) => ({ kind: 'event' as const, item: e })),
+  ].sort((a, b) => (a.item.sequenceIndex ?? 0) - (b.item.sequenceIndex ?? 0));
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-drop surface; keyboard alternative is paste/Ctrl+V into the textarea
@@ -179,7 +274,12 @@ export function ChatPanel() {
         </span>
       </div>
 
-      <div ref={historyRef} className={styles.history} onScroll={onScroll}>
+      <div
+        ref={historyRef}
+        className={styles.history}
+        onScroll={onScroll}
+        data-testid="chat-history"
+      >
         {sessionLoadError !== null && (
           <div role="alert" className={`${styles.sessionLoadError} dm-chat-error`}>
             <span className={styles.sessionLoadErrorText}>{t('session_load_error')}</span>
@@ -196,22 +296,46 @@ export function ChatPanel() {
             <div className={styles.welcomeOrnament} />
           </div>
         )}
-        {messages.map((m) =>
-          m.parts !== undefined ? (
-            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts}>
+        {mergedStream.map((entry) => {
+          if (entry.kind === 'event') {
+            const toolLabel = tTools(entry.item.toolName, { defaultValue: entry.item.toolName });
+            return (
+              <ToolCallCard
+                key={entry.item.id}
+                entry={streamEventToLogEntry(entry.item)}
+                label={toolLabel}
+              />
+            );
+          }
+          const m = entry.item;
+          // Only pass onRetry/retryDisabled to finalized assistant bubbles;
+          // user/system bubbles never show the retry tray (MessageBubble guards
+          // on isNarrator). exactOptionalPropertyTypes requires we omit the prop
+          // entirely rather than passing undefined.
+          const assistantProps =
+            m.role === 'assistant'
+              ? { onRetry: makeRetryHandler(m.id), retryDisabled: isStreaming }
+              : {};
+          return m.parts !== undefined ? (
+            <MessageBubble key={m.id} chatRole={m.role} parts={m.parts} {...assistantProps}>
               {m.content}
             </MessageBubble>
           ) : (
-            <MessageBubble key={m.id} chatRole={m.role}>
+            <MessageBubble key={m.id} chatRole={m.role} {...assistantProps}>
               {m.content}
             </MessageBubble>
-          ),
+          );
+        })}
+        {isRetrying && (
+          <div aria-live="polite" className={styles.retryingLabel} data-testid="retrying-indicator">
+            {t('retrying')}
+          </div>
         )}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
             <ReasoningPill
               text={streamingReasoning ?? ''}
-              isStreaming={isStreaming && !streamingReasoning}
+              isStreaming={isStreaming && streamingReasoning === null}
             />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
@@ -256,7 +380,10 @@ export function ChatPanel() {
             <button
               type="button"
               className={styles.sendBtn}
-              onClick={cancel}
+              onClick={() => {
+                cancel();
+                resetScroll();
+              }}
               aria-label={t('stop')}
             >
               <Icons.Stop size={14} />

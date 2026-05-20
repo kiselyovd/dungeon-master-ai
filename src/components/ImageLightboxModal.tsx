@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Icons } from '../ui/Icons';
 import styles from './ImageLightboxModal.module.css';
 
 interface Props {
@@ -50,8 +51,10 @@ export function ImageLightboxModal({ src, alt, onClose }: Props) {
           aria-label={t('attachment_lightbox_close')}
           className={styles.close}
           onClick={onClose}
+          // biome-ignore lint/a11y/noAutofocus: lightbox should trap focus immediately so keyboard users can close without tabbing
+          autoFocus
         >
-          ×
+          <Icons.X size={16} aria-hidden />
         </button>
       </div>
     </div>

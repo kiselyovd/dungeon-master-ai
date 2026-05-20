@@ -27,13 +27,20 @@
   "image_preview": "image preview",
   "image": "image",
   "vision_disabled": "Multimodal input is disabled - turn it on in Settings → Chat.",
+  "attachments_not_sent": "Image attachments are not sent yet - vision support is coming.",
   "reasoning_thinking_label": "thinking",
   "reasoning_streaming_label": "thinking...",
   "reasoning": {
     "thinking": "Thinking...",
-    "collapsed_label": "Reasoning {{tokens}} tok",
-    "thinking_with_tokens": "Thinking... {{tokens}} tok",
+    "collapsed_label_one": "Reasoning 1 token",
+    "collapsed_label_other": "Reasoning {{count}} tokens",
+    "thinking_with_tokens_one": "Thinking... 1 token",
+    "thinking_with_tokens_other": "Thinking... {{count}} tokens",
     "expand": "Show reasoning",
     "collapse": "Hide reasoning"
-  }
+  },
+  "action_copy": "Copy",
+  "action_retry": "Retry",
+  "action_save_journal": "Save to Journal",
+  "retrying": "Retrying..."
 }

@@ -5,6 +5,8 @@ import styles from './ToolCallCard.module.css';
 
 interface Props {
   entry: ToolLogEntry;
+  /** User-facing label for the tool action (e.g. from tools namespace). Shown in place of raw tool name when provided. */
+  label?: string;
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * - When `entry.result` arrives (not null), snap to real value + add gold flash.
  * - Animation fires only when result actually arrives, never ahead of truth.
  */
-export function ToolCallCard({ entry }: Props) {
+export function ToolCallCard({ entry, label }: Props) {
   const { toolName, args, result, isError, round } = entry;
   const pending = result === null;
   const { t } = useTranslation('agent');
@@ -55,10 +57,11 @@ export function ToolCallCard({ entry }: Props) {
   return (
     <div
       className={`${styles.card} ${isError ? styles.cardError : ''} ${flashing ? styles.cardFlash : ''}`}
+      data-testid={`tool-call-card-${entry.id}`}
       data-status={statusLabel}
     >
       <div className={styles.header}>
-        <span className={styles.toolName}>{toolName}</span>
+        <span className={styles.toolName}>{label ?? toolName}</span>
         <span className={`${styles.statusBadge} ${styles[`status_${statusLabel}`]}`}>
           {t(statusKey)}
         </span>

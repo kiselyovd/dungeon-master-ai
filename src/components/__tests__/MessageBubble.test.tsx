@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MessagePart } from '../../state/chat';
+import { useStore } from '../../state/useStore';
 import { MessageBubble } from '../MessageBubble';
 import '../../i18n';
+
+beforeEach(() => {
+  useStore.setState(useStore.getInitialState());
+});
 
 describe('MessageBubble', () => {
   it('renders children when no parts are provided', () => {
@@ -80,5 +85,184 @@ describe('MessageBubble', () => {
       </MessageBubble>,
     );
     expect(screen.getByRole('article').getAttribute('aria-busy')).toBe('true');
+  });
+
+  // B3: markdown rendering tests
+  it('renders h1 markdown as an h1 heading element in finalized assistant bubbles', () => {
+    render(<MessageBubble chatRole="assistant"># The Dragon Awakens</MessageBubble>);
+    const bubble = screen.getByTestId('bubble');
+    expect(bubble.querySelector('h1')).not.toBeNull();
+    expect(bubble.querySelector('h1')?.textContent).toBe('The Dragon Awakens');
+  });
+
+  it('streaming bubbles bypass markdown and keep raw text', () => {
+    render(
+      <MessageBubble chatRole="assistant" streaming>
+        # Partial heading
+      </MessageBubble>,
+    );
+    const bubble = screen.getByTestId('bubble');
+    // No h1 rendered - raw text only
+    expect(bubble.querySelector('h1')).toBeNull();
+    expect(bubble.textContent).toContain('# Partial heading');
+  });
+
+  it('inline code in finalized assistant bubble gets the inlineCode class', () => {
+    render(<MessageBubble chatRole="assistant">Use `fireball` spell.</MessageBubble>);
+    const bubble = screen.getByTestId('bubble');
+    const code = bubble.querySelector('code');
+    expect(code).not.toBeNull();
+    // Non-null assertion justified: the expect above guards it
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(code!.className).toContain('inlineCode');
+  });
+
+  it('strong text in finalized assistant bubble gets the strong class', () => {
+    render(<MessageBubble chatRole="assistant">**Critical hit!**</MessageBubble>);
+    const bubble = screen.getByTestId('bubble');
+    const strong = bubble.querySelector('strong');
+    expect(strong).not.toBeNull();
+    // Non-null assertion justified: the expect above guards it
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(strong!.className).toContain('strong');
+  });
+
+  it('drop-cap targets the first paragraph inside markdownBody for narrator bubbles', () => {
+    render(<MessageBubble chatRole="assistant">The tavern is silent.</MessageBubble>);
+    const bubble = screen.getByTestId('bubble');
+    // Finalized assistant bubble has data-narrator="true"
+    expect(bubble.getAttribute('data-narrator')).toBe('true');
+    // The markdown body wrapper must be present - query by a partial class match
+    // since CSS modules hash the class name (contains "markdownBody")
+    const markdownBody = bubble.querySelector('[class*="markdownBody"]');
+    expect(markdownBody).not.toBeNull();
+    // The first child of markdownBody must be a <p> so the CSS drop-cap rule applies
+    expect(markdownBody?.firstElementChild?.tagName.toLowerCase()).toBe('p');
+  });
+
+  it('fenced code blocks render inside a <pre> with fencedCode styling', () => {
+    // Language-hinted fence: react-markdown gives the <code> a "language-*" class.
+    const { unmount } = render(
+      <MessageBubble chatRole="assistant">{'```js\nconsole.log("hello");\n```'}</MessageBubble>,
+    );
+    const bubble = screen.getByTestId('bubble');
+    const pre = bubble.querySelector('pre');
+    expect(pre).not.toBeNull();
+    // Non-null assertion justified: the expect above guards it
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    const codeHinted = pre!.querySelector('code');
+    expect(codeHinted).not.toBeNull();
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(codeHinted!.className).toContain('fencedCode');
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(codeHinted!.className).not.toContain('inlineCode');
+    unmount();
+
+    // Unlabeled fence: no language hint, so react-markdown gives className=undefined.
+    // This is the case the original code misclassified as inline.
+    render(<MessageBubble chatRole="assistant">{'```\nsome block\n```'}</MessageBubble>);
+    const bubble2 = screen.getByTestId('bubble');
+    const pre2 = bubble2.querySelector('pre');
+    expect(pre2).not.toBeNull();
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    const codeUnlabeled = pre2!.querySelector('code');
+    expect(codeUnlabeled).not.toBeNull();
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(codeUnlabeled!.className).toContain('fencedCode');
+    // biome-ignore lint/style/noNonNullAssertion: guarded by expect above
+    expect(codeUnlabeled!.className).not.toContain('inlineCode');
+  });
+
+  // B4: hover action tray tests
+  describe('B4 hover action tray', () => {
+    // Restore navigator.clipboard after each test so the mock set in test (c)
+    // does not leak into subsequent tests.
+    afterEach(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        configurable: true,
+      });
+    });
+
+    it('(a) renders the action tray on a finalized assistant bubble', () => {
+      render(
+        <MessageBubble chatRole="assistant" onRetry={() => {}}>
+          The dragon stirs.
+        </MessageBubble>,
+      );
+      // The tray is CSS-hidden (opacity:0) by default but stays in the DOM. Query by aria-label directly.
+      const copyBtn = screen.getByLabelText(/copy/i);
+      const retryBtn = screen.getByLabelText(/retry/i);
+      const journalBtn = screen.getByLabelText(/save to journal/i);
+      expect(copyBtn).toBeInTheDocument();
+      expect(retryBtn).toBeInTheDocument();
+      expect(journalBtn).toBeInTheDocument();
+    });
+
+    it('(b) does NOT render the tray on a user bubble or a streaming assistant bubble', () => {
+      const { rerender } = render(
+        <MessageBubble chatRole="user">I approach the gate.</MessageBubble>,
+      );
+      // User bubbles never get the tray.
+      expect(screen.queryByLabelText(/copy/i)).toBeNull();
+      expect(screen.queryByLabelText(/retry/i)).toBeNull();
+      expect(screen.queryByLabelText(/save to journal/i)).toBeNull();
+
+      rerender(
+        <MessageBubble chatRole="assistant" streaming>
+          Partial...
+        </MessageBubble>,
+      );
+      expect(screen.queryByLabelText(/copy/i)).toBeNull();
+      expect(screen.queryByLabelText(/retry/i)).toBeNull();
+    });
+
+    it('(c) Copy button calls navigator.clipboard.writeText with the message content', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+
+      render(<MessageBubble chatRole="assistant">The tavern is quiet.</MessageBubble>);
+      fireEvent.click(screen.getByLabelText(/copy/i));
+      expect(writeText).toHaveBeenCalledWith('The tavern is quiet.');
+    });
+
+    it('(d) Save to Journal button calls journal.appendEntry with the message content', () => {
+      const appendEntry = vi.fn();
+      useStore.setState((s) => ({
+        ...s,
+        journal: { ...s.journal, appendEntry },
+      }));
+
+      render(<MessageBubble chatRole="assistant">A passage worth remembering.</MessageBubble>);
+      fireEvent.click(screen.getByLabelText(/save to journal/i));
+      expect(appendEntry).toHaveBeenCalledTimes(1);
+      // biome-ignore lint/style/noNonNullAssertion: guarded by toHaveBeenCalledTimes above
+      const arg = appendEntry.mock.calls[0]![0];
+      // entry_html is now paragraph-wrapped HTML, not raw text.
+      expect(arg.entry_html).toContain('A passage worth remembering.');
+      expect(arg.entry_html).toContain('<p>');
+      expect(arg.entry_html).toBe('<p>A passage worth remembering.</p>');
+    });
+
+    it('(e) Retry button calls the onRetry prop', () => {
+      const onRetry = vi.fn();
+      render(
+        <MessageBubble chatRole="assistant" onRetry={onRetry}>
+          Roll for initiative.
+        </MessageBubble>,
+      );
+      fireEvent.click(screen.getByLabelText(/retry/i));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('(f) tray buttons are focusable - Copy button accepts keyboard focus', () => {
+      render(<MessageBubble chatRole="assistant">The dragon stirs.</MessageBubble>);
+      const copyBtn = screen.getByLabelText(/copy/i);
+      copyBtn.focus();
+      expect(document.activeElement).toBe(copyBtn);
+    });
   });
 });

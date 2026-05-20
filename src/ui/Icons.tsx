@@ -373,6 +373,18 @@ export const Icons = {
       <path d="M3 21v-5h5" />
     </Base>
   ),
+  Copy: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="9" y="9" width="11" height="11" rx="1.5" />
+      <path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" />
+    </Base>
+  ),
+  BookOpen: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M2 7a2 2 0 012-2h5l3 3l3-3h5a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2z" />
+      <path d="M12 8v13" />
+    </Base>
+  ),
   Minimize: (p: IconProps) => (
     <Base {...p}>
       <path d="M5 12h14" />
