@@ -1,0 +1,14 @@
+# Gitleaks configuration.
+#
+# Extends the default ruleset (all standard secret rules stay active) and
+# allowlists the onboarding step tests. Those specs type fake provider API
+# keys into form inputs to exercise the chat / image / video provider steps;
+# the fixtures are obvious-fake strings, not real secrets.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake provider API-key fixtures in onboarding step tests"
+paths = [
+  '''src/components/onboarding/__tests__/''',
+]

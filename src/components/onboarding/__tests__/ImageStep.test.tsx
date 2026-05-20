@@ -167,7 +167,7 @@ describe('ImageStep - cloud-cinematic preset', () => {
 
     // Type a Replicate API key.
     const keyInput = screen.getByLabelText(/replicate/i);
-    await user.type(keyInput, 'r8_test1234567890');
+    await user.type(keyInput, 'fake-replicate-key');
 
     // Now enabled.
     await waitFor(() => {
@@ -178,7 +178,7 @@ describe('ImageStep - cloud-cinematic preset', () => {
 
     // Store must be updated.
     const state = useStore.getState().settings;
-    expect(state.replicateApiKey).toBe('r8_test1234567890');
+    expect(state.replicateApiKey).toBe('fake-replicate-key');
     expect(state.imagePreset).toBe('cloud');
     expect(state.imageEnabled).toBe(true);
 
