@@ -39,6 +39,7 @@
   "ability_method_4d6_drop_lowest": "4d6 со сбросом меньшего",
   "point_buy_remaining": "{{remaining}} очков осталось",
   "standard_array_hint": "Каждое значение можно назначить одной характеристике:",
+  "standard_array_taken": "занято",
   "roll_set": "Бросить набор (осталось {{remaining}})",
   "increment": "Увеличить {{ability}}",
   "decrement": "Уменьшить {{ability}}",
