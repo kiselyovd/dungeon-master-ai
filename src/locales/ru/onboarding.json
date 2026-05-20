@@ -74,6 +74,15 @@
   "replicate_key_label": "API-ключ Replicate",
   "replicate_key_hint": "Получить ключ: replicate.com - используется для генерации изображений FLUX-Pro.",
 
+  "video_step_tag": "Настройка видео",
+  "video_step_title": "Включить генерацию видео",
+  "video_step_desc": "Генерация коротких кинематографических клипов при смене сцен. Работает через Kling и Replicate.",
+  "video_cost_hint": "Облачная генерация видео оплачивается за каждый клип. Следите за расходами в панели Replicate.",
+  "video_key_reused": "API-ключ Replicate из предыдущего шага будет использован.",
+  "video_key_missing_hint": "Для включения генерации видео необходим API-ключ Replicate. Вернитесь на шаг настройки изображений и введите ключ.",
+  "video_skip": "Пропустить",
+  "video_enable_cta": "Включить видео",
+
   "step_chat_title": "Выбери провайдера чата",
   "step_hero_title": "Создай героя",
 

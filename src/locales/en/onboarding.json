@@ -74,6 +74,15 @@
   "replicate_key_label": "Replicate API key",
   "replicate_key_hint": "Get one at replicate.com - used for FLUX-Pro image generation.",
 
+  "video_step_tag": "Video setup",
+  "video_step_title": "Enable AI video generation",
+  "video_step_desc": "Generate short cinematic clips during scene transitions. Powered by Kling via Replicate.",
+  "video_cost_hint": "Cloud video generation has a per-clip cost. Check your Replicate usage dashboard.",
+  "video_key_reused": "The Replicate API key from the previous step will be used.",
+  "video_key_missing_hint": "A Replicate API key is needed to enable video generation. Go back to the image step to enter one.",
+  "video_skip": "Skip for now",
+  "video_enable_cta": "Enable video",
+
   "step_chat_title": "Choose a chat provider",
   "step_hero_title": "Create your hero",
 

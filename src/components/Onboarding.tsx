@@ -144,9 +144,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         {currentStep === 'image' && (
           <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
         )}
-        {currentStep === 'video' && (
-          <VideoStep titleId={titleId} preset={preset} onBack={back} onNext={next} onSkip={next} />
-        )}
+        {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
         {currentStep === 'hero' && (
           <HeroStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
         )}
