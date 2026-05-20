@@ -61,8 +61,8 @@ describe('Onboarding', () => {
     const user = userEvent.setup();
     render(<Onboarding />);
     await user.click(screen.getByRole('button', { name: /Continue/i }));
-    // After advancing, the heading should reflect the preset step label.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Choose preset/i);
+    // After advancing, the heading should reflect the preset step title.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Choose a preset/i);
   });
 
   // ------------------------------------------------------------------

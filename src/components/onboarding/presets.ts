@@ -19,6 +19,12 @@ export interface Preset {
   descKey: string;
   /** Whether this preset is the recommended default */
   recommended: boolean;
+  /** Icon name from the Icons object to display on the card */
+  icon: 'Cpu' | 'Cloud' | 'Sparkle' | 'Book' | 'Settings';
+  /** i18n key for the providers preview line (e.g. "Claude + FLUX-Pro + Kling") */
+  providersKey: string;
+  /** i18n key for the download-size hint, or null if no download required */
+  downloadKey: string | null;
 }
 
 export const PRESETS: readonly Preset[] = [
@@ -27,30 +33,45 @@ export const PRESETS: readonly Preset[] = [
     labelKey: 'preset_local_only_name',
     descKey: 'preset_local_only_desc',
     recommended: true,
+    icon: 'Cpu',
+    providersKey: 'preset_local_only_providers',
+    downloadKey: 'preset_local_only_download',
   },
   {
     id: 'cloud-cinematic',
     labelKey: 'preset_cloud_cinematic_name',
     descKey: 'preset_cloud_cinematic_desc',
     recommended: false,
+    icon: 'Cloud',
+    providersKey: 'preset_cloud_cinematic_providers',
+    downloadKey: null,
   },
   {
     id: 'hybrid',
     labelKey: 'preset_hybrid_name',
     descKey: 'preset_hybrid_desc',
     recommended: false,
+    icon: 'Sparkle',
+    providersKey: 'preset_hybrid_providers',
+    downloadKey: 'preset_hybrid_download',
   },
   {
     id: 'text-only',
     labelKey: 'preset_text_only_name',
     descKey: 'preset_text_only_desc',
     recommended: false,
+    icon: 'Book',
+    providersKey: 'preset_text_only_providers',
+    downloadKey: null,
   },
   {
     id: 'manual',
     labelKey: 'preset_manual_name',
     descKey: 'preset_manual_desc',
     recommended: false,
+    icon: 'Settings',
+    providersKey: 'preset_manual_providers',
+    downloadKey: null,
   },
 ] as const;
 

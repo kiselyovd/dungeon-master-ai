@@ -16,15 +16,30 @@
   "preset_recommended": "Recommended",
 
   "preset_local_only_name": "Local only",
-  "preset_local_only_desc": "Embedded LLM, no cloud, works offline",
+  "preset_local_only_desc": "Everything runs on your machine. Private, offline, no recurring cost.",
+  "preset_local_only_providers": "Qwen3.5-4B + SDXL-Turbo",
+  "preset_local_only_download": "~6.5 GB download",
+
   "preset_cloud_cinematic_name": "Cloud cinematic",
-  "preset_cloud_cinematic_desc": "Cloud LLM + AI image + AI video",
+  "preset_cloud_cinematic_desc": "Anthropic Claude + Replicate FLUX-Pro + Kling. Best quality.",
+  "preset_cloud_cinematic_providers": "Claude + FLUX-Pro + Kling",
+
   "preset_hybrid_name": "Hybrid",
-  "preset_hybrid_desc": "Cloud LLM + AI image, no video",
+  "preset_hybrid_desc": "Cloud conversation, local image. Balance quality and cost.",
+  "preset_hybrid_providers": "Claude + SDXL-Lightning",
+  "preset_hybrid_download": "~3.4 GB download",
+
   "preset_text_only_name": "Text only",
-  "preset_text_only_desc": "No image or video generation",
+  "preset_text_only_desc": "Pure narrative, no image/video. Choose any chat provider.",
+  "preset_text_only_providers": "Chat provider only",
+
   "preset_manual_name": "Manual",
-  "preset_manual_desc": "Configure each modality yourself",
+  "preset_manual_desc": "Start with blank settings; configure everything yourself.",
+  "preset_manual_providers": "Nothing configured",
+
+  "preset_step_tag": "Pick your setup",
+  "preset_step_title": "Choose a preset",
+  "preset_step_desc": "Pick a starting configuration. You can change everything later in Settings.",
 
   "step1_tag": "Step 1 - A new tale begins",
   "step1_title": "Pull up a chair by the fire",
