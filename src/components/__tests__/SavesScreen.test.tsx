@@ -22,12 +22,14 @@ vi.mock('../../api/saves', () => ({
   quickSaveSession: vi.fn(),
   fetchSaveById: vi.fn(),
   deleteSaveById: vi.fn(),
+  fetchSessionMessages: vi.fn(),
 }));
 
 const fetchSessionSavesMock = vi.mocked(savesApi.fetchSessionSaves);
 const fetchSaveByIdMock = vi.mocked(savesApi.fetchSaveById);
 const deleteSaveByIdMock = vi.mocked(savesApi.deleteSaveById);
 const createSaveMock = vi.mocked(savesApi.createSave);
+const fetchSessionMessagesMock = vi.mocked(savesApi.fetchSessionMessages);
 
 const FIXTURE: SaveSummary[] = [
   {
@@ -70,6 +72,7 @@ describe('SavesScreen', () => {
     fetchSaveByIdMock.mockReset();
     deleteSaveByIdMock.mockReset();
     createSaveMock.mockReset();
+    fetchSessionMessagesMock.mockReset();
     fetchSessionSavesMock.mockResolvedValue([...FIXTURE]);
     fetchSaveByIdMock.mockResolvedValue({
       ...FIXTURE[0],
@@ -77,6 +80,7 @@ describe('SavesScreen', () => {
     } as savesApi.SaveRow);
     deleteSaveByIdMock.mockResolvedValue();
     createSaveMock.mockResolvedValue({ id: 'new-1' });
+    fetchSessionMessagesMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -186,6 +190,132 @@ describe('SavesScreen', () => {
     await user.keyboard('{Escape}');
     await waitFor(() => {
       expect(useStore.getState().saves.isOpen).toBe(false);
+    });
+  });
+
+  // C5: minimal rehydration on Load
+  it('C5: fetchSessionMessages is called with the save session_id on Load', async () => {
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      expect(fetchSessionMessagesMock).toHaveBeenCalledWith('sess1', { limit: 20 });
+    });
+  });
+
+  it('C5: chat store is populated with the fetched messages after Load', async () => {
+    const wireMessages: savesApi.SessionMessageWire[] = [
+      { role: 'user', content: 'Hello dungeon master', parts: [] },
+      { role: 'assistant', content: 'Welcome, adventurer', parts: [] },
+    ];
+    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      const messages = useStore.getState().chat.messages;
+      expect(messages).toHaveLength(2);
+      const [msg0, msg1] = messages;
+      expect(msg0?.role).toBe('user');
+      expect(msg0?.content).toBe('Hello dungeon master');
+      expect(msg1?.role).toBe('assistant');
+      expect(msg1?.content).toBe('Welcome, adventurer');
+    });
+  });
+
+  it('C5: the modal closes on successful Load', async () => {
+    useStore.getState().saves.open();
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      expect(useStore.getState().saves.isOpen).toBe(false);
+    });
+  });
+
+  it('C5: an inline error is shown and modal stays open when Load fails', async () => {
+    useStore.getState().saves.open();
+    fetchSessionMessagesMock.mockRejectedValue(new Error('network error'));
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      // Modal stays open
+      expect(useStore.getState().saves.isOpen).toBe(true);
+      // Inline error message uses the load_error i18n key with the error message interpolated
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+      expect(alert).toHaveTextContent('Save could not be loaded: network error');
+    });
+  });
+
+  it('C5: only the last 20 messages populate the chat when the backend returns more than 20', async () => {
+    // Build 25 wire messages; the client should keep only the last 20.
+    const wireMessages: savesApi.SessionMessageWire[] = Array.from({ length: 25 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as savesApi.SessionMessageWire['role'],
+      content: `message-${i}`,
+      parts: [],
+    }));
+    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      const messages = useStore.getState().chat.messages;
+      // Only the last 20 of the 25 wire messages should appear.
+      expect(messages).toHaveLength(20);
+      // The last message in the store should be message-24 (the final wire message).
+      expect(messages[messages.length - 1]?.content).toBe('message-24');
+      // The first message in the store should be message-5 (wire index 25-20=5).
+      expect(messages[0]?.content).toBe('message-5');
+    });
+  });
+
+  it('C5: tool_call and tool_result messages are excluded from the chat on Load', async () => {
+    // A realistic agent session: system prompt, then interleaved user/assistant/tool messages.
+    const wireMessages: savesApi.SessionMessageWire[] = [
+      { role: 'system', content: 'You are a dungeon master.', parts: [] },
+      { role: 'user', content: 'I search the room.', parts: [] },
+      {
+        role: 'assistant_with_tool_calls',
+        content: '',
+        tool_calls: [{ id: 'tc1', name: 'search_room', arguments: '{}' }],
+        parts: [],
+      },
+      { role: 'tool_result', content: 'You find a sword.', parts: [] },
+      { role: 'assistant', content: 'You find a gleaming sword!', parts: [] },
+    ];
+    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    const user = userEvent.setup();
+    render(<SavesScreen />);
+    await waitFor(() => {
+      expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getByRole('button', { name: /Load/i }));
+    await waitFor(() => {
+      const messages = useStore.getState().chat.messages;
+      // Only system, user, and assistant roles should be rehydrated (3 total).
+      expect(messages).toHaveLength(3);
+      expect(messages[0]?.role).toBe('system');
+      expect(messages[1]?.role).toBe('user');
+      expect(messages[2]?.role).toBe('assistant');
+      // The assistant_with_tool_calls and tool_result entries must be absent.
+      expect(messages.find((m) => m.content === 'You find a sword.')).toBeUndefined();
     });
   });
 });

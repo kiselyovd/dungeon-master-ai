@@ -110,11 +110,30 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: 
 
 export function SavesScreen() {
   const { t } = useTranslation('saves');
-  const { saves, selectedSaveId, refresh, deleteSave, loadSave, manualSave, selectSave, close } =
-    useSaves();
+  const {
+    saves,
+    selectedSaveId,
+    refresh,
+    deleteSave,
+    rehydrateFromSave,
+    manualSave,
+    selectSave,
+    close,
+  } = useSaves();
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  // loadErrorKey: 'load_error' (with message) or 'load_generic_error' (no message).
+  // null = no error; non-null = error string (always non-empty from rehydrateFromSave).
+  const [loadErrorMsg, setLoadErrorMsg] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Refresh on mount so the modal always shows the canonical list.
   useEffect(() => {
@@ -150,10 +169,18 @@ export function SavesScreen() {
   };
 
   const onLoad = async () => {
-    if (!selected) return;
-    await loadSave(selected.id);
-    // v1: load is a no-op on game state (linear save model). The UI
-    // simply confirms the save exists; v2 will rehydrate chat/combat.
+    if (!selected || isLoading) return;
+    setIsLoading(true);
+    setLoadErrorMsg(null);
+    const result = await rehydrateFromSave(selected.id);
+    if (!mountedRef.current) return;
+    setIsLoading(false);
+    if (result.ok) {
+      close();
+    } else {
+      // Store the raw error string (may be empty/generic); rendered via i18n keys below.
+      setLoadErrorMsg(result.error);
+    }
   };
 
   const onOverwrite = async () => {
@@ -337,9 +364,22 @@ export function SavesScreen() {
                 </div>
               </div>
 
+              {loadErrorMsg !== null && (
+                <div role="alert" className="dm-save-load-error">
+                  {loadErrorMsg
+                    ? t('load_error', { message: loadErrorMsg })
+                    : t('load_generic_error')}
+                </div>
+              )}
+
               <div className="dm-save-detail-actions">
-                <button type="button" className="dm-btn-tb" onClick={() => void onLoad()}>
-                  <Icons.ArrowReverse size={14} /> {t('load')}
+                <button
+                  type="button"
+                  className="dm-btn-tb"
+                  onClick={() => void onLoad()}
+                  disabled={isLoading}
+                >
+                  <Icons.ArrowReverse size={14} /> {isLoading ? t('loading_label') : t('load')}
                 </button>
                 <button type="button" className="dm-btn-tb" onClick={() => void onOverwrite()}>
                   <Icons.Save size={14} /> {t('overwrite')}

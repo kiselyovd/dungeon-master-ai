@@ -4,6 +4,7 @@ import {
   createSave,
   deleteSaveById,
   fetchSaveById,
+  fetchSessionMessages,
   fetchSessionSaves,
   quickSaveSession,
 } from '../saves';
@@ -152,5 +153,90 @@ describe('saves API', () => {
       vi.fn(async () => new Response('', { status: 404 })),
     );
     await expect(deleteSaveById('missing')).rejects.toBeInstanceOf(ChatError);
+  });
+
+  describe('fetchSessionMessages', () => {
+    it('GETs the correct URL for a session', async () => {
+      const calls: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+          calls.push(url);
+          return new Response(JSON.stringify({ messages: [] }), {
+            status: 200,
+            headers: new Headers({ 'content-type': 'application/json' }),
+          });
+        }),
+      );
+      await fetchSessionMessages('sess42');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toBe('http://test.local/sessions/sess42/messages');
+    });
+
+    it('appends ?limit= query param when opts.limit is provided', async () => {
+      const calls: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+          calls.push(url);
+          return new Response(JSON.stringify({ messages: [] }), {
+            status: 200,
+            headers: new Headers({ 'content-type': 'application/json' }),
+          });
+        }),
+      );
+      await fetchSessionMessages('sess1', { limit: 20 });
+      expect(calls[0]).toBe('http://test.local/sessions/sess1/messages?limit=20');
+    });
+
+    it('slices to the last N messages when the backend returns more than limit', async () => {
+      const manyMessages = Array.from({ length: 25 }, (_, i) => ({
+        role: 'user' as const,
+        content: `msg ${i}`,
+      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify({ messages: manyMessages }), {
+              status: 200,
+              headers: new Headers({ 'content-type': 'application/json' }),
+            }),
+        ),
+      );
+      const result = await fetchSessionMessages('sess1', { limit: 20 });
+      expect(result).toHaveLength(20);
+      // Should be the last 20 messages (indices 5..24)
+      expect(result[0]?.content).toBe('msg 5');
+      expect(result[19]?.content).toBe('msg 24');
+    });
+
+    it('returns all messages without slicing when no opts are provided', async () => {
+      const messages = [
+        { role: 'user' as const, content: 'hello' },
+        { role: 'assistant' as const, content: 'world' },
+      ];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify({ messages }), {
+              status: 200,
+              headers: new Headers({ 'content-type': 'application/json' }),
+            }),
+        ),
+      );
+      const result = await fetchSessionMessages('sess1');
+      expect(result).toHaveLength(2);
+      expect(result[0]?.content).toBe('hello');
+    });
+
+    it('throws ChatError on non-2xx', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('', { status: 500 })),
+      );
+      await expect(fetchSessionMessages('sess1')).rejects.toBeInstanceOf(ChatError);
+    });
   });
 });

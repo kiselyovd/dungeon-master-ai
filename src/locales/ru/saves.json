@@ -26,5 +26,8 @@
   "close_aria": "Закрыть сейвы",
   "confirm_delete": "Удалить этот сейв? Действие необратимо.",
   "untitled": "(без названия)",
-  "default_manual_title": "Ручной сейв"
+  "default_manual_title": "Ручной сейв",
+  "load_error": "Не удалось загрузить сейв: {{message}}",
+  "load_generic_error": "Не удалось загрузить сейв. Попробуйте ещё раз.",
+  "loading_label": "Загрузка..."
 }
