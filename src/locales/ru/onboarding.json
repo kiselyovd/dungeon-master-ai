@@ -60,6 +60,20 @@
   "chat_text_only_desc": "Введите API-ключ Anthropic или пропустите, чтобы настроить позже.",
   "retry": "Повторить",
 
+  "image_step_tag": "Настройка изображений",
+  "image_step_title": "Выберите провайдер изображений",
+  "image_step_desc": "Генерация сцен вместе с приключением. Это можно изменить позже в Настройках.",
+  "image_download_cta": "Загрузить SDXL-Turbo fp16 (~7 ГБ)",
+  "image_starting": "Проверка установленных моделей...",
+  "image_downloading": "Загрузка модели...",
+  "image_downloading_progress": "Загрузка... {{percent}}%",
+  "image_download_done": "Модель готова - загрузка завершена.",
+  "image_already_exists": "Модель готова - уже установлена.",
+  "image_download_failed": "Ошибка загрузки. Попробуйте ещё раз.",
+  "image_cpu_offload_enabled": "CPU offload включается автоматически, чтобы освободить VRAM для LLM при одновременной загрузке обеих моделей.",
+  "replicate_key_label": "API-ключ Replicate",
+  "replicate_key_hint": "Получить ключ: replicate.com - используется для генерации изображений FLUX-Pro.",
+
   "step_chat_title": "Выбери провайдера чата",
   "step_hero_title": "Создай героя",
 

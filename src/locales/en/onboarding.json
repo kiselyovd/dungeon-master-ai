@@ -60,6 +60,20 @@
   "chat_text_only_desc": "Enter your Anthropic API key, or skip to configure a provider later.",
   "retry": "Retry",
 
+  "image_step_tag": "Image setup",
+  "image_step_title": "Choose an image provider",
+  "image_step_desc": "Generate scene art alongside your adventure. You can change this later in Settings.",
+  "image_download_cta": "Download SDXL-Turbo fp16 (~7 GB)",
+  "image_starting": "Checking installed models...",
+  "image_downloading": "Downloading model...",
+  "image_downloading_progress": "Downloading... {{percent}}%",
+  "image_download_done": "Model ready - download complete.",
+  "image_already_exists": "Model ready - already installed.",
+  "image_download_failed": "Download failed. Please try again.",
+  "image_cpu_offload_enabled": "CPU offload is enabled automatically to free VRAM for the LLM when both are loaded.",
+  "replicate_key_label": "Replicate API key",
+  "replicate_key_hint": "Get one at replicate.com - used for FLUX-Pro image generation.",
+
   "step_chat_title": "Choose a chat provider",
   "step_hero_title": "Create your hero",
 

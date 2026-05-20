@@ -142,7 +142,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
         )}
         {currentStep === 'image' && (
-          <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} onSkip={next} />
+          <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
         )}
         {currentStep === 'video' && (
           <VideoStep titleId={titleId} preset={preset} onBack={back} onNext={next} onSkip={next} />
