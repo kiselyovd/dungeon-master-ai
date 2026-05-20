@@ -101,4 +101,11 @@
   --header-height: 40px;
   --statusbar-height: 24px;
   --chat-width: 480px;
+
+  /* Legacy token aliases for M7-M9 callers. New code uses canonical names. */
+  --color-text-muted: var(--color-fg-muted);
+  --font-jetbrains: var(--font-mono);
+  --color-surface: var(--color-bg-raised);
+  --color-text: var(--color-fg-primary);
+  --color-warn: var(--color-warning);
 }
