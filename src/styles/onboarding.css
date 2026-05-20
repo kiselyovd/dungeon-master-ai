@@ -617,3 +617,126 @@
   background: var(--color-accent);
   border-radius: var(--radius-pill);
 }
+
+/* Hero class cards (E6) ------------------------------------------------- */
+
+.dm-hero-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .dm-hero-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.dm-hero-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--color-fg-primary);
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast),
+    transform var(--t-fast);
+}
+
+.dm-hero-card:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  transform: translateY(-2px);
+}
+
+.dm-hero-card-portrait {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-bg-deep);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-fg-muted);
+}
+
+.dm-hero-card-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform var(--t-base);
+}
+
+.dm-hero-card:hover .dm-hero-card-portrait img {
+  transform: scale(1.04);
+}
+
+.dm-hero-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05); /* equals 2px */
+}
+
+.dm-hero-card-name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-accent);
+  display: block;
+}
+
+.dm-hero-card-race {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+  display: block;
+}
+
+.dm-hero-card-stats {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.dm-hero-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.dm-hero-card-stat-label {
+  /* 9px is deliberate - intentionally sub-token (below --text-xs) to fit the compact card stat row */
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.dm-hero-card-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-fg-primary);
+}
+
+.dm-hero-card-equipment {
+  font-size: var(--text-xs);
+  color: var(--color-fg-muted);
+  display: block;
+  margin-top: var(--space-1);
+  line-height: 1.3;
+}

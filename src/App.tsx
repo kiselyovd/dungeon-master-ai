@@ -370,17 +370,10 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && <Onboarding />}
-          {onboardingCompleted && !pcHeroClass && (
-            <CharacterWizard
-              mode="initial"
-              onOpenImageSettings={handleOpenImageSettings}
-              hidden={settingsOpen}
-            />
-          )}
+          {!onboardingCompleted && <Onboarding onExitToWizard={() => setWizardReopen(true)} />}
           {wizardReopen && (
             <CharacterWizard
-              mode="edit"
+              mode={pcHeroClass ? 'edit' : 'initial'}
               onClose={() => setWizardReopen(false)}
               onOpenImageSettings={handleOpenImageSettings}
               hidden={settingsOpen}

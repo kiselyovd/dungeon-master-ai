@@ -31,9 +31,14 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
 interface OnboardingProps {
   /** Optional callback invoked after finalization; primarily for tests. */
   onComplete?: () => void;
+  /**
+   * Called when the user chooses "Build from scratch" on the hero step.
+   * App.tsx uses this to open CharacterWizard in initial mode.
+   */
+  onExitToWizard?: () => void;
 }
 
-export function Onboarding({ onComplete }: OnboardingProps) {
+export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
   const { t: tCommon } = useTranslation('common');
   const titleId = useId();
@@ -146,7 +151,12 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         )}
         {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
         {currentStep === 'hero' && (
-          <HeroStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+          <HeroStep
+            titleId={titleId}
+            onBack={back}
+            onNext={next}
+            {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
+          />
         )}
       </div>
     </div>

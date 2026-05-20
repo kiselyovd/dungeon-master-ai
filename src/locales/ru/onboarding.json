@@ -123,6 +123,9 @@
   "class_cleric_name": "Жрец",
   "class_cleric_desc": "Поборник божественного. Исцеление, поддержка, праведная мощь.",
 
+  "hero_step_tag": "Кто ты?",
+  "hero_build_from_scratch": "Создать вручную (расширенный режим)",
+
   "dialog_label": "Первый запуск",
   "stepper_label": "Прогресс онбординга",
 

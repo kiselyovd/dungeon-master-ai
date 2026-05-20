@@ -123,6 +123,9 @@
   "class_cleric_name": "Cleric",
   "class_cleric_desc": "Divine champion. Healing, support, righteous might.",
 
+  "hero_step_tag": "Who are you?",
+  "hero_build_from_scratch": "Build from scratch (advanced)",
+
   "dialog_label": "First-run setup",
   "stepper_label": "Onboarding progress",
 
