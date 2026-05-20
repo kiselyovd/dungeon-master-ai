@@ -1,3 +1,43 @@
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdropFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialogSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dialogSlideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -6,6 +46,11 @@
   align-items: center;
   justify-content: center;
   z-index: var(--z-overlay-1);
+  animation: backdropFadeIn var(--t-slow) ease both;
+}
+
+.backdrop[data-state="closing"] {
+  animation: backdropFadeOut var(--t-slow) ease both;
 }
 
 .dialog {
@@ -17,6 +62,11 @@
   max-height: 90vh;
   overflow-y: auto;
   border: 1px solid var(--color-border-strong);
+  animation: dialogSlideDown var(--t-slow) ease both;
+}
+
+.dialog[data-state="closing"] {
+  animation: dialogSlideUp var(--t-slow) ease both;
 }
 
 .title {

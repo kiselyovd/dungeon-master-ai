@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import '../../i18n';
@@ -40,7 +40,7 @@ describe('NpcMemoryGrid', () => {
     const onClose = vi.fn();
     render(<NpcMemoryGrid npcs={[]} onClose={onClose} />);
     await userEvent.click(screen.getByRole('button', { name: /close/i }));
-    expect(onClose).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce(), { timeout: 1000 });
   });
 
   it('escape in search clears the field, does not close', async () => {

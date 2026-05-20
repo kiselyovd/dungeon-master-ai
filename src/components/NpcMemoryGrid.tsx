@@ -8,6 +8,7 @@ import npcMerchant from '../assets/npc-fallback-merchant.png';
 import npcPeasant from '../assets/npc-fallback-peasant.png';
 import npcPriestess from '../assets/npc-fallback-priestess.png';
 import npcRogue from '../assets/npc-fallback-rogue.png';
+import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { DISPOSITIONS, type Disposition, type NpcRecord } from '../state/npc';
 import styles from './NpcMemoryGrid.module.css';
 
@@ -90,6 +91,7 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [filterDisposition, setFilterDisposition] = useState<Disposition | null>(null);
+  const { isClosing, triggerClose } = useClosingAnimation(onClose);
 
   useEffect(() => {
     containerRef.current?.focus();
@@ -106,12 +108,13 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   return (
     <div
       className={styles.overlay}
+      data-state={isClosing ? 'closing' : 'open'}
       role="dialog"
       aria-modal="true"
       aria-label={t('title')}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
-          onClose();
+          triggerClose();
         }
       }}
     >
@@ -136,7 +139,7 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
             <button
               type="button"
               className={styles.closeBtn}
-              onClick={onClose}
+              onClick={triggerClose}
               aria-label={t('close')}
             >
               &#x2715;

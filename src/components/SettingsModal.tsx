@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { postSettingsV2 } from '../api/settings';
+import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -53,10 +54,12 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const { isClosing, triggerClose } = useClosingAnimation(onClose);
+
   // Clear stale errors when the modal closes so a re-open starts fresh.
   useEffect(() => {
-    if (!open) setSubmitError(null);
-  }, [open]);
+    if (!open && !isClosing) setSubmitError(null);
+  }, [open, isClosing]);
 
   const onSubmit = async (submission: SettingsSubmission) => {
     setProviderConfig(submission.provider);
@@ -82,17 +85,18 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
     }
 
     setSubmitError(null);
-    onClose();
+    triggerClose();
   };
 
   return (
     <Modal
-      open={open}
-      onClose={onClose}
+      open={open || isClosing}
+      onClose={triggerClose}
+      closing={isClosing}
       title={t('title')}
       footer={
         <>
-          <Button onClick={onClose}>{tCommon('cancel')}</Button>
+          <Button onClick={triggerClose}>{tCommon('cancel')}</Button>
           <Button variant="primary" type="submit" form={FORM_ID}>
             {tCommon('save')}
           </Button>

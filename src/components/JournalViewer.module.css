@@ -1,3 +1,25 @@
+@keyframes journalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes journalSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -6,6 +28,14 @@
   align-items: center;
   justify-content: center;
   z-index: var(--z-overlay-1);
+}
+
+.overlay .container {
+  animation: journalSlideIn var(--t-slow) ease both;
+}
+
+.overlay[data-state="closing"] .container {
+  animation: journalSlideOut var(--t-slow) ease both;
 }
 
 .container {

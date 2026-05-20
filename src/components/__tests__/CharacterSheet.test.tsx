@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
@@ -30,17 +30,16 @@ describe('CharacterSheet', () => {
   });
 
   it('"Go to onboarding" resets the onboarding flag and closes the modal', async () => {
-    const user = userEvent.setup();
     // Pretend the user already finished onboarding once.
     useStore.getState().onboarding.complete();
     expect(useStore.getState().onboarding.completed).toBe(true);
 
     const onClose = vi.fn();
     render(<CharacterSheet open onClose={onClose} />);
-    await user.click(screen.getByRole('button', { name: /Go to onboarding/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Go to onboarding/i }));
 
     expect(useStore.getState().onboarding.completed).toBe(false);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), { timeout: 1000 });
   });
 
   it('renders the full sheet for a Fighter preset', () => {
@@ -78,7 +77,7 @@ describe('CharacterSheet', () => {
     const onClose = vi.fn();
     render(<CharacterSheet open onClose={onClose} />);
     await userEvent.keyboard('{Escape}');
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 1000 });
   });
 
   it('clicking the backdrop closes the modal', async () => {
@@ -87,6 +86,36 @@ describe('CharacterSheet', () => {
     render(<CharacterSheet open onClose={onClose} />);
     const backdrop = screen.getByRole('dialog');
     await userEvent.click(backdrop);
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 1000 });
+  });
+
+  it('sheet is removed from the DOM after close animation completes', async () => {
+    vi.useFakeTimers();
+    try {
+      useStore.getState().pc.applyPreset('fighter');
+      const onClose = vi.fn();
+
+      const { rerender } = render(<CharacterSheet open={true} onClose={onClose} />);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // Trigger close via Escape key.
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+
+      // Advance past the 280ms animation.
+      await act(async () => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onClose).toHaveBeenCalledOnce();
+
+      // Mimic the real parent re-rendering with open=false after onClose fires.
+      rerender(<CharacterSheet open={false} onClose={onClose} />);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

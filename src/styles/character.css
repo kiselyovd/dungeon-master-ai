@@ -50,6 +50,30 @@
   font-size: var(--text-xs);
 }
 
+/* ---- Slide animations ------------------------------------------------ */
+
+@keyframes charSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes charSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+
 /* ---- Modal backdrop -------------------------------------------------- */
 
 .dm-modal-backdrop.dm-char-backdrop {
@@ -77,6 +101,11 @@
   padding: var(--space-6);
   position: relative;
   color: var(--color-fg-primary);
+  animation: charSlideIn var(--t-slow) ease both;
+}
+
+.dm-modal-backdrop.dm-char-backdrop[data-state="closing"] .dm-char {
+  animation: charSlideOut var(--t-slow) ease both;
 }
 
 .dm-modal-header {
