@@ -180,5 +180,10 @@
   "warning_no_background": "Pick a background first.",
   "warning_no_ability_method": "Distribute ability scores first.",
   "warning_no_name": "Your character has no name.",
-  "warning_no_equipment": "Equipment mode not chosen yet."
+  "warning_no_equipment": "Equipment mode not chosen yet.",
+  "nav_back": "Back",
+  "nav_next": "Next",
+  "nav_step": "Step {{current}} of {{total}}",
+  "nav_next_blocked": "Complete this step before continuing",
+  "nav_footer_label": "Step navigation"
 }

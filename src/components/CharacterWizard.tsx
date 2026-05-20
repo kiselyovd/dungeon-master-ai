@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Compendium, fetchCompendium } from '../api/srd';
-import type { WizardTab } from '../state/charCreation';
+import type { CharacterDraft, WizardTab } from '../state/charCreation';
 import { useStore } from '../state/useStore';
 import { WizardLiveSheet } from './WizardLiveSheet';
 import { AbilitiesTab } from './wizard/AbilitiesTab';
@@ -38,6 +38,31 @@ const TABS: readonly WizardTab[] = [
   'review',
 ];
 
+function isTabValid(tab: WizardTab, draft: CharacterDraft): boolean {
+  switch (tab) {
+    case 'class':
+      return draft.classId !== null;
+    case 'race':
+      return draft.raceId !== null;
+    case 'background':
+      return draft.backgroundId !== null;
+    case 'abilities':
+      return draft.abilityMethod !== null;
+    case 'skills':
+      return true;
+    case 'spells':
+      return true;
+    case 'equipment':
+      return true;
+    case 'persona':
+      return true;
+    case 'portrait':
+      return true;
+    case 'review':
+      return true;
+  }
+}
+
 export function CharacterWizard({
   mode,
   onClose,
@@ -58,6 +83,21 @@ export function CharacterWizard({
 
   const sheet = compendium ? computeLiveSheet(draft, compendium) : null;
 
+  const currentIndex = TABS.indexOf(activeTab);
+  const isFirst = currentIndex === 0;
+  const isLast = activeTab === 'review';
+  const tabValid = isTabValid(activeTab, draft);
+
+  const handleBack = useCallback(() => {
+    const prev = TABS[currentIndex - 1];
+    if (prev !== undefined) setActiveTab(prev);
+  }, [currentIndex, setActiveTab]);
+
+  const handleNext = useCallback(() => {
+    const next = TABS[currentIndex + 1];
+    if (!isLast && tabValid && next !== undefined) setActiveTab(next);
+  }, [currentIndex, isLast, tabValid, setActiveTab]);
+
   return (
     <div
       className="dm-wizard"
@@ -65,7 +105,7 @@ export function CharacterWizard({
       {...(!hidden ? { role: 'dialog', 'aria-modal': true } : {})}
     >
       <div className="dm-wizard-strip" role="tablist">
-        {TABS.map((tab) => (
+        {TABS.map((tab, index) => (
           <button
             key={tab}
             type="button"
@@ -74,6 +114,7 @@ export function CharacterWizard({
             className={`dm-wizard-tab${activeTab === tab ? ' is-active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
+            <span className="dm-wizard-tab-num">{index + 1}</span>
             {t(`tab_${tab}_name`)}
           </button>
         ))}
@@ -98,6 +139,32 @@ export function CharacterWizard({
           />
         )}
       </main>
+      <footer className="dm-wizard-footer">
+        <fieldset className="dm-wizard-footer-nav" aria-label={t('nav_footer_label')}>
+          <button
+            type="button"
+            className="dm-wizard-nav-btn dm-wizard-nav-btn--back"
+            onClick={handleBack}
+            disabled={isFirst}
+          >
+            {t('nav_back')}
+          </button>
+          <span className="dm-wizard-step-label" aria-live="polite">
+            {t('nav_step', { current: currentIndex + 1, total: TABS.length })}
+          </span>
+          {!isLast && (
+            <button
+              type="button"
+              className="dm-wizard-nav-btn dm-wizard-nav-btn--next"
+              onClick={handleNext}
+              disabled={!tabValid}
+              {...(!tabValid ? { title: t('nav_next_blocked') } : {})}
+            >
+              {t('nav_next')}
+            </button>
+          )}
+        </fieldset>
+      </footer>
       {sheet && <WizardLiveSheet sheet={sheet} />}
     </div>
   );

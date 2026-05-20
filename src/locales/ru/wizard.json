@@ -200,5 +200,10 @@
   "warning_no_background": "Сначала выбери background.",
   "warning_no_ability_method": "Сначала распредели характеристики.",
   "warning_no_name": "У персонажа нет имени.",
-  "warning_no_equipment": "Режим снаряжения ещё не выбран."
+  "warning_no_equipment": "Режим снаряжения ещё не выбран.",
+  "nav_back": "Назад",
+  "nav_next": "Далее",
+  "nav_step": "Шаг {{current}} из {{total}}",
+  "nav_next_blocked": "Заверши этот шаг, чтобы продолжить",
+  "nav_footer_label": "Навигация по шагам"
 }
