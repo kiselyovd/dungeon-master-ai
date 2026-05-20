@@ -2,6 +2,10 @@
   "step_welcome": "Welcome",
   "step_connect_ai": "Connect AI",
   "step_create_hero": "Create hero",
+  "step_pick_preset": "Choose preset",
+  "step_image": "Image setup",
+  "step_video": "Video setup",
+  "step_counter": "Step {{current}} of {{total}}",
 
   "next": "Continue",
   "back": "Back",
@@ -9,10 +13,26 @@
   "begin": "Begin adventure",
   "step2_finish_cta": "Begin Setup",
 
+  "preset_recommended": "Recommended",
+
+  "preset_local_only_name": "Local only",
+  "preset_local_only_desc": "Embedded LLM, no cloud, works offline",
+  "preset_cloud_cinematic_name": "Cloud cinematic",
+  "preset_cloud_cinematic_desc": "Cloud LLM + AI image + AI video",
+  "preset_hybrid_name": "Hybrid",
+  "preset_hybrid_desc": "Cloud LLM + AI image, no video",
+  "preset_text_only_name": "Text only",
+  "preset_text_only_desc": "No image or video generation",
+  "preset_manual_name": "Manual",
+  "preset_manual_desc": "Configure each modality yourself",
+
   "step1_tag": "Step 1 - A new tale begins",
   "step1_title": "Pull up a chair by the fire",
   "step1_desc": "Your AI Game Master is waiting at the table. They will weave the story, run the world, and roll the dice. No party required - just bring your imagination.",
   "step1_cta": "Configure provider",
+
+  "step_chat_title": "Choose a chat provider",
+  "step_hero_title": "Create your hero",
 
   "step2_tag": "Step 2 - The voice of the DM",
   "step2_title": "Choose a provider",

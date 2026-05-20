@@ -2,6 +2,10 @@
   "step_welcome": "Добро пожаловать",
   "step_connect_ai": "Подключение AI",
   "step_create_hero": "Создание героя",
+  "step_pick_preset": "Выбор пресета",
+  "step_image": "Настройка изображений",
+  "step_video": "Настройка видео",
+  "step_counter": "Шаг {{current}} из {{total}}",
 
   "next": "Далее",
   "back": "Назад",
@@ -9,10 +13,26 @@
   "begin": "Начать игру",
   "step2_finish_cta": "Начать настройку",
 
+  "preset_recommended": "Рекомендуется",
+
+  "preset_local_only_name": "Только локально",
+  "preset_local_only_desc": "Встроенная LLM, без облака, работает оффлайн",
+  "preset_cloud_cinematic_name": "Облако и кино",
+  "preset_cloud_cinematic_desc": "Облачная LLM + AI-изображения + AI-видео",
+  "preset_hybrid_name": "Гибрид",
+  "preset_hybrid_desc": "Облачная LLM + AI-изображения, без видео",
+  "preset_text_only_name": "Только текст",
+  "preset_text_only_desc": "Без генерации изображений и видео",
+  "preset_manual_name": "Вручную",
+  "preset_manual_desc": "Настроить каждую модальность самостоятельно",
+
   "step1_tag": "Шаг 1 - Здравствуй, путник",
   "step1_title": "Сядь поближе к огню",
   "step1_desc": "Твой Гейм-Мастер ждёт за столом. Расскажет историю, поведёт сюжет, бросит за тебя кости. Партия не нужна - нужно только желание играть.",
   "step1_cta": "Подключить AI",
+
+  "step_chat_title": "Выбери провайдера чата",
+  "step_hero_title": "Создай героя",
 
   "step2_tag": "Шаг 2 - Голос мастера",
   "step2_title": "Выбери провайдера",
