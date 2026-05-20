@@ -26,12 +26,16 @@ const postDiscoverMock = vi.mocked(postDiscover);
  * - the provider select exposes all three kinds (anthropic, openai-compat,
  *   local-mistralrs) so the user can pick local mode without the dev
  *   shortcut.
- * - selecting local-mistralrs reveals the model picker + VRAM strategy +
+ * - the Local LLM tab (D8) shows the model picker + VRAM strategy +
  *   runtime control UI mirrored from LocalModeModal.
  * - changing the model selection updates `localMode.selectedLlm`.
  * - changing the VRAM strategy updates `localMode.vramStrategy`.
  * - Save with local-mistralrs builds a `{ kind: 'local-mistralrs', ... }`
  *   submission whose `modelPath` carries the selected ModelId string.
+ *
+ * D8 promoted the local-LLM config into its own standalone tab, so these
+ * tests now navigate to the Local LLM tab instead of selecting the
+ * local-mistralrs provider in the Chat tab.
  */
 
 describe('SettingsForm', () => {
@@ -58,14 +62,11 @@ describe('SettingsForm', () => {
     expect(options).toEqual(['anthropic', 'openai-compat', 'local-mistralrs']);
   });
 
-  it('reveals the local-mistralrs fields when that provider is selected', async () => {
+  it('shows the local-mistralrs fields on the Local LLM tab', async () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
 
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /Provider/i }),
-      'local-mistralrs',
-    );
+    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
     // Model cards from the manifest render with a download button.
     expect(screen.getByText(/Qwen3\.5-4B/i)).toBeInTheDocument();
@@ -94,10 +95,7 @@ describe('SettingsForm', () => {
       },
     }));
     render(<SettingsForm onSubmit={() => {}} />);
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /Provider/i }),
-      'local-mistralrs',
-    );
+    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
     // Default selection is qwen3_5_4b - pick 0.8B from its card.
     const cards = screen.getAllByRole('group');
@@ -112,10 +110,7 @@ describe('SettingsForm', () => {
   it('updates localMode.vramStrategy when the user changes the strategy select', async () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /Provider/i }),
-      'local-mistralrs',
-    );
+    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
     await user.selectOptions(
       screen.getByRole('combobox', { name: /VRAM strategy/i }),

@@ -1,5 +1,7 @@
 {
   "title": "Settings",
+  "tab_chat": "Chat",
+  "tab_local_llm": "Local LLM",
   "tab_provider": "Chat",
   "tab_image": "Image",
   "tab_video": "Video",
@@ -25,6 +27,7 @@
   "local_runtime_section": "Runtime",
   "local_runtime_hint": "Local Mode also requires the runtime to be started before it can serve chat.",
   "local_runtime_not_ready": "Start the local runtime before saving so the backend can pin a port.",
+  "chat_local_llm_hint": "Local model runtimes are configured on the Local LLM tab.",
   "api_key_label": "API key",
   "api_key_placeholder": "sk-ant-...",
   "api_key_placeholder_openai": "sk-... or any token your endpoint expects",

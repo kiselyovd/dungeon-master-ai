@@ -1,10 +1,8 @@
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageEntryForPreset, VIDEO_CATALOG } from '../api/providers-catalog';
 import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
-import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
-import { useModelDownload } from '../hooks/useModelDownload';
-import type { ModelId, VramStrategy } from '../state/localMode';
+import type { ModelId } from '../state/localMode';
 import {
   type AnthropicConfig,
   assertNeverProvider,
@@ -21,37 +19,15 @@ import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
 import { activeProviderCaps } from '../utils/capabilities';
 import { isOssLicense } from '../utils/license';
-import { CustomHfRepoModal } from './CustomHfRepoModal';
 import { LicenseRestrictedBanner } from './LicenseRestrictedBanner';
-import { ModelDownloadCard } from './ModelDownloadCard';
 import { ModelSelector } from './ModelSelector';
-import { RuntimeStatusPill } from './RuntimeStatusPill';
 import styles from './SettingsForm.module.css';
-import { ModelSelector as LocalLlmModelSelector } from './settings/local-llm/ModelSelector';
-
-/**
- * Map between the localMode slice `ModelId` enum (snake_case) and the wire
- * id used by the new local-llm manifest endpoint (e.g. `qwen3.5-4b`). Lets the
- * Settings -> Local LLM picker keep `localMode.selectedLlm` in sync with the
- * value the backend manifest understands.
- *
- * Custom HF ids fall through (return null) - selection there flows through the
- * separate `customLlmOverride` slot, not the manifest picker.
- */
-const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
-  qwen3_5_0_8b: 'qwen3.5-0.8b',
-  qwen3_5_2b: 'qwen3.5-2b',
-  qwen3_5_4b: 'qwen3.5-4b',
-  qwen3_5_9b: 'qwen3.5-9b',
-};
-const WIRE_ID_TO_LOCAL_MODEL: Record<string, ModelId> = Object.fromEntries(
-  Object.entries(LOCAL_MODEL_WIRE_ID).map(([k, v]) => [v as string, k as ModelId]),
-);
+import { LocalLlmTab } from './settings/LocalLlmTab';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
 
-export type Tab = 'provider' | 'image' | 'video' | 'behavior';
-const TAB_ORDER: readonly Tab[] = ['provider', 'image', 'video', 'behavior'];
+export type Tab = 'chat' | 'local-llm' | 'image' | 'video' | 'behavior';
+const TAB_ORDER: readonly Tab[] = ['chat', 'local-llm', 'image', 'video', 'behavior'];
 
 export interface SettingsSubmission {
   provider: ProviderConfig;
@@ -69,7 +45,7 @@ interface SettingsFormProps {
   formId?: string;
   /** Optional callback invoked when the user wants to re-create their character. */
   onRequestCharacterRecreate?: () => void;
-  /** Optional tab to select on mount; falls back to 'provider'. */
+  /** Optional tab to select on mount; falls back to 'chat'. */
   initialTab?: Tab;
 }
 
@@ -82,11 +58,11 @@ interface SettingsFormProps {
  * Ctrl+Shift+M LocalModeModal (model picker + VRAM strategy + runtime
  * controls) so the embedded provider can be configured from Settings.
  *
- * M3 added a tab bar at the top: the Provider tab keeps the provider
- * picker + per-kind sub-form + language selects, and the Model tab exposes
- * the agent-loop knobs (system prompt, temperature, Replicate API key)
- * wired to `POST /agent-settings`. M4 lights up local-mistralrs as the
- * third provider option (radio-card UI deferred to a later polish pass).
+ * M3 added a tab bar at the top. D8 split it into five tabs: Chat keeps the
+ * provider picker + per-kind sub-form, Local LLM hosts the standalone
+ * local-mistralrs runtime + model UI, Image / Video host the media presets,
+ * and Behavior exposes the agent-loop knobs (system prompt, temperature,
+ * languages) wired to `POST /agent-settings`.
  */
 export function SettingsForm({
   onSubmit,
@@ -102,7 +78,7 @@ export function SettingsForm({
   // every form rerender to also rebuild on unrelated download progress.
   const localModeSelection = useStore((s) => s.localMode.selectedLlm);
 
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'provider');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'chat');
   // Drafts and activeKind are seeded once from the slice on mount and live
   // independently afterwards. SettingsModal unmounts the form on close
   // (`if (!open) return null`), so the next open re-seeds from the latest slice.
@@ -118,7 +94,7 @@ export function SettingsForm({
     e.preventDefault();
     const idx = TAB_ORDER.indexOf(activeTab);
     const delta = e.key === 'ArrowLeft' ? -1 : 1;
-    const next = TAB_ORDER[(idx + delta + TAB_ORDER.length) % TAB_ORDER.length] ?? 'provider';
+    const next = TAB_ORDER[(idx + delta + TAB_ORDER.length) % TAB_ORDER.length] ?? 'chat';
     setActiveTab(next);
     requestAnimationFrame(() => {
       document.getElementById(`settings-tab-${next}`)?.focus();
@@ -128,9 +104,9 @@ export function SettingsForm({
   const onSave = async () => {
     const result = buildConfig(activeKind, drafts, localModeSelection);
     if (!result.ok) {
-      // If the validation error lives in the Provider tab, surface it by
+      // If the validation error lives in the Chat tab, surface it by
       // switching back to that tab so the inline message is visible.
-      setActiveTab('provider');
+      setActiveTab('chat');
       setErrors(result.errors);
       return;
     }
@@ -163,15 +139,28 @@ export function SettingsForm({
         <button
           type="button"
           role="tab"
-          id="settings-tab-provider"
-          aria-controls="settings-panel-provider"
-          aria-selected={activeTab === 'provider'}
-          tabIndex={activeTab === 'provider' ? 0 : -1}
+          id="settings-tab-chat"
+          aria-controls="settings-panel-chat"
+          aria-selected={activeTab === 'chat'}
+          tabIndex={activeTab === 'chat' ? 0 : -1}
           onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'provider' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('provider')}
+          className={`${styles.tab} ${activeTab === 'chat' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('chat')}
         >
-          {t('tab_provider')}
+          {t('tab_chat')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="settings-tab-local-llm"
+          aria-controls="settings-panel-local-llm"
+          aria-selected={activeTab === 'local-llm'}
+          tabIndex={activeTab === 'local-llm' ? 0 : -1}
+          onKeyDown={onTabKeyDown}
+          className={`${styles.tab} ${activeTab === 'local-llm' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('local-llm')}
+        >
+          {t('tab_local_llm')}
         </button>
         <button
           type="button"
@@ -214,8 +203,8 @@ export function SettingsForm({
         </button>
       </div>
 
-      {activeTab === 'provider' && (
-        <div role="tabpanel" id="settings-panel-provider" aria-labelledby="settings-tab-provider">
+      {activeTab === 'chat' && (
+        <div role="tabpanel" id="settings-panel-chat" aria-labelledby="settings-tab-chat">
           <Field label={t('provider_label')}>
             {({ id }) => (
               <select
@@ -254,10 +243,59 @@ export function SettingsForm({
             />
           )}
 
-          {activeKind === 'local-mistralrs' && <LocalMistralRsFields />}
+          {activeKind === 'local-mistralrs' && (
+            <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
+          )}
 
           <ReasoningSection activeKind={activeKind} drafts={drafts} />
 
+          {onRequestCharacterRecreate && (
+            <section className={styles.characterSection}>
+              <h3>{t('character_section_title')}</h3>
+              <button
+                type="button"
+                className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                onClick={() => onRequestCharacterRecreate()}
+              >
+                {t('recreate_character')}
+              </button>
+            </section>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'local-llm' && (
+        <div role="tabpanel" id="settings-panel-local-llm" aria-labelledby="settings-tab-local-llm">
+          <LocalLlmTab />
+        </div>
+      )}
+
+      {activeTab === 'image' && (
+        <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
+          <ImageTab
+            replicateApiKey={drafts.replicateApiKey}
+            onReplicateApiKeyChange={(replicateApiKey) =>
+              setDrafts((prev) => ({ ...prev, replicateApiKey }))
+            }
+          />
+        </div>
+      )}
+
+      {activeTab === 'video' && (
+        <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
+          <VideoTab />
+        </div>
+      )}
+
+      {activeTab === 'behavior' && (
+        <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
+          <ModelTab
+            draft={{
+              systemPrompt: drafts.systemPrompt,
+              temperature: drafts.temperature,
+            }}
+            onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+          />
           <div className={styles.languages}>
             <Field label={t('language_ui_label')}>
               {({ id }) => (
@@ -280,50 +318,6 @@ export function SettingsForm({
               )}
             </Field>
           </div>
-
-          {onRequestCharacterRecreate && (
-            <section
-              style={{
-                marginTop: 24,
-                paddingTop: 16,
-                borderTop: '1px solid rgba(212,175,55,0.15)',
-              }}
-            >
-              <h3>{t('character_section_title')}</h3>
-              <button
-                type="button"
-                className="dm-onboarding-btn dm-onboarding-btn-secondary"
-                onClick={() => onRequestCharacterRecreate()}
-              >
-                {t('recreate_character')}
-              </button>
-            </section>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'image' && (
-        <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
-          <ImageTab />
-        </div>
-      )}
-
-      {activeTab === 'video' && (
-        <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
-          <VideoTab />
-        </div>
-      )}
-
-      {activeTab === 'behavior' && (
-        <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
-          <ModelTab
-            draft={{
-              systemPrompt: drafts.systemPrompt,
-              temperature: drafts.temperature,
-              replicateApiKey: drafts.replicateApiKey,
-            }}
-            onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
-          />
           <BehaviorExtras />
         </div>
       )}
@@ -453,270 +447,6 @@ function OpenaiCompatFields({
   );
 }
 
-interface LocalLlmEntry {
-  id: ModelId;
-  name: string;
-  size: number;
-  vram: number;
-  warn?: string;
-}
-
-const LOCAL_LLMS: readonly LocalLlmEntry[] = [
-  { id: 'qwen3_5_0_8b', name: 'Qwen3.5-0.8B Q4_K_M', size: 600e6, vram: 900e6 },
-  { id: 'qwen3_5_2b', name: 'Qwen3.5-2B Q4_K_M', size: 1.5e9, vram: 2.0e9 },
-  { id: 'qwen3_5_4b', name: 'Qwen3.5-4B Q4_K_M', size: 3.0e9, vram: 2.5e9 },
-  {
-    id: 'qwen3_5_9b',
-    name: 'Qwen3.5-9B Q4_K_M',
-    size: 6.5e9,
-    vram: 5.5e9,
-    warn: 'requires VRAM swap with image-gen',
-  },
-];
-
-const RUNTIME_RESET_DELAY_MS = 3500;
-type RuntimeActionStatus = 'idle' | 'pending' | 'error';
-
-/**
- * `local-mistralrs` provider editor inside the Settings -> Provider tab.
- *
- * Mirrors the LocalModeModal (Ctrl+Shift+M) so the embedded provider can be
- * configured without leaving Settings: pick a Qwen variant, choose a VRAM
- * strategy, and start/stop the LLM + image runtimes. The shared state lives
- * in the localMode slice so both surfaces stay in sync.
- */
-function LocalMistralRsFields() {
-  const { t } = useTranslation('settings');
-  const { t: tLocal } = useTranslation('local_mode');
-  const lm = useStore((s) => s.localMode);
-  const [customModalOpen, setCustomModalOpen] = useState(false);
-  // Poll runtime status so the pills + the toWireConfig port lookup reflect
-  // the current sidecar state. While the local-mistralrs panel is mounted
-  // we always poll - the user is actively configuring it, so the original
-  // `enabled` gate would be a confusing extra hoop.
-  useLocalRuntimeStatus(true);
-
-  const [startStatus, setStartStatus] = useState<RuntimeActionStatus>('idle');
-  const [stopStatus, setStopStatus] = useState<RuntimeActionStatus>('idle');
-  const startResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stopResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearStartReset = useCallback(() => {
-    if (startResetRef.current !== null) {
-      clearTimeout(startResetRef.current);
-      startResetRef.current = null;
-    }
-  }, []);
-
-  const clearStopReset = useCallback(() => {
-    if (stopResetRef.current !== null) {
-      clearTimeout(stopResetRef.current);
-      stopResetRef.current = null;
-    }
-  }, []);
-
-  useEffect(
-    () => () => {
-      clearStartReset();
-      clearStopReset();
-    },
-    [clearStartReset, clearStopReset],
-  );
-
-  const handleStart = useCallback(async () => {
-    clearStartReset();
-    setStartStatus('pending');
-    try {
-      const res = await fetch('/local/runtime/start', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
-      setStartStatus('idle');
-    } catch {
-      setStartStatus('error');
-      startResetRef.current = setTimeout(() => {
-        setStartStatus('idle');
-        startResetRef.current = null;
-      }, RUNTIME_RESET_DELAY_MS);
-    }
-  }, [clearStartReset]);
-
-  const handleStop = useCallback(async () => {
-    clearStopReset();
-    setStopStatus('pending');
-    try {
-      const res = await fetch('/local/runtime/stop', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
-      setStopStatus('idle');
-    } catch {
-      setStopStatus('error');
-      stopResetRef.current = setTimeout(() => {
-        setStopStatus('idle');
-        stopResetRef.current = null;
-      }, RUNTIME_RESET_DELAY_MS);
-    }
-  }, [clearStopReset]);
-
-  // M9-DM Task 14: drop the new manifest-driven ModelSelector container in as
-  // a NEW section above the existing per-card controls. The legacy LOCAL_LLMS
-  // cards stay for one more commit; consolidation happens in a follow-up task
-  // once the HF search lands in Tasks 15-19.
-  const activeWireId = LOCAL_MODEL_WIRE_ID[lm.selectedLlm] ?? null;
-  const onActiveLocalChange = (wireId: string) => {
-    const mapped = WIRE_ID_TO_LOCAL_MODEL[wireId];
-    if (mapped) lm.selectModel(mapped);
-    // TODO(M9-DM): forward custom HF ids (not in LOCAL_MODEL_WIRE_ID) to the
-    // override slot here once HF search persists user manifests (Task 19).
-  };
-
-  return (
-    <div className={styles.localFields}>
-      <div className={styles.localHint}>{t('local_runtime_hint')}</div>
-
-      {/* TODO(M9-DM): consolidate the LOCAL_LLMS cards into this picker once
-          the download wiring lands in Task 19. */}
-      <LocalLlmModelSelector
-        activeId={activeWireId}
-        onActiveChange={onActiveLocalChange}
-        // TODO(M9-DM): plumb session.agentTurnInFlight once the session slice
-        // exposes it; until then assume the user is not mid-turn (false).
-        agentTurnInFlight={false}
-      />
-
-      <h3 className={styles.localHeading}>{tLocal('llm_models')}</h3>
-      {LOCAL_LLMS.map((m) => (
-        <LocalModelCard key={m.id} entry={m} isLlm />
-      ))}
-
-      <div className={styles.localCustomBlock}>
-        {lm.customLlmOverride ? (
-          <div className={styles.localCustomRow}>
-            <span className={styles.localCustomLabel}>
-              {lm.customLlmOverride.hf_repo}/{lm.customLlmOverride.gguf_filename}
-              {lm.customLlmOverride.mmproj_filename
-                ? ` (+${lm.customLlmOverride.mmproj_filename})`
-                : ''}
-            </span>
-            <button type="button" onClick={() => lm.setCustomLlmOverride(null)}>
-              {t('custom_modal_cancel')}
-            </button>
-          </div>
-        ) : (
-          <p className={styles.localCustomHelper}>{t('model_selector_custom_helper')}</p>
-        )}
-        <button
-          type="button"
-          className={styles.localCustomAddButton}
-          onClick={() => setCustomModalOpen(true)}
-        >
-          {t('model_selector_custom_add_button')}
-        </button>
-      </div>
-
-      <CustomHfRepoModal
-        open={customModalOpen}
-        onClose={() => setCustomModalOpen(false)}
-        onSave={(input) => {
-          lm.setCustomLlmOverride(input);
-          setCustomModalOpen(false);
-        }}
-      />
-
-      <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
-      <LocalModelCard
-        entry={{ id: 'sdxl_turbo', name: 'SDXL-Turbo (fp16)', size: 7e9 }}
-        isLlm={false}
-      />
-
-      <Field label={tLocal('vram_strategy')}>
-        {({ id }) => (
-          <select
-            id={id}
-            value={lm.vramStrategy}
-            onChange={(e) => lm.setVramStrategy(e.target.value as VramStrategy)}
-            className={styles.fullWidth}
-          >
-            <option value="auto-swap">{tLocal('strategy_auto_swap')}</option>
-            <option value="keep-both-loaded">{tLocal('strategy_keep_both')}</option>
-            <option value="disable-image-gen">{tLocal('strategy_disable_image')}</option>
-          </select>
-        )}
-      </Field>
-
-      <h3 className={styles.localHeading}>{t('local_runtime_section')}</h3>
-      <div className={styles.localRuntimeRow}>
-        <button
-          type="button"
-          disabled={startStatus === 'pending'}
-          data-status={startStatus}
-          onClick={() => {
-            void handleStart();
-          }}
-        >
-          {startStatus === 'pending' ? tLocal('runtime_starting') : tLocal('start_runtimes')}
-        </button>
-        {startStatus === 'error' && (
-          <span role="alert" className={styles.localErrorChip}>
-            {tLocal('runtime_start_error')}
-          </span>
-        )}
-        <button
-          type="button"
-          disabled={stopStatus === 'pending'}
-          data-status={stopStatus}
-          onClick={() => {
-            void handleStop();
-          }}
-        >
-          {stopStatus === 'pending' ? tLocal('runtime_stopping') : tLocal('stop_runtimes')}
-        </button>
-        {stopStatus === 'error' && (
-          <span role="alert" className={styles.localErrorChip}>
-            {tLocal('runtime_stop_error')}
-          </span>
-        )}
-        <RuntimeStatusPill label={tLocal('runtime_pill_llm')} state={lm.runtime.llm} />
-        <RuntimeStatusPill label={tLocal('runtime_pill_image')} state={lm.runtime.image} />
-      </div>
-      {lm.runtime.llm.state !== 'ready' && (
-        <div className={styles.localHint}>{t('local_runtime_not_ready')}</div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Inline ModelDownloadCard binding that wires a manifest entry to the
- * download hook + the localMode slice. Mirrors the helper inside
- * LocalModeModal so both surfaces share the same selection semantics.
- */
-function LocalModelCard({
-  entry,
-  isLlm,
-}: {
-  entry: { id: ModelId; name: string; size: number; vram?: number; warn?: string };
-  isLlm: boolean;
-}) {
-  const lm = useStore((s) => s.localMode);
-  const dl = useModelDownload(entry.id);
-  return (
-    <ModelDownloadCard
-      modelId={entry.id}
-      displayName={entry.name}
-      sizeBytes={entry.size}
-      vramBytes={entry.vram}
-      vramWarning={entry.warn}
-      state={lm.downloads[entry.id]}
-      active={isLlm && lm.selectedLlm === entry.id}
-      onSelect={() => isLlm && lm.selectModel(entry.id)}
-      onDownload={() => {
-        void dl.start();
-      }}
-      onDelete={() => {
-        void dl.cancel();
-      }}
-    />
-  );
-}
-
 function LanguageSelect({
   id,
   value,
@@ -743,7 +473,6 @@ function LanguageSelect({
 interface ModelDraft {
   systemPrompt: string;
   temperature: number;
-  replicateApiKey: string;
 }
 
 function ModelTab({
@@ -780,19 +509,6 @@ function ModelTab({
             step={0.1}
             value={draft.temperature}
             onChange={(e) => onChange({ temperature: Number(e.target.value) })}
-            className={styles.fullWidth}
-          />
-        )}
-      </Field>
-      <Field label={t('replicate_key_label')} helper={t('replicate_key_helper')}>
-        {(p) => (
-          <input
-            {...p}
-            type="password"
-            autoComplete="off"
-            value={draft.replicateApiKey}
-            onChange={(e) => onChange({ replicateApiKey: e.target.value })}
-            placeholder="r8_..."
             className={styles.fullWidth}
           />
         )}
@@ -914,7 +630,13 @@ const IMAGE_PRESETS = [
   { id: 'cloud' },
 ] as const;
 
-function ImageTab() {
+function ImageTab({
+  replicateApiKey,
+  onReplicateApiKeyChange,
+}: {
+  replicateApiKey: string;
+  onReplicateApiKeyChange: (key: string) => void;
+}) {
   const { t } = useTranslation('settings');
   const enabled = useStore((s) => s.settings.imageEnabled);
   const preset = useStore((s) => s.settings.imagePreset);
@@ -965,6 +687,19 @@ function ImageTab() {
           );
         })}
       </fieldset>
+      <Field label={t('replicate_key_label')} helper={t('replicate_key_helper')}>
+        {(p) => (
+          <input
+            {...p}
+            type="password"
+            autoComplete="off"
+            value={replicateApiKey}
+            onChange={(e) => onReplicateApiKeyChange(e.target.value)}
+            placeholder="r8_..."
+            className={styles.fullWidth}
+          />
+        )}
+      </Field>
     </section>
   );
 }

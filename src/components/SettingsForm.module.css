@@ -9,6 +9,12 @@
   gap: var(--space-4);
 }
 
+.characterSection {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
 .fullWidth {
   width: 100%;
 }

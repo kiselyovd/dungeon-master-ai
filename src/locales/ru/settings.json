@@ -1,5 +1,7 @@
 {
   "title": "Настройки",
+  "tab_chat": "Чат",
+  "tab_local_llm": "Локальная LLM",
   "tab_provider": "Чат",
   "tab_image": "Изображения",
   "tab_video": "Видео",
@@ -25,6 +27,7 @@
   "local_runtime_section": "Рантайм",
   "local_runtime_hint": "Для работы локального режима нужно запустить рантайм перед использованием чата.",
   "local_runtime_not_ready": "Запусти локальный рантайм перед сохранением, чтобы бэкенд закрепил порт.",
+  "chat_local_llm_hint": "Параметры локального рантайма настраиваются на вкладке «Локальная LLM».",
   "api_key_label": "API-ключ",
   "api_key_placeholder": "sk-ant-...",
   "api_key_placeholder_openai": "sk-... или любой токен, который ждёт твой эндпоинт",
