@@ -4,7 +4,7 @@
   background: var(--color-bg-base);
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: var(--z-overlay-1);
 }
 
 .container {

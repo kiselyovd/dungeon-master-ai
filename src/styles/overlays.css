@@ -28,7 +28,7 @@
 .dm-scene-transition {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-overlay-2);
   background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   box-shadow: var(--glow-accent);
-  z-index: 1100;
+  z-index: var(--z-toast);
   max-width: 340px;
 }
 

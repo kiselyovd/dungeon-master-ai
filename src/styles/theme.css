@@ -102,6 +102,14 @@
   --statusbar-height: 24px;
   --chat-width: 480px;
 
+  /* Z-index registry. All top-level overlays use these tiers. */
+  --z-overlay-1: 100; /* Journal, NPCs, Settings, ToolInspectorDrawer */
+  --z-overlay-2: 200; /* Scene transitions, LocalModeModal, UpdateAvailableModal */
+  --z-modal: 500; /* Saves, CharacterSheet, CharacterWizard, Onboarding */
+  --z-lightbox: 900; /* Image lightbox (above modals) */
+  --z-toast: 1000; /* Top-priority toasts */
+  /* 9999 stays a bare value for splash (sentinel) */
+
   /* Legacy token aliases for M7-M9 callers. New code uses canonical names. */
   --color-text-muted: var(--color-fg-muted);
   --font-jetbrains: var(--font-mono);

@@ -4,8 +4,8 @@
  * docs/superpowers/design/components/onboarding.jsx (lines 167-271).
  *
  * Self-contained - re-uses theme tokens from theme.css. The modal sits
- * just above the VTT scrim (z-index 900) but below the onboarding
- * overlay (1000) so the first-run wizard always wins focus.
+ * at the modal tier (--z-modal), the same tier as Saves, CharacterWizard,
+ * and Onboarding; on first run only one modal is open at a time.
  */
 
 /* ---- FAB ------------------------------------------------------------- */
@@ -55,7 +55,7 @@
 .dm-modal-backdrop.dm-char-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
