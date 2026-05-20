@@ -9,7 +9,13 @@ import { mockTauri } from './fixtures/tauri-mock';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
-  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
+  // active_provider keeps PreflightCheck satisfied (local-mistralrs is
+  // exempt from the missing_chat check) so its blocking modal never mounts.
+  await mockTauri(page, {
+    onboarding_completed: true,
+    hero_class: 'fighter',
+    active_provider: 'local-mistralrs',
+  });
 
   // Mock the /chat SSE endpoint with a short scripted response.
   await page.route('**/chat', async (route) => {
