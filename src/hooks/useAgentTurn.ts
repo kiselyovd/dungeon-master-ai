@@ -20,6 +20,9 @@ export function useAgentTurn() {
   const endStream = useStore((s) => s.chat.endStream);
   const setError = useStore((s) => s.chat.setError);
   const abort = useStore((s) => s.chat.abort);
+  const addToolCallStartEvent = useStore((s) => s.chat.addToolCallStartEvent);
+  const settleToolCallEvent = useStore((s) => s.chat.settleToolCallEvent);
+  const clearStreamEvents = useStore((s) => s.chat.clearStreamEvents);
   const addPending = useStore((s) => s.toolLog.addPending);
   const settle = useStore((s) => s.toolLog.settle);
   const appendJournalEntry = useStore((s) => s.journal.appendEntry);
@@ -33,6 +36,7 @@ export function useAgentTurn() {
 
       const { campaignId, sessionId } = ensureSession();
 
+      clearStreamEvents();
       appendUser(text);
       const controller = new AbortController();
       beginStream(controller);
@@ -55,10 +59,12 @@ export function useAgentTurn() {
 
           onToolCallStart: (id, toolName, round) => {
             addPending(id, toolName, {}, round);
+            addToolCallStartEvent(id, toolName, {}, round);
           },
 
           onToolCallResult: (id, toolName, args, result, isError, _round, handledBy) => {
             settle(id, result, isError, handledBy);
+            settleToolCallEvent(id, result, isError);
 
             if (toolName === 'journal_append' && !isError && result && typeof result === 'object') {
               const r = result as Record<string, unknown>;
@@ -132,6 +138,9 @@ export function useAgentTurn() {
       beginStream,
       endStream,
       setError,
+      addToolCallStartEvent,
+      settleToolCallEvent,
+      clearStreamEvents,
       addPending,
       settle,
       appendJournalEntry,

@@ -12,24 +12,45 @@ import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
-import type { StagedImage } from '../state/chat';
+import type { ChatMessage, ChatStreamEvent, StagedImage } from '../state/chat';
+import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
 import { ReasoningPill } from './ReasoningPill';
+import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_MESSAGE = 4;
 
+/** Map a ChatStreamEvent to the ToolLogEntry shape expected by ToolCallCard. */
+function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
+  return {
+    id: event.id,
+    toolName: event.toolName,
+    args: event.args,
+    result: event.result,
+    isError: event.isError,
+    round: event.round,
+    // Intentional empty shim: ChatStreamEvent carries no timestamp and ToolCallCard does not display it.
+    timestamp: '',
+    handledBy: 'engine',
+  };
+}
+
+type MergedItem = { kind: 'message'; item: ChatMessage } | { kind: 'event'; item: ChatStreamEvent };
+
 export function ChatPanel() {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tTools } = useTranslation('tools');
   const { send, cancel } = useAgentTurn();
   const messages = useStore((s) => s.chat.messages);
+  const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
   const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
   const isStreaming = useStore((s) => s.chat.isStreaming);
   const lastError = useStore((s) => s.chat.lastError);
@@ -50,7 +71,7 @@ export function ChatPanel() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
   useEffect(() => {
     scrollToBottom();
-  }, [messages.length, streamingAssistant, scrollToBottom]);
+  }, [messages.length, chatStreamEvents.length, streamingAssistant, scrollToBottom]);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -167,6 +188,13 @@ export function ChatPanel() {
 
   const isEmptyChat = messages.length === 0 && streamingAssistant === null && !isStreaming;
 
+  // Merge finalized messages and inline tool-call events into one ordered list.
+  // Both draw sequenceIndex from the shared _nextSeq counter in the slice.
+  const mergedStream: MergedItem[] = [
+    ...messages.map((m) => ({ kind: 'message' as const, item: m })),
+    ...chatStreamEvents.map((e) => ({ kind: 'event' as const, item: e })),
+  ].sort((a, b) => (a.item.sequenceIndex ?? 0) - (b.item.sequenceIndex ?? 0));
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-drop surface; keyboard alternative is paste/Ctrl+V into the textarea
     <div
@@ -182,7 +210,12 @@ export function ChatPanel() {
         </span>
       </div>
 
-      <div ref={historyRef} className={styles.history} onScroll={onScroll}>
+      <div
+        ref={historyRef}
+        className={styles.history}
+        onScroll={onScroll}
+        data-testid="chat-history"
+      >
         {sessionLoadError !== null && (
           <div role="alert" className={`${styles.sessionLoadError} dm-chat-error`}>
             <span className={styles.sessionLoadErrorText}>{t('session_load_error')}</span>
@@ -199,8 +232,19 @@ export function ChatPanel() {
             <div className={styles.welcomeOrnament} />
           </div>
         )}
-        {messages.map((m) =>
-          m.parts !== undefined ? (
+        {mergedStream.map((entry) => {
+          if (entry.kind === 'event') {
+            const toolLabel = tTools(entry.item.toolName, { defaultValue: entry.item.toolName });
+            return (
+              <ToolCallCard
+                key={entry.item.id}
+                entry={streamEventToLogEntry(entry.item)}
+                label={toolLabel}
+              />
+            );
+          }
+          const m = entry.item;
+          return m.parts !== undefined ? (
             <MessageBubble key={m.id} chatRole={m.role} parts={m.parts}>
               {m.content}
             </MessageBubble>
@@ -208,8 +252,8 @@ export function ChatPanel() {
             <MessageBubble key={m.id} chatRole={m.role}>
               {m.content}
             </MessageBubble>
-          ),
-        )}
+          );
+        })}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
             <ReasoningPill

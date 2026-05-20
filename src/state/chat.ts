@@ -17,12 +17,39 @@ export type MessagePart =
  * images, `parts` carries the full multimodal payload. Components that only
  * need text can read `content`; the composer + bubble rendering branch on
  * `parts` when present.
+ *
+ * `sequenceIndex` is a monotonic counter shared with `ChatStreamEvent` so
+ * messages and inline tool-call cards can be merged into a single ordered list.
  */
 export interface ChatMessage {
   id: string;
   role: ChatRole;
   content: string;
   parts?: MessagePart[];
+  /**
+   * Shared monotonic ordering index with ChatStreamEvent for merged rendering.
+   * Optional for back-compat with messages loaded from the backend (via setMessages)
+   * and test fixtures that predate B2; those sort to the front (treated as 0).
+   */
+  sequenceIndex?: number;
+}
+
+/** Status of an inline tool-call card in the chat stream. */
+export type ChatStreamEventStatus = 'pending' | 'success' | 'error';
+
+/**
+ * An inline tool-call event emitted during a streaming agent turn.
+ * Rendered as a ToolCallCard between message bubbles, ordered by sequenceIndex.
+ */
+export interface ChatStreamEvent {
+  id: string;
+  toolName: string;
+  sequenceIndex: number;
+  status: ChatStreamEventStatus;
+  args: unknown;
+  result: unknown | null;
+  isError: boolean;
+  round: number;
 }
 
 /** A staged image attached to the composer before the user sends. */
@@ -49,6 +76,10 @@ function newMessageId(): string {
 export interface ChatSlice {
   chat: {
     messages: ChatMessage[];
+    /** Inline tool-call events emitted during the current (or most recent) stream. */
+    chatStreamEvents: ChatStreamEvent[];
+    /** Monotonic sequence counter shared between messages and stream events. */
+    _nextSeq: number;
     streamingAssistant: string | null;
     streamingReasoning: string | null;
     isStreaming: boolean;
@@ -83,12 +114,21 @@ export interface ChatSlice {
     /** Trigger an abort on the active controller, if any. */
     abort: () => void;
     setError: (err: ChatErrorPayload | null) => void;
+
+    /** Record a tool-call start; placed inline in the merged stream. */
+    addToolCallStartEvent: (id: string, toolName: string, args: unknown, round: number) => void;
+    /** Settle an existing tool-call event with its result. */
+    settleToolCallEvent: (id: string, result: unknown, isError: boolean) => void;
+    /** Clear all stream events (called at stream start so prior turn cards are gone). */
+    clearStreamEvents: () => void;
   };
 }
 
 export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set, get) => ({
   chat: {
     messages: [],
+    chatStreamEvents: [],
+    _nextSeq: 0,
     streamingAssistant: null,
     streamingReasoning: null,
     isStreaming: false,
@@ -98,11 +138,13 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     appendUser: (content, parts) =>
       set((s) => {
-        const msg: ChatMessage = { id: newMessageId(), role: 'user', content };
+        const seq = s.chat._nextSeq;
+        const msg: ChatMessage = { id: newMessageId(), role: 'user', content, sequenceIndex: seq };
         if (parts && parts.length > 0) msg.parts = parts;
         return {
           chat: {
             ...s.chat,
+            _nextSeq: seq + 1,
             messages: [...s.chat.messages, msg],
           },
         };
@@ -155,17 +197,21 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           set((s) => ({ chat: { ...s.chat, streamingAssistant: null, streamingReasoning: null } }));
         return;
       }
-      set((s) => ({
-        chat: {
-          ...s.chat,
-          messages: [
-            ...s.chat.messages,
-            { id: newMessageId(), role: 'assistant', content: current },
-          ],
-          streamingAssistant: null,
-          streamingReasoning: null,
-        },
-      }));
+      set((s) => {
+        const seq = s.chat._nextSeq;
+        return {
+          chat: {
+            ...s.chat,
+            _nextSeq: seq + 1,
+            messages: [
+              ...s.chat.messages,
+              { id: newMessageId(), role: 'assistant', content: current, sequenceIndex: seq },
+            ],
+            streamingAssistant: null,
+            streamingReasoning: null,
+          },
+        };
+      });
     },
 
     reset: () =>
@@ -173,6 +219,8 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
         chat: {
           ...s.chat,
           messages: [],
+          chatStreamEvents: [],
+          _nextSeq: 0,
           streamingAssistant: null,
           streamingReasoning: null,
           reasoningStreams: new Map<string, string>(),
@@ -198,5 +246,45 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
     },
 
     setError: (lastError) => set((s) => ({ chat: { ...s.chat, lastError } })),
+
+    addToolCallStartEvent: (id, toolName, args, round) =>
+      set((s) => {
+        const seq = s.chat._nextSeq;
+        const event: ChatStreamEvent = {
+          id,
+          toolName,
+          sequenceIndex: seq,
+          status: 'pending',
+          args,
+          result: null,
+          isError: false,
+          round,
+        };
+        return {
+          chat: {
+            ...s.chat,
+            _nextSeq: seq + 1,
+            chatStreamEvents: [...s.chat.chatStreamEvents, event],
+          },
+        };
+      }),
+
+    settleToolCallEvent: (id, result, isError) =>
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
+            e.id === id ? { ...e, result, isError, status: isError ? 'error' : 'success' } : e,
+          ),
+        },
+      })),
+
+    clearStreamEvents: () =>
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: [],
+        },
+      })),
   },
 });

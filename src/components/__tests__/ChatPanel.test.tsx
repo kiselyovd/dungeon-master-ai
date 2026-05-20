@@ -6,6 +6,7 @@ import { fetchSessionMessages } from '../../api/chat';
 import { ChatError } from '../../api/errors';
 import { useStore } from '../../state/useStore';
 import { ChatPanel } from '../ChatPanel';
+import toolCardStyles from '../ToolCallCard.module.css';
 import '../../i18n';
 
 vi.mock('../../api/agent', () => ({
@@ -205,5 +206,126 @@ describe('ChatPanel', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
     expect(useStore.getState().chat.lastError?.code).toBe('rate_limit');
+  });
+
+  // B2: inline ToolCallCard tests
+  describe('inline ToolCallCard rendering', () => {
+    it('(a) tool-call card renders inline in the chat history', () => {
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: [
+            {
+              id: 'call_abc',
+              toolName: 'roll_dice',
+              sequenceIndex: 0,
+              status: 'pending',
+              args: {},
+              result: null,
+              isError: false,
+              round: 1,
+            },
+          ],
+        },
+      }));
+
+      render(<ChatPanel />);
+      const card = screen.getByTestId('tool-call-card-call_abc');
+      expect(card).toBeInTheDocument();
+      expect(screen.getByTestId('chat-history')).toContainElement(card);
+    });
+
+    it('(b) settled card has a data-status attribute and renders the tool result', () => {
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: [
+            {
+              id: 'call_settled',
+              toolName: 'apply_damage',
+              sequenceIndex: 0,
+              status: 'success',
+              args: { target: 'goblin', amount: 5 },
+              result: { hp: 42 },
+              isError: false,
+              round: 1,
+            },
+          ],
+        },
+      }));
+
+      render(<ChatPanel />);
+      const card = screen.getByTestId('tool-call-card-call_settled');
+      expect(card).toHaveAttribute('data-status', 'success');
+      // The card must render the actual result value in the DOM.
+      expect(card).toHaveTextContent('"hp": 42');
+    });
+
+    it('(c) tool card appears between assistant text bubbles ordered by sequenceIndex', () => {
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          messages: [
+            { id: 'msg1', role: 'assistant', content: 'Before the roll', sequenceIndex: 0 },
+            { id: 'msg2', role: 'assistant', content: 'After the roll', sequenceIndex: 2 },
+          ],
+          chatStreamEvents: [
+            {
+              id: 'call_mid',
+              toolName: 'roll_dice',
+              sequenceIndex: 1,
+              status: 'success',
+              args: {},
+              result: { total: 17 },
+              isError: false,
+              round: 1,
+            },
+          ],
+        },
+      }));
+
+      render(<ChatPanel />);
+      const history = screen.getByTestId('chat-history');
+      const beforeText = screen.getByText('Before the roll');
+      const card = screen.getByTestId('tool-call-card-call_mid');
+      const afterText = screen.getByText('After the roll');
+
+      // Verify ordering: before < card < after in the DOM
+      expect(history.compareDocumentPosition(beforeText)).toBeTruthy();
+      const beforePos = beforeText.compareDocumentPosition(card);
+      const afterPos = card.compareDocumentPosition(afterText);
+      // Node.DOCUMENT_POSITION_FOLLOWING = 4: card is after beforeText
+      expect(beforePos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // afterText is after card
+      expect(afterPos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('(d) error variant has data-status="error" and the error CSS class', () => {
+      useStore.setState((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: [
+            {
+              id: 'call_err',
+              toolName: 'apply_damage',
+              sequenceIndex: 0,
+              status: 'error',
+              args: {},
+              result: { error: 'target not found' },
+              isError: true,
+              round: 1,
+            },
+          ],
+        },
+      }));
+
+      render(<ChatPanel />);
+      const card = screen.getByTestId('tool-call-card-call_err');
+      expect(card).toHaveAttribute('data-status', 'error');
+      // The card must carry the error styling class (sets border-color: var(--color-danger)).
+      const errorClass = toolCardStyles.cardError;
+      if (!errorClass) throw new Error('cardError CSS module class missing');
+      expect(card).toHaveClass(errorClass);
+    });
   });
 });
