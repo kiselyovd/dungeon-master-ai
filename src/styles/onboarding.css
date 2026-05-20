@@ -590,3 +590,30 @@
   color: var(--color-fg-muted);
   font-weight: 600;
 }
+
+/* Download progress bar ------------------------------------------------ */
+
+.dm-onboarding-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-bg-input);
+  overflow: hidden;
+}
+
+.dm-onboarding-progress::-webkit-progress-bar {
+  background: var(--color-bg-input);
+  border-radius: var(--radius-pill);
+}
+
+.dm-onboarding-progress::-webkit-progress-value {
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--t-base);
+}
+
+.dm-onboarding-progress::-moz-progress-bar {
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+}

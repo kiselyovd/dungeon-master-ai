@@ -46,6 +46,20 @@
   "step1_desc": "Your AI Game Master is waiting at the table. They will weave the story, run the world, and roll the dice. No party required - just bring your imagination.",
   "step1_cta": "Configure provider",
 
+  "chat_step_tag": "Connect AI",
+  "chat_step_title": "Choose a chat provider",
+  "chat_local_desc": "Download Qwen3.5-4B Q4_K_M (~2.5 GB) to run the AI locally. Private, offline, no API cost.",
+  "chat_local_download_cta": "Download Qwen3.5-4B Q4_K_M (~2.5 GB)",
+  "chat_local_starting": "Checking installed models...",
+  "chat_local_downloading": "Downloading model...",
+  "chat_local_downloading_progress": "Downloading... {{percent}}%",
+  "chat_local_download_done": "Model ready - download complete.",
+  "chat_local_already_exists": "Model ready - already installed.",
+  "chat_local_download_failed": "Download failed. Please try again.",
+  "chat_cloud_desc": "Enter your Anthropic API key to use Claude as the Dungeon Master.",
+  "chat_text_only_desc": "Enter your Anthropic API key, or skip to configure a provider later.",
+  "retry": "Retry",
+
   "step_chat_title": "Choose a chat provider",
   "step_hero_title": "Create your hero",
 

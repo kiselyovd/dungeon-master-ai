@@ -46,6 +46,20 @@
   "step1_desc": "Твой Гейм-Мастер ждёт за столом. Расскажет историю, поведёт сюжет, бросит за тебя кости. Партия не нужна - нужно только желание играть.",
   "step1_cta": "Подключить AI",
 
+  "chat_step_tag": "Подключение AI",
+  "chat_step_title": "Выбери провайдера чата",
+  "chat_local_desc": "Загрузите Qwen3.5-4B Q4_K_M (~2.5 ГБ) для запуска AI локально. Приватно, оффлайн, без API-расходов.",
+  "chat_local_download_cta": "Загрузить Qwen3.5-4B Q4_K_M (~2.5 ГБ)",
+  "chat_local_starting": "Проверка установленных моделей...",
+  "chat_local_downloading": "Загрузка модели...",
+  "chat_local_downloading_progress": "Загрузка... {{percent}}%",
+  "chat_local_download_done": "Модель готова - загрузка завершена.",
+  "chat_local_already_exists": "Модель готова - уже установлена.",
+  "chat_local_download_failed": "Ошибка загрузки. Попробуйте ещё раз.",
+  "chat_cloud_desc": "Введите API-ключ Anthropic, чтобы использовать Claude в роли Мастера.",
+  "chat_text_only_desc": "Введите API-ключ Anthropic или пропустите, чтобы настроить позже.",
+  "retry": "Повторить",
+
   "step_chat_title": "Выбери провайдера чата",
   "step_hero_title": "Создай героя",
 
