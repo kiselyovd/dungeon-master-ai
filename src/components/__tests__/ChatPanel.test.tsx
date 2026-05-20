@@ -1,24 +1,28 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchSessionMessages, type StreamChatOptions, streamChat } from '../../api/chat';
+import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
+import { fetchSessionMessages } from '../../api/chat';
 import { ChatError } from '../../api/errors';
 import { useStore } from '../../state/useStore';
 import { ChatPanel } from '../ChatPanel';
 import '../../i18n';
 
+vi.mock('../../api/agent', () => ({
+  streamAgentTurn: vi.fn(),
+}));
+
 vi.mock('../../api/chat', () => ({
-  streamChat: vi.fn(),
   fetchSessionMessages: vi.fn(async () => []),
 }));
 
-const streamChatMock = vi.mocked(streamChat);
+const streamAgentTurnMock = vi.mocked(streamAgentTurn);
 const fetchSessionMessagesMock = vi.mocked(fetchSessionMessages);
 
 describe('ChatPanel', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
-    streamChatMock.mockReset();
+    streamAgentTurnMock.mockReset();
     fetchSessionMessagesMock.mockReset();
     fetchSessionMessagesMock.mockResolvedValue([]);
   });
@@ -67,12 +71,36 @@ describe('ChatPanel', () => {
     expect(button).toBeEnabled();
   });
 
+  it('keeps send button disabled when only images are staged and text input is empty', async () => {
+    const user = userEvent.setup();
+    render(<ChatPanel />);
+
+    // Paste an image file into the textarea to stage it.
+    const input = screen.getByPlaceholderText(/What do you do/i);
+    const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const imageFile = new File([pngBytes], 'test.png', { type: 'image/png' });
+
+    await user.click(input);
+    // Simulate clipboard paste with an image file - no text.
+    fireEvent.paste(input, {
+      clipboardData: {
+        items: [{ kind: 'file', getAsFile: () => imageFile }],
+        types: ['Files'],
+        getData: () => '',
+      },
+    });
+
+    // Text input is still empty, so Send must remain disabled.
+    const button = screen.getByRole('button', { name: /Send/i });
+    expect(button).toBeDisabled();
+  });
+
   it('runs the full send flow: type, click Send, deltas stream, assistant message lands', async () => {
     const user = userEvent.setup();
-    streamChatMock.mockImplementation(async (opts: StreamChatOptions) => {
+    streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
       opts.onTextDelta('Hello, ');
       opts.onTextDelta('traveler.');
-      return { reason: 'stop' };
+      opts.onAgentDone(1);
     });
 
     render(<ChatPanel />);
@@ -82,7 +110,7 @@ describe('ChatPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send/i }));
 
     await waitFor(() => {
-      expect(streamChatMock).toHaveBeenCalledTimes(1);
+      expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
     });
     await waitFor(() => {
       expect(screen.getByText('Hello, traveler.')).toBeInTheDocument();
@@ -103,7 +131,7 @@ describe('ChatPanel', () => {
 
   it('Enter sends the draft, Shift+Enter inserts a newline', async () => {
     const user = userEvent.setup();
-    streamChatMock.mockResolvedValue({ reason: 'stop' });
+    streamAgentTurnMock.mockResolvedValue(undefined);
 
     render(<ChatPanel />);
     const input = screen.getByPlaceholderText(/What do you do/i) as HTMLTextAreaElement;
@@ -113,25 +141,22 @@ describe('ChatPanel', () => {
     await user.keyboard('{Shift>}{Enter}{/Shift}'); // Shift+Enter -> newline, no submit
     await user.keyboard('second line');
 
-    expect(streamChatMock).not.toHaveBeenCalled();
+    expect(streamAgentTurnMock).not.toHaveBeenCalled();
     expect(input.value).toBe('first line\nsecond line');
 
     await user.keyboard('{Enter}'); // plain Enter submits
 
     await waitFor(() => {
-      expect(streamChatMock).toHaveBeenCalledTimes(1);
+      expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
     });
-    expect(streamChatMock.mock.calls[0]?.[0].messages.at(-1)).toMatchObject({
-      role: 'user',
-      content: 'first line\nsecond line',
-    });
+    expect(streamAgentTurnMock.mock.calls[0]?.[0].playerMessage).toBe('first line\nsecond line');
   });
 
   it('Stop button cancels an in-flight stream and surfaces an aborted error', async () => {
     const user = userEvent.setup();
-    streamChatMock.mockImplementation(
-      (opts: StreamChatOptions) =>
-        new Promise<{ reason: string }>((_, reject) => {
+    streamAgentTurnMock.mockImplementation(
+      (opts: AgentTurnOptions) =>
+        new Promise<void>((_, reject) => {
           opts.signal?.addEventListener('abort', () => {
             reject(new DOMException('aborted', 'AbortError'));
           });
@@ -169,7 +194,7 @@ describe('ChatPanel', () => {
 
   it('renders an error alert when the stream rejects', async () => {
     const user = userEvent.setup();
-    streamChatMock.mockRejectedValue(new ChatError('rate_limit', 'too many requests'));
+    streamAgentTurnMock.mockRejectedValue(new ChatError('rate_limit', 'too many requests'));
 
     render(<ChatPanel />);
     const input = screen.getByPlaceholderText(/What do you do/i);

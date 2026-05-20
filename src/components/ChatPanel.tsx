@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatErrorCode } from '../api/errors';
-import { useChat } from '../hooks/useChat';
+import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
@@ -28,7 +28,11 @@ const MAX_IMAGES_PER_MESSAGE = 4;
 export function ChatPanel() {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
-  const { messages, streamingAssistant, isStreaming, lastError, send, cancel } = useChat();
+  const { send, cancel } = useAgentTurn();
+  const messages = useStore((s) => s.chat.messages);
+  const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
+  const isStreaming = useStore((s) => s.chat.isStreaming);
+  const lastError = useStore((s) => s.chat.lastError);
   const { refetch: refetchSession } = useSession();
   const sessionLoadError = useStore((s) => s.session.loadError);
   // M7-DM: vision input gate. When the user has explicitly disabled multimodal
@@ -93,16 +97,15 @@ export function ChatPanel() {
     setStaged((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const canSend = !isStreaming && (draft.trim().length > 0 || staged.length > 0);
+  const canSend = !isStreaming && draft.trim().length > 0;
 
   const onSend = async () => {
     if (!canSend) return;
     const text = draft;
-    const images = staged;
     setDraft('');
     setStaged([]);
     setStagingError(null);
-    await send(text, images);
+    await send(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

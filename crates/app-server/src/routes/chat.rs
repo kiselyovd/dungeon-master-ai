@@ -173,6 +173,8 @@ pub async fn chat(
     State(state): State<AppState>,
     Json(req): Json<ChatHttpRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    tracing::warn!("POST /chat is deprecated - use /agent/turn instead; will be removed in M11");
+
     if req.messages.is_empty() {
         return Err(AppError::BadRequest("messages must not be empty".into()));
     }

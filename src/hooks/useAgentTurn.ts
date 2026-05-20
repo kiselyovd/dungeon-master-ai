@@ -114,7 +114,7 @@ export function useAgentTurn() {
             }
           },
 
-          onAgentDone: () => {
+          onAgentDone: (_totalRounds) => {
             // Agent loop complete; chat slice's finalize() runs in finally.
           },
         });
