@@ -16,10 +16,19 @@ function buildSeedPrompt(draft: {
   return parts.join(', ');
 }
 
-export function PortraitTab() {
+export interface PortraitTabProps {
+  onOpenSettings?: () => void;
+}
+
+export function PortraitTab({ onOpenSettings }: PortraitTabProps) {
   const { t } = useTranslation('wizard');
   const draft = useStore((s) => s.charCreation);
   const setDraftField = useStore((s) => s.charCreation.setDraftField);
+  const imageEnabled = useStore((s) => s.settings.imageEnabled);
+  const imagePreset = useStore((s) => s.settings.imagePreset);
+  const replicateApiKey = useStore((s) => s.settings.replicateApiKey);
+  // "No provider" means cloud preset selected but no Replicate API key set.
+  const noProviderConfigured = imagePreset === 'cloud' && replicateApiKey === null;
   const [prompt, setPrompt] = useState<string>(
     () => draft.portraitPrompt ?? buildSeedPrompt(draft),
   );
@@ -56,6 +65,60 @@ export function PortraitTab() {
   function skip() {
     setDraftField('portraitUrl', null);
     setDraftField('portraitPrompt', null);
+  }
+
+  if (!imageEnabled) {
+    return (
+      <section>
+        <h2>{t('portrait_title')}</h2>
+        <div className="dm-wizard-card" data-testid="portrait-image-disabled-card">
+          <h3>{t('portrait_image_disabled_title')}</h3>
+          <p>{t('portrait_image_disabled_body')}</p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            {onOpenSettings && (
+              <button
+                type="button"
+                className="dm-wizard-btn-primary"
+                data-testid="portrait-enable-btn"
+                onClick={onOpenSettings}
+              >
+                {t('portrait_enable_now')}
+              </button>
+            )}
+            <button type="button" className="dm-wizard-btn-secondary" onClick={skip}>
+              {t('skip_portrait')}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (noProviderConfigured) {
+    return (
+      <section>
+        <h2>{t('portrait_title')}</h2>
+        <div className="dm-wizard-card" data-testid="portrait-image-no-provider-card">
+          <h3>{t('portrait_image_no_provider_title')}</h3>
+          <p>{t('portrait_image_no_provider_body')}</p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            {onOpenSettings && (
+              <button
+                type="button"
+                className="dm-wizard-btn-primary"
+                data-testid="portrait-configure-btn"
+                onClick={onOpenSettings}
+              >
+                {t('portrait_configure_now')}
+              </button>
+            )}
+            <button type="button" className="dm-wizard-btn-secondary" onClick={skip}>
+              {t('skip_portrait')}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (

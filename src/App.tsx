@@ -118,6 +118,11 @@ function App() {
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
+  const handleOpenImageSettings = useCallback(() => {
+    setSettingsInitialTab('image');
+    setSettingsOpen(true);
+  }, []);
+
   const handleInitiativeSelect = useCallback(
     (tokenId: string) => {
       if (combatActive) {
@@ -361,8 +366,21 @@ function App() {
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
           {!onboardingCompleted && <Onboarding />}
-          {onboardingCompleted && !pcHeroClass && <CharacterWizard mode="initial" />}
-          {wizardReopen && <CharacterWizard mode="edit" onClose={() => setWizardReopen(false)} />}
+          {onboardingCompleted && !pcHeroClass && (
+            <CharacterWizard
+              mode="initial"
+              onOpenImageSettings={handleOpenImageSettings}
+              hidden={settingsOpen}
+            />
+          )}
+          {wizardReopen && (
+            <CharacterWizard
+              mode="edit"
+              onClose={() => setWizardReopen(false)}
+              onOpenImageSettings={handleOpenImageSettings}
+              hidden={settingsOpen}
+            />
+          )}
           <SceneTransitionOverlay />
           <SplashOverlay />
         </ErrorBoundary>
