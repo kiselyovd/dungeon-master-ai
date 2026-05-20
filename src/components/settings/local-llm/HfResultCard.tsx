@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { HfModel } from '../../../api/hf';
+import styles from './HfResultCard.module.css';
 
 /**
  * Whitelist of model architectures the local-LLM runtime can actually load.
@@ -73,20 +74,9 @@ export function HfResultCard({ model, onDownload, onOpenHf }: HfResultCardProps)
 
   if (model.gated) {
     return (
-      <div
-        data-testid="hf-card-gated"
-        style={{
-          border: '1px solid rgba(212, 175, 55, 0.3)',
-          background: 'rgba(212, 175, 55, 0.08)',
-          padding: 12,
-          borderRadius: 6,
-          marginBottom: 8,
-        }}
-      >
+      <div data-testid="hf-card-gated" className={`${styles.card} ${styles.cardGated}`}>
         <strong>{model.repo_id}</strong>
-        <p style={{ margin: '4px 0', fontSize: 12, color: 'rgba(232, 224, 208, 0.7)' }}>
-          {t('hf_card_gated')}
-        </p>
+        <p className={styles.meta}>{t('hf_card_gated')}</p>
         <button type="button" onClick={() => onOpenHf(model.repo_id)}>
           {t('hf_open_hf')}
         </button>
@@ -96,20 +86,9 @@ export function HfResultCard({ model, onDownload, onOpenHf }: HfResultCardProps)
 
   if (!compatible) {
     return (
-      <div
-        data-testid="hf-card-unsupported"
-        style={{
-          border: '1px solid rgba(220, 150, 80, 0.4)',
-          background: 'rgba(220, 150, 80, 0.06)',
-          padding: 12,
-          borderRadius: 6,
-          marginBottom: 8,
-        }}
-      >
+      <div data-testid="hf-card-unsupported" className={`${styles.card} ${styles.cardUnsupported}`}>
         <strong>{model.repo_id}</strong>
-        <p style={{ margin: '4px 0', fontSize: 12, color: 'rgba(232, 224, 208, 0.7)' }}>
-          {t('hf_card_unsupported')}
-        </p>
+        <p className={styles.meta}>{t('hf_card_unsupported')}</p>
         <button
           type="button"
           onClick={() => {
@@ -124,17 +103,9 @@ export function HfResultCard({ model, onDownload, onOpenHf }: HfResultCardProps)
   }
 
   return (
-    <div
-      data-testid="hf-card-compatible"
-      style={{
-        border: '1px solid rgba(212, 175, 55, 0.2)',
-        padding: 12,
-        borderRadius: 6,
-        marginBottom: 8,
-      }}
-    >
+    <div data-testid="hf-card-compatible" className={`${styles.card} ${styles.cardCompatible}`}>
       <strong>{model.repo_id}</strong>
-      <p style={{ margin: '4px 0', fontSize: 12, color: 'rgba(232, 224, 208, 0.7)' }}>
+      <p className={styles.meta}>
         {arch} | {sibling?.size_gb.toFixed(1)} GB | {model.downloads.toLocaleString()} dl
       </p>
       <button

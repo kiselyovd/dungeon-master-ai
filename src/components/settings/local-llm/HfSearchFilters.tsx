@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { SearchParams } from '../../../api/hf';
+import styles from './HfSearchFilters.module.css';
 
 export interface HfSearchFiltersProps {
   value: SearchParams;
@@ -27,7 +28,7 @@ function withoutKey<K extends keyof SearchParams>(obj: SearchParams, key: K): Se
 export function HfSearchFilters({ value, onChange }: HfSearchFiltersProps) {
   const { t } = useTranslation('local_llm');
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+    <div className={styles.filters}>
       <select
         value={value.arch ?? ''}
         onChange={(e) => {

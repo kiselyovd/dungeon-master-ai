@@ -15,6 +15,6 @@
 }
 
 .error {
-  color: rgba(220, 100, 100, 0.9);
+  color: var(--color-danger);
   font-size: 13px;
 }

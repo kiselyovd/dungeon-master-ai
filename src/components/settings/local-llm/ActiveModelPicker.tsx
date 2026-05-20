@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { MergedEntry } from '../../../state/local_llm/manifest';
+import styles from './ActiveModelPicker.module.css';
 
 export interface ActiveModelPickerProps {
   installedModels: MergedEntry[];
@@ -24,7 +25,7 @@ export function ActiveModelPicker({
     <fieldset disabled={disabled}>
       <legend className="sr-only">{t('choose_active_model')}</legend>
       {installedModels.map((m) => (
-        <label key={m.id} style={{ display: 'block', padding: '4px 0' }}>
+        <label key={m.id} className={styles.option}>
           <input
             type="radio"
             name="active-local-model"
