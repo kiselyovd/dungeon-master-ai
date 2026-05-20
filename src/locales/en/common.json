@@ -31,5 +31,8 @@
   "chat_provider_settings": "Chat provider settings",
   "image_gen_settings": "Image gen settings",
   "video_gen_settings": "Video gen settings",
-  "modality_off": "off"
+  "modality_off": "off",
+  "video_disabled_cta": "Scene transitions are enabled but video generation is off. Enable it to see live scene clips.",
+  "video_enable_settings": "Enable video",
+  "dismiss": "Dismiss"
 }

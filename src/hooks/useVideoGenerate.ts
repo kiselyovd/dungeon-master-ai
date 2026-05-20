@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { backendUrl } from '../api/client';
+import { useStore } from '../state/useStore';
 
 export type SceneTag = 'combat' | 'dialog' | 'exploration' | 'dungeon';
 
@@ -78,15 +79,23 @@ export function useVideoGenerate(opts: UseVideoGenerateOpts = {}) {
   const generate = useCallback(
     async (prompt: { text: string }, mode: UseVideoGenerateMode) => {
       reset();
-      if (mode === 'prerecorded') {
+
+      // Resolve the prerecorded mp4 for the current scene tag and update state.
+      const resolvePrerecorded = (error: string | null = null): void => {
         const tag = opts.sceneTag ?? 'exploration';
         setState({
           status: 'done',
           percent: 1,
           etaSeconds: 0,
           mp4Url: PRERECORDED_BY_TAG[tag],
-          error: null,
+          error,
         });
+      };
+
+      // Short-circuit: if video generation is disabled in settings, resolve the
+      // prerecorded mp4 for the current scene tag instead of calling the backend.
+      if (useStore.getState().settings.videoEnabled === false || mode === 'prerecorded') {
+        resolvePrerecorded();
         return;
       }
       const ac = new AbortController();
@@ -102,15 +111,9 @@ export function useVideoGenerate(opts: UseVideoGenerateOpts = {}) {
         });
         if (resp.status === 404 || resp.status === 503) {
           // Universal fallback for live/race when sidecar isn't ready.
-          const tag = opts.sceneTag ?? 'exploration';
-          setState({
-            status: 'done',
-            percent: 1,
-            etaSeconds: 0,
-            mp4Url: PRERECORDED_BY_TAG[tag],
-            error:
-              mode === 'live' ? 'Live generation unavailable; falling back to library clip.' : null,
-          });
+          resolvePrerecorded(
+            mode === 'live' ? 'Live generation unavailable; falling back to library clip.' : null,
+          );
           return;
         }
         if (!resp.ok || !resp.body) {

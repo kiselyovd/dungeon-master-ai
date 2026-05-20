@@ -22,6 +22,7 @@ import { SplashOverlay } from './components/SplashOverlay';
 import { StatusBar } from './components/StatusBar';
 import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
+import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
@@ -123,6 +124,11 @@ function App() {
     setSettingsOpen(true);
   }, []);
 
+  const handleOpenVideoSettings = useCallback(() => {
+    setSettingsInitialTab('video');
+    setSettingsOpen(true);
+  }, []);
+
   const handleInitiativeSelect = useCallback(
     (tokenId: string) => {
       if (combatActive) {
@@ -200,6 +206,7 @@ function App() {
   const imagePreset = useStore((s) => s.settings.imagePreset);
   const videoEnabled = useStore((s) => s.settings.videoEnabled);
   const videoMode = useStore((s) => s.settings.videoMode);
+  const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
 
   return (
@@ -382,6 +389,12 @@ function App() {
             />
           )}
           <SceneTransitionOverlay />
+          <VideoDisabledToast
+            videoEnabled={videoEnabled}
+            sceneTransitionsEnabled={sceneTransitionsEnabled}
+            sceneName={currentScene?.name ?? null}
+            onOpenVideoSettings={handleOpenVideoSettings}
+          />
           <SplashOverlay />
         </ErrorBoundary>
       </div>
