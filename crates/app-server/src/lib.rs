@@ -81,6 +81,18 @@ pub fn router(state: AppState) -> Router {
             post(routes::local_llm::set_active_model),
         )
         .route(
+            "/local-llm/download/{model_id}",
+            post(routes::local_llm::start_download),
+        )
+        .route(
+            "/local-llm/model/{model_id}",
+            delete(routes::local_llm::cancel_or_delete),
+        )
+        .route(
+            "/local-llm/download-events",
+            get(routes::local_llm::download_events),
+        )
+        .route(
             "/hf/token",
             post(routes::hf::post_token).delete(routes::hf::delete_token),
         )

@@ -14,7 +14,10 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
       {models.map((m) => {
         const pct = m.downloadProgress !== undefined ? Math.round(m.downloadProgress * 100) : null;
-        const isDownloading = m.downloadState === 'downloading' || m.downloadState === 'verifying';
+        const isDownloading =
+          m.downloadState === 'queued' ||
+          m.downloadState === 'downloading' ||
+          m.downloadState === 'verifying';
         return (
           <li
             key={m.id}
@@ -33,9 +36,14 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
                   {t('download')}
                 </button>
               )}
-              {m.installed && (
+              {m.installed && !isDownloading && (
                 <button type="button" onClick={() => onDelete(m.id)}>
                   {t('delete')}
+                </button>
+              )}
+              {isDownloading && (
+                <button type="button" onClick={() => onDelete(m.id)}>
+                  {t('cancel')}
                 </button>
               )}
             </div>
