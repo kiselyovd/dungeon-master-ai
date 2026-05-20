@@ -19,7 +19,8 @@
   font-style: italic;
 }
 
-.bubble[data-narrator="true"]:not(.noDropcap)::first-letter {
+/* Drop-cap on the first letter of the first paragraph in narrator bubbles. */
+.bubble[data-narrator="true"]:not(.noDropcap) .markdownBody > p:first-child::first-letter {
   font-family: var(--font-display);
   font-size: 2.8em;
   font-weight: 700;
@@ -60,4 +61,113 @@
   max-height: 320px;
   border-radius: 8px;
   border: 1px solid var(--color-border-subtle);
+}
+
+/* ------------------------------------------------------------------ */
+/* B3: Markdown body + themed component classes                         */
+/* ------------------------------------------------------------------ */
+
+.markdownBody {
+  /* Reset white-space: pre-wrap inherited from .bubble so that CommonMark
+     soft line breaks collapse to spaces in prose paragraphs. Fenced <pre>
+     blocks keep the browser's own white-space: pre default. */
+  white-space: normal;
+  line-height: var(--leading-relaxed);
+}
+
+.markdownBody > * + * {
+  margin-top: var(--space-2);
+}
+
+/* Headings - Cinzel display font, gold accent */
+.mdH1,
+.mdH2,
+.mdH3 {
+  font-family: var(--font-display);
+  color: var(--color-accent);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-1);
+}
+
+.mdH1 {
+  font-size: var(--text-2xl);
+}
+
+.mdH2 {
+  font-size: var(--text-xl);
+}
+
+.mdH3 {
+  font-size: var(--text-lg);
+}
+
+/* Strong emphasis - accent-soft gold */
+.strong {
+  font-weight: 700;
+  color: var(--color-accent-soft);
+}
+
+/* Italic emphasis */
+.em {
+  font-style: italic;
+  color: var(--color-fg-secondary);
+}
+
+/* Inline code - monospace with subtle background */
+.inlineCode {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  letter-spacing: var(--tracking-mono);
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+/* Fenced code block - monospace block with rounded corners */
+.pre {
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+}
+
+.fencedCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-mono);
+  background: none;
+  padding: 0;
+  border: none;
+}
+
+/* Lists - diamond bullet via ::before pseudo-element */
+.ul {
+  list-style: none;
+  padding-left: var(--space-5);
+  margin: var(--space-2) 0;
+}
+
+.ol {
+  padding-left: var(--space-5);
+  margin: var(--space-2) 0;
+}
+
+.li {
+  position: relative;
+  margin-top: var(--space-1);
+}
+
+/* D4 diamond bullet (U+25C6) for unordered list items */
+.ul > .li::before {
+  content: "\25C6";
+  position: absolute;
+  left: calc(-1 * var(--space-4));
+  color: var(--color-accent-deep);
+  font-size: 0.6em;
+  top: 0.35em;
 }
