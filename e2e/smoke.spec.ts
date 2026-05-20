@@ -2,10 +2,16 @@ import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 test.beforeEach(async ({ page }) => {
-  // Pre-seed the persisted settings so neither the Onboarding modal nor
-  // the initial CharacterWizard mounts: both cover the whole viewport and
-  // would steal pointer events from the titlebar buttons below.
-  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
+  // Pre-seed the persisted settings so no full-viewport modal mounts and
+  // steals pointer events from the titlebar buttons: onboarding_completed
+  // skips Onboarding, hero_class skips the initial CharacterWizard, and
+  // active_provider satisfies PreflightCheck so its blocking missing_chat
+  // modal never mounts.
+  await mockTauri(page, {
+    onboarding_completed: true,
+    hero_class: 'fighter',
+    active_provider: 'local-mistralrs',
+  });
 });
 
 test('app renders header, grid placeholder, and chat panel', async ({ page }) => {

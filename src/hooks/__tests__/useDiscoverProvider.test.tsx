@@ -202,6 +202,10 @@ describe('useDiscoverProvider', () => {
   });
 
   it('exposes lastCachedAt from a fresh cached entry that matches the cache key', async () => {
+    // Relative timestamp: the hook only surfaces a cache entry within the
+    // 7-day freshness TTL, so a hardcoded date here is a time-bomb that
+    // fails once the calendar advances past it.
+    const freshCachedAt = new Date().toISOString();
     const resp: DiscoveryResponse = {
       models: [
         {
@@ -216,7 +220,7 @@ describe('useDiscoverProvider', () => {
           source: 'curated',
         },
       ],
-      cached_at: '2026-05-17T12:00:00Z',
+      cached_at: freshCachedAt,
       source: 'curated',
       next_cursor: null,
     };
@@ -230,6 +234,6 @@ describe('useDiscoverProvider', () => {
       await result.current.discover();
     });
 
-    expect(result.current.lastCachedAt).toBe('2026-05-17T12:00:00Z');
+    expect(result.current.lastCachedAt).toBe(freshCachedAt);
   });
 });

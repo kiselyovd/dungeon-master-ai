@@ -11,6 +11,9 @@ interface ModalProps {
    * animation keyframe fires. Consumers that do not need an exit animation
    * may omit this prop - it is fully optional and additive. */
   closing?: boolean;
+  /** When true, Escape key and backdrop clicks will NOT call onClose.
+   * Use for blocking modals that must not be dismissed. */
+  disableClose?: boolean;
 }
 
 /**
@@ -23,7 +26,15 @@ interface ModalProps {
  * - Returns focus to the previously-focused element on close
  * - Backdrop click closes (consumers can stop propagation if undesired)
  */
-export function Modal({ open, onClose, title, children, footer, closing }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  closing,
+  disableClose = false,
+}: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -46,7 +57,7 @@ export function Modal({ open, onClose, title, children, footer, closing }: Modal
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        if (!disableClose) onClose();
         return;
       }
       if (e.key !== 'Tab' || !dialog) return;
@@ -75,7 +86,7 @@ export function Modal({ open, onClose, title, children, footer, closing }: Modal
       window.removeEventListener('keydown', onKeyDown);
       previousFocusRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, disableClose]);
 
   if (!open) return null;
 
@@ -85,7 +96,7 @@ export function Modal({ open, onClose, title, children, footer, closing }: Modal
       data-testid="modal-backdrop"
       className={styles.backdrop}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !disableClose) onClose();
       }}
       {...(closing !== undefined ? { 'data-state': closing ? 'closing' : 'open' } : {})}
     >

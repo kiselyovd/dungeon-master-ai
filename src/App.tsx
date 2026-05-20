@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import { initBackendListener } from './api/client';
 import { ActionBar } from './components/ActionBar';
 import { CharacterSheet } from './components/CharacterSheet';
@@ -14,6 +15,7 @@ import { JournalViewer } from './components/JournalViewer';
 import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
 import { Onboarding } from './components/Onboarding';
+import { PreflightModal } from './components/PreflightModal';
 import { SavesScreen } from './components/SavesScreen';
 import { ScenePill } from './components/ScenePill';
 import { SceneTransitionOverlay } from './components/SceneTransitionOverlay';
@@ -27,7 +29,9 @@ import { VttCanvas } from './components/VttCanvas';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
+import type { PreflightInput, PreflightStatus } from './lib/preflight';
 // useSession is mounted inside ChatPanel so the retry-bar can call refetch.
+import { isPreflightDismissed, runPreflight } from './lib/preflight';
 import { useStore } from './state/useStore';
 import { Icons } from './ui/Icons';
 
@@ -110,12 +114,39 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
+
+  // Preflight: read the settings fields needed by runPreflight in one selector
+  // so we only re-render when these specific fields change.
+  // useShallow prevents re-renders when the object identity changes but values
+  // are the same (Zustand v5 uses Object.is by default).
+  const preflightSettings = useStore(
+    useShallow(
+      (s): PreflightInput => ({
+        activeProvider: s.settings.activeProvider,
+        providers: s.settings.providers,
+        imageEnabled: s.settings.imageEnabled,
+        imagePreset: s.settings.imagePreset,
+        replicateApiKey: s.settings.replicateApiKey,
+        videoEnabled: s.settings.videoEnabled,
+        videoMode: s.settings.videoMode,
+      }),
+    ),
+  );
+  // A local flag lets the user dismiss for this session without a dontAskAgain
+  // checkbox click. It is reset when the component unmounts (app reload).
+  const [preflightDismissedThisSession, setPreflightDismissedThisSession] = useState(false);
+
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const savesOpen = useStore((s) => s.saves.isOpen);
   const lastQuickSaveAt = useStore((s) => s.saves.lastQuickSaveAt);
   const { open: openSaves, quickSave } = useSaves();
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
+
+  const handleOpenChatSettings = useCallback(() => {
+    setSettingsInitialTab('chat');
+    setSettingsOpen(true);
+  }, []);
 
   const handleOpenImageSettings = useCallback(() => {
     setSettingsInitialTab('image');
@@ -206,6 +237,16 @@ function App() {
   const videoMode = useStore((s) => s.settings.videoMode);
   const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
+
+  // Compute preflight status - only relevant after onboarding is completed.
+  const preflightStatus: PreflightStatus = onboardingCompleted
+    ? runPreflight(preflightSettings)
+    : 'ok';
+  const showPreflight =
+    onboardingCompleted &&
+    preflightStatus !== 'ok' &&
+    !preflightDismissedThisSession &&
+    !isPreflightDismissed(preflightStatus);
 
   return (
     <ErrorBoundary level="top">
@@ -370,17 +411,26 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && <Onboarding />}
-          {onboardingCompleted && !pcHeroClass && (
-            <CharacterWizard
-              mode="initial"
-              onOpenImageSettings={handleOpenImageSettings}
-              hidden={settingsOpen}
+          {!onboardingCompleted && <Onboarding onExitToWizard={() => setWizardReopen(true)} />}
+          {showPreflight && (
+            <PreflightModal
+              status={preflightStatus as Exclude<PreflightStatus, 'ok'>}
+              onFinishSetup={() => {
+                setPreflightDismissedThisSession(true);
+                if (preflightStatus === 'missing_chat') {
+                  handleOpenChatSettings();
+                } else if (preflightStatus === 'missing_image') {
+                  handleOpenImageSettings();
+                } else {
+                  handleOpenVideoSettings();
+                }
+              }}
+              onDismiss={() => setPreflightDismissedThisSession(true)}
             />
           )}
           {wizardReopen && (
             <CharacterWizard
-              mode="edit"
+              mode={pcHeroClass ? 'edit' : 'initial'}
               onClose={() => setWizardReopen(false)}
               onOpenImageSettings={handleOpenImageSettings}
               hidden={settingsOpen}

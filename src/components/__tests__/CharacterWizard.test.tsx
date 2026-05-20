@@ -48,3 +48,47 @@ describe('CharacterWizard container', () => {
     expect(await screen.findByText(/pick a class/i)).toBeInTheDocument();
   });
 });
+
+describe('CharacterWizard navigation footer', () => {
+  it('Back button is disabled when the active tab is the first tab (class)', async () => {
+    render(<CharacterWizard mode="initial" />);
+    const backBtn = await screen.findByRole('button', { name: /back/i });
+    expect(backBtn).toBeDisabled();
+  });
+
+  it('Next button is disabled when the current tab is invalid (classId is null)', async () => {
+    // Default draft has classId: null, so the class tab is invalid
+    render(<CharacterWizard mode="initial" />);
+    const nextBtn = await screen.findByRole('button', { name: /next/i });
+    expect(nextBtn).toBeDisabled();
+  });
+
+  it('Next button advances to the next tab when the current tab is valid', async () => {
+    // Set classId so the class tab becomes valid
+    useStore.getState().charCreation.setDraftField('classId', 'wizard');
+    render(<CharacterWizard mode="initial" />);
+    const nextBtn = await screen.findByRole('button', { name: /next/i });
+    await userEvent.click(nextBtn);
+    expect(useStore.getState().charCreation.activeTab).toBe('race');
+  });
+
+  it('Next button is not rendered on the review tab', async () => {
+    useStore.getState().charCreation.setActiveTab('review');
+    render(<CharacterWizard mode="initial" />);
+    // Wait for component to settle
+    await screen.findByRole('button', { name: /back/i });
+    expect(screen.queryByRole('button', { name: /next/i })).toBeNull();
+  });
+
+  it('tab strip renders ordinal numbers for each tab', async () => {
+    render(<CharacterWizard mode="initial" />);
+    const tabs = await screen.findAllByRole('tab');
+    expect(tabs.length).toBe(10);
+    // First tab: accessible name starts with "1" (not "10") and includes "Class"
+    expect(tabs[0]).toHaveAccessibleName(/^1[^0-9]/);
+    expect(tabs[0]).toHaveAccessibleName(/class/i);
+    // Last tab: accessible name starts with "10" and includes "Review"
+    expect(tabs[9]).toHaveAccessibleName(/^10/);
+    expect(tabs[9]).toHaveAccessibleName(/review/i);
+  });
+});

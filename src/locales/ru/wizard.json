@@ -39,6 +39,7 @@
   "ability_method_4d6_drop_lowest": "4d6 со сбросом меньшего",
   "point_buy_remaining": "{{remaining}} очков осталось",
   "standard_array_hint": "Каждое значение можно назначить одной характеристике:",
+  "standard_array_taken": "занято",
   "roll_set": "Бросить набор (осталось {{remaining}})",
   "increment": "Увеличить {{ability}}",
   "decrement": "Уменьшить {{ability}}",
@@ -46,7 +47,7 @@
   "skills_pick_class_first": "Сначала выбери класс и background.",
   "skills_choose_n": "{{chosen}} из {{total}} навыков выбрано",
   "skills_from_background": "Закреплено за background: {{list}}",
-  "locked": "locked",
+  "locked": "закреплено",
   "skill_acrobatics": "Акробатика",
   "skill_animal_handling": "Уход за животными",
   "skill_arcana": "Магия",
@@ -86,7 +87,7 @@
   "gold_remaining": "Золото",
   "weight_carried": "Вес",
   "gp": "зм",
-  "lb": "фт",
+  "lb": "фунт",
   "filter_all": "Все",
   "filter_weapons": "Оружие",
   "filter_armor": "Доспехи",
@@ -200,5 +201,10 @@
   "warning_no_background": "Сначала выбери background.",
   "warning_no_ability_method": "Сначала распредели характеристики.",
   "warning_no_name": "У персонажа нет имени.",
-  "warning_no_equipment": "Режим снаряжения ещё не выбран."
+  "warning_no_equipment": "Режим снаряжения ещё не выбран.",
+  "nav_back": "Назад",
+  "nav_next": "Далее",
+  "nav_step": "Шаг {{current}} из {{total}}",
+  "nav_next_blocked": "Заверши этот шаг, чтобы продолжить",
+  "nav_footer_label": "Навигация по шагам"
 }

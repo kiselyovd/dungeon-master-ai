@@ -37,9 +37,12 @@ export function AbilitiesTab() {
 
   function pickMethod(m: AbilityMethod) {
     setDraftField('abilityMethod', m);
-    if (m === 'point_buy' || m === 'standard_array') {
+    if (m === 'point_buy') {
       // Reset to a neutral baseline so users can re-assign cleanly.
       setDraftField('abilities', { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 });
+    } else if (m === 'standard_array') {
+      // Seed the canonical distinct distribution so no value is "(taken)" on first render.
+      setDraftField('abilities', { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 });
     }
   }
 
@@ -112,7 +115,7 @@ function PointBuyPanel({ abilities, remaining, onChange }: PanelProps & { remain
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
             <button
               type="button"
-              aria-label={t('decrement', { ability: k })}
+              aria-label={t('decrement', { ability: t(`ability_${k}`) })}
               disabled={abilities[k] <= 8}
               onClick={() => onChange(k, Math.max(8, abilities[k] - 1))}
             >
@@ -121,7 +124,7 @@ function PointBuyPanel({ abilities, remaining, onChange }: PanelProps & { remain
             <span style={{ minWidth: 24, textAlign: 'center' }}>{abilities[k]}</span>
             <button
               type="button"
-              aria-label={t('increment', { ability: k })}
+              aria-label={t('increment', { ability: t(`ability_${k}`) })}
               disabled={
                 abilities[k] >= 15 ||
                 remaining -
@@ -142,6 +145,13 @@ function PointBuyPanel({ abilities, remaining, onChange }: PanelProps & { remain
 
 function StandardArrayPanel({ abilities, onChange }: PanelProps) {
   const { t } = useTranslation('wizard');
+
+  // Precompute once: value -> the ability key that currently holds it.
+  const valueOwner = new Map<number, keyof AbilityScores>();
+  for (const k of ABILITIES) {
+    valueOwner.set(abilities[k], k);
+  }
+
   return (
     <div>
       <p style={{ fontSize: 12 }}>{t('standard_array_hint')}</p>
@@ -160,11 +170,15 @@ function StandardArrayPanel({ abilities, onChange }: PanelProps) {
             value={abilities[k]}
             onChange={(e) => onChange(k, Number(e.target.value))}
           >
-            {STANDARD_ARRAY.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            {STANDARD_ARRAY.map((v) => {
+              const owner = valueOwner.get(v);
+              const isTaken = owner !== undefined && owner !== k;
+              return (
+                <option key={v} value={v} disabled={isTaken}>
+                  {isTaken ? `${v} (${t('standard_array_taken')})` : String(v)}
+                </option>
+              );
+            })}
           </select>
         </div>
       ))}

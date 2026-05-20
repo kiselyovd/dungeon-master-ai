@@ -163,6 +163,12 @@ export const Icons = {
       <path d="M2 2l20 20" />
     </Base>
   ),
+  Download: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3v13M7 12l5 5l5-5" />
+      <path d="M5 21h14" />
+    </Base>
+  ),
   ChevronRight: (p: IconProps) => (
     <Base {...p}>
       <path d="M9 6l6 6l-6 6" />

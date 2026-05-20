@@ -1,120 +1,94 @@
-import { Fragment, type ReactNode, useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { postSettingsV2 } from '../api/settings';
-import {
-  DEFAULT_ANTHROPIC_MODEL,
-  DEFAULT_LOCAL_CONTEXT_WINDOW,
-  parseApiKey,
-  parseBaseUrl,
-} from '../state/providers';
 import type { Language } from '../state/settings';
 import { useStore } from '../state/useStore';
-import { Icons } from '../ui/Icons';
+import type { PresetId, Step } from './onboarding/presets';
+import { computeSteps, DEFAULT_PRESET } from './onboarding/presets';
+import { ChatStep } from './onboarding/steps/ChatStep';
+import { HeroStep } from './onboarding/steps/HeroStep';
+import { ImageStep } from './onboarding/steps/ImageStep';
+import { PresetStep } from './onboarding/steps/PresetStep';
+import { VideoStep } from './onboarding/steps/VideoStep';
+import { WelcomeStep } from './onboarding/steps/WelcomeStep';
 
 /**
- * First-run Onboarding wizard (P2.12). Two steps: Welcome, Connect AI.
+ * First-run Onboarding wizard (P2.12 E1). Six steps: Welcome, Preset,
+ * Chat, Image (optional), Video (optional), Hero.
+ *
  * Mounted by `App.tsx` over the entire UI when `state.onboarding.completed`
- * is `false`; once the user finishes step 2 we flip the flag and dismount.
+ * is `false`. After the Hero step finalizes we flip the flag and dismount.
  * CharacterWizard is then mounted by App.tsx (condition: !pc.heroClass) to
  * let the user create their hero.
  *
- * Provider sub-forms keep things light: Anthropic and OpenAI-compat get
- * inline validation (the same `parseApiKey` / `parseBaseUrl` helpers the
- * Settings form uses), and Local renders an explainer pointing at the
- * Settings -> Provider tab.
+ * The step sequence is computed from `computeSteps(preset)` so optional steps
+ * (image, video) are inserted or removed based on the user's preset choice.
+ * Before a preset is chosen the default sequence is used for the stepper.
+ *
+ * Public prop contract: only `onComplete?: () => void` - unchanged from the
+ * prior 2-step implementation so App.tsx does not need any edits.
  */
 
-type Step = 0 | 1;
-
-type ProviderChoice = 'anthropic' | 'openai-compat' | 'local-mistralrs';
-
 interface OnboardingProps {
-  /** Optional callback invoked after persistence; primarily for tests. */
+  /** Optional callback invoked after finalization; primarily for tests. */
   onComplete?: () => void;
+  /**
+   * Called when the user chooses "Build from scratch" on the hero step.
+   * App.tsx uses this to open CharacterWizard in initial mode.
+   */
+  onExitToWizard?: () => void;
 }
 
-export function Onboarding({ onComplete }: OnboardingProps) {
+export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
   const { t: tCommon } = useTranslation('common');
   const titleId = useId();
 
-  const [step, setStep] = useState<Step>(0);
-  const [providerChoice, setProviderChoice] = useState<ProviderChoice>('anthropic');
-  const [providerErrors, setProviderErrors] = useState<ProviderErrors>({});
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState('https://api.openai.com/v1');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [openaiModel, setOpenaiModel] = useState('');
+  const [preset, setPreset] = useState<PresetId>(DEFAULT_PRESET);
+  const [stepIndex, setStepIndex] = useState(0);
 
-  const setActiveProvider = useStore((s) => s.settings.setActiveProvider);
-  const setProviderConfig = useStore((s) => s.settings.setProviderConfig);
+  const steps = computeSteps(preset);
+  const currentStep = steps[stepIndex];
+  const totalSteps = steps.length;
+
   const completeOnboarding = useStore((s) => s.onboarding.complete);
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
 
-  const stepLabels: readonly string[] = [t('step_welcome'), t('step_connect_ai')];
-
-  const advanceFromStep2 = (): void => {
-    const errors = validateProviderChoice(providerChoice, {
-      anthropicKey,
-      openaiBaseUrl,
-      openaiKey,
-      openaiModel,
-    });
-    if (Object.keys(errors).length > 0) {
-      setProviderErrors(errors);
-      return;
+  const next = (): void => {
+    if (stepIndex < steps.length - 1) {
+      setStepIndex((i) => i + 1);
+    } else {
+      finalize();
     }
-    setProviderErrors({});
-    void finalize();
   };
 
-  const finalize = async (): Promise<void> => {
-    // Persist the provider choice into the settings slice. We always have a
-    // valid config at this point because step 2 validation gates step 3.
-    const apiKey = parseApiKey(anthropicKey);
-    const openaiUrl = parseBaseUrl(openaiBaseUrl);
-    const openaiApiKey = parseApiKey(openaiKey);
-
-    if (providerChoice === 'anthropic' && apiKey !== null) {
-      setProviderConfig({
-        kind: 'anthropic',
-        apiKey,
-        model: DEFAULT_ANTHROPIC_MODEL,
-      });
-    } else if (
-      providerChoice === 'openai-compat' &&
-      openaiUrl !== null &&
-      openaiApiKey !== null &&
-      openaiModel.trim().length > 0
-    ) {
-      setProviderConfig({
-        kind: 'openai-compat',
-        baseUrl: openaiUrl,
-        apiKey: openaiApiKey,
-        model: openaiModel.trim(),
-      });
-    } else if (providerChoice === 'local-mistralrs') {
-      // Lightweight stub - the real runtime configuration happens in the
-      // Settings -> Provider tab. We still persist the kind so downstream
-      // code knows which branch the user picked.
-      setProviderConfig({
-        kind: 'local-mistralrs',
-        modelPath: 'qwen3_5_4b',
-        contextWindow: DEFAULT_LOCAL_CONTEXT_WINDOW,
-      });
+  const back = (): void => {
+    if (stepIndex > 0) {
+      setStepIndex((i) => i - 1);
     }
-    setActiveProvider(providerChoice);
+  };
+
+  const finalize = (): void => {
     completeOnboarding();
-
-    // Push the new provider to the backend so the chat path is wired up
-    // before the user hits send. Errors here are non-fatal: the same
-    // POST happens from the Settings modal, so a transient miss can be
-    // recovered there. We do not block the modal close on it.
-    void postSettingsV2(useStore.getState().settings).catch(() => {});
-
     onComplete?.();
   };
+
+  // Step label lookup: each step maps to an i18n key.
+  // Record<Step, ...> ensures a compile error if a new Step variant is added
+  // without updating this map.
+  const stepLabelKey: Record<Step, string> = {
+    welcome: 'step_welcome',
+    preset: 'step_pick_preset',
+    chat: 'step_connect_ai',
+    image: 'step_image',
+    video: 'step_video',
+    hero: 'step_create_hero',
+  };
+
+  const stepLabels = steps.map((s) => t(stepLabelKey[s]));
+
+  // Counter text uses the step_counter key with {{current}} and {{total}}.
+  const counterText = t('step_counter', { current: stepIndex + 1, total: totalSteps });
 
   return (
     <div className="dm-onboarding">
@@ -130,12 +104,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           onChange={setUiLanguage}
           ariaLabel={tCommon('language')}
         />
+
+        <div className="dm-onboarding-counter" aria-live="polite">
+          {counterText}
+        </div>
+
         <ol className="dm-onboarding-steps" aria-label={t('stepper_label')}>
           {stepLabels.map((label, i) => (
             <Fragment key={label}>
               <li
-                className={`dm-onboarding-step${i === step ? ' is-active' : ''}${i < step ? ' is-done' : ''}`}
-                aria-current={i === step ? 'step' : undefined}
+                className={`dm-onboarding-step${i === stepIndex ? ' is-active' : ''}${i < stepIndex ? ' is-done' : ''}`}
+                aria-current={i === stepIndex ? 'step' : undefined}
               >
                 <span className="dm-onboarding-step-dot" aria-hidden="true" />
                 <span>{label}</span>
@@ -147,247 +126,40 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           ))}
         </ol>
 
-        {step === 0 && <Step1 titleId={titleId} t={t} onNext={() => setStep(1)} />}
-        {step === 1 && (
-          <Step2
+        {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
+        {currentStep === 'preset' && (
+          <PresetStep
             titleId={titleId}
-            t={t}
-            choice={providerChoice}
-            onChoiceChange={(c) => {
-              setProviderChoice(c);
-              setProviderErrors({});
+            preset={preset}
+            onPresetChange={(p) => {
+              setPreset(p);
+              // Re-clamp the step index when preset changes shrink the sequence.
+              setStepIndex((i) => {
+                const newSteps = computeSteps(p);
+                return Math.min(i, newSteps.length - 1);
+              });
             }}
-            anthropicKey={anthropicKey}
-            onAnthropicKeyChange={setAnthropicKey}
-            openaiBaseUrl={openaiBaseUrl}
-            onOpenaiBaseUrlChange={setOpenaiBaseUrl}
-            openaiKey={openaiKey}
-            onOpenaiKeyChange={setOpenaiKey}
-            openaiModel={openaiModel}
-            onOpenaiModelChange={setOpenaiModel}
-            errors={providerErrors}
-            onBack={() => setStep(0)}
-            onNext={advanceFromStep2}
+            onBack={back}
+            onNext={next}
+          />
+        )}
+        {currentStep === 'chat' && (
+          <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+        )}
+        {currentStep === 'image' && (
+          <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+        )}
+        {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
+        {currentStep === 'hero' && (
+          <HeroStep
+            titleId={titleId}
+            onBack={back}
+            onNext={next}
+            {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
           />
         )}
       </div>
     </div>
-  );
-}
-
-// ---- Step 1 ------------------------------------------------------------
-
-interface Step1Props {
-  titleId: string;
-  t: (key: string) => string;
-  onNext: () => void;
-}
-
-function Step1({ titleId, t, onNext }: Step1Props) {
-  return (
-    <>
-      <div className="dm-onboarding-glyph-row">
-        <div className="dm-app-mark-glyph dm-onboarding-glyph-lg">
-          <Icons.D20 size={32} />
-        </div>
-      </div>
-      <div className="dm-onboarding-tag">{t('step1_tag')}</div>
-      <h1 id={titleId} className="dm-onboarding-title">
-        {t('step1_title')}
-      </h1>
-      <p className="dm-onboarding-desc">{t('step1_desc')}</p>
-      <div className="dm-onboarding-actions">
-        <button
-          type="button"
-          className="dm-onboarding-btn dm-onboarding-btn-primary dm-onboarding-btn-lg"
-          onClick={onNext}
-        >
-          <Icons.Sparkle size={14} />
-          {t('step1_cta')}
-          <Icons.ChevronRight size={14} />
-        </button>
-      </div>
-    </>
-  );
-}
-
-// ---- Step 2 ------------------------------------------------------------
-
-interface Step2Props {
-  titleId: string;
-  t: (key: string) => string;
-  choice: ProviderChoice;
-  onChoiceChange: (choice: ProviderChoice) => void;
-  anthropicKey: string;
-  onAnthropicKeyChange: (value: string) => void;
-  openaiBaseUrl: string;
-  onOpenaiBaseUrlChange: (value: string) => void;
-  openaiKey: string;
-  onOpenaiKeyChange: (value: string) => void;
-  openaiModel: string;
-  onOpenaiModelChange: (value: string) => void;
-  errors: ProviderErrors;
-  onBack: () => void;
-  onNext: () => void;
-}
-
-function Step2({
-  titleId,
-  t,
-  choice,
-  onChoiceChange,
-  anthropicKey,
-  onAnthropicKeyChange,
-  openaiBaseUrl,
-  onOpenaiBaseUrlChange,
-  openaiKey,
-  onOpenaiKeyChange,
-  openaiModel,
-  onOpenaiModelChange,
-  errors,
-  onBack,
-  onNext,
-}: Step2Props) {
-  const anthropicKeyId = useId();
-  const openaiBaseUrlId = useId();
-  const openaiKeyId = useId();
-  const openaiModelId = useId();
-
-  return (
-    <>
-      <div className="dm-onboarding-tag">{t('step2_tag')}</div>
-      <h1 id={titleId} className="dm-onboarding-title">
-        {t('step2_title')}
-      </h1>
-      <p className="dm-onboarding-desc">{t('step2_desc')}</p>
-
-      <div className="dm-provider-cards" role="radiogroup" aria-label={t('step2_title')}>
-        <ProviderCardMini
-          active={choice === 'anthropic'}
-          onClick={() => onChoiceChange('anthropic')}
-          icon={<Icons.Cloud size={18} />}
-          title={t('provider_anthropic_title')}
-          desc={t('provider_anthropic_desc')}
-        />
-        <ProviderCardMini
-          active={choice === 'openai-compat'}
-          onClick={() => onChoiceChange('openai-compat')}
-          icon={<Icons.Server size={18} />}
-          title={t('provider_openai_title')}
-          desc={t('provider_openai_desc')}
-        />
-        <ProviderCardMini
-          active={choice === 'local-mistralrs'}
-          onClick={() => onChoiceChange('local-mistralrs')}
-          icon={<Icons.Cpu size={18} />}
-          title={t('provider_local_title')}
-          desc={t('provider_local_desc')}
-        />
-      </div>
-
-      {choice === 'anthropic' && (
-        <div className="dm-onboarding-form">
-          <FieldRow
-            id={anthropicKeyId}
-            label={t('anthropic_api_key_label')}
-            hint={t('anthropic_api_key_hint')}
-            error={errors.anthropicKey ? t(errors.anthropicKey) : undefined}
-            required
-          >
-            <input
-              id={anthropicKeyId}
-              type="password"
-              autoComplete="off"
-              className="dm-onboarding-form-input"
-              value={anthropicKey}
-              onChange={(e) => onAnthropicKeyChange(e.target.value)}
-              placeholder={t('anthropic_api_key_placeholder')}
-              aria-invalid={errors.anthropicKey ? true : undefined}
-            />
-          </FieldRow>
-        </div>
-      )}
-
-      {choice === 'openai-compat' && (
-        <div className="dm-onboarding-form">
-          <FieldRow
-            id={openaiBaseUrlId}
-            label={t('openai_base_url_label')}
-            error={errors.openaiBaseUrl ? t(errors.openaiBaseUrl) : undefined}
-            required
-          >
-            <input
-              id={openaiBaseUrlId}
-              type="url"
-              className="dm-onboarding-form-input"
-              value={openaiBaseUrl}
-              onChange={(e) => onOpenaiBaseUrlChange(e.target.value)}
-              placeholder={t('openai_base_url_placeholder')}
-              aria-invalid={errors.openaiBaseUrl ? true : undefined}
-            />
-          </FieldRow>
-          <FieldRow
-            id={openaiKeyId}
-            label={t('openai_api_key_label')}
-            error={errors.openaiKey ? t(errors.openaiKey) : undefined}
-            required
-          >
-            <input
-              id={openaiKeyId}
-              type="password"
-              autoComplete="off"
-              className="dm-onboarding-form-input"
-              value={openaiKey}
-              onChange={(e) => onOpenaiKeyChange(e.target.value)}
-              placeholder={t('openai_api_key_placeholder')}
-              aria-invalid={errors.openaiKey ? true : undefined}
-            />
-          </FieldRow>
-          <FieldRow
-            id={openaiModelId}
-            label={t('openai_model_label')}
-            error={errors.openaiModel ? t(errors.openaiModel) : undefined}
-            required
-          >
-            <input
-              id={openaiModelId}
-              type="text"
-              className="dm-onboarding-form-input"
-              value={openaiModel}
-              onChange={(e) => onOpenaiModelChange(e.target.value)}
-              placeholder={t('openai_model_placeholder')}
-              aria-invalid={errors.openaiModel ? true : undefined}
-            />
-          </FieldRow>
-        </div>
-      )}
-
-      {choice === 'local-mistralrs' && (
-        <div className="dm-onboarding-local-hint" role="note">
-          {t('local_setup_hint')}
-        </div>
-      )}
-
-      <div className="dm-onboarding-actions">
-        <button
-          type="button"
-          className="dm-onboarding-btn dm-onboarding-btn-secondary"
-          onClick={onBack}
-          aria-label={t('back')}
-        >
-          <Icons.ChevronLeft size={14} />
-          {t('back')}
-        </button>
-        <button
-          type="button"
-          className="dm-onboarding-btn dm-onboarding-btn-primary"
-          onClick={onNext}
-        >
-          {t('step2_finish_cta')}
-          <Icons.ChevronRight size={14} />
-        </button>
-      </div>
-    </>
   );
 }
 
@@ -401,7 +173,7 @@ interface LanguagePickerProps {
 
 /**
  * Two-button toggle (EN / RU) sitting in the top-right of the onboarding card.
- * Visible on all three steps so a brand-new user can flip language before
+ * Visible on all steps so a brand-new user can flip language before
  * onboarding completes (Settings is reachable only afterwards). We deliberately
  * use the bare locale codes - flag emojis are politically charged for RU users.
  */
@@ -426,101 +198,4 @@ function LanguagePicker({ value, onChange, ariaLabel }: LanguagePickerProps) {
       ))}
     </div>
   );
-}
-
-// ---- ProviderCardMini --------------------------------------------------
-
-interface ProviderCardMiniProps {
-  active: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  title: string;
-  desc: string;
-}
-
-function ProviderCardMini({ active, onClick, icon, title, desc }: ProviderCardMiniProps) {
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: radio card hosts an icon + title + desc layout that <input type="radio"> cannot represent
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      className={`dm-provider-card${active ? ' is-active' : ''}`}
-      onClick={onClick}
-    >
-      <span className="dm-provider-card-radio" aria-hidden="true">
-        {active && <span />}
-      </span>
-      <span className="dm-provider-card-icon" aria-hidden="true">
-        {icon}
-      </span>
-      <span className="dm-provider-card-body">
-        <span className="dm-provider-card-title">{title}</span>
-        <span className="dm-provider-card-desc">{desc}</span>
-      </span>
-    </button>
-  );
-}
-
-// ---- Field row helper --------------------------------------------------
-
-interface FieldRowProps {
-  id: string;
-  label: string;
-  hint?: string | undefined;
-  error?: string | undefined;
-  required?: boolean | undefined;
-  children: ReactNode;
-}
-
-function FieldRow({ id, label, hint, error, required, children }: FieldRowProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="dm-onboarding-tag" style={{ marginBottom: 6 }}>
-        {label}
-        {required && <span aria-hidden="true"> *</span>}
-      </label>
-      {children}
-      {error ? (
-        <div role="alert" className="dm-onboarding-form-error">
-          {error}
-        </div>
-      ) : hint ? (
-        <div className="dm-onboarding-form-hint">{hint}</div>
-      ) : null}
-    </div>
-  );
-}
-
-// ---- Validation --------------------------------------------------------
-
-interface ProviderErrors {
-  anthropicKey?: 'validation_required';
-  openaiBaseUrl?: 'validation_required' | 'validation_invalid_url';
-  openaiKey?: 'validation_required';
-  openaiModel?: 'validation_required';
-}
-
-interface Drafts {
-  anthropicKey: string;
-  openaiBaseUrl: string;
-  openaiKey: string;
-  openaiModel: string;
-}
-
-function validateProviderChoice(choice: ProviderChoice, drafts: Drafts): ProviderErrors {
-  const errors: ProviderErrors = {};
-  if (choice === 'anthropic') {
-    if (parseApiKey(drafts.anthropicKey) === null) errors.anthropicKey = 'validation_required';
-  } else if (choice === 'openai-compat') {
-    if (drafts.openaiBaseUrl.trim().length === 0) {
-      errors.openaiBaseUrl = 'validation_required';
-    } else if (parseBaseUrl(drafts.openaiBaseUrl) === null) {
-      errors.openaiBaseUrl = 'validation_invalid_url';
-    }
-    if (parseApiKey(drafts.openaiKey) === null) errors.openaiKey = 'validation_required';
-    if (drafts.openaiModel.trim().length === 0) errors.openaiModel = 'validation_required';
-  }
-  // local-mistralrs: nothing to validate at the onboarding stage.
-  return errors;
 }

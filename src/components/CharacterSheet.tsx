@@ -20,15 +20,12 @@
 
 import { type ReactElement, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import portraitCleric from '../assets/char-portrait-cleric.png';
-import portraitFighter from '../assets/char-portrait-fighter.png';
-import portraitPaladin from '../assets/char-portrait-paladin.png';
-import portraitRogue from '../assets/char-portrait-rogue.png';
-import portraitWizard from '../assets/char-portrait-wizard.png';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
+import { HERO_PORTRAIT } from '../lib/heroPortraits';
 import {
   type AbilityScores,
   abilityMod,
+  type HeroClassId,
   type SavingThrowProf,
   type SkillProf,
   savingThrowMod,
@@ -37,14 +34,6 @@ import {
 import { useStore } from '../state/useStore';
 import type { IconName } from '../ui/Icons';
 import { Icons } from '../ui/Icons';
-
-const CLASS_PORTRAIT: Record<string, string> = {
-  fighter: portraitFighter,
-  wizard: portraitWizard,
-  rogue: portraitRogue,
-  cleric: portraitCleric,
-  paladin: portraitPaladin,
-};
 
 interface CharacterSheetProps {
   open: boolean;
@@ -181,7 +170,8 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
 
   // Resolved (non-null) character snapshot - safe to render the full sheet.
   const portraitInitial = pc.name.charAt(0).toUpperCase();
-  const portraitSrc = pc.heroClass !== null ? (CLASS_PORTRAIT[pc.heroClass] ?? null) : null;
+  const portraitSrc =
+    pc.heroClass !== null ? (HERO_PORTRAIT[pc.heroClass as HeroClassId | 'paladin'] ?? null) : null;
   const className = pc.heroClass !== null ? t(`class_${pc.heroClass}` as 'class_fighter') : '';
   const meta =
     pc.subclass !== null

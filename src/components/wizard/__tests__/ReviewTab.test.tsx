@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../i18n';
 import type { Compendium } from '../../../api/srd';
 import { useStore } from '../../../state/useStore';
@@ -139,6 +139,56 @@ describe('ReviewTab', () => {
     expect(longsword?.icon).toBe('sword');
     const gold = pc.inventory.find((it) => it.id === 'gold');
     expect(gold?.count).toBe(12);
+  });
+
+  it('edit mode: clicking Replace opens DmConfirmModal instead of window.confirm', async () => {
+    const s = useStore.getState().charCreation;
+    s.setDraftField('classId', 'fighter');
+    s.setDraftField('raceId', 'human');
+    s.setDraftField('backgroundId', 'acolyte');
+    s.setDraftField('abilityMethod', 'point_buy');
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(<ReviewTab compendium={compendium} mode="edit" />);
+    await userEvent.click(screen.getByRole('button', { name: /replace/i }));
+    // The modal should be open
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // window.confirm must NOT have been called
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('edit mode: cancelling the DmConfirmModal does NOT run replaceFromDraft and closes the modal', async () => {
+    const s = useStore.getState().charCreation;
+    s.setDraftField('classId', 'fighter');
+    s.setDraftField('raceId', 'human');
+    s.setDraftField('backgroundId', 'acolyte');
+    s.setDraftField('abilityMethod', 'point_buy');
+    const replaceFromDraftSpy = vi.spyOn(useStore.getState().pc, 'replaceFromDraft');
+    render(<ReviewTab compendium={compendium} mode="edit" />);
+    await userEvent.click(screen.getByRole('button', { name: /replace/i }));
+    // DmConfirmModal should be open
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // Click Cancel
+    await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    // replaceFromDraft must NOT have been called
+    expect(replaceFromDraftSpy).not.toHaveBeenCalled();
+    // The DmConfirmModal (rendered via Modal) must be gone
+    expect(screen.queryByRole('dialog')).toBeNull();
+    replaceFromDraftSpy.mockRestore();
+  });
+
+  it('edit mode: confirming the modal runs replaceFromDraft', async () => {
+    const s = useStore.getState().charCreation;
+    s.setDraftField('classId', 'paladin');
+    s.setDraftField('raceId', 'human');
+    s.setDraftField('backgroundId', 'acolyte');
+    s.setDraftField('abilityMethod', 'point_buy');
+    s.setDraftField('name', 'Arthas');
+    render(<ReviewTab compendium={compendium} mode="edit" />);
+    await userEvent.click(screen.getByRole('button', { name: /replace/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
+    expect(useStore.getState().pc.heroClass).toBe('paladin');
+    expect(useStore.getState().pc.name).toBe('Arthas');
   });
 
   it('shows unresolved wildcard warning when Package mode has unresolved chunks', () => {

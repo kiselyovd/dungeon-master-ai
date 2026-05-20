@@ -160,7 +160,7 @@ export function savingThrowMod(score: number, prof: boolean, profBonus: number):
 
 // ---- Class presets -----------------------------------------------------
 
-interface ClassPreset {
+export interface ClassPreset {
   name: string;
   race: string;
   subclass: string | null;
@@ -295,7 +295,7 @@ const CLERIC_PRESET: ClassPreset = {
   ],
 };
 
-const PRESETS: Record<HeroClassId, ClassPreset> = {
+export const PRESETS: Record<HeroClassId, ClassPreset> = {
   fighter: FIGHTER_PRESET,
   wizard: WIZARD_PRESET,
   rogue: ROGUE_PRESET,

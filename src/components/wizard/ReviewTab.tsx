@@ -5,6 +5,7 @@ import { useCharacterAssist } from '../../hooks/useCharacterAssist';
 import type { TestChatTurn } from '../../state/charCreation';
 import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
+import { DmConfirmModal } from '../DmConfirmModal';
 import {
   computeGoldRows,
   mergeInventoryRows,
@@ -36,6 +37,7 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
   const [history, setHistory] = useState<TestChatTurn[]>([]);
   const [userInput, setUserInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const warnings: Warning[] = [];
   if (!draft.classId) warnings.push({ code: 'no_class', severity: 'block' });
@@ -73,8 +75,14 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
 
   function begin() {
     if (mode === 'edit') {
-      if (!window.confirm(t('confirm_replace_character'))) return;
+      setConfirmOpen(true);
+      return;
     }
+    beginConfirmed();
+  }
+
+  function beginConfirmed() {
+    setConfirmOpen(false);
     const bg = draft.backgroundId
       ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
       : null;
@@ -209,6 +217,13 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
           {mode === 'edit' ? t('replace_character') : t('begin_adventure')}
         </button>
       </div>
+
+      <DmConfirmModal
+        open={confirmOpen}
+        message={t('confirm_replace_character')}
+        onConfirm={beginConfirmed}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </section>
   );
 }

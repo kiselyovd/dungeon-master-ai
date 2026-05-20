@@ -12,6 +12,7 @@ import type {
 import type { EquipmentMode, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 import { useStore } from '../../state/useStore';
+import { Icons } from '../../ui/Icons';
 import { filterCompendiumByWildcard, parseEquipmentString } from './equipmentResolver';
 
 interface RawStartingEquipmentEntry {
@@ -601,7 +602,7 @@ function GoldMode({
                     aria-label={t('remove_from_inventory')}
                     onClick={() => onRemove(it, cost)}
                   >
-                    x
+                    <Icons.X size={10} />
                   </button>
                 </li>
               );

@@ -3,7 +3,7 @@
   inset: 0;
   background: radial-gradient(circle at center top, #2a1e3a 0%, #14101a 70%);
   display: grid;
-  grid-template-rows: 56px 1fr;
+  grid-template-rows: 56px 1fr auto;
   grid-template-columns: 1fr 300px;
   z-index: var(--z-modal);
   isolation: isolate;
@@ -53,8 +53,57 @@
   padding: 24px 32px;
 }
 
+.dm-wizard-footer {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 32px;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dm-wizard-step-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  font-family: "Cinzel", serif;
+}
+
+.dm-wizard-nav-btn {
+  background: transparent;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--color-accent);
+  font-family: "Cinzel", serif;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition:
+    border-color 150ms,
+    opacity 150ms;
+}
+
+.dm-wizard-nav-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.dm-wizard-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dm-wizard-tab-num {
+  display: inline-block;
+  margin-right: 5px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
 .dm-wizard-live {
-  grid-row: 2;
+  grid-row: 2 / 4;
   grid-column: 2;
   border-left: 1px solid rgba(212, 175, 55, 0.2);
   padding: 16px;

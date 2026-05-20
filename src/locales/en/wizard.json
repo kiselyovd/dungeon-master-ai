@@ -39,6 +39,7 @@
   "ability_method_4d6_drop_lowest": "4d6 drop lowest",
   "point_buy_remaining": "{{remaining}} points left",
   "standard_array_hint": "Each value can be assigned to one ability:",
+  "standard_array_taken": "taken",
   "roll_set": "Roll set ({{remaining}} left)",
   "increment": "Increase {{ability}}",
   "decrement": "Decrease {{ability}}",
@@ -180,5 +181,10 @@
   "warning_no_background": "Pick a background first.",
   "warning_no_ability_method": "Distribute ability scores first.",
   "warning_no_name": "Your character has no name.",
-  "warning_no_equipment": "Equipment mode not chosen yet."
+  "warning_no_equipment": "Equipment mode not chosen yet.",
+  "nav_back": "Back",
+  "nav_next": "Next",
+  "nav_step": "Step {{current}} of {{total}}",
+  "nav_next_blocked": "Complete this step before continuing",
+  "nav_footer_label": "Step navigation"
 }
