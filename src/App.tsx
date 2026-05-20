@@ -114,7 +114,6 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
-  const resetOnboarding = useStore((s) => s.onboarding.reset);
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
@@ -143,6 +142,11 @@ function App() {
   const { open: openSaves, quickSave } = useSaves();
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
+
+  const handleOpenChatSettings = useCallback(() => {
+    setSettingsInitialTab('chat');
+    setSettingsOpen(true);
+  }, []);
 
   const handleOpenImageSettings = useCallback(() => {
     setSettingsInitialTab('image');
@@ -414,7 +418,7 @@ function App() {
               onFinishSetup={() => {
                 setPreflightDismissedThisSession(true);
                 if (preflightStatus === 'missing_chat') {
-                  resetOnboarding();
+                  handleOpenChatSettings();
                 } else if (preflightStatus === 'missing_image') {
                   handleOpenImageSettings();
                 } else {

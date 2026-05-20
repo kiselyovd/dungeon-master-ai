@@ -1,9 +1,6 @@
 /**
- * WelcomeStep - step 1 of 6 in the onboarding flow.
- *
- * Placeholder implementation for E1. Content will be fleshed out in E2-E6.
- * Renders a title, description, and a primary Next button.
- * There is no Back button on the first step.
+ * WelcomeStep - step 1 of 6 in the onboarding flow. Renders the welcome
+ * title, flavour description, and the primary Next button (no Back on step 1).
  */
 
 import { useTranslation } from 'react-i18next';
