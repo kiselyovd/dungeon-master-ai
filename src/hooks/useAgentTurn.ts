@@ -107,6 +107,14 @@ export function useAgentTurn() {
               }
             }
 
+            if (toolName === 'set_scene' && !isError && args && typeof args === 'object') {
+              const a = args as Record<string, unknown>;
+              const title = typeof a.title === 'string' ? a.title : '';
+              if (title) {
+                useStore.getState().session.setCurrentScene({ name: title, stepCounter: 0 });
+              }
+            }
+
             if (!isError && combatToolHandlers[toolName] !== undefined) {
               try {
                 combatToolHandlers[toolName]?.(

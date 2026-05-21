@@ -50,6 +50,7 @@ pub async fn execute_tool(
     match validated.tool_name.as_str() {
         "roll_dice" => execute_roll_dice(&validated.args),
         "apply_damage" => execute_apply_damage(&validated.args, pool).await,
+        "apply_healing" => execute_apply_healing(&validated.args, pool).await,
         "start_combat" => execute_start_combat(&validated.args, pool, session_id).await,
         "end_combat" => execute_end_combat(pool).await,
         "add_token" => execute_add_token(&validated.args, pool).await,
@@ -146,6 +147,39 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
                 return (json!({ "error": e.to_string() }), true);
             }
             (json!({ "new_hp": new_hp, "damage_dealt": amount }), false)
+        }
+        _ => (
+            json!({ "error": "token not found", "token_id": token_id }),
+            true,
+        ),
+    }
+}
+
+async fn execute_apply_healing(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+    let token_id = args["token_id"].as_str().unwrap_or_default();
+    let amount = args["amount"].as_i64().unwrap_or(0) as i32;
+
+    let row = sqlx::query("SELECT current_hp, max_hp FROM combat_tokens WHERE id = ?1")
+        .bind(token_id)
+        .fetch_optional(pool)
+        .await;
+
+    match row {
+        Ok(Some(r)) => {
+            use sqlx::Row;
+            let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
+            let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
+            let new_hp = (current_hp + amount).min(max_hp);
+            if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
+                .bind(new_hp)
+                .bind(token_id)
+                .execute(pool)
+                .await
+            {
+                tracing::warn!(error = %e, "sqlx write failed in execute_apply_healing");
+                return (json!({ "error": e.to_string() }), true);
+            }
+            (json!({ "new_hp": new_hp, "healing_done": amount }), false)
         }
         _ => (
             json!({ "error": "token not found", "token_id": token_id }),
