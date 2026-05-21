@@ -52,6 +52,9 @@ export interface CombatSlice {
     setCurrentTurn: (tokenId: string | null) => void;
     advanceRound: () => void;
     moveToken: (tokenId: string, x: number, y: number) => void;
+    addToken: (token: CombatToken) => void;
+    updateToken: (tokenId: string, patch: Partial<CombatToken>) => void;
+    removeToken: (tokenId: string) => void;
 
     useAction: () => void;
     useBonus: () => void;
@@ -172,6 +175,38 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
         combat: {
           ...s.combat,
           tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
+        },
+      })),
+
+    addToken: (token) =>
+      set((s) => {
+        if (s.combat.tokens.some((t) => t.id === token.id)) {
+          return { combat: s.combat };
+        }
+        return {
+          combat: {
+            ...s.combat,
+            tokens: [...s.combat.tokens, token],
+            initiativeOrder: [...s.combat.initiativeOrder, token.id],
+          },
+        };
+      }),
+
+    updateToken: (tokenId, patch) =>
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, ...patch } : t)),
+        },
+      })),
+
+    removeToken: (tokenId) =>
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          tokens: s.combat.tokens.filter((t) => t.id !== tokenId),
+          initiativeOrder: s.combat.initiativeOrder.filter((id) => id !== tokenId),
+          currentTurnId: s.combat.currentTurnId === tokenId ? null : s.combat.currentTurnId,
         },
       })),
 
