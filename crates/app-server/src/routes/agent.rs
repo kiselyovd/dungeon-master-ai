@@ -53,6 +53,7 @@ pub async fn post_agent_turn(
         config.model = model;
     }
     let retriever = state.srd_retriever();
+    let image_provider = state.image_provider();
     let pool = state.db().clone();
 
     // Persist user message before the orchestrator runs. Best-effort.
@@ -73,7 +74,7 @@ pub async fn post_agent_turn(
 
     let pool_for_orch = pool.clone();
     tokio::spawn(async move {
-        let orch = AgentOrchestrator::new(provider, pool_for_orch, config, retriever);
+        let orch = AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }
@@ -116,6 +117,10 @@ fn persist_event(
     match ev {
         AgentEvent::ReasoningText { .. } => {
             // Thinking/reasoning text is transient UI-only; not persisted to history.
+        }
+        AgentEvent::ImageGenerated { .. } => {
+            // Transient: the generated image is streamed to the UI, not
+            // persisted to chat history.
         }
         AgentEvent::TextDelta { text } => {
             if let Ok(mut s) = state.lock() {
@@ -220,6 +225,20 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             .event("reasoning_text")
             .json_data(serde_json::json!({ "text": text }))
             .expect("reasoning_text json"),
+        AgentEvent::ImageGenerated {
+            tool_call_id,
+            round,
+            mime_type,
+            image_b64,
+        } => Event::default()
+            .event("image_generated")
+            .json_data(serde_json::json!({
+                "tool_call_id": tool_call_id,
+                "round": round,
+                "mime_type": mime_type,
+                "image_b64": image_b64,
+            }))
+            .expect("image_generated json"),
         AgentEvent::TextDelta { text } => Event::default()
             .event("text_delta")
             .json_data(serde_json::json!({ "text": text }))

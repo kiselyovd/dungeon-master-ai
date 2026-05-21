@@ -15,7 +15,11 @@
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
 //! - `execute_query_rules` -> Phase E (SRD RAG).
-//! - `execute_generate_image` -> Phase H (image queue).
+
+use std::sync::Arc;
+
+use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine;
 
 use app_domain::combat::validator::validate_tool_call;
 use app_llm::ToolCall;
@@ -24,11 +28,14 @@ use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
+use crate::image::provider::{ImageProvider, ImagePrompt};
+
 /// Execute a tool-call. Returns `(result_value, is_error)`.
 /// Never panics - errors are surfaced as `is_error=true` with a message in the result.
 pub async fn execute_tool(
     tc: &ToolCall,
     pool: &SqlitePool,
+    image_provider: Option<Arc<dyn ImageProvider>>,
     campaign_id: Uuid,
     session_id: Uuid,
 ) -> (Value, bool) {
@@ -62,7 +69,7 @@ pub async fn execute_tool(
         "recall_npc" => execute_recall_npc(&validated.args, pool, campaign_id).await,
         "journal_append" => execute_journal_append(&validated.args, pool, campaign_id).await,
         "quick_save" => execute_quick_save(&validated.args, pool, session_id).await,
-        "generate_image" => execute_generate_image(&validated.args).await,
+        "generate_image" => execute_generate_image(&validated.args, image_provider).await,
         "query_rules" => execute_query_rules(&validated.args, pool).await,
         unknown => (
             json!({ "error": format!("unhandled tool: {}", unknown) }),
@@ -431,19 +438,52 @@ async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -
     )
 }
 
-async fn execute_generate_image(args: &Value) -> (Value, bool) {
-    // Image generation is queued asynchronously. The agent loop returns a
-    // placeholder immediately; Phase H wires the actual Replicate call and
-    // SSE-side image arrival event.
-    let prompt = args["prompt"].as_str().unwrap_or("");
+/// Generate a scene illustration via the configured image provider.
+///
+/// On success the result carries the raw image as `image_b64`; the orchestrator
+/// peels that field off into a dedicated `AgentEvent::ImageGenerated` so the
+/// base64 blob never enters the LLM history. A `None` provider (image disabled,
+/// or the local sidecar is down) is a clean `is_error=true` result.
+async fn execute_generate_image(
+    args: &Value,
+    image_provider: Option<Arc<dyn ImageProvider>>,
+) -> (Value, bool) {
+    let Some(provider) = image_provider else {
+        return (
+            json!({ "error": "image generation is not available (no image provider configured)" }),
+            true,
+        );
+    };
+    let prompt = args["prompt"].as_str().unwrap_or("").trim().to_string();
+    if prompt.is_empty() {
+        return (json!({ "error": "prompt is required" }), true);
+    }
     let style = args
         .get("style")
         .and_then(|v| v.as_str())
-        .unwrap_or("dark_fantasy");
-    (
-        json!({ "status": "queued", "prompt": prompt, "style": style }),
-        false,
-    )
+        .unwrap_or("dark_fantasy")
+        .to_string();
+    let image_prompt = ImagePrompt {
+        content_prompt: prompt,
+        style_preset: style,
+        scene_id: None,
+        npc_ids: Vec::new(),
+        backend_preset: None,
+    };
+    match provider.generate(image_prompt).await {
+        Ok(bytes) => (
+            json!({
+                "status": "generated",
+                "mime_type": bytes.mime_type,
+                "image_b64": B64.encode(&bytes.data),
+            }),
+            false,
+        ),
+        Err(e) => {
+            warn!("generate_image failed: {e}");
+            (json!({ "error": e.to_string() }), true)
+        }
+    }
 }
 
 async fn execute_query_rules(args: &Value, _pool: &SqlitePool) -> (Value, bool) {

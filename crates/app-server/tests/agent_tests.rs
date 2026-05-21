@@ -47,7 +47,7 @@ async fn orchestrator_emits_text_events_from_mock() {
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
-    let orch = AgentOrchestrator::new(mock, pool, config, None);
+    let orch = AgentOrchestrator::new(mock, pool, config, None, None);
     orch.run(req, tx).await.unwrap();
 
     let mut text = String::new();
@@ -107,7 +107,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
 
-    let orch = AgentOrchestrator::new(mock, pool, config, None);
+    let orch = AgentOrchestrator::new(mock, pool, config, None, None);
     orch.run(req, tx).await.unwrap();
 
     let mut got_tool_call_result = false;
@@ -166,7 +166,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
-    let orch = AgentOrchestrator::new(mock, pool, config, None);
+    let orch = AgentOrchestrator::new(mock, pool, config, None, None);
     orch.run(req, tx).await.unwrap();
 
     let mut got_error_result = false;
@@ -301,7 +301,7 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -331,7 +331,7 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -420,7 +420,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
-    let orch = AgentOrchestrator::new(mock, pool, config, None);
+    let orch = AgentOrchestrator::new(mock, pool, config, None, None);
     orch.run(req, tx).await.unwrap();
 
     let mut reasoning_texts: Vec<String> = Vec::new();
@@ -489,4 +489,64 @@ async fn agent_endpoint_streams_reasoning_text_event() {
         body.contains("text_delta"),
         "expected text_delta event in: {body}"
     );
+}
+
+#[tokio::test]
+async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
+    use app_server::image::provider::ImageProvider;
+    use app_server::image::stub::LocalImageSidecarProvider;
+    use base64::engine::general_purpose::STANDARD as B64;
+    use base64::Engine;
+    use std::sync::Arc;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    let png = b"PNG-IMAGE-BYTES";
+    let encoded = B64.encode(png);
+    Mock::given(method("POST"))
+        .and(path("/generate"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "image_b64": encoded, "mime": "image/png" })),
+        )
+        .mount(&server)
+        .await;
+
+    let provider: Arc<dyn ImageProvider> = Arc::new(LocalImageSidecarProvider::new(server.uri()));
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    let tc = app_llm::ToolCall {
+        id: "tc-img-1".into(),
+        name: "generate_image".into(),
+        args: serde_json::json!({ "prompt": "a torchlit dungeon corridor" }),
+    };
+
+    let (result, is_error) = execute_tool(
+        &tc,
+        &pool,
+        Some(provider),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    )
+    .await;
+
+    assert!(!is_error, "generate_image should succeed, got: {result:?}");
+    assert_eq!(result["status"], "generated");
+    assert_eq!(result["mime_type"], "image/png");
+    let returned = result["image_b64"].as_str().expect("image_b64 present");
+    assert_eq!(B64.decode(returned).unwrap(), png);
+}
+
+#[tokio::test]
+async fn execute_tool_generate_image_without_provider_is_a_clean_error() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    let tc = app_llm::ToolCall {
+        id: "tc-img-2".into(),
+        name: "generate_image".into(),
+        args: serde_json::json!({ "prompt": "anything" }),
+    };
+    let (result, is_error) =
+        execute_tool(&tc, &pool, None, uuid::Uuid::new_v4(), uuid::Uuid::new_v4()).await;
+    assert!(is_error);
+    assert!(result["error"].is_string());
 }
