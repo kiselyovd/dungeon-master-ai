@@ -263,7 +263,7 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
-                let (result_val, is_error) = execute_tool(
+                let (mut result_val, is_error) = execute_tool(
                     tc,
                     &self.pool,
                     self.image_provider.clone(),
@@ -276,7 +276,6 @@ impl AgentOrchestrator {
                 // it into a dedicated SSE event and strip it from result_val so
                 // the multi-hundred-KB blob never enters the LLM history or the
                 // tool_call_result payload.
-                let mut result_val = result_val;
                 if !is_error {
                     if let Value::Object(map) = &mut result_val {
                         if let Some(Value::String(image_b64)) = map.remove("image_b64") {

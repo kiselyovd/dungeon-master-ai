@@ -538,6 +538,135 @@ async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
 }
 
 #[tokio::test]
+async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
+    use app_server::image::provider::ImageProvider;
+    use app_server::image::stub::LocalImageSidecarProvider;
+    use base64::engine::general_purpose::STANDARD as B64;
+    use base64::Engine;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    // Stand up a wiremock that returns a minimal image response.
+    let server = MockServer::start().await;
+    let png = b"FAKE-PNG-BYTES";
+    let encoded = B64.encode(png);
+    Mock::given(method("POST"))
+        .and(path("/generate"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({ "image_b64": encoded, "mime": "image/png" }),
+            ),
+        )
+        .mount(&server)
+        .await;
+
+    let image_provider: Arc<dyn ImageProvider> =
+        Arc::new(LocalImageSidecarProvider::new(server.uri()));
+
+    let pool = test_pool().await;
+
+    // MockProvider emits a generate_image tool-call then a ToolUse finish,
+    // followed by an empty round that exits with a default Stop reason.
+    let mock = Arc::new(MockProvider::new(vec![
+        ChatChunk::ToolCallStart {
+            id: "img-tc-1".into(),
+            name: "generate_image".into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: "img-tc-1".into(),
+            args_fragment: r#"{"prompt":"a torchlit dungeon"}"#.into(),
+        },
+        ChatChunk::ToolCallDone {
+            id: "img-tc-1".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
+    ]));
+
+    let config = AgentConfig {
+        model: "mock".into(),
+        system_prompt: "DM".into(),
+        temperature: 0.7,
+        max_rounds: 8,
+        embedding_model: "multilingual-e5-small".into(),
+        tool_availability: app_server::agent::tools::ToolAvailability::all(),
+        ..AgentConfig::default()
+    };
+
+    let req = AgentTurnRequest {
+        campaign_id: uuid::Uuid::new_v4(),
+        session_id: uuid::Uuid::new_v4(),
+        player_message: "draw the dungeon".into(),
+        history: vec![],
+    };
+
+    let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
+    // Pass the wiremock-backed image provider as the 5th argument.
+    let orch = AgentOrchestrator::new(mock, pool, config, None, Some(image_provider));
+    orch.run(req, tx).await.unwrap();
+
+    // Drain all events.
+    let mut image_generated: Option<AgentEvent> = None;
+    let mut tool_call_result: Option<AgentEvent> = None;
+    let mut got_done = false;
+    while let Some(ev) = rx.recv().await {
+        match &ev {
+            AgentEvent::ImageGenerated { .. } => image_generated = Some(ev),
+            AgentEvent::ToolCallResult { tool_name, .. } if tool_name == "generate_image" => {
+                tool_call_result = Some(ev)
+            }
+            AgentEvent::AgentDone { .. } => {
+                got_done = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+    assert!(got_done, "expected AgentDone");
+
+    // Assert the ImageGenerated event carries the original bytes.
+    let img_ev = image_generated.expect("expected ImageGenerated event");
+    if let AgentEvent::ImageGenerated {
+        image_b64,
+        mime_type,
+        ..
+    } = img_ev
+    {
+        assert_eq!(
+            B64.decode(&image_b64).unwrap(),
+            png,
+            "ImageGenerated image_b64 should decode to the original bytes"
+        );
+        assert_eq!(mime_type, "image/png");
+    } else {
+        panic!("unexpected event type for image_generated");
+    }
+
+    // Assert the ToolCallResult does NOT contain image_b64 (strip fired),
+    // but DOES still carry status and mime_type.
+    let result_ev = tool_call_result.expect("expected ToolCallResult for generate_image");
+    if let AgentEvent::ToolCallResult { result, .. } = result_ev {
+        assert!(
+            result.get("image_b64").is_none(),
+            "image_b64 must be stripped from ToolCallResult; got: {result}"
+        );
+        assert_eq!(
+            result["status"].as_str(),
+            Some("generated"),
+            "status field must remain after strip"
+        );
+        assert_eq!(
+            result["mime_type"].as_str(),
+            Some("image/png"),
+            "mime_type field must remain after strip"
+        );
+    } else {
+        panic!("unexpected event type for tool_call_result");
+    }
+}
+
+#[tokio::test]
 async fn execute_tool_generate_image_without_provider_is_a_clean_error() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     let tc = app_llm::ToolCall {
