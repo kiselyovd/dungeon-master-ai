@@ -70,12 +70,17 @@ async fn process_launcher_probes_configured_healthz_path() {
         .await
         .expect("start stub sidecar");
 
+    // Stop unconditionally before the assertions so a failed assertion does
+    // not orphan the spawned stub_sidecar child process.
+    let stop_result = runtime.stop().await;
+    let final_status = runtime.status().await;
+
     assert!(
         matches!(status, RuntimeStatus::Ready { port: p } if p == port),
         "expected Ready on /healthz, got {status:?}"
     );
-
-    runtime.stop().await.expect("stop stub sidecar");
+    stop_result.expect("stop stub sidecar");
+    assert!(matches!(final_status, RuntimeStatus::Off));
 }
 
 /// Manual verification (run with `cargo test -- --ignored` on a dev machine
@@ -101,9 +106,9 @@ async fn real_python_sidecar_reaches_ready_on_healthz() {
     assert!(python.is_file(), "venv python not found at {python:?}");
     assert!(app_py.is_file(), "sidecar app.py not found at {app_py:?}");
 
-    let weights = tempfile::tempdir().unwrap();
+    let weights = tempfile::tempdir().expect("create temp weights dir");
     let port = discover_free_port().expect("free port");
-    let mut child = std::process::Command::new(&python)
+    let mut child = tokio::process::Command::new(&python)
         .arg(&app_py)
         .args(["--port", &port.to_string()])
         .arg("--weights-dir")
@@ -117,7 +122,7 @@ async fn real_python_sidecar_reaches_ready_on_healthz() {
     });
     let url = format!("http://127.0.0.1:{port}/healthz");
     let result = probe(&url).await;
-    let _ = child.kill();
-    let _ = child.wait();
+    let _ = child.kill().await;
+    let _ = child.wait().await;
     result.expect("real python sidecar should answer /healthz");
 }
