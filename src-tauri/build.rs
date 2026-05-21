@@ -22,11 +22,11 @@ fn main() {
     // silently shipping a broken Local Mode.
     ensure_sidecar_placeholder(
         "mistralrs-server",
-        "Build it: scripts/build_mistralrs.sh, or dispatch the prebuild-sidecars workflow.",
+        "Build: scripts/build_mistralrs.sh (or prebuild-sidecars workflow).",
     );
     ensure_sidecar_placeholder(
         "dmai-image-sidecar",
-        "Build it: sidecar/scripts/build.sh, or dispatch the prebuild-python-sidecar workflow.",
+        "Build: sidecar/scripts/build.sh (or prebuild-python-sidecar workflow).",
     );
 
     // Tauri's build script validates externalBin existence, so the sidecar

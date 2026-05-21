@@ -37,7 +37,7 @@ jobs:
           python-version: '3.12'
       - name: Install CPU torch
         shell: bash
-        run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+        run: pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 torchvision==0.23.0
       - name: Install sidecar dependencies
         shell: bash
         run: pip install -r sidecar/requirements.txt
