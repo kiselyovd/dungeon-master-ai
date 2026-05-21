@@ -61,10 +61,13 @@ impl AppState {
         let llm_runtime = Arc::new(LocalRuntime::new(
             sidecar_launcher.clone(),
             probe_real(probe_cfg),
+            "/health",
         ));
         let image_runtime = Arc::new(LocalRuntime::new(
             sidecar_launcher.clone(),
             probe_real(probe_cfg),
+            // TODO(C3): the Python image sidecar serves /healthz, not /health.
+            "/health",
         ));
         let runtime_registry = Arc::new(RuntimeRegistry::new(llm_runtime, image_runtime));
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));

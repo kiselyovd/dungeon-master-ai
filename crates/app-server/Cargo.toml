@@ -9,6 +9,10 @@ license.workspace = true
 name = "app-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "stub_sidecar"
+path = "src/bin/stub_sidecar.rs"
+
 [dependencies]
 app-llm = { path = "../app-llm" }
 app-domain = { path = "../app-domain" }

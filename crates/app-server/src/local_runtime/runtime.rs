@@ -34,24 +34,32 @@ pub type ProbeFn =
 pub struct LocalRuntime {
     launcher: Arc<dyn SidecarLauncher>,
     probe: ProbeFn,
+    health_path: String,
     handle: Mutex<Option<SidecarHandle>>,
     status: Mutex<RuntimeStatus>,
 }
 
 impl LocalRuntime {
-    pub fn new(launcher: Arc<dyn SidecarLauncher>, probe: ProbeFn) -> Self {
+    pub fn new(
+        launcher: Arc<dyn SidecarLauncher>,
+        probe: ProbeFn,
+        health_path: impl Into<String>,
+    ) -> Self {
         Self {
             launcher,
             probe,
+            health_path: health_path.into(),
             handle: Mutex::new(None),
             status: Mutex::new(RuntimeStatus::Off),
         }
     }
 
-    /// Spawn the sidecar and run the probe at `http://127.0.0.1:{port}/health`.
-    /// Caller supplies `port` because `discover_free_port` runs before spawn
-    /// and is passed to the child via `--port` (mistralrs-server) or `--port`
-    /// (Python SDXL); the runtime never parses port out of stdout.
+    /// Spawn the sidecar and run the probe at
+    /// `http://127.0.0.1:{port}{health_path}`, where `health_path` was supplied
+    /// to `new` (per-runtime: mistralrs-server uses `/health`, the Python image
+    /// sidecar uses `/healthz`). Caller supplies `port` because
+    /// `discover_free_port` runs before spawn and is passed to the child via
+    /// `--port`; the runtime never parses port out of stdout.
     pub async fn start(
         &self,
         name: &str,
@@ -64,7 +72,7 @@ impl LocalRuntime {
             .spawn(name, args)
             .await
             .map_err(|e| std::io::Error::other(e.to_string()))?;
-        let url = format!("http://127.0.0.1:{port}/health");
+        let url = format!("http://127.0.0.1:{port}{}", self.health_path);
         match (self.probe)(&url).await {
             Ok(()) => {
                 *self.handle.lock().await = Some(handle);
@@ -149,7 +157,7 @@ mod tests {
             args: vec![],
             stdout_lines: vec![],
         });
-        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_ok());
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_ok(), "/health");
         let status = runtime.start("mistralrs-server", &[], 37000).await.unwrap();
         assert!(matches!(status, RuntimeStatus::Ready { port: 37000 }));
     }
@@ -162,7 +170,7 @@ mod tests {
             args: vec![],
             stdout_lines: vec![],
         });
-        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_fail());
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_fail(), "/health");
         let result = runtime.start("mistralrs-server", &[], 37001).await;
         assert!(matches!(result, Ok(RuntimeStatus::Failed { .. })));
     }
@@ -193,7 +201,7 @@ mod tests {
                 stdout_lines: vec![],
             });
         }
-        let runtime = LocalRuntime::new(Arc::new(launcher), probe_third_attempt_ok());
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe_third_attempt_ok(), "/health");
         let status = runtime
             .start_with_retry("mistralrs-server", &[], 37100, 3)
             .await
@@ -209,9 +217,32 @@ mod tests {
             args: vec![],
             stdout_lines: vec![],
         });
-        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_ok());
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_ok(), "/health");
         let _ = runtime.start("mistralrs-server", &[], 37002).await.unwrap();
         runtime.stop().await.unwrap();
         assert!(matches!(runtime.status().await, RuntimeStatus::Off));
+    }
+
+    #[tokio::test]
+    async fn probe_receives_the_configured_health_path() {
+        use std::sync::Mutex as StdMutex;
+        let seen: Arc<StdMutex<Option<String>>> = Arc::new(StdMutex::new(None));
+        let seen_clone = seen.clone();
+        let probe: ProbeFn = Arc::new(move |url: &str| {
+            *seen_clone.lock().unwrap() = Some(url.to_string());
+            Box::pin(async { Ok(()) })
+        });
+        let mut launcher = MockSidecarLauncher::default();
+        launcher.expect_spawn(SpawnSpec {
+            command: "x".into(),
+            args: vec![],
+            stdout_lines: vec![],
+        });
+        let runtime = LocalRuntime::new(Arc::new(launcher), probe, "/healthz");
+        let _ = runtime.start("x", &[], 41000).await.unwrap();
+        assert_eq!(
+            seen.lock().unwrap().as_deref(),
+            Some("http://127.0.0.1:41000/healthz")
+        );
     }
 }
