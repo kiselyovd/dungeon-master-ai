@@ -1,0 +1,55 @@
+name: prebuild-python-sidecar
+
+# Builds the dmai-image-sidecar PyInstaller bundle (the Python FastAPI image
+# sidecar) for Windows and Linux and uploads it as an artifact for the release
+# pipeline to stage under src-tauri/binaries/.
+#
+# CPU-only: the build installs CPU torch wheels, no CUDA toolchain. GPU users
+# build a CUDA-capable bundle locally (CUDA torch wheel + the nunchaku wheel
+# from nunchaku-tech/nunchaku release assets - see sidecar/requirements.txt).
+# This mirrors the prebuild-sidecars (mistralrs) CPU-only-CI decision.
+#
+# Manual trigger only - the torch/diffusers install is multi-gigabyte and far
+# too heavy for per-push CI (spec risk R2). Day-to-day dev does not need this:
+# the launcher runs the sidecar straight from the repo .venv when
+# DMAI_IMAGE_SIDECAR_DEV is set.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-2022, target: x86_64-pc-windows-msvc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU torch
+        shell: bash
+        run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+      - name: Install sidecar dependencies
+        shell: bash
+        run: pip install -r sidecar/requirements.txt
+      - name: Build dmai-image-sidecar (Linux)
+        if: runner.os == 'Linux'
+        run: bash sidecar/scripts/build.sh "${{ matrix.target }}"
+      - name: Build dmai-image-sidecar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./sidecar/scripts/build.ps1 -Target "${{ matrix.target }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dmai-image-sidecar-${{ matrix.target }}
+          path: src-tauri/binaries/python_sidecar_${{ matrix.target }}/
+          retention-days: 30
