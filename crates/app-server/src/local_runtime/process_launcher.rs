@@ -29,7 +29,6 @@ use tokio::sync::mpsc;
 
 /// Resolved dev paths for running the Python image sidecar from source.
 /// Present only in dev builds; `None` in production.
-#[derive(Clone)]
 struct PythonSidecarDev {
     /// Path to the repo virtualenv Python interpreter.
     python: PathBuf,
@@ -51,6 +50,12 @@ fn detect_python_sidecar_dev() -> Option<PythonSidecarDev> {
     if python.is_file() && app_py.is_file() {
         Some(PythonSidecarDev { python, app_py })
     } else {
+        tracing::warn!(
+            root = %root.display(),
+            python_ok = python.is_file(),
+            app_py_ok = app_py.is_file(),
+            "DMAI_IMAGE_SIDECAR_DEV is set but the venv python or sidecar/app.py is missing; dev fallback disabled"
+        );
         None
     }
 }
