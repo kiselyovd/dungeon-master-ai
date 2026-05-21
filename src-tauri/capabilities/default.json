@@ -21,6 +21,7 @@
     },
     "store:default",
     "stronghold:default",
+    "stronghold:allow-remove-store-record",
     "updater:default"
   ]
 }
