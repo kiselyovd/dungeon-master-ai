@@ -46,22 +46,28 @@ to the GitHub repo as the `TAURI_SIGNING_PRIVATE_KEY` secret (base64-encoded).
    updater manifest, then `gh release create` uploads all artifacts plus
    `latest.json`.
 
-## Local Mode (mistralrs sidecar + Python SDXL sidecar) - deferred
+## Local Mode: mistralrs sidecar (built from source) + Python SDXL sidecar (deferred)
 
-Upstream `EricLBuehler/mistral.rs` ships source-only releases as of
-v0.8.0 (no prebuilt server binaries). The Python SDXL sidecar pulls
-torch + diffusers (~5 GB) and bundling via PyInstaller would balloon CI
-time on every push. Both come back in a future point release once a
-self-built binary plan or a Docker-based bundling approach lands.
+Upstream `EricLBuehler/mistral.rs` ships source-only releases (no prebuilt
+server binaries), so `mistralrs-server` is built from source:
 
-Current behavior:
-- `scripts/download_mistralrs.{sh,ps1}` tolerate the upstream 404 and
-  leave the placeholder file `build.rs` creates so `tauri build`
-  resolves the externalBin entry. The bundled placeholder is empty;
-  flipping the app into Local Mode at runtime is a no-op until a real
-  binary lands here.
-- The `prebuild-sidecars.yml` workflow's automatic push trigger is
-  commented out for the same reason.
+- `scripts/build_mistralrs.{sh,ps1}` clone `EricLBuehler/mistral.rs` at the
+  pinned `MISTRALRS_TAG` and `cargo build --release` the `mistralrs-server`
+  crate, staging the binary under `src-tauri/binaries/`. CPU-only by default;
+  pass `--cuda` (bash) or `-Cuda` (PowerShell) for a GPU build on a machine
+  with the CUDA toolkit installed.
+- The `prebuild-sidecars.yml` workflow (manual `workflow_dispatch`) runs the
+  CPU-only build for all four targets and uploads the binaries as artifacts.
+  A CUDA CI build is intentionally out of scope - GitHub-hosted runners have
+  no GPU; GPU users run the script locally with `--cuda`.
+- For local `cargo test` / `tauri dev` without a staged binary, `build.rs`
+  lays down an empty placeholder so the externalBin check passes. A release
+  `tauri build` with no real binary now emits a loud `cargo:warning` instead
+  of silently shipping a non-functional Local Mode.
+
+The Python SDXL image sidecar is still deferred: it pulls torch + diffusers
+(~5 GB) and PyInstaller bundling would balloon CI time. It returns in Batch C
+of M11.
 
 ## Open issue: Windows EV certificate provisioning
 

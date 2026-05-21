@@ -1,45 +1,49 @@
 name: prebuild-sidecars
 
-# Fetches prebuilt mistralrs-server binaries from upstream releases for all
-# four supported targets and uploads them as artifacts so the release pipeline
-# (Phase I) can stage them under `src-tauri/binaries/` before `tauri build`.
+# Builds mistralrs-server from source (EricLBuehler/mistral.rs) for all four
+# supported targets and uploads the binaries as artifacts so the release
+# pipeline can stage them under src-tauri/binaries/ before `tauri build`.
 #
-# Triggers manually (workflow_dispatch) or whenever the download scripts /
-# this workflow itself change. The pinned upstream tag lives in `MISTRALRS_VERSION`.
+# CPU-only build: portable, no GPU toolchain required, ships as the default.
+# GPU users build a CUDA binary locally with
+# `scripts/build_mistralrs.sh <triple> --cuda` - see spec risk R1: a CUDA CI
+# build is intentionally out of scope (GitHub-hosted runners have no GPU and
+# the toolkit install is slow and fragile).
+#
+# Manual trigger only - dispatch it once at the start of Batch B.
 
 on:
   workflow_dispatch:
-  # Auto-trigger on push intentionally disabled: upstream EricLBuehler/mistral.rs
-  # ships source-only releases as of v0.8.0 so the download will always 404
-  # until the release pipeline is rewired around a self-built binary. Run
-  # this workflow manually once that lands.
-  # push:
-  #   paths:
-  #     - 'scripts/download_mistralrs.*'
-  #     - '.github/workflows/prebuild-sidecars.yml'
+
+permissions:
+  contents: read
 
 jobs:
-  fetch:
+  build:
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - { os: windows-2022, target: x86_64-pc-windows-msvc,   script: download_mistralrs.ps1 }
-          - { os: macos-14,     target: aarch64-apple-darwin,     script: download_mistralrs.sh  }
-          - { os: macos-13,     target: x86_64-apple-darwin,      script: download_mistralrs.sh  }
-          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, script: download_mistralrs.sh  }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+          - { os: macos-14,     target: aarch64-apple-darwin }
+          - { os: macos-13,     target: x86_64-apple-darwin }
     runs-on: ${{ matrix.os }}
+    # A cold from-source mistralrs build is heavy and uncached (the build runs
+    # in an out-of-workspace clone); 120 min gives slow Windows/macOS runners
+    # headroom. The workflow is manual-dispatch only, so the ceiling is free.
+    timeout-minutes: 120
     env:
-      MISTRALRS_VERSION: v0.8.0
+      MISTRALRS_TAG: v0.8.0
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - name: Run download script
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Build mistralrs-server from source
         shell: bash
-        run: |
-          if [[ "${{ matrix.script }}" == *.ps1 ]]; then
-            pwsh -NoProfile -File "scripts/${{ matrix.script }}" -Target "${{ matrix.target }}"
-          else
-            bash "scripts/${{ matrix.script }}" "${{ matrix.target }}"
-          fi
+        run: bash scripts/build_mistralrs.sh "${{ matrix.target }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mistralrs-${{ matrix.target }}
