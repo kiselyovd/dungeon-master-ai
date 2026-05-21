@@ -11,6 +11,13 @@
 //! `src-tauri/capabilities/default.json`. Only `dmai-server` (spawned by the
 //! Tauri shell) needs that entry, and it already has it. Local Mode requires
 //! no capability change.
+//!
+//! Dev fallback: when the `dmai-image-sidecar` PyInstaller bundle (~5 GB,
+//! torch/diffusers) is absent and `DMAI_IMAGE_SIDECAR_DEV` points at a repo
+//! root with a populated `.venv`, the launcher runs `python sidecar/app.py`
+//! from source instead - so Local Mode image work does not need a bundle
+//! rebuild per change. Production builds leave the var unset and require the
+//! staged binary.
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -20,30 +27,72 @@ use app_llm::sidecar_launcher::{SidecarError, SidecarHandle, SidecarLauncher};
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
+/// Resolved dev paths for running the Python image sidecar from source.
+/// Present only in dev builds; `None` in production.
+#[derive(Clone)]
+struct PythonSidecarDev {
+    /// Path to the repo virtualenv Python interpreter.
+    python: PathBuf,
+    /// Path to `sidecar/app.py`.
+    app_py: PathBuf,
+}
+
+/// Detect a dev Python sidecar setup from `DMAI_IMAGE_SIDECAR_DEV`, which a
+/// developer sets to the repo root before `tauri dev`. Returns `None` when the
+/// var is unset (production) or the venv interpreter / `app.py` do not exist.
+fn detect_python_sidecar_dev() -> Option<PythonSidecarDev> {
+    let root = PathBuf::from(std::env::var("DMAI_IMAGE_SIDECAR_DEV").ok()?);
+    let python = if cfg!(windows) {
+        root.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        root.join(".venv").join("bin").join("python")
+    };
+    let app_py = root.join("sidecar").join("app.py");
+    if python.is_file() && app_py.is_file() {
+        Some(PythonSidecarDev { python, app_py })
+    } else {
+        None
+    }
+}
+
 /// Spawns sidecar child processes by resolving their binary relative to a base
-/// directory (the `dmai-server` executable directory in production).
+/// directory (the `dmai-server` executable directory in production), with a
+/// dev fallback that runs the Python image sidecar straight from the repo venv.
 pub struct ProcessSidecarLauncher {
     base_dir: PathBuf,
+    /// Dev-only: when the `dmai-image-sidecar` binary is absent, run the Python
+    /// sidecar from source instead. `None` in production.
+    python_sidecar_dev: Option<PythonSidecarDev>,
 }
 
 impl ProcessSidecarLauncher {
-    /// Construct a launcher rooted at an explicit directory. Used by tests.
+    /// Construct a launcher rooted at an explicit directory, with no dev
+    /// fallback. Used by tests.
     pub fn new(base_dir: PathBuf) -> Self {
-        Self { base_dir }
+        Self {
+            base_dir,
+            python_sidecar_dev: None,
+        }
     }
 
     /// Production constructor: resolve sidecars next to the running executable.
     /// `DMAI_SIDECAR_DIR` overrides the directory (dev convenience). Falls back
-    /// to "." when the current exe path cannot be determined.
+    /// to "." when the current exe path cannot be determined. The Python
+    /// sidecar dev fallback is enabled when `DMAI_IMAGE_SIDECAR_DEV` points at
+    /// a repo root with a populated `.venv`.
     pub fn from_current_exe() -> Self {
-        if let Ok(dir) = std::env::var("DMAI_SIDECAR_DIR") {
-            return Self::new(PathBuf::from(dir));
+        let base_dir = if let Ok(dir) = std::env::var("DMAI_SIDECAR_DIR") {
+            PathBuf::from(dir)
+        } else {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(Path::to_path_buf))
+                .unwrap_or_else(|| PathBuf::from("."))
+        };
+        Self {
+            base_dir,
+            python_sidecar_dev: detect_python_sidecar_dev(),
         }
-        let base_dir = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(Path::to_path_buf))
-            .unwrap_or_else(|| PathBuf::from("."));
-        Self::new(base_dir)
     }
 }
 
@@ -76,22 +125,49 @@ fn resolve_binary(base_dir: &Path, name: &str) -> Option<PathBuf> {
     candidates.into_iter().next()
 }
 
+/// Decide which program to run, and with which args, for a sidecar spawn.
+/// Resolves the staged/bundled binary first; if it is absent and `name` is the
+/// Python image sidecar, falls back to the dev venv interpreter running
+/// `sidecar/app.py` directly. Pure (does not spawn) so the decision is
+/// unit-testable.
+fn resolve_spawn_target(
+    base_dir: &Path,
+    python_sidecar_dev: Option<&PythonSidecarDev>,
+    name: &str,
+    args: &[&str],
+) -> Result<(PathBuf, Vec<String>), SidecarError> {
+    if let Some(path) = resolve_binary(base_dir, name) {
+        return Ok((path, args.iter().map(|s| s.to_string()).collect()));
+    }
+    // Dev fallback: only the Python image sidecar can run from source.
+    if name == "dmai-image-sidecar" {
+        if let Some(dev) = python_sidecar_dev {
+            let mut full = Vec::with_capacity(args.len() + 1);
+            full.push(dev.app_py.to_string_lossy().into_owned());
+            full.extend(args.iter().map(|s| s.to_string()));
+            return Ok((dev.python.clone(), full));
+        }
+    }
+    Err(SidecarError::Spawn {
+        name: name.into(),
+        source: std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "sidecar binary `{name}` not found in {}",
+                base_dir.display()
+            ),
+        ),
+    })
+}
+
 #[async_trait]
 impl SidecarLauncher for ProcessSidecarLauncher {
     async fn spawn(&self, name: &str, args: &[&str]) -> Result<SidecarHandle, SidecarError> {
-        let path = resolve_binary(&self.base_dir, name).ok_or_else(|| SidecarError::Spawn {
-            name: name.into(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!(
-                    "sidecar binary `{name}` not found in {}",
-                    self.base_dir.display()
-                ),
-            ),
-        })?;
+        let (program, full_args) =
+            resolve_spawn_target(&self.base_dir, self.python_sidecar_dev.as_ref(), name, args)?;
 
-        let mut child = Command::new(&path)
-            .args(args)
+        let mut child = Command::new(&program)
+            .args(&full_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
@@ -165,6 +241,65 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let launcher = ProcessSidecarLauncher::new(dir.path().to_path_buf());
         let result = launcher.spawn("does-not-exist", &[]).await;
+        assert!(matches!(result, Err(SidecarError::Spawn { .. })));
+    }
+
+    #[test]
+    fn resolve_spawn_target_uses_binary_when_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let ext = std::env::consts::EXE_SUFFIX;
+        let bin = dir.path().join(format!("dmai-image-sidecar{ext}"));
+        std::fs::write(&bin, b"x").unwrap();
+        let (program, args) =
+            resolve_spawn_target(dir.path(), None, "dmai-image-sidecar", &["--port", "1"]).unwrap();
+        assert_eq!(program, bin);
+        assert_eq!(args, vec!["--port".to_string(), "1".to_string()]);
+    }
+
+    #[test]
+    fn resolve_spawn_target_falls_back_to_python_venv_for_image_sidecar() {
+        let dir = tempfile::tempdir().unwrap(); // empty - no staged binary
+        let dev = PythonSidecarDev {
+            python: PathBuf::from("/venv/bin/python"),
+            app_py: PathBuf::from("/repo/sidecar/app.py"),
+        };
+        let (program, args) = resolve_spawn_target(
+            dir.path(),
+            Some(&dev),
+            "dmai-image-sidecar",
+            &["--port", "1", "--weights-dir", "/w"],
+        )
+        .unwrap();
+        assert_eq!(program, PathBuf::from("/venv/bin/python"));
+        assert_eq!(
+            args,
+            vec![
+                "/repo/sidecar/app.py".to_string(),
+                "--port".to_string(),
+                "1".to_string(),
+                "--weights-dir".to_string(),
+                "/w".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_spawn_target_errors_for_image_sidecar_without_dev_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_spawn_target(dir.path(), None, "dmai-image-sidecar", &[]);
+        assert!(matches!(result, Err(SidecarError::Spawn { .. })));
+    }
+
+    #[test]
+    fn resolve_spawn_target_does_not_fall_back_for_mistralrs() {
+        // The venv fallback is image-sidecar-only: a missing mistralrs-server
+        // binary still errors even when a dev config is present.
+        let dir = tempfile::tempdir().unwrap();
+        let dev = PythonSidecarDev {
+            python: PathBuf::from("/venv/bin/python"),
+            app_py: PathBuf::from("/repo/sidecar/app.py"),
+        };
+        let result = resolve_spawn_target(dir.path(), Some(&dev), "mistralrs-server", &[]);
         assert!(matches!(result, Err(SidecarError::Spawn { .. })));
     }
 }
