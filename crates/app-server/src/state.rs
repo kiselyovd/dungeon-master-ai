@@ -1,12 +1,15 @@
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use app_domain::srd::retriever::SrdRetriever;
-use app_llm::{LlmProvider, NullSidecarLauncher};
+use app_llm::LlmProvider;
 use sqlx::SqlitePool;
 
 use crate::agent::orchestrator::AgentConfig;
-use crate::local_runtime::{probe_always_fail, LocalRuntime, RegistrySnapshot, RuntimeRegistry};
+use crate::local_runtime::{
+    probe_real, LocalRuntime, ProbeConfig, ProcessSidecarLauncher, RegistrySnapshot, RuntimeRegistry,
+};
 use crate::models::DownloadManager;
 use crate::routes::local_mode::LocalModeConfig;
 use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
@@ -50,13 +53,18 @@ impl AppState {
     pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
         let models_dir = std::env::temp_dir().join("dmai-models");
         let download_manager = Arc::new(DownloadManager::new(models_dir.clone()));
+        let sidecar_launcher = Arc::new(ProcessSidecarLauncher::from_current_exe());
+        let probe_cfg = ProbeConfig {
+            max_attempts: 8,
+            initial_delay: Duration::from_millis(250),
+        };
         let llm_runtime = Arc::new(LocalRuntime::new(
-            Arc::new(NullSidecarLauncher),
-            probe_always_fail(),
+            sidecar_launcher.clone(),
+            probe_real(probe_cfg),
         ));
         let image_runtime = Arc::new(LocalRuntime::new(
-            Arc::new(NullSidecarLauncher),
-            probe_always_fail(),
+            sidecar_launcher.clone(),
+            probe_real(probe_cfg),
         ));
         let runtime_registry = Arc::new(RuntimeRegistry::new(llm_runtime, image_runtime));
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
