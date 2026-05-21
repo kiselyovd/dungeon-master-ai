@@ -49,6 +49,11 @@ export const useStore = create<AppState>()(
       name: PERSIST_NAME,
       storage: persistStorage,
       version: 0,
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error('[persist] rehydration failed:', error);
+        }
+      },
       partialize: (state): PersistedSettings => ({
         settings: {
           activeProvider: state.settings.activeProvider,
