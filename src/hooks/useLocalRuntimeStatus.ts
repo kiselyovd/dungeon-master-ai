@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { fetchLocalRuntimeStatus } from '../api/localRuntime';
 import { useStore } from '../state/useStore';
 
 const POLL_INTERVAL_MS = 5_000;
@@ -11,9 +12,7 @@ export function useLocalRuntimeStatus(enabled: boolean) {
     let cancelled = false;
     const tick = async () => {
       try {
-        const resp = await fetch('/local/runtime/status');
-        if (!resp.ok) return;
-        const data = await resp.json();
+        const data = await fetchLocalRuntimeStatus();
         if (!cancelled) setRuntimeStatus(data);
       } catch {
         // intentional: backend may not be up yet, retry on the next tick.

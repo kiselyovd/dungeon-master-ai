@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { startLocalRuntimes, stopLocalRuntimes } from '../../api/localRuntime';
 import { useLocalRuntimeStatus } from '../../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../../hooks/useModelDownload';
 import type { ModelId, VramStrategy } from '../../state/localMode';
@@ -107,8 +108,7 @@ export function LocalLlmTab() {
     clearStartReset();
     setStartStatus('pending');
     try {
-      const res = await fetch('/local/runtime/start', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
+      await startLocalRuntimes();
       setStartStatus('idle');
     } catch {
       setStartStatus('error');
@@ -123,8 +123,7 @@ export function LocalLlmTab() {
     clearStopReset();
     setStopStatus('pending');
     try {
-      const res = await fetch('/local/runtime/stop', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
+      await stopLocalRuntimes();
       setStopStatus('idle');
     } catch {
       setStopStatus('error');

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { backendUrl } from '../api/client';
 import type { ModelId } from '../state/localMode';
 import { useStore } from '../state/useStore';
-
-const apiBase = (): string => '';
 
 export function useModelDownload(modelId: ModelId) {
   const setDownloadState = useStore((s) => s.localMode.setDownloadState);
@@ -16,7 +15,7 @@ export function useModelDownload(modelId: ModelId) {
   }, []);
 
   const start = useCallback(async () => {
-    const resp = await fetch(`${apiBase()}/local/download/${modelId}`, { method: 'POST' });
+    const resp = await fetch(await backendUrl(`/local/download/${modelId}`), { method: 'POST' });
     if (!resp.ok) {
       const reason = `download start failed: ${resp.status}`;
       setDownloadState(modelId, { state: 'failed', reason });
@@ -24,7 +23,7 @@ export function useModelDownload(modelId: ModelId) {
     }
     setDownloadState(modelId, { state: 'downloading', bytesDone: 0, totalBytes: null });
     esRef.current?.close();
-    const es = new EventSource(`${apiBase()}/local/download/${modelId}/progress`);
+    const es = new EventSource(await backendUrl(`/local/download/${modelId}/progress`));
     esRef.current = es;
     es.onmessage = (ev) => {
       try {
@@ -54,7 +53,7 @@ export function useModelDownload(modelId: ModelId) {
   const cancel = useCallback(async () => {
     esRef.current?.close();
     esRef.current = null;
-    await fetch(`${apiBase()}/local/download/${modelId}`, { method: 'DELETE' });
+    await fetch(await backendUrl(`/local/download/${modelId}`), { method: 'DELETE' });
     setDownloadState(modelId, { state: 'idle' });
   }, [modelId, setDownloadState]);
 
