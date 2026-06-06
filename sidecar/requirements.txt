@@ -19,7 +19,7 @@ peft>=0.17
 accelerate>=1.0
 safetensors>=0.4.5
 sentencepiece==0.2.1
-fastapi==0.136.1
+fastapi==0.136.3
 uvicorn[standard]==0.47.0
 pillow==10.4.0
 pydantic==2.13.4
