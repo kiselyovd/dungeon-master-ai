@@ -29,14 +29,9 @@ jobs:
       - name: Install JS deps
         run: bun install --frozen-lockfile
 
-      - name: cargo fmt
-        run: cargo fmt --all -- --check
-
-      - name: cargo clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: biome ci
-        run: bunx biome ci .
-
-      - name: tsc
-        run: bun run typecheck
+      # Single source of truth shared with the local pre-commit/pre-push hooks
+      # (scripts/gates.sh). --ci-lint = cargo fmt --check + clippy + biome ci +
+      # tsc + em-dash. The checks live in gates.sh, not inline, so CI and local
+      # hooks can never drift (the cargo-fmt gap that slipped through M11).
+      - name: Quality gates (lint)
+        run: bash scripts/gates.sh --ci-lint

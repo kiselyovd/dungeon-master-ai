@@ -21,7 +21,11 @@
     "check:fix": "biome check --write",
     "typecheck": "tsc --noEmit",
     "install-hooks": "bash scripts/install-pre-commit.sh",
-    "e2e": "playwright test --config=e2e/playwright.config.ts"
+    "e2e": "playwright test --config=e2e/playwright.config.ts",
+    "gates": "bash scripts/gates.sh",
+    "gates:fast": "bash scripts/gates.sh --fast",
+    "dev:all": "bun scripts/dev-all.ts",
+    "setup:local": "bun scripts/setup-local.ts"
   },
   "dependencies": {
     "@pixi/react": "^8.0.5",
