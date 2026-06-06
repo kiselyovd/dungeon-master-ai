@@ -138,6 +138,20 @@ describe('combat slice', () => {
     expect(state.movementRemaining).toBe(30);
   });
 
+  it('endTurn increments round only when the turn order wraps back to the top', () => {
+    const { combat } = useStore.getState();
+    combat.startCombat('enc-round-wrap', [
+      { id: 'x', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      { id: 'y', name: 'Foe', hp: 8, maxHp: 8, ac: 13, x: 1, y: 1, conditions: [] },
+    ]);
+    expect(useStore.getState().combat.round).toBe(1);
+    useStore.getState().combat.endTurn(); // x -> y, no wrap
+    expect(useStore.getState().combat.round).toBe(1);
+    useStore.getState().combat.endTurn(); // y -> x, wraps -> new round
+    expect(useStore.getState().combat.currentTurnId).toBe('x');
+    expect(useStore.getState().combat.round).toBe(2);
+  });
+
   it('addAoeTemplate appends to aoeTemplates', () => {
     useStore.getState().combat.addAoeTemplate({
       id: 'aoe-1',

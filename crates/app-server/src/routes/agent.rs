@@ -20,7 +20,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
-use app_llm::{ChatMessage, ToolCall, ToolResult};
+use app_llm::{ChatMessage, MessagePart, ToolCall, ToolResult};
 
 use crate::agent::orchestrator::{AgentEvent, AgentOrchestrator, AgentTurnRequest};
 use crate::error::AppError;
@@ -34,6 +34,10 @@ pub struct AgentTurnHttpRequest {
     pub history: Vec<ChatMessage>,
     /// Override model for this request (optional; falls back to AppState's AgentConfig).
     pub model: Option<String>,
+    /// Image attachments staged for this turn (vision). Empty/omitted for
+    /// text-only turns. [M11 F2]
+    #[serde(default)]
+    pub images: Vec<MessagePart>,
 }
 
 #[tracing::instrument(skip_all, fields(session_id = %req.session_id, campaign_id = %req.campaign_id))]
@@ -58,7 +62,17 @@ pub async fn post_agent_turn(
 
     // Persist user message before the orchestrator runs. Best-effort.
     let session_id_str = req.session_id.to_string();
-    let user_msg = ChatMessage::user_text(req.player_message.clone());
+    // Persist the user turn with any image parts so a reloaded session shows
+    // the same multimodal message the LLM saw (F2).
+    let user_msg = if req.images.is_empty() {
+        ChatMessage::user_text(req.player_message.clone())
+    } else {
+        let mut parts = vec![MessagePart::Text {
+            text: req.player_message.clone(),
+        }];
+        parts.extend(req.images.iter().cloned());
+        ChatMessage::User { parts }
+    };
     if let Err(e) = crate::db::insert_message(&pool, &session_id_str, &user_msg).await {
         tracing::warn!(err = %e, "failed to persist user message");
     }
@@ -68,6 +82,7 @@ pub async fn post_agent_turn(
         session_id: req.session_id,
         player_message: req.player_message,
         history: req.history,
+        images: req.images,
     };
 
     let (tx, rx) = mpsc::channel::<AgentEvent>(64);

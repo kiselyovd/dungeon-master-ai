@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::{
-    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ReasoningSpec, ToolCall,
+    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, MessagePart, ReasoningSpec,
+    ToolCall,
 };
 use futures::StreamExt;
 use serde_json::Value;
@@ -67,6 +68,9 @@ pub struct AgentTurnRequest {
     pub session_id: Uuid,
     pub player_message: String,
     pub history: Vec<ChatMessage>,
+    /// Image attachments for THIS turn (vision). Appended to the current user
+    /// message alongside the text; empty for text-only turns. [M11 F2]
+    pub images: Vec<MessagePart>,
 }
 
 /// Events emitted by the orchestrator, consumed by the SSE handler.
@@ -157,7 +161,17 @@ impl AgentOrchestrator {
 
         let tools = all_tools_with(self.config.tool_availability);
         let mut messages: Vec<ChatMessage> = req.history;
-        messages.push(ChatMessage::user_text(req.player_message.clone()));
+        // The current user turn carries the text plus any staged images (F2).
+        // With no images this is identical to `user_text`.
+        if req.images.is_empty() {
+            messages.push(ChatMessage::user_text(req.player_message.clone()));
+        } else {
+            let mut parts = vec![MessagePart::Text {
+                text: req.player_message.clone(),
+            }];
+            parts.extend(req.images.iter().cloned());
+            messages.push(ChatMessage::User { parts });
+        }
 
         let mut total_rounds = 0usize;
 

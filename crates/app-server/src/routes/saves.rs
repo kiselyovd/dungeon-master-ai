@@ -18,7 +18,9 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::db::{save_delete, save_insert, save_list_by_session, save_load, SaveRow, SaveSummary};
+use crate::db::{
+    save_delete, save_insert, save_list_by_session, save_load, save_update, SaveRow, SaveSummary,
+};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -140,6 +142,27 @@ pub async fn delete_save(
     let id = parse_save_id(&save_id)?;
     let removed = save_delete(state.db(), id).await?;
     if removed {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(AppError::NotFound)
+    }
+}
+
+/// Overwrite an existing save's metadata in place (PUT /saves/{save_id}). The
+/// "Overwrite" UI action used to POST a create, duplicating the row; this
+/// updates by id instead. Reuses the create request shape. [M11 F3]
+pub async fn update_save(
+    State(state): State<AppState>,
+    Path(save_id): Path<String>,
+    Json(body): Json<CreateSaveRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let id = parse_save_id(&save_id)?;
+    validate_kind(&body.kind)?;
+    validate_tag(&body.tag)?;
+    let envelope = envelope_for(&body.title, &body.summary, &body.tag, &body.kind);
+    let updated = save_update(state.db(), id, &body.title, &body.summary, &body.tag, &envelope)
+        .await?;
+    if updated {
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(AppError::NotFound)

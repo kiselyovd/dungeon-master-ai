@@ -65,7 +65,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/saves/{save_id}",
-            get(routes::saves::get_save).delete(routes::saves::delete_save),
+            get(routes::saves::get_save)
+                .put(routes::saves::update_save)
+                .delete(routes::saves::delete_save),
         )
         .route("/providers/catalog", get(routes::providers::get_catalog))
         .route("/providers/{id}/caps", get(routes::providers::get_caps))

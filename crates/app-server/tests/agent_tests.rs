@@ -44,6 +44,7 @@ async fn orchestrator_emits_text_events_from_mock() {
         session_id: uuid::Uuid::new_v4(),
         player_message: "I search the room.".into(),
         history: vec![],
+        images: vec![],
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -103,6 +104,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
         session_id: uuid::Uuid::new_v4(),
         player_message: "roll".into(),
         history: vec![],
+        images: vec![],
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -163,6 +165,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
         session_id: uuid::Uuid::new_v4(),
         player_message: "look around".into(),
         history: vec![],
+        images: vec![],
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -417,6 +420,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
         session_id: uuid::Uuid::new_v4(),
         player_message: "What is the meaning of life?".into(),
         history: vec![],
+        images: vec![],
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
@@ -599,6 +603,7 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
         session_id: uuid::Uuid::new_v4(),
         player_message: "draw the dungeon".into(),
         history: vec![],
+        images: vec![],
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);

@@ -1,4 +1,11 @@
 {
+  "intent_attack": "Я атакую.",
+  "intent_cast": "Я применяю заклинание.",
+  "intent_move": "Я перемещаюсь.",
+  "intent_dash": "Я использую Рывок.",
+  "intent_dodge": "Я использую Уклонение.",
+  "intent_disengage": "Я выхожу из боя (Отход).",
+  "intent_use_object": "Я использую предмет.",
   "initiative_tracker": "Инициатива",
   "round": "Раунд {{round}}",
   "action": "Действие",

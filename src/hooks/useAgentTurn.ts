@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { streamAgentTurn } from '../api/agent';
 import { ChatError } from '../api/errors';
+import type { MessagePart } from '../state/chat';
 import { DISPOSITIONS, type Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
 import { combatToolHandlers } from './useCombatToolHandlers';
@@ -30,13 +31,17 @@ export function useAgentTurn() {
   const ensureSession = useStore((s) => s.session.ensureSession);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, images?: MessagePart[]) => {
       if (!text.trim()) return;
       if (useStore.getState().chat.isStreaming) return;
 
       const { campaignId, sessionId } = ensureSession();
 
       clearStreamEvents();
+      // The current user message is recorded text-only; the staged images ride
+      // a dedicated `images` wire field (the orchestrator attaches them to the
+      // turn it builds from player_message), so they reach the LLM exactly once
+      // without depending on history serialization. [F2]
       appendUser(text);
       const controller = new AbortController();
       beginStream(controller);
@@ -49,6 +54,7 @@ export function useAgentTurn() {
           sessionId,
           playerMessage: text,
           history,
+          ...(images && images.length > 0 ? { images } : {}),
           signal: controller.signal,
 
           onTextDelta: appendDelta,

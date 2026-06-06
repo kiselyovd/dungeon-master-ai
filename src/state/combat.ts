@@ -233,10 +233,15 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
         const idx = s.combat.currentTurnId ? order.indexOf(s.combat.currentTurnId) : -1;
         const nextIdx = (idx + 1) % order.length;
         const nextId = order[nextIdx] ?? null;
+        // A new round begins when the turn wraps past the last combatant back
+        // to the top of the initiative order. idx < 0 (combat just started, no
+        // current turn) is the first turn, not a wrap. [F1]
+        const wrapped = idx >= 0 && nextIdx === 0;
         return {
           combat: {
             ...s.combat,
             currentTurnId: nextId,
+            round: wrapped ? s.combat.round + 1 : s.combat.round,
             tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
             ...econReset(),
           },

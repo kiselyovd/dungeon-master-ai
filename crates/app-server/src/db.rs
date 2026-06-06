@@ -241,6 +241,34 @@ pub async fn save_delete(pool: &SqlitePool, save_id: Uuid) -> Result<bool, sqlx:
     Ok(result.rows_affected() > 0)
 }
 
+/// Update an existing save's metadata + envelope in place (the "Overwrite"
+/// action). Returns false if no row matched the id. [M11 F3]
+pub async fn save_update(
+    pool: &SqlitePool,
+    save_id: Uuid,
+    title: &str,
+    summary: &str,
+    tag: &str,
+    game_state: &serde_json::Value,
+) -> Result<bool, sqlx::Error> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let state_json = serde_json::to_string(game_state).expect("serialize state");
+    let result = sqlx::query(
+        r#"UPDATE snapshots
+           SET title = ?2, summary = ?3, tag = ?4, game_state = ?5, created_at = ?6
+           WHERE id = ?1"#,
+    )
+    .bind(save_id.to_string())
+    .bind(title)
+    .bind(summary)
+    .bind(tag)
+    .bind(state_json)
+    .bind(&now)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected() > 0)
+}
+
 fn parse_uuid_col(row: &sqlx::sqlite::SqliteRow, col: &str) -> Result<Uuid, sqlx::Error> {
     let s: String = row.try_get(col)?;
     Uuid::parse_str(&s).map_err(|e| {

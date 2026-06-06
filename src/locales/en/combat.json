@@ -1,4 +1,11 @@
 {
+  "intent_attack": "I attack.",
+  "intent_cast": "I cast a spell.",
+  "intent_move": "I move.",
+  "intent_dash": "I take the Dash action.",
+  "intent_dodge": "I take the Dodge action.",
+  "intent_disengage": "I Disengage.",
+  "intent_use_object": "I use an object.",
   "initiative_tracker": "Initiative",
   "round": "Round {{round}}",
   "action": "Action",

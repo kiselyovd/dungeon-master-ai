@@ -479,3 +479,11 @@
   align-items: center;
   gap: 8px;
 }
+
+/* Error variant: a save/delete/overwrite failure surfaced as a toast. [F3] */
+.dm-saves-toast-error {
+  border-color: var(--color-danger, #c0444a);
+  color: var(--color-danger, #ff7a7a);
+  box-shadow: none;
+  cursor: pointer;
+}

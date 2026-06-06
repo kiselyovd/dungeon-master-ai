@@ -17,6 +17,12 @@ interface Props {
   onDisengage?: (() => void) | undefined;
   onUseObject?: (() => void) | undefined;
   onEndTurn?: (() => void) | undefined;
+  /**
+   * Posts a localized action intent to the agent (e.g. "I attack."). When set,
+   * each standard-action button both consumes the action economy AND sends the
+   * intent so the DM resolves it. [M11 F1]
+   */
+  onIntent?: ((text: string) => void) | undefined;
 }
 
 interface ActionButton {
@@ -52,6 +58,7 @@ export function ActionBar({
   onDisengage,
   onUseObject,
   onEndTurn,
+  onIntent,
 }: Props) {
   const { t } = useTranslation('combat');
 
@@ -61,6 +68,7 @@ export function ActionBar({
   const storeMovementRemaining = useStore((s) => s.combat.movementRemaining);
   const storeSpeedFt = useStore((s) => s.pc.speedFt);
   const storeEndTurn = useStore((s) => s.combat.endTurn);
+  const storeUseAction = useStore((s) => s.combat.useAction);
 
   const actionUsed = actionUsedProp ?? storeActionUsed;
   const bonusUsed = bonusUsedProp ?? storeBonusUsed;
@@ -68,6 +76,18 @@ export function ActionBar({
   const movementFt = movementFtProp ?? storeMovementRemaining;
   const speedFt = speedFtProp ?? storeSpeedFt;
   const resolvedEndTurn = onEndTurn ?? storeEndTurn;
+
+  // An action button (when not explicitly overridden) consumes the action
+  // economy from the store and posts a localized intent to the DM agent. [F1]
+  const actionHandler = (explicit: (() => void) | undefined, intentKey: string): (() => void) =>
+    explicit ??
+    (() => {
+      storeUseAction();
+      onIntent?.(t(intentKey));
+    });
+  // Move has no action-economy cost here (movement is consumed by token drag);
+  // it just posts the intent when bare.
+  const moveHandler = onMove ?? (() => onIntent?.(t('intent_move')));
 
   const moveLabel = `${t('move')} (${t('movement_label', { remaining: movementFt, total: speedFt })})`;
   const actionUsedTitle = t('action_used_tooltip');
@@ -81,7 +101,7 @@ export function ActionBar({
       kind: 'primary',
       kbd: 'A',
       disabled: actionUsed,
-      onClick: onAttack,
+      onClick: actionHandler(onAttack, 'intent_attack'),
     },
     {
       key: 'cast',
@@ -91,7 +111,7 @@ export function ActionBar({
       kind: 'magic',
       kbd: 'C',
       disabled: actionUsed,
-      onClick: onCast,
+      onClick: actionHandler(onCast, 'intent_cast'),
     },
     {
       key: 'move',
@@ -100,7 +120,7 @@ export function ActionBar({
       icon: <Icons.Footprints size={20} />,
       kbd: 'M',
       disabled: movementFt === 0,
-      onClick: onMove,
+      onClick: moveHandler,
     },
     {
       key: 'dash',
@@ -109,7 +129,7 @@ export function ActionBar({
       icon: <Icons.Run size={20} />,
       kbd: 'D',
       disabled: actionUsed,
-      onClick: onDash,
+      onClick: actionHandler(onDash, 'intent_dash'),
     },
     {
       key: 'dodge',
@@ -118,7 +138,7 @@ export function ActionBar({
       icon: <Icons.ShieldHalf size={20} />,
       kbd: 'V',
       disabled: actionUsed,
-      onClick: onDodge,
+      onClick: actionHandler(onDodge, 'intent_dodge'),
     },
     {
       key: 'disengage',
@@ -127,7 +147,7 @@ export function ActionBar({
       icon: <Icons.ArrowReverse size={20} />,
       kbd: 'X',
       disabled: actionUsed,
-      onClick: onDisengage,
+      onClick: actionHandler(onDisengage, 'intent_disengage'),
     },
     {
       key: 'use_object',
@@ -136,7 +156,7 @@ export function ActionBar({
       icon: <Icons.Hand size={20} />,
       kbd: 'U',
       disabled: actionUsed,
-      onClick: onUseObject,
+      onClick: actionHandler(onUseObject, 'intent_use_object'),
     },
     {
       key: 'end_turn',

@@ -27,6 +27,7 @@ import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
+import { useAgentTurn } from './hooks/useAgentTurn';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
@@ -70,6 +71,32 @@ function QuickSaveToast({ lastQuickSaveAt }: { lastQuickSaveAt: string | null })
   );
 }
 
+/**
+ * Error toast for a failed save/overwrite/delete. Reads the saves slice's
+ * `lastSaveError`; auto-dismisses after a few seconds and on click. [F3]
+ */
+function SaveErrorToast() {
+  const { t } = useTranslation('saves');
+  const lastSaveError = useStore((s) => s.saves.lastSaveError);
+  const clear = useStore((s) => s.saves.setLastSaveError);
+  useEffect(() => {
+    if (!lastSaveError) return;
+    const handle = window.setTimeout(() => clear(null), 5000);
+    return () => window.clearTimeout(handle);
+  }, [lastSaveError, clear]);
+  if (!lastSaveError) return null;
+  return (
+    <button
+      type="button"
+      className="dm-saves-toast dm-saves-toast-error"
+      aria-live="assertive"
+      onClick={() => clear(null)}
+    >
+      {t('save_failed')}: {lastSaveError}
+    </button>
+  );
+}
+
 async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'): Promise<void> {
   try {
     const win = getCurrentWindow();
@@ -99,6 +126,8 @@ function App() {
   const activeProvider = useStore((s) => s.settings.activeProvider);
   const activeProviderConfig = useStore((s) => s.settings.providers[s.settings.activeProvider]);
   const combatActive = useStore((s) => s.combat.active);
+  // ActionBar posts combat-action intents to the DM through the agent turn. [F1]
+  const { send: sendAgentTurn } = useAgentTurn();
   const combatTokens = useStore((s) => s.combat.tokens);
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
@@ -238,6 +267,15 @@ function App() {
   const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
 
+  // StatusBar "saved" chip: derive minutes-since-last-quicksave from the saves
+  // slice. Recomputed on every render that touches lastQuickSaveAt; not a live
+  // ticking clock, which is fine for an at-a-glance footer chip. [F4]
+  let savedAgo: { minutes: number } | 'now' | null = null;
+  if (lastQuickSaveAt) {
+    const mins = Math.floor((Date.now() - new Date(lastQuickSaveAt).getTime()) / 60000);
+    savedAgo = mins < 1 ? 'now' : { minutes: mins };
+  }
+
   // Compute preflight status - only relevant after onboarding is completed.
   const preflightStatus: PreflightStatus = onboardingCompleted
     ? runPreflight(preflightSettings)
@@ -356,7 +394,13 @@ function App() {
                 onSelect={handleInitiativeSelect}
               />
             )}
-            {combatActive && <ActionBar />}
+            {combatActive && (
+              <ActionBar
+                onIntent={(text) => {
+                  void sendAgentTurn(text);
+                }}
+              />
+            )}
             <CharFab
               onOpen={() => setCharacterSheetOpen(true)}
               onOpenWizard={() => setWizardReopen(true)}
@@ -373,6 +417,7 @@ function App() {
           provider={providerLabel}
           model={modelLabel}
           status={providerStatus}
+          savedAgo={savedAgo}
           image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
           video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
           onOpenSettings={(tab) => {
@@ -406,6 +451,7 @@ function App() {
           {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
           {savesOpen && <SavesScreen />}
           <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
+          <SaveErrorToast />
           <ToolInspectorDrawer
             entries={toolEntries}
             isOpen={inspectorOpen}
