@@ -84,9 +84,14 @@
 
   "step_hero_title": "Создай героя",
 
-  "anthropic_api_key_label": "API-ключ",
-  "anthropic_api_key_hint": "Получить ключ: console.anthropic.com",
-  "anthropic_api_key_placeholder": "sk-ant-api03-...",
+  "cloud_base_url_label": "Базовый URL",
+  "cloud_base_url_placeholder": "https://openrouter.ai/api/v1",
+  "cloud_base_url_hint": "Рекомендуем OpenRouter (один ключ, 100+ моделей). Подойдёт любой OpenAI-совместимый endpoint.",
+  "cloud_api_key_label": "API-ключ",
+  "cloud_api_key_placeholder": "sk-or-...",
+  "cloud_api_key_hint": "Получить ключ OpenRouter: openrouter.ai/keys",
+  "cloud_model_label": "Модель",
+  "cloud_model_placeholder": "напр. anthropic/claude-3.5-sonnet",
 
   "class_fighter_name": "Воин",
   "class_wizard_name": "Волшебник",

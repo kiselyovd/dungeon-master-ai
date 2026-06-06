@@ -28,7 +28,11 @@ afterEach(() => {
 describe('useDiscoverProvider', () => {
   it('starts idle with no models when no cache present', async () => {
     const { result } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'k' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'k',
+      }),
     );
     await flushMount();
     expect(result.current.status).toBe('idle');
@@ -38,7 +42,13 @@ describe('useDiscoverProvider', () => {
   });
 
   it('does NOT auto-discover on mount', async () => {
-    renderHook(() => useDiscoverProvider({ providerId: 'anthropic', apiKey: 'k' }));
+    renderHook(() =>
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'k',
+      }),
+    );
     await flushMount();
     expect(postDiscoverMock).not.toHaveBeenCalled();
   });
@@ -87,7 +97,11 @@ describe('useDiscoverProvider', () => {
     postDiscoverMock.mockRejectedValueOnce(new Error('boom'));
 
     const { result } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'bad' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'bad',
+      }),
     );
     await flushMount();
 
@@ -110,7 +124,11 @@ describe('useDiscoverProvider', () => {
     postDiscoverMock.mockResolvedValueOnce(resp);
 
     const { result } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'k' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'k',
+      }),
     );
     await flushMount();
 
@@ -118,7 +136,7 @@ describe('useDiscoverProvider', () => {
       await result.current.discover();
     });
 
-    const stored = useStore.getState().settings.discoveredCatalogs.anthropic;
+    const stored = useStore.getState().settings.discoveredCatalogs['openai-compat'];
     expect(stored).not.toBeNull();
     expect(stored?.cachedAt).toBe('2026-05-17T12:00:00Z');
     expect(stored?.cacheKey).toMatch(/^[0-9a-f]{64}$/);
@@ -130,7 +148,7 @@ describe('useDiscoverProvider', () => {
       settings: {
         ...s.settings,
         discoveredCatalogs: {
-          anthropic: {
+          'openai-compat': {
             cacheKey: 'whatever',
             cachedAt: eightDaysAgo,
             source: 'curated',
@@ -153,7 +171,11 @@ describe('useDiscoverProvider', () => {
     }));
 
     const { result } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'k' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'k',
+      }),
     );
     await waitFor(() => {
       expect(result.current.models).toEqual([]);
@@ -184,7 +206,11 @@ describe('useDiscoverProvider', () => {
 
     // Seed cache by running discover with apiKey=A
     const { result: seed } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'A' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'A',
+      }),
     );
     await flushMount();
     await act(async () => {
@@ -194,7 +220,11 @@ describe('useDiscoverProvider', () => {
 
     // New hook with apiKey=B - cached entry has different cacheKey, must NOT surface
     const { result: rotated } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'B' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'B',
+      }),
     );
     await waitFor(() => {
       expect(rotated.current.models).toEqual([]);
@@ -227,7 +257,11 @@ describe('useDiscoverProvider', () => {
     postDiscoverMock.mockResolvedValueOnce(resp);
 
     const { result } = renderHook(() =>
-      useDiscoverProvider({ providerId: 'anthropic', apiKey: 'k' }),
+      useDiscoverProvider({
+        providerId: 'openai-compat',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: 'k',
+      }),
     );
     await flushMount();
     await act(async () => {

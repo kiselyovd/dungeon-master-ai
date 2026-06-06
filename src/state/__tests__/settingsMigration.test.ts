@@ -14,14 +14,17 @@ describe('migrateLegacySettings', () => {
     expect(didReset).toBe(false);
   });
 
-  it('legacy v1 anthropic maps to chat.activeProviderId=anthropic + persists model', () => {
+  it('legacy v1 anthropic falls through to the openai-compat default (Anthropic removed in D.5)', () => {
+    // Native Anthropic was removed in M11 Batch D.5: a persisted v1
+    // activeProvider:'anthropic' is no longer accepted and falls through to the
+    // openai-compat default so the user reconfigures cloud chat via Settings.
     const v1 = {
       activeProvider: 'anthropic',
       providers: { anthropic: { apiKey: 'sk-test', model: 'claude-opus-4-7' } },
     };
     const { config, didReset } = migrateLegacySettings(v1);
-    expect(config.chat.activeProviderId).toBe('anthropic');
-    expect(config.chat.activeModelId).toBe('claude-opus-4-7');
+    expect(config.chat.activeProviderId).toBe('openai-compat');
+    expect(config.chat.activeModelId).toBe(DEFAULTS_V2.chat.activeModelId);
     expect(didReset).toBe(false);
   });
 

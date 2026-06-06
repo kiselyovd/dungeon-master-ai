@@ -94,11 +94,11 @@ describe('SettingsForm', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('exposes anthropic, openai-compat, and local-mistralrs in the provider select', () => {
+  it('exposes openai-compat and local-mistralrs in the provider select', () => {
     render(<SettingsForm onSubmit={() => {}} />);
     const select = screen.getByRole('combobox', { name: /Provider/i });
     const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
-    expect(options).toEqual(['anthropic', 'openai-compat', 'local-mistralrs']);
+    expect(options).toEqual(['openai-compat', 'local-mistralrs']);
   });
 
   it('shows the local-mistralrs fields on the Local LLM tab', async () => {
@@ -264,38 +264,10 @@ describe('SettingsForm model discovery integration', () => {
     ) as unknown as typeof fetch;
   });
 
-  it('renders a ModelSelector inside the Anthropic sub-form (Discover button visible)', () => {
+  it('renders a ModelSelector inside the default openai-compat sub-form (Discover button visible)', () => {
     render(<SettingsForm onSubmit={() => {}} />);
-    // Default provider is anthropic - Discover button should be visible.
+    // Default provider is openai-compat - Discover button should be visible.
     expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
-  });
-
-  it('clicking Discover triggers postDiscover for the anthropic provider', async () => {
-    postDiscoverMock.mockResolvedValueOnce({
-      models: [
-        {
-          model_id: 'claude-opus-4-7',
-          display_name: 'Claude Opus 4.7',
-          capabilities: {
-            vision_input: true,
-            reasoning: true,
-            tool_calls: true,
-            streaming: true,
-          },
-          source: 'curated',
-          context_length: 1_000_000,
-        },
-      ],
-      cached_at: new Date().toISOString(),
-      source: 'curated',
-      next_cursor: null,
-    });
-
-    render(<SettingsForm onSubmit={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
-    await waitFor(() => expect(postDiscoverMock).toHaveBeenCalled());
-    const call = postDiscoverMock.mock.calls[0]?.[0] as { provider_id: string };
-    expect(call.provider_id).toBe('anthropic');
   });
 
   it('clicking a discovered model row updates the model draft', async () => {

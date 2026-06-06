@@ -11,8 +11,8 @@ vi.mock('../../api/settings', () => ({
 
 vi.mock('../../api/providers', () => ({
   getProviders: vi.fn().mockResolvedValue({
-    available: ['anthropic', 'openai-compat'],
-    active: { kind: 'anthropic', default_model: 'claude-haiku' },
+    available: ['openai-compat', 'local-mistralrs'],
+    active: { kind: 'openai-compat', default_model: 'anthropic/claude-3.5-sonnet' },
   }),
 }));
 
@@ -27,22 +27,26 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('renders the provider picker and Anthropic fields by default', () => {
+  it('renders the provider picker and OpenAI-compatible fields by default', () => {
     render(<SettingsModal open={true} onClose={() => {}} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /Provider/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Base URL/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/API key/i)).toBeInTheDocument();
   });
 
-  it('saves an Anthropic config to the store, posts to backend, and closes', async () => {
+  it('saves an OpenAI-compatible config to the store, posts to backend, and closes', async () => {
     const user = userEvent.setup();
     const { postSettingsV2 } = await import('../../api/settings');
     const onClose = vi.fn();
 
     render(<SettingsModal open={true} onClose={onClose} />);
 
-    const apiKeyInput = screen.getByLabelText(/API key/i);
-    await user.type(apiKeyInput, 'sk-ant-xyz');
+    // openai-compat is the default provider: fill base URL, key, and model.
+    await user.clear(screen.getByLabelText(/Base URL/i));
+    await user.type(screen.getByLabelText(/Base URL/i), 'http://localhost:1234/v1');
+    await user.type(screen.getByLabelText(/API key/i), 'sk-test');
+    await user.type(screen.getByLabelText(/Model/i), 'qwen3-1.7b');
 
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
@@ -50,18 +54,20 @@ describe('SettingsModal', () => {
       expect(postSettingsV2).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
-    const stored = useStore.getState().settings.providers.anthropic;
+    const stored = useStore.getState().settings.providers['openai-compat'];
     expect(stored).not.toBeNull();
-    expect(stored?.apiKey).toBe('sk-ant-xyz');
-    expect(useStore.getState().settings.activeProvider).toBe('anthropic');
+    expect(stored?.apiKey).toBe('sk-test');
+    expect(stored?.baseUrl).toBe('http://localhost:1234/v1');
+    expect(stored?.model).toBe('qwen3-1.7b');
+    expect(useStore.getState().settings.activeProvider).toBe('openai-compat');
   });
 
-  it('switches provider to openai-compat and stores the config', async () => {
+  it('stores the openai-compat config entered in the Chat tab', async () => {
     const user = userEvent.setup();
     const { postSettingsV2 } = await import('../../api/settings');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: /Provider/i }), 'openai-compat');
+    await user.clear(screen.getByLabelText(/Base URL/i));
     await user.type(screen.getByLabelText(/Base URL/i), 'http://localhost:1234/v1');
     await user.type(screen.getByLabelText(/API key/i), 'sk-test');
     await user.type(screen.getByLabelText(/Model/i), 'qwen3-1.7b');
@@ -85,7 +91,10 @@ describe('SettingsModal', () => {
     const onClose = vi.fn();
     render(<SettingsModal open={true} onClose={onClose} />);
 
-    await user.type(screen.getByLabelText(/API key/i), 'sk-ant-xyz');
+    // Base URL is prefilled to OpenRouter; fill key + model so validation passes
+    // and the save actually reaches postSettingsV2 (which is mocked to reject).
+    await user.type(screen.getByLabelText(/API key/i), 'sk-test');
+    await user.type(screen.getByLabelText(/Model/i), 'qwen3-1.7b');
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     const banner = await screen.findByTestId('settings-save-error');
@@ -98,16 +107,17 @@ describe('SettingsModal', () => {
     const { postSettingsV2 } = await import('../../api/settings');
     render(<SettingsModal open={true} onClose={() => {}} />);
 
-    // Click save with empty key
+    // Click save with empty key (Base URL prefilled, but key + model empty).
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
-    // Validation message appears, backend POST is NOT called.
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    // Validation messages appear (API key + Model both required), backend POST is NOT called.
+    expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0);
     expect(postSettingsV2).not.toHaveBeenCalled();
-    expect(useStore.getState().settings.providers.anthropic).toBeNull();
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
 
-    // Now fix the key and save succeeds.
-    await user.type(screen.getByLabelText(/API key/i), 'sk-ant-real');
+    // Now fill the key + model and save succeeds.
+    await user.type(screen.getByLabelText(/API key/i), 'sk-test-real');
+    await user.type(screen.getByLabelText(/Model/i), 'qwen3-1.7b');
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
     await waitFor(() => {
       expect(postSettingsV2).toHaveBeenCalled();

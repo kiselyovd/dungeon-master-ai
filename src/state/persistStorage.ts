@@ -32,11 +32,7 @@ import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema } from './charCreationSchema';
 import type { OnboardingData } from './onboarding';
 import type { PcData } from './pc';
-import {
-  AnthropicConfigSchema,
-  LocalMistralRsConfigSchema,
-  OpenaiCompatConfigSchema,
-} from './providers';
+import { LocalMistralRsConfigSchema, OpenaiCompatConfigSchema } from './providers';
 import type { CurrentScene, SessionData } from './session';
 import {
   type Language,
@@ -137,11 +133,16 @@ async function flushGroup(
   }
 }
 
+// 'anthropic' is retained ONLY so a legacy persisted `active_provider` parses
+// without error; rehydration (applyProviderMigration) resets it to
+// 'openai-compat'. Native Anthropic was removed in M11 Batch D.5.
 const ProviderKindSchema = v.picklist(['anthropic', 'openai-compat', 'local-mistralrs']);
 const LanguageSchema = v.picklist(['en', 'ru']);
 
+// No `anthropic` field: a legacy `providers.anthropic` blob is silently
+// stripped on parse (valibot `object` drops unknown keys), so the stale
+// Anthropic config never reaches the store.
 const ProvidersMapSchema = v.object({
-  anthropic: v.nullable(AnthropicConfigSchema),
   'openai-compat': v.nullable(OpenaiCompatConfigSchema),
   'local-mistralrs': v.nullable(LocalMistralRsConfigSchema),
 });
@@ -383,7 +384,11 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
 
     const settings: Partial<SettingsData> = {};
     if (providersParsed.success) settings.providers = providersParsed.output as ProvidersMap;
-    if (activeParsed.success) settings.activeProvider = activeParsed.output;
+    // Cast covers the legacy 'anthropic' picklist member; applyProviderMigration
+    // resets it during the rehydration merge (M11 Batch D.5).
+    if (activeParsed.success) {
+      settings.activeProvider = activeParsed.output as SettingsData['activeProvider'];
+    }
     if (uiParsed.success) settings.uiLanguage = uiParsed.output as Language;
     if (narrParsed.success) settings.narrationLanguage = narrParsed.output as Language;
     if (sysParsed.success) settings.systemPrompt = sysParsed.output;

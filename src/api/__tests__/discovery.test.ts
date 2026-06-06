@@ -19,8 +19,8 @@ describe('postDiscover', () => {
     const body = {
       models: [
         {
-          model_id: 'claude-opus-4-7',
-          display_name: 'Claude Opus 4.7',
+          model_id: 'openai/gpt-4o',
+          display_name: 'GPT-4o',
           capabilities: {
             vision_input: true,
             reasoning: true,
@@ -47,13 +47,13 @@ describe('postDiscover', () => {
       }),
     );
 
-    const result = await postDiscover({ provider_id: 'anthropic' });
+    const result = await postDiscover({ provider_id: 'openai-compat' });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toMatch(/\/providers\/discover$/);
     expect(calls[0]?.init.method).toBe('POST');
     expect(result.models).toHaveLength(1);
-    expect(result.models[0]?.model_id).toBe('claude-opus-4-7');
+    expect(result.models[0]?.model_id).toBe('openai/gpt-4o');
     expect(result.source).toBe('curated');
     expect(result.cached_at).toBe('2026-05-17T12:00:00Z');
   });
@@ -92,7 +92,7 @@ describe('postDiscover', () => {
       'fetch',
       vi.fn(async () => new Response('unauthorized', { status: 401 })),
     );
-    await expect(postDiscover({ provider_id: 'anthropic' })).rejects.toMatchObject({
+    await expect(postDiscover({ provider_id: 'openai-compat' })).rejects.toMatchObject({
       name: 'ChatError',
       code: 'auth_failed',
     });
@@ -103,7 +103,7 @@ describe('postDiscover', () => {
       'fetch',
       vi.fn(async () => new Response('slow down', { status: 429 })),
     );
-    await expect(postDiscover({ provider_id: 'anthropic' })).rejects.toMatchObject({
+    await expect(postDiscover({ provider_id: 'openai-compat' })).rejects.toMatchObject({
       name: 'ChatError',
       code: 'rate_limit',
     });
@@ -114,7 +114,7 @@ describe('postDiscover', () => {
       'fetch',
       vi.fn(async () => new Response('bad gateway', { status: 502 })),
     );
-    await expect(postDiscover({ provider_id: 'anthropic' })).rejects.toMatchObject({
+    await expect(postDiscover({ provider_id: 'openai-compat' })).rejects.toMatchObject({
       name: 'ChatError',
       code: 'provider_error',
     });
@@ -131,7 +131,7 @@ describe('postDiscover', () => {
           }),
       ),
     );
-    await expect(postDiscover({ provider_id: 'anthropic' })).rejects.toMatchObject({
+    await expect(postDiscover({ provider_id: 'openai-compat' })).rejects.toMatchObject({
       name: 'ChatError',
       code: 'invalid_response',
     });
@@ -144,7 +144,7 @@ describe('postDiscover', () => {
         throw new TypeError('Failed to fetch');
       }),
     );
-    await expect(postDiscover({ provider_id: 'anthropic' })).rejects.toMatchObject({
+    await expect(postDiscover({ provider_id: 'openai-compat' })).rejects.toMatchObject({
       name: 'ChatError',
       code: 'network',
     });

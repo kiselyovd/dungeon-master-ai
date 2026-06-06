@@ -11,7 +11,12 @@ import { createPcSlice, type PcSlice } from './pc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
 import { createSavesSlice, type SavesSlice } from './saves';
 import { createSessionSlice, type SessionSlice } from './session';
-import { applyD8Migration, createSettingsSlice, type SettingsSlice } from './settings';
+import {
+  applyD8Migration,
+  applyProviderMigration,
+  createSettingsSlice,
+  type SettingsSlice,
+} from './settings';
 import { createToolLogSlice, type ToolLogSlice } from './toolLog';
 
 export type AppState = ChatSlice &
@@ -142,7 +147,11 @@ export const useStore = create<AppState>()(
         const persisted = persistedState as Partial<PersistedSettings>;
         // D8: diagnostic-only rehydration pass over the persisted settings
         // slice (no data-shape change; returns the input unchanged).
-        const persistedSettings = applyD8Migration(persisted.settings ?? {});
+        // D.5: reset a legacy `activeProvider:'anthropic'` to unconfigured
+        // openai-compat + raise the migration banner.
+        const persistedSettings = applyProviderMigration(
+          applyD8Migration(persisted.settings ?? {}),
+        );
         return {
           ...currentState,
           settings: {

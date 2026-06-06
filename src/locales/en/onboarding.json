@@ -84,9 +84,14 @@
 
   "step_hero_title": "Create your hero",
 
-  "anthropic_api_key_label": "API key",
-  "anthropic_api_key_hint": "Get one at console.anthropic.com",
-  "anthropic_api_key_placeholder": "sk-ant-api03-...",
+  "cloud_base_url_label": "Base URL",
+  "cloud_base_url_placeholder": "https://openrouter.ai/api/v1",
+  "cloud_base_url_hint": "OpenRouter is recommended (one key, 100+ models). Any OpenAI-compatible endpoint works.",
+  "cloud_api_key_label": "API key",
+  "cloud_api_key_placeholder": "sk-or-...",
+  "cloud_api_key_hint": "Get an OpenRouter key at openrouter.ai/keys",
+  "cloud_model_label": "Model",
+  "cloud_model_placeholder": "e.g. anthropic/claude-3.5-sonnet",
 
   "class_fighter_name": "Fighter",
   "class_wizard_name": "Wizard",

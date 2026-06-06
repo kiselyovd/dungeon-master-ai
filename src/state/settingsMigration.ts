@@ -83,8 +83,10 @@ export type SettingsConfigV2 = {
 
 export const DEFAULTS_V2: SettingsConfigV2 = {
   chat: {
-    activeProviderId: 'anthropic',
-    activeModelId: 'claude-haiku-4-5-20251001',
+    // Cloud chat is the generic OpenAI-compatible provider (OpenRouter
+    // recommended); native Anthropic was removed in M11 Batch D.5.
+    activeProviderId: 'openai-compat',
+    activeModelId: 'custom',
     providers: {},
     visionEnabled: false,
     reasoningEnabled: false,
@@ -177,13 +179,13 @@ export function migrateLegacySettings(raw: unknown): MigrateResult {
     };
     const cfg = cloneDefaults();
     const ap = v1.activeProvider;
-    if (ap === 'anthropic' || ap === 'openai-compat' || ap === 'local-mistralrs') {
+    // 'anthropic' is intentionally NOT accepted: native Anthropic was removed
+    // in M11 Batch D.5, so a legacy anthropic v1 falls through to the
+    // openai-compat default (the user reconfigures cloud via Settings).
+    if (ap === 'openai-compat' || ap === 'local-mistralrs') {
       cfg.chat.activeProviderId = ap;
     }
-    if (ap === 'anthropic') {
-      const p = v1.providers?.anthropic;
-      if (p && typeof p.model === 'string') cfg.chat.activeModelId = p.model;
-    } else if (ap === 'openai-compat') {
+    if (ap === 'openai-compat') {
       const p = v1.providers?.['openai-compat'];
       if (p && typeof p.model === 'string') cfg.chat.activeModelId = p.model;
       else cfg.chat.activeModelId = 'custom';

@@ -1,7 +1,6 @@
 import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
 import {
-  AnthropicConfigSchema,
   OpenaiCompatConfigSchema,
   ProviderConfigSchema,
   parseApiKey,
@@ -41,26 +40,6 @@ describe('parseBaseUrl', () => {
   });
 });
 
-describe('AnthropicConfigSchema', () => {
-  it('accepts a valid config', () => {
-    const ok = v.safeParse(AnthropicConfigSchema, {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-test',
-      model: 'claude-haiku-4-5-20251001',
-    });
-    expect(ok.success).toBe(true);
-  });
-
-  it('rejects empty api key', () => {
-    const bad = v.safeParse(AnthropicConfigSchema, {
-      kind: 'anthropic',
-      apiKey: '   ',
-      model: 'claude',
-    });
-    expect(bad.success).toBe(false);
-  });
-});
-
 describe('OpenaiCompatConfigSchema', () => {
   it('accepts a localhost URL', () => {
     const ok = v.safeParse(OpenaiCompatConfigSchema, {
@@ -85,12 +64,12 @@ describe('OpenaiCompatConfigSchema', () => {
 
 describe('ProviderConfigSchema discriminated union', () => {
   it('routes by kind', () => {
-    const anthropic = v.safeParse(ProviderConfigSchema, {
-      kind: 'anthropic',
-      apiKey: 'sk-ant',
-      model: 'claude-haiku',
+    const local = v.safeParse(ProviderConfigSchema, {
+      kind: 'local-mistralrs',
+      modelPath: 'qwen3.5-4b',
+      contextWindow: 8192,
     });
-    expect(anthropic.success).toBe(true);
+    expect(local.success).toBe(true);
 
     const openai = v.safeParse(ProviderConfigSchema, {
       kind: 'openai-compat',

@@ -110,30 +110,6 @@ export const CHAT_CATALOG: ProviderCatalogEntry[] = [
     ],
   },
   {
-    id: 'anthropic',
-    display_name: 'Anthropic Claude',
-    curated_models: [
-      {
-        model_id: 'claude-opus-4-7',
-        display_name: 'Claude Opus 4.7',
-        capabilities: CAPS_ALL,
-        default: false,
-      },
-      {
-        model_id: 'claude-sonnet-4-6',
-        display_name: 'Claude Sonnet 4.6',
-        capabilities: CAPS_ALL,
-        default: false,
-      },
-      {
-        model_id: 'claude-haiku-4-5-20251001',
-        display_name: 'Claude Haiku 4.5',
-        capabilities: CAPS_ALL,
-        default: true,
-      },
-    ],
-  },
-  {
     id: 'openai-compat',
     display_name: 'OpenAI-compatible (custom)',
     curated_models: [

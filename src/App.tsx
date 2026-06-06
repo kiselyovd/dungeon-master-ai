@@ -16,6 +16,7 @@ import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
 import { Onboarding } from './components/Onboarding';
 import { PreflightModal } from './components/PreflightModal';
+import { ProviderMigrationBanner } from './components/ProviderMigrationBanner';
 import { SavesScreen } from './components/SavesScreen';
 import { ScenePill } from './components/ScenePill';
 import { SceneTransitionOverlay } from './components/SceneTransitionOverlay';
@@ -225,7 +226,6 @@ function App() {
 
   const providerLabel = tSettings(
     `provider_${activeProvider.replace('-', '_')}` as
-      | 'provider_anthropic'
       | 'provider_openai_compat'
       | 'provider_local_mistralrs',
   );
@@ -250,6 +250,7 @@ function App() {
 
   return (
     <ErrorBoundary level="top">
+      <ProviderMigrationBanner />
       <div className="dm-app">
         <header className="dm-titlebar" data-tauri-drag-region>
           <div className="dm-titlebar-left">
