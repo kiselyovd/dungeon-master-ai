@@ -60,11 +60,14 @@ fn local_mistralrs_chat() -> serde_json::Value {
     })
 }
 
-fn anthropic_chat() -> serde_json::Value {
+// The generic OpenAI-compatible cloud provider has license "varies" (non-OSS),
+// so it stands in for the blocked-under-restriction case after native Anthropic
+// was removed in M11 Batch D.5.
+fn openai_compat_chat() -> serde_json::Value {
     json!({
-        "active_provider_id": "anthropic",
-        "active_model_id": "claude-haiku-4-5-20251001",
-        "providers": { "anthropic": { "api_key": "sk-ant-test" } },
+        "active_provider_id": "openai-compat",
+        "active_model_id": "anthropic/claude-haiku",
+        "providers": { "openai-compat": { "base_url": "https://openrouter.ai/api/v1", "api_key": "sk-test" } },
         "vision_enabled": false,
         "reasoning_enabled": false,
         "reasoning_budget": "medium",
@@ -96,21 +99,21 @@ fn local_sdxl_lightning_image() -> serde_json::Value {
 #[tokio::test]
 async fn license_restricted_blocks_non_oss_chat_provider() {
     let state = new_test_state().await;
-    let cfg = cfg_with(true, anthropic_chat(), local_sdxl_lightning_image());
+    let cfg = cfg_with(true, openai_compat_chat(), local_sdxl_lightning_image());
 
     let res = post_settings_v2(State(state.clone()), Json(cfg)).await;
-    let err = res.expect_err("anthropic chat must be blocked under license_restricted_mode");
+    let err = res.expect_err("openai-compat chat must be blocked under license_restricted_mode");
     let msg = format!("{err:?}");
     assert!(
-        msg.contains("license_restricted_mode") && msg.contains("anthropic"),
-        "expected BadRequest mentioning anthropic + license_restricted_mode, got: {msg}"
+        msg.contains("license_restricted_mode") && msg.contains("openai-compat"),
+        "expected BadRequest mentioning openai-compat + license_restricted_mode, got: {msg}"
     );
 }
 
 #[tokio::test]
 async fn license_unrestricted_keeps_all_providers() {
     let state = new_test_state().await;
-    let cfg = cfg_with(false, anthropic_chat(), replicate_image());
+    let cfg = cfg_with(false, openai_compat_chat(), replicate_image());
 
     let res = post_settings_v2(State(state.clone()), Json(cfg))
         .await
@@ -121,7 +124,7 @@ async fn license_unrestricted_keeps_all_providers() {
     assert_eq!(body["license_restricted_no_compat"], false);
 
     let reg = state.registry();
-    assert_eq!(reg.chat.name(), "anthropic");
+    assert_eq!(reg.chat.name(), "openai-compat");
     assert!(
         reg.image.is_some(),
         "replicate image provider should survive"

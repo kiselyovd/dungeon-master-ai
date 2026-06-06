@@ -121,8 +121,8 @@ mod tests {
     fn defaults_round_trip() {
         let cfg = SettingsConfigV2 {
             chat: ChatConfig {
-                active_provider_id: "anthropic".into(),
-                active_model_id: "claude-haiku-4-5-20251001".into(),
+                active_provider_id: "openai-compat".into(),
+                active_model_id: "anthropic/claude-haiku".into(),
                 providers: serde_json::json!({}),
                 vision_enabled: false,
                 reasoning_enabled: false,
@@ -156,7 +156,7 @@ mod tests {
         };
         let s = serde_json::to_string(&cfg).expect("serialise");
         let back: SettingsConfigV2 = serde_json::from_str(&s).expect("deserialise");
-        assert_eq!(back.chat.active_provider_id, "anthropic");
+        assert_eq!(back.chat.active_provider_id, "openai-compat");
         assert_eq!(back.image.preset, ImagePreset::Balanced);
         assert_eq!(back.video.mode, VideoMode::Prerecorded);
         assert_eq!(back.behavior.scene_transitions, SceneTransitions::Auto);

@@ -19,7 +19,8 @@ async fn get_providers_catalog_returns_chat_image_video_keys() {
         .iter()
         .map(|e| e["id"].as_str().unwrap())
         .collect();
-    assert!(chat_ids.contains(&"anthropic"));
+    // Native Anthropic was removed in M11 Batch D.5; cloud chat is openai-compat only.
+    assert!(!chat_ids.contains(&"anthropic"));
     assert!(chat_ids.contains(&"openai-compat"));
     assert!(chat_ids.contains(&"local-mistralrs"));
 }
@@ -58,7 +59,7 @@ async fn catalog_lists_only_ltx_video_in_m7_dm() {
 }
 
 #[tokio::test]
-async fn catalog_anthropic_has_three_curated_models_with_haiku_default() {
+async fn catalog_openai_compat_is_the_only_cloud_chat_entry() {
     let server = TestServer::start().await;
     let body: Value = reqwest::get(server.url("/providers/catalog"))
         .await
@@ -66,19 +67,18 @@ async fn catalog_anthropic_has_three_curated_models_with_haiku_default() {
         .json()
         .await
         .expect("json");
-    let anthropic = body["chat"]
+    // Native Anthropic was removed in M11 Batch D.5.
+    let openai_compat = body["chat"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|e| e["id"] == "anthropic")
-        .expect("anthropic entry");
-    let models = anthropic["curated_models"].as_array().unwrap();
-    assert_eq!(models.len(), 3);
-    let default_count = models.iter().filter(|m| m["default"] == true).count();
-    assert_eq!(default_count, 1);
-    let haiku = models
+        .find(|e| e["id"] == "openai-compat")
+        .expect("openai-compat entry");
+    assert_eq!(openai_compat["requires_base_url"], true);
+    assert_eq!(openai_compat["requires_api_key"], true);
+    assert!(body["chat"]
+        .as_array()
+        .unwrap()
         .iter()
-        .find(|m| m["model_id"] == "claude-haiku-4-5-20251001")
-        .unwrap();
-    assert_eq!(haiku["default"], true);
+        .all(|e| e["id"] != "anthropic"));
 }

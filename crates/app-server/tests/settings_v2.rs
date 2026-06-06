@@ -5,9 +5,9 @@ use serde_json::{json, Value};
 fn baseline() -> Value {
     json!({
         "chat": {
-            "active_provider_id": "anthropic",
-            "active_model_id": "claude-haiku-4-5-20251001",
-            "providers": { "anthropic": { "api_key": "sk-test" } },
+            "active_provider_id": "openai-compat",
+            "active_model_id": "anthropic/claude-haiku",
+            "providers": { "openai-compat": { "base_url": "https://openrouter.ai/api/v1", "api_key": "sk-test" } },
             "vision_enabled": false,
             "reasoning_enabled": false,
             "reasoning_budget": "medium",
@@ -191,7 +191,10 @@ async fn post_settings_v2_rejects_out_of_range_temperature() {
 }
 
 #[tokio::test]
-async fn post_settings_v2_rebuilds_anthropic_provider() {
+async fn post_settings_v2_rebuilds_cloud_provider_from_baseline() {
+    // Boundary test: the sole cloud chat provider is the generic OpenAI-compat
+    // one (OpenRouter base_url in the baseline); native Anthropic was removed
+    // in M11 Batch D.5.
     let server = TestServer::start().await;
     assert_eq!(server.state.provider().name(), "mock");
     let res = reqwest::Client::new()
@@ -201,45 +204,20 @@ async fn post_settings_v2_rebuilds_anthropic_provider() {
         .await
         .expect("request");
     assert_eq!(res.status(), 200);
-    assert_eq!(server.state.provider().name(), "anthropic");
-    assert_eq!(server.state.default_model(), "claude-haiku-4-5-20251001");
-}
-
-#[tokio::test]
-async fn post_settings_v2_persists_anthropic_api_key_to_secrets_repo() {
-    let server = TestServer::start().await;
-    let res = reqwest::Client::new()
-        .post(server.url("/settings/v2"))
-        .json(&baseline())
-        .send()
-        .await
-        .expect("request");
-    assert_eq!(res.status(), 200);
+    assert_eq!(server.state.provider().name(), "openai-compat");
+    assert_eq!(server.state.default_model(), "anthropic/claude-haiku");
+    // The cloud key is persisted under the openai_compat key.
     let stored = server
         .state
         .secrets_repo()
-        .get("anthropic_api_key")
+        .get("openai_compat_api_key")
         .await
         .expect("repo get");
     assert_eq!(stored, Some("sk-test".to_string()));
 }
 
 #[tokio::test]
-async fn post_settings_v2_rejects_anthropic_without_api_key() {
-    let server = TestServer::start().await;
-    let mut body = baseline();
-    body["chat"]["providers"]["anthropic"]["api_key"] = Value::String(String::new());
-    let res = reqwest::Client::new()
-        .post(server.url("/settings/v2"))
-        .json(&body)
-        .send()
-        .await
-        .expect("request");
-    assert_eq!(res.status(), 400);
-}
-
-#[tokio::test]
-async fn post_settings_v2_rejects_anthropic_without_provider_config_slice() {
+async fn post_settings_v2_rejects_missing_provider_config_slice() {
     let server = TestServer::start().await;
     let mut body = baseline();
     body["chat"]["providers"] = json!({});
@@ -616,8 +594,9 @@ async fn post_settings_v2_rejects_unknown_video_provider() {
 async fn post_settings_v2_wires_reasoning_enabled_and_budget_to_agent_config() {
     let server = TestServer::start().await;
     let mut body = baseline();
-    // Use claude-opus-4-7 which has reasoning=true in catalog.
-    body["chat"]["active_model_id"] = Value::String("claude-opus-4-7".into());
+    // A free-form OpenAI-compat model id (not in the curated catalog) is not
+    // capability-gated, so reasoning_enabled passes validation and wires through.
+    body["chat"]["active_model_id"] = Value::String("anthropic/claude-opus".into());
     body["chat"]["reasoning_enabled"] = Value::Bool(true);
     body["chat"]["reasoning_budget"] = Value::String("high".into());
     let res = reqwest::Client::new()

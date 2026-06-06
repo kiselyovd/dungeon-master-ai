@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use app_domain::srd::embedder::{embedding_dim, parse_embedding_model, DEFAULT_EMBEDDING_MODEL};
-use app_llm::{AnthropicProvider, LlmProvider, MockProvider};
+use app_llm::{LlmProvider, MockProvider};
 use app_server::secrets::StrongholdSecretsRepo;
 use app_server::{config::Settings, db::init_db, db::srd_chunks_clear, router, AppState};
 use sqlx::sqlite::SqliteConnectOptions;
@@ -16,15 +16,13 @@ async fn main() -> anyhow::Result<()> {
     let _telemetry = app_server::telemetry::init_telemetry().context("init telemetry")?;
     let settings = Settings::from_env();
 
-    let llm: Arc<dyn LlmProvider> = match settings.anthropic_api_key.clone() {
-        Some(key) => Arc::new(AnthropicProvider::new(key)),
-        None => {
-            tracing::warn!(
-                "ANTHROPIC_API_KEY not set; using MockProvider (chat will return canned data)"
-            );
-            Arc::new(MockProvider::new(vec![]))
-        }
-    };
+    // No provider is wired at boot. The real chat provider (the generic
+    // OpenAI-compatible cloud provider or a local mistralrs runtime) is
+    // installed by the first /settings/v2 POST after onboarding. Until then
+    // chat returns canned data. Native Anthropic env bootstrap was removed in
+    // M11 Batch D.5.
+    let llm: Arc<dyn LlmProvider> = Arc::new(MockProvider::new(vec![]));
+    tracing::info!("no provider configured at boot; using MockProvider until settings are applied");
 
     let pool = match std::env::var("DATABASE_URL") {
         Ok(db_url) => sqlx::SqlitePool::connect(&db_url)

@@ -1,6 +1,5 @@
 //! LLM provider abstraction for the dungeon-master-ai backend.
 
-pub mod anthropic;
 mod genai_common;
 pub mod mistralrs_provider;
 pub mod mock;
@@ -9,7 +8,6 @@ pub mod provider;
 pub mod retry;
 pub mod sidecar_launcher;
 
-pub use anthropic::AnthropicProvider;
 pub use mistralrs_provider::MistralrsLocalProvider;
 pub use mock::MockProvider;
 pub use openai_compat::OpenAICompatProvider;

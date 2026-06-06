@@ -3,17 +3,15 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use app_llm::{
-    AnthropicProvider, Capabilities, LlmProvider, MistralrsLocalProvider, OpenAICompatProvider,
-};
+use app_llm::{Capabilities, LlmProvider, MistralrsLocalProvider, OpenAICompatProvider};
 
 use crate::providers::catalog::{
     find_chat_entry, find_entry_any_modality, ProviderCatalogEntry, CHAT_CATALOG, IMAGE_CATALOG,
     VIDEO_CATALOG,
 };
 use crate::providers::discovery::{
-    merge_recommended, recommended_for, AnthropicCurated, DiscoverParams, DiscoveryError,
-    DiscoveryResult, DiscoverySource, HfHubSearch, OpenAIV1Models, ReplicateSearch,
+    merge_recommended, recommended_for, DiscoverParams, DiscoveryError, DiscoveryResult,
+    DiscoverySource, HfHubSearch, OpenAIV1Models, ReplicateSearch,
 };
 
 #[derive(Serialize)]
@@ -48,7 +46,6 @@ pub async fn get_caps(
     // catalog entries declare capabilities exclusively via curated_models, so
     // a non-curated model id on those modalities returns conservative defaults.
     let caps = match id.as_str() {
-        "anthropic" => AnthropicProvider::new(String::new()).capabilities_for_model(&q.model),
         "openai-compat" => {
             OpenAICompatProvider::new(String::new(), String::new()).capabilities_for_model(&q.model)
         }
@@ -81,7 +78,6 @@ async fn dispatch_discovery(
     params: DiscoverParams,
 ) -> Result<DiscoveryResult, DiscoveryError> {
     let mut result = match provider_id {
-        "anthropic" => AnthropicCurated.discover(params).await?,
         "openai" | "openai-compat" => OpenAIV1Models::default().discover(params).await?,
         "local-mistralrs" => HfHubSearch::default().discover(params).await?,
         "replicate" => ReplicateSearch::default().discover(params).await?,
@@ -90,8 +86,7 @@ async fn dispatch_discovery(
     // Prepend per-provider hardcoded Recommended models (deduped by
     // model_id) so the frontend's "Recommended" section always has
     // sensible starter picks for openai-compat and local-mistralrs.
-    // Anthropic already returns all Curated so the merge is a no-op
-    // for it; Replicate returns empty recommended.
+    // Replicate returns empty recommended.
     let recommended = recommended_for(provider_id);
     if !recommended.is_empty() {
         let discovered = std::mem::take(&mut result.models);

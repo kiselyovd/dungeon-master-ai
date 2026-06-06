@@ -13,13 +13,6 @@ pub fn infer_capabilities(provider_id: &str, model_id: &str, tags: &[String]) ->
         streaming: true,
     };
     match provider_id {
-        "anthropic"
-            if lc.contains("opus-4") || lc.contains("sonnet-4") || lc.contains("haiku-4") =>
-        {
-            caps.vision_input = true;
-            caps.reasoning = true;
-        }
-        "anthropic" => {}
         "openai" | "openai-compat" => {
             caps.vision_input =
                 lc.contains("gpt-4o") || lc.contains("gpt-5") || lc.starts_with("o4");
@@ -43,12 +36,6 @@ pub fn infer_capabilities(provider_id: &str, model_id: &str, tags: &[String]) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn anthropic_opus_4_inferred_all_true() {
-        let caps = infer_capabilities("anthropic", "claude-opus-4-7", &[]);
-        assert!(caps.vision_input && caps.reasoning && caps.tool_calls && caps.streaming);
-    }
 
     #[test]
     fn openai_compat_gpt_5_inferred_vision_only() {

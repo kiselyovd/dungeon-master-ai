@@ -1,7 +1,8 @@
-//! Shared genai helpers used by both `AnthropicProvider` and
-//! `OpenAICompatProvider`. Keeps message conversion and the streaming
-//! `ToolCallChunk -> ChatChunk` pump in one place so the two providers do not
-//! drift.
+//! Shared genai helpers used by `OpenAICompatProvider` and
+//! `MistralrsLocalProvider`. Keeps message conversion and the streaming
+//! `ToolCallChunk -> ChatChunk` pump in one place so the providers do not
+//! drift. (Native Anthropic was removed in M11 Batch D.5; cloud chat now runs
+//! exclusively through the OpenAI-compatible provider.)
 
 use futures::stream::StreamExt;
 use genai::chat::{
