@@ -1,5 +1,9 @@
 {
   "app_title": "Dungeon Master AI",
+  "error_title": "Что-то пошло не так",
+  "error_reload": "Перезагрузить",
+  "error_copy_report": "Скопировать отчёт об ошибке",
+  "error_retry": "Повторить",
   "loading": "Загрузка...",
   "save": "Сохранить",
   "cancel": "Отмена",

@@ -131,38 +131,40 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
           ))}
         </ol>
 
-        {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
-        {currentStep === 'preset' && (
-          <PresetStep
-            titleId={titleId}
-            preset={preset}
-            onPresetChange={(p) => {
-              setPreset(p);
-              // Re-clamp the step index when preset changes shrink the sequence.
-              setStepIndex((i) => {
-                const newSteps = computeSteps(p);
-                return Math.min(i, newSteps.length - 1);
-              });
-            }}
-            onBack={back}
-            onNext={next}
-          />
-        )}
-        {currentStep === 'chat' && (
-          <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-        )}
-        {currentStep === 'image' && (
-          <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-        )}
-        {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
-        {currentStep === 'hero' && (
-          <HeroStep
-            titleId={titleId}
-            onBack={back}
-            onNext={next}
-            {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
-          />
-        )}
+        <div className="dm-onboarding-body">
+          {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
+          {currentStep === 'preset' && (
+            <PresetStep
+              titleId={titleId}
+              preset={preset}
+              onPresetChange={(p) => {
+                setPreset(p);
+                // Re-clamp the step index when preset changes shrink the sequence.
+                setStepIndex((i) => {
+                  const newSteps = computeSteps(p);
+                  return Math.min(i, newSteps.length - 1);
+                });
+              }}
+              onBack={back}
+              onNext={next}
+            />
+          )}
+          {currentStep === 'chat' && (
+            <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+          )}
+          {currentStep === 'image' && (
+            <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+          )}
+          {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
+          {currentStep === 'hero' && (
+            <HeroStep
+              titleId={titleId}
+              onBack={back}
+              onNext={next}
+              {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

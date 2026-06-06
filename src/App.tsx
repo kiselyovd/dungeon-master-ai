@@ -230,6 +230,13 @@ function App() {
   // because plain Ctrl+S is reserved for the quick-save action (no modal).
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
+      // F11 -> toggle fullscreen. [M11 G3]
+      if (e.key === 'F11') {
+        e.preventDefault();
+        const win = getCurrentWindow();
+        void win.isFullscreen().then((fs) => win.setFullscreen(!fs));
+        return;
+      }
       // Ctrl+S (no shift) -> quick save. Run on the active session and
       // pop the saved-now toast via the slice's `lastQuickSaveAt` clock.
       if (e.ctrlKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {

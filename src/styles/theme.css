@@ -73,7 +73,12 @@
 
   /* Typography */
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
+  /* Cinzel is Latin-only (no Cyrillic glyphs); Russian headings fall through
+     to the first stack member that HAS Cyrillic - a deliberate serif (PT Serif
+     / Georgia / Times) rather than an unpredictable generic serif. Bundling a
+     self-hosted Cyrillic fantasy-serif display face is a deferred polish item
+     (needs the subset woff2 asset). [M11 G1] */
+  --font-display: "Cinzel", "PT Serif", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
 
   --text-xs: 11px;
