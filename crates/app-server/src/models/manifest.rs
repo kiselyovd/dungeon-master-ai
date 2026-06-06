@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelId {
-    // chat (existing; Qwen3.5 family is uniformly VL+thinking)
+    // chat (variant names are stable opaque keys; backed by real multimodal
+    // Qwen3.5 GGUF repos from unsloth - see MANIFEST).
     Qwen3_5_0_8b,
     Qwen3_5_2b,
     Qwen3_5_4b,
@@ -80,49 +81,61 @@ pub enum ModelKind {
 }
 
 pub const MANIFEST: &[ModelManifest] = &[
-    // --- chat (Qwen3.5 family, all VL+thinking) ---
+    // --- chat (Qwen3.5 family, multimodal: LLM gguf + mmproj vision projector).
+    // Real public ungated GGUF from unsloth; the official Qwen org publishes the
+    // base weights without a -Instruct-GGUF repo (the old fictitious ids). Q4_K_M
+    // gguf + mmproj-F16 sha256 read from the HF tree API (lfs.sha256) 2026-06-06.
+    // ModelId variants + wire ids are opaque keys kept stable across the rename. ---
     ModelManifest {
         id: ModelId::Qwen3_5_0_8b,
         display_name: "Qwen3.5-0.8B Q4_K_M",
-        size_bytes_estimate: 600 * 1024 * 1024,
-        vram_bytes_estimate: 900 * 1024 * 1024,
-        sha256: "",
-        hf_repo: "Qwen/Qwen3.5-0.8B-Instruct-GGUF",
-        hf_filename: "qwen3.5-0.8b-instruct-q4_k_m.gguf",
-        kind: ModelKind::GgufFile,
+        size_bytes_estimate: 737_504_352,
+        vram_bytes_estimate: 1_500 * 1024 * 1024,
+        sha256: "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
+        hf_repo: "unsloth/Qwen3.5-0.8B-GGUF",
+        hf_filename: "Qwen3.5-0.8B-Q4_K_M.gguf",
+        kind: ModelKind::GgufWithMmproj {
+            mmproj_filename: "mmproj-F16.gguf",
+        },
         requires: &[],
     },
     ModelManifest {
         id: ModelId::Qwen3_5_2b,
         display_name: "Qwen3.5-2B Q4_K_M",
-        size_bytes_estimate: 1_500 * 1024 * 1024,
-        vram_bytes_estimate: 2_000 * 1024 * 1024,
-        sha256: "",
-        hf_repo: "Qwen/Qwen3.5-2B-Instruct-GGUF",
-        hf_filename: "qwen3.5-2b-instruct-q4_k_m.gguf",
-        kind: ModelKind::GgufFile,
+        size_bytes_estimate: 1_700_000_000,
+        vram_bytes_estimate: 2_800 * 1024 * 1024,
+        sha256: "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+        hf_repo: "unsloth/Qwen3.5-2B-GGUF",
+        hf_filename: "Qwen3.5-2B-Q4_K_M.gguf",
+        kind: ModelKind::GgufWithMmproj {
+            mmproj_filename: "mmproj-F16.gguf",
+        },
         requires: &[],
     },
     ModelManifest {
         id: ModelId::Qwen3_5_4b,
         display_name: "Qwen3.5-4B Q4_K_M",
-        size_bytes_estimate: 3_000 * 1024 * 1024,
-        vram_bytes_estimate: 2_500 * 1024 * 1024,
-        sha256: "",
-        hf_repo: "Qwen/Qwen3.5-4B-Instruct-GGUF",
-        hf_filename: "qwen3.5-4b-instruct-q4_k_m.gguf",
-        kind: ModelKind::GgufFile,
+        size_bytes_estimate: 3_413_361_504,
+        vram_bytes_estimate: 4_500 * 1024 * 1024,
+        sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        hf_repo: "unsloth/Qwen3.5-4B-GGUF",
+        hf_filename: "Qwen3.5-4B-Q4_K_M.gguf",
+        kind: ModelKind::GgufWithMmproj {
+            mmproj_filename: "mmproj-F16.gguf",
+        },
         requires: &[],
     },
     ModelManifest {
         id: ModelId::Qwen3_5_9b,
         display_name: "Qwen3.5-9B Q4_K_M",
-        size_bytes_estimate: 6_500 * 1024 * 1024,
-        vram_bytes_estimate: 5_500 * 1024 * 1024,
-        sha256: "",
-        hf_repo: "Qwen/Qwen3.5-9B-Instruct-GGUF",
-        hf_filename: "qwen3.5-9b-instruct-q4_k_m.gguf",
-        kind: ModelKind::GgufFile,
+        size_bytes_estimate: 6_598_688_544,
+        vram_bytes_estimate: 8_000 * 1024 * 1024,
+        sha256: "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+        hf_repo: "unsloth/Qwen3.5-9B-GGUF",
+        hf_filename: "Qwen3.5-9B-Q4_K_M.gguf",
+        kind: ModelKind::GgufWithMmproj {
+            mmproj_filename: "mmproj-F16.gguf",
+        },
         requires: &[],
     },
     // --- image: Fast preset (existing) ---
@@ -362,7 +375,7 @@ mod tests {
     #[test]
     fn lookup_by_id_works() {
         let m = lookup(&ModelId::Qwen3_5_4b).unwrap();
-        assert_eq!(m.hf_filename, "qwen3.5-4b-instruct-q4_k_m.gguf");
+        assert_eq!(m.hf_filename, "Qwen3.5-4B-Q4_K_M.gguf");
     }
 
     #[test]

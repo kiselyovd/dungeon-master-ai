@@ -52,7 +52,10 @@ struct AppStateInner {
 impl AppState {
     pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
         let models_dir = std::env::temp_dir().join("dmai-models");
-        let download_manager = Arc::new(DownloadManager::new(models_dir.clone()));
+        // One shared secrets repo: the download manager reads the HF token from
+        // the same instance the /hf/token routes write to.
+        let secrets: Arc<dyn SecretsRepo> = Arc::new(InMemorySecretsRepo::default());
+        let download_manager = Arc::new(DownloadManager::new(models_dir.clone(), secrets.clone()));
         let sidecar_launcher = Arc::new(ProcessSidecarLauncher::from_current_exe());
         let probe_cfg = ProbeConfig {
             max_attempts: 8,
@@ -83,7 +86,7 @@ impl AppState {
                 download_manager,
                 runtime_registry,
                 models_dir: RwLock::new(models_dir),
-                secrets_repo: RwLock::new(Arc::new(InMemorySecretsRepo::default())),
+                secrets_repo: RwLock::new(secrets),
             }),
         }
     }

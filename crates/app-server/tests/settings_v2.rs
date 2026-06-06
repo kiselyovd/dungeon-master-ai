@@ -315,7 +315,7 @@ async fn post_settings_v2_rebuilds_local_mistralrs_provider() {
     assert_eq!(res.status(), 200);
     assert_eq!(server.state.provider().name(), "local-mistralrs");
     assert!(
-        server.state.default_model().contains("qwen3.5-4b"),
+        server.state.default_model().contains("Qwen3.5-4B"),
         "expected default_model to derive from manifest filename, got {}",
         server.state.default_model(),
     );

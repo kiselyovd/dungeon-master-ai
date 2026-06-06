@@ -70,7 +70,7 @@ async fn local_mistralrs_provider_swap_via_settings() {
     let body = json!({
         "chat": {
             "active_provider_id": "local-mistralrs",
-            "active_model_id": "qwen3.5-2b-instruct-q4_k_m.gguf",
+            "active_model_id": "Qwen3.5-2B-Q4_K_M.gguf",
             "providers": {
                 "local-mistralrs": { "model_id": "qwen3_5_2b", "port": 37000 }
             },
@@ -114,6 +114,6 @@ async fn local_mistralrs_provider_swap_via_settings() {
     assert_eq!(server.state.provider().name(), "local-mistralrs");
     assert_eq!(
         server.state.default_model(),
-        "qwen3.5-2b-instruct-q4_k_m.gguf"
+        "Qwen3.5-2B-Q4_K_M.gguf"
     );
 }

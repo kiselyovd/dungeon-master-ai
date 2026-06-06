@@ -40,6 +40,7 @@ pub enum DownloadError {
     Cancelled,
 }
 
+#[derive(Debug)]
 pub struct DownloadResult {
     pub bytes_downloaded: u64,
     pub final_path: PathBuf,
@@ -49,6 +50,7 @@ pub async fn download_to(
     url: &str,
     dest: &Path,
     expected_sha256: &str,
+    token: Option<&str>,
     tx: Arc<broadcast::Sender<DownloadEvent>>,
 ) -> Result<DownloadResult, DownloadError> {
     let _ = tx;
@@ -62,6 +64,9 @@ pub async fn download_to(
         .unwrap_or(0);
 
     let mut req = client.get(url);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
     if starting_offset > 0 {
         req = req.header("Range", format!("bytes={}-", starting_offset));
     }
@@ -151,6 +156,7 @@ pub async fn download_diffusers_repo(
     hf_repo: &str,
     revision: &str,
     dest_dir: &Path,
+    token: Option<&str>,
     tx: Arc<broadcast::Sender<DownloadEvent>>,
 ) -> Result<DiffusersResult, DownloadError> {
     let tree_url = format!(
@@ -158,8 +164,11 @@ pub async fn download_diffusers_repo(
         endpoints.api_base
     );
     let client = reqwest::Client::new();
-    let entries: Vec<HfTreeEntry> = client
-        .get(&tree_url)
+    let mut tree_req = client.get(&tree_url);
+    if let Some(t) = token {
+        tree_req = tree_req.bearer_auth(t);
+    }
+    let entries: Vec<HfTreeEntry> = tree_req
         .send()
         .await?
         .error_for_status()?
@@ -176,14 +185,16 @@ pub async fn download_diffusers_repo(
     let semaphore = Arc::new(tokio::sync::Semaphore::new(4));
     let mut handles = Vec::new();
     let resolve_base = endpoints.resolve_base.clone();
+    let token_owned = token.map(|s| s.to_string());
     for relpath in files {
         let url = format!("{resolve_base}/{hf_repo}/resolve/{revision}/{relpath}");
         let dest = dest_dir.join(&relpath);
         let permit = semaphore.clone();
         let tx = tx.clone();
+        let token = token_owned.clone();
         handles.push(tokio::spawn(async move {
             let _p = permit.acquire_owned().await.expect("semaphore");
-            download_to(&url, &dest, "", tx).await
+            download_to(&url, &dest, "", token.as_deref(), tx).await
         }));
     }
     for h in handles {
@@ -221,9 +232,33 @@ mod tests {
         let dest = tmp.path().join("file.gguf");
         let url = format!("{}/file.gguf", server.uri());
         let (tx, _rx) = tokio::sync::broadcast::channel(8);
-        let result = download_to(&url, &dest, "", Arc::new(tx)).await.unwrap();
+        let result = download_to(&url, &dest, "", None, Arc::new(tx))
+            .await
+            .unwrap();
         assert_eq!(std::fs::read(&dest).unwrap(), payload);
         assert_eq!(result.bytes_downloaded, 11);
+    }
+
+    #[tokio::test]
+    async fn download_to_sends_bearer_token_when_present() {
+        use wiremock::matchers::header;
+
+        let server = MockServer::start().await;
+        let body = b"hello-weights".to_vec();
+        Mock::given(method("GET"))
+            .and(header("authorization", "Bearer secret-tok"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(body.clone()))
+            .mount(&server)
+            .await;
+
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("w.gguf");
+        let url = format!("{}/file", server.uri());
+        let (tx, _rx) = tokio::sync::broadcast::channel(8);
+        let res = download_to(&url, &dest, "", Some("secret-tok"), Arc::new(tx)).await;
+
+        assert!(res.is_ok(), "download with bearer token should succeed: {res:?}");
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
     }
 
     #[tokio::test]
@@ -242,6 +277,7 @@ mod tests {
             &url,
             &dest,
             "0000000000000000000000000000000000000000000000000000000000000000",
+            None,
             Arc::new(tx),
         )
         .await;
@@ -299,6 +335,7 @@ mod tests {
             "stabilityai/sdxl-test",
             "main",
             tmp.path(),
+            None,
             Arc::new(tx),
         )
         .await
@@ -335,7 +372,9 @@ mod tests {
         std::fs::write(&dest, b"abcde").unwrap();
         let url = format!("{}/file.gguf", server.uri());
         let (tx, _rx) = tokio::sync::broadcast::channel(8);
-        let result = download_to(&url, &dest, "", Arc::new(tx)).await.unwrap();
+        let result = download_to(&url, &dest, "", None, Arc::new(tx))
+            .await
+            .unwrap();
         assert_eq!(std::fs::read(&dest).unwrap(), full);
         assert_eq!(result.bytes_downloaded, 5);
     }

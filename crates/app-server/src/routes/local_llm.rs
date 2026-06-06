@@ -414,8 +414,8 @@ mod tests {
         // Each entry's hf_repo / hf_filename should match the manifest's
         // canonical values, not made-up strings.
         let four_b = s.iter().find(|e| e.id == "qwen3.5-4b").unwrap();
-        assert_eq!(four_b.hf_repo, "Qwen/Qwen3.5-4B-Instruct-GGUF");
-        assert_eq!(four_b.hf_filename, "qwen3.5-4b-instruct-q4_k_m.gguf");
+        assert_eq!(four_b.hf_repo, "unsloth/Qwen3.5-4B-GGUF");
+        assert_eq!(four_b.hf_filename, "Qwen3.5-4B-Q4_K_M.gguf");
     }
 
     #[test]
