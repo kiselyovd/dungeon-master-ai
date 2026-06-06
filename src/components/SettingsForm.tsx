@@ -19,6 +19,7 @@ import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
 import { activeProviderCaps } from '../utils/capabilities';
 import { isOssLicense } from '../utils/license';
+import { ErrorBoundary } from './ErrorBoundary';
 import { LicenseRestrictedBanner } from './LicenseRestrictedBanner';
 import { ModelSelector } from './ModelSelector';
 import styles from './SettingsForm.module.css';
@@ -205,120 +206,130 @@ export function SettingsForm({
 
       {activeTab === 'chat' && (
         <div role="tabpanel" id="settings-panel-chat" aria-labelledby="settings-tab-chat">
-          <Field label={t('provider_label')}>
-            {({ id }) => (
-              <select
-                id={id}
-                value={activeKind}
-                onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
-                className={styles.fullWidth}
-              >
-                {PROVIDER_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {t(
-                      `provider_${k.replace('-', '_')}` as
-                        | 'provider_anthropic'
-                        | 'provider_openai_compat'
-                        | 'provider_local_mistralrs',
-                    )}
-                  </option>
-                ))}
-              </select>
+          <ErrorBoundary level="section">
+            <Field label={t('provider_label')}>
+              {({ id }) => (
+                <select
+                  id={id}
+                  value={activeKind}
+                  onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
+                  className={styles.fullWidth}
+                >
+                  {PROVIDER_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {t(
+                        `provider_${k.replace('-', '_')}` as
+                          | 'provider_anthropic'
+                          | 'provider_openai_compat'
+                          | 'provider_local_mistralrs',
+                      )}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+
+            {activeKind === 'anthropic' && (
+              <AnthropicFields
+                draft={drafts.anthropic}
+                errors={errors}
+                onChange={(d) => setDrafts((prev) => ({ ...prev, anthropic: d }))}
+              />
             )}
-          </Field>
 
-          {activeKind === 'anthropic' && (
-            <AnthropicFields
-              draft={drafts.anthropic}
-              errors={errors}
-              onChange={(d) => setDrafts((prev) => ({ ...prev, anthropic: d }))}
-            />
-          )}
+            {activeKind === 'openai-compat' && (
+              <OpenaiCompatFields
+                draft={drafts['openai-compat']}
+                errors={errors}
+                onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
+              />
+            )}
 
-          {activeKind === 'openai-compat' && (
-            <OpenaiCompatFields
-              draft={drafts['openai-compat']}
-              errors={errors}
-              onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
-            />
-          )}
+            {activeKind === 'local-mistralrs' && (
+              <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
+            )}
 
-          {activeKind === 'local-mistralrs' && (
-            <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
-          )}
+            <ReasoningSection activeKind={activeKind} drafts={drafts} />
 
-          <ReasoningSection activeKind={activeKind} drafts={drafts} />
-
-          {onRequestCharacterRecreate && (
-            <section className={styles.characterSection}>
-              <h3>{t('character_section_title')}</h3>
-              <button
-                type="button"
-                className="dm-onboarding-btn dm-onboarding-btn-secondary"
-                onClick={() => onRequestCharacterRecreate()}
-              >
-                {t('recreate_character')}
-              </button>
-            </section>
-          )}
+            {onRequestCharacterRecreate && (
+              <section className={styles.characterSection}>
+                <h3>{t('character_section_title')}</h3>
+                <button
+                  type="button"
+                  className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                  onClick={() => onRequestCharacterRecreate()}
+                >
+                  {t('recreate_character')}
+                </button>
+              </section>
+            )}
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'local-llm' && (
         <div role="tabpanel" id="settings-panel-local-llm" aria-labelledby="settings-tab-local-llm">
-          <LocalLlmTab />
+          <ErrorBoundary level="section">
+            <LocalLlmTab />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'image' && (
         <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
-          <ImageTab
-            replicateApiKey={drafts.replicateApiKey}
-            onReplicateApiKeyChange={(replicateApiKey) =>
-              setDrafts((prev) => ({ ...prev, replicateApiKey }))
-            }
-          />
+          <ErrorBoundary level="section">
+            <ImageTab
+              replicateApiKey={drafts.replicateApiKey}
+              onReplicateApiKeyChange={(replicateApiKey) =>
+                setDrafts((prev) => ({ ...prev, replicateApiKey }))
+              }
+            />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'video' && (
         <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
-          <VideoTab />
+          <ErrorBoundary level="section">
+            <VideoTab />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'behavior' && (
         <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
-          <ModelTab
-            draft={{
-              systemPrompt: drafts.systemPrompt,
-              temperature: drafts.temperature,
-            }}
-            onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
-          />
-          <div className={styles.languages}>
-            <Field label={t('language_ui_label')}>
-              {({ id }) => (
-                <LanguageSelect
-                  id={id}
-                  value={drafts.uiLanguage}
-                  onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
-                />
-              )}
-            </Field>
-            <Field label={t('language_narration_label')}>
-              {({ id }) => (
-                <LanguageSelect
-                  id={id}
-                  value={drafts.narrationLanguage}
-                  onChange={(narrationLanguage) =>
-                    setDrafts((prev) => ({ ...prev, narrationLanguage }))
-                  }
-                />
-              )}
-            </Field>
-          </div>
-          <BehaviorExtras />
+          <ErrorBoundary level="section">
+            <ModelTab
+              draft={{
+                systemPrompt: drafts.systemPrompt,
+                temperature: drafts.temperature,
+              }}
+              onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+            />
+            <div className={styles.languages}>
+              <Field label={t('language_ui_label')}>
+                {({ id }) => (
+                  <LanguageSelect
+                    id={id}
+                    value={drafts.uiLanguage}
+                    onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
+                  />
+                )}
+              </Field>
+              <Field label={t('language_narration_label')}>
+                {({ id }) => (
+                  <LanguageSelect
+                    id={id}
+                    value={drafts.narrationLanguage}
+                    onChange={(narrationLanguage) =>
+                      setDrafts((prev) => ({ ...prev, narrationLanguage }))
+                    }
+                  />
+                )}
+              </Field>
+            </div>
+            <BehaviorExtras />
+          </ErrorBoundary>
         </div>
       )}
 

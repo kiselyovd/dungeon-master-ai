@@ -78,6 +78,23 @@ describe('ErrorBoundary - section level', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
   });
 
+  it('keeps sibling content mounted when one section throws (modal survives)', () => {
+    // This is the contract the Settings tab panels rely on: a fault in one
+    // panel renders the inline retry card without unmounting the surrounding
+    // modal chrome (unlike level="overlay", which renders null).
+    render(
+      <div>
+        <div data-testid="modal-chrome">chrome</div>
+        <ErrorBoundary level="section">
+          <Thrower shouldThrow={true} />
+        </ErrorBoundary>
+      </div>,
+    );
+    expect(screen.getByTestId('modal-chrome')).toBeTruthy();
+    expect(screen.getByTestId('error-boundary-section')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
+  });
+
   it('Retry button remounts children (clears error state)', () => {
     // We need a stateful wrapper that can flip shouldThrow off after mount
     let throwNow = true;

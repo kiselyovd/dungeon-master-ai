@@ -35,5 +35,6 @@
   "sort_recent": "Recently updated",
   "search_placeholder": "Search HuggingFace (e.g. qwen3 thinking)",
   "search": "Search",
-  "searching": "Searching..."
+  "searching": "Searching...",
+  "hf_add_failed": "Could not add model: {{error}}"
 }
