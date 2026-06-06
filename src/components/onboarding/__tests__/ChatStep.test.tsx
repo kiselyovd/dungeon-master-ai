@@ -182,6 +182,9 @@ describe('ChatStep - local-only preset', () => {
     // E1: the runtime is started before settings are POSTed (so the
     // local-mistralrs slice resolves a ready port instead of throwing).
     expect(mockedStartRuntimes).toHaveBeenCalledTimes(1);
+    // The fetched status snapshot must be written into the store so the
+    // synchronous postSettingsV2 read sees a ready runtime with a port.
+    expect(useStore.getState().localMode.runtime.llm).toEqual({ state: 'ready', port: 8765 });
     expect(mockedPostSettings).toHaveBeenCalledTimes(1);
     expect(mockedStartRuntimes.mock.invocationCallOrder[0]).toBeLessThan(
       mockedPostSettings.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,

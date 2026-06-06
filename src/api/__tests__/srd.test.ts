@@ -101,4 +101,31 @@ describe('fetchCompendium', () => {
     );
     await expect(fetchCompendium()).rejects.toBeInstanceOf(ChatError);
   });
+
+  it('clears the cache on failure so a retry re-fetches (E5)', async () => {
+    // First attempt fails - the rejected promise must NOT be cached.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 500 })),
+    );
+    await expect(fetchCompendium()).rejects.toBeInstanceOf(ChatError);
+
+    // Retry against a healthy backend (no resetSrdCacheForTests between calls):
+    // it only succeeds if fetchCompendium cleared its own cache on rejection.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const body = fixtures[new URL(url).pathname];
+        return body === undefined
+          ? new Response('not found', { status: 404 })
+          : new Response(JSON.stringify(body), {
+              status: 200,
+              headers: new Headers({ 'content-type': 'application/json' }),
+            });
+      }),
+    );
+    const c = await fetchCompendium();
+    expect(c.races[0]?.id).toBe('dwarf');
+  });
 });
