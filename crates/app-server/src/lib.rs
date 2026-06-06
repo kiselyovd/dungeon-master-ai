@@ -18,6 +18,7 @@ pub mod telemetry;
 pub mod testing;
 pub mod video;
 
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use std::sync::Arc;
@@ -140,6 +141,10 @@ pub fn router(state: AppState) -> Router {
         );
 
     r.with_state(state)
+        // Vision turns base64 up to 4 staged images into the /agent/turn body,
+        // which can exceed axum's 2 MB default and 413. Raise the cap so the
+        // staged-image limits in the composer are the real ceiling. [M11 F2]
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

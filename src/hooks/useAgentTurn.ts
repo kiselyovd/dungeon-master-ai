@@ -38,15 +38,15 @@ export function useAgentTurn() {
       const { campaignId, sessionId } = ensureSession();
 
       clearStreamEvents();
-      // The current user message is recorded text-only; the staged images ride
-      // a dedicated `images` wire field (the orchestrator attaches them to the
-      // turn it builds from player_message), so they reach the LLM exactly once
-      // without depending on history serialization. [F2]
+      // Snapshot history BEFORE appending the current turn: the backend
+      // orchestrator appends the current user message itself (from
+      // player_message + the dedicated `images` field), so including it here
+      // too would duplicate the turn in the LLM context. The local append is
+      // only for rendering. [F2 / review]
+      const history = useStore.getState().chat.messages;
       appendUser(text);
       const controller = new AbortController();
       beginStream(controller);
-
-      const history = useStore.getState().chat.messages;
 
       try {
         await streamAgentTurn({

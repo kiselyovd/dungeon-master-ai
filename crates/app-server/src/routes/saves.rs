@@ -160,8 +160,16 @@ pub async fn update_save(
     validate_kind(&body.kind)?;
     validate_tag(&body.tag)?;
     let envelope = envelope_for(&body.title, &body.summary, &body.tag, &body.kind);
-    let updated = save_update(state.db(), id, &body.title, &body.summary, &body.tag, &envelope)
-        .await?;
+    let updated = save_update(
+        state.db(),
+        id,
+        &body.kind,
+        &body.title,
+        &body.summary,
+        &body.tag,
+        &envelope,
+    )
+    .await?;
     if updated {
         Ok(StatusCode::NO_CONTENT)
     } else {

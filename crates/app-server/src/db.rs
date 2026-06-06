@@ -246,6 +246,7 @@ pub async fn save_delete(pool: &SqlitePool, save_id: Uuid) -> Result<bool, sqlx:
 pub async fn save_update(
     pool: &SqlitePool,
     save_id: Uuid,
+    kind: &str,
     title: &str,
     summary: &str,
     tag: &str,
@@ -255,10 +256,11 @@ pub async fn save_update(
     let state_json = serde_json::to_string(game_state).expect("serialize state");
     let result = sqlx::query(
         r#"UPDATE snapshots
-           SET title = ?2, summary = ?3, tag = ?4, game_state = ?5, created_at = ?6
+           SET kind = ?2, title = ?3, summary = ?4, tag = ?5, game_state = ?6, created_at = ?7
            WHERE id = ?1"#,
     )
     .bind(save_id.to_string())
+    .bind(kind)
     .bind(title)
     .bind(summary)
     .bind(tag)
