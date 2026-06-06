@@ -49,6 +49,9 @@ pub struct DownloadStateWire {
     pub progress: Option<f32>,
     #[serde(rename = "errorMessage", skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// True for a 401/403 HuggingFace failure; the picker offers a token action.
+    #[serde(rename = "authRequired")]
+    pub auth_required: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +82,8 @@ pub(crate) struct DownloadEventWire {
     pub(crate) total_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) reason: Option<String>,
+    /// True for a 401/403 HuggingFace failure (only meaningful on `kind: "failed"`).
+    pub(crate) auth_required: bool,
 }
 
 /// Translate a `ModelId` enum variant into the dotted wire id string used by
@@ -115,6 +120,7 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: Some(bytes_done),
                 total_bytes,
                 reason: None,
+                auth_required: false,
             })
         }
         DownloadEvent::Completed { id, .. } => {
@@ -125,9 +131,14 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: None,
                 total_bytes: None,
                 reason: None,
+                auth_required: false,
             })
         }
-        DownloadEvent::Failed { id, reason } => {
+        DownloadEvent::Failed {
+            id,
+            reason,
+            auth_required,
+        } => {
             let wire_id = wire_id_for_model(&id)?.to_owned();
             Some(DownloadEventWire {
                 id: wire_id,
@@ -135,6 +146,7 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: None,
                 total_bytes: None,
                 reason: Some(reason),
+                auth_required,
             })
         }
     }
@@ -241,16 +253,21 @@ pub async fn get_manifest(State(state): State<AppState>) -> Json<ManifestRespons
                         state: "downloading",
                         progress,
                         error_message: None,
+                        auth_required: false,
                     },
                 );
             }
-            DownloadStatus::Failed { reason } => {
+            DownloadStatus::Failed {
+                reason,
+                auth_required,
+            } => {
                 download_states.insert(
                     entry.id.clone(),
                     DownloadStateWire {
                         state: "error",
                         progress: None,
                         error_message: Some(reason),
+                        auth_required,
                     },
                 );
             }

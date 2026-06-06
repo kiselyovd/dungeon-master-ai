@@ -54,6 +54,7 @@
   "chat_local_download_done": "Модель готова - загрузка завершена.",
   "chat_local_already_exists": "Модель готова - уже установлена.",
   "chat_local_download_failed": "Ошибка загрузки. Попробуйте ещё раз.",
+  "chat_local_add_hf_token": "Добавить токен HuggingFace",
   "chat_cloud_desc": "Введите API-ключ Anthropic, чтобы использовать Claude в роли Мастера.",
   "chat_text_only_desc": "Введите API-ключ Anthropic или пропустите, чтобы настроить позже.",
   "retry": "Повторить",

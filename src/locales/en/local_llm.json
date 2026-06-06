@@ -36,5 +36,6 @@
   "search_placeholder": "Search HuggingFace (e.g. qwen3 thinking)",
   "search": "Search",
   "searching": "Searching...",
-  "hf_add_failed": "Could not add model: {{error}}"
+  "hf_add_failed": "Could not add model: {{error}}",
+  "add_hf_token": "Add HuggingFace token"
 }

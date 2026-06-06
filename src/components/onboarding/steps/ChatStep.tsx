@@ -21,6 +21,7 @@ import {
 } from '../../../state/providers';
 import { useStore } from '../../../state/useStore';
 import { Icons } from '../../../ui/Icons';
+import { HfTokenModal } from '../../settings/local-llm/HfTokenModal';
 import type { PresetId } from '../presets';
 
 // Wire id for the 4B model in the local-llm manifest.
@@ -52,6 +53,8 @@ function LocalOnlyChatStep({ onBack, onNext, titleId }: Omit<ChatStepProps, 'pre
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
+  const authRequired = downloadState.state === 'failed' && downloadState.authRequired;
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +176,15 @@ function LocalOnlyChatStep({ onBack, onNext, titleId }: Omit<ChatStepProps, 'pre
           {(isFailed || downloadError) && (
             <div className="dm-onboarding-form">
               <p className="dm-onboarding-form-error">{errorMessage}</p>
+              {authRequired && (
+                <button
+                  type="button"
+                  className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                  onClick={() => setTokenModalOpen(true)}
+                >
+                  {t('chat_local_add_hf_token')}
+                </button>
+              )}
               <button
                 type="button"
                 className="dm-onboarding-btn dm-onboarding-btn-secondary"
@@ -213,6 +225,14 @@ function LocalOnlyChatStep({ onBack, onNext, titleId }: Omit<ChatStepProps, 'pre
           <Icons.ChevronRight size={14} />
         </button>
       </div>
+      <HfTokenModal
+        open={tokenModalOpen}
+        onClose={() => setTokenModalOpen(false)}
+        onSaved={() => {
+          setTokenModalOpen(false);
+          void handleDownload();
+        }}
+      />
     </>
   );
 }

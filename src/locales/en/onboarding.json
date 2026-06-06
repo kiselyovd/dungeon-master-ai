@@ -54,6 +54,7 @@
   "chat_local_download_done": "Model ready - download complete.",
   "chat_local_already_exists": "Model ready - already installed.",
   "chat_local_download_failed": "Download failed. Please try again.",
+  "chat_local_add_hf_token": "Add HuggingFace token",
   "chat_cloud_desc": "Enter your Anthropic API key to use Claude as the Dungeon Master.",
   "chat_text_only_desc": "Enter your Anthropic API key, or skip to configure a provider later.",
   "retry": "Retry",

@@ -75,7 +75,7 @@ describe('ModelDownloadCard', () => {
         modelId="qwen3_5_4b"
         displayName="Qwen3.5-4B"
         sizeBytes={3e9}
-        state={{ state: 'failed', reason: 'network down' }}
+        state={{ state: 'failed', reason: 'network down', authRequired: false }}
         active={false}
         onSelect={vi.fn()}
         onDownload={vi.fn()}
@@ -83,5 +83,26 @@ describe('ModelDownloadCard', () => {
       />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent(/network down/);
+    expect(screen.queryByRole('button', { name: /hugging\s*face token/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the HF token button when a download fails with authRequired', () => {
+    render(
+      <ModelDownloadCard
+        modelId="qwen3_5_4b"
+        displayName="Qwen3.5-4B"
+        sizeBytes={3e9}
+        state={{
+          state: 'failed',
+          reason: 'HuggingFace authorization required',
+          authRequired: true,
+        }}
+        active={false}
+        onSelect={vi.fn()}
+        onDownload={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /hugging\s*face token/i })).toBeInTheDocument();
   });
 });

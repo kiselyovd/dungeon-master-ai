@@ -39,6 +39,7 @@ interface LocalLlmState {
     bytes_done?: number;
     total_bytes?: number;
     reason?: string;
+    auth_required?: boolean;
   }) => void;
 }
 
@@ -73,6 +74,7 @@ export const useLocalLlmStore = create<LocalLlmState>((set, get) => ({
           const ent: DownloadState = { state: coerceState(ds.state) };
           if (ds.progress !== undefined) ent.progress = ds.progress;
           if (ds.errorMessage !== undefined) ent.errorMessage = ds.errorMessage;
+          if (ds.authRequired !== undefined) ent.authRequired = ds.authRequired;
           return [id, ent];
         }),
       );
@@ -151,6 +153,7 @@ export const useLocalLlmStore = create<LocalLlmState>((set, get) => ({
         next.set(ev.id, {
           state: 'error',
           ...(ev.reason !== undefined ? { errorMessage: ev.reason } : {}),
+          authRequired: ev.auth_required ?? false,
         });
       }
       return { downloadStates: next, installedIds: nextInstalled };

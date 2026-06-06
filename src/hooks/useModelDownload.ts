@@ -18,7 +18,7 @@ export function useModelDownload(modelId: ModelId) {
     const resp = await fetch(await backendUrl(`/local/download/${modelId}`), { method: 'POST' });
     if (!resp.ok) {
       const reason = `download start failed: ${resp.status}`;
-      setDownloadState(modelId, { state: 'failed', reason });
+      setDownloadState(modelId, { state: 'failed', reason, authRequired: false });
       throw new Error(reason);
     }
     setDownloadState(modelId, { state: 'downloading', bytesDone: 0, totalBytes: null });
@@ -38,7 +38,11 @@ export function useModelDownload(modelId: ModelId) {
           setDownloadState(modelId, { state: 'completed', bytesTotal: data.bytes_total });
           es.close();
         } else if (data.kind === 'failed') {
-          setDownloadState(modelId, { state: 'failed', reason: data.reason ?? 'unknown' });
+          setDownloadState(modelId, {
+            state: 'failed',
+            reason: data.reason ?? 'unknown',
+            authRequired: data.auth_required ?? false,
+          });
           es.close();
         }
       } catch (err) {

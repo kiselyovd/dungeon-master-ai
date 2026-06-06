@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DownloadState, ModelId } from '../state/localMode';
 import styles from './ModelDownloadCard.module.css';
+import { HfTokenModal } from './settings/local-llm/HfTokenModal';
 
 interface Props {
   modelId: ModelId;
@@ -19,6 +21,7 @@ const formatGb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 
 export function ModelDownloadCard(p: Props) {
   const { t } = useTranslation('local_mode');
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const progressPct =
     p.state.state === 'downloading' && p.state.totalBytes
       ? Math.min(100, Math.round((p.state.bytesDone / p.state.totalBytes) * 100))
@@ -73,12 +76,25 @@ export function ModelDownloadCard(p: Props) {
             <span role="alert" className={styles.error}>
               {p.state.reason}
             </span>
+            {p.state.authRequired && (
+              <button type="button" onClick={() => setTokenModalOpen(true)}>
+                {t('add_hf_token')}
+              </button>
+            )}
             <button type="button" onClick={p.onDownload}>
               {t('download')}
             </button>
           </>
         )}
       </div>
+      <HfTokenModal
+        open={tokenModalOpen}
+        onClose={() => setTokenModalOpen(false)}
+        onSaved={() => {
+          setTokenModalOpen(false);
+          p.onDownload();
+        }}
+      />
     </div>
   );
 }

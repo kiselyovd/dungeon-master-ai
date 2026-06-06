@@ -25,6 +25,9 @@ pub enum DownloadEvent {
     Failed {
         id: ModelId,
         reason: String,
+        /// True when the failure was a 401/403 from HuggingFace; the frontend
+        /// uses this to surface an "Add HuggingFace token" affordance.
+        auth_required: bool,
     },
 }
 
@@ -36,6 +39,8 @@ pub enum DownloadError {
     Io(#[from] std::io::Error),
     #[error("sha256 mismatch: expected {expected}, got {actual}")]
     Sha256Mismatch { expected: String, actual: String },
+    #[error("HuggingFace authorization required")]
+    Unauthorized,
     #[error("cancelled")]
     Cancelled,
 }
@@ -70,7 +75,11 @@ pub async fn download_to(
     if starting_offset > 0 {
         req = req.header("Range", format!("bytes={}-", starting_offset));
     }
-    let resp = req.send().await?.error_for_status()?;
+    let resp = req.send().await?;
+    if matches!(resp.status().as_u16(), 401 | 403) {
+        return Err(DownloadError::Unauthorized);
+    }
+    let resp = resp.error_for_status()?;
     let _total = resp.content_length().map(|l| l + starting_offset);
 
     if let Some(parent) = dest.parent() {
@@ -168,12 +177,11 @@ pub async fn download_diffusers_repo(
     if let Some(t) = token {
         tree_req = tree_req.bearer_auth(t);
     }
-    let entries: Vec<HfTreeEntry> = tree_req
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    let tree_resp = tree_req.send().await?;
+    if matches!(tree_resp.status().as_u16(), 401 | 403) {
+        return Err(DownloadError::Unauthorized);
+    }
+    let entries: Vec<HfTreeEntry> = tree_resp.error_for_status()?.json().await?;
     let files: Vec<String> = entries
         .into_iter()
         .filter(|e| e.kind == "file")
@@ -259,6 +267,23 @@ mod tests {
 
         assert!(res.is_ok(), "download with bearer token should succeed: {res:?}");
         assert_eq!(std::fs::read(&dest).unwrap(), body);
+    }
+
+    #[tokio::test]
+    async fn download_to_maps_401_to_unauthorized() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/f"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("f");
+        let url = format!("{}/f", server.uri());
+        let (tx, _rx) = tokio::sync::broadcast::channel(8);
+        let res = download_to(&url, &dest, "", None, Arc::new(tx)).await;
+        assert!(matches!(res, Err(DownloadError::Unauthorized)), "got {res:?}");
     }
 
     #[tokio::test]

@@ -12,6 +12,7 @@
   "delete": "Delete",
   "use": "Use",
   "in_use": "In use",
+  "add_hf_token": "Add HuggingFace token",
   "llm_models": "LLM models",
   "image_model": "Image model",
   "vram_strategy": "VRAM strategy",

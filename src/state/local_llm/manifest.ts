@@ -26,6 +26,8 @@ export interface DownloadState {
   state: 'idle' | 'queued' | 'downloading' | 'verifying' | 'error';
   progress?: number;
   errorMessage?: string;
+  /** True for a 401/403 HuggingFace failure; the row offers a token action. */
+  authRequired?: boolean;
 }
 
 export interface MergedEntry extends SystemEntry {
@@ -34,6 +36,7 @@ export interface MergedEntry extends SystemEntry {
   downloadState?: DownloadState['state'];
   downloadProgress?: number;
   errorMessage?: string;
+  authRequired?: boolean;
 }
 
 function buildEntry<TSource extends 'system' | 'user'>(
@@ -50,6 +53,7 @@ function buildEntry<TSource extends 'system' | 'user'>(
   if (ds?.state !== undefined) merged.downloadState = ds.state;
   if (ds?.progress !== undefined) merged.downloadProgress = ds.progress;
   if (ds?.errorMessage !== undefined) merged.errorMessage = ds.errorMessage;
+  if (ds?.authRequired !== undefined) merged.authRequired = ds.authRequired;
   return merged;
 }
 

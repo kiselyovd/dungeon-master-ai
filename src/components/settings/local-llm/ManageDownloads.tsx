@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MergedEntry } from '../../../state/local_llm/manifest';
+import { HfTokenModal } from './HfTokenModal';
 import styles from './ManageDownloads.module.css';
 
 export interface ManageDownloadsProps {
@@ -10,6 +12,9 @@ export interface ManageDownloadsProps {
 
 export function ManageDownloads({ models, onDownload, onDelete }: ManageDownloadsProps) {
   const { t } = useTranslation('local_llm');
+  // The HF token is global; track which row opened the modal so we can retry
+  // that download once a token is saved.
+  const [tokenModalForId, setTokenModalForId] = useState<string | null>(null);
 
   return (
     <ul className={styles.list}>
@@ -57,11 +62,27 @@ export function ManageDownloads({ models, onDownload, onDelete }: ManageDownload
               </div>
             )}
             {m.downloadState === 'error' && (
-              <small className={styles.errorText}>{m.errorMessage ?? t('download_error')}</small>
+              <div className={styles.errorRow}>
+                <small className={styles.errorText}>{m.errorMessage ?? t('download_error')}</small>
+                {m.authRequired && (
+                  <button type="button" onClick={() => setTokenModalForId(m.id)}>
+                    {t('add_hf_token')}
+                  </button>
+                )}
+              </div>
             )}
           </li>
         );
       })}
+      <HfTokenModal
+        open={tokenModalForId !== null}
+        onClose={() => setTokenModalForId(null)}
+        onSaved={() => {
+          const id = tokenModalForId;
+          setTokenModalForId(null);
+          if (id) onDownload(id);
+        }}
+      />
     </ul>
   );
 }

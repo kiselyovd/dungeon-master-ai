@@ -2,7 +2,9 @@
 //! Wraps `download.rs` with cancellation, progress broadcast, and HF Hub URL
 //! resolution.
 
-use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent, HfEndpoints};
+use crate::models::download::{
+    download_diffusers_repo, download_to, DownloadError, DownloadEvent, HfEndpoints,
+};
 use crate::models::manifest::{manifest_for, ModelId, ModelKind, ModelManifest};
 use crate::secrets::SecretsRepo;
 use std::collections::HashMap;
@@ -24,6 +26,11 @@ pub enum DownloadStatus {
     },
     Failed {
         reason: String,
+        /// 401/403 from HuggingFace - the UI offers an "Add HuggingFace token"
+        /// action for these. `#[serde(default)]` keeps older serialized state
+        /// (and non-auth failures) deserializing to `false`.
+        #[serde(default)]
+        auth_required: bool,
     },
 }
 
@@ -106,15 +113,19 @@ impl DownloadManager {
                             });
                         }
                         Err(e) => {
+                            let auth_required = matches!(e, DownloadError::Unauthorized);
+                            let reason = e.to_string();
                             state.write().await.insert(
                                 id_for_task.clone(),
                                 DownloadStatus::Failed {
-                                    reason: e.to_string(),
+                                    reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_task,
-                                reason: e.to_string(),
+                                reason,
+                                auth_required,
                             });
                         }
                     }
@@ -150,15 +161,19 @@ impl DownloadManager {
                             });
                         }
                         Err(e) => {
+                            let auth_required = matches!(e, DownloadError::Unauthorized);
+                            let reason = e.to_string();
                             state.write().await.insert(
                                 id_for_task.clone(),
                                 DownloadStatus::Failed {
-                                    reason: e.to_string(),
+                                    reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_task,
-                                reason: e.to_string(),
+                                reason,
+                                auth_required,
                             });
                         }
                     }
@@ -204,10 +219,12 @@ impl DownloadManager {
                             .await
                             {
                                 Ok(mm) => Ok(g.bytes_downloaded + mm.bytes_downloaded),
-                                Err(e) => Err(e.to_string()),
+                                Err(e) => {
+                                    Err((e.to_string(), matches!(e, DownloadError::Unauthorized)))
+                                }
                             }
                         }
-                        Err(e) => Err(e.to_string()),
+                        Err(e) => Err((e.to_string(), matches!(e, DownloadError::Unauthorized))),
                     };
                     match outcome {
                         Ok(bytes_total) => {
@@ -220,16 +237,18 @@ impl DownloadManager {
                                 bytes_total,
                             });
                         }
-                        Err(reason) => {
+                        Err((reason, auth_required)) => {
                             state.write().await.insert(
                                 id_for_task,
                                 DownloadStatus::Failed {
                                     reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_event,
                                 reason,
+                                auth_required,
                             });
                         }
                     }
@@ -278,15 +297,19 @@ impl DownloadManager {
                     });
                 }
                 Err(e) => {
+                    let auth_required = matches!(e, DownloadError::Unauthorized);
+                    let reason = e.to_string();
                     state.write().await.insert(
                         id.clone(),
                         DownloadStatus::Failed {
-                            reason: e.to_string(),
+                            reason: reason.clone(),
+                            auth_required,
                         },
                     );
                     let _ = events.send(DownloadEvent::Failed {
                         id,
-                        reason: e.to_string(),
+                        reason,
+                        auth_required,
                     });
                 }
             }

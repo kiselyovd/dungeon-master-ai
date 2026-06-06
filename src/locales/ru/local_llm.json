@@ -36,5 +36,6 @@
   "search_placeholder": "Поиск HuggingFace (например qwen3 thinking)",
   "search": "Поиск",
   "searching": "Поиск...",
-  "hf_add_failed": "Не удалось добавить модель: {{error}}"
+  "hf_add_failed": "Не удалось добавить модель: {{error}}",
+  "add_hf_token": "Добавить токен HuggingFace"
 }
