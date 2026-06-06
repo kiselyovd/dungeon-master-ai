@@ -3,8 +3,39 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
 import { postDiscover } from '../../api/discovery';
+import { useLocalLlmStore } from '../../state/localLlm';
 import { useStore } from '../../state/useStore';
 import { SettingsForm, type SettingsSubmission } from '../SettingsForm';
+
+/**
+ * Seed the manifest-driven LocalLlmModelSelector store with the four Qwen
+ * variants installed. In jsdom `backendUrl` never resolves (no Tauri runtime),
+ * so the on-mount `loadManifest()` fetch rejects; its catch only sets
+ * loading/error and does not wipe this seed, so the picker renders from it.
+ */
+function seedInstalledLocalLlms() {
+  const sys = (id: string, display_name: string) => ({
+    id,
+    hf_repo: `unsloth/${id}-GGUF`,
+    hf_filename: `${id}.gguf`,
+    arch: 'qwen3',
+    quant: 'gguf-q4_k_m',
+    size_gb: 2.0,
+    license: 'apache-2.0',
+    display_name,
+  });
+  useLocalLlmStore.setState({
+    system: [
+      sys('qwen3.5-0.8b', 'Qwen3.5-0.8B Q4_K_M'),
+      sys('qwen3.5-2b', 'Qwen3.5-2B Q4_K_M'),
+      sys('qwen3.5-4b', 'Qwen3.5-4B Q4_K_M'),
+      sys('qwen3.5-9b', 'Qwen3.5-9B Q4_K_M'),
+    ],
+    user: [],
+    installedIds: new Set(['qwen3.5-0.8b', 'qwen3.5-2b', 'qwen3.5-4b', 'qwen3.5-9b']),
+    downloadStates: new Map(),
+  });
+}
 
 function setupFetchStub() {
   return vi.fn(
@@ -43,6 +74,14 @@ describe('SettingsForm', () => {
 
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
+    // The manifest-driven picker store is separate from the main store; clear
+    // it so a seed in one test does not leak into the next.
+    useLocalLlmStore.setState({
+      system: [],
+      user: [],
+      installedIds: new Set(),
+      downloadStates: new Map(),
+    });
     // The local-mistralrs panel mounts useLocalRuntimeStatus, which polls
     // /local/runtime/status on a 5 s interval. Stub fetch so the polling
     // does not fall through to undici and pollute test output.
@@ -64,12 +103,14 @@ describe('SettingsForm', () => {
 
   it('shows the local-mistralrs fields on the Local LLM tab', async () => {
     const user = userEvent.setup();
+    seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
 
     await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
-    // Model cards from the manifest render with a download button.
-    expect(screen.getByText(/Qwen3\.5-4B/i)).toBeInTheDocument();
+    // The manifest-driven picker renders a radio per installed model; the
+    // image model card (SDXL-Turbo) still renders below it.
+    expect(screen.getByRole('radio', { name: /Qwen3\.5-4B/i })).toBeInTheDocument();
     expect(screen.getByText(/SDXL-Turbo/i)).toBeInTheDocument();
     // Runtime controls are reachable from this tab without the keyboard
     // shortcut now.
@@ -81,28 +122,15 @@ describe('SettingsForm', () => {
 
   it('updates localMode.selectedLlm when the user picks a different model', async () => {
     const user = userEvent.setup();
-    // Pre-mark all LLMs as completed so the "Use" button is rendered.
-    useStore.setState((s) => ({
-      localMode: {
-        ...s.localMode,
-        downloads: {
-          qwen3_5_0_8b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_2b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_4b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_9b: { state: 'completed', bytesTotal: 1 },
-          sdxl_turbo: { state: 'completed', bytesTotal: 1 },
-        },
-      },
-    }));
+    // The legacy LOCAL_LLMS cards were removed in M11 Batch D; the active model
+    // is now picked from the manifest-driven LocalLlmModelSelector's radios.
+    seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
     await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
-    // Default selection is qwen3_5_4b - pick 0.8B from its card.
-    const cards = screen.getAllByRole('group');
-    const card = cards.find((c) => c.textContent?.includes('Qwen3.5-0.8B'));
-    if (!card) throw new Error('Qwen3.5-0.8B card not found');
-    const useBtn = card.querySelector('button[aria-pressed]') as HTMLButtonElement;
-    await user.click(useBtn);
+    // Default selection is qwen3_5_4b - pick the 0.8B radio from the picker.
+    const radio = screen.getByRole('radio', { name: /Qwen3\.5-0\.8B/i });
+    await user.click(radio);
 
     expect(useStore.getState().localMode.selectedLlm).toBe('qwen3_5_0_8b');
   });

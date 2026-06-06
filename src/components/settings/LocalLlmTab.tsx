@@ -6,7 +6,6 @@ import { useModelDownload } from '../../hooks/useModelDownload';
 import type { ModelId, VramStrategy } from '../../state/localMode';
 import { useStore } from '../../state/useStore';
 import { Field } from '../../ui/Field';
-import { CustomHfRepoModal } from '../CustomHfRepoModal';
 import { ModelDownloadCard } from '../ModelDownloadCard';
 import { RuntimeStatusPill } from '../RuntimeStatusPill';
 import styles from '../SettingsForm.module.css';
@@ -18,8 +17,9 @@ import { ModelSelector as LocalLlmModelSelector } from './local-llm/ModelSelecto
  * Settings -> Local LLM picker keep `localMode.selectedLlm` in sync with the
  * value the backend manifest understands.
  *
- * Custom HF ids fall through (return null) - selection there flows through the
- * separate `customLlmOverride` slot, not the manifest picker.
+ * Custom HF ids fall through (return null) - those are added through the HF
+ * search inside `LocalLlmModelSelector`, which persists them to the user
+ * manifest the backend picker reads.
  */
 const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
   qwen3_5_0_8b: 'qwen3.5-0.8b',
@@ -30,27 +30,6 @@ const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
 const WIRE_ID_TO_LOCAL_MODEL: Record<string, ModelId> = Object.fromEntries(
   Object.entries(LOCAL_MODEL_WIRE_ID).map(([k, v]) => [v as string, k as ModelId]),
 );
-
-interface LocalLlmEntry {
-  id: ModelId;
-  name: string;
-  size: number;
-  vram: number;
-  warn?: string;
-}
-
-const LOCAL_LLMS: readonly LocalLlmEntry[] = [
-  { id: 'qwen3_5_0_8b', name: 'Qwen3.5-0.8B Q4_K_M', size: 600e6, vram: 900e6 },
-  { id: 'qwen3_5_2b', name: 'Qwen3.5-2B Q4_K_M', size: 1.5e9, vram: 2.0e9 },
-  { id: 'qwen3_5_4b', name: 'Qwen3.5-4B Q4_K_M', size: 3.0e9, vram: 2.5e9 },
-  {
-    id: 'qwen3_5_9b',
-    name: 'Qwen3.5-9B Q4_K_M',
-    size: 6.5e9,
-    vram: 5.5e9,
-    warn: 'requires VRAM swap with image-gen',
-  },
-];
 
 const RUNTIME_RESET_DELAY_MS = 3500;
 type RuntimeActionStatus = 'idle' | 'pending' | 'error';
@@ -70,7 +49,6 @@ export function LocalLlmTab() {
   const { t } = useTranslation('settings');
   const { t: tLocal } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
-  const [customModalOpen, setCustomModalOpen] = useState(false);
   // Poll runtime status so the pills + the toWireConfig port lookup reflect
   // the current sidecar state. While the Local LLM panel is mounted we always
   // poll - the user is actively configuring it, so the original `enabled`
@@ -134,69 +112,26 @@ export function LocalLlmTab() {
     }
   }, [clearStopReset]);
 
-  // M9-DM Task 14: drop the new manifest-driven ModelSelector container in as
-  // a NEW section above the existing per-card controls. The legacy LOCAL_LLMS
-  // cards stay for one more commit; consolidation happens in a follow-up task
-  // once the HF search lands in Tasks 15-19.
+  // The manifest-driven selector is the single LLM surface: active picker,
+  // Manage Downloads (with the HF token row), and HF search that persists
+  // user-added models to the manifest the backend picker reads. The legacy
+  // LOCAL_LLMS cards + CustomHfRepoModal were removed in M11 Batch D.
   const activeWireId = LOCAL_MODEL_WIRE_ID[lm.selectedLlm] ?? null;
   const onActiveLocalChange = (wireId: string) => {
     const mapped = WIRE_ID_TO_LOCAL_MODEL[wireId];
     if (mapped) lm.selectModel(mapped);
-    // TODO(M9-DM): forward custom HF ids (not in LOCAL_MODEL_WIRE_ID) to the
-    // override slot here once HF search persists user manifests (Task 19).
   };
 
   return (
     <div className={styles.localFields}>
       <div className={styles.localHint}>{t('local_runtime_hint')}</div>
 
-      {/* TODO(M9-DM): consolidate the LOCAL_LLMS cards into this picker once
-          the download wiring lands in Task 19. */}
       <LocalLlmModelSelector
         activeId={activeWireId}
         onActiveChange={onActiveLocalChange}
         // TODO(M9-DM): plumb session.agentTurnInFlight once the session slice
         // exposes it; until then assume the user is not mid-turn (false).
         agentTurnInFlight={false}
-      />
-
-      <h3 className={styles.localHeading}>{tLocal('llm_models')}</h3>
-      {LOCAL_LLMS.map((m) => (
-        <LocalModelCard key={m.id} entry={m} isLlm />
-      ))}
-
-      <div className={styles.localCustomBlock}>
-        {lm.customLlmOverride ? (
-          <div className={styles.localCustomRow}>
-            <span className={styles.localCustomLabel}>
-              {lm.customLlmOverride.hf_repo}/{lm.customLlmOverride.gguf_filename}
-              {lm.customLlmOverride.mmproj_filename
-                ? ` (+${lm.customLlmOverride.mmproj_filename})`
-                : ''}
-            </span>
-            <button type="button" onClick={() => lm.setCustomLlmOverride(null)}>
-              {t('custom_modal_cancel')}
-            </button>
-          </div>
-        ) : (
-          <p className={styles.localCustomHelper}>{t('model_selector_custom_helper')}</p>
-        )}
-        <button
-          type="button"
-          className={styles.localCustomAddButton}
-          onClick={() => setCustomModalOpen(true)}
-        >
-          {t('model_selector_custom_add_button')}
-        </button>
-      </div>
-
-      <CustomHfRepoModal
-        open={customModalOpen}
-        onClose={() => setCustomModalOpen(false)}
-        onSave={(input) => {
-          lm.setCustomLlmOverride(input);
-          setCustomModalOpen(false);
-        }}
       />
 
       <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>

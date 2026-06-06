@@ -32,7 +32,7 @@ use app_domain::local_llm::manifest::{SystemEntry, UserEntry};
 /// root holds both the per-model directories and the manifest index). Falls
 /// back to `.` when the parent cannot be resolved, which can only happen for
 /// a degenerate root path like `/` that production configs never produce.
-fn user_manifest_path(state: &AppState) -> std::path::PathBuf {
+pub(crate) fn user_manifest_path(state: &AppState) -> std::path::PathBuf {
     let dir = state.models_dir();
     dir.parent()
         .unwrap_or(std::path::Path::new("."))

@@ -225,8 +225,14 @@ fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
 
 pub async fn get_manifest(State(state): State<AppState>) -> Json<ManifestResponse> {
     let system = system_catalog();
-    let user: Vec<UserEntry> = Vec::new();
-    // TODO(M9-DM): wire user manifest from secrets/HF search (Task 19).
+    // Read HF-search-added models so they reach the picker. The path is the
+    // same one POST /hf/manifest/add writes to (see routes::hf), so the read
+    // and write sides can never diverge. A missing/unreadable file is treated
+    // as "no user models", never an error.
+    let user: Vec<UserEntry> =
+        crate::hf::manifest::load_or_init(&crate::routes::hf::user_manifest_path(&state))
+            .map(|f| f.entries)
+            .unwrap_or_default();
 
     let manager = state.download_manager();
     let mut installed_ids: Vec<String> = Vec::new();
