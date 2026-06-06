@@ -40,8 +40,8 @@ mod tests {
     fn system_entry_round_trips_snake_case() {
         let s = SystemEntry {
             id: "qwen3.5-4b".into(),
-            hf_repo: "Qwen/Qwen3.5-4B-Instruct-GGUF".into(),
-            hf_filename: "qwen3.5-4b-instruct-q4_k_m.gguf".into(),
+            hf_repo: "unsloth/Qwen3.5-4B-GGUF".into(),
+            hf_filename: "Qwen3.5-4B-Q4_K_M.gguf".into(),
             arch: "qwen3".into(),
             quant: "gguf-q4_k_m".into(),
             size_gb: 3.0,

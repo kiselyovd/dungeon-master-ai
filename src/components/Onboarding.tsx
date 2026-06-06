@@ -29,8 +29,13 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
  */
 
 interface OnboardingProps {
-  /** Optional callback invoked after finalization; primarily for tests. */
-  onComplete?: () => void;
+  /**
+   * Optional callback invoked after finalization, with the preset the user
+   * completed. App.tsx uses the preset to route the `manual` preset straight
+   * to Settings (it configures nothing, so it would otherwise land on the
+   * blocking PreflightModal). [E2]
+   */
+  onComplete?: (preset: PresetId) => void;
   /**
    * Called when the user chooses "Build from scratch" on the hero step.
    * App.tsx uses this to open CharacterWizard in initial mode.
@@ -70,7 +75,7 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
   const finalize = (): void => {
     completeOnboarding();
-    onComplete?.();
+    onComplete?.(preset);
   };
 
   // Step label lookup: each step maps to an i18n key.
@@ -126,38 +131,40 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
           ))}
         </ol>
 
-        {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
-        {currentStep === 'preset' && (
-          <PresetStep
-            titleId={titleId}
-            preset={preset}
-            onPresetChange={(p) => {
-              setPreset(p);
-              // Re-clamp the step index when preset changes shrink the sequence.
-              setStepIndex((i) => {
-                const newSteps = computeSteps(p);
-                return Math.min(i, newSteps.length - 1);
-              });
-            }}
-            onBack={back}
-            onNext={next}
-          />
-        )}
-        {currentStep === 'chat' && (
-          <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-        )}
-        {currentStep === 'image' && (
-          <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-        )}
-        {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
-        {currentStep === 'hero' && (
-          <HeroStep
-            titleId={titleId}
-            onBack={back}
-            onNext={next}
-            {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
-          />
-        )}
+        <div className="dm-onboarding-body">
+          {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
+          {currentStep === 'preset' && (
+            <PresetStep
+              titleId={titleId}
+              preset={preset}
+              onPresetChange={(p) => {
+                setPreset(p);
+                // Re-clamp the step index when preset changes shrink the sequence.
+                setStepIndex((i) => {
+                  const newSteps = computeSteps(p);
+                  return Math.min(i, newSteps.length - 1);
+                });
+              }}
+              onBack={back}
+              onNext={next}
+            />
+          )}
+          {currentStep === 'chat' && (
+            <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+          )}
+          {currentStep === 'image' && (
+            <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
+          )}
+          {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
+          {currentStep === 'hero' && (
+            <HeroStep
+              titleId={titleId}
+              onBack={back}
+              onNext={next}
+              {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

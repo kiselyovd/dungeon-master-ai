@@ -164,6 +164,10 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
 
   const initiative = abilities.dex.mod;
   const speedFt = race ? race.speed : null;
+  // Unarmored AC (PHB 5e: 10 + DEX modifier). Armor-derived AC is a later
+  // enhancement; this replaces the previous hardcoded null so wizard-built
+  // characters commit a real AC instead of the EMPTY_PC default of 10.
+  const ac = 10 + abilities.dex.mod;
 
   const items: LiveSheetInventoryItem[] = [];
   for (const slot of draft.equipmentSlots) {
@@ -199,7 +203,7 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
     level: 1,
     hp,
     hpMax,
-    ac: null,
+    ac,
     initiative,
     speedFt,
     proficiencyBonus,

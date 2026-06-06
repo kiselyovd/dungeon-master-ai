@@ -187,6 +187,14 @@ describe('pc slice additive setters', () => {
     expect(store.getState().pc.abilities.int).toBe(17);
   });
 
+  it('replaceFromDraft persists the generated portraitUrl (E4)', () => {
+    const store = buildStore();
+    store
+      .getState()
+      .pc.replaceFromDraft({ name: 'Lae', portraitUrl: 'data:image/png;base64,AAAA' });
+    expect(store.getState().pc.portraitUrl).toBe('data:image/png;base64,AAAA');
+  });
+
   it('replaceFromDraft preserves action functions on the slice', () => {
     const store = buildStore();
     const beforeSetHp = store.getState().pc.setHp;

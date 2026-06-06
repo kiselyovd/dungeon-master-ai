@@ -74,12 +74,20 @@ export function CharacterWizard({
   const setActiveTab = useStore((s) => s.charCreation.setActiveTab);
   const draft = useStore((s) => s.charCreation);
   const [compendium, setCompendium] = useState<Compendium | null>(null);
+  const [compendiumError, setCompendiumError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadCompendium = useCallback(() => {
+    setCompendiumError(null);
     fetchCompendium()
       .then(setCompendium)
-      .catch(() => {});
+      .catch((err: unknown) => {
+        setCompendiumError(err instanceof Error ? err.message : String(err));
+      });
   }, []);
+
+  useEffect(() => {
+    loadCompendium();
+  }, [loadCompendium]);
 
   const sheet = compendium ? computeLiveSheet(draft, compendium) : null;
 
@@ -120,6 +128,19 @@ export function CharacterWizard({
         ))}
       </div>
       <main className="dm-wizard-panel">
+        {!compendium && compendiumError !== null && (
+          <div className="dm-wizard-card" role="alert">
+            <h3>{t('compendium_error_title')}</h3>
+            <p>{t('compendium_error_body')}</p>
+            <button
+              type="button"
+              className="dm-onboarding-btn dm-onboarding-btn-secondary"
+              onClick={loadCompendium}
+            >
+              {t('compendium_retry')}
+            </button>
+          </div>
+        )}
         {compendium && activeTab === 'class' && <ClassTab compendium={compendium} />}
         {compendium && activeTab === 'race' && <RaceTab compendium={compendium} />}
         {compendium && activeTab === 'background' && <BackgroundTab compendium={compendium} />}

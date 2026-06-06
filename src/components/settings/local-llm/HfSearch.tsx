@@ -1,5 +1,5 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addManifest, type HfModel, type SearchParams } from '../../../api/hf';
 import { useHfSearchStore } from '../../../state/hfSearch';
@@ -68,6 +68,7 @@ export function HfSearch() {
   const setParam = useHfSearchStore((s) => s.setParam);
   const runSearch = useHfSearchStore((s) => s.runSearch);
   const repoll = useHfSearchStore((s) => s.repollGatedCards);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => {
@@ -109,12 +110,18 @@ export function HfSearch() {
         }}
       />
       {error && <p className={styles.error}>{error}</p>}
+      {addError && (
+        <p className={styles.error} role="alert">
+          {t('hf_add_failed', { error: addError })}
+        </p>
+      )}
       <div>
         {results.map((m) => (
           <HfResultCard
             key={m.repo_id}
             model={m}
             onDownload={(model, filename, force) => {
+              setAddError(null);
               void addManifest({
                 repo_id: model.repo_id,
                 hf_filename: filename,
@@ -124,6 +131,8 @@ export function HfSearch() {
                 license: deriveLicense(model.tags),
                 display_name: model.repo_id,
                 force,
+              }).catch((e: unknown) => {
+                setAddError(e instanceof Error ? e.message : String(e));
               });
             }}
             onOpenHf={(repoId) => {

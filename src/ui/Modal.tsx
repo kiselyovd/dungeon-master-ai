@@ -112,7 +112,7 @@ export function Modal({
         <h2 id={titleId} className={styles.title}>
           {title}
         </h2>
-        <div>{children}</div>
+        <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>

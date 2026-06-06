@@ -18,6 +18,11 @@ export interface SavesData {
   list: SaveSummary[];
   /** ISO timestamp of the last successful quick save, used by the Saved-now toast */
   lastQuickSaveAt: string | null;
+  /**
+   * Last save/delete failure message, surfaced as an error toast. Cleared on
+   * the next successful save mutation. Transient (not persisted). [F3]
+   */
+  lastSaveError: string | null;
 }
 
 export interface SavesActions {
@@ -26,6 +31,7 @@ export interface SavesActions {
   setList: (list: SaveSummary[]) => void;
   selectSave: (id: string | null) => void;
   setLastQuickSaveAt: (iso: string | null) => void;
+  setLastSaveError: (message: string | null) => void;
 }
 
 export interface SavesSlice {
@@ -38,6 +44,7 @@ export const createSavesSlice: StateCreator<SavesSlice, [], [], SavesSlice> = (s
     selectedSaveId: null,
     list: [],
     lastQuickSaveAt: null,
+    lastSaveError: null,
     open: () => set((s) => ({ saves: { ...s.saves, isOpen: true } })),
     close: () => set((s) => ({ saves: { ...s.saves, isOpen: false } })),
     setList: (list) =>
@@ -51,5 +58,6 @@ export const createSavesSlice: StateCreator<SavesSlice, [], [], SavesSlice> = (s
       }),
     selectSave: (id) => set((s) => ({ saves: { ...s.saves, selectedSaveId: id } })),
     setLastQuickSaveAt: (iso) => set((s) => ({ saves: { ...s.saves, lastQuickSaveAt: iso } })),
+    setLastSaveError: (message) => set((s) => ({ saves: { ...s.saves, lastSaveError: message } })),
   },
 });

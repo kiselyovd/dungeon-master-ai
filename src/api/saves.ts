@@ -91,6 +91,17 @@ export async function deleteSaveById(saveId: string): Promise<void> {
   if (!resp.ok) throw await readError(resp, 'delete save');
 }
 
+/** Overwrite an existing save's metadata in place (PUT /saves/{id}). [F3] */
+export async function updateSaveById(saveId: string, body: CreateSaveRequest): Promise<void> {
+  const url = await backendUrl(`/saves/${encodeURIComponent(saveId)}`);
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw await readError(resp, 'overwrite save');
+}
+
 /**
  * A single chat message as returned by GET /sessions/{id}/messages.
  * Mirrors the backend `ChatMessage` enum serialized with `serde(tag = "role",

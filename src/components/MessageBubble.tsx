@@ -196,6 +196,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const { t } = useTranslation('chat');
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
+  const [journalSaved, setJournalSaved] = useState(false);
 
   // Narrator drop-cap fires on finalised assistant bubbles; streaming output
   // would otherwise re-trigger the cap glyph on every token, which thrashes.
@@ -244,6 +245,9 @@ export function MessageBubble({
       entry_html: plainTextToEntryHtml(text),
       created_at: new Date().toISOString(),
     });
+    // Transient confirmation so the user knows the entry landed in the journal. [F4]
+    setJournalSaved(true);
+    window.setTimeout(() => setJournalSaved(false), 2000);
   };
 
   return (
@@ -285,6 +289,11 @@ export function MessageBubble({
             >
               <Icons.BookOpen size={14} />
             </button>
+            {journalSaved && (
+              <span className={styles.savedHint} role="status" aria-live="polite">
+                {t('journal_saved')}
+              </span>
+            )}
           </div>
         )}
       </article>

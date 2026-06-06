@@ -6,6 +6,7 @@ import type { TestChatTurn } from '../../state/charCreation';
 import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
 import { DmConfirmModal } from '../DmConfirmModal';
+import { computeLiveSheet } from './computeLiveSheet';
 import {
   computeGoldRows,
   mergeInventoryRows,
@@ -113,6 +114,11 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       ...goldRows,
     ]);
 
+    // Derive the real combat stats from the same live-sheet math the preview
+    // uses, so a wizard-built character commits non-zero HP and a real AC
+    // instead of the EMPTY_PC defaults (hp 0/0, ac 10, initiative 0).
+    const sheet = computeLiveSheet(draft, compendium);
+
     replaceFromDraft({
       heroClass: draft.classId,
       name: draft.name || 'Hero',
@@ -122,6 +128,13 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       alignment: draft.alignment,
       level: 1,
       abilities: draft.abilities,
+      hp: sheet.hp ?? 0,
+      hpMax: sheet.hpMax ?? 0,
+      ac: sheet.ac ?? 10,
+      initiative: sheet.initiative ?? 0,
+      speedFt: sheet.speedFt ?? 30,
+      proficiencyBonus: sheet.proficiencyBonus,
+      portraitUrl: draft.portraitUrl,
       inventory,
     });
     resetDraft();

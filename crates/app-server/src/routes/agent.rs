@@ -20,7 +20,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
-use app_llm::{ChatMessage, ToolCall, ToolResult};
+use app_llm::{ChatMessage, MessagePart, ToolCall, ToolResult};
 
 use crate::agent::orchestrator::{AgentEvent, AgentOrchestrator, AgentTurnRequest};
 use crate::error::AppError;
@@ -34,6 +34,10 @@ pub struct AgentTurnHttpRequest {
     pub history: Vec<ChatMessage>,
     /// Override model for this request (optional; falls back to AppState's AgentConfig).
     pub model: Option<String>,
+    /// Image attachments staged for this turn (vision). Empty/omitted for
+    /// text-only turns. [M11 F2]
+    #[serde(default)]
+    pub images: Vec<MessagePart>,
 }
 
 #[tracing::instrument(skip_all, fields(session_id = %req.session_id, campaign_id = %req.campaign_id))]
@@ -53,11 +57,22 @@ pub async fn post_agent_turn(
         config.model = model;
     }
     let retriever = state.srd_retriever();
+    let image_provider = state.image_provider();
     let pool = state.db().clone();
 
     // Persist user message before the orchestrator runs. Best-effort.
     let session_id_str = req.session_id.to_string();
-    let user_msg = ChatMessage::user_text(req.player_message.clone());
+    // Persist the user turn with any image parts so a reloaded session shows
+    // the same multimodal message the LLM saw (F2).
+    let user_msg = if req.images.is_empty() {
+        ChatMessage::user_text(req.player_message.clone())
+    } else {
+        let mut parts = vec![MessagePart::Text {
+            text: req.player_message.clone(),
+        }];
+        parts.extend(req.images.iter().cloned());
+        ChatMessage::User { parts }
+    };
     if let Err(e) = crate::db::insert_message(&pool, &session_id_str, &user_msg).await {
         tracing::warn!(err = %e, "failed to persist user message");
     }
@@ -67,13 +82,15 @@ pub async fn post_agent_turn(
         session_id: req.session_id,
         player_message: req.player_message,
         history: req.history,
+        images: req.images,
     };
 
     let (tx, rx) = mpsc::channel::<AgentEvent>(64);
 
     let pool_for_orch = pool.clone();
     tokio::spawn(async move {
-        let orch = AgentOrchestrator::new(provider, pool_for_orch, config, retriever);
+        let orch =
+            AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }
@@ -116,6 +133,10 @@ fn persist_event(
     match ev {
         AgentEvent::ReasoningText { .. } => {
             // Thinking/reasoning text is transient UI-only; not persisted to history.
+        }
+        AgentEvent::ImageGenerated { .. } => {
+            // Transient: the generated image is streamed to the UI, not
+            // persisted to chat history.
         }
         AgentEvent::TextDelta { text } => {
             if let Ok(mut s) = state.lock() {
@@ -220,6 +241,20 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             .event("reasoning_text")
             .json_data(serde_json::json!({ "text": text }))
             .expect("reasoning_text json"),
+        AgentEvent::ImageGenerated {
+            tool_call_id,
+            round,
+            mime_type,
+            image_b64,
+        } => Event::default()
+            .event("image_generated")
+            .json_data(serde_json::json!({
+                "tool_call_id": tool_call_id,
+                "round": round,
+                "mime_type": mime_type,
+                "image_b64": image_b64,
+            }))
+            .expect("image_generated json"),
         AgentEvent::TextDelta { text } => Event::default()
             .event("text_delta")
             .json_data(serde_json::json!({ "text": text }))

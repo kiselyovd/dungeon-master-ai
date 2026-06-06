@@ -4,11 +4,10 @@ import { imageEntryForPreset, VIDEO_CATALOG } from '../api/providers-catalog';
 import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
 import type { ModelId } from '../state/localMode';
 import {
-  type AnthropicConfig,
   assertNeverProvider,
-  DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_LOCAL_CONTEXT_WINDOW,
   type LocalMistralRsConfig,
+  OPENROUTER_BASE_URL,
   type OpenaiCompatConfig,
   type ProviderConfig,
   type ProviderKind,
@@ -19,12 +18,13 @@ import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
 import { activeProviderCaps } from '../utils/capabilities';
 import { isOssLicense } from '../utils/license';
+import { ErrorBoundary } from './ErrorBoundary';
 import { LicenseRestrictedBanner } from './LicenseRestrictedBanner';
 import { ModelSelector } from './ModelSelector';
 import styles from './SettingsForm.module.css';
 import { LocalLlmTab } from './settings/LocalLlmTab';
 
-const PROVIDER_KINDS: readonly ProviderKind[] = ['anthropic', 'openai-compat', 'local-mistralrs'];
+const PROVIDER_KINDS: readonly ProviderKind[] = ['openai-compat', 'local-mistralrs'];
 
 export type Tab = 'chat' | 'local-llm' | 'image' | 'video' | 'behavior';
 const TAB_ORDER: readonly Tab[] = ['chat', 'local-llm', 'image', 'video', 'behavior'];
@@ -53,8 +53,9 @@ interface SettingsFormProps {
  * Multi-provider Settings form.
  *
  * The form keeps each provider kind's draft state independent so the user
- * can flip between Anthropic, OpenAI-compat, and local-mistralrs without
- * losing what they've typed. The local-mistralrs sub-form mirrors the
+ * can flip between the OpenAI-compatible cloud provider and local-mistralrs
+ * without losing what they've typed (native Anthropic was removed in M11 Batch
+ * D.5). The local-mistralrs sub-form mirrors the
  * Ctrl+Shift+M LocalModeModal (model picker + VRAM strategy + runtime
  * controls) so the embedded provider can be configured from Settings.
  *
@@ -205,120 +206,121 @@ export function SettingsForm({
 
       {activeTab === 'chat' && (
         <div role="tabpanel" id="settings-panel-chat" aria-labelledby="settings-tab-chat">
-          <Field label={t('provider_label')}>
-            {({ id }) => (
-              <select
-                id={id}
-                value={activeKind}
-                onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
-                className={styles.fullWidth}
-              >
-                {PROVIDER_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {t(
-                      `provider_${k.replace('-', '_')}` as
-                        | 'provider_anthropic'
-                        | 'provider_openai_compat'
-                        | 'provider_local_mistralrs',
-                    )}
-                  </option>
-                ))}
-              </select>
+          <ErrorBoundary level="section">
+            <Field label={t('provider_label')}>
+              {({ id }) => (
+                <select
+                  id={id}
+                  value={activeKind}
+                  onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
+                  className={styles.fullWidth}
+                >
+                  {PROVIDER_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {t(
+                        `provider_${k.replace('-', '_')}` as
+                          | 'provider_openai_compat'
+                          | 'provider_local_mistralrs',
+                      )}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+
+            {activeKind === 'openai-compat' && (
+              <OpenaiCompatFields
+                draft={drafts['openai-compat']}
+                errors={errors}
+                onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
+              />
             )}
-          </Field>
 
-          {activeKind === 'anthropic' && (
-            <AnthropicFields
-              draft={drafts.anthropic}
-              errors={errors}
-              onChange={(d) => setDrafts((prev) => ({ ...prev, anthropic: d }))}
-            />
-          )}
+            {activeKind === 'local-mistralrs' && (
+              <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
+            )}
 
-          {activeKind === 'openai-compat' && (
-            <OpenaiCompatFields
-              draft={drafts['openai-compat']}
-              errors={errors}
-              onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
-            />
-          )}
+            <ReasoningSection activeKind={activeKind} drafts={drafts} />
 
-          {activeKind === 'local-mistralrs' && (
-            <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
-          )}
-
-          <ReasoningSection activeKind={activeKind} drafts={drafts} />
-
-          {onRequestCharacterRecreate && (
-            <section className={styles.characterSection}>
-              <h3>{t('character_section_title')}</h3>
-              <button
-                type="button"
-                className="dm-onboarding-btn dm-onboarding-btn-secondary"
-                onClick={() => onRequestCharacterRecreate()}
-              >
-                {t('recreate_character')}
-              </button>
-            </section>
-          )}
+            {onRequestCharacterRecreate && (
+              <section className={styles.characterSection}>
+                <h3>{t('character_section_title')}</h3>
+                <button
+                  type="button"
+                  className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                  onClick={() => onRequestCharacterRecreate()}
+                >
+                  {t('recreate_character')}
+                </button>
+              </section>
+            )}
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'local-llm' && (
         <div role="tabpanel" id="settings-panel-local-llm" aria-labelledby="settings-tab-local-llm">
-          <LocalLlmTab />
+          <ErrorBoundary level="section">
+            <LocalLlmTab />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'image' && (
         <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
-          <ImageTab
-            replicateApiKey={drafts.replicateApiKey}
-            onReplicateApiKeyChange={(replicateApiKey) =>
-              setDrafts((prev) => ({ ...prev, replicateApiKey }))
-            }
-          />
+          <ErrorBoundary level="section">
+            <ImageTab
+              replicateApiKey={drafts.replicateApiKey}
+              onReplicateApiKeyChange={(replicateApiKey) =>
+                setDrafts((prev) => ({ ...prev, replicateApiKey }))
+              }
+            />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'video' && (
         <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
-          <VideoTab />
+          <ErrorBoundary level="section">
+            <VideoTab />
+          </ErrorBoundary>
         </div>
       )}
 
       {activeTab === 'behavior' && (
         <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
-          <ModelTab
-            draft={{
-              systemPrompt: drafts.systemPrompt,
-              temperature: drafts.temperature,
-            }}
-            onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
-          />
-          <div className={styles.languages}>
-            <Field label={t('language_ui_label')}>
-              {({ id }) => (
-                <LanguageSelect
-                  id={id}
-                  value={drafts.uiLanguage}
-                  onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
-                />
-              )}
-            </Field>
-            <Field label={t('language_narration_label')}>
-              {({ id }) => (
-                <LanguageSelect
-                  id={id}
-                  value={drafts.narrationLanguage}
-                  onChange={(narrationLanguage) =>
-                    setDrafts((prev) => ({ ...prev, narrationLanguage }))
-                  }
-                />
-              )}
-            </Field>
-          </div>
-          <BehaviorExtras />
+          <ErrorBoundary level="section">
+            <ModelTab
+              draft={{
+                systemPrompt: drafts.systemPrompt,
+                temperature: drafts.temperature,
+              }}
+              onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+            />
+            <div className={styles.languages}>
+              <Field label={t('language_ui_label')}>
+                {({ id }) => (
+                  <LanguageSelect
+                    id={id}
+                    value={drafts.uiLanguage}
+                    onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
+                  />
+                )}
+              </Field>
+              <Field label={t('language_narration_label')}>
+                {({ id }) => (
+                  <LanguageSelect
+                    id={id}
+                    value={drafts.narrationLanguage}
+                    onChange={(narrationLanguage) =>
+                      setDrafts((prev) => ({ ...prev, narrationLanguage }))
+                    }
+                  />
+                )}
+              </Field>
+            </div>
+            <BehaviorExtras />
+          </ErrorBoundary>
         </div>
       )}
 
@@ -328,58 +330,6 @@ export function SettingsForm({
 }
 
 // ---- Sub-forms per provider --------------------------------------------
-
-interface AnthropicDraft {
-  apiKey: string;
-  model: string;
-}
-
-function AnthropicFields({
-  draft,
-  errors,
-  onChange,
-}: {
-  draft: AnthropicDraft;
-  errors: DraftErrors;
-  onChange: (d: AnthropicDraft) => void;
-}) {
-  const { t } = useTranslation('settings');
-  const discovery = useDiscoverProvider({
-    providerId: 'anthropic',
-    apiKey: draft.apiKey,
-  });
-  return (
-    <>
-      <Field label={t('api_key_label')} error={errors.apiKey}>
-        {(p) => (
-          <input
-            {...p}
-            type="password"
-            autoComplete="off"
-            value={draft.apiKey}
-            onChange={(e) => onChange({ ...draft, apiKey: e.target.value })}
-            placeholder={t('api_key_placeholder')}
-            className={styles.fullWidth}
-          />
-        )}
-      </Field>
-      <Field label={t('model_label')} error={errors.model}>
-        {() => (
-          <ModelSelector
-            value={draft.model}
-            onChange={(model) => onChange({ ...draft, model })}
-            models={discovery.models}
-            status={discovery.status}
-            error={discovery.error}
-            onDiscover={discovery.discover}
-            lastCachedAt={discovery.lastCachedAt}
-            placeholder={DEFAULT_ANTHROPIC_MODEL}
-          />
-        )}
-      </Field>
-    </>
-  );
-}
 
 interface OpenaiCompatDraft {
   baseUrl: string;
@@ -411,7 +361,7 @@ function OpenaiCompatFields({
             type="url"
             value={draft.baseUrl}
             onChange={(e) => onChange({ ...draft, baseUrl: e.target.value })}
-            placeholder="http://localhost:1234/v1"
+            placeholder={OPENROUTER_BASE_URL}
             className={styles.fullWidth}
           />
         )}
@@ -533,7 +483,6 @@ function ModelTab({
 // ---- Draft state shape + validation ------------------------------------
 
 interface DraftState {
-  anthropic: AnthropicDraft;
   'openai-compat': OpenaiCompatDraft;
   uiLanguage: 'en' | 'ru';
   narrationLanguage: 'en' | 'ru';
@@ -549,22 +498,17 @@ interface DraftErrors {
 }
 
 function initialDrafts(slice: {
-  providers: { anthropic: AnthropicConfig | null; 'openai-compat': OpenaiCompatConfig | null };
+  providers: { 'openai-compat': OpenaiCompatConfig | null };
   uiLanguage: 'en' | 'ru';
   narrationLanguage: 'en' | 'ru';
   systemPrompt: string;
   temperature: number;
   replicateApiKey: string | null;
 }): DraftState {
-  const a = slice.providers.anthropic;
   const o = slice.providers['openai-compat'];
   return {
-    anthropic: {
-      apiKey: a?.apiKey ?? '',
-      model: a?.model ?? DEFAULT_ANTHROPIC_MODEL,
-    },
     'openai-compat': {
-      baseUrl: o?.baseUrl ?? '',
+      baseUrl: o?.baseUrl ?? OPENROUTER_BASE_URL,
       apiKey: o?.apiKey ?? '',
       model: o?.model ?? '',
     },
@@ -584,15 +528,6 @@ function buildConfig(
   localSelectedLlm: ModelId,
 ): BuildResult {
   switch (kind) {
-    case 'anthropic': {
-      const errors: DraftErrors = {};
-      const apiKey = parseApiKey(drafts.anthropic.apiKey);
-      if (apiKey === null) errors.apiKey = 'required';
-      const model = drafts.anthropic.model.trim();
-      if (model.length === 0) errors.model = 'required';
-      if (apiKey === null || model.length === 0) return { ok: false, errors };
-      return { ok: true, config: { kind: 'anthropic', apiKey, model } };
-    }
     case 'openai-compat': {
       const errors: DraftErrors = {};
       const baseUrl = parseBaseUrl(drafts['openai-compat'].baseUrl);
@@ -765,12 +700,7 @@ function ReasoningSection({
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
 
-  const modelId =
-    activeKind === 'anthropic'
-      ? drafts.anthropic.model
-      : activeKind === 'openai-compat'
-        ? drafts['openai-compat'].model
-        : '';
+  const modelId = activeKind === 'openai-compat' ? drafts['openai-compat'].model : '';
 
   const caps = activeProviderCaps(activeKind, modelId);
 

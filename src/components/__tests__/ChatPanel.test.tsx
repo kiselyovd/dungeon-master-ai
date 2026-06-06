@@ -208,22 +208,17 @@ describe('ChatPanel', () => {
     expect(useStore.getState().chat.lastError?.code).toBe('rate_limit');
   });
 
-  // Final-review: staged images are not sent - notice shown, text still sent
-  describe('staged-image send notice', () => {
-    it('shows attachments_not_sent notice when sending with staged images and still sends the text', async () => {
+  // M11 F2: staged images are wired end to end - sent via the `images` field,
+  // no "not sent" notice.
+  describe('staged-image send (vision wired)', () => {
+    it('sends staged images via the images field and shows no not-sent notice', async () => {
       // Enable vision so paste actually stages the image (visionEnabled=false by default)
       useStore.setState((s) => ({
         settings: { ...s.settings, visionEnabled: true },
       }));
 
       const user = userEvent.setup();
-      // Keep the stream pending so the status element is still mounted when we assert
-      let resolveStream!: () => void;
-      const streamPending = new Promise<void>((resolve) => {
-        resolveStream = resolve;
-      });
       streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
-        await streamPending;
         opts.onTextDelta('reply');
         opts.onAgentDone(1);
       });
@@ -249,21 +244,21 @@ describe('ChatPanel', () => {
       await user.type(input, 'look around');
       fireEvent.click(screen.getByRole('button', { name: /Send/i }));
 
-      // The notice must appear in the staging-error slot.
-      // Use getAllByRole because the TypingIndicator also carries role="status"
-      // while the stream is pending.
       await waitFor(() => {
-        const statuses = screen.getAllByRole('status');
-        const notice = statuses.find((el) => /not sent yet/i.test(el.textContent ?? ''));
-        expect(notice).toBeTruthy();
+        expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
       });
+      const opts = streamAgentTurnMock.mock.calls[0]?.[0];
+      if (!opts) throw new Error('streamAgentTurn was not called');
+      expect(opts.playerMessage).toBe('look around');
+      // The staged image rides the dedicated `images` field as a base64 part.
+      expect(opts.images).toHaveLength(1);
+      const part = opts.images?.[0];
+      expect(part).toMatchObject({ type: 'image', mime: 'image/png', name: 'pic.png' });
+      expect(part && 'data_b64' in part && typeof part.data_b64 === 'string').toBe(true);
 
-      // The text must still have been sent via streamAgentTurn
-      expect(streamAgentTurnMock).toHaveBeenCalledTimes(1);
-      expect(streamAgentTurnMock.mock.calls[0]?.[0].playerMessage).toBe('look around');
-
-      // Settle the stream to clean up
-      resolveStream();
+      // No "not sent" notice is shown.
+      const statuses = screen.queryAllByRole('status');
+      expect(statuses.some((el) => /not sent/i.test(el.textContent ?? ''))).toBe(false);
     });
   });
 

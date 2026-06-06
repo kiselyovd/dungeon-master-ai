@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AnthropicConfig, ApiKey } from '../providers';
+import type { ApiKey, BaseUrl, OpenaiCompatConfig } from '../providers';
 import { useStore } from '../useStore';
 
 describe('useStore - chat slice', () => {
@@ -63,41 +63,43 @@ describe('useStore - settings slice', () => {
     useStore.setState(useStore.getInitialState());
   });
 
-  it('starts with anthropic active and no provider configs', () => {
+  it('starts with openai-compat active and no provider configs', () => {
     const s = useStore.getState().settings;
-    expect(s.activeProvider).toBe('anthropic');
-    expect(s.providers.anthropic).toBeNull();
+    expect(s.activeProvider).toBe('openai-compat');
     expect(s.providers['openai-compat']).toBeNull();
+    expect(s.providers['local-mistralrs']).toBeNull();
     expect(s.uiLanguage).toBe('en');
     expect(s.narrationLanguage).toBe('en');
   });
 
   it('setProviderConfig stores per-kind config without affecting other kinds', () => {
-    const cfg: AnthropicConfig = {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-test' as ApiKey,
-      model: 'claude-haiku',
+    const cfg: OpenaiCompatConfig = {
+      kind: 'openai-compat',
+      baseUrl: 'https://openrouter.ai/api/v1' as BaseUrl,
+      apiKey: 'sk-test' as ApiKey,
+      model: 'anthropic/claude-3.5-sonnet',
     };
     useStore.getState().settings.setProviderConfig(cfg);
-    expect(useStore.getState().settings.providers.anthropic).toEqual(cfg);
-    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+    expect(useStore.getState().settings.providers['openai-compat']).toEqual(cfg);
+    expect(useStore.getState().settings.providers['local-mistralrs']).toBeNull();
   });
 
   it('setUiLanguage updates only the language field', () => {
     useStore.getState().settings.setUiLanguage('ru');
     expect(useStore.getState().settings.uiLanguage).toBe('ru');
-    expect(useStore.getState().settings.activeProvider).toBe('anthropic');
+    expect(useStore.getState().settings.activeProvider).toBe('openai-compat');
   });
 
   it('clearProviderConfig nulls out the targeted kind only', () => {
-    const cfg: AnthropicConfig = {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-test' as ApiKey,
-      model: 'claude-haiku',
+    const cfg: OpenaiCompatConfig = {
+      kind: 'openai-compat',
+      baseUrl: 'https://openrouter.ai/api/v1' as BaseUrl,
+      apiKey: 'sk-test' as ApiKey,
+      model: 'anthropic/claude-3.5-sonnet',
     };
     useStore.getState().settings.setProviderConfig(cfg);
-    useStore.getState().settings.clearProviderConfig('anthropic');
-    expect(useStore.getState().settings.providers.anthropic).toBeNull();
+    useStore.getState().settings.clearProviderConfig('openai-compat');
     expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+    expect(useStore.getState().settings.providers['local-mistralrs']).toBeNull();
   });
 });

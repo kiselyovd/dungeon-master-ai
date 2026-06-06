@@ -70,16 +70,18 @@ function conditionColor(condition: string): string {
 export function CombatToken({ token, cellSize, onMove }: Props) {
   const pcName = useStore((s) => s.pc.name);
   const pcHeroClass = useStore((s) => s.pc.heroClass);
+  const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
   const originLeft = token.x * cellSize;
   const originTop = token.y * cellSize;
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
   const isDead = token.hp === 0;
-  const portraitSrc =
-    pcName !== null && token.name === pcName && pcHeroClass !== null
-      ? (CLASS_TOKEN[pcHeroClass] ?? null)
-      : null;
+  const isPcToken = pcName !== null && token.name === pcName;
+  // The PC's own token prefers the generated/selected portrait over class art (E4).
+  const portraitSrc = isPcToken
+    ? (pcPortraitUrl ?? (pcHeroClass !== null ? (CLASS_TOKEN[pcHeroClass] ?? null) : null))
+    : null;
 
   const dragRef = useRef<DragSession | null>(null);
   const [isDragging, setIsDragging] = useState(false);

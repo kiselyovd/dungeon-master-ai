@@ -31,6 +31,48 @@ async fn manifest_returns_four_qwen_entries() {
 }
 
 #[tokio::test]
+async fn manifest_includes_user_entries_added_via_hf() {
+    // End-to-end proof that the HF-search write path and the picker read path
+    // share one user_manifest.json: add a model via POST /hf/manifest/add, then
+    // GET /local-llm/manifest and assert it appears under `user`. models_dir is
+    // redirected to a unique temp dir so the shared temp manifest is untouched.
+    let server = TestServer::start().await;
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let models_dir = tmp.path().join("models");
+    std::fs::create_dir_all(&models_dir).expect("mkdir models");
+    server.state.set_models_dir(models_dir);
+
+    let client = reqwest::Client::new();
+    let add = client
+        .post(server.url("/hf/manifest/add"))
+        .json(&serde_json::json!({
+            "repo_id": "acme/Model-GGUF",
+            "hf_filename": "model-q4_k_m.gguf",
+            "arch": "qwen3",
+            "quant": "gguf-q4_k_m",
+            "size_gb": 2.0,
+            "license": "apache-2.0",
+            "display_name": "Acme Q4",
+            "force": true
+        }))
+        .send()
+        .await
+        .expect("add request");
+    assert_eq!(add.status(), 201, "add should return 201 Created");
+
+    let resp = reqwest::get(server.url("/local-llm/manifest"))
+        .await
+        .expect("manifest request");
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.expect("json");
+    let user = body["user"].as_array().expect("user is array");
+    assert!(
+        user.iter().any(|e| e["hf_repo"] == "acme/Model-GGUF"),
+        "user-added model should reach the picker, got: {user:?}"
+    );
+}
+
+#[tokio::test]
 async fn active_model_accepts_known_id() {
     let server = TestServer::start().await;
     let client = reqwest::Client::new();

@@ -27,7 +27,7 @@ export type DownloadState =
   | { state: 'idle' }
   | { state: 'downloading'; bytesDone: number; totalBytes: number | null }
   | { state: 'completed'; bytesTotal: number }
-  | { state: 'failed'; reason: string };
+  | { state: 'failed'; reason: string; authRequired: boolean };
 
 export const ALL_MODEL_IDS: ModelId[] = [
   'qwen3_5_0_8b',

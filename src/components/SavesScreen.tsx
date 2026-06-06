@@ -119,6 +119,7 @@ export function SavesScreen() {
     deleteSave,
     rehydrateFromSave,
     manualSave,
+    overwriteSave,
     selectSave,
     close,
   } = useSaves();
@@ -189,8 +190,9 @@ export function SavesScreen() {
 
   const onOverwrite = async () => {
     if (!selected) return;
-    await manualSave({
-      kind: 'manual',
+    // Update the existing row in place instead of creating a duplicate. [F3]
+    await overwriteSave(selected.id, {
+      kind: selected.kind,
       title: selected.title,
       summary: selected.summary,
       tag: selected.tag,

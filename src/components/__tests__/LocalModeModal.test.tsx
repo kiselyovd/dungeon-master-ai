@@ -1,18 +1,23 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setBackendPortForTesting } from '../../api/client';
 import '../../i18n';
 import { useStore } from '../../state/useStore';
 import { LocalModeModal } from '../LocalModeModal';
+
+const TEST_PORT = 49999;
 
 describe('LocalModeModal runtime controls', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    setBackendPortForTesting(TEST_PORT);
     useStore.setState(useStore.getInitialState());
   });
 
   afterEach(() => {
+    setBackendPortForTesting(null);
     globalThis.fetch = originalFetch;
   });
 

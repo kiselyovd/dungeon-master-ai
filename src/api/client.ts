@@ -4,6 +4,11 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 let cachedPort: number | null = null;
 let waitingResolvers: Array<(port: number) => void> = [];
 
+/** Upper bound on how long a caller waits for the backend-ready event before
+ * its promise rejects. Without this, `backendUrl` (and every caller's loading
+ * state) hangs forever if the sidecar never announces a port. */
+const BACKEND_PORT_TIMEOUT_MS = 10_000;
+
 async function getBackendPort(): Promise<number> {
   if (cachedPort !== null) return cachedPort;
 
@@ -14,9 +19,19 @@ async function getBackendPort(): Promise<number> {
     return port;
   }
 
-  // Otherwise wait for the backend-ready event from Rust.
-  return new Promise<number>((resolve) => {
-    waitingResolvers.push(resolve);
+  // Otherwise wait for the backend-ready event from Rust, but do not hang
+  // forever - reject after a bounded wait so callers' loading state resolves.
+  return new Promise<number>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const wrapped = (p: number): void => {
+      clearTimeout(timer);
+      resolve(p);
+    };
+    timer = setTimeout(() => {
+      waitingResolvers = waitingResolvers.filter((r) => r !== wrapped);
+      reject(new Error('timed out waiting for backend port'));
+    }, BACKEND_PORT_TIMEOUT_MS);
+    waitingResolvers.push(wrapped);
   });
 }
 

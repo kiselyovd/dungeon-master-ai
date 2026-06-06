@@ -17,6 +17,7 @@ import {
   quickSaveSession,
   type SaveSummary,
   type SessionMessageWire,
+  updateSaveById,
 } from '../api/saves';
 import type { ChatMessage, ChatRole, MessagePart } from '../state/chat';
 import type { PcData } from '../state/pc';
@@ -39,6 +40,7 @@ export interface UseSavesResult {
   refresh: () => Promise<void>;
   quickSave: () => Promise<{ id: string } | null>;
   manualSave: (body: CreateSaveRequest) => Promise<{ id: string } | null>;
+  overwriteSave: (saveId: string, body: CreateSaveRequest) => Promise<boolean>;
   rehydrateFromSave: (saveId: string) => Promise<RehydrateResult>;
   deleteSave: (saveId: string) => Promise<void>;
   open: () => void;
@@ -57,6 +59,7 @@ export function useSaves(): UseSavesResult {
   const open = useStore((s) => s.saves.open);
   const close = useStore((s) => s.saves.close);
   const setLastQuickSaveAt = useStore((s) => s.saves.setLastQuickSaveAt);
+  const setLastSaveError = useStore((s) => s.saves.setLastSaveError);
   const ensureSession = useStore((s) => s.session.ensureSession);
   const setActiveSession = useStore((s) => s.session.setActiveSession);
   const setMessages = useStore((s) => s.chat.setMessages);
@@ -80,13 +83,14 @@ export function useSaves(): UseSavesResult {
       } catch {
         // ignore - the toast is the user-visible signal
       }
+      setLastSaveError(null);
       return result;
     } catch (e) {
-      // Surface in dev-tools but never break the host (no toast yet).
       console.error('quickSave failed', e);
+      setLastSaveError(e instanceof Error ? e.message : String(e));
       return null;
     }
-  }, [ensureSession, setLastQuickSaveAt, setList]);
+  }, [ensureSession, setLastQuickSaveAt, setList, setLastSaveError]);
 
   const manualSave = useCallback(
     async (body: CreateSaveRequest) => {
@@ -95,13 +99,33 @@ export function useSaves(): UseSavesResult {
         const result = await apiCreateSave(sessionId, body);
         const list = await fetchSessionSaves(sessionId);
         setList(list);
+        setLastSaveError(null);
         return result;
       } catch (e) {
         console.error('manualSave failed', e);
+        setLastSaveError(e instanceof Error ? e.message : String(e));
         return null;
       }
     },
-    [ensureSession, setList],
+    [ensureSession, setList, setLastSaveError],
+  );
+
+  const overwriteSave = useCallback(
+    async (saveId: string, body: CreateSaveRequest) => {
+      const { sessionId } = ensureSession();
+      try {
+        await updateSaveById(saveId, body);
+        const list = await fetchSessionSaves(sessionId);
+        setList(list);
+        setLastSaveError(null);
+        return true;
+      } catch (e) {
+        console.error('overwriteSave failed', e);
+        setLastSaveError(e instanceof Error ? e.message : String(e));
+        return false;
+      }
+    },
+    [ensureSession, setList, setLastSaveError],
   );
 
   /**
@@ -226,11 +250,13 @@ export function useSaves(): UseSavesResult {
       try {
         await deleteSaveById(saveId);
         await refresh();
+        setLastSaveError(null);
       } catch (e) {
         console.error('deleteSave failed', e);
+        setLastSaveError(e instanceof Error ? e.message : String(e));
       }
     },
-    [refresh],
+    [refresh, setLastSaveError],
   );
 
   return useMemo(
@@ -242,6 +268,7 @@ export function useSaves(): UseSavesResult {
       refresh,
       quickSave,
       manualSave,
+      overwriteSave,
       rehydrateFromSave,
       deleteSave,
       open,
@@ -256,6 +283,7 @@ export function useSaves(): UseSavesResult {
       refresh,
       quickSave,
       manualSave,
+      overwriteSave,
       rehydrateFromSave,
       deleteSave,
       open,

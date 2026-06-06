@@ -3,8 +3,39 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
 import { postDiscover } from '../../api/discovery';
+import { useLocalLlmStore } from '../../state/localLlm';
 import { useStore } from '../../state/useStore';
 import { SettingsForm, type SettingsSubmission } from '../SettingsForm';
+
+/**
+ * Seed the manifest-driven LocalLlmModelSelector store with the four Qwen
+ * variants installed. In jsdom `backendUrl` never resolves (no Tauri runtime),
+ * so the on-mount `loadManifest()` fetch rejects; its catch only sets
+ * loading/error and does not wipe this seed, so the picker renders from it.
+ */
+function seedInstalledLocalLlms() {
+  const sys = (id: string, display_name: string) => ({
+    id,
+    hf_repo: `unsloth/${id}-GGUF`,
+    hf_filename: `${id}.gguf`,
+    arch: 'qwen3',
+    quant: 'gguf-q4_k_m',
+    size_gb: 2.0,
+    license: 'apache-2.0',
+    display_name,
+  });
+  useLocalLlmStore.setState({
+    system: [
+      sys('qwen3.5-0.8b', 'Qwen3.5-0.8B Q4_K_M'),
+      sys('qwen3.5-2b', 'Qwen3.5-2B Q4_K_M'),
+      sys('qwen3.5-4b', 'Qwen3.5-4B Q4_K_M'),
+      sys('qwen3.5-9b', 'Qwen3.5-9B Q4_K_M'),
+    ],
+    user: [],
+    installedIds: new Set(['qwen3.5-0.8b', 'qwen3.5-2b', 'qwen3.5-4b', 'qwen3.5-9b']),
+    downloadStates: new Map(),
+  });
+}
 
 function setupFetchStub() {
   return vi.fn(
@@ -20,12 +51,12 @@ const postDiscoverMock = vi.mocked(postDiscover);
 
 /**
  * SettingsForm focuses on the local-mistralrs branch added in M4. The
- * Anthropic / OpenAI-compat happy paths are already covered by
- * SettingsModal.test.tsx; here we lock down:
+ * OpenAI-compat happy path is already covered by SettingsModal.test.tsx;
+ * here we lock down:
  *
- * - the provider select exposes all three kinds (anthropic, openai-compat,
- *   local-mistralrs) so the user can pick local mode without the dev
- *   shortcut.
+ * - the provider select exposes both kinds (openai-compat, local-mistralrs)
+ *   so the user can pick local mode without the dev shortcut (native Anthropic
+ *   was removed in M11 Batch D.5).
  * - the Local LLM tab (D8) shows the model picker + VRAM strategy +
  *   runtime control UI mirrored from LocalModeModal.
  * - changing the model selection updates `localMode.selectedLlm`.
@@ -43,6 +74,14 @@ describe('SettingsForm', () => {
 
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
+    // The manifest-driven picker store is separate from the main store; clear
+    // it so a seed in one test does not leak into the next.
+    useLocalLlmStore.setState({
+      system: [],
+      user: [],
+      installedIds: new Set(),
+      downloadStates: new Map(),
+    });
     // The local-mistralrs panel mounts useLocalRuntimeStatus, which polls
     // /local/runtime/status on a 5 s interval. Stub fetch so the polling
     // does not fall through to undici and pollute test output.
@@ -55,21 +94,23 @@ describe('SettingsForm', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('exposes anthropic, openai-compat, and local-mistralrs in the provider select', () => {
+  it('exposes openai-compat and local-mistralrs in the provider select', () => {
     render(<SettingsForm onSubmit={() => {}} />);
     const select = screen.getByRole('combobox', { name: /Provider/i });
     const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
-    expect(options).toEqual(['anthropic', 'openai-compat', 'local-mistralrs']);
+    expect(options).toEqual(['openai-compat', 'local-mistralrs']);
   });
 
   it('shows the local-mistralrs fields on the Local LLM tab', async () => {
     const user = userEvent.setup();
+    seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
 
     await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
-    // Model cards from the manifest render with a download button.
-    expect(screen.getByText(/Qwen3\.5-4B/i)).toBeInTheDocument();
+    // The manifest-driven picker renders a radio per installed model; the
+    // image model card (SDXL-Turbo) still renders below it.
+    expect(screen.getByRole('radio', { name: /Qwen3\.5-4B/i })).toBeInTheDocument();
     expect(screen.getByText(/SDXL-Turbo/i)).toBeInTheDocument();
     // Runtime controls are reachable from this tab without the keyboard
     // shortcut now.
@@ -81,28 +122,15 @@ describe('SettingsForm', () => {
 
   it('updates localMode.selectedLlm when the user picks a different model', async () => {
     const user = userEvent.setup();
-    // Pre-mark all LLMs as completed so the "Use" button is rendered.
-    useStore.setState((s) => ({
-      localMode: {
-        ...s.localMode,
-        downloads: {
-          qwen3_5_0_8b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_2b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_4b: { state: 'completed', bytesTotal: 1 },
-          qwen3_5_9b: { state: 'completed', bytesTotal: 1 },
-          sdxl_turbo: { state: 'completed', bytesTotal: 1 },
-        },
-      },
-    }));
+    // The legacy LOCAL_LLMS cards were removed in M11 Batch D; the active model
+    // is now picked from the manifest-driven LocalLlmModelSelector's radios.
+    seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
     await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
-    // Default selection is qwen3_5_4b - pick 0.8B from its card.
-    const cards = screen.getAllByRole('group');
-    const card = cards.find((c) => c.textContent?.includes('Qwen3.5-0.8B'));
-    if (!card) throw new Error('Qwen3.5-0.8B card not found');
-    const useBtn = card.querySelector('button[aria-pressed]') as HTMLButtonElement;
-    await user.click(useBtn);
+    // Default selection is qwen3_5_4b - pick the 0.8B radio from the picker.
+    const radio = screen.getByRole('radio', { name: /Qwen3\.5-0\.8B/i });
+    await user.click(radio);
 
     expect(useStore.getState().localMode.selectedLlm).toBe('qwen3_5_0_8b');
   });
@@ -236,38 +264,10 @@ describe('SettingsForm model discovery integration', () => {
     ) as unknown as typeof fetch;
   });
 
-  it('renders a ModelSelector inside the Anthropic sub-form (Discover button visible)', () => {
+  it('renders a ModelSelector inside the default openai-compat sub-form (Discover button visible)', () => {
     render(<SettingsForm onSubmit={() => {}} />);
-    // Default provider is anthropic - Discover button should be visible.
+    // Default provider is openai-compat - Discover button should be visible.
     expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
-  });
-
-  it('clicking Discover triggers postDiscover for the anthropic provider', async () => {
-    postDiscoverMock.mockResolvedValueOnce({
-      models: [
-        {
-          model_id: 'claude-opus-4-7',
-          display_name: 'Claude Opus 4.7',
-          capabilities: {
-            vision_input: true,
-            reasoning: true,
-            tool_calls: true,
-            streaming: true,
-          },
-          source: 'curated',
-          context_length: 1_000_000,
-        },
-      ],
-      cached_at: new Date().toISOString(),
-      source: 'curated',
-      next_cursor: null,
-    });
-
-    render(<SettingsForm onSubmit={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
-    await waitFor(() => expect(postDiscoverMock).toHaveBeenCalled());
-    const call = postDiscoverMock.mock.calls[0]?.[0] as { provider_id: string };
-    expect(call.provider_id).toBe('anthropic');
   });
 
   it('clicking a discovered model row updates the model draft', async () => {

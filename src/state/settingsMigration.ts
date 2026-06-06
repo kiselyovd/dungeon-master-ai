@@ -83,8 +83,10 @@ export type SettingsConfigV2 = {
 
 export const DEFAULTS_V2: SettingsConfigV2 = {
   chat: {
-    activeProviderId: 'anthropic',
-    activeModelId: 'claude-haiku-4-5-20251001',
+    // Cloud chat is the generic OpenAI-compatible provider (OpenRouter
+    // recommended); native Anthropic was removed in M11 Batch D.5.
+    activeProviderId: 'openai-compat',
+    activeModelId: 'custom',
     providers: {},
     visionEnabled: false,
     reasoningEnabled: false,
@@ -158,6 +160,14 @@ export function migrateLegacySettings(raw: unknown): MigrateResult {
       const cfg = cloneDefaults();
       const partial = raw as Partial<SettingsConfigV2>;
       if (isObject(partial.chat)) Object.assign(cfg.chat, partial.chat);
+      // Sanitise a legacy `anthropic` chat provider that survived a v2 blob -
+      // native Anthropic was removed in M11 Batch D.5, so it falls back to the
+      // openai-compat default (mirrors the v1 path below). Without this a
+      // stale 'anthropic' would reach POST /settings/v2 and 400.
+      if ((cfg.chat.activeProviderId as string) === 'anthropic') {
+        cfg.chat.activeProviderId = DEFAULTS_V2.chat.activeProviderId;
+        cfg.chat.activeModelId = DEFAULTS_V2.chat.activeModelId;
+      }
       if (isObject(partial.image)) Object.assign(cfg.image, partial.image);
       if (isObject(partial.video)) Object.assign(cfg.video, partial.video);
       if (isObject(partial.behavior)) Object.assign(cfg.behavior, partial.behavior);
@@ -177,13 +187,13 @@ export function migrateLegacySettings(raw: unknown): MigrateResult {
     };
     const cfg = cloneDefaults();
     const ap = v1.activeProvider;
-    if (ap === 'anthropic' || ap === 'openai-compat' || ap === 'local-mistralrs') {
+    // 'anthropic' is intentionally NOT accepted: native Anthropic was removed
+    // in M11 Batch D.5, so a legacy anthropic v1 falls through to the
+    // openai-compat default (the user reconfigures cloud via Settings).
+    if (ap === 'openai-compat' || ap === 'local-mistralrs') {
       cfg.chat.activeProviderId = ap;
     }
-    if (ap === 'anthropic') {
-      const p = v1.providers?.anthropic;
-      if (p && typeof p.model === 'string') cfg.chat.activeModelId = p.model;
-    } else if (ap === 'openai-compat') {
+    if (ap === 'openai-compat') {
       const p = v1.providers?.['openai-compat'];
       if (p && typeof p.model === 'string') cfg.chat.activeModelId = p.model;
       else cfg.chat.activeModelId = 'custom';

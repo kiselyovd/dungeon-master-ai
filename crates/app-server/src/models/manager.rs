@@ -2,8 +2,11 @@
 //! Wraps `download.rs` with cancellation, progress broadcast, and HF Hub URL
 //! resolution.
 
-use crate::models::download::{download_diffusers_repo, download_to, DownloadEvent, HfEndpoints};
+use crate::models::download::{
+    download_diffusers_repo, download_to, DownloadError, DownloadEvent, HfEndpoints,
+};
 use crate::models::manifest::{manifest_for, ModelId, ModelKind, ModelManifest};
+use crate::secrets::SecretsRepo;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,27 +26,38 @@ pub enum DownloadStatus {
     },
     Failed {
         reason: String,
+        /// 401/403 from HuggingFace - the UI offers an "Add HuggingFace token"
+        /// action for these. `#[serde(default)]` keeps older serialized state
+        /// (and non-auth failures) deserializing to `false`.
+        #[serde(default)]
+        auth_required: bool,
     },
 }
 
 pub struct DownloadManager {
     base_dir: PathBuf,
     endpoints: HfEndpoints,
+    secrets: Arc<dyn SecretsRepo>,
     state: Arc<RwLock<HashMap<ModelId, DownloadStatus>>>,
     handles: Arc<RwLock<HashMap<ModelId, JoinHandle<()>>>>,
     pub events: Arc<broadcast::Sender<DownloadEvent>>,
 }
 
 impl DownloadManager {
-    pub fn new(base_dir: PathBuf) -> Self {
-        Self::with_endpoints(base_dir, HfEndpoints::default())
+    pub fn new(base_dir: PathBuf, secrets: Arc<dyn SecretsRepo>) -> Self {
+        Self::with_endpoints(base_dir, HfEndpoints::default(), secrets)
     }
 
-    pub fn with_endpoints(base_dir: PathBuf, endpoints: HfEndpoints) -> Self {
+    pub fn with_endpoints(
+        base_dir: PathBuf,
+        endpoints: HfEndpoints,
+        secrets: Arc<dyn SecretsRepo>,
+    ) -> Self {
         let (tx, _rx) = broadcast::channel(64);
         Self {
             base_dir,
             endpoints,
+            secrets,
             state: Arc::new(RwLock::new(HashMap::new())),
             handles: Arc::new(RwLock::new(HashMap::new())),
             events: Arc::new(tx),
@@ -63,6 +77,9 @@ impl DownloadManager {
         let m = manifest_for(&id).ok_or_else(|| format!("unknown model {id:?}"))?;
         let state = self.state.clone();
         let events = self.events.clone();
+        // One token read per download; threaded into every fetch so gated or
+        // rate-limited repos get an Authorization header.
+        let token = crate::secrets::get_hf_token(self.secrets.as_ref()).await;
         state.write().await.insert(
             id.clone(),
             DownloadStatus::Downloading {
@@ -80,8 +97,9 @@ impl DownloadManager {
                 let dest = self.base_dir.join(m.hf_filename);
                 let sha = m.sha256.to_string();
                 let id_for_task = id.clone();
+                let token = token.clone();
                 tokio::spawn(async move {
-                    match download_to(&url, &dest, &sha, events.clone()).await {
+                    match download_to(&url, &dest, &sha, token.as_deref(), events.clone()).await {
                         Ok(res) => {
                             state.write().await.insert(
                                 id_for_task.clone(),
@@ -95,15 +113,19 @@ impl DownloadManager {
                             });
                         }
                         Err(e) => {
+                            let auth_required = matches!(e, DownloadError::Unauthorized);
+                            let reason = e.to_string();
                             state.write().await.insert(
                                 id_for_task.clone(),
                                 DownloadStatus::Failed {
-                                    reason: e.to_string(),
+                                    reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_task,
-                                reason: e.to_string(),
+                                reason,
+                                auth_required,
                             });
                         }
                     }
@@ -114,12 +136,14 @@ impl DownloadManager {
                 let dest_dir = self.base_dir.join(m.hf_repo);
                 let hf_repo = m.hf_repo;
                 let id_for_task = id.clone();
+                let token = token.clone();
                 tokio::spawn(async move {
                     match download_diffusers_repo(
                         &endpoints,
                         hf_repo,
                         "main",
                         &dest_dir,
+                        token.as_deref(),
                         events.clone(),
                     )
                     .await
@@ -137,15 +161,19 @@ impl DownloadManager {
                             });
                         }
                         Err(e) => {
+                            let auth_required = matches!(e, DownloadError::Unauthorized);
+                            let reason = e.to_string();
                             state.write().await.insert(
                                 id_for_task.clone(),
                                 DownloadStatus::Failed {
-                                    reason: e.to_string(),
+                                    reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_task,
-                                reason: e.to_string(),
+                                reason,
+                                auth_required,
                             });
                         }
                     }
@@ -165,21 +193,38 @@ impl DownloadManager {
                 let sha = m.sha256.to_string();
                 let id_for_task = id.clone();
                 let id_for_event = id.clone();
+                let token = token.clone();
                 tokio::spawn(async move {
                     // Sequential: gguf first (sha-checked), then mmproj
                     // (no sha - Custom mmproj filenames are user-supplied).
                     // mistral.rs vision pipeline expects both files in the
                     // same dir, so we treat them as a single unit.
-                    let outcome = match download_to(&gguf_url, &gguf_dest, &sha, events.clone())
-                        .await
+                    let outcome = match download_to(
+                        &gguf_url,
+                        &gguf_dest,
+                        &sha,
+                        token.as_deref(),
+                        events.clone(),
+                    )
+                    .await
                     {
                         Ok(g) => {
-                            match download_to(&mmproj_url, &mmproj_dest, "", events.clone()).await {
+                            match download_to(
+                                &mmproj_url,
+                                &mmproj_dest,
+                                "",
+                                token.as_deref(),
+                                events.clone(),
+                            )
+                            .await
+                            {
                                 Ok(mm) => Ok(g.bytes_downloaded + mm.bytes_downloaded),
-                                Err(e) => Err(e.to_string()),
+                                Err(e) => {
+                                    Err((e.to_string(), matches!(e, DownloadError::Unauthorized)))
+                                }
                             }
                         }
-                        Err(e) => Err(e.to_string()),
+                        Err(e) => Err((e.to_string(), matches!(e, DownloadError::Unauthorized))),
                     };
                     match outcome {
                         Ok(bytes_total) => {
@@ -192,16 +237,18 @@ impl DownloadManager {
                                 bytes_total,
                             });
                         }
-                        Err(reason) => {
+                        Err((reason, auth_required)) => {
                             state.write().await.insert(
                                 id_for_task,
                                 DownloadStatus::Failed {
                                     reason: reason.clone(),
+                                    auth_required,
                                 },
                             );
                             let _ = events.send(DownloadEvent::Failed {
                                 id: id_for_event,
                                 reason,
+                                auth_required,
                             });
                         }
                     }
@@ -210,7 +257,7 @@ impl DownloadManager {
             ModelKind::SafetensorsSingleFile
             | ModelKind::NunchakuSvdquant
             | ModelKind::LtxVideoSafetensors => {
-                self.spawn_single_file_download(id.clone(), m, state)
+                self.spawn_single_file_download(id.clone(), m, state, token.clone())
             }
         };
         self.handles.write().await.insert(id, handle);
@@ -226,6 +273,7 @@ impl DownloadManager {
         id: ModelId,
         m: &'static ModelManifest,
         state: Arc<RwLock<HashMap<ModelId, DownloadStatus>>>,
+        token: Option<String>,
     ) -> JoinHandle<()> {
         let events = self.events.clone();
         let url = format!(
@@ -235,7 +283,7 @@ impl DownloadManager {
         let dest = self.base_dir.join(m.hf_filename);
         let sha = m.sha256.to_string();
         tokio::spawn(async move {
-            match download_to(&url, &dest, &sha, events.clone()).await {
+            match download_to(&url, &dest, &sha, token.as_deref(), events.clone()).await {
                 Ok(res) => {
                     state.write().await.insert(
                         id.clone(),
@@ -249,15 +297,19 @@ impl DownloadManager {
                     });
                 }
                 Err(e) => {
+                    let auth_required = matches!(e, DownloadError::Unauthorized);
+                    let reason = e.to_string();
                     state.write().await.insert(
                         id.clone(),
                         DownloadStatus::Failed {
-                            reason: e.to_string(),
+                            reason: reason.clone(),
+                            auth_required,
                         },
                     );
                     let _ = events.send(DownloadEvent::Failed {
                         id,
-                        reason: e.to_string(),
+                        reason,
+                        auth_required,
                     });
                 }
             }
@@ -301,9 +353,13 @@ mod tests {
     use super::*;
     use crate::models::manifest::ModelId;
 
+    fn test_secrets() -> Arc<dyn SecretsRepo> {
+        Arc::new(crate::secrets::InMemorySecretsRepo::default())
+    }
+
     #[tokio::test]
     async fn idle_initially() {
-        let m = DownloadManager::new(std::env::temp_dir());
+        let m = DownloadManager::new(std::env::temp_dir(), test_secrets());
         assert!(matches!(
             m.status(ModelId::Qwen3_5_0_8b).await,
             DownloadStatus::Idle
@@ -312,7 +368,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancel_unstarted_returns_idle() {
-        let m = DownloadManager::new(std::env::temp_dir());
+        let m = DownloadManager::new(std::env::temp_dir(), test_secrets());
         m.cancel(ModelId::Qwen3_5_0_8b).await;
         assert!(matches!(
             m.status(ModelId::Qwen3_5_0_8b).await,
@@ -329,7 +385,7 @@ mod tests {
         tokio::fs::write(tmp.path().join("mmproj-model.gguf"), b"fake")
             .await
             .unwrap();
-        let m = DownloadManager::new(tmp.path().to_path_buf());
+        let m = DownloadManager::new(tmp.path().to_path_buf(), test_secrets());
         let id = ModelId::Custom {
             hf_repo: "x/y".into(),
             gguf_filename: "model.gguf".into(),
@@ -353,7 +409,7 @@ mod tests {
         tokio::fs::write(tmp.path().join("solo.gguf"), b"fake")
             .await
             .unwrap();
-        let m = DownloadManager::new(tmp.path().to_path_buf());
+        let m = DownloadManager::new(tmp.path().to_path_buf(), test_secrets());
         let id = ModelId::Custom {
             hf_repo: "x/y".into(),
             gguf_filename: "solo.gguf".into(),
@@ -376,7 +432,7 @@ mod tests {
         tokio::fs::write(tmp.path().join(m.hf_filename), b"fake")
             .await
             .unwrap();
-        let mgr = DownloadManager::new(tmp.path().to_path_buf());
+        let mgr = DownloadManager::new(tmp.path().to_path_buf(), test_secrets());
         mgr.cancel(id.clone()).await;
         assert!(
             !tmp.path().join(m.hf_filename).exists(),

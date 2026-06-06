@@ -2,7 +2,7 @@
 //!
 //! Used by `LocalRuntime` after `Command::spawn` succeeds: we cannot trust
 //! that a child process is actually serving HTTP just because the syscall
-//! returned. The probe pings the sidecar's `/health` until it answers 2xx
+//! returned. The probe pings the sidecar's health URL until it answers 2xx
 //! or the budget is exhausted.
 
 use std::time::Duration;

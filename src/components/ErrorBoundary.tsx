@@ -1,5 +1,15 @@
+import i18next from 'i18next';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useStore } from '../state/useStore';
+
+/**
+ * Translate via the i18next singleton with an English fallback. ErrorBoundary
+ * is a class component (no hooks), and i18n may not be initialised yet when an
+ * early crash renders the boundary - hence the guard. [M11 G4]
+ */
+function tr(key: string, fallback: string): string {
+  return i18next.isInitialized ? i18next.t(key) : fallback;
+}
 
 export type ErrorBoundaryLevel = 'top' | 'section' | 'overlay';
 
@@ -107,24 +117,26 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="dm-error-boundary dm-error-boundary-top" data-testid="error-boundary-top">
           <div className="dm-error-boundary-card">
-            <h2 className="dm-error-boundary-title">Something went wrong</h2>
+            <h2 className="dm-error-boundary-title">
+              {tr('common:error_title', 'Something went wrong')}
+            </h2>
             <p className="dm-error-boundary-message">{error?.message}</p>
             <div className="dm-error-boundary-actions">
               <button
                 type="button"
                 className="dm-btn dm-btn-primary"
                 onClick={this.handleReload}
-                aria-label="Reload"
+                aria-label={tr('common:error_reload', 'Reload')}
               >
-                Reload
+                {tr('common:error_reload', 'Reload')}
               </button>
               <button
                 type="button"
                 className="dm-btn"
                 onClick={this.handleCopy}
-                aria-label="Copy crash report"
+                aria-label={tr('common:error_copy_report', 'Copy crash report')}
               >
-                Copy crash report
+                {tr('common:error_copy_report', 'Copy crash report')}
               </button>
             </div>
           </div>
@@ -144,9 +156,9 @@ export class ErrorBoundary extends Component<Props, State> {
               type="button"
               className="dm-btn dm-btn-primary"
               onClick={this.handleRetry}
-              aria-label="Retry"
+              aria-label={tr('common:error_retry', 'Retry')}
             >
-              Retry
+              {tr('common:error_retry', 'Retry')}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { persistLocalModeConfig as postLocalModeConfig } from '../api/localRuntime';
 import { postSettingsV2 } from '../api/settings';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useStore } from '../state/useStore';
@@ -16,13 +17,9 @@ import styles from './SettingsModal.module.css';
  */
 function persistLocalModeConfig(): void {
   const lm = useStore.getState().localMode;
-  void fetch('/local-mode/config', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      selected_llm: lm.selectedLlm,
-      vram_strategy: lm.vramStrategy,
-    }),
+  void postLocalModeConfig({
+    selected_llm: lm.selectedLlm,
+    vram_strategy: lm.vramStrategy,
   }).catch(() => {
     // The next save retry will surface the error; the provider switch above
     // already succeeded so we do not block modal close on this.

@@ -53,7 +53,7 @@
 }
 
 .title {
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   color: var(--color-accent);
   letter-spacing: var(--tracking-display);
@@ -175,7 +175,7 @@
 }
 
 .cardAvatar {
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   color: var(--color-accent);
   width: 56px;
@@ -196,7 +196,7 @@
 }
 
 .cardName {
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   font-size: var(--text-base);
   color: var(--color-fg-primary);
   margin: 0;

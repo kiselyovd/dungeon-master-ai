@@ -103,6 +103,71 @@ async fn save_round_trip_create_list_load_delete() {
 }
 
 #[tokio::test]
+async fn update_save_overwrites_in_place_without_creating_a_duplicate() {
+    // M11 F3: the "Overwrite" action PUTs an existing save instead of POSTing a
+    // new one (which used to duplicate the row).
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    db::init_db(&pool).await.unwrap();
+    let server = TestServer::start_with(Arc::new(MockProvider::new(vec![])), pool).await;
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let client = Client::new();
+
+    let created: Value = client
+        .post(server.url(&format!("/sessions/{session_id}/saves")))
+        .json(&json!({
+            "kind": "manual",
+            "title": "Original",
+            "summary": "first summary",
+            "tag": "exploration",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let save_id = created["id"].as_str().unwrap().to_string();
+
+    // Overwrite via PUT - 204 No Content.
+    let put = client
+        .put(server.url(&format!("/saves/{save_id}")))
+        .json(&json!({
+            "kind": "manual",
+            "title": "Updated",
+            "summary": "new summary",
+            "tag": "combat",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(put.status(), 204);
+
+    // Still exactly one save (no duplicate row), with the updated metadata.
+    let listed: Vec<Value> = client
+        .get(server.url(&format!("/sessions/{session_id}/saves")))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(listed.len(), 1, "overwrite must not create a duplicate row");
+    assert_eq!(listed[0]["id"], save_id);
+    assert_eq!(listed[0]["title"], "Updated");
+    assert_eq!(listed[0]["tag"], "combat");
+
+    // Updating a non-existent save returns 404.
+    let missing = client
+        .put(server.url(&format!("/saves/{}", uuid::Uuid::new_v4())))
+        .json(&json!({ "kind": "manual", "title": "x", "summary": "y", "tag": "combat" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), 404);
+}
+
+#[tokio::test]
 async fn quick_save_creates_auto_save_with_default_metadata() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     db::init_db(&pool).await.unwrap();

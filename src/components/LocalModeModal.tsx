@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { persistLocalModeConfig, startLocalRuntimes, stopLocalRuntimes } from '../api/localRuntime';
 import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../hooks/useModelDownload';
 import type { ModelId, VramStrategy } from '../state/localMode';
@@ -66,13 +67,11 @@ const ModelCard = ({ entry, isLlm }: { entry: CardEntry; isLlm: boolean }) => {
 };
 
 const persistConfig = (selectedLlm: ModelId, vramStrategy: VramStrategy) => {
-  void fetch('/local-mode/config', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ selected_llm: selectedLlm, vram_strategy: vramStrategy }),
-  }).catch(() => {
-    // Backend may be down; the next save retry will surface the error.
-  });
+  void persistLocalModeConfig({ selected_llm: selectedLlm, vram_strategy: vramStrategy }).catch(
+    () => {
+      // Backend may be down; the next save retry will surface the error.
+    },
+  );
 };
 
 type RuntimeActionStatus = 'idle' | 'pending' | 'error';
@@ -129,8 +128,7 @@ export function LocalModeModal({ open, onClose }: Props) {
     clearStartReset();
     setStartStatus('pending');
     try {
-      const res = await fetch('/local/runtime/start', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
+      await startLocalRuntimes();
       setStartStatus('idle');
     } catch {
       setStartStatus('error');
@@ -145,8 +143,7 @@ export function LocalModeModal({ open, onClose }: Props) {
     clearStopReset();
     setStopStatus('pending');
     try {
-      const res = await fetch('/local/runtime/stop', { method: 'POST' });
-      if (!res.ok) throw new Error(`http ${res.status}`);
+      await stopLocalRuntimes();
       setStopStatus('idle');
     } catch {
       setStopStatus('error');

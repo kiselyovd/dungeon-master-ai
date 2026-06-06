@@ -32,7 +32,7 @@ use app_domain::local_llm::manifest::{SystemEntry, UserEntry};
 /// root holds both the per-model directories and the manifest index). Falls
 /// back to `.` when the parent cannot be resolved, which can only happen for
 /// a degenerate root path like `/` that production configs never produce.
-fn user_manifest_path(state: &AppState) -> std::path::PathBuf {
+pub(crate) fn user_manifest_path(state: &AppState) -> std::path::PathBuf {
     let dir = state.models_dir();
     dir.parent()
         .unwrap_or(std::path::Path::new("."))
@@ -121,6 +121,19 @@ pub struct SearchParams {
     pub sort: Option<HfSort>,
 }
 
+/// Map an HF client error onto the HTTP error surface. A bad/expired token is
+/// the user's problem (400), not a server fault (500); a missing model is 404.
+fn hf_err_to_app(e: crate::hf::types::HfError) -> AppError {
+    use crate::hf::types::HfError;
+    match e {
+        HfError::InvalidToken => {
+            AppError::BadRequest("HuggingFace authorization failed - check your token".into())
+        }
+        HfError::NotFound => AppError::NotFound,
+        other => AppError::Internal(format!("hf: {other}")),
+    }
+}
+
 pub async fn search(
     State(state): State<AppState>,
     Query(params): Query<SearchParams>,
@@ -134,11 +147,7 @@ pub async fn search(
         license: params.license,
         sort: params.sort.unwrap_or(HfSort::Downloads),
     };
-    client
-        .search(q)
-        .await
-        .map(Json)
-        .map_err(|e| AppError::Internal(format!("hf search: {e}")))
+    client.search(q).await.map(Json).map_err(hf_err_to_app)
 }
 
 pub async fn license_check(
@@ -149,7 +158,7 @@ pub async fn license_check(
     let status = client
         .check_license(&repo_id)
         .await
-        .map_err(|e| AppError::Internal(format!("license check: {e}")))?;
+        .map_err(hf_err_to_app)?;
     Ok(Json(status))
 }
 
@@ -255,5 +264,21 @@ mod tests {
     fn slugify_lowers_and_collapses_separators() {
         assert_eq!(slugify("Qwen/Qwen3-4B"), "qwen_qwen3_4b");
         assert_eq!(slugify("gguf-q4_k_m"), "gguf_q4_k_m");
+    }
+
+    #[test]
+    fn invalid_token_maps_to_bad_request() {
+        use crate::hf::types::HfError;
+        let app = hf_err_to_app(HfError::InvalidToken);
+        assert!(matches!(app, AppError::BadRequest(_)), "got {app:?}");
+    }
+
+    #[test]
+    fn not_found_maps_to_not_found() {
+        use crate::hf::types::HfError;
+        assert!(matches!(
+            hf_err_to_app(HfError::NotFound),
+            AppError::NotFound
+        ));
     }
 }

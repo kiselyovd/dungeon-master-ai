@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { create } from 'zustand';
 import type { DiscoveredCatalog } from '../discoveredCatalogs';
 import {
+  applyProviderMigration,
   createSettingsSlice,
   DEFAULT_CHAT_WIDTH,
   MAX_CHAT_WIDTH,
   MIN_CHAT_WIDTH,
+  type SettingsData,
   type SettingsSlice,
 } from '../settings';
 
@@ -104,8 +106,8 @@ describe('SettingsSlice discoveredCatalogs', () => {
   it('setDiscoveredCatalog stores a catalog under provider key', () => {
     const store = freshSettingsStore();
     const cat = fakeCat({ cacheKey: 'h1' });
-    store.getState().settings.setDiscoveredCatalog('anthropic', cat);
-    expect(store.getState().settings.discoveredCatalogs.anthropic).toBe(cat);
+    store.getState().settings.setDiscoveredCatalog('openai-compat', cat);
+    expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBe(cat);
   });
 
   it('setDiscoveredCatalog overwrites an existing entry for the same provider', () => {
@@ -121,23 +123,54 @@ describe('SettingsSlice discoveredCatalogs', () => {
     const store = freshSettingsStore();
     const a = fakeCat({ cacheKey: 'a' });
     const b = fakeCat({ cacheKey: 'b', source: 'discovered-api' });
-    store.getState().settings.setDiscoveredCatalog('anthropic', a);
+    store.getState().settings.setDiscoveredCatalog('local-mistralrs', a);
     store.getState().settings.setDiscoveredCatalog('openai-compat', b);
-    expect(store.getState().settings.discoveredCatalogs.anthropic).toBe(a);
+    expect(store.getState().settings.discoveredCatalogs['local-mistralrs']).toBe(a);
     expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBe(b);
   });
 
   it('clearDiscoveredCatalog sets the entry to null', () => {
     const store = freshSettingsStore();
-    store.getState().settings.setDiscoveredCatalog('anthropic', fakeCat());
-    store.getState().settings.clearDiscoveredCatalog('anthropic');
-    expect(store.getState().settings.discoveredCatalogs.anthropic).toBeNull();
+    store.getState().settings.setDiscoveredCatalog('openai-compat', fakeCat());
+    store.getState().settings.clearDiscoveredCatalog('openai-compat');
+    expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBeNull();
   });
 
   it('invalidateProviderCatalog clears the entry too', () => {
     const store = freshSettingsStore();
-    store.getState().settings.setDiscoveredCatalog('anthropic', fakeCat());
-    store.getState().settings.invalidateProviderCatalog('anthropic');
-    expect(store.getState().settings.discoveredCatalogs.anthropic).toBeNull();
+    store.getState().settings.setDiscoveredCatalog('openai-compat', fakeCat());
+    store.getState().settings.invalidateProviderCatalog('openai-compat');
+    expect(store.getState().settings.discoveredCatalogs['openai-compat']).toBeNull();
+  });
+});
+
+describe('applyProviderMigration', () => {
+  it('resets a legacy anthropic activeProvider to openai-compat and raises the notice', () => {
+    const input: Partial<SettingsData> = {
+      activeProvider: 'anthropic' as unknown as SettingsData['activeProvider'],
+      providers: {
+        // legacy blob - applyProviderMigration must strip this key
+        anthropic: { kind: 'anthropic', apiKey: 'sk-ant', model: 'claude' },
+        'openai-compat': null,
+        'local-mistralrs': null,
+      } as unknown as SettingsData['providers'],
+    };
+    const out = applyProviderMigration(input);
+    expect(out.activeProvider).toBe('openai-compat');
+    expect(out.providerMigrationNotice).toBe(true);
+    expect((out.providers as unknown as Record<string, unknown>).anthropic).toBeUndefined();
+  });
+
+  it('leaves a non-anthropic activeProvider unchanged and does not raise the notice', () => {
+    const input: Partial<SettingsData> = {
+      activeProvider: 'local-mistralrs',
+      providers: {
+        'openai-compat': null,
+        'local-mistralrs': null,
+      },
+    };
+    const out = applyProviderMigration(input);
+    expect(out.activeProvider).toBe('local-mistralrs');
+    expect(out.providerMigrationNotice).toBe(false);
   });
 });

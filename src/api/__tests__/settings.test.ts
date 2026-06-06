@@ -6,14 +6,14 @@ import { postSettingsV2, toV2Wire } from '../settings';
 // Read whatever DEFAULT_SETTINGS exists; if not exported, build a baseline inline.
 function baseSettings(): SettingsData {
   return {
-    activeProvider: 'anthropic',
+    activeProvider: 'openai-compat',
     providers: {
-      anthropic: {
-        kind: 'anthropic',
+      'openai-compat': {
+        kind: 'openai-compat',
+        baseUrl: 'https://openrouter.ai/api/v1' as never,
         apiKey: 'sk-test' as never,
-        model: 'claude-haiku-4-5-20251001',
+        model: 'anthropic/claude-3.5-sonnet',
       },
-      'openai-compat': null,
       'local-mistralrs': null,
     },
     uiLanguage: 'en',
@@ -34,15 +34,21 @@ function baseSettings(): SettingsData {
     licenseRestrictedMode: false,
     agentMaxRounds: 8,
     discoveredCatalogs: {},
+    providerMigrationNotice: false,
   } as SettingsData;
 }
 
 describe('toV2Wire', () => {
-  it('maps anthropic baseline correctly', () => {
+  it('maps the openai-compat baseline correctly', () => {
     const wire = toV2Wire(baseSettings());
-    expect(wire.chat.active_provider_id).toBe('anthropic');
-    expect(wire.chat.active_model_id).toBe('claude-haiku-4-5-20251001');
-    expect(wire.chat.providers).toEqual({ anthropic: { api_key: 'sk-test' } });
+    expect(wire.chat.active_provider_id).toBe('openai-compat');
+    expect(wire.chat.active_model_id).toBe('anthropic/claude-3.5-sonnet');
+    expect(wire.chat.providers).toEqual({
+      'openai-compat': {
+        base_url: 'https://openrouter.ai/api/v1',
+        api_key: 'sk-test',
+      },
+    });
     expect(wire.image.active_provider_id).toBe('local-sdxl-lightning');
     expect(wire.image.active_model_id).toBe('sdxl-lightning-4step');
     expect(wire.behavior.scene_transitions).toBe('auto');
@@ -141,7 +147,7 @@ describe('postSettingsV2', () => {
     expect(init.method).toBe('POST');
     expect((init.headers as Record<string, string>)['content-type']).toBe('application/json');
     const body = JSON.parse(init.body as string);
-    expect(body.chat.active_provider_id).toBe('anthropic');
+    expect(body.chat.active_provider_id).toBe('openai-compat');
   });
 
   it('throws ChatError on non-2xx with structured envelope', async () => {

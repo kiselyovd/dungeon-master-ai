@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::{
-    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, ReasoningSpec, ToolCall,
+    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, MessagePart, ReasoningSpec,
+    ToolCall,
 };
 use futures::StreamExt;
 use serde_json::Value;
@@ -22,6 +23,7 @@ use uuid::Uuid;
 use crate::agent::context_builder::build_context;
 use crate::agent::tool_executor::execute_tool;
 use crate::agent::tools::{all_tools_with, classify_handler, ToolAvailability};
+use crate::image::provider::ImageProvider;
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -66,6 +68,9 @@ pub struct AgentTurnRequest {
     pub session_id: Uuid,
     pub player_message: String,
     pub history: Vec<ChatMessage>,
+    /// Image attachments for THIS turn (vision). Appended to the current user
+    /// message alongside the text; empty for text-only turns. [M11 F2]
+    pub images: Vec<MessagePart>,
 }
 
 /// Events emitted by the orchestrator, consumed by the SSE handler.
@@ -96,6 +101,15 @@ pub enum AgentEvent {
     /// M8-DM: streaming thinking/reasoning text from the LLM. UI renders this
     /// in a collapsible pill above the assistant bubble.
     ReasoningText { text: String },
+    /// A `generate_image` tool-call produced an image. Carries the raw bytes
+    /// base64-encoded; emitted on a dedicated event so the blob stays out of
+    /// the LLM history and the `tool_call_result` payload.
+    ImageGenerated {
+        tool_call_id: String,
+        round: usize,
+        mime_type: String,
+        image_b64: String,
+    },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
 }
@@ -105,6 +119,7 @@ pub struct AgentOrchestrator {
     pool: SqlitePool,
     config: AgentConfig,
     retriever: Option<Arc<SrdRetriever>>,
+    image_provider: Option<Arc<dyn ImageProvider>>,
 }
 
 impl AgentOrchestrator {
@@ -113,12 +128,14 @@ impl AgentOrchestrator {
         pool: SqlitePool,
         config: AgentConfig,
         retriever: Option<Arc<SrdRetriever>>,
+        image_provider: Option<Arc<dyn ImageProvider>>,
     ) -> Self {
         Self {
             provider,
             pool,
             config,
             retriever,
+            image_provider,
         }
     }
 
@@ -144,7 +161,17 @@ impl AgentOrchestrator {
 
         let tools = all_tools_with(self.config.tool_availability);
         let mut messages: Vec<ChatMessage> = req.history;
-        messages.push(ChatMessage::user_text(req.player_message.clone()));
+        // The current user turn carries the text plus any staged images (F2).
+        // With no images this is identical to `user_text`.
+        if req.images.is_empty() {
+            messages.push(ChatMessage::user_text(req.player_message.clone()));
+        } else {
+            let mut parts = vec![MessagePart::Text {
+                text: req.player_message.clone(),
+            }];
+            parts.extend(req.images.iter().cloned());
+            messages.push(ChatMessage::User { parts });
+        }
 
         let mut total_rounds = 0usize;
 
@@ -250,8 +277,42 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
-                let (result_val, is_error) =
-                    execute_tool(tc, &self.pool, req.campaign_id, req.session_id).await;
+                let (mut result_val, is_error) = execute_tool(
+                    tc,
+                    &self.pool,
+                    self.image_provider.clone(),
+                    req.campaign_id,
+                    req.session_id,
+                )
+                .await;
+
+                // generate_image returns the raw image as base64 inline. Peel
+                // it into a dedicated SSE event and strip it from result_val so
+                // the multi-hundred-KB blob never enters the LLM history or the
+                // tool_call_result payload.
+                if !is_error {
+                    if let Value::Object(map) = &mut result_val {
+                        if let Some(Value::String(image_b64)) = map.remove("image_b64") {
+                            let mime_type = map
+                                .get("mime_type")
+                                .and_then(Value::as_str)
+                                .unwrap_or("image/png")
+                                .to_string();
+                            if tx
+                                .send(AgentEvent::ImageGenerated {
+                                    tool_call_id: tc.id.clone(),
+                                    round: total_rounds,
+                                    mime_type,
+                                    image_b64,
+                                })
+                                .await
+                                .is_err()
+                            {
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
                 info!("tool {} -> {:?}", tc.name, result_val);
 
                 let result_str = serde_json::to_string(&result_val).unwrap_or_default();

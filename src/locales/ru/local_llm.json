@@ -4,7 +4,9 @@
   "manage_downloads": "Управление загрузками",
   "search_hf": "Поиск на Hugging Face",
   "installed_count": "{{installed}} / {{total}} установлено",
-  "hf_search_count": "{{count}} моделей",
+  "hf_search_count_one": "{{count}} модель",
+  "hf_search_count_few": "{{count}} модели",
+  "hf_search_count_many": "{{count}} моделей",
   "active_model_section": "Активная модель",
   "download": "Скачать",
   "delete": "Удалить",
@@ -35,5 +37,7 @@
   "sort_recent": "По дате обновления",
   "search_placeholder": "Поиск HuggingFace (например qwen3 thinking)",
   "search": "Поиск",
-  "searching": "Поиск..."
+  "searching": "Поиск...",
+  "hf_add_failed": "Не удалось добавить модель: {{error}}",
+  "add_hf_token": "Добавить токен HuggingFace"
 }

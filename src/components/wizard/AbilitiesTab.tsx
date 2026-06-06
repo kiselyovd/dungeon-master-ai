@@ -99,7 +99,7 @@ function PointBuyPanel({ abilities, remaining, onChange }: PanelProps & { remain
   return (
     <div>
       <div style={{ marginBottom: 8, color: 'var(--color-accent)' }}>
-        {t('point_buy_remaining', { remaining })}
+        {t('point_buy_remaining', { count: remaining })}
       </div>
       {ABILITIES.map((k) => (
         <div

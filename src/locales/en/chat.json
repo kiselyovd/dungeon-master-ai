@@ -1,4 +1,6 @@
 {
+  "no_response": "(no response)",
+  "journal_saved": "Saved to journal",
   "placeholder": "What do you do?",
   "send": "Send",
   "stop": "Stop",

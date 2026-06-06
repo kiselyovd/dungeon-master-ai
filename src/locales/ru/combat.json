@@ -1,4 +1,11 @@
 {
+  "intent_attack": "Я атакую.",
+  "intent_cast": "Я применяю заклинание.",
+  "intent_move": "Я перемещаюсь.",
+  "intent_dash": "Я использую Рывок.",
+  "intent_dodge": "Я использую Уклонение.",
+  "intent_disengage": "Я выхожу из боя (Отход).",
+  "intent_use_object": "Я использую предмет.",
   "initiative_tracker": "Инициатива",
   "round": "Раунд {{round}}",
   "action": "Действие",
@@ -9,11 +16,11 @@
   "cast": "Заклинание",
   "dash": "Рывок",
   "dodge": "Уклонение",
-  "disengage": "Отступление",
+  "disengage": "Отход",
   "use_object": "Предмет",
   "end_turn": "Закончить ход",
   "action_bar": "Боевые действия",
-  "economy": "Экономия действий",
+  "economy": "Экономика действий",
   "active_turn": "Ход",
   "hp_label": "ОЗ",
   "ac_label": "КД",
@@ -34,11 +41,11 @@
   "reaction_used_tooltip": "Уже использовано в этот ход",
   "movement_label": "{{remaining}}/{{total}} фт",
   "conditions": {
-    "prone": "Лёжа",
-    "grappled": "Захват",
+    "prone": "Сбит с ног",
+    "grappled": "Схвачен",
     "frightened": "Напуган",
     "poisoned": "Отравлен",
     "unconscious": "Без сознания",
-    "blinded": "Слеплён"
+    "blinded": "Ослеплён"
   }
 }

@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Dungeon Master AI",
         "width": 1280,
         "height": 800,
@@ -36,7 +37,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/dmai-server", "binaries/mistralrs-server"]
+    "externalBin": [
+      "binaries/dmai-server",
+      "binaries/mistralrs-server",
+      "binaries/dmai-image-sidecar"
+    ]
   },
   "plugins": {
     "updater": {

@@ -42,6 +42,16 @@ vi.mock('../../../api/settings', () => ({
   postSettingsV2: vi.fn(async () => undefined),
 }));
 
+// E1: the Local-only step starts the runtime + refreshes its status before
+// POSTing settings, so the local-mistralrs slice has a ready port.
+vi.mock('../../../api/localRuntime', () => ({
+  startLocalRuntimes: vi.fn(async () => undefined),
+  fetchLocalRuntimeStatus: vi.fn(async () => ({
+    llm: { state: 'ready', port: 8765 },
+    image: { state: 'off' },
+  })),
+}));
+
 // backendUrl is used by fetchLocalLlmManifest inside the mock, but since we
 // mock the whole module we don't need it - mock it anyway to silence imports.
 vi.mock('../../../api/client', () => ({
@@ -53,10 +63,12 @@ vi.mock('../../../api/client', () => ({
 // ---------------------------------------------------------------------------
 
 import { fetchLocalLlmManifest } from '../../../api/localLlm';
+import { startLocalRuntimes } from '../../../api/localRuntime';
 import { postSettingsV2 } from '../../../api/settings';
 
 const mockedFetchManifest = vi.mocked(fetchLocalLlmManifest);
 const mockedPostSettings = vi.mocked(postSettingsV2);
+const mockedStartRuntimes = vi.mocked(startLocalRuntimes);
 
 function setup(preset: Parameters<typeof ChatStep>[0]['preset']) {
   const onBack = vi.fn();
@@ -167,8 +179,16 @@ describe('ChatStep - local-only preset', () => {
     expect(state.providers['local-mistralrs']?.modelPath).toBe('qwen3_5_4b');
     expect(state.activeProvider).toBe('local-mistralrs');
 
-    // postSettingsV2 must have been called.
+    // E1: the runtime is started before settings are POSTed (so the
+    // local-mistralrs slice resolves a ready port instead of throwing).
+    expect(mockedStartRuntimes).toHaveBeenCalledTimes(1);
+    // The fetched status snapshot must be written into the store so the
+    // synchronous postSettingsV2 read sees a ready runtime with a port.
+    expect(useStore.getState().localMode.runtime.llm).toEqual({ state: 'ready', port: 8765 });
     expect(mockedPostSettings).toHaveBeenCalledTimes(1);
+    expect(mockedStartRuntimes.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedPostSettings.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
 
     // onNext must be called to advance.
     await waitFor(() => {
@@ -182,18 +202,21 @@ describe('ChatStep - local-only preset', () => {
 //         persists provider via setProviderConfig + setActiveProvider + postSettingsV2
 // ---------------------------------------------------------------------------
 describe('ChatStep - cloud-cinematic preset', () => {
-  it('blocks Continue on empty key; entering key + Continue persists provider', async () => {
+  it('blocks Continue on empty key/model; filling them + Continue persists an openai-compat provider', async () => {
     const user = userEvent.setup();
     const { onNext } = setup('cloud-cinematic');
 
     const continueBtn = screen.getByRole('button', { name: /continue/i });
 
-    // Continue is disabled initially (no key).
+    // Continue is disabled initially: Base URL is prefilled to OpenRouter,
+    // but the API key and Model fields are empty.
     expect(continueBtn).toBeDisabled();
 
-    // Type a valid API key.
-    const keyInput = screen.getByPlaceholderText(/sk-ant/i);
-    await user.type(keyInput, 'sk-ant-api03-testkey123');
+    // Fill the API key (placeholder "sk-or-...") and the Model (placeholder "e.g. ...").
+    const keyInput = screen.getByPlaceholderText(/sk-or/i);
+    await user.type(keyInput, 'sk-or-testkey123');
+    const modelInput = screen.getByPlaceholderText(/^e\.g\./i);
+    await user.type(modelInput, 'anthropic/claude-3.5-sonnet');
 
     // Now enabled.
     await waitFor(() => {
@@ -202,11 +225,15 @@ describe('ChatStep - cloud-cinematic preset', () => {
 
     await user.click(continueBtn);
 
-    // Provider config + activeProvider must be set in the store.
+    // Provider config + activeProvider must be set to the generic openai-compat
+    // provider with OpenRouter as the base URL.
     const state = useStore.getState().settings;
-    expect(state.providers.anthropic).not.toBeNull();
-    expect(state.providers.anthropic?.apiKey).toBe('sk-ant-api03-testkey123');
-    expect(state.activeProvider).toBe('anthropic');
+    expect(state.providers['openai-compat']).not.toBeNull();
+    expect(state.providers['openai-compat']?.kind).toBe('openai-compat');
+    expect(state.providers['openai-compat']?.baseUrl).toBe('https://openrouter.ai/api/v1');
+    expect(state.providers['openai-compat']?.apiKey).toBe('sk-or-testkey123');
+    expect(state.providers['openai-compat']?.model).toBe('anthropic/claude-3.5-sonnet');
+    expect(state.activeProvider).toBe('openai-compat');
 
     // postSettingsV2 must have been called.
     expect(mockedPostSettings).toHaveBeenCalledTimes(1);

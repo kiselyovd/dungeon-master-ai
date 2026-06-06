@@ -90,6 +90,18 @@ fn all_tools_core() -> Vec<Tool> {
             }),
         },
         Tool {
+            name: "apply_healing".into(),
+            description: "Restore hit points to a combatant. Healing is capped at the token's max HP. Returns new HP.".into(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "token_id": { "type": "string" },
+                    "amount": { "type": "integer", "minimum": 0 }
+                },
+                "required": ["token_id","amount"]
+            }),
+        },
+        Tool {
             name: "start_combat".into(),
             description: "Transition the scene to combat mode. Provide initiative entries for all combatants.".into(),
             parameters: json!({
@@ -315,5 +327,11 @@ mod tests {
         assert!(names.contains(&"roll_dice"));
         assert!(names.contains(&"apply_damage"));
         assert!(names.contains(&"query_rules"));
+    }
+
+    #[test]
+    fn all_tools_includes_apply_healing() {
+        let tools = all_tools();
+        assert!(tools.iter().any(|t| t.name == "apply_healing"));
     }
 }

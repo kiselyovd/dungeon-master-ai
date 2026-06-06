@@ -1,9 +1,11 @@
 {
+  "no_response": "(нет ответа)",
+  "journal_saved": "Сохранено в журнал",
   "placeholder": "Что ты делаешь?",
   "send": "Отправить",
   "stop": "Стоп",
   "thinking": "AI думает...",
-  "no_api_key": "Укажи свой Anthropic API key в настройках, чтобы начать.",
+  "no_api_key": "Укажи свой API-ключ Anthropic в настройках, чтобы начать.",
   "attach_image": "Прикрепить изображение",
   "image_too_large": "Изображение больше 5 МБ",
   "image_unsupported": "Поддерживаются только PNG, JPEG и WebP",

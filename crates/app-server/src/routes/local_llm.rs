@@ -49,6 +49,9 @@ pub struct DownloadStateWire {
     pub progress: Option<f32>,
     #[serde(rename = "errorMessage", skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// True for a 401/403 HuggingFace failure; the picker offers a token action.
+    #[serde(rename = "authRequired")]
+    pub auth_required: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +82,8 @@ pub(crate) struct DownloadEventWire {
     pub(crate) total_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) reason: Option<String>,
+    /// True for a 401/403 HuggingFace failure (only meaningful on `kind: "failed"`).
+    pub(crate) auth_required: bool,
 }
 
 /// Translate a `ModelId` enum variant into the dotted wire id string used by
@@ -115,6 +120,7 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: Some(bytes_done),
                 total_bytes,
                 reason: None,
+                auth_required: false,
             })
         }
         DownloadEvent::Completed { id, .. } => {
@@ -125,9 +131,14 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: None,
                 total_bytes: None,
                 reason: None,
+                auth_required: false,
             })
         }
-        DownloadEvent::Failed { id, reason } => {
+        DownloadEvent::Failed {
+            id,
+            reason,
+            auth_required,
+        } => {
             let wire_id = wire_id_for_model(&id)?.to_owned();
             Some(DownloadEventWire {
                 id: wire_id,
@@ -135,6 +146,7 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
                 bytes_done: None,
                 total_bytes: None,
                 reason: Some(reason),
+                auth_required,
             })
         }
     }
@@ -213,8 +225,14 @@ fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
 
 pub async fn get_manifest(State(state): State<AppState>) -> Json<ManifestResponse> {
     let system = system_catalog();
-    let user: Vec<UserEntry> = Vec::new();
-    // TODO(M9-DM): wire user manifest from secrets/HF search (Task 19).
+    // Read HF-search-added models so they reach the picker. The path is the
+    // same one POST /hf/manifest/add writes to (see routes::hf), so the read
+    // and write sides can never diverge. A missing/unreadable file is treated
+    // as "no user models", never an error.
+    let user: Vec<UserEntry> =
+        crate::hf::manifest::load_or_init(&crate::routes::hf::user_manifest_path(&state))
+            .map(|f| f.entries)
+            .unwrap_or_default();
 
     let manager = state.download_manager();
     let mut installed_ids: Vec<String> = Vec::new();
@@ -241,16 +259,21 @@ pub async fn get_manifest(State(state): State<AppState>) -> Json<ManifestRespons
                         state: "downloading",
                         progress,
                         error_message: None,
+                        auth_required: false,
                     },
                 );
             }
-            DownloadStatus::Failed { reason } => {
+            DownloadStatus::Failed {
+                reason,
+                auth_required,
+            } => {
                 download_states.insert(
                     entry.id.clone(),
                     DownloadStateWire {
                         state: "error",
                         progress: None,
                         error_message: Some(reason),
+                        auth_required,
                     },
                 );
             }
@@ -414,8 +437,8 @@ mod tests {
         // Each entry's hf_repo / hf_filename should match the manifest's
         // canonical values, not made-up strings.
         let four_b = s.iter().find(|e| e.id == "qwen3.5-4b").unwrap();
-        assert_eq!(four_b.hf_repo, "Qwen/Qwen3.5-4B-Instruct-GGUF");
-        assert_eq!(four_b.hf_filename, "qwen3.5-4b-instruct-q4_k_m.gguf");
+        assert_eq!(four_b.hf_repo, "unsloth/Qwen3.5-4B-GGUF");
+        assert_eq!(four_b.hf_filename, "Qwen3.5-4B-Q4_K_M.gguf");
     }
 
     #[test]

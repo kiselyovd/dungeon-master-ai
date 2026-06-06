@@ -39,6 +39,7 @@ pub fn validate_tool_call(
     match tool_name {
         "roll_dice" => validate_roll_dice(args),
         "apply_damage" => validate_apply_damage(args),
+        "apply_healing" => validate_apply_healing(args),
         "start_combat" => validate_start_combat(args),
         "end_combat" => validate_end_combat(args),
         "add_token" => validate_add_token(args),
@@ -80,6 +81,25 @@ fn validate_apply_damage(args: Value) -> Result<ValidatedToolCall, ToolCallError
     }
     Ok(ValidatedToolCall {
         tool_name: "apply_damage".into(),
+        args,
+    })
+}
+
+fn validate_apply_healing(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
+    for field in &["token_id", "amount"] {
+        args.get(field)
+            .ok_or_else(|| ToolCallError::InvalidArgs(format!("missing '{field}' field")))?;
+    }
+    let amount = args["amount"]
+        .as_i64()
+        .ok_or_else(|| ToolCallError::InvalidArgs("amount must be integer".into()))?;
+    if amount < 0 {
+        return Err(ToolCallError::ValidationFailed(
+            "healing amount must be >= 0".into(),
+        ));
+    }
+    Ok(ValidatedToolCall {
+        tool_name: "apply_healing".into(),
         args,
     })
 }
@@ -248,4 +268,31 @@ fn validate_generate_image(args: Value) -> Result<ValidatedToolCall, ToolCallErr
         tool_name: "generate_image".into(),
         args,
     })
+}
+
+#[cfg(test)]
+mod apply_healing_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn validate_apply_healing_accepts_valid_args() {
+        let result =
+            validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": 8 }));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().tool_name, "apply_healing");
+    }
+
+    #[test]
+    fn validate_apply_healing_rejects_missing_amount() {
+        let result = validate_tool_call("apply_healing", json!({ "token_id": "pc-1" }));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_apply_healing_rejects_negative_amount() {
+        let result =
+            validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": -3 }));
+        assert!(result.is_err());
+    }
 }

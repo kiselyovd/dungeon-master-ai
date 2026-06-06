@@ -277,7 +277,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 
 export function fetchCompendium(): Promise<Compendium> {
   if (cached) return cached;
-  cached = (async () => {
+  const pending = (async () => {
     const [races, classes, backgrounds, spells, equipment, feats, weapon_properties] =
       await Promise.all([
         fetchJson<Race[]>('/srd/races'),
@@ -290,7 +290,14 @@ export function fetchCompendium(): Promise<Compendium> {
       ]);
     return { races, classes, backgrounds, spells, equipment, feats, weapon_properties };
   })();
-  return cached;
+  cached = pending;
+  // Clear the cache on failure so a retry re-attempts instead of replaying the
+  // rejected promise forever (the wizard's load-error + retry path depends on
+  // this). Callers still receive the original rejection from `pending`.
+  pending.catch(() => {
+    if (cached === pending) cached = null;
+  });
+  return pending;
 }
 
 export function resetSrdCacheForTests(): void {

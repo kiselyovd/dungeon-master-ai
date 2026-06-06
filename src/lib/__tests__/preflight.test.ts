@@ -8,10 +8,14 @@ import { DISMISS_TTL_MS, dismissPreflight, isPreflightDismissed, runPreflight } 
 
 function makeSettings(overrides: Partial<SettingsData> = {}): SettingsData {
   return {
-    activeProvider: 'anthropic',
+    activeProvider: 'openai-compat',
     providers: {
-      anthropic: { kind: 'anthropic', apiKey: 'sk-test', model: 'claude-3-5-sonnet-20241022' },
-      'openai-compat': null,
+      'openai-compat': {
+        kind: 'openai-compat',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKey: 'sk-test',
+        model: 'anthropic/claude-3.5-sonnet',
+      },
       'local-mistralrs': null,
     },
     uiLanguage: 'en',
@@ -32,6 +36,7 @@ function makeSettings(overrides: Partial<SettingsData> = {}): SettingsData {
     licenseRestrictedMode: false,
     agentMaxRounds: 8,
     discoveredCatalogs: {},
+    providerMigrationNotice: false,
     ...overrides,
   } as SettingsData;
 }
@@ -49,9 +54,8 @@ describe('runPreflight', () => {
   // 2. missing_chat when active provider config slot is null (not local-mistralrs)
   it('returns missing_chat when active provider has null config (not local-mistralrs)', () => {
     const s = makeSettings({
-      activeProvider: 'anthropic',
+      activeProvider: 'openai-compat',
       providers: {
-        anthropic: null,
         'openai-compat': null,
         'local-mistralrs': null,
       },
@@ -64,7 +68,6 @@ describe('runPreflight', () => {
     const s = makeSettings({
       activeProvider: 'local-mistralrs',
       providers: {
-        anthropic: null,
         'openai-compat': null,
         'local-mistralrs': null,
       },
@@ -115,8 +118,8 @@ describe('runPreflight', () => {
   // chat is checked before image (priority order)
   it('returns missing_chat before missing_image (priority order)', () => {
     const s = makeSettings({
-      activeProvider: 'anthropic',
-      providers: { anthropic: null, 'openai-compat': null, 'local-mistralrs': null },
+      activeProvider: 'openai-compat',
+      providers: { 'openai-compat': null, 'local-mistralrs': null },
       imageEnabled: true,
       imagePreset: 'cloud',
       replicateApiKey: null,

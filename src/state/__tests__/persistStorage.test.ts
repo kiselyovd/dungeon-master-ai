@@ -1,7 +1,7 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { persistStorage } from '../persistStorage';
-import type { AnthropicConfig, ApiKey } from '../providers';
+import type { ApiKey, BaseUrl, OpenaiCompatConfig } from '../providers';
 import type { SettingsData } from '../settings';
 import { strongholdSecretsStore } from '../strongholdSecretsStore';
 
@@ -61,20 +61,40 @@ describe('persistStorage', () => {
     expect(await persistStorage.getItem('any')).toBeNull();
   });
 
+  it('parses a legacy anthropic-persisted blob without throwing and strips the anthropic config', async () => {
+    // M11 Batch D.5: native Anthropic was removed. A legacy settings.json with
+    // active_provider='anthropic' + a providers.anthropic blob must still PARSE
+    // (the picklist keeps 'anthropic' for tolerance), with the stale anthropic
+    // provider config silently stripped by ProvidersMapSchema. The store-side
+    // reset to openai-compat happens later in the rehydration merge.
+    await strongholdSecretsStore.set('providers', {
+      anthropic: { kind: 'anthropic', apiKey: 'sk-ant-legacy', model: 'claude-haiku' },
+      'openai-compat': null,
+      'local-mistralrs': null,
+    });
+    await settings.set('active_provider', 'anthropic');
+
+    const parsed = await persistStorage.getItem('any');
+    expect(parsed).not.toBeNull();
+    // raw value preserved at the storage boundary; reset is the store's job
+    expect(parsed?.state.settings?.activeProvider).toBe('anthropic');
+    expect(parsed?.state.settings?.providers).not.toHaveProperty('anthropic');
+  });
+
   it('writes provider configs to the Stronghold vault and prefs to settings.json', async () => {
-    const cfg: AnthropicConfig = {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-real' as ApiKey,
-      model: 'claude-haiku',
+    const cfg: OpenaiCompatConfig = {
+      kind: 'openai-compat',
+      baseUrl: 'https://openrouter.ai/api/v1' as BaseUrl,
+      apiKey: 'sk-or-real' as ApiKey,
+      model: 'anthropic/claude-3.5-sonnet',
     };
 
     await persistStorage.setItem('any', {
       state: {
         settings: {
-          activeProvider: 'anthropic',
+          activeProvider: 'openai-compat',
           providers: {
-            anthropic: cfg,
-            'openai-compat': null,
+            'openai-compat': cfg,
             'local-mistralrs': null,
           },
           uiLanguage: 'ru',
@@ -86,51 +106,51 @@ describe('persistStorage', () => {
 
     // Provider blob lives in the encrypted Stronghold vault, NOT in the
     // legacy plaintext secrets.json.
-    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ anthropic: cfg });
+    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ 'openai-compat': cfg });
     expect(await legacySecrets.get('providers')).toBeUndefined();
 
     // Prefs live in settings.json under the legacy snake_case keys.
-    expect(await settings.get('active_provider')).toBe('anthropic');
+    expect(await settings.get('active_provider')).toBe('openai-compat');
     expect(await settings.get('ui_language')).toBe('ru');
     expect(await settings.get('narration_language')).toBe('en');
   });
 
   it('one-shot migrates legacy plaintext secrets.json into the vault on first read', async () => {
-    const cfg: AnthropicConfig = {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-legacy' as ApiKey,
-      model: 'claude-haiku',
+    const cfg: OpenaiCompatConfig = {
+      kind: 'openai-compat',
+      baseUrl: 'https://openrouter.ai/api/v1' as BaseUrl,
+      apiKey: 'sk-or-legacy' as ApiKey,
+      model: 'anthropic/claude-3.5-sonnet',
     };
     // Seed only the legacy plaintext store - simulates an upgrade from M4.5.
     await legacySecrets.set('providers', {
-      anthropic: cfg,
-      'openai-compat': null,
+      'openai-compat': cfg,
       'local-mistralrs': null,
     });
 
     const loaded = await persistStorage.getItem('any');
-    expect(loaded?.state.settings?.providers).toMatchObject({ anthropic: cfg });
+    expect(loaded?.state.settings?.providers).toMatchObject({ 'openai-compat': cfg });
 
     // The legacy entry was drained into the vault and removed from the
     // plaintext file as part of the migration.
-    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ anthropic: cfg });
+    expect(await strongholdSecretsStore.get('providers')).toMatchObject({ 'openai-compat': cfg });
     expect(await legacySecrets.get('providers')).toBeUndefined();
   });
 
   it('round-trips a full snapshot back through getItem', async () => {
-    const cfg: AnthropicConfig = {
-      kind: 'anthropic',
-      apiKey: 'sk-ant-roundtrip' as ApiKey,
-      model: 'claude-opus',
+    const cfg: OpenaiCompatConfig = {
+      kind: 'openai-compat',
+      baseUrl: 'https://openrouter.ai/api/v1' as BaseUrl,
+      apiKey: 'sk-or-roundtrip' as ApiKey,
+      model: 'anthropic/claude-3-opus',
     };
 
     await persistStorage.setItem('any', {
       state: {
         settings: {
-          activeProvider: 'anthropic',
+          activeProvider: 'openai-compat',
           providers: {
-            anthropic: cfg,
-            'openai-compat': null,
+            'openai-compat': cfg,
             'local-mistralrs': null,
           },
           uiLanguage: 'en',
@@ -143,10 +163,9 @@ describe('persistStorage', () => {
     const loaded = await persistStorage.getItem('any');
     expect(loaded).not.toBeNull();
     expect(loaded?.state.settings).toEqual({
-      activeProvider: 'anthropic',
+      activeProvider: 'openai-compat',
       providers: {
-        anthropic: cfg,
-        'openai-compat': null,
+        'openai-compat': cfg,
         'local-mistralrs': null,
       },
       uiLanguage: 'en',
@@ -264,11 +283,11 @@ describe('persistStorage', () => {
     };
     await persistStorage.setItem('any', {
       state: {
-        settings: { discoveredCatalogs: { anthropic: cat } },
+        settings: { discoveredCatalogs: { 'openai-compat': cat } },
       },
       version: 0,
     });
-    expect(await settings.get('discovered_catalogs')).toEqual({ anthropic: cat });
+    expect(await settings.get('discovered_catalogs')).toEqual({ 'openai-compat': cat });
     // Must NOT have leaked into Stronghold.
     expect(await strongholdSecretsStore.get('discovered_catalogs')).toBeUndefined();
   });
@@ -387,9 +406,8 @@ describe('persistStorage', () => {
     await persistStorage.setItem('any', {
       state: {
         settings: {
-          activeProvider: 'anthropic',
+          activeProvider: 'openai-compat',
           providers: {
-            anthropic: null,
             'openai-compat': null,
             'local-mistralrs': null,
           },

@@ -12,6 +12,7 @@
   "delete": "Удалить",
   "use": "Использовать",
   "in_use": "Активна",
+  "add_hf_token": "Добавить токен HuggingFace",
   "llm_models": "LLM-модели",
   "image_model": "Модель изображений",
   "vram_strategy": "Стратегия VRAM",

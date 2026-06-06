@@ -16,6 +16,7 @@ import { LocalModeModal } from './components/LocalModeModal';
 import { NpcMemoryGrid } from './components/NpcMemoryGrid';
 import { Onboarding } from './components/Onboarding';
 import { PreflightModal } from './components/PreflightModal';
+import { ProviderMigrationBanner } from './components/ProviderMigrationBanner';
 import { SavesScreen } from './components/SavesScreen';
 import { ScenePill } from './components/ScenePill';
 import { SceneTransitionOverlay } from './components/SceneTransitionOverlay';
@@ -26,6 +27,7 @@ import { ToolInspectorDrawer } from './components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
+import { useAgentTurn } from './hooks/useAgentTurn';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
@@ -69,6 +71,32 @@ function QuickSaveToast({ lastQuickSaveAt }: { lastQuickSaveAt: string | null })
   );
 }
 
+/**
+ * Error toast for a failed save/overwrite/delete. Reads the saves slice's
+ * `lastSaveError`; auto-dismisses after a few seconds and on click. [F3]
+ */
+function SaveErrorToast() {
+  const { t } = useTranslation('saves');
+  const lastSaveError = useStore((s) => s.saves.lastSaveError);
+  const clear = useStore((s) => s.saves.setLastSaveError);
+  useEffect(() => {
+    if (!lastSaveError) return;
+    const handle = window.setTimeout(() => clear(null), 5000);
+    return () => window.clearTimeout(handle);
+  }, [lastSaveError, clear]);
+  if (!lastSaveError) return null;
+  return (
+    <button
+      type="button"
+      className="dm-saves-toast dm-saves-toast-error"
+      aria-live="assertive"
+      onClick={() => clear(null)}
+    >
+      {t('save_failed')}: {lastSaveError}
+    </button>
+  );
+}
+
 async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'): Promise<void> {
   try {
     const win = getCurrentWindow();
@@ -98,6 +126,8 @@ function App() {
   const activeProvider = useStore((s) => s.settings.activeProvider);
   const activeProviderConfig = useStore((s) => s.settings.providers[s.settings.activeProvider]);
   const combatActive = useStore((s) => s.combat.active);
+  // ActionBar posts combat-action intents to the DM through the agent turn. [F1]
+  const { send: sendAgentTurn } = useAgentTurn();
   const combatTokens = useStore((s) => s.combat.tokens);
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
@@ -200,6 +230,13 @@ function App() {
   // because plain Ctrl+S is reserved for the quick-save action (no modal).
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
+      // F11 -> toggle fullscreen. [M11 G3]
+      if (e.key === 'F11') {
+        e.preventDefault();
+        const win = getCurrentWindow();
+        void win.isFullscreen().then((fs) => win.setFullscreen(!fs));
+        return;
+      }
       // Ctrl+S (no shift) -> quick save. Run on the active session and
       // pop the saved-now toast via the slice's `lastQuickSaveAt` clock.
       if (e.ctrlKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
@@ -225,7 +262,6 @@ function App() {
 
   const providerLabel = tSettings(
     `provider_${activeProvider.replace('-', '_')}` as
-      | 'provider_anthropic'
       | 'provider_openai_compat'
       | 'provider_local_mistralrs',
   );
@@ -237,6 +273,15 @@ function App() {
   const videoMode = useStore((s) => s.settings.videoMode);
   const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
+
+  // StatusBar "saved" chip: derive minutes-since-last-quicksave from the saves
+  // slice. Recomputed on every render that touches lastQuickSaveAt; not a live
+  // ticking clock, which is fine for an at-a-glance footer chip. [F4]
+  let savedAgo: { minutes: number } | 'now' | null = null;
+  if (lastQuickSaveAt) {
+    const mins = Math.floor((Date.now() - new Date(lastQuickSaveAt).getTime()) / 60000);
+    savedAgo = mins < 1 ? 'now' : { minutes: mins };
+  }
 
   // Compute preflight status - only relevant after onboarding is completed.
   const preflightStatus: PreflightStatus = onboardingCompleted
@@ -250,6 +295,7 @@ function App() {
 
   return (
     <ErrorBoundary level="top">
+      <ProviderMigrationBanner />
       <div className="dm-app">
         <header className="dm-titlebar" data-tauri-drag-region>
           <div className="dm-titlebar-left">
@@ -355,7 +401,13 @@ function App() {
                 onSelect={handleInitiativeSelect}
               />
             )}
-            {combatActive && <ActionBar />}
+            {combatActive && (
+              <ActionBar
+                onIntent={(text) => {
+                  void sendAgentTurn(text);
+                }}
+              />
+            )}
             <CharFab
               onOpen={() => setCharacterSheetOpen(true)}
               onOpenWizard={() => setWizardReopen(true)}
@@ -372,6 +424,7 @@ function App() {
           provider={providerLabel}
           model={modelLabel}
           status={providerStatus}
+          savedAgo={savedAgo}
           image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
           video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
           onOpenSettings={(tab) => {
@@ -405,13 +458,28 @@ function App() {
           {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
           {savesOpen && <SavesScreen />}
           <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
+          <SaveErrorToast />
           <ToolInspectorDrawer
             entries={toolEntries}
             isOpen={inspectorOpen}
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && <Onboarding onExitToWizard={() => setWizardReopen(true)} />}
+          {!onboardingCompleted && (
+            <Onboarding
+              onExitToWizard={() => setWizardReopen(true)}
+              onComplete={(preset) => {
+                // The manual preset configures nothing, so it would land on the
+                // blocking PreflightModal (missing_chat). Route the user straight
+                // to the Chat settings tab instead and skip the blocking modal
+                // for this session. [E2]
+                if (preset === 'manual') {
+                  setPreflightDismissedThisSession(true);
+                  handleOpenChatSettings();
+                }
+              }}
+            />
+          )}
           {showPreflight && (
             <PreflightModal
               status={preflightStatus as Exclude<PreflightStatus, 'ok'>}

@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../state/chat';
+import type { ChatMessage, MessagePart } from '../state/chat';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 import {
@@ -17,6 +17,8 @@ export interface AgentTurnOptions {
   sessionId: string;
   playerMessage: string;
   history: ChatMessage[];
+  /** Image attachments staged for this turn (vision). Omitted for text-only. [F2] */
+  images?: MessagePart[];
   model?: string;
   signal?: AbortSignal;
 
@@ -48,6 +50,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     player_message: opts.playerMessage,
     history: opts.history,
     model: opts.model,
+    images: opts.images ?? [],
   });
 
   const init: RequestInit = {

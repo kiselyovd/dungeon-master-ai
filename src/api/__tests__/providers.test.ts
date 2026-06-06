@@ -21,16 +21,16 @@ describe('getProviders', () => {
         async () =>
           new Response(
             JSON.stringify({
-              available: ['anthropic', 'openai-compat'],
-              active: { kind: 'anthropic', default_model: 'claude-haiku' },
+              available: ['openai-compat', 'local-mistralrs'],
+              active: { kind: 'openai-compat', default_model: 'anthropic/claude-haiku' },
             }),
             { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
           ),
       ),
     );
     const info = await getProviders();
-    expect(info.available).toContain('anthropic');
-    expect(info.active.kind).toBe('anthropic');
+    expect(info.available).toContain('openai-compat');
+    expect(info.active.kind).toBe('openai-compat');
   });
 
   it('throws ChatError on non-2xx', async () => {

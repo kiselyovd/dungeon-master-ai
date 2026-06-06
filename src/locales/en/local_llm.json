@@ -4,7 +4,8 @@
   "manage_downloads": "Manage downloads",
   "search_hf": "Search Hugging Face",
   "installed_count": "{{installed}} / {{total}} installed",
-  "hf_search_count": "{{count}} models",
+  "hf_search_count_one": "{{count}} model",
+  "hf_search_count_other": "{{count}} models",
   "active_model_section": "Active model",
   "download": "Download",
   "delete": "Delete",
@@ -35,5 +36,7 @@
   "sort_recent": "Recently updated",
   "search_placeholder": "Search HuggingFace (e.g. qwen3 thinking)",
   "search": "Search",
-  "searching": "Searching..."
+  "searching": "Searching...",
+  "hf_add_failed": "Could not add model: {{error}}",
+  "add_hf_token": "Add HuggingFace token"
 }

@@ -131,11 +131,6 @@ function buildChatProvidersSlice(c: ProviderConfig): {
   activeModelId: string;
 } {
   switch (c.kind) {
-    case 'anthropic':
-      return {
-        providersSlice: { anthropic: { api_key: c.apiKey } },
-        activeModelId: c.model,
-      };
     case 'openai-compat':
       return {
         providersSlice: {

@@ -88,6 +88,8 @@ export interface PcData {
   savingThrowProfs: SavingThrowProf;
   skillProfs: SkillProf;
   inventory: InventoryItem[];
+  /** Generated/selected portrait (data URL or http(s)); null falls back to class art. */
+  portraitUrl: string | null;
 }
 
 /**
@@ -119,6 +121,7 @@ export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
   'savingThrowProfs',
   'skillProfs',
   'inventory',
+  'portraitUrl',
 ]);
 
 export interface PcActions {
@@ -324,6 +327,9 @@ function presetToData(klass: HeroClassId): Omit<PcData, 'heroClass'> & { heroCla
     savingThrowProfs: { ...preset.savingThrowProfs },
     skillProfs: { ...preset.skillProfs },
     inventory: preset.inventory.map((it) => ({ ...it })),
+    // Preset heroes have no generated portrait; CharacterSheet falls back to
+    // the class art via HERO_PORTRAIT.
+    portraitUrl: null,
   };
 }
 
@@ -358,6 +364,7 @@ const EMPTY_PC: PcData = {
   savingThrowProfs: {},
   skillProfs: {},
   inventory: [],
+  portraitUrl: null,
 };
 
 function isHeroClassId(value: string | null): value is HeroClassId {

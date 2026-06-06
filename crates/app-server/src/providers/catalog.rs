@@ -43,15 +43,6 @@ pub struct ProviderCatalogEntry {
     pub license: &'static str,
 }
 
-const fn caps_all_true() -> Capabilities {
-    Capabilities {
-        vision_input: true,
-        reasoning: true,
-        tool_calls: true,
-        streaming: true,
-    }
-}
-
 /// Capabilities for Qwen3 local models hosted via mistralrs-server. Vision
 /// and tool-calls are real, but reasoning is OFF until mistralrs surfaces
 /// `reasoning_content` or `<think>` markers in its OpenAI-compat SSE stream
@@ -110,36 +101,6 @@ pub const CHAT_CATALOG: &[ProviderCatalogEntry] = &[
         requires_base_url: false,
         supports_discovery: true,
         license: "Apache 2.0 (Qwen)",
-    },
-    ProviderCatalogEntry {
-        id: "anthropic",
-        display_name: "Anthropic Claude",
-        mode: ProviderMode::Cloud,
-        modality: ProviderModality::Chat,
-        curated_models: &[
-            CuratedModelEntry {
-                model_id: "claude-opus-4-7",
-                display_name: "Claude Opus 4.7",
-                capabilities: caps_all_true(),
-                default: false,
-            },
-            CuratedModelEntry {
-                model_id: "claude-sonnet-4-6",
-                display_name: "Claude Sonnet 4.6",
-                capabilities: caps_all_true(),
-                default: false,
-            },
-            CuratedModelEntry {
-                model_id: "claude-haiku-4-5-20251001",
-                display_name: "Claude Haiku 4.5",
-                capabilities: caps_all_true(),
-                default: true,
-            },
-        ],
-        requires_api_key: true,
-        requires_base_url: false,
-        supports_discovery: false,
-        license: "Anthropic ToS",
     },
     ProviderCatalogEntry {
         id: "openai-compat",
@@ -297,20 +258,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn chat_catalog_has_three_providers_in_m7_dm() {
+    fn chat_catalog_has_local_and_openai_compat_after_d5() {
+        // Native Anthropic was removed in M11 Batch D.5; cloud chat is served
+        // exclusively by the generic OpenAI-compatible provider.
         let ids: Vec<_> = CHAT_CATALOG.iter().map(|e| e.id).collect();
         assert!(ids.contains(&"local-mistralrs"));
-        assert!(ids.contains(&"anthropic"));
         assert!(ids.contains(&"openai-compat"));
-        assert_eq!(CHAT_CATALOG.len(), 3);
-    }
-
-    #[test]
-    fn anthropic_default_model_is_haiku_4_5() {
-        assert_eq!(
-            default_chat_model("anthropic"),
-            Some("claude-haiku-4-5-20251001")
-        );
+        assert!(!ids.contains(&"anthropic"));
+        assert_eq!(CHAT_CATALOG.len(), 2);
     }
 
     #[test]

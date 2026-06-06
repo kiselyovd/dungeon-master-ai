@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { StateCreator } from 'zustand';
 import type { ChatErrorPayload } from '../api/errors';
 
@@ -217,10 +218,15 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       // null means no turn was ever started - nothing to finalize.
       if (current === null) return;
       // Empty string means a turn started but produced no text; write a placeholder
-      // so the conversation log always has a visible assistant entry.
-      // TODO: '(no response)' is a hardcoded English literal; if RU locale support
-      // is ever needed, move this to a locale key or localize at the render layer.
-      const content = current.length === 0 ? '(no response)' : current;
+      // so the conversation log always has a visible assistant entry. Localized via
+      // the i18next singleton (defaultValue keeps it stable if i18n isn't initialised,
+      // e.g. in slice unit tests). [F4]
+      const content =
+        current.length === 0
+          ? i18next.isInitialized
+            ? i18next.t('chat:no_response')
+            : '(no response)'
+          : current;
       set((s) => {
         const seq = s.chat._nextSeq;
         return {

@@ -136,7 +136,12 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
     if !matches!(cfg.vram_strategy, VramStrategy::DisableImageGen) {
         let img_port = discover_free_port().map_err(|e| AppError::Internal(e.to_string()))?;
         let img_port_str = img_port.to_string();
-        let img_args: &[&str] = &["--port", &img_port_str];
+        // The Python sidecar declares --weights-dir as required=True
+        // (sidecar/app.py:113); without it the process argparse-exits before
+        // it can serve /healthz. models_dir holds the per-backend weight
+        // subdirectories the sidecar's PipelineDispatcher resolves.
+        let weights_dir_str = state.models_dir().to_string_lossy().into_owned();
+        let img_args: &[&str] = &["--port", &img_port_str, "--weights-dir", &weights_dir_str];
         state
             .runtime_registry()
             .image

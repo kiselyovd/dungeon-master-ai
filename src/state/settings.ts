@@ -1,7 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { DiscoveredCatalog, DiscoveredCatalogsMap } from './discoveredCatalogs';
 import type {
-  AnthropicConfig,
   LocalMistralRsConfig,
   OpenaiCompatConfig,
   ProviderConfig,
@@ -12,7 +11,6 @@ import type { ImagePreset, ReasoningBudget, VideoMode } from './settingsMigratio
 export type Language = 'en' | 'ru';
 
 export interface ProvidersMap {
-  anthropic: AnthropicConfig | null;
   'openai-compat': OpenaiCompatConfig | null;
   'local-mistralrs': LocalMistralRsConfig | null;
 }
@@ -68,6 +66,11 @@ export interface SettingsData {
   // M7.5-DM: cached results of POST /providers/discover, keyed by ProviderKind.
   // Plaintext (settings.json), NOT secret - public model lists.
   discoveredCatalogs: DiscoveredCatalogsMap;
+
+  // M11 Batch D.5: transient (NOT persisted) flag raised during rehydration
+  // when a legacy `activeProvider:'anthropic'` was reset. Drives a one-time
+  // "Anthropic no longer supported" banner.
+  providerMigrationNotice: boolean;
 }
 
 export interface SettingsActions {
@@ -98,6 +101,9 @@ export interface SettingsActions {
   setDiscoveredCatalog: (providerId: ProviderKind, catalog: DiscoveredCatalog) => void;
   clearDiscoveredCatalog: (providerId: ProviderKind) => void;
   invalidateProviderCatalog: (providerId: ProviderKind) => void;
+
+  // M11 Batch D.5
+  dismissProviderMigrationNotice: () => void;
 }
 
 function clampChatWidth(width: number): number {
@@ -133,19 +139,42 @@ export function applyD8Migration(settings: Partial<SettingsData>): Partial<Setti
   return settings;
 }
 
+/**
+ * M11 Batch D.5: native Anthropic was removed. A persisted
+ * `activeProvider === 'anthropic'` (legacy) is reset to an unconfigured
+ * `openai-compat` cloud state, the stale anthropic provider config is dropped,
+ * and a one-time banner is raised via `providerMigrationNotice`. 'anthropic' is
+ * never written back. Wired into the store rehydration `merge` in useStore.ts.
+ */
+export function applyProviderMigration(settings: Partial<SettingsData>): Partial<SettingsData> {
+  if ((settings.activeProvider as string | undefined) !== 'anthropic') {
+    // Pass-through: make the contract explicit so callers never read an
+    // undefined notice flag (the field is excluded from `partialize`, so a
+    // normal rehydration keeps the store default of false either way).
+    return { ...settings, providerMigrationNotice: false };
+  }
+  const providers = { ...(settings.providers ?? {}) } as Record<string, unknown>;
+  delete providers.anthropic;
+  return {
+    ...settings,
+    activeProvider: 'openai-compat',
+    providers: providers as unknown as ProvidersMap,
+    providerMigrationNotice: true,
+  };
+}
+
 export interface SettingsSlice {
   settings: SettingsData & SettingsActions;
 }
 
 const DEFAULT_PROVIDERS: ProvidersMap = {
-  anthropic: null,
   'openai-compat': null,
   'local-mistralrs': null,
 };
 
 export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSlice> = (set) => ({
   settings: {
-    activeProvider: 'anthropic',
+    activeProvider: 'openai-compat',
     providers: DEFAULT_PROVIDERS,
     uiLanguage: 'en',
     narrationLanguage: 'en',
@@ -167,6 +196,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     licenseRestrictedMode: false,
     agentMaxRounds: 8,
     discoveredCatalogs: {},
+    providerMigrationNotice: false,
 
     setActiveProvider: (activeProvider) =>
       set((s) => ({ settings: { ...s.settings, activeProvider } })),
@@ -247,5 +277,8 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
           discoveredCatalogs: { ...s.settings.discoveredCatalogs, [providerId]: null },
         },
       })),
+
+    dismissProviderMigrationNotice: () =>
+      set((s) => ({ settings: { ...s.settings, providerMigrationNotice: false } })),
   },
 });

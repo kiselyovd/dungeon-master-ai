@@ -1,4 +1,7 @@
 {
+  "compendium_error_title": "Could not load character data",
+  "compendium_error_body": "The SRD compendium (classes, races, spells, equipment) failed to load. Check that the local backend is running and try again.",
+  "compendium_retry": "Retry",
   "live_sheet_label": "Live character sheet",
   "pick_a_class_to_begin": "Pick a class to begin",
   "placeholder_hero": "Hero",
@@ -37,7 +40,8 @@
   "ability_method_point_buy": "Point Buy 27",
   "ability_method_standard_array": "Standard Array",
   "ability_method_4d6_drop_lowest": "4d6 drop lowest",
-  "point_buy_remaining": "{{remaining}} points left",
+  "point_buy_remaining_one": "{{count}} point left",
+  "point_buy_remaining_other": "{{count}} points left",
   "standard_array_hint": "Each value can be assigned to one ability:",
   "standard_array_taken": "taken",
   "roll_set": "Roll set ({{remaining}} left)",

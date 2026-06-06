@@ -12,7 +12,7 @@ import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
-import type { ChatMessage, ChatStreamEvent, StagedImage } from '../state/chat';
+import type { ChatMessage, ChatStreamEvent, MessagePart, StagedImage } from '../state/chat';
 import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
@@ -178,15 +178,18 @@ export function ChatPanel() {
     if (!canSend) return;
     const text = draft;
     setDraft('');
-    if (staged.length > 0) {
-      // Vision multipart is not yet wired to the backend. Surface a non-blocking
-      // notice so the user knows their attachments were not sent, then clear them.
-      setStagingError(t('attachments_not_sent'));
-    } else {
-      setStagingError(null);
-    }
+    // Convert staged images to wire MessageParts (strip the data-URL prefix to
+    // the bare base64 the backend expects). They ride the dedicated `images`
+    // field of the agent turn (F2 - vision wired end to end).
+    const images: MessagePart[] = staged.map((img) => ({
+      type: 'image',
+      mime: img.mime,
+      data_b64: img.dataUrl.replace(/^data:[^;]+;base64,/, ''),
+      name: img.name ?? null,
+    }));
     setStaged([]);
-    await send(text);
+    setStagingError(null);
+    await send(text, images.length > 0 ? images : undefined);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

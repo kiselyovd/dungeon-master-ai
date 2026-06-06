@@ -11,7 +11,7 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use app_llm::{AnthropicProvider, MistralrsLocalProvider, OpenAICompatProvider};
+use app_llm::{MistralrsLocalProvider, OpenAICompatProvider};
 
 use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
@@ -38,7 +38,7 @@ pub struct ProvidersInfo {
 
 pub async fn get_providers(State(state): State<AppState>) -> Json<ProvidersInfo> {
     Json(ProvidersInfo {
-        available: vec!["anthropic", "openai-compat", "local-mistralrs"],
+        available: vec!["openai-compat", "local-mistralrs"],
         active: ActiveProviderInfo {
             kind: state.provider().name().to_string(),
             default_model: state.default_model(),
@@ -122,12 +122,10 @@ pub async fn post_settings_v2(
 /// `ProviderConfig` enum but reads from v2 shape: the model name comes from
 /// `chat.active_model_id` for cloud providers, while local-mistralrs nests
 /// `model_id` (ModelId enum) + `port` here so the manifest lookup works.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AnthropicSlice {
-    api_key: String,
-}
-
+///
+/// Cloud chat is served exclusively by the generic OpenAI-compatible provider
+/// (OpenRouter recommended as base_url); native Anthropic was removed in M11
+/// Batch D.5.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct OpenAICompatSlice {
@@ -170,26 +168,6 @@ async fn build_chat_provider(
             ))
         })?;
     match chat.active_provider_id.as_str() {
-        "anthropic" => {
-            let cfg: AnthropicSlice = serde_json::from_value(slice.clone())
-                .map_err(|e| AppError::BadRequest(format!("invalid anthropic slice: {e}")))?;
-            if cfg.api_key.trim().is_empty() {
-                return Err(AppError::BadRequest("api_key must not be empty".into()));
-            }
-            if chat.active_model_id.trim().is_empty() {
-                return Err(AppError::BadRequest(
-                    "active_model_id must not be empty".into(),
-                ));
-            }
-            secrets
-                .set("anthropic_api_key", &cfg.api_key)
-                .await
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-            let raw: Arc<dyn app_llm::LlmProvider> = Arc::new(AnthropicProvider::new(cfg.api_key));
-            let provider: Arc<dyn app_llm::LlmProvider> =
-                Arc::new(app_llm::RetryableProvider::new(raw));
-            Ok((provider, chat.active_model_id.clone()))
-        }
         "openai-compat" => {
             let cfg: OpenAICompatSlice = serde_json::from_value(slice.clone())
                 .map_err(|e| AppError::BadRequest(format!("invalid openai-compat slice: {e}")))?;
@@ -201,6 +179,9 @@ async fn build_chat_provider(
                     "active_model_id must not be empty".into(),
                 ));
             }
+            // Native Anthropic was removed in M11 Batch D.5; purge any legacy
+            // key so a stale secret can't linger after the cloud reconfigure.
+            let _ = secrets.delete("anthropic_api_key").await;
             if !cfg.api_key.trim().is_empty() {
                 secrets
                     .set("openai_compat_api_key", &cfg.api_key)
@@ -423,9 +404,9 @@ mod tests {
     fn baseline() -> SettingsConfigV2 {
         serde_json::from_value(json!({
             "chat": {
-                "active_provider_id": "anthropic",
-                "active_model_id": "claude-haiku-4-5-20251001",
-                "providers": { "anthropic": { "api_key": "sk-test" } },
+                "active_provider_id": "openai-compat",
+                "active_model_id": "anthropic/claude-haiku",
+                "providers": { "openai-compat": { "base_url": "https://openrouter.ai/api/v1", "api_key": "sk-test" } },
                 "vision_enabled": false,
                 "reasoning_enabled": false,
                 "reasoning_budget": "medium",

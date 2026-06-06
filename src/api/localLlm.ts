@@ -13,6 +13,8 @@ export interface DownloadStateWire {
   state: string;
   progress?: number;
   errorMessage?: string;
+  /** True for a 401/403 HuggingFace failure; UI offers an "Add token" action. */
+  authRequired?: boolean;
 }
 
 export interface ManifestResponse {
@@ -31,6 +33,8 @@ export interface DownloadEventWire {
   bytes_done?: number;
   total_bytes?: number;
   reason?: string;
+  /** True for a 401/403 HuggingFace failure (only on kind === "failed"). */
+  auth_required?: boolean;
 }
 
 export async function fetchLocalLlmManifest(): Promise<ManifestResponse> {

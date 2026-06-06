@@ -70,8 +70,7 @@ pub struct ChatRequest {
 }
 
 /// User-facing reasoning budget tier. Adapters translate to provider semantics:
-/// Anthropic -> `thinking: { type: enabled|adaptive, budget_tokens }`
-/// OpenAI o-series + gpt-5 -> `reasoning.effort`
+/// OpenAI o-series + gpt-5 (and OpenRouter-routed reasoning models) -> `reasoning.effort`
 /// Other providers -> no-op (capabilities.reasoning = false)
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -128,8 +127,9 @@ pub enum ChatChunk {
         text: String,
     },
     /// Thinking/reasoning delta from the model. Emitted by providers whose
-    /// active model supports reasoning (Anthropic claude-opus-4-7/sonnet-4-6,
-    /// OpenAI o-series, gpt-5). Consumers render this in a collapsible UI.
+    /// active model supports reasoning (OpenAI o-series, gpt-5, and
+    /// OpenRouter-routed reasoning models). Consumers render this in a
+    /// collapsible UI.
     ThinkingDelta {
         text: String,
     },

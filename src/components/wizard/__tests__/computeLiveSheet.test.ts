@@ -80,6 +80,15 @@ describe('computeLiveSheet', () => {
     expect(computeLiveSheet(draft, fixture).speedFt).toBe(25);
   });
 
+  it('computes unarmored AC as 10 + DEX modifier (E3, was hardcoded null)', () => {
+    const draft = {
+      ...EMPTY_DRAFT,
+      classId: 'fighter',
+      abilities: { ...EMPTY_DRAFT.abilities, dex: 14 },
+    };
+    expect(computeLiveSheet(draft, fixture).ac).toBe(12); // 10 + (14-10)/2
+  });
+
   it('marks proficient saving throws', () => {
     const draft = { ...EMPTY_DRAFT, classId: 'fighter' };
     const sheet = computeLiveSheet(draft, fixture);

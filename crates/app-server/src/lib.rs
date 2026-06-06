@@ -18,6 +18,7 @@ pub mod telemetry;
 pub mod testing;
 pub mod video;
 
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use std::sync::Arc;
@@ -65,7 +66,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/saves/{save_id}",
-            get(routes::saves::get_save).delete(routes::saves::delete_save),
+            get(routes::saves::get_save)
+                .put(routes::saves::update_save)
+                .delete(routes::saves::delete_save),
         )
         .route("/providers/catalog", get(routes::providers::get_catalog))
         .route("/providers/{id}/caps", get(routes::providers::get_caps))
@@ -138,6 +141,10 @@ pub fn router(state: AppState) -> Router {
         );
 
     r.with_state(state)
+        // Vision turns base64 up to 4 staged images into the /agent/turn body,
+        // which can exceed axum's 2 MB default and 413. Raise the cap so the
+        // staged-image limits in the composer are the real ceiling. [M11 F2]
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

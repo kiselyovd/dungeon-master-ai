@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { streamAgentTurn } from '../api/agent';
 import { ChatError } from '../api/errors';
+import type { MessagePart } from '../state/chat';
 import { DISPOSITIONS, type Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
 import { combatToolHandlers } from './useCombatToolHandlers';
@@ -30,18 +31,22 @@ export function useAgentTurn() {
   const ensureSession = useStore((s) => s.session.ensureSession);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, images?: MessagePart[]) => {
       if (!text.trim()) return;
       if (useStore.getState().chat.isStreaming) return;
 
       const { campaignId, sessionId } = ensureSession();
 
       clearStreamEvents();
+      // Snapshot history BEFORE appending the current turn: the backend
+      // orchestrator appends the current user message itself (from
+      // player_message + the dedicated `images` field), so including it here
+      // too would duplicate the turn in the LLM context. The local append is
+      // only for rendering. [F2 / review]
+      const history = useStore.getState().chat.messages;
       appendUser(text);
       const controller = new AbortController();
       beginStream(controller);
-
-      const history = useStore.getState().chat.messages;
 
       try {
         await streamAgentTurn({
@@ -49,6 +54,7 @@ export function useAgentTurn() {
           sessionId,
           playerMessage: text,
           history,
+          ...(images && images.length > 0 ? { images } : {}),
           signal: controller.signal,
 
           onTextDelta: appendDelta,
@@ -104,6 +110,14 @@ export function useAgentTurn() {
                   ],
                   updated_at: new Date().toISOString(),
                 });
+              }
+            }
+
+            if (toolName === 'set_scene' && !isError && args && typeof args === 'object') {
+              const a = args as Record<string, unknown>;
+              const title = typeof a.title === 'string' ? a.title : '';
+              if (title) {
+                useStore.getState().session.setCurrentScene({ name: title, stepCounter: 0 });
               }
             }
 

@@ -4,10 +4,9 @@
  * slice (B5/C1) stores it, the SettingsForm (C1) edits it, the streamChat
  * envelope (C4) ships it to the Rust sidecar.
  *
- * `local-mistralrs` is reserved as a slot for the M4 milestone (embedded
- * inference engine). M1.5 ships only `anthropic` and `openai-compat` UIs;
- * the type stays in the union so a future addition is just an extra branch
- * in every `switch (kind)` (TS exhaustiveness catches misses).
+ * Cloud chat is served exclusively by the generic `openai-compat` provider
+ * (OpenRouter recommended as base_url); native Anthropic was removed in M11
+ * Batch D.5. `local-mistralrs` is the embedded inference slot.
  */
 
 import * as v from 'valibot';
@@ -52,13 +51,7 @@ export function parseBaseUrl(input: string): BaseUrl | null {
 
 // ---- Provider config union ---------------------------------------------
 
-export type ProviderKind = 'anthropic' | 'openai-compat' | 'local-mistralrs';
-
-export interface AnthropicConfig {
-  kind: 'anthropic';
-  apiKey: ApiKey;
-  model: string;
-}
+export type ProviderKind = 'openai-compat' | 'local-mistralrs';
 
 export interface OpenaiCompatConfig {
   kind: 'openai-compat';
@@ -74,7 +67,7 @@ export interface LocalMistralRsConfig {
   contextWindow: number;
 }
 
-export type ProviderConfig = AnthropicConfig | OpenaiCompatConfig | LocalMistralRsConfig;
+export type ProviderConfig = OpenaiCompatConfig | LocalMistralRsConfig;
 
 // ---- Schemas (valibot) --------------------------------------------------
 
@@ -91,12 +84,6 @@ const BaseUrlSchema = v.pipe(
   v.check((s) => s.startsWith('http://') || s.startsWith('https://'), 'http(s) only'),
 );
 
-export const AnthropicConfigSchema = v.object({
-  kind: v.literal('anthropic'),
-  apiKey: ApiKeySchema,
-  model: v.pipe(v.string(), v.minLength(1)),
-});
-
 export const OpenaiCompatConfigSchema = v.object({
   kind: v.literal('openai-compat'),
   baseUrl: BaseUrlSchema,
@@ -111,14 +98,14 @@ export const LocalMistralRsConfigSchema = v.object({
 });
 
 export const ProviderConfigSchema = v.variant('kind', [
-  AnthropicConfigSchema,
   OpenaiCompatConfigSchema,
   LocalMistralRsConfigSchema,
 ]);
 
 // ---- Defaults / helpers ------------------------------------------------
 
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+/** Recommended cloud base_url: OpenRouter aggregates 100+ models via one key. */
+export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 /**
  * Default context window for the embedded local mistralrs provider. Qwen3.5

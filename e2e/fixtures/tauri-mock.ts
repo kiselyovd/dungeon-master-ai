@@ -7,10 +7,16 @@ import type { Page } from '@playwright/test';
  * client expects so the persist middleware can rehydrate without crashing.
  *
  * Pass `seed` to pre-populate values that the persist middleware will read
- * back on first hydration. Keys correspond to the
- * `KEY_*` constants in `src/state/persistStorage.ts` (e.g.
- * `onboarding_completed`, `active_provider`, ...).
+ * back on first hydration. Keys correspond to the `KEY_*` constants in
+ * `src/state/persistStorage.ts` (e.g. `onboarding_completed`,
+ * `active_provider`, ...).
+ *
+ * The store/stronghold buckets are backed by `window.localStorage` so they
+ * survive a `page.reload()` - `addInitScript` re-runs on every navigation,
+ * so an in-closure Map would reset and no e2e test could verify that
+ * persisted state survives a restart (M11-DM Batch A, audit F3).
  */
+
 /**
  * Pipe browser console output and uncaught errors into the Playwright test
  * runner stdout. Without this, anything `console.error`'d during persist
@@ -39,77 +45,134 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
   await page.route('**/health', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
-  await page.addInitScript((initialSeed: Record<string, unknown>) => {
-    type StoreBucket = Map<string, unknown>;
-    const buckets = new Map<number, StoreBucket>();
-    let nextRid = 1;
-    const seedEntries = Object.entries(initialSeed);
 
-    const allocBucket = (): number => {
-      const rid = nextRid++;
-      const bucket = new Map<string, unknown>(seedEntries);
-      buckets.set(rid, bucket);
-      return rid;
+  await page.addInitScript((initialSeed: Record<string, unknown>) => {
+    // Store and Stronghold state is backed by localStorage so it survives
+    // a page reload (addInitScript re-runs on every navigation, so an
+    // in-closure Map would reset). Store buckets are keyed by store
+    // filename; Stronghold buckets by client name.
+    const STORE_PREFIX = 'dmai-e2e-store:';
+    const HOLD_PREFIX = 'dmai-e2e-hold:';
+
+    const readBucket = (storageKey: string): Record<string, unknown> => {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return {};
+      try {
+        return JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    };
+    const writeBucket = (storageKey: string, bucket: Record<string, unknown>): void => {
+      window.localStorage.setItem(storageKey, JSON.stringify(bucket));
+    };
+
+    // rid -> store filename. Recreated each load; the backing data lives
+    // in localStorage so the rid mapping does not need to persist.
+    const ridToPath = new Map<number, string>();
+    let nextRid = 1;
+
+    // Seed a freshly-loaded store bucket once, without clobbering values
+    // written in a previous page life.
+    const seedEntries = Object.entries(initialSeed);
+    const ensureSeeded = (storageKey: string): void => {
+      if (window.localStorage.getItem(storageKey) !== null) return;
+      const bucket: Record<string, unknown> = {};
+      for (const [k, val] of seedEntries) bucket[k] = val;
+      writeBucket(storageKey, bucket);
+    };
+
+    type InvokeArgs = {
+      rid?: number;
+      path?: string;
+      key?: string;
+      value?: unknown;
+      client?: string;
     };
 
     const internals = {
       transformCallback: () => 0,
-      invoke: async (cmd: string, args: { rid?: number; key?: string; value?: unknown }) => {
+      invoke: async (cmd: string, args: InvokeArgs = {}) => {
         // The frontend calls `invoke('backend_port')` to learn where the
-        // axum sidecar is listening, then opens /health on it. We pretend
-        // the sidecar lives on a fixed port and intercept the HTTP request
-        // separately so the SplashOverlay dismisses immediately.
+        // axum sidecar is listening, then opens /health on it.
         if (cmd === 'backend_port') return 31415;
-        // plugin-store load returns a resource id for an empty store; we
-        // pre-fill the bucket with the seed so the very first .get() call
-        // already sees what the test asked for.
-        if (cmd === 'plugin:store|load') return allocBucket();
-        if (cmd === 'plugin:store|get_store') return null;
-        if (cmd === 'plugin:store|get') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          const value = bucket?.get(args.key ?? '');
-          return value === undefined ? [null, false] : [value, true];
+
+        // plugin-store: bucket keyed by the store filename (args.path).
+        if (cmd === 'plugin:store|load') {
+          const path = args.path ?? 'default.json';
+          ensureSeeded(STORE_PREFIX + path);
+          const rid = nextRid++;
+          ridToPath.set(rid, path);
+          return rid;
         }
-        if (cmd === 'plugin:store|set') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          bucket?.set(args.key ?? '', args.value);
+        if (cmd === 'plugin:store|get_store') return null;
+        if (cmd.startsWith('plugin:store|')) {
+          const path = args.rid !== undefined ? ridToPath.get(args.rid) : undefined;
+          if (path === undefined) {
+            if (cmd === 'plugin:store|get') return [null, false];
+            if (
+              cmd === 'plugin:store|keys' ||
+              cmd === 'plugin:store|values' ||
+              cmd === 'plugin:store|entries'
+            ) {
+              return [];
+            }
+            if (cmd === 'plugin:store|length') return 0;
+            return null;
+          }
+          const storageKey = STORE_PREFIX + path;
+          const bucket = readBucket(storageKey);
+          if (cmd === 'plugin:store|get') {
+            const value = bucket[args.key ?? ''];
+            return value === undefined ? [null, false] : [value, true];
+          }
+          if (cmd === 'plugin:store|set') {
+            bucket[args.key ?? ''] = args.value;
+            writeBucket(storageKey, bucket);
+            return null;
+          }
+          if (cmd === 'plugin:store|has') return Object.hasOwn(bucket, args.key ?? '');
+          if (cmd === 'plugin:store|delete') {
+            const had = Object.hasOwn(bucket, args.key ?? '');
+            delete bucket[args.key ?? ''];
+            writeBucket(storageKey, bucket);
+            return had;
+          }
+          if (cmd === 'plugin:store|save') return null;
+          if (cmd === 'plugin:store|clear' || cmd === 'plugin:store|reset') {
+            writeBucket(storageKey, {});
+            return null;
+          }
+          if (cmd === 'plugin:store|keys') return Object.keys(bucket);
+          if (cmd === 'plugin:store|values') return Object.values(bucket);
+          if (cmd === 'plugin:store|entries') return Object.entries(bucket);
+          if (cmd === 'plugin:store|length') return Object.keys(bucket).length;
+          if (cmd === 'plugin:store|close') return null;
           return null;
         }
-        if (cmd === 'plugin:store|has') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket?.has(args.key ?? '') ?? false;
-        }
-        if (cmd === 'plugin:store|delete') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket?.delete(args.key ?? '') ?? false;
-        }
-        if (cmd === 'plugin:store|save') return null;
-        if (cmd === 'plugin:store|clear') return null;
-        if (cmd === 'plugin:store|reset') return null;
-        if (cmd === 'plugin:store|keys') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket ? Array.from(bucket.keys()) : [];
-        }
-        if (cmd === 'plugin:store|values') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket ? Array.from(bucket.values()) : [];
-        }
-        if (cmd === 'plugin:store|entries') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket ? Array.from(bucket.entries()) : [];
-        }
-        if (cmd === 'plugin:store|length') {
-          const bucket = args.rid !== undefined ? buckets.get(args.rid) : undefined;
-          return bucket?.size ?? 0;
-        }
-        if (cmd === 'plugin:store|close') return null;
 
-        // plugin-stronghold: secrets are not exercised by these specs, so
-        // every call returns a benign value. createClient and loadClient
-        // return null (the client wrapper does not care), execute_procedure
-        // and the store helpers return null/empty.
+        // plugin-stronghold: byte records keyed by client name.
         if (cmd.startsWith('plugin:stronghold|')) {
-          if (cmd === 'plugin:stronghold|get_store_record') return null;
+          const storageKey = HOLD_PREFIX + (args.client ?? 'default');
+          if (cmd === 'plugin:stronghold|get_store_record') {
+            const bucket = readBucket(storageKey);
+            const value = bucket[args.key ?? ''];
+            return value === undefined ? null : value;
+          }
+          if (cmd === 'plugin:stronghold|save_store_record') {
+            const bucket = readBucket(storageKey);
+            bucket[args.key ?? ''] = args.value;
+            writeBucket(storageKey, bucket);
+            return null;
+          }
+          if (cmd === 'plugin:stronghold|remove_store_record') {
+            const bucket = readBucket(storageKey);
+            delete bucket[args.key ?? ''];
+            writeBucket(storageKey, bucket);
+            return null;
+          }
+          // initialize / load_client / create_client / save / destroy:
+          // benign null so the JS client wrappers resolve.
           return null;
         }
 

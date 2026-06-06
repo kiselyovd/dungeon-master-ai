@@ -205,6 +205,13 @@
   pointer-events: auto;
 }
 
+.savedHint {
+  align-self: center;
+  font-size: 0.78em;
+  color: var(--color-text-muted, #b8b09c);
+  white-space: nowrap;
+}
+
 .actionBtn {
   display: flex;
   align-items: center;
