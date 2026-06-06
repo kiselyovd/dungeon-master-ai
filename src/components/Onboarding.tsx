@@ -29,8 +29,13 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
  */
 
 interface OnboardingProps {
-  /** Optional callback invoked after finalization; primarily for tests. */
-  onComplete?: () => void;
+  /**
+   * Optional callback invoked after finalization, with the preset the user
+   * completed. App.tsx uses the preset to route the `manual` preset straight
+   * to Settings (it configures nothing, so it would otherwise land on the
+   * blocking PreflightModal). [E2]
+   */
+  onComplete?: (preset: PresetId) => void;
   /**
    * Called when the user chooses "Build from scratch" on the hero step.
    * App.tsx uses this to open CharacterWizard in initial mode.
@@ -70,7 +75,7 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
   const finalize = (): void => {
     completeOnboarding();
-    onComplete?.();
+    onComplete?.(preset);
   };
 
   // Step label lookup: each step maps to an i18n key.

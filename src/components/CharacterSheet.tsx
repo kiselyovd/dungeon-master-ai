@@ -170,8 +170,12 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
 
   // Resolved (non-null) character snapshot - safe to render the full sheet.
   const portraitInitial = pc.name.charAt(0).toUpperCase();
+  // A user-generated/selected portrait wins over the hardcoded class art (E4).
   const portraitSrc =
-    pc.heroClass !== null ? (HERO_PORTRAIT[pc.heroClass as HeroClassId | 'paladin'] ?? null) : null;
+    pc.portraitUrl ??
+    (pc.heroClass !== null
+      ? (HERO_PORTRAIT[pc.heroClass as HeroClassId | 'paladin'] ?? null)
+      : null);
   const className = pc.heroClass !== null ? t(`class_${pc.heroClass}` as 'class_fighter') : '';
   const meta =
     pc.subclass !== null

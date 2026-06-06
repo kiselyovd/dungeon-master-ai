@@ -249,6 +249,7 @@ const PcSchema = v.object({
   savingThrowProfs: SavingThrowProfSchema,
   skillProfs: SkillProfSchema,
   inventory: v.array(InventoryItemSchema),
+  portraitUrl: v.optional(v.nullable(v.string())),
 });
 
 export interface PersistedSettings {

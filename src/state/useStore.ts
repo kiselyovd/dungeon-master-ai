@@ -111,6 +111,7 @@ export const useStore = create<AppState>()(
           savingThrowProfs: state.pc.savingThrowProfs,
           skillProfs: state.pc.skillProfs,
           inventory: state.pc.inventory,
+          portraitUrl: state.pc.portraitUrl,
         },
         charCreation: {
           classId: state.charCreation.classId,

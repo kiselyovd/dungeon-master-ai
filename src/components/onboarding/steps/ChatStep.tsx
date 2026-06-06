@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchLocalLlmManifest } from '../../../api/localLlm';
+import { fetchLocalRuntimeStatus, startLocalRuntimes } from '../../../api/localRuntime';
 import { postSettingsV2 } from '../../../api/settings';
 import { useModelDownload } from '../../../hooks/useModelDownload';
 import {
@@ -99,6 +100,14 @@ function LocalOnlyChatStep({ onBack, onNext, titleId }: Omit<ChatStepProps, 'pre
       setActiveProvider('local-mistralrs');
       useStore.getState().localMode.setEnabled(true);
       useStore.getState().localMode.selectModel(QWEN_4B_MODEL_ID);
+      // Onboarding only DOWNLOADS the model; the runtime is still 'off', so
+      // postSettingsV2 -> local-mistralrs slice would throw "runtime not ready"
+      // (no port). Start the sidecar and refresh the store snapshot (the poll
+      // hook isn't mounted here) so the synchronous settings read sees 'ready'
+      // with a port before we POST. [E1]
+      await startLocalRuntimes();
+      const snap = await fetchLocalRuntimeStatus();
+      useStore.getState().localMode.setRuntimeStatus(snap);
       await postSettingsV2(useStore.getState().settings);
       onNext();
     } catch (err) {

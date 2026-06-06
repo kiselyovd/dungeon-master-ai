@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import '../../i18n';
+import { fetchCompendium } from '../../api/srd';
 import { useStore } from '../../state/useStore';
 import { CharacterWizard } from '../CharacterWizard';
 
@@ -90,5 +91,36 @@ describe('CharacterWizard navigation footer', () => {
     // Last tab: accessible name starts with "10" and includes "Review"
     expect(tabs[9]).toHaveAccessibleName(/^10/);
     expect(tabs[9]).toHaveAccessibleName(/review/i);
+  });
+});
+
+describe('CharacterWizard compendium load failure (E5)', () => {
+  it('shows an error + retry when the compendium fetch fails, then recovers on retry', async () => {
+    const okCompendium = {
+      races: [],
+      classes: [],
+      backgrounds: [],
+      spells: [],
+      equipment: { weapons: [], armor: [], adventuring_gear: [] },
+      feats: [],
+      weapon_properties: [],
+    };
+    vi.mocked(fetchCompendium)
+      .mockRejectedValueOnce(new Error('SRD fetch /srd/races failed: 500'))
+      .mockResolvedValueOnce(okCompendium);
+
+    render(<CharacterWizard mode="initial" />);
+
+    // Error panel + retry button appear instead of a blank wizard.
+    const retry = await screen.findByRole('button', { name: /retry/i });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    await userEvent.click(retry);
+
+    // After a successful retry the compendium-gated content renders (the live
+    // sheet placeholder only shows once the compendium loaded) and the error
+    // alert is gone.
+    expect(await screen.findByText(/pick a class/i)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

@@ -42,6 +42,16 @@ vi.mock('../../../api/settings', () => ({
   postSettingsV2: vi.fn(async () => undefined),
 }));
 
+// E1: the Local-only step starts the runtime + refreshes its status before
+// POSTing settings, so the local-mistralrs slice has a ready port.
+vi.mock('../../../api/localRuntime', () => ({
+  startLocalRuntimes: vi.fn(async () => undefined),
+  fetchLocalRuntimeStatus: vi.fn(async () => ({
+    llm: { state: 'ready', port: 8765 },
+    image: { state: 'off' },
+  })),
+}));
+
 // backendUrl is used by fetchLocalLlmManifest inside the mock, but since we
 // mock the whole module we don't need it - mock it anyway to silence imports.
 vi.mock('../../../api/client', () => ({
@@ -53,10 +63,12 @@ vi.mock('../../../api/client', () => ({
 // ---------------------------------------------------------------------------
 
 import { fetchLocalLlmManifest } from '../../../api/localLlm';
+import { startLocalRuntimes } from '../../../api/localRuntime';
 import { postSettingsV2 } from '../../../api/settings';
 
 const mockedFetchManifest = vi.mocked(fetchLocalLlmManifest);
 const mockedPostSettings = vi.mocked(postSettingsV2);
+const mockedStartRuntimes = vi.mocked(startLocalRuntimes);
 
 function setup(preset: Parameters<typeof ChatStep>[0]['preset']) {
   const onBack = vi.fn();
@@ -167,8 +179,13 @@ describe('ChatStep - local-only preset', () => {
     expect(state.providers['local-mistralrs']?.modelPath).toBe('qwen3_5_4b');
     expect(state.activeProvider).toBe('local-mistralrs');
 
-    // postSettingsV2 must have been called.
+    // E1: the runtime is started before settings are POSTed (so the
+    // local-mistralrs slice resolves a ready port instead of throwing).
+    expect(mockedStartRuntimes).toHaveBeenCalledTimes(1);
     expect(mockedPostSettings).toHaveBeenCalledTimes(1);
+    expect(mockedStartRuntimes.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedPostSettings.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
 
     // onNext must be called to advance.
     await waitFor(() => {

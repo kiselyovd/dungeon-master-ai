@@ -1,4 +1,7 @@
 {
+  "compendium_error_title": "Could not load character data",
+  "compendium_error_body": "The SRD compendium (classes, races, spells, equipment) failed to load. Check that the local backend is running and try again.",
+  "compendium_retry": "Retry",
   "live_sheet_label": "Live character sheet",
   "pick_a_class_to_begin": "Pick a class to begin",
   "placeholder_hero": "Hero",

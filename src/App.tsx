@@ -412,7 +412,21 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && <Onboarding onExitToWizard={() => setWizardReopen(true)} />}
+          {!onboardingCompleted && (
+            <Onboarding
+              onExitToWizard={() => setWizardReopen(true)}
+              onComplete={(preset) => {
+                // The manual preset configures nothing, so it would land on the
+                // blocking PreflightModal (missing_chat). Route the user straight
+                // to the Chat settings tab instead and skip the blocking modal
+                // for this session. [E2]
+                if (preset === 'manual') {
+                  setPreflightDismissedThisSession(true);
+                  handleOpenChatSettings();
+                }
+              }}
+            />
+          )}
           {showPreflight && (
             <PreflightModal
               status={preflightStatus as Exclude<PreflightStatus, 'ok'>}
