@@ -1,57 +1,74 @@
 # Dungeon Master AI
 
-A multimodal, AI-powered D&D desktop application. Tauri v2 + React + Rust.
+A multimodal, AI-powered Dungeons & Dragons desktop assistant. Tauri v2 + React + Rust.
 
-> **Status:** M2 - rules engine + combat overlay. Combat resolver (4-phase
-> turn, initiative, action economy, conditions, damage, saving throws,
-> ability checks), SQLite persistence via `sqlx`, VTT combat overlay
-> (tokens, AoE templates, initiative tracker, action bar), and chat
-> refinements (typing indicator, sticky-scroll within 100px of bottom,
-> drop-cap on narrator paragraphs). M3 wires the LLM agent loop and
-> tool-call surface (the validator dispatch table is already in place).
->
-> Three LLM backends remain configurable in Settings:
-> - **Anthropic (cloud)** - paste an `sk-ant-...` key, default model
->   `claude-haiku-4-5-20251001`.
-> - **OpenAI-compatible (cloud or local server)** - any endpoint that
->   speaks `/v1/chat/completions`: LM Studio, Ollama (`/v1/`), llama.cpp
->   server, vLLM, mistral.rs server, OpenRouter, Groq, DeepSeek, Together,
->   Fireworks, etc.
-> - **Embedded local model** - reserved slot, lights up in M4.
+It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drives
+NPCs, resolves combat on a virtual tabletop, remembers your campaign, and can
+generate scene art - either fully on your machine or through a cloud model.
+
+> **Status: v0.11.0 (M11 - "make it actually work").** The app completes end to
+> end: onboard by any preset, create or pick a character, chat with the DM,
+> resolve a combat round on the VTT, generate an image, save, and restart with
+> state preserved. Both the local-only path (embedded LLM + image sidecars) and
+> the cloud path (any OpenAI-compatible endpoint, OpenRouter recommended) work.
+
+## Features
+
+- **Agentic DM loop.** A multi-round agent turns your message into narration plus
+  tool calls: dice rolls, `start_combat` / `apply_damage` / `apply_healing` /
+  token updates, `set_scene`, `remember_npc` / `recall_npc`, `journal_append`,
+  `quick_save`, and `generate_image`. Tool results feed back into the next round.
+- **Combat VTT.** PixiJS virtual tabletop with draggable tokens, HP/AC chips,
+  condition rings, AoE templates, an initiative tracker, and an action bar that
+  consumes the 5e action economy and posts intents to the DM.
+- **Character creation.** A full level-1 wizard (class, race, background,
+  abilities by point-buy / standard array / 4d6, skills, spells, equipment,
+  persona, AI-assisted portrait) plus quick preset heroes. Characters commit real
+  combat stats (HP, AC, initiative, speed, proficiency bonus).
+- **Multimodal chat.** Stream narration with reasoning surfaced in a collapsible
+  pill; attach images (vision) to a turn; render tool-call cards inline.
+- **Providers.**
+  - **Local-first:** an embedded `mistralrs` LLM sidecar (Qwen3.5 GGUF, vision
+    capable) and a Python image sidecar (SDXL-Lightning / Z-Image-Turbo / FLUX),
+    spawned and health-probed by the server. Models download from HuggingFace.
+  - **Cloud:** a single generic **OpenAI-compatible** provider. OpenRouter is the
+    recommended hosted aggregator (one key, 100+ models, including Claude). Point
+    it at any `/v1/chat/completions` endpoint - LM Studio, Ollama, llama.cpp,
+    vLLM, Groq, DeepSeek, a LiteLLM proxy, etc. (Native Anthropic was removed in
+    M11; route Claude through OpenRouter.)
+- **Persistence.** SQLite via `sqlx` (campaigns, sessions, messages, snapshots,
+  combat); secrets in an encrypted Stronghold vault; linear saves with quick-save,
+  overwrite, and load. State survives a restart.
+- **Localization.** Full English + Russian UI (react-i18next), Cyrillic-capable
+  body/mono fonts.
 
 ## Stack
 
-- Desktop shell: Tauri v2 (Rust)
-- Frontend: React 19 + TypeScript + Vite + SWC + Zustand + react-i18next
-  - PixiJS v8 + valibot (runtime schemas)
-- Backend: Rust workspace - axum HTTP server, genai for LLM provider
-  abstraction with hot-swap support behind `RwLock<Arc<dyn LlmProvider>>`
-- Toolchain: Bun (package manager + script runner) + Biome (lint + format)
-- Targets: Windows, macOS, Linux
+- Desktop shell: Tauri v2 (Rust), spawning the `app-server` + model sidecars.
+- Frontend: React 19 + TypeScript + Vite + Zustand + react-i18next, PixiJS v8,
+  valibot for runtime schemas.
+- Backend: Rust workspace - axum HTTP server; `genai` for the LLM provider
+  abstraction behind an atomic-swappable `RwLock<Arc<ProviderRegistry>>`
+  (chat / image / video slots).
+- Toolchain: Bun (package manager + scripts) + Biome (lint + format).
+- Targets: Windows, macOS, Linux. (Local GPU sidecars are tuned for an NVIDIA
+  RTX 3080 / Ampere; CPU fallbacks exist.)
 
 ## Repo layout
 
 ```
 crates/
-  app-domain/   rules engine: dice, RNG, initiative, action economy, turn FSM,
-                damage, healing, conditions, saving throws, attack rolls,
-                CombatResolver (phases 1+2), ToolCallValidator dispatch table
-  app-llm/      LLM provider abstraction (Anthropic, OpenAI-compat, Mock)
-  app-server/   axum HTTP server: /health, /chat (SSE), /providers, /settings,
-                /combat/{start,action,end} (SSE) + sqlx SQLite persistence
-src-tauri/      Tauri shell with sidecar lifecycle for app-server
-src/
-  api/          HTTP clients (chat SSE, providers, combat, errors)
-  components/   ChatPanel, MessageBubble, TypingIndicator, SettingsForm,
-                SettingsModal, VttCanvas, CombatOverlay, CombatToken,
-                AoeTemplate, InitiativeTracker, ActionBar
-  hooks/        useChat, useCombat, useStickyScroll
-  state/        Zustand store with chat + settings + combat slices
-  ui/           primitives: Modal, Field, Button
-  locales/      en + ru (common, chat, settings, errors, combat namespaces)
-  styles/       theme.css design tokens, globals.css base, fonts.css,
-                combat.css (initiative tracker / action bar / token-pulse)
-e2e/            Playwright frontend smoke tests
+  app-domain/   D&D 5e rules engine + SRD content loader/embedder
+  app-llm/      LLM provider abstraction (OpenAI-compat, local mistralrs, Mock)
+  app-server/   axum server: agent loop (/agent/turn SSE), combat, saves, journal,
+                NPC memory, settings/v2, providers catalog + discovery, HuggingFace
+                model manifest/download, local-runtime + sidecar lifecycle
+sidecar/        Python image-generation sidecar (diffusers backends)
+src-tauri/      Tauri shell + sidecar binaries
+src/            React app: components, hooks, Zustand state, api clients,
+                locales (en + ru), styles
+e2e/            Playwright smoke tests (localStorage-backed Tauri mock)
+docs/           architecture + milestone specs/plans (planning dir, gitignored)
 ```
 
 ## Dev setup
@@ -61,49 +78,40 @@ Prerequisites:
 - Rust stable: `rustup default stable`
 - [Bun](https://bun.com/) 1.3+
 - Tauri prerequisites for your OS: https://tauri.app/start/prerequisites/
-- An Anthropic key OR a running OpenAI-compatible endpoint (LM Studio /
-  Ollama / OpenRouter token / etc.)
+- For the cloud path: an OpenAI-compatible endpoint + key (OpenRouter recommended).
+- For the local path: a built `mistralrs-server` + the Python image sidecar
+  (see the prebuild CI workflows); models download from HuggingFace on first use.
 
 ```bash
 bun install
 bun run tauri dev
 ```
 
-In the app window: click Settings, pick a provider, fill in the fields, Save.
-Type a message, hit Send. ESC aborts a streaming response.
+Onboarding walks you through picking a preset (Local-only, Cloud, Hybrid,
+Text-only, or Manual), configuring a provider, and creating a hero. F11 toggles
+fullscreen; Ctrl+S quick-saves.
 
-### Example Settings configurations
+### Example cloud Settings
 
-| Provider | Base URL | Model |
+| Provider | Base URL | Example model |
 | --- | --- | --- |
-| LM Studio | `http://localhost:1234/v1` | whatever you loaded (e.g. `qwen3-1.7b`) |
-| Ollama | `http://localhost:11434/v1` | `qwen3:1.7b`, `llama3.2`, etc. |
-| llama.cpp server | `http://localhost:8080/v1` | name from your gguf |
+| OpenRouter (recommended) | `https://openrouter.ai/api/v1` | `anthropic/claude-3.5-sonnet`, `qwen/qwen-2.5-7b-instruct` |
+| LM Studio | `http://localhost:1234/v1` | whatever you loaded |
+| Ollama | `http://localhost:11434/v1` | `qwen3:1.7b`, `llama3.2` |
 | vLLM | `http://localhost:8000/v1` | model alias |
-| OpenRouter | `https://openrouter.ai/api/v1` | `anthropic/claude-3.5-haiku`, `qwen/qwen-3-8b`, etc. |
-| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile`, etc. |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat`, `deepseek-reasoner` |
 
 ## Tests and gates
 
 ```bash
-# Rust unit + integration tests
-cargo test --workspace
-
-# Frontend unit tests
-bun run test
-
-# Frontend E2E (Playwright, frontend only - Tauri shell e2e comes in M4)
-bun run e2e
-
-# Biome (lint + format + organize-imports in one pass)
-bun run check
-
-# Type check
-bun run typecheck
-
-# Rust clippy
-cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace                                  # Rust unit + integration
+cargo clippy --workspace --all-targets -- -D warnings   # Rust lint
+bun run test                                            # frontend unit (vitest)
+bun run typecheck                                       # tsc
+bun run check                                           # Biome lint + format
+bash scripts/check-no-em-dash.sh                        # typography gate
+bun run e2e                                             # Playwright smoke
 ```
 
 ## Build
@@ -111,6 +119,17 @@ cargo clippy --workspace --all-targets -- -D warnings
 ```bash
 bun run tauri build
 ```
+
+## Backlog (deferred)
+
+- Distribution: signed installers + GitHub Releases with bundled binaries.
+- Branching saves + the Chronicles tome UI (v1 is linear saves).
+- VTT zoom/pan, light theme, density toggle.
+- Live scene-transition video generation (pre-recorded mp4 is canonical today).
+- A self-hosted Cyrillic fantasy-serif display face (headings currently fall back
+  to a serif with Cyrillic; the display face is Latin-only).
+- mistralrs reasoning/thinking surfacing (blocked on upstream).
+- Additional / regional cloud providers.
 
 ## License
 
