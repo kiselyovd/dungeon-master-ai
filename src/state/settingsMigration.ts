@@ -160,6 +160,14 @@ export function migrateLegacySettings(raw: unknown): MigrateResult {
       const cfg = cloneDefaults();
       const partial = raw as Partial<SettingsConfigV2>;
       if (isObject(partial.chat)) Object.assign(cfg.chat, partial.chat);
+      // Sanitise a legacy `anthropic` chat provider that survived a v2 blob -
+      // native Anthropic was removed in M11 Batch D.5, so it falls back to the
+      // openai-compat default (mirrors the v1 path below). Without this a
+      // stale 'anthropic' would reach POST /settings/v2 and 400.
+      if ((cfg.chat.activeProviderId as string) === 'anthropic') {
+        cfg.chat.activeProviderId = DEFAULTS_V2.chat.activeProviderId;
+        cfg.chat.activeModelId = DEFAULTS_V2.chat.activeModelId;
+      }
       if (isObject(partial.image)) Object.assign(cfg.image, partial.image);
       if (isObject(partial.video)) Object.assign(cfg.video, partial.video);
       if (isObject(partial.behavior)) Object.assign(cfg.behavior, partial.behavior);

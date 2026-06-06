@@ -148,7 +148,10 @@ export function applyD8Migration(settings: Partial<SettingsData>): Partial<Setti
  */
 export function applyProviderMigration(settings: Partial<SettingsData>): Partial<SettingsData> {
   if ((settings.activeProvider as string | undefined) !== 'anthropic') {
-    return settings;
+    // Pass-through: make the contract explicit so callers never read an
+    // undefined notice flag (the field is excluded from `partialize`, so a
+    // normal rehydration keeps the store default of false either way).
+    return { ...settings, providerMigrationNotice: false };
   }
   const providers = { ...(settings.providers ?? {}) } as Record<string, unknown>;
   delete providers.anthropic;

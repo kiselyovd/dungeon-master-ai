@@ -171,6 +171,6 @@ describe('applyProviderMigration', () => {
     };
     const out = applyProviderMigration(input);
     expect(out.activeProvider).toBe('local-mistralrs');
-    expect(out.providerMigrationNotice).toBeFalsy();
+    expect(out.providerMigrationNotice).toBe(false);
   });
 });

@@ -64,17 +64,29 @@ describe('migrateLegacySettings', () => {
     expect(didReset).toBe(true);
   });
 
-  it('partial v2 (already migrated) passes through with defaults filled in', () => {
+  it('partial v2 passes through, sanitising a legacy anthropic chat provider', () => {
+    // Native Anthropic was removed in M11 Batch D.5; a v2 blob still naming it
+    // falls back to the openai-compat default instead of reaching the backend
+    // (which would 400 on the unknown provider id).
     const v2 = {
       chat: { activeProviderId: 'anthropic', activeModelId: 'claude-opus-4-7' },
     };
     const { config, didReset } = migrateLegacySettings(v2);
-    expect(config.chat.activeProviderId).toBe('anthropic');
-    expect(config.chat.activeModelId).toBe('claude-opus-4-7');
+    expect(config.chat.activeProviderId).toBe('openai-compat');
+    expect(config.chat.activeModelId).toBe(DEFAULTS_V2.chat.activeModelId);
     expect(config.image.enabled).toBe(true);
     expect(config.image.preset).toBe('balanced');
     expect(config.video.enabled).toBe(false);
     expect(didReset).toBe(false);
+  });
+
+  it('partial v2 with a non-anthropic provider passes through unchanged', () => {
+    const v2 = {
+      chat: { activeProviderId: 'local-mistralrs', activeModelId: 'qwen3.5-4b' },
+    };
+    const { config } = migrateLegacySettings(v2);
+    expect(config.chat.activeProviderId).toBe('local-mistralrs');
+    expect(config.chat.activeModelId).toBe('qwen3.5-4b');
   });
 
   it('full v2 round-trips unchanged', () => {

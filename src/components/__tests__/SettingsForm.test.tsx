@@ -51,12 +51,12 @@ const postDiscoverMock = vi.mocked(postDiscover);
 
 /**
  * SettingsForm focuses on the local-mistralrs branch added in M4. The
- * Anthropic / OpenAI-compat happy paths are already covered by
- * SettingsModal.test.tsx; here we lock down:
+ * OpenAI-compat happy path is already covered by SettingsModal.test.tsx;
+ * here we lock down:
  *
- * - the provider select exposes all three kinds (anthropic, openai-compat,
- *   local-mistralrs) so the user can pick local mode without the dev
- *   shortcut.
+ * - the provider select exposes both kinds (openai-compat, local-mistralrs)
+ *   so the user can pick local mode without the dev shortcut (native Anthropic
+ *   was removed in M11 Batch D.5).
  * - the Local LLM tab (D8) shows the model picker + VRAM strategy +
  *   runtime control UI mirrored from LocalModeModal.
  * - changing the model selection updates `localMode.selectedLlm`.

@@ -66,6 +66,10 @@ mod tests {
             .unwrap();
         let mut keys = result.migrated_keys.clone();
         keys.sort();
+        // The migration is key-name agnostic: it copies whatever the legacy
+        // file holds. A migrated `anthropic_api_key` (from a pre-D.5 install)
+        // is later purged on the first /settings/v2 cloud save (see
+        // routes/settings/mod.rs); migrating it here is correct and harmless.
         assert_eq!(keys, vec!["anthropic_api_key", "replicate_api_key"]);
         assert!(tmp.path().join(".secrets_migrated_v1").exists());
         assert!(!secrets_json.exists());

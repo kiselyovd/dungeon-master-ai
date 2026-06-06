@@ -61,6 +61,26 @@ describe('persistStorage', () => {
     expect(await persistStorage.getItem('any')).toBeNull();
   });
 
+  it('parses a legacy anthropic-persisted blob without throwing and strips the anthropic config', async () => {
+    // M11 Batch D.5: native Anthropic was removed. A legacy settings.json with
+    // active_provider='anthropic' + a providers.anthropic blob must still PARSE
+    // (the picklist keeps 'anthropic' for tolerance), with the stale anthropic
+    // provider config silently stripped by ProvidersMapSchema. The store-side
+    // reset to openai-compat happens later in the rehydration merge.
+    await strongholdSecretsStore.set('providers', {
+      anthropic: { kind: 'anthropic', apiKey: 'sk-ant-legacy', model: 'claude-haiku' },
+      'openai-compat': null,
+      'local-mistralrs': null,
+    });
+    await settings.set('active_provider', 'anthropic');
+
+    const parsed = await persistStorage.getItem('any');
+    expect(parsed).not.toBeNull();
+    // raw value preserved at the storage boundary; reset is the store's job
+    expect(parsed?.state.settings?.activeProvider).toBe('anthropic');
+    expect(parsed?.state.settings?.providers).not.toHaveProperty('anthropic');
+  });
+
   it('writes provider configs to the Stronghold vault and prefs to settings.json', async () => {
     const cfg: OpenaiCompatConfig = {
       kind: 'openai-compat',
