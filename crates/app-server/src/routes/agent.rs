@@ -89,7 +89,8 @@ pub async fn post_agent_turn(
 
     let pool_for_orch = pool.clone();
     tokio::spawn(async move {
-        let orch = AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider);
+        let orch =
+            AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }

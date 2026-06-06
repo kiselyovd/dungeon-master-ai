@@ -112,8 +112,5 @@ async fn local_mistralrs_provider_swap_via_settings() {
     assert_eq!(resp.status(), 200);
     // After swapping, the active provider name should reflect local-mistralrs.
     assert_eq!(server.state.provider().name(), "local-mistralrs");
-    assert_eq!(
-        server.state.default_model(),
-        "Qwen3.5-2B-Q4_K_M.gguf"
-    );
+    assert_eq!(server.state.default_model(), "Qwen3.5-2B-Q4_K_M.gguf");
 }

@@ -154,7 +154,11 @@ mod tests {
             args: vec![],
             stdout_lines: vec![],
         });
-        let llm = Arc::new(LocalRuntime::new(Arc::new(launcher), probe_always_ok(), "/health"));
+        let llm = Arc::new(LocalRuntime::new(
+            Arc::new(launcher),
+            probe_always_ok(),
+            "/health",
+        ));
         let _ = llm
             .start("mistralrs-server", &[], 37500)
             .await

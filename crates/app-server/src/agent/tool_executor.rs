@@ -28,7 +28,7 @@ use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::image::provider::{ImageProvider, ImagePrompt};
+use crate::image::provider::{ImagePrompt, ImageProvider};
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
 /// Never panics - errors are surfaced as `is_error=true` with a message in the result.

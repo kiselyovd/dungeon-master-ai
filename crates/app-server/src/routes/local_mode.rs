@@ -141,12 +141,7 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
         // it can serve /healthz. models_dir holds the per-backend weight
         // subdirectories the sidecar's PipelineDispatcher resolves.
         let weights_dir_str = state.models_dir().to_string_lossy().into_owned();
-        let img_args: &[&str] = &[
-            "--port",
-            &img_port_str,
-            "--weights-dir",
-            &weights_dir_str,
-        ];
+        let img_args: &[&str] = &["--port", &img_port_str, "--weights-dir", &weights_dir_str];
         state
             .runtime_registry()
             .image

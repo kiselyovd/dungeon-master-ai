@@ -28,7 +28,12 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("stub sidecar bind");
-    let bound_port = listener.local_addr().expect("stub sidecar local_addr").port();
+    let bound_port = listener
+        .local_addr()
+        .expect("stub sidecar local_addr")
+        .port();
     println!("STUB_SIDECAR_LISTENING port={bound_port}");
-    axum::serve(listener, app).await.expect("stub sidecar serve");
+    axum::serve(listener, app)
+        .await
+        .expect("stub sidecar serve");
 }

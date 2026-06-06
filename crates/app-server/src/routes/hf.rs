@@ -276,6 +276,9 @@ mod tests {
     #[test]
     fn not_found_maps_to_not_found() {
         use crate::hf::types::HfError;
-        assert!(matches!(hf_err_to_app(HfError::NotFound), AppError::NotFound));
+        assert!(matches!(
+            hf_err_to_app(HfError::NotFound),
+            AppError::NotFound
+        ));
     }
 }

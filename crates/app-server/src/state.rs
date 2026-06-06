@@ -8,7 +8,8 @@ use sqlx::SqlitePool;
 
 use crate::agent::orchestrator::AgentConfig;
 use crate::local_runtime::{
-    probe_real, LocalRuntime, ProbeConfig, ProcessSidecarLauncher, RegistrySnapshot, RuntimeRegistry,
+    probe_real, LocalRuntime, ProbeConfig, ProcessSidecarLauncher, RegistrySnapshot,
+    RuntimeRegistry,
 };
 use crate::models::DownloadManager;
 use crate::routes::local_mode::LocalModeConfig;

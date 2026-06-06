@@ -277,7 +277,8 @@ mod apply_healing_tests {
 
     #[test]
     fn validate_apply_healing_accepts_valid_args() {
-        let result = validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": 8 }));
+        let result =
+            validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": 8 }));
         assert!(result.is_ok());
         assert_eq!(result.unwrap().tool_name, "apply_healing");
     }
@@ -290,7 +291,8 @@ mod apply_healing_tests {
 
     #[test]
     fn validate_apply_healing_rejects_negative_amount() {
-        let result = validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": -3 }));
+        let result =
+            validate_tool_call("apply_healing", json!({ "token_id": "pc-1", "amount": -3 }));
         assert!(result.is_err());
     }
 }

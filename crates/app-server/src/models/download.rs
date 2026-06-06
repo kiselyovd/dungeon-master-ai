@@ -265,7 +265,10 @@ mod tests {
         let (tx, _rx) = tokio::sync::broadcast::channel(8);
         let res = download_to(&url, &dest, "", Some("secret-tok"), Arc::new(tx)).await;
 
-        assert!(res.is_ok(), "download with bearer token should succeed: {res:?}");
+        assert!(
+            res.is_ok(),
+            "download with bearer token should succeed: {res:?}"
+        );
         assert_eq!(std::fs::read(&dest).unwrap(), body);
     }
 
@@ -283,7 +286,10 @@ mod tests {
         let url = format!("{}/f", server.uri());
         let (tx, _rx) = tokio::sync::broadcast::channel(8);
         let res = download_to(&url, &dest, "", None, Arc::new(tx)).await;
-        assert!(matches!(res, Err(DownloadError::Unauthorized)), "got {res:?}");
+        assert!(
+            matches!(res, Err(DownloadError::Unauthorized)),
+            "got {res:?}"
+        );
     }
 
     #[tokio::test]

@@ -38,7 +38,11 @@ fn ensure_sidecar_placeholder(bin_basename: &str, build_hint: &str) {
     let target_triple = env::var("TARGET").expect("TARGET env var");
     // Extension keyed on the compilation TARGET, not the build host, so a
     // cross-compiled build still produces the correct `.exe` name.
-    let ext = if target_triple.contains("windows") { ".exe" } else { "" };
+    let ext = if target_triple.contains("windows") {
+        ".exe"
+    } else {
+        ""
+    };
     let bin_name = format!("{bin_basename}-{target_triple}{ext}");
     let dst_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("binaries");
     fs::create_dir_all(&dst_dir).expect("mkdir binaries/");
@@ -55,11 +59,15 @@ fn ensure_sidecar_placeholder(bin_basename: &str, build_hint: &str) {
     if profile == "release" {
         // Do not ship a silent lie: a release build with no real sidecar
         // binary must be impossible to miss.
-        println!("cargo:warning=====================================================================");
+        println!(
+            "cargo:warning====================================================================="
+        );
         println!("cargo:warning=RELEASE BUILD with NO real {bin_basename} binary. The matching");
         println!("cargo:warning=Local Mode feature will be non-functional in this build.");
         println!("cargo:warning={build_hint}");
-        println!("cargo:warning=====================================================================");
+        println!(
+            "cargo:warning====================================================================="
+        );
     }
 
     // Lay down an empty placeholder so tauri-build's externalBin existence

@@ -557,9 +557,8 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     Mock::given(method("POST"))
         .and(path("/generate"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_json(
-                serde_json::json!({ "image_b64": encoded, "mime": "image/png" }),
-            ),
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "image_b64": encoded, "mime": "image/png" })),
         )
         .mount(&server)
         .await;
