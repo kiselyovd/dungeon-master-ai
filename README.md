@@ -84,12 +84,24 @@ Prerequisites:
 
 ```bash
 bun install
-bun run tauri dev
+bun run install-hooks   # one-time: pre-commit (fast gates) + pre-push (full gates)
+bun run tauri dev       # Vite + the Rust backend (dmai-server) - enough for CLOUD mode
 ```
 
-Onboarding walks you through picking a preset (Local-only, Cloud, Hybrid,
-Text-only, or Manual), configuring a provider, and creating a hero. F11 toggles
-fullscreen; Ctrl+S quick-saves.
+`bun run tauri dev` builds and spawns the Rust backend automatically. It does NOT
+build/start the model sidecars (mistralrs LLM + Python image) - those are on-demand
+and need a one-time build:
+
+```bash
+bun run setup:local            # build mistralrs-server + create .venv for the image sidecar
+bun run setup:local --cuda     # GPU build (needs the CUDA toolkit / nvcc on PATH; RTX 3080)
+bun run dev:all                # sets DMAI_IMAGE_SIDECAR_DEV + preflights sidecars, then tauri dev
+```
+
+For CLOUD mode (OpenAI-compatible / OpenRouter) plain `bun run tauri dev` is all
+you need - no sidecars. Onboarding walks you through picking a preset (Local-only,
+Cloud, Hybrid, Text-only, or Manual), configuring a provider, and creating a hero.
+F11 toggles fullscreen; Ctrl+S quick-saves.
 
 ### Example cloud Settings
 
@@ -104,15 +116,18 @@ fullscreen; Ctrl+S quick-saves.
 
 ## Tests and gates
 
+`scripts/gates.sh` is the single source of truth for the quality gates - the same
+script backs the git hooks AND the CI `lint` job, so local and CI can never drift.
+
 ```bash
-cargo test --workspace                                  # Rust unit + integration
-cargo clippy --workspace --all-targets -- -D warnings   # Rust lint
-bun run test                                            # frontend unit (vitest)
-bun run typecheck                                       # tsc
-bun run check                                           # Biome lint + format
-bash scripts/check-no-em-dash.sh                        # typography gate
-bun run e2e                                             # Playwright smoke
+bun run gates        # full set: cargo fmt --check, clippy --all-features, biome ci,
+                     #           tsc, cargo test, vitest, em-dash (mirrors CI's blocking checks)
+bun run gates:fast   # fast subset: cargo fmt --check, biome ci, tsc, em-dash (no compile)
+bun run e2e          # Playwright (its own CI job; not in gates.sh - needs a browser download)
 ```
+
+Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --fast`
+(seconds), **pre-push** runs the full `gates.sh`. Bypass once with `--no-verify`.
 
 ## Build
 
