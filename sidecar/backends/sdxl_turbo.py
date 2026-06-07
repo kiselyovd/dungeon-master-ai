@@ -14,7 +14,14 @@ class SdxlTurboBackend:
     vram_estimate_bytes: ClassVar[int] = 5 * 1024**3
 
     def __init__(self, weights_dir: Optional[Path] = None) -> None:
-        self._weights_dir = weights_dir or Path.cwd() / "models" / "sdxl-turbo"
+        # The DownloadManager stores diffusers folders at <base>/<hf_repo> and
+        # the sidecar is launched with that <base> as --weights-dir. Resolve the
+        # model's own subdir so from_pretrained targets the real weights instead
+        # of the shared base root (which also holds chat GGUFs).
+        if weights_dir is not None:
+            self._weights_dir = weights_dir / "stabilityai" / "sdxl-turbo"
+        else:
+            self._weights_dir = Path.cwd() / "models" / "sdxl-turbo"
         self._pipe = None
 
     def load(self) -> None:
