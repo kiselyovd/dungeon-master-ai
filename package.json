@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit",
     "install-hooks": "bash scripts/install-pre-commit.sh",
     "e2e": "playwright test --config=e2e/playwright.config.ts",
+    "e2e:tauri": "bun scripts/tauri-cdp-e2e.ts",
     "gates": "bash scripts/gates.sh",
     "gates:fast": "bash scripts/gates.sh --fast",
     "dev:all": "bun scripts/dev-all.ts",
