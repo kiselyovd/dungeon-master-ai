@@ -1,10 +1,13 @@
 /**
- * HeroStep - final step of the onboarding flow (E6).
+ * HeroStep - the narrative step of onboarding, placed right after the preset
+ * choice (before the technical chat/image/video steps).
  *
  * Renders 4 hero class cards (fighter / rogue / wizard / cleric). Clicking a
- * card calls `applyPreset` then `onNext`, which triggers the state machine's
- * `finalize()` (since hero is the last step). A "Build from scratch" button
- * at the bottom calls `onExitToWizard` then `onNext` without applying a preset.
+ * card calls `applyPreset` then `onNext`. "Build from scratch" just advances
+ * (`onNext`) WITHOUT applying a preset, leaving `pc.heroClass` null;
+ * `Onboarding.finalize` opens the full CharacterWizard afterwards when no class
+ * was chosen. Deferring the wizard to finalize lets hero sit ahead of the
+ * remaining steps without the wizard overlapping the onboarding modal.
  *
  * Card preview stats (race, HP, AC) are sourced directly from PRESETS in
  * pc.ts so they are always in sync with the real preset values.
@@ -20,7 +23,6 @@ export interface HeroStepProps {
   titleId: string;
   onBack: () => void;
   onNext: () => void;
-  onExitToWizard?: () => void;
 }
 
 const HERO_CLASSES: readonly HeroClassId[] = ['fighter', 'rogue', 'wizard', 'cleric'];
@@ -38,7 +40,7 @@ function equipmentSummary(classId: HeroClassId): string {
   );
 }
 
-export function HeroStep({ titleId, onBack, onNext, onExitToWizard }: HeroStepProps) {
+export function HeroStep({ titleId, onBack, onNext }: HeroStepProps) {
   const { t } = useTranslation('onboarding');
   const applyPreset = useStore((s) => s.pc.applyPreset);
 
@@ -47,8 +49,9 @@ export function HeroStep({ titleId, onBack, onNext, onExitToWizard }: HeroStepPr
     onNext();
   }
 
+  // No preset applied: pc.heroClass stays null, so Onboarding.finalize opens the
+  // full CharacterWizard once onboarding completes.
   function handleBuildFromScratch() {
-    onExitToWizard?.();
     onNext();
   }
 

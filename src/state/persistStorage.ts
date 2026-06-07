@@ -28,6 +28,7 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
+import { withTimeout } from '../lib/withTimeout';
 import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema } from './charCreationSchema';
 import type { OnboardingData } from './onboarding';
@@ -43,6 +44,13 @@ import {
 } from './settings';
 import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 import { strongholdSecretsStore } from './strongholdSecretsStore';
+
+/** Upper bound on a single encrypted-secrets read during hydration. The argon2
+ * vault open is deliberately slow and has been observed to hang on corrupt
+ * snapshots; bounding it keeps `getItem` (and the app's hydration gate) from
+ * stalling forever, at the cost of treating a too-slow read as "absent" for
+ * this load. The secret is re-read lazily on next access. (Audit blocker 1.) */
+const SECRET_READ_TIMEOUT_MS = 3_000;
 
 const LEGACY_SECRETS_FILE = 'secrets.json';
 const SETTINGS_FILE = 'settings.json';
@@ -102,7 +110,7 @@ async function getSecret(key: string): Promise<unknown> {
  */
 async function getSecretSafe(key: string): Promise<unknown> {
   try {
-    return await getSecret(key);
+    return await withTimeout(getSecret(key), SECRET_READ_TIMEOUT_MS, undefined);
   } catch (err) {
     console.error(`[persistStorage] failed to read secret "${key}":`, err);
     return undefined;

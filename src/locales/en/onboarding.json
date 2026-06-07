@@ -20,21 +20,21 @@
   "preset_local_only_download": "~6.5 GB download",
 
   "preset_cloud_cinematic_name": "Cloud cinematic",
-  "preset_cloud_cinematic_desc": "Anthropic Claude + Replicate FLUX-Pro + Kling. Best quality.",
-  "preset_cloud_cinematic_providers": "Claude + FLUX-Pro + Kling",
+  "preset_cloud_cinematic_desc": "OpenRouter (Claude / GPT) + Replicate FLUX-Pro + Kling. Best quality.",
+  "preset_cloud_cinematic_providers": "OpenRouter + FLUX-Pro + Kling",
 
   "preset_hybrid_name": "Hybrid",
   "preset_hybrid_desc": "Cloud conversation, local image. Balance quality and cost.",
-  "preset_hybrid_providers": "Claude + SDXL-Lightning",
+  "preset_hybrid_providers": "OpenRouter + SDXL-Lightning",
   "preset_hybrid_download": "~3.4 GB download",
 
   "preset_text_only_name": "Text only",
   "preset_text_only_desc": "Pure narrative, no image/video. Choose any chat provider.",
   "preset_text_only_providers": "Chat provider only",
 
-  "preset_manual_name": "Manual",
-  "preset_manual_desc": "Start with blank settings; configure everything yourself.",
-  "preset_manual_providers": "Nothing configured",
+  "preset_manual_name": "Skip setup",
+  "preset_manual_desc": "Pick a hero now; configure providers later in Settings.",
+  "preset_manual_providers": "Configure later in Settings",
 
   "preset_step_tag": "Pick your setup",
   "preset_step_title": "Choose a preset",

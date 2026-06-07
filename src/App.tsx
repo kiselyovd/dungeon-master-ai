@@ -28,6 +28,7 @@ import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
 import { useAgentTurn } from './hooks/useAgentTurn';
+import { useHydrated } from './hooks/useHydrated';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
@@ -144,6 +145,10 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
+  // Gate first-run UI on persist hydration: before the async rehydrate finishes
+  // the store still holds slice defaults (onboarding.completed === false), which
+  // would flash the Onboarding modal on every launch. (Audit blocker 1.)
+  const hydrated = useHydrated();
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
@@ -465,7 +470,7 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && (
+          {hydrated && !onboardingCompleted && (
             <Onboarding
               onExitToWizard={() => setWizardReopen(true)}
               onComplete={(preset) => {

@@ -237,7 +237,13 @@ export function SettingsForm({
             )}
 
             {activeKind === 'local-mistralrs' && (
-              <p className={styles.hint}>{t('chat_local_llm_hint')}</p>
+              <ErrorBoundary level="section">
+                {/* Unified provider block: the local model + runtime controls
+                    live inline here when the local provider is selected, so the
+                    user configures the chosen provider in one place instead of
+                    hunting for a separate tab. */}
+                <LocalLlmTab />
+              </ErrorBoundary>
             )}
 
             <ReasoningSection activeKind={activeKind} drafts={drafts} />

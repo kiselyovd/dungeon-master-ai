@@ -47,6 +47,11 @@ impl HfClient {
             ("sort".into(), sort.into()),
             ("direction".into(), "-1".into()),
             ("limit".into(), "20".into()),
+            // `full=true` expands each result's `siblings` (file list). Without
+            // it HF returns `siblings:[]`, so the UI can never pick a weight
+            // file to download and every card falls into the "unsupported"
+            // branch (audit blocker 2).
+            ("full".into(), "true".into()),
         ];
         if let Some(lic) = &q.license {
             params.push(("filter".into(), format!("license:{lic}")));
@@ -71,6 +76,12 @@ impl HfClient {
                 if let Some(sz) = q.size {
                     models.retain(|m| {
                         let total: u64 = m.siblings.iter().filter_map(|s| s.size).sum();
+                        // `full=true` lists files but often omits per-file sizes;
+                        // when no size is known, keep the model rather than
+                        // misclassifying it as "Small" (every sum would be 0).
+                        if total == 0 {
+                            return true;
+                        }
                         let gb = total as f32 / 1_000_000_000.0;
                         match sz {
                             SizeBucket::Small => gb < 4.0,
