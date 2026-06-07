@@ -38,6 +38,22 @@ export interface AgentTurnOptions {
 }
 
 /**
+ * Convert a chat-slice `ChatMessage` into the backend wire shape for the
+ * `/agent/turn` `history` field. The backend `ChatMessage` enum tags on `role`
+ * and requires `ChatMessage::User { parts: [...] }` (text + optional images);
+ * assistant/system carry `content`. Sending the raw slice message (which only
+ * has `content`, plus frontend-only `id`/`sequenceIndex`) makes the backend
+ * 422 with "history[i]: missing field `parts`" on every turn that has history.
+ */
+function toAgentWireMessage(m: ChatMessage): Record<string, unknown> {
+  if (m.role === 'user') {
+    const parts = m.parts && m.parts.length > 0 ? m.parts : [{ type: 'text', text: m.content }];
+    return { role: 'user', parts };
+  }
+  return { role: m.role, content: m.content };
+}
+
+/**
  * Drive the SSE agent-turn pipeline. Emits text deltas, tool-call start/result,
  * and agent_done events to the appropriate callbacks. Errors during the stream
  * surface as a thrown `ChatError` so the caller can record `lastError` once.
@@ -48,7 +64,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     campaign_id: opts.campaignId,
     session_id: opts.sessionId,
     player_message: opts.playerMessage,
-    history: opts.history,
+    history: opts.history.map(toAgentWireMessage),
     model: opts.model,
     images: opts.images ?? [],
   });

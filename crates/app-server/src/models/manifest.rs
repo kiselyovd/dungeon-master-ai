@@ -25,6 +25,16 @@ pub enum ModelId {
     Qwen3_5_4b,
     Qwen3_5_9b,
 
+    // chat (Gemma 4, multimodal safetensors loaded via auto-loader + ISQ - the
+    // GGUF path cannot load the `gemma4` arch). E2B fits a 10 GB GPU fully;
+    // E4B spills to CPU on 10 GB but is higher quality. Explicit rename keeps a
+    // clean wire id (default snake_case would yield `gemma4_e2b_it`); the
+    // frontend localMode ModelId uses these exact strings for /local-mode/config.
+    #[serde(rename = "gemma4_e2b")]
+    Gemma4E2bIt,
+    #[serde(rename = "gemma4_e4b")]
+    Gemma4E4bIt,
+
     // image (existing)
     SdxlTurbo,
 
@@ -67,6 +77,13 @@ pub struct ModelManifest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModelKind {
     GgufFile,
+    /// Safetensors model loaded through mistralrs' auto-loader (`run -m <id>`)
+    /// with in-situ quantization. Used for arches the GGUF loader lacks (Gemma
+    /// 4). mistralrs downloads the repo from HF on first start; there is no
+    /// single local file to pre-fetch. `isq` is the mistralrs `--isq` value.
+    AutoIsq {
+        isq: &'static str,
+    },
     DiffusersFolder,
     /// VL GGUF that ships a separate mmproj GGUF.
     GgufWithMmproj {
@@ -136,6 +153,31 @@ pub const MANIFEST: &[ModelManifest] = &[
         kind: ModelKind::GgufWithMmproj {
             mmproj_filename: "mmproj-F16.gguf",
         },
+        requires: &[],
+    },
+    // --- chat: Gemma 4 (safetensors + ISQ via mistralrs auto-loader). hf_filename
+    // is unused for the AutoIsq path (mistralrs fetches the whole repo); sizes are
+    // rough estimates for the UI. ---
+    ModelManifest {
+        id: ModelId::Gemma4E2bIt,
+        display_name: "Gemma 4 E2B-it (ISQ Q4K)",
+        size_bytes_estimate: 5_500 * 1024 * 1024,
+        vram_bytes_estimate: 3_000 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "google/gemma-4-E2B-it",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "Q4K" },
+        requires: &[],
+    },
+    ModelManifest {
+        id: ModelId::Gemma4E4bIt,
+        display_name: "Gemma 4 E4B-it (ISQ Q4K)",
+        size_bytes_estimate: 9_000 * 1024 * 1024,
+        vram_bytes_estimate: 6_000 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "google/gemma-4-E4B-it",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "Q4K" },
         requires: &[],
     },
     // --- image: Fast preset (existing) ---
@@ -369,7 +411,9 @@ mod tests {
         assert!(ids.contains(&&ModelId::ZImageTurboSvdq));
         assert!(ids.contains(&&ModelId::T5xxlEncoder));
         assert!(ids.contains(&&ModelId::LtxVideo09_6Distilled));
-        assert_eq!(MANIFEST.len(), 14);
+        assert!(ids.contains(&&ModelId::Gemma4E2bIt));
+        assert!(ids.contains(&&ModelId::Gemma4E4bIt));
+        assert_eq!(MANIFEST.len(), 16);
     }
 
     #[test]

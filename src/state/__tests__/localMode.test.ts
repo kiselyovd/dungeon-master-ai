@@ -13,14 +13,14 @@ function freshStore() {
 }
 
 describe('LocalModeSlice', () => {
-  it('starts disabled with qwen3_5_4b selected and auto-swap', () => {
+  it('starts disabled with gemma4_e2b selected and auto-swap', () => {
     const s = freshStore().getState().localMode;
     expect(s.enabled).toBe(false);
-    expect(s.selectedLlm).toBe('qwen3_5_4b');
+    expect(s.selectedLlm).toBe('gemma4_e2b');
     expect(s.vramStrategy).toBe('auto-swap');
     expect(s.runtime.llm.state).toBe('off');
     expect(s.runtime.image.state).toBe('off');
-    expect(s.downloads.qwen3_5_4b.state).toBe('idle');
+    expect(s.downloads.gemma4_e2b.state).toBe('idle');
   });
 
   it('setEnabled toggles enabled flag', () => {

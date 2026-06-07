@@ -17,7 +17,7 @@ use crate::error::AppError;
 use crate::image::replicate::ReplicateProvider;
 use crate::image::stub::LocalImageSidecarProvider;
 use crate::license::is_oss_license;
-use crate::models::manifest::{manifest_for, ModelId};
+use crate::models::manifest::{manifest_for, ModelId, ModelKind, ModelManifest};
 use crate::providers::catalog::{
     find_chat_entry, find_entry_any_modality, IMAGE_CATALOG, VIDEO_CATALOG,
 };
@@ -83,15 +83,48 @@ pub async fn post_settings_v2(
     // If any sub-build fails, the prior registry stays untouched.
     let (chat_provider, model_name) =
         build_chat_provider(&cfg.chat, state.secrets_repo(), license_restricted).await?;
-    let image_provider = build_image_provider(
+    // The orchestrator sends `agent_config().model` verbatim as the chat request
+    // model. It must track the resolved active model, not the stale default
+    // ("claude-haiku-4-5-20251001"): for the local runtime, mistralrs 404s on any
+    // id it did not load, so a stale/wrong model silently kills every DM turn.
+    agent_cfg.model = model_name.clone();
+    // Image/video are OPTIONAL enhancements: a build failure (e.g. the media
+    // sidecar is still starting) must NOT block the mandatory chat provider from
+    // applying. Degrade gracefully by disabling that modality and logging, so
+    // saving a working chat provider never 400s on an unavailable image runtime.
+    // AutoSwap VRAM strategy: have the local image provider unload SDXL after
+    // each generation so the LLM runtime regains VRAM (both resident max a 10 GB
+    // card and the LLM decode thrashes). KeepBothLoaded keeps it resident.
+    let image_auto_unload = matches!(
+        state.local_mode_config().vram_strategy,
+        crate::routes::local_mode::VramStrategy::AutoSwap
+    );
+    let image_provider = match build_image_provider(
         &cfg.image,
         state.secrets_repo(),
         state.media_sidecar_url(),
         license_restricted,
+        image_auto_unload,
     )
-    .await?;
-    let video_provider =
-        build_video_provider(&cfg.video, state.media_sidecar_url(), license_restricted)?;
+    .await
+    {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(error = %e, "image provider unavailable; disabling image for this config");
+            None
+        }
+    };
+    let video_provider = match build_video_provider(
+        &cfg.video,
+        state.media_sidecar_url(),
+        license_restricted,
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(error = %e, "video provider unavailable; disabling video for this config");
+            None
+        }
+    };
 
     // license_restricted_no_compat: surfaces to UI when the user toggled
     // restriction on but their active image/video provider got filtered out.
@@ -199,7 +232,7 @@ async fn build_chat_provider(
                 .map_err(|e| AppError::BadRequest(format!("invalid local-mistralrs slice: {e}")))?;
             let manifest = manifest_for(&cfg.model_id)
                 .ok_or_else(|| AppError::BadRequest("unknown model_id".into()))?;
-            let model_name = manifest.hf_filename.to_string();
+            let model_name = mistralrs_wire_model(manifest);
             let provider: Arc<dyn app_llm::LlmProvider> =
                 Arc::new(MistralrsLocalProvider::new(cfg.port, model_name.clone()));
             Ok((provider, model_name))
@@ -207,6 +240,19 @@ async fn build_chat_provider(
         other => Err(AppError::BadRequest(format!(
             "unknown chat provider: {other}"
         ))),
+    }
+}
+
+/// Resolve the model id to send to a running mistralrs server's OpenAI-compat
+/// endpoint. AutoIsq (safetensors auto-loader) models register under their HF
+/// repo id (e.g. "google/gemma-4-E2B-it"); their manifest `hf_filename` is the
+/// download glob "*", which mistralrs rejects at request time ("Requested model
+/// '*' is not available. Use 'default'..."). GGUF models, launched from a local
+/// file, register under that on-disk filename, so the filename is the right id.
+fn mistralrs_wire_model(manifest: &ModelManifest) -> String {
+    match manifest.kind {
+        ModelKind::AutoIsq { .. } => manifest.hf_repo.to_string(),
+        _ => manifest.hf_filename.to_string(),
     }
 }
 
@@ -223,6 +269,7 @@ async fn build_image_provider(
     secrets: Arc<dyn crate::secrets::SecretsRepo>,
     sidecar_url: Option<String>,
     license_restricted: bool,
+    auto_unload: bool,
 ) -> Result<Option<Arc<dyn crate::image::provider::ImageProvider>>, AppError> {
     if !image.enabled {
         return Ok(None);
@@ -268,7 +315,9 @@ async fn build_image_provider(
                     "media sidecar not running; start it via /local/runtime/start first".into(),
                 )
             })?;
-            Ok(Some(Arc::new(LocalImageSidecarProvider::new(url))))
+            Ok(Some(Arc::new(
+                LocalImageSidecarProvider::new(url).with_auto_unload(auto_unload),
+            )))
         }
         other => Err(AppError::BadRequest(format!(
             "unknown image provider: {other}"
@@ -473,5 +522,20 @@ mod tests {
         cfg.behavior.license_restricted_mode = true;
         cfg.image.preset = ImagePreset::Balanced;
         assert!(validate_settings_v2(&cfg).is_ok());
+    }
+
+    #[test]
+    fn mistralrs_wire_model_autoisq_uses_hf_repo_not_glob() {
+        // Gemma 4 is AutoIsq: hf_filename is the download glob "*". The wire id
+        // must be the HF repo (what mistralrs registers + accepts), never "*".
+        let m = manifest_for(&ModelId::Gemma4E2bIt).expect("gemma in manifest");
+        assert_eq!(m.hf_filename, "*", "guard: AutoIsq filename is the glob");
+        assert_eq!(mistralrs_wire_model(m), "google/gemma-4-E2B-it");
+    }
+
+    #[test]
+    fn mistralrs_wire_model_gguf_uses_filename() {
+        let m = manifest_for(&ModelId::Qwen3_5_4b).expect("qwen in manifest");
+        assert_eq!(mistralrs_wire_model(m), "Qwen3.5-4B-Q4_K_M.gguf");
     }
 }

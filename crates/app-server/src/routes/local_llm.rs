@@ -99,6 +99,8 @@ pub(crate) fn wire_id_for_model(id: &ModelId) -> Option<&'static str> {
         ModelId::Qwen3_5_2b => Some("qwen3.5-2b"),
         ModelId::Qwen3_5_4b => Some("qwen3.5-4b"),
         ModelId::Qwen3_5_9b => Some("qwen3.5-9b"),
+        ModelId::Gemma4E2bIt => Some("gemma-4-e2b"),
+        ModelId::Gemma4E4bIt => Some("gemma-4-e4b"),
         _ => None,
     }
 }
@@ -160,6 +162,23 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
 /// `ModelManifest`).
 fn system_catalog() -> Vec<SystemEntry> {
     const ENTRIES: &[(ModelId, &str, &str, &str, &str)] = &[
+        // Gemma 4 (safetensors + ISQ via mistralrs auto-loader). E2B is the
+        // default - it fits a 10 GB GPU fully; E4B is higher quality but spills
+        // to CPU on 10 GB.
+        (
+            ModelId::Gemma4E2bIt,
+            "gemma-4-e2b",
+            "gemma4",
+            "isq-q4k",
+            "gemma",
+        ),
+        (
+            ModelId::Gemma4E4bIt,
+            "gemma-4-e4b",
+            "gemma4",
+            "isq-q4k",
+            "gemma",
+        ),
         (
             ModelId::Qwen3_5_0_8b,
             "qwen3.5-0.8b",
@@ -219,6 +238,8 @@ fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
         "qwen3.5-2b" => Some(ModelId::Qwen3_5_2b),
         "qwen3.5-4b" => Some(ModelId::Qwen3_5_4b),
         "qwen3.5-9b" => Some(ModelId::Qwen3_5_9b),
+        "gemma-4-e2b" => Some(ModelId::Gemma4E2bIt),
+        "gemma-4-e4b" => Some(ModelId::Gemma4E4bIt),
         _ => None,
     }
 }
@@ -426,13 +447,20 @@ mod tests {
     }
 
     #[test]
-    fn system_catalog_returns_four_qwen_entries() {
+    fn system_catalog_returns_gemma_then_qwen_entries() {
         let s = system_catalog();
-        assert_eq!(s.len(), 4);
+        assert_eq!(s.len(), 6);
         let ids: Vec<&str> = s.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(
             ids,
-            vec!["qwen3.5-0.8b", "qwen3.5-2b", "qwen3.5-4b", "qwen3.5-9b"]
+            vec![
+                "gemma-4-e2b",
+                "gemma-4-e4b",
+                "qwen3.5-0.8b",
+                "qwen3.5-2b",
+                "qwen3.5-4b",
+                "qwen3.5-9b"
+            ]
         );
         // Each entry's hf_repo / hf_filename should match the manifest's
         // canonical values, not made-up strings.

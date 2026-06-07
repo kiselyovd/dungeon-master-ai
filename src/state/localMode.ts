@@ -1,7 +1,17 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from './useStore';
 
-export type ModelId = 'qwen3_5_0_8b' | 'qwen3_5_2b' | 'qwen3_5_4b' | 'qwen3_5_9b' | 'sdxl_turbo';
+// Gemma 4 ids match the backend ModelId serde renames (see manifest.rs); the
+// qwen ids are the snake_case backend variant names. Both flow through
+// /local-mode/config verbatim.
+export type ModelId =
+  | 'gemma4_e2b'
+  | 'gemma4_e4b'
+  | 'qwen3_5_0_8b'
+  | 'qwen3_5_2b'
+  | 'qwen3_5_4b'
+  | 'qwen3_5_9b'
+  | 'sdxl_turbo';
 export type VramStrategy = 'auto-swap' | 'keep-both-loaded' | 'disable-image-gen';
 
 /**
@@ -30,6 +40,8 @@ export type DownloadState =
   | { state: 'failed'; reason: string; authRequired: boolean };
 
 export const ALL_MODEL_IDS: ModelId[] = [
+  'gemma4_e2b',
+  'gemma4_e4b',
   'qwen3_5_0_8b',
   'qwen3_5_2b',
   'qwen3_5_4b',
@@ -66,7 +78,7 @@ const idleDownloads = (): Record<ModelId, DownloadState> =>
 export const createLocalModeSlice: StateCreator<AppState, [], [], LocalModeSlice> = (set) => ({
   localMode: {
     enabled: false,
-    selectedLlm: 'qwen3_5_4b',
+    selectedLlm: 'gemma4_e2b',
     customLlmOverride: null,
     vramStrategy: 'auto-swap',
     runtime: { llm: { state: 'off' }, image: { state: 'off' } },

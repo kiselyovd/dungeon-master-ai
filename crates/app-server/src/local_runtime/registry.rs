@@ -96,13 +96,19 @@ impl RuntimeRegistry {
         Ok(())
     }
 
-    /// Restart the LLM sidecar with the supplied gguf path + port and mark
-    /// it as the GPU owner.
-    pub async fn release_gpu_to_llm(&self, model_path: &str, port: u16) -> Result<(), String> {
-        let port_str = port.to_string();
-        let args: &[&str] = &["--port", &port_str, "--gguf-file", model_path];
+    /// Restart the LLM sidecar for the gguf model in `model_dir`/`filename` on
+    /// `port` and mark it as the GPU owner. Uses the mistralrs 0.8 `gguf`
+    /// subcommand form (see `local_runtime::mistralrs_gguf_args`).
+    pub async fn release_gpu_to_llm(
+        &self,
+        model_dir: &str,
+        filename: &str,
+        port: u16,
+    ) -> Result<(), String> {
+        let args = super::mistralrs_gguf_args(port, model_dir, filename);
+        let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
         self.llm
-            .start_with_retry("mistralrs-server", args, port, 3)
+            .start_with_retry("mistralrs-server", &arg_refs, port, 3)
             .await
             .map_err(|e| e.to_string())?;
         self.gpu_owner.store(GpuOwner::Llm as u8, Ordering::SeqCst);

@@ -23,7 +23,7 @@ use tokio_stream::StreamExt;
 
 use crate::error::AppError;
 use crate::local_runtime::{port::discover_free_port, RegistrySnapshot};
-use crate::models::manifest::{manifest_for, ModelId};
+use crate::models::manifest::{manifest_for, ModelId, ModelKind};
 use crate::models::DownloadEvent;
 use crate::state::AppState;
 
@@ -36,7 +36,7 @@ pub struct LocalModeConfig {
 impl Default for LocalModeConfig {
     fn default() -> Self {
         Self {
-            selected_llm: ModelId::Qwen3_5_4b,
+            selected_llm: ModelId::Gemma4E2bIt,
             vram_strategy: VramStrategy::AutoSwap,
         }
     }
@@ -116,21 +116,33 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
     let cfg = state.local_mode_config();
     let model = manifest_for(&cfg.selected_llm)
         .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;
-    let llm_path = state.models_dir().join(model.hf_filename);
-    if !llm_path.exists() {
-        return Err(AppError::BadRequest(format!(
-            "model not downloaded: {}",
-            model.display_name
-        )));
-    }
     let port = discover_free_port().map_err(|e| AppError::Internal(e.to_string()))?;
-    let llm_path_str = llm_path.to_string_lossy().into_owned();
-    let port_str = port.to_string();
-    let args: &[&str] = &["--port", &port_str, "--gguf-file", &llm_path_str];
+    // Spawn args depend on the model kind. AutoIsq (Gemma 4 safetensors) loads
+    // via mistralrs' auto-loader + ISQ and is fetched from HF on first start, so
+    // there is no local file to require. GGUF models select the file via the
+    // `gguf` subcommand (dir + filename) and must be downloaded first.
+    let llm_args = match &model.kind {
+        ModelKind::AutoIsq { isq } => {
+            crate::local_runtime::mistralrs_run_args(port, model.hf_repo, isq)
+        }
+        _ => {
+            let models_dir = state.models_dir();
+            let llm_path = models_dir.join(model.hf_filename);
+            if !llm_path.exists() {
+                return Err(AppError::BadRequest(format!(
+                    "model not downloaded: {}",
+                    model.display_name
+                )));
+            }
+            let models_dir_str = models_dir.to_string_lossy().into_owned();
+            crate::local_runtime::mistralrs_gguf_args(port, &models_dir_str, model.hf_filename)
+        }
+    };
+    let llm_arg_refs: Vec<&str> = llm_args.iter().map(String::as_str).collect();
     state
         .runtime_registry()
         .llm
-        .start_with_retry("mistralrs-server", args, port, 3)
+        .start_with_retry("mistralrs-server", &llm_arg_refs, port, 3)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     if !matches!(cfg.vram_strategy, VramStrategy::DisableImageGen) {

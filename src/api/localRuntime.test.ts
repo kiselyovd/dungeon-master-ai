@@ -64,4 +64,18 @@ describe('localRuntime API client', () => {
     mockFetch({ ok: false, status: 500 });
     await expect(startLocalRuntimes()).rejects.toThrow('HTTP 500');
   });
+
+  it('surfaces the backend error message so a failed start is debuggable', async () => {
+    // The 0-byte placeholder sidecar fails to spawn (WinError 193); the backend
+    // returns {error:{message}}. The client must propagate that message instead
+    // of a bare "HTTP 500" (audit blocker 3).
+    mockFetch({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        error: { code: 'internal', message: 'spawn mistralrs-server: program not found' },
+      }),
+    });
+    await expect(startLocalRuntimes()).rejects.toThrow('spawn mistralrs-server: program not found');
+  });
 });

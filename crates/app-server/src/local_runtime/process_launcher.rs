@@ -107,10 +107,22 @@ impl ProcessSidecarLauncher {
 /// `<name>-*<ext>` match (the un-bundled `<name>-<target-triple><ext>` layout
 /// used under `src-tauri/binaries/`). Sorting makes the choice deterministic
 /// when the directory holds more than one matching triple.
+/// A real, runnable binary: a regular file with non-zero length. `build.rs`
+/// drops a 0-byte placeholder for unbuilt sidecars so tauri's externalBin check
+/// passes; treating that as runnable makes `Command::spawn` fail with a cryptic
+/// "%1 is not a valid Win32 application" (os error 193) instead of falling back
+/// to the dev path / reporting a clear "not built" error. (Audit finding via
+/// live runtime test.)
+fn is_real_binary(path: &Path) -> bool {
+    std::fs::metadata(path)
+        .map(|m| m.is_file() && m.len() > 0)
+        .unwrap_or(false)
+}
+
 fn resolve_binary(base_dir: &Path, name: &str) -> Option<PathBuf> {
     let ext = std::env::consts::EXE_SUFFIX; // ".exe" on Windows, "" elsewhere
     let exact = base_dir.join(format!("{name}{ext}"));
-    if exact.is_file() {
+    if is_real_binary(&exact) {
         return Some(exact);
     }
     // Fallback: <name>-<target-triple><ext>. Collect and sort so the choice is
@@ -122,7 +134,9 @@ fn resolve_binary(base_dir: &Path, name: &str) -> Option<PathBuf> {
         .filter(|entry| {
             let file_name = entry.file_name();
             let file_name = file_name.to_string_lossy();
-            file_name.starts_with(&prefix) && file_name.ends_with(ext) && entry.path().is_file()
+            file_name.starts_with(&prefix)
+                && file_name.ends_with(ext)
+                && is_real_binary(&entry.path())
         })
         .map(|entry| entry.path())
         .collect();
@@ -239,6 +253,38 @@ mod tests {
     fn resolve_binary_returns_none_when_absent() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(resolve_binary(dir.path(), "nonexistent"), None);
+    }
+
+    #[test]
+    fn resolve_binary_ignores_zero_byte_placeholder() {
+        // build.rs lays down a 0-byte placeholder for unbuilt sidecars; it must
+        // not be treated as runnable (otherwise spawn fails with os error 193).
+        let dir = tempfile::tempdir().unwrap();
+        let ext = std::env::consts::EXE_SUFFIX;
+        std::fs::write(dir.path().join(format!("dmai-image-sidecar{ext}")), b"").unwrap();
+        assert_eq!(resolve_binary(dir.path(), "dmai-image-sidecar"), None);
+    }
+
+    #[test]
+    fn resolve_spawn_target_falls_back_to_dev_when_binary_is_placeholder() {
+        // With only a 0-byte placeholder present, the image sidecar must fall
+        // back to the dev venv python running sidecar/app.py.
+        let dir = tempfile::tempdir().unwrap();
+        let ext = std::env::consts::EXE_SUFFIX;
+        std::fs::write(dir.path().join(format!("dmai-image-sidecar{ext}")), b"").unwrap();
+        let dev = PythonSidecarDev {
+            python: PathBuf::from("/venv/python"),
+            app_py: PathBuf::from("/repo/sidecar/app.py"),
+        };
+        let (program, args) = resolve_spawn_target(
+            dir.path(),
+            Some(&dev),
+            "dmai-image-sidecar",
+            &["--port", "1"],
+        )
+        .unwrap();
+        assert_eq!(program, PathBuf::from("/venv/python"));
+        assert_eq!(args[0], "/repo/sidecar/app.py");
     }
 
     #[tokio::test]

@@ -25,12 +25,30 @@ export interface LocalModeConfigWire {
   vram_strategy: VramStrategy;
 }
 
+/**
+ * Build an Error for a non-ok response, pulling the backend's JSON error
+ * message (`{error:{message}}`) into the text so a failed runtime start is
+ * debuggable in the UI instead of a bare "HTTP 500". Falls back to the status
+ * code when the body is absent or not the expected shape. (Audit blocker 3.)
+ */
+async function responseError(res: Response, method: string, path: string): Promise<Error> {
+  let detail = '';
+  try {
+    const body = (await res.json()) as { error?: { message?: unknown }; message?: unknown };
+    const msg = body?.error?.message ?? body?.message;
+    if (typeof msg === 'string' && msg.trim()) detail = `: ${msg}`;
+  } catch {
+    // Non-JSON or empty body - keep the bare status.
+  }
+  return new Error(`${method} ${path} HTTP ${res.status}${detail}`);
+}
+
 /** GET /local/runtime/status - snapshot of both sidecar runtimes. */
 export async function fetchLocalRuntimeStatus(): Promise<LocalRuntimeSnapshot> {
   const url = await backendUrl('/local/runtime/status');
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`GET /local/runtime/status HTTP ${res.status}`);
+    throw await responseError(res, 'GET', '/local/runtime/status');
   }
   return (await res.json()) as LocalRuntimeSnapshot;
 }
@@ -40,7 +58,7 @@ export async function startLocalRuntimes(): Promise<void> {
   const url = await backendUrl('/local/runtime/start');
   const res = await fetch(url, { method: 'POST' });
   if (!res.ok) {
-    throw new Error(`POST /local/runtime/start HTTP ${res.status}`);
+    throw await responseError(res, 'POST', '/local/runtime/start');
   }
 }
 
@@ -49,7 +67,7 @@ export async function stopLocalRuntimes(): Promise<void> {
   const url = await backendUrl('/local/runtime/stop');
   const res = await fetch(url, { method: 'POST' });
   if (!res.ok) {
-    throw new Error(`POST /local/runtime/stop HTTP ${res.status}`);
+    throw await responseError(res, 'POST', '/local/runtime/stop');
   }
 }
 
@@ -62,6 +80,6 @@ export async function persistLocalModeConfig(config: LocalModeConfigWire): Promi
     body: JSON.stringify(config),
   });
   if (!res.ok) {
-    throw new Error(`POST /local-mode/config HTTP ${res.status}`);
+    throw await responseError(res, 'POST', '/local-mode/config');
   }
 }
