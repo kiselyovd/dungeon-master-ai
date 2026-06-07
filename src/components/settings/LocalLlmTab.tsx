@@ -22,6 +22,7 @@ import { ModelSelector as LocalLlmModelSelector } from './local-llm/ModelSelecto
  * manifest the backend picker reads.
  */
 const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
+  qwen3_8b: 'qwen3-8b',
   gemma4_e2b: 'gemma-4-e2b',
   gemma4_e4b: 'gemma-4-e4b',
   qwen3_5_0_8b: 'qwen3.5-0.8b',

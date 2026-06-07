@@ -5,6 +5,7 @@ import type { AppState } from './useStore';
 // qwen ids are the snake_case backend variant names. Both flow through
 // /local-mode/config verbatim.
 export type ModelId =
+  | 'qwen3_8b'
   | 'gemma4_e2b'
   | 'gemma4_e4b'
   | 'qwen3_5_0_8b'
@@ -40,6 +41,7 @@ export type DownloadState =
   | { state: 'failed'; reason: string; authRequired: boolean };
 
 export const ALL_MODEL_IDS: ModelId[] = [
+  'qwen3_8b',
   'gemma4_e2b',
   'gemma4_e4b',
   'qwen3_5_0_8b',

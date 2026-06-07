@@ -52,9 +52,13 @@ impl LlmProvider for MistralrsLocalProvider {
     }
 
     async fn stream_chat(&self, mut req: ChatRequest) -> Result<ChunkStream, LlmError> {
-        if req.model.is_empty() {
-            req.model = self.model.clone();
-        }
+        // A mistralrs server hosts exactly one model and always exposes it under
+        // the alias "default" (alongside its load-specific id). Sending "default"
+        // is robust no matter HOW the model was loaded - the HF repo id for the
+        // safetensors auto-loader vs the on-disk filename for the GGUF loader -
+        // so the caller never has to guess the registered id and can't 404 on it.
+        // `self.model` is kept only for capabilities/display, not the wire.
+        req.model = "default".to_string();
         self.inner.stream_chat(req).await
     }
 
@@ -66,12 +70,12 @@ impl LlmProvider for MistralrsLocalProvider {
         // support function calling. Recognise the family explicitly so the agent
         // offers tools (image/map generation) and the UI shows vision/reasoning.
         let is_gemma = lc.contains("gemma");
-        // Qwen3.x family is uniformly VL+thinking in upstream naming as of
-        // 2026; bare "qwen3.5-*-instruct" without -vl is also a vision model.
-        // Older Qwen2.5 family ships separate -vl variants for vision.
-        let vision_input =
-            lc.contains("qwen3") || lc.contains("-vl") || lc.contains("vision") || is_gemma;
-        let reasoning = lc.contains("qwen3") || is_gemma; // built-in thinking channel
+        // Vision only when the model is explicitly multimodal: a `-vl`/`vision`
+        // tagged Qwen, or Gemma 4 E-it. The default dense Qwen3-8B is text-only
+        // (no mmproj), so a bare "qwen3" must NOT claim vision_input.
+        let vision_input = lc.contains("-vl") || lc.contains("vision") || is_gemma;
+        // Qwen3 and Gemma 4 both emit a built-in thinking channel and tool-call.
+        let reasoning = lc.contains("qwen3") || is_gemma;
         let tool_calls = lc.contains("instruct") || lc.contains("qwen3") || is_gemma;
         Capabilities {
             vision_input,
@@ -111,13 +115,21 @@ mod tests {
     }
 
     #[test]
-    fn qwen3_5_caps_all_true_vision_reasoning_tools() {
-        let p = MistralrsLocalProvider::new(37000, "qwen3.5-4b".into());
-        let caps = p.capabilities_for_model("qwen3.5-4b");
-        assert!(caps.vision_input);
+    fn qwen3_dense_is_text_only_but_reasons_and_calls_tools() {
+        // Bare Qwen3 (the default Qwen3-8B GGUF) ships no mmproj, so it is
+        // text-only; it still has the thinking channel and tool-calling.
+        let p = MistralrsLocalProvider::new(37000, "qwen3-8b-q4_k_m.gguf".into());
+        let caps = p.capabilities_for_model("qwen3-8b-q4_k_m.gguf");
+        assert!(!caps.vision_input, "dense Qwen3 has no vision projector");
         assert!(caps.reasoning);
         assert!(caps.tool_calls);
         assert!(caps.streaming);
+    }
+
+    #[test]
+    fn qwen_vl_has_vision() {
+        let p = MistralrsLocalProvider::new(37000, "qwen3-vl-8b".into());
+        assert!(p.capabilities_for_model("qwen3-vl-8b").vision_input);
     }
 
     #[test]

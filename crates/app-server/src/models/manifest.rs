@@ -35,6 +35,12 @@ pub enum ModelId {
     #[serde(rename = "gemma4_e4b")]
     Gemma4E4bIt,
 
+    // chat (Qwen3 dense GGUF - the DEFAULT. Pre-quantized so it loads in seconds
+    // with no ISQ, the GGUF arch is `qwen3` which mistralrs supports (unlike the
+    // newer `qwen35`), and the instruct model tool-calls reliably. Text-only.
+    #[serde(rename = "qwen3_8b")]
+    Qwen3_8b,
+
     // image (existing)
     SdxlTurbo,
 
@@ -178,6 +184,21 @@ pub const MANIFEST: &[ModelManifest] = &[
         hf_repo: "google/gemma-4-E4B-it",
         hf_filename: "*",
         kind: ModelKind::AutoIsq { isq: "Q4K" },
+        requires: &[],
+    },
+    // --- chat: Qwen3-8B dense GGUF (DEFAULT). Pre-quantized Q4_K_M (~5 GB), arch
+    // `qwen3` (mistralrs-supported), loads in seconds, reliable tool-calls.
+    // Text-only: unsloth ships no mmproj for the dense Qwen3 (VL is a separate
+    // repo), so this is GgufFile, not GgufWithMmproj. ---
+    ModelManifest {
+        id: ModelId::Qwen3_8b,
+        display_name: "Qwen3-8B Q4_K_M",
+        size_bytes_estimate: 5_028 * 1024 * 1024,
+        vram_bytes_estimate: 6_500 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "unsloth/Qwen3-8B-GGUF",
+        hf_filename: "Qwen3-8B-Q4_K_M.gguf",
+        kind: ModelKind::GgufFile,
         requires: &[],
     },
     // --- image: Fast preset (existing) ---
@@ -413,7 +434,8 @@ mod tests {
         assert!(ids.contains(&&ModelId::LtxVideo09_6Distilled));
         assert!(ids.contains(&&ModelId::Gemma4E2bIt));
         assert!(ids.contains(&&ModelId::Gemma4E4bIt));
-        assert_eq!(MANIFEST.len(), 16);
+        assert!(ids.contains(&&ModelId::Qwen3_8b));
+        assert_eq!(MANIFEST.len(), 17);
     }
 
     #[test]

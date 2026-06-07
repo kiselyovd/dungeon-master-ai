@@ -95,6 +95,7 @@ pub(crate) struct DownloadEventWire {
 /// must stay in sync whenever new Qwen entries are added to the catalog.
 pub(crate) fn wire_id_for_model(id: &ModelId) -> Option<&'static str> {
     match id {
+        ModelId::Qwen3_8b => Some("qwen3-8b"),
         ModelId::Qwen3_5_0_8b => Some("qwen3.5-0.8b"),
         ModelId::Qwen3_5_2b => Some("qwen3.5-2b"),
         ModelId::Qwen3_5_4b => Some("qwen3.5-4b"),
@@ -162,9 +163,17 @@ fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
 /// `ModelManifest`).
 fn system_catalog() -> Vec<SystemEntry> {
     const ENTRIES: &[(ModelId, &str, &str, &str, &str)] = &[
-        // Gemma 4 (safetensors + ISQ via mistralrs auto-loader). E2B is the
-        // default - it fits a 10 GB GPU fully; E4B is higher quality but spills
-        // to CPU on 10 GB.
+        // Qwen3-8B dense GGUF - the DEFAULT. Pre-quantized (fast load, no ISQ),
+        // arch `qwen3` (mistralrs-supported), reliable tool-calls; text-only.
+        (
+            ModelId::Qwen3_8b,
+            "qwen3-8b",
+            "qwen3",
+            "gguf-q4_k_m",
+            "apache-2.0",
+        ),
+        // Gemma 4 (safetensors + ISQ via mistralrs auto-loader). E2B fits a 10 GB
+        // GPU fully; E4B is higher quality but spills to CPU on 10 GB.
         (
             ModelId::Gemma4E2bIt,
             "gemma-4-e2b",
@@ -234,6 +243,7 @@ fn system_catalog() -> Vec<SystemEntry> {
 /// for unknown ids; the route turns that into a 400.
 fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
     match wire_id {
+        "qwen3-8b" => Some(ModelId::Qwen3_8b),
         "qwen3.5-0.8b" => Some(ModelId::Qwen3_5_0_8b),
         "qwen3.5-2b" => Some(ModelId::Qwen3_5_2b),
         "qwen3.5-4b" => Some(ModelId::Qwen3_5_4b),
@@ -447,13 +457,14 @@ mod tests {
     }
 
     #[test]
-    fn system_catalog_returns_gemma_then_qwen_entries() {
+    fn system_catalog_lists_qwen3_default_then_gemma_and_qwen35() {
         let s = system_catalog();
-        assert_eq!(s.len(), 6);
+        assert_eq!(s.len(), 7);
         let ids: Vec<&str> = s.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(
             ids,
             vec![
+                "qwen3-8b",
                 "gemma-4-e2b",
                 "gemma-4-e4b",
                 "qwen3.5-0.8b",
@@ -462,11 +473,11 @@ mod tests {
                 "qwen3.5-9b"
             ]
         );
-        // Each entry's hf_repo / hf_filename should match the manifest's
-        // canonical values, not made-up strings.
-        let four_b = s.iter().find(|e| e.id == "qwen3.5-4b").unwrap();
-        assert_eq!(four_b.hf_repo, "unsloth/Qwen3.5-4B-GGUF");
-        assert_eq!(four_b.hf_filename, "Qwen3.5-4B-Q4_K_M.gguf");
+        // The default Qwen3-8B entry derives its repo/filename from the manifest.
+        let q3 = s.iter().find(|e| e.id == "qwen3-8b").unwrap();
+        assert_eq!(q3.hf_repo, "unsloth/Qwen3-8B-GGUF");
+        assert_eq!(q3.hf_filename, "Qwen3-8B-Q4_K_M.gguf");
+        assert_eq!(q3.arch, "qwen3");
     }
 
     #[test]

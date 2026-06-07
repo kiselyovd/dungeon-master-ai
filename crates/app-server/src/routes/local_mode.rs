@@ -36,6 +36,11 @@ pub struct LocalModeConfig {
 impl Default for LocalModeConfig {
     fn default() -> Self {
         Self {
+            // Gemma 4 E2B (AutoIsq) is the default: the deprecated mistralrs-server
+            // build we ship SEGFAULTS loading a GGUF model unless stdout is a real
+            // TTY (verified live), and the backend always pipes it - so GGUF models
+            // (Qwen3-8B) cannot be the default until mistralrs is upgraded. The
+            // AutoIsq `run` path does not hit that crash.
             selected_llm: ModelId::Gemma4E2bIt,
             vram_strategy: VramStrategy::AutoSwap,
         }

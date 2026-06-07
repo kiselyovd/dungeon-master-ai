@@ -14,7 +14,7 @@ async fn manifest_returns_gemma_and_qwen_entries() {
     let body: serde_json::Value = resp.json().await.expect("json");
 
     let system = body["system"].as_array().expect("system is array");
-    assert_eq!(system.len(), 6);
+    assert_eq!(system.len(), 7);
     let ids: Vec<&str> = system
         .iter()
         .map(|e| e["id"].as_str().expect("id is string"))
@@ -22,6 +22,7 @@ async fn manifest_returns_gemma_and_qwen_entries() {
     assert_eq!(
         ids,
         vec![
+            "qwen3-8b",
             "gemma-4-e2b",
             "gemma-4-e4b",
             "qwen3.5-0.8b",
