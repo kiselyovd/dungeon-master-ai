@@ -20,9 +20,9 @@ use tokio::sync::mpsc;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::agent::context_builder::build_context;
+use crate::agent::context_builder::{build_context, compose_system_prompt, needs_rules_context};
 use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::{all_tools_with, classify_handler, ToolAvailability};
+use crate::agent::tools::{classify_handler, tools_for_phase, ToolAvailability};
 use crate::image::provider::ImageProvider;
 
 /// Configuration for the agent that does not change between turns.
@@ -144,22 +144,34 @@ impl AgentOrchestrator {
         req: AgentTurnRequest,
         tx: mpsc::Sender<AgentEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Build initial system context.
+        // Lighten the context for small local models: outside combat, withhold
+        // the combat-management tools and skip rule injection on pure-narration
+        // turns. A 16-tool catalog + 5 irrelevant SRD chunks is what makes Gemma 4
+        // E2B deliberate into an empty turn instead of acting.
+        let in_combat = crate::agent::tool_executor::is_combat_active(&self.pool).await;
+        let inject_rules = needs_rules_context(&req.player_message, in_combat);
+
+        // Prepend the DM operating directive (role + concision + decisive tool use)
+        // so small local models stay in character and call media tools instead of
+        // narrating or stalling. RAG/NPC context is layered on top by build_context.
+        let base_prompt =
+            compose_system_prompt(&self.config.system_prompt, self.config.tool_availability);
         let system_context = build_context(
             &self.pool,
             req.campaign_id,
             &req.player_message,
-            &self.config.system_prompt,
+            &base_prompt,
             &self.config.embedding_model,
             self.retriever.as_deref(),
+            inject_rules,
         )
         .await
         .unwrap_or_else(|e| {
             warn!("context build error: {e}");
-            self.config.system_prompt.clone()
+            base_prompt.clone()
         });
 
-        let tools = all_tools_with(self.config.tool_availability);
+        let tools = tools_for_phase(self.config.tool_availability, in_combat);
         let mut messages: Vec<ChatMessage> = req.history;
         // The current user turn carries the text plus any staged images (F2).
         // With no images this is identical to `user_text`.

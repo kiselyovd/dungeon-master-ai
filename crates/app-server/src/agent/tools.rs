@@ -60,6 +60,32 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     tools
 }
 
+/// Tools that only make sense once combat has started. Withholding them on
+/// exploration/narration turns shrinks the catalog a small local model (Gemma 4
+/// E2B) must reason over from 16 to ~9 - the difference between it reliably
+/// calling the right tool and drowning in deliberation. `start_combat` is NOT in
+/// this set: the model needs it available to BEGIN combat.
+const COMBAT_ONLY_TOOLS: &[&str] = &[
+    "apply_damage",
+    "apply_healing",
+    "end_combat",
+    "add_token",
+    "update_token",
+    "remove_token",
+    "cast_spell",
+];
+
+/// Select the tools to expose for this turn. Outside combat, the
+/// combat-management tools are withheld so the model sees only the
+/// exploration-relevant subset. In combat, the full catalog is exposed.
+pub fn tools_for_phase(availability: ToolAvailability, in_combat: bool) -> Vec<Tool> {
+    let mut tools = all_tools_with(availability);
+    if !in_combat {
+        tools.retain(|t| !COMBAT_ONLY_TOOLS.contains(&t.name.as_str()));
+    }
+    tools
+}
+
 fn all_tools_core() -> Vec<Tool> {
     vec![
         Tool {
@@ -267,9 +293,12 @@ fn all_tools_core() -> Vec<Tool> {
 fn generate_image_tool() -> Tool {
     Tool {
         name: "generate_image".into(),
-        description:
-            "Generate a scene illustration. Rate limited: call at most once per scene change."
-                .into(),
+        description: "Show the players a picture of the current scene. CALL THIS \
+            tool (do not just describe it in prose) whenever the party arrives \
+            somewhere new, a major scene changes, or the player asks to see, draw, \
+            show, or illustrate a place, character, item, or map. Pass a concrete \
+            visual prompt. Rate limited: at most once per scene change."
+            .into(),
         parameters: json!({
             "type": "object",
             "properties": {
@@ -303,6 +332,33 @@ mod tests {
     #[test]
     fn classify_handler_routes_generate_image_to_image_provider() {
         assert_eq!(classify_handler("generate_image"), "image-provider");
+    }
+
+    #[test]
+    fn tools_for_phase_withholds_combat_tools_outside_combat() {
+        let tools = tools_for_phase(ToolAvailability::all(), false);
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        for combat in COMBAT_ONLY_TOOLS {
+            assert!(
+                !names.contains(combat),
+                "{combat} must be hidden outside combat"
+            );
+        }
+        // Exploration tools and start_combat stay available.
+        assert!(names.contains(&"roll_dice"));
+        assert!(names.contains(&"start_combat"));
+        assert!(names.contains(&"generate_image"));
+        assert!(names.contains(&"set_scene"));
+    }
+
+    #[test]
+    fn tools_for_phase_exposes_full_catalog_in_combat() {
+        let in_combat = tools_for_phase(ToolAvailability::all(), true);
+        let full = all_tools_with(ToolAvailability::all());
+        assert_eq!(in_combat.len(), full.len());
+        let names: Vec<&str> = in_combat.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"apply_damage"));
+        assert!(names.contains(&"cast_spell"));
     }
 
     #[test]

@@ -28,6 +28,18 @@ use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
+/// Whether an unfinished combat encounter exists. The agent uses this to gate
+/// the combat-management tool subset (and rule injection) on/off per turn, so an
+/// exploration turn isn't burdened with combat tools + rules a small model would
+/// trip over. Any DB error conservatively reports `false` (exploration mode).
+pub async fn is_combat_active(pool: &SqlitePool) -> bool {
+    sqlx::query("SELECT id FROM combat_encounters WHERE ended_at IS NULL LIMIT 1")
+        .fetch_optional(pool)
+        .await
+        .map(|row| row.is_some())
+        .unwrap_or(false)
+}
+
 use crate::image::provider::{ImagePrompt, ImageProvider};
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
