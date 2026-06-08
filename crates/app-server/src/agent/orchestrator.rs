@@ -71,6 +71,12 @@ pub struct AgentTurnRequest {
     /// Image attachments for THIS turn (vision). Appended to the current user
     /// message alongside the text; empty for text-only turns. [M11 F2]
     pub images: Vec<MessagePart>,
+    /// Pre-formatted snapshot of the live VTT board (scene, round, initiative
+    /// order, each combatant's HP/AC/grid position/conditions) built by the
+    /// frontend and injected into the system context so the DM narrates from
+    /// the actual board - positions after the player drags a token, who is
+    /// bloodied, whose turn it is. `None`/empty outside combat.
+    pub board: Option<String>,
 }
 
 /// Events emitted by the orchestrator, consumed by the SSE handler.
@@ -185,6 +191,17 @@ impl AgentOrchestrator {
             warn!("context build error: {e}");
             base_prompt.clone()
         });
+
+        // Inject the live board snapshot (positions/HP/turn) so the DM narrates
+        // from the actual VTT state, not a guess - this is how the model "knows"
+        // where the player dragged a token and who is bloodied. The frontend
+        // sends it pre-formatted; we only gate on non-empty.
+        let system_context = match req.board.as_deref().map(str::trim) {
+            Some(board) if !board.is_empty() => {
+                format!("{system_context}\n\n## Current battlefield\n{board}")
+            }
+            _ => system_context,
+        };
 
         let tools = tools_for_phase(self.config.tool_availability, in_combat);
         let mut messages: Vec<ChatMessage> = req.history;

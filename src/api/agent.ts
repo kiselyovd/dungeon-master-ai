@@ -20,6 +20,13 @@ export interface AgentTurnOptions {
   history: ChatMessage[];
   /** Image attachments staged for this turn (vision). Omitted for text-only. [F2] */
   images?: MessagePart[];
+  /**
+   * Pre-formatted snapshot of the live VTT board (scene, round, initiative
+   * order, each token's HP/AC/grid position/conditions). Injected into the
+   * agent's system context so the DM narrates from the real board - including
+   * positions after the player drags a token. Omitted outside combat.
+   */
+  board?: string;
   model?: string;
   signal?: AbortSignal;
 
@@ -74,6 +81,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     history: opts.history.map(toAgentWireMessage),
     model: opts.model,
     images: opts.images ?? [],
+    ...(opts.board ? { board: opts.board } : {}),
   });
 
   const init: RequestInit = {

@@ -38,6 +38,11 @@ pub struct AgentTurnHttpRequest {
     /// text-only turns. [M11 F2]
     #[serde(default)]
     pub images: Vec<MessagePart>,
+    /// Pre-formatted live VTT board snapshot (scene + initiative + token
+    /// HP/AC/position/conditions) so the DM narrates from the real board.
+    /// Omitted outside combat.
+    #[serde(default)]
+    pub board: Option<String>,
 }
 
 #[tracing::instrument(skip_all, fields(session_id = %req.session_id, campaign_id = %req.campaign_id))]
@@ -84,6 +89,7 @@ pub async fn post_agent_turn(
         player_message: req.player_message,
         history: req.history,
         images: req.images,
+        board: req.board,
     };
 
     let (tx, rx) = mpsc::channel::<AgentEvent>(64);

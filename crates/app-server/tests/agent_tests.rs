@@ -45,6 +45,7 @@ async fn orchestrator_emits_text_events_from_mock() {
         player_message: "I search the room.".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -105,6 +106,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
         player_message: "roll".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -166,6 +168,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
         player_message: "look around".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -421,6 +424,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
         player_message: "What is the meaning of life?".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
@@ -603,6 +607,7 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
         player_message: "draw the dungeon".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
