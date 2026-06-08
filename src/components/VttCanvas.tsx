@@ -50,6 +50,9 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
   const hasMap = mapImageUrl !== null;
   const [showGrid, setShowGrid] = useState(true);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [showSceneImage, setShowSceneImage] = useState(true);
+  const [showTokens, setShowTokens] = useState(true);
   const [measureMode, setMeasureMode] = useState(false);
   const [measureOrigin, setMeasureOrigin] = useState<{ x: number; y: number } | null>(null);
   const [measureCurrent, setMeasureCurrent] = useState<{ x: number; y: number } | null>(null);
@@ -146,12 +149,17 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const effectiveWidthCells = deriveCells(width, cellSize, widthCells);
   const effectiveHeightCells = deriveCells(height, cellSize, heightCells);
 
+  // The scene image is shown only when one exists AND its layer is enabled.
+  // drawGrid paints the dark backdrop whenever the image is not visible.
+  const showMapImage = hasMap && showSceneImage;
+
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
       g.clear();
-      // With a map image behind the canvas we paint nothing opaque so the
-      // scene art shows through; only the grid lines (drawn below) overlay it.
-      if (!hasMap) {
+      // With a visible map image behind the canvas we paint nothing opaque so
+      // the scene art shows through; only the grid lines (drawn below) overlay
+      // it. When no image is visible we fill the dark backdrop ourselves.
+      if (!showMapImage) {
         g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
       }
       if (!showGrid) return;
@@ -176,7 +184,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
-    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid, hasMap],
+    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid, showMapImage],
   );
 
   const onMeasureClick = useCallback(
@@ -331,7 +339,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
         style={{ cursor: isPanning ? 'grabbing' : measureMode ? 'crosshair' : 'grab' }}
       >
         <div className="dm-vtt-world" style={worldStyle}>
-          {hasMap && (
+          {showMapImage && (
             <img
               src={mapImageUrl ?? undefined}
               alt=""
@@ -356,16 +364,18 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
               <pixiGraphics draw={drawGrid} />
             </pixiContainer>
           </Application>
-          <CombatOverlay
-            active={combatActive}
-            tokens={tokens}
-            cellSize={cellSize}
-            zoom={zoom}
-            widthCells={effectiveWidthCells}
-            heightCells={effectiveHeightCells}
-            onMoveToken={moveToken}
-            aoeTemplates={aoeTemplates}
-          />
+          {showTokens && (
+            <CombatOverlay
+              active={combatActive}
+              tokens={tokens}
+              cellSize={cellSize}
+              zoom={zoom}
+              widthCells={effectiveWidthCells}
+              heightCells={effectiveHeightCells}
+              onMoveToken={moveToken}
+              aoeTemplates={aoeTemplates}
+            />
+          )}
         </div>
         {measureMode && (
           // biome-ignore lint/a11y/useKeyWithClickEvents: Escape cancellation is handled at window level above; click is the only viable input for placing a measurement origin on a 2D map
@@ -483,14 +493,37 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
         </button>
         <button
           type="button"
-          className="dm-vtt-ctrl"
+          className={`dm-vtt-ctrl${layersOpen ? ' is-active' : ''}`}
           title={t('map_layers')}
           aria-label={t('map_layers')}
-          disabled
+          aria-expanded={layersOpen}
+          onClick={() => setLayersOpen((v) => !v)}
         >
           <Icons.Layers size={16} />
         </button>
       </div>
+
+      {layersOpen && (
+        <div className="dm-vtt-layers" role="menu" aria-label={t('map_layers')}>
+          <label className="dm-vtt-layer-row">
+            <input type="checkbox" checked={showGrid} onChange={() => setShowGrid((v) => !v)} />
+            <span>{t('layer_grid')}</span>
+          </label>
+          <label className="dm-vtt-layer-row">
+            <input
+              type="checkbox"
+              checked={showSceneImage}
+              disabled={!hasMap}
+              onChange={() => setShowSceneImage((v) => !v)}
+            />
+            <span>{t('layer_scene')}</span>
+          </label>
+          <label className="dm-vtt-layer-row">
+            <input type="checkbox" checked={showTokens} onChange={() => setShowTokens((v) => !v)} />
+            <span>{t('layer_tokens')}</span>
+          </label>
+        </div>
+      )}
     </div>
   );
 }

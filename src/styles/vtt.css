@@ -154,6 +154,39 @@
   margin: 2px 0;
 }
 
+/* Layers popover (anchored just left of the controls toolbar) */
+.dm-vtt-layers {
+  position: absolute;
+  right: 60px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(20, 16, 26, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.dm-vtt-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-fg-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dm-vtt-layer-row input {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 /* Scale indicator
  *
  * Anchored to the bottom-right just left of the controls toolbar so it does
