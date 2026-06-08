@@ -32,6 +32,13 @@ export interface SessionData {
   loadError: string | null;
   /** Active scene shown in the titlebar centre. Null when no scene is set. */
   currentScene: CurrentScene | null;
+  /**
+   * Data URL of the latest agent-generated scene image, painted as the VTT
+   * map background. Null when no image has been generated yet. Ephemeral by
+   * design - kept out of the persist whitelist so a multi-MB base64 PNG never
+   * lands in localStorage; it repaints on the next `generate_image`. [M11]
+   */
+  mapImageUrl: string | null;
 }
 
 export interface SessionActions {
@@ -50,6 +57,8 @@ export interface SessionActions {
   setCurrentScene: (scene: CurrentScene | null) => void;
   /** +1 the active scene's step counter. No-op when no scene is set. */
   incrementScene: () => void;
+  /** Set or clear the VTT map background image (data URL). */
+  setMapImage: (dataUrl: string | null) => void;
 }
 
 export interface SessionSlice {
@@ -71,6 +80,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     activeSessionId: null,
     loadError: null,
     currentScene: null,
+    mapImageUrl: null,
 
     setActiveSession: (campaignId, sessionId) =>
       set((s) => ({
@@ -114,5 +124,10 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
         },
       }));
     },
+
+    setMapImage: (dataUrl) =>
+      set((s) => ({
+        session: { ...s.session, mapImageUrl: dataUrl },
+      })),
   },
 });

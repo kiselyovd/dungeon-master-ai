@@ -4,6 +4,7 @@ import { ChatError } from './errors';
 import {
   safeParseAgentDone,
   safeParseDone,
+  safeParseImageGenerated,
   safeParseReasoningText,
   safeParseStreamError,
   safeParseText,
@@ -35,6 +36,12 @@ export interface AgentTurnOptions {
   ) => void;
   onAgentDone: (totalRounds: number) => void;
   onReasoningDelta?: (text: string) => void;
+  /**
+   * A scene/map image the agent produced via `generate_image`. Delivered as a
+   * ready-to-use data URL (`data:<mime>;base64,<...>`) so the caller can drop
+   * it straight into an `<img src>` or store it for the VTT background. [M11]
+   */
+  onImageGenerated?: (dataUrl: string, toolCallId?: string) => void;
 }
 
 /**
@@ -142,6 +149,13 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
     case 'reasoning_text': {
       const p = safeParseReasoningText(data);
       if (p && opts.onReasoningDelta) opts.onReasoningDelta(p.text);
+      break;
+    }
+    case 'image_generated': {
+      const p = safeParseImageGenerated(data);
+      if (p && opts.onImageGenerated) {
+        opts.onImageGenerated(`data:${p.mime_type};base64,${p.image_b64}`, p.tool_call_id);
+      }
       break;
     }
     case 'agent_done': {

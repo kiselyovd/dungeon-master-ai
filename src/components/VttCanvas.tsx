@@ -37,6 +37,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const tokens = useStore((s) => s.combat.tokens);
   const moveToken = useStore((s) => s.combat.moveToken);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
+  const mapImageUrl = useStore((s) => s.session.mapImageUrl);
+  const hasMap = mapImageUrl !== null;
   const [showGrid, setShowGrid] = useState(true);
   const [measureMode, setMeasureMode] = useState(false);
   const [measureOrigin, setMeasureOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -123,7 +125,11 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
       g.clear();
-      g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
+      // With a map image behind the canvas we paint nothing opaque so the
+      // scene art shows through; only the grid lines (drawn below) overlay it.
+      if (!hasMap) {
+        g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
+      }
       if (!showGrid) return;
       // Vertical lines at 0, cellSize, 2*cellSize, ... and a closing line at
       // `width` so the right-most partial cell is bounded (avoids a dark
@@ -146,7 +152,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
-    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid],
+    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid, hasMap],
   );
 
   const onMeasureClick = useCallback(
@@ -197,12 +203,32 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
     return Math.round((Math.sqrt(dx * dx + dy * dy) / cellSize) * 5);
   }, [measureOrigin, measureCurrent, cellSize]);
 
-  const isEmpty = tokens.length === 0 && !combatActive;
+  const isEmpty = tokens.length === 0 && !combatActive && !hasMap;
 
   return (
     <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
       <div className="dm-vtt-canvas">
-        <Application width={width} height={height} backgroundColor={0x14101a}>
+        {hasMap && (
+          <img
+            src={mapImageUrl ?? undefined}
+            alt=""
+            className="dm-vtt-map-bg"
+            data-testid="dm-vtt-map-bg"
+          />
+        )}
+        {/* The canvas is always transparent; the dark backdrop is painted by
+            drawGrid's rect fill (skipped when a map image is present so the
+            art shows through). backgroundAlpha is an init-only Pixi option, so
+            a constant 0 avoids the "opaque clear hides the map" reactivity bug.
+            Keying on hasMap forces a renderer re-init if the map toggles, so a
+            late-arriving image is never occluded by a stale opaque clear. */}
+        <Application
+          key={hasMap ? 'vtt-map' : 'vtt-grid'}
+          width={width}
+          height={height}
+          backgroundColor={0x14101a}
+          backgroundAlpha={0}
+        >
           <pixiContainer>
             <pixiGraphics draw={drawGrid} />
           </pixiContainer>

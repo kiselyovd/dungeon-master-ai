@@ -24,6 +24,31 @@
   display: block;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Agent-generated scene image, painted behind the (transparent) Pixi grid so
+   the grid lines and combat tokens overlay the map art. */
+.dm-vtt-map-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: dm-vtt-map-fade var(--t-base, 240ms) ease;
+}
+
+@keyframes dm-vtt-map-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Empty state

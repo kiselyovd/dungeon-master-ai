@@ -63,6 +63,11 @@ export function useAgentTurn() {
             useStore.getState().chat.appendReasoningDelta(text);
           },
 
+          onImageGenerated: (dataUrl) => {
+            // Paint the agent's generated scene image as the VTT map background.
+            useStore.getState().session.setMapImage(dataUrl);
+          },
+
           onToolCallStart: (id, toolName, round) => {
             addPending(id, toolName, {}, round);
             addToolCallStartEvent(id, toolName, {}, round);
