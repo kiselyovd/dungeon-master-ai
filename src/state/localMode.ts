@@ -6,6 +6,7 @@ import type { AppState } from './useStore';
 // /local-mode/config verbatim.
 export type ModelId =
   | 'qwen3_8b'
+  | 'qwen3_0_6b'
   | 'gemma4_e2b'
   | 'gemma4_e4b'
   | 'qwen3_5_0_8b'
@@ -42,6 +43,7 @@ export type DownloadState =
 
 export const ALL_MODEL_IDS: ModelId[] = [
   'qwen3_8b',
+  'qwen3_0_6b',
   'gemma4_e2b',
   'gemma4_e4b',
   'qwen3_5_0_8b',

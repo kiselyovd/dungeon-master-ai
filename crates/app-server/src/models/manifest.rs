@@ -41,6 +41,14 @@ pub enum ModelId {
     #[serde(rename = "qwen3_8b")]
     Qwen3_8b,
 
+    // chat (Qwen3-0.6B dense, text-only, safetensors + ISQ via the auto-loader -
+    // NOT GGUF). On this mistralrs build the GGUF path crashes on startup and the
+    // multimodal Qwen3.5 hits a vision rotary-cache bug; this tiny text-only qwen3
+    // is the one Qwen variant that actually loads AND generates. Toy-grade: too
+    // small for reliable tool-calls (combat/scene), good for plain narration.
+    #[serde(rename = "qwen3_0_6b")]
+    Qwen3_0_6b,
+
     // image (existing)
     SdxlTurbo,
 
@@ -199,6 +207,21 @@ pub const MANIFEST: &[ModelManifest] = &[
         hf_repo: "unsloth/Qwen3-8B-GGUF",
         hf_filename: "Qwen3-8B-Q4_K_M.gguf",
         kind: ModelKind::GgufFile,
+        requires: &[],
+    },
+    // --- chat: Qwen3-0.6B (safetensors + ISQ via mistralrs auto-loader, text-only).
+    // hf_filename is unused for AutoIsq (mistralrs fetches the whole repo on first
+    // start). The GGUF Qwen entries above crash on this build; this is the working
+    // Qwen path. ~1.5 GB download, fits a 10 GB GPU trivially. ---
+    ModelManifest {
+        id: ModelId::Qwen3_0_6b,
+        display_name: "Qwen3-0.6B (ISQ Q4K, text-only)",
+        size_bytes_estimate: 1_500 * 1024 * 1024,
+        vram_bytes_estimate: 1_200 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "Qwen/Qwen3-0.6B",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "q4k" },
         requires: &[],
     },
     // --- image: Fast preset (existing) ---
@@ -435,7 +458,8 @@ mod tests {
         assert!(ids.contains(&&ModelId::Gemma4E2bIt));
         assert!(ids.contains(&&ModelId::Gemma4E4bIt));
         assert!(ids.contains(&&ModelId::Qwen3_8b));
-        assert_eq!(MANIFEST.len(), 17);
+        assert!(ids.contains(&&ModelId::Qwen3_0_6b));
+        assert_eq!(MANIFEST.len(), 18);
     }
 
     #[test]
