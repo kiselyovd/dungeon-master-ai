@@ -172,7 +172,7 @@ pub const MANIFEST: &[ModelManifest] = &[
         sha256: "",
         hf_repo: "google/gemma-4-E2B-it",
         hf_filename: "*",
-        kind: ModelKind::AutoIsq { isq: "Q4K" },
+        kind: ModelKind::AutoIsq { isq: "q4k" },
         requires: &[],
     },
     ModelManifest {
@@ -183,7 +183,7 @@ pub const MANIFEST: &[ModelManifest] = &[
         sha256: "",
         hf_repo: "google/gemma-4-E4B-it",
         hf_filename: "*",
-        kind: ModelKind::AutoIsq { isq: "Q4K" },
+        kind: ModelKind::AutoIsq { isq: "q4k" },
         requires: &[],
     },
     // --- chat: Qwen3-8B dense GGUF (DEFAULT). Pre-quantized Q4_K_M (~5 GB), arch

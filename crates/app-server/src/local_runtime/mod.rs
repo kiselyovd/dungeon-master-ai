@@ -12,45 +12,51 @@ pub use runtime::{
     probe_always_fail, probe_always_ok, probe_real, LocalRuntime, ProbeFn, RuntimeStatus,
 };
 
-/// Build the CLI args to launch `mistralrs-server` (v0.8.x) as a GGUF chat
-/// server.
+/// Build the CLI args to launch the `mistralrs` binary (mistralrs-cli, 0.8.3+)
+/// as a GGUF chat server via its `serve` subcommand.
 ///
-/// mistralrs uses a subcommand CLI: `--port` is a top-level option and the
-/// model is selected via the `gguf` subcommand, which takes the containing
-/// directory (`-m`/`--quantized-model-id`) and the filename
-/// (`-f`/`--quantized-filename`) SEPARATELY. The previous form
-/// `--port <p> --gguf-file <path>` does not parse on 0.8 (there is no
-/// `--gguf-file` flag and no subcommand), so the LLM sidecar exited on argv
-/// parse and the runtime never came up. (Audit blocker 4, found by running the
-/// freshly built binary.)
+/// The new CLI replaces the deprecated `mistralrs-server`. `serve` is the
+/// subcommand; the server bind (`--port`) and the model selector are flags
+/// AFTER it. A GGUF model is `--format Gguf` plus the containing directory
+/// (`-m`/`--model-id`, which accepts a local path) and the filename
+/// (`-f`/`--quantized-file`). The deprecated binary mangled Gemma tool-call
+/// output into raw text (`<|tool_call>` template tokens leaked); the new CLI's
+/// v0.8.2 tool-calling fixes are why we migrated.
 pub fn mistralrs_gguf_args(port: u16, model_dir: &str, filename: &str) -> Vec<String> {
     vec![
+        "serve".into(),
+        "--host".into(),
+        "127.0.0.1".into(),
         "--port".into(),
         port.to_string(),
-        "gguf".into(),
         "-m".into(),
         model_dir.into(),
+        "--format".into(),
+        "gguf".into(),
         "-f".into(),
         filename.into(),
     ]
 }
 
-/// Build the CLI args to launch `mistralrs-server` (master / 0.8.3+) as an
-/// auto-loader chat server for a non-GGUF model (safetensors) with in-situ
-/// quantization.
+/// Build the CLI args to launch the `mistralrs` binary (mistralrs-cli, 0.8.3+)
+/// as an auto-loader chat server for a non-GGUF model (safetensors) with
+/// in-situ quantization, via its `serve` subcommand.
 ///
 /// Used for architectures the GGUF loader does not support but the normal model
 /// path does - notably Gemma 4 (`google/gemma-4-E2B-it`), whose `gemma4` arch
 /// is absent from `GGUFArchitecture` but present in the safetensors loader.
-/// `--isq` is a TOP-LEVEL option and must precede the `run` subcommand; `-m`
-/// is the HF hub repo id (mistralrs downloads + caches it on first start).
+/// `--isq` and `-m` are model flags flattened into `serve`; the default format
+/// is `Plain` (safetensors), so no `--format` is needed. `-m` is the HF hub
+/// repo id (mistralrs downloads + caches it on first start).
 pub fn mistralrs_run_args(port: u16, model_id: &str, isq: &str) -> Vec<String> {
     vec![
+        "serve".into(),
+        "--host".into(),
+        "127.0.0.1".into(),
         "--port".into(),
         port.to_string(),
         "--isq".into(),
         isq.into(),
-        "run".into(),
         "-m".into(),
         model_id.into(),
     ]
@@ -61,49 +67,51 @@ mod arg_tests {
     use super::{mistralrs_gguf_args, mistralrs_run_args};
 
     #[test]
-    fn gguf_args_match_mistralrs_080_cli() {
+    fn gguf_args_match_mistralrs_cli_serve() {
         let args = mistralrs_gguf_args(51234, "/models", "Qwen3.5-4B-Q4_K_M.gguf");
         assert_eq!(
             args,
             vec![
+                "serve",
+                "--host",
+                "127.0.0.1",
                 "--port",
                 "51234",
-                "gguf",
                 "-m",
                 "/models",
+                "--format",
+                "gguf",
                 "-f",
                 "Qwen3.5-4B-Q4_K_M.gguf",
             ]
         );
-        // The port must precede the subcommand (top-level option), and there is
-        // no `--gguf-file` flag.
-        let port_idx = args.iter().position(|a| a == "--port").unwrap();
-        let sub_idx = args.iter().position(|a| a == "gguf").unwrap();
-        assert!(
-            port_idx < sub_idx,
-            "--port must come before the gguf subcommand"
-        );
-        assert!(!args.iter().any(|a| a == "--gguf-file"));
+        // `serve` is the leading subcommand; the GGUF format selector and file
+        // flag come after it.
+        assert_eq!(args.first().map(String::as_str), Some("serve"));
+        assert!(args.iter().any(|a| a == "--format"));
+        assert!(args.iter().any(|a| a == "gguf"));
     }
 
     #[test]
-    fn run_args_use_top_level_isq_before_subcommand() {
-        let args = mistralrs_run_args(40000, "google/gemma-4-E2B-it", "Q4K");
+    fn run_args_use_serve_subcommand_with_isq() {
+        let args = mistralrs_run_args(40000, "google/gemma-4-E2B-it", "q4k");
         assert_eq!(
             args,
             vec![
+                "serve",
+                "--host",
+                "127.0.0.1",
                 "--port",
                 "40000",
                 "--isq",
-                "Q4K",
-                "run",
+                "q4k",
                 "-m",
                 "google/gemma-4-E2B-it",
             ]
         );
-        // --isq is a top-level option: it must come before `run`.
-        let isq_idx = args.iter().position(|a| a == "--isq").unwrap();
-        let sub_idx = args.iter().position(|a| a == "run").unwrap();
-        assert!(isq_idx < sub_idx, "--isq must precede the run subcommand");
+        // `serve` leads; --isq is a model flag flattened into it (no `--format`
+        // for the default Plain/safetensors path).
+        assert_eq!(args.first().map(String::as_str), Some("serve"));
+        assert!(!args.iter().any(|a| a == "--format"));
     }
 }

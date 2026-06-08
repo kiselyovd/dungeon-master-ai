@@ -1,11 +1,15 @@
-# Build mistralrs-server from source (EricLBuehler/mistral.rs) and stage the
-# binary under src-tauri/binaries/ using the Tauri externalBin naming
-# convention `mistralrs-server-<target-triple><ext>`.
+# Build the mistralrs-cli binary (`mistralrs`, EricLBuehler/mistral.rs) from
+# source and stage it under src-tauri/binaries/ using the Tauri externalBin
+# naming convention `mistralrs-server-<target-triple><ext>` (the on-disk name is
+# kept for backward compat with the launcher; the file is the new `mistralrs`
+# binary, driven via its `serve` subcommand - the old `mistralrs-server` binary
+# is deprecated and mangles Gemma tool-call output).
 #
 # Usage:
 #   pwsh -NoProfile -File scripts/build_mistralrs.ps1 -Target <triple> [-Cuda] [-OutDir <dir>]
 #
-# $env:MISTRALRS_TAG pins the upstream git tag (default: v0.8.0).
+# $env:MISTRALRS_TAG pins the upstream git tag (default: v0.8.3 - v0.8.2 brought
+# the tool-calling/agentic fixes the DM agent depends on).
 # Pass -Cuda to build with GPU acceleration (requires the CUDA toolkit on PATH);
 # omit it for the portable CPU-only build that CI ships.
 param(
@@ -15,7 +19,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$tag = if ($env:MISTRALRS_TAG) { $env:MISTRALRS_TAG } else { "v0.8.0" }
+$tag = if ($env:MISTRALRS_TAG) { $env:MISTRALRS_TAG } else { "v0.8.3" }
 $ext = if ($Target -like "*windows*") { ".exe" } else { "" }
 
 # A CUDA build invokes nvcc, which needs the MSVC host compiler `cl.exe` on
@@ -73,25 +77,28 @@ try {
 
   $features = @()
   if ($Cuda) {
-    Write-Host "Building mistralrs-server WITH CUDA"
+    Write-Host "Building mistralrs-cli WITH CUDA"
     $features = @("--features", "cuda")
     Import-MsvcEnv
   } else {
-    Write-Host "Building mistralrs-server (CPU-only)"
+    Write-Host "Building mistralrs-cli (CPU-only)"
   }
 
   Push-Location (Join-Path $workdir "mistral.rs")
   try {
-    cargo build --release --package mistralrs-server @features
+    cargo build --release --package mistralrs-cli @features
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
   } finally {
     Pop-Location
   }
 
   New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+  # On-disk name stays `mistralrs-server-<triple>` for launcher/build.rs
+  # compatibility; the file itself is the new `mistralrs` binary (driven via
+  # its `serve` subcommand).
   $dest = Join-Path $OutDir "mistralrs-server-$Target$ext"
-  Copy-Item (Join-Path $workdir "mistral.rs/target/release/mistralrs-server$ext") $dest -Force
-  Write-Host "Staged $dest"
+  Copy-Item (Join-Path $workdir "mistral.rs/target/release/mistralrs$ext") $dest -Force
+  Write-Host "Staged $dest (mistralrs-cli binary)"
 } finally {
   Remove-Item -Recurse -Force $workdir
 }
