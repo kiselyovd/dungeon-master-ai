@@ -120,6 +120,10 @@ pub struct AgentOrchestrator {
     config: AgentConfig,
     retriever: Option<Arc<SrdRetriever>>,
     image_provider: Option<Arc<dyn ImageProvider>>,
+    /// Auto-Swap VRAM coordinator. `Some` only when the local LLM runtime is up
+    /// and the Auto-Swap strategy is selected; wraps each `generate_image` call
+    /// so the LLM's VRAM is freed during generation and restored after.
+    gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
 }
 
 impl AgentOrchestrator {
@@ -136,7 +140,18 @@ impl AgentOrchestrator {
             config,
             retriever,
             image_provider,
+            gpu_swap: None,
         }
+    }
+
+    /// Attach an Auto-Swap coordinator (builder-style) so image generation frees
+    /// and restores the local LLM's VRAM around each call.
+    pub fn with_gpu_swap(
+        mut self,
+        gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
+    ) -> Self {
+        self.gpu_swap = gpu_swap;
+        self
     }
 
     pub async fn run(
@@ -289,6 +304,18 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
+                // Auto-Swap: around an image generation, free the local LLM's
+                // VRAM (stop it) and restart it on the same port afterwards, so
+                // SDXL is not starved on a single 10 GB card. No-op when the
+                // coordinator is absent (cloud LLM, keep-both-loaded, etc.).
+                let swap = if tc.name == "generate_image" {
+                    self.gpu_swap.clone()
+                } else {
+                    None
+                };
+                if let Some(s) = &swap {
+                    s.acquire().await;
+                }
                 let (mut result_val, is_error) = execute_tool(
                     tc,
                     &self.pool,
@@ -297,6 +324,9 @@ impl AgentOrchestrator {
                     req.session_id,
                 )
                 .await;
+                if let Some(s) = &swap {
+                    s.release().await;
+                }
 
                 // generate_image returns the raw image as base64 inline. Peel
                 // it into a dedicated SSE event and strip it from result_val so

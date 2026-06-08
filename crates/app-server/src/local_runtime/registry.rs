@@ -7,6 +7,8 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 
+use tracing::warn;
+
 use crate::local_runtime::runtime::{LocalRuntime, RuntimeStatus};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,23 +98,55 @@ impl RuntimeRegistry {
         Ok(())
     }
 
-    /// Restart the LLM sidecar for the gguf model in `model_dir`/`filename` on
-    /// `port` and mark it as the GPU owner. Uses the mistralrs 0.8 `gguf`
-    /// subcommand form (see `local_runtime::mistralrs_gguf_args`).
-    pub async fn release_gpu_to_llm(
-        &self,
-        model_dir: &str,
-        filename: &str,
-        port: u16,
-    ) -> Result<(), String> {
-        let args = super::mistralrs_gguf_args(port, model_dir, filename);
-        let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    /// Restart the LLM sidecar with `args` on `port` and mark it as the GPU
+    /// owner. The caller reuses the pre-swap port so the chat provider's
+    /// base_url stays valid across the swap. Blocks until the LLM probes
+    /// healthy (so the agent loop's next round can call it immediately).
+    pub async fn release_gpu_to_llm(&self, args: &[&str], port: u16) -> Result<(), String> {
         self.llm
-            .start_with_retry("mistralrs-server", &arg_refs, port, 3)
+            .start_with_retry("mistralrs-server", args, port, 3)
             .await
             .map_err(|e| e.to_string())?;
         self.gpu_owner.store(GpuOwner::Llm as u8, Ordering::SeqCst);
         Ok(())
+    }
+}
+
+/// Per-turn Auto-Swap coordinator. On a single 10 GB card the local LLM (~3 GB)
+/// and an SDXL pipeline (~6.5 GB + CUDA overhead) do not both fit while a
+/// generation runs, so each `generate_image` tool call frees the LLM's VRAM
+/// first and restarts it on the SAME port afterwards (keeping the chat
+/// provider's base_url valid). Built only for the local-runtime + Auto-Swap
+/// case; `None` everywhere else means image gen runs without touching the LLM.
+pub struct ImageGpuSwap {
+    registry: Arc<RuntimeRegistry>,
+    llm_args: Vec<String>,
+    llm_port: u16,
+}
+
+impl ImageGpuSwap {
+    pub fn new(registry: Arc<RuntimeRegistry>, llm_args: Vec<String>, llm_port: u16) -> Self {
+        Self {
+            registry,
+            llm_args,
+            llm_port,
+        }
+    }
+
+    /// Stop the LLM so its VRAM is free before the image pipeline loads.
+    pub async fn acquire(&self) {
+        if let Err(e) = self.registry.acquire_gpu_for_image().await {
+            warn!("auto-swap: failed to free LLM VRAM before image gen: {e}");
+        }
+    }
+
+    /// Restart the LLM on its original port after the image completes. Blocks
+    /// until it is healthy again so the next agent round can use it.
+    pub async fn release(&self) {
+        let refs: Vec<&str> = self.llm_args.iter().map(String::as_str).collect();
+        if let Err(e) = self.registry.release_gpu_to_llm(&refs, self.llm_port).await {
+            warn!("auto-swap: failed to restart LLM after image gen: {e}");
+        }
     }
 }
 

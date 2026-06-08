@@ -117,19 +117,22 @@ pub async fn runtime_status(State(state): State<AppState>) -> Json<RegistrySnaps
     Json(state.runtime_status().await)
 }
 
-pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, AppError> {
+/// Build the `mistralrs serve` spawn args for the currently-selected local LLM
+/// at `port`. AutoIsq (Gemma 4 safetensors) loads via the ISQ auto-loader and is
+/// fetched from HF on first start, so there is no local file to require; GGUF
+/// models select the file via `--format gguf` and must be downloaded first.
+/// Shared by `runtime_start` and the Auto-Swap restart path so the two never
+/// drift on how the LLM is launched.
+pub fn build_llm_spawn_args(state: &AppState, port: u16) -> Result<Vec<String>, AppError> {
     let cfg = state.local_mode_config();
     let model = manifest_for(&cfg.selected_llm)
         .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;
-    let port = discover_free_port().map_err(|e| AppError::Internal(e.to_string()))?;
-    // Spawn args depend on the model kind. AutoIsq (Gemma 4 safetensors) loads
-    // via mistralrs' auto-loader + ISQ and is fetched from HF on first start, so
-    // there is no local file to require. GGUF models select the file via the
-    // `gguf` subcommand (dir + filename) and must be downloaded first.
-    let llm_args = match &model.kind {
-        ModelKind::AutoIsq { isq } => {
-            crate::local_runtime::mistralrs_run_args(port, model.hf_repo, isq)
-        }
+    match &model.kind {
+        ModelKind::AutoIsq { isq } => Ok(crate::local_runtime::mistralrs_run_args(
+            port,
+            model.hf_repo,
+            isq,
+        )),
         _ => {
             let models_dir = state.models_dir();
             let llm_path = models_dir.join(model.hf_filename);
@@ -140,9 +143,18 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
                 )));
             }
             let models_dir_str = models_dir.to_string_lossy().into_owned();
-            crate::local_runtime::mistralrs_gguf_args(port, &models_dir_str, model.hf_filename)
+            Ok(crate::local_runtime::mistralrs_gguf_args(
+                port,
+                &models_dir_str,
+                model.hf_filename,
+            ))
         }
-    };
+    }
+}
+
+pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, AppError> {
+    let port = discover_free_port().map_err(|e| AppError::Internal(e.to_string()))?;
+    let llm_args = build_llm_spawn_args(&state, port)?;
     let llm_arg_refs: Vec<&str> = llm_args.iter().map(String::as_str).collect();
     state
         .runtime_registry()
@@ -150,7 +162,13 @@ pub async fn runtime_start(State(state): State<AppState>) -> Result<StatusCode, 
         .start_with_retry("mistralrs-server", &llm_arg_refs, port, 3)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    if !matches!(cfg.vram_strategy, VramStrategy::DisableImageGen) {
+    // The LLM now holds the GPU; record it so the Auto-Swap path knows to free
+    // its VRAM before image generation.
+    state.runtime_registry().mark_llm_owns_gpu();
+    if !matches!(
+        state.local_mode_config().vram_strategy,
+        VramStrategy::DisableImageGen
+    ) {
         let img_port = discover_free_port().map_err(|e| AppError::Internal(e.to_string()))?;
         let img_port_str = img_port.to_string();
         // The Python sidecar declares --weights-dir as required=True
