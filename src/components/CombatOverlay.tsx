@@ -8,6 +8,8 @@ interface Props {
   active: boolean;
   tokens: CombatToken[];
   cellSize: number;
+  /** Current viewport scale, so token drag deltas (screen px) map to world px. */
+  zoom?: number;
   widthCells: number;
   heightCells: number;
   onMoveToken?: (id: string, x: number, y: number) => void;
@@ -28,6 +30,7 @@ export function CombatOverlay({
   active,
   tokens,
   cellSize,
+  zoom = 1,
   widthCells,
   heightCells,
   onMoveToken,
@@ -77,6 +80,7 @@ export function CombatOverlay({
           key={token.id}
           token={token}
           cellSize={cellSize}
+          zoom={zoom}
           {...(onMoveToken ? { onMove: onMoveToken } : {})}
         />
       ))}

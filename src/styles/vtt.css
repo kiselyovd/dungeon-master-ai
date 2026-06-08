@@ -20,7 +20,13 @@
      directly from the ResizeObserver), so we don't need flex centering. */
 }
 
-.dm-vtt-canvas > canvas {
+/* The world wrapper holds the map image, the Pixi grid canvas and the token
+   overlay; it is translated + scaled by the viewport transform (zoom/pan). */
+.dm-vtt-world {
+  will-change: transform;
+}
+
+.dm-vtt-canvas canvas {
   display: block;
   width: 100%;
   height: 100%;

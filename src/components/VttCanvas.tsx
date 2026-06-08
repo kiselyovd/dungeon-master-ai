@@ -1,7 +1,12 @@
 import { Application, extend } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import vttEmptyArt from '../assets/vtt-empty.png';
@@ -24,6 +29,11 @@ const MIN_CANVAS_PX = 60;
 /** Fallback dimensions when no ResizeObserver and no container size are available. */
 const FALLBACK_CELLS = 20;
 
+/** Viewport zoom bounds. */
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 4;
+const clampZoom = (z: number): number => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
 function deriveCells(containerPx: number, cellSize: number, override: number | undefined): number {
   if (override && override > 0) return override;
   if (containerPx <= 0) return FALLBACK_CELLS;
@@ -43,6 +53,20 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
   const [measureMode, setMeasureMode] = useState(false);
   const [measureOrigin, setMeasureOrigin] = useState<{ x: number; y: number } | null>(null);
   const [measureCurrent, setMeasureCurrent] = useState<{ x: number; y: number } | null>(null);
+
+  // Viewport transform: the world wrapper (map image + grid + tokens) is
+  // translated by `pan` (screen px) and scaled by `zoom`. Screen-space inputs
+  // (token drag deltas, measure distance) divide by `zoom` to reach world px.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panSession = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+  } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   // Container-driven canvas size. Initialised to defaults so the very first
   // render before ResizeObserver fires still produces a usable grid.
@@ -200,48 +224,149 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
     if (measureOrigin === null || measureCurrent === null) return null;
     const dx = measureCurrent.x - measureOrigin.x;
     const dy = measureCurrent.y - measureOrigin.y;
-    return Math.round((Math.sqrt(dx * dx + dy * dy) / cellSize) * 5);
-  }, [measureOrigin, measureCurrent, cellSize]);
+    // The measure overlay is screen-space; divide by zoom to get world px.
+    return Math.round((Math.sqrt(dx * dx + dy * dy) / zoom / cellSize) * 5);
+  }, [measureOrigin, measureCurrent, cellSize, zoom]);
+
+  // --- viewport (zoom / pan / fit) --------------------------------------
+  // Zoom by `factor` keeping the world point under (cx, cy) (container-relative
+  // screen px) fixed, so the map grows/shrinks around the cursor, not the origin.
+  const zoomAt = useCallback((factor: number, cx: number, cy: number) => {
+    setZoom((prevZoom) => {
+      const next = clampZoom(prevZoom * factor);
+      if (next === prevZoom) return prevZoom;
+      const ratio = next / prevZoom;
+      setPan((p) => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }));
+      return next;
+    });
+  }, []);
+
+  const zoomFromButton = useCallback(
+    (factor: number) => {
+      const el = containerRef.current;
+      const cx = el ? el.clientWidth / 2 : width / 2;
+      const cy = el ? el.clientHeight / 2 : height / 2;
+      zoomAt(factor, cx, cy);
+    },
+    [zoomAt, width, height],
+  );
+
+  const fitToView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  const onWheel = useCallback(
+    (e: ReactWheelEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      // Zoom in on scroll up (deltaY < 0). 1.0015^px gives smooth trackpad feel.
+      const factor = 1.0015 ** -e.deltaY;
+      zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
+    },
+    [zoomAt],
+  );
+
+  const onPanPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Only the empty canvas pans; tokens capture their own pointer first, and
+      // measure mode owns the pointer via its SVG overlay.
+      if (e.button !== 0 || measureMode) return;
+      panSession.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: pan.x,
+        baseY: pan.y,
+      };
+      setIsPanning(true);
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // jsdom / stale capture - panning still works via the same element.
+      }
+    },
+    [measureMode, pan.x, pan.y],
+  );
+
+  const onPanPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = panSession.current;
+    if (s === null || s.pointerId !== e.pointerId) return;
+    setPan({ x: s.baseX + (e.clientX - s.startX), y: s.baseY + (e.clientY - s.startY) });
+  }, []);
+
+  const onPanPointerEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = panSession.current;
+    if (s === null || s.pointerId !== e.pointerId) return;
+    panSession.current = null;
+    setIsPanning(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // already released on pointercancel
+    }
+  }, []);
+
+  const worldStyle: CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width,
+    height,
+    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+    transformOrigin: '0 0',
+  };
 
   const isEmpty = tokens.length === 0 && !combatActive && !hasMap;
 
   return (
     <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
-      <div className="dm-vtt-canvas">
-        {hasMap && (
-          <img
-            src={mapImageUrl ?? undefined}
-            alt=""
-            className="dm-vtt-map-bg"
-            data-testid="dm-vtt-map-bg"
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the canvas is a 2D map surface; wheel-zoom and drag-to-pan are pointer-only interactions with no keyboard analogue, and the toolbar buttons provide accessible zoom/fit controls */}
+      <div
+        className="dm-vtt-canvas"
+        onWheel={onWheel}
+        onPointerDown={onPanPointerDown}
+        onPointerMove={onPanPointerMove}
+        onPointerUp={onPanPointerEnd}
+        onPointerCancel={onPanPointerEnd}
+        style={{ cursor: isPanning ? 'grabbing' : measureMode ? 'crosshair' : 'grab' }}
+      >
+        <div className="dm-vtt-world" style={worldStyle}>
+          {hasMap && (
+            <img
+              src={mapImageUrl ?? undefined}
+              alt=""
+              className="dm-vtt-map-bg"
+              data-testid="dm-vtt-map-bg"
+            />
+          )}
+          {/* The canvas is always transparent; the dark backdrop is painted by
+              drawGrid's rect fill (skipped when a map image is present so the
+              art shows through). backgroundAlpha is an init-only Pixi option, so
+              a constant 0 avoids the "opaque clear hides the map" reactivity bug.
+              Keying on hasMap forces a renderer re-init if the map toggles, so a
+              late-arriving image is never occluded by a stale opaque clear. */}
+          <Application
+            key={hasMap ? 'vtt-map' : 'vtt-grid'}
+            width={width}
+            height={height}
+            backgroundColor={0x14101a}
+            backgroundAlpha={0}
+          >
+            <pixiContainer>
+              <pixiGraphics draw={drawGrid} />
+            </pixiContainer>
+          </Application>
+          <CombatOverlay
+            active={combatActive}
+            tokens={tokens}
+            cellSize={cellSize}
+            zoom={zoom}
+            widthCells={effectiveWidthCells}
+            heightCells={effectiveHeightCells}
+            onMoveToken={moveToken}
+            aoeTemplates={aoeTemplates}
           />
-        )}
-        {/* The canvas is always transparent; the dark backdrop is painted by
-            drawGrid's rect fill (skipped when a map image is present so the
-            art shows through). backgroundAlpha is an init-only Pixi option, so
-            a constant 0 avoids the "opaque clear hides the map" reactivity bug.
-            Keying on hasMap forces a renderer re-init if the map toggles, so a
-            late-arriving image is never occluded by a stale opaque clear. */}
-        <Application
-          key={hasMap ? 'vtt-map' : 'vtt-grid'}
-          width={width}
-          height={height}
-          backgroundColor={0x14101a}
-          backgroundAlpha={0}
-        >
-          <pixiContainer>
-            <pixiGraphics draw={drawGrid} />
-          </pixiContainer>
-        </Application>
-        <CombatOverlay
-          active={combatActive}
-          tokens={tokens}
-          cellSize={cellSize}
-          widthCells={effectiveWidthCells}
-          heightCells={effectiveHeightCells}
-          onMoveToken={moveToken}
-          aoeTemplates={aoeTemplates}
-        />
+        </div>
         {measureMode && (
           // biome-ignore lint/a11y/useKeyWithClickEvents: Escape cancellation is handled at window level above; click is the only viable input for placing a measurement origin on a 2D map
           <svg
@@ -315,7 +440,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           className="dm-vtt-ctrl"
           title={t('map_zoom_in')}
           aria-label={t('map_zoom_in')}
-          disabled
+          onClick={() => zoomFromButton(1.25)}
         >
           <Icons.ZoomIn size={16} />
         </button>
@@ -324,7 +449,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           className="dm-vtt-ctrl"
           title={t('map_zoom_out')}
           aria-label={t('map_zoom_out')}
-          disabled
+          onClick={() => zoomFromButton(0.8)}
         >
           <Icons.ZoomOut size={16} />
         </button>
@@ -333,7 +458,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           className="dm-vtt-ctrl"
           title={t('map_fit_to_view')}
           aria-label={t('map_fit_to_view')}
-          disabled
+          onClick={fitToView}
         >
           <Icons.Maximize size={16} />
         </button>

@@ -22,6 +22,8 @@ const CLASS_TOKEN: Record<string, string> = {
 interface Props {
   token: TokenData;
   cellSize: number;
+  /** Viewport scale; screen-px drag deltas divide by this to reach world px. */
+  zoom?: number;
   onMove?: (id: string, x: number, y: number) => void;
 }
 
@@ -67,7 +69,7 @@ function conditionColor(condition: string): string {
  * flight. Without `onMove`, no handlers attach and the token stays static
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
-export function CombatToken({ token, cellSize, onMove }: Props) {
+export function CombatToken({ token, cellSize, zoom = 1, onMove }: Props) {
   const pcName = useStore((s) => s.pc.name);
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
@@ -101,6 +103,9 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
       // so the canvas context menu and middle-pan can layer on later.
       if (event.button !== 0) return;
       event.preventDefault();
+      // Stop the canvas pan handler (on the parent .dm-vtt-canvas) from also
+      // starting - dragging a token must move the token, not pan the map.
+      event.stopPropagation();
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
       } catch {
@@ -125,14 +130,14 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
-      const deltaX = event.clientX - drag.startClientX;
-      const deltaY = event.clientY - drag.startClientY;
+      // Screen-px delta -> world px: the token lives inside the zoom-scaled
+      // world wrapper, so a screen move of D px is D/zoom world px.
+      const deltaX = (event.clientX - drag.startClientX) / zoom;
+      const deltaY = (event.clientY - drag.startClientY) / zoom;
       setLiveLeft(drag.originCol * cellSize + deltaX);
       setLiveTop(drag.originRow * cellSize + deltaY);
-      // cellSize is captured here so a parent zoom mid-drag would change snap
-      // resolution. That is the intended behavior: snap follows current grid.
     },
-    [cellSize],
+    [cellSize, zoom],
   );
 
   const onPointerEnd = useCallback(
@@ -146,15 +151,15 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
         // swallow so cleanup still runs.
       }
       if (event.type !== 'pointercancel' && onMove !== undefined) {
-        const deltaX = event.clientX - drag.startClientX;
-        const deltaY = event.clientY - drag.startClientY;
+        const deltaX = (event.clientX - drag.startClientX) / zoom;
+        const deltaY = (event.clientY - drag.startClientY) / zoom;
         const newCol = Math.max(0, drag.originCol + Math.round(deltaX / cellSize));
         const newRow = Math.max(0, drag.originRow + Math.round(deltaY / cellSize));
         onMove(token.id, newCol, newRow);
       }
       cancelDrag();
     },
-    [cancelDrag, cellSize, onMove, token.id],
+    [cancelDrag, cellSize, zoom, onMove, token.id],
   );
 
   // Escape key cancellation. Listening on window (vs. the token element) so
