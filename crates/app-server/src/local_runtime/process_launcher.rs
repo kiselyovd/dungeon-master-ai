@@ -22,6 +22,7 @@
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 
 use app_llm::sidecar_launcher::{SidecarError, SidecarHandle, SidecarLauncher};
 use async_trait::async_trait;
@@ -210,16 +211,29 @@ impl SidecarLauncher for ProcessSidecarLauncher {
             });
         }
 
+        // Share the child between the liveness probe and the kill closure. The
+        // liveness check uses `try_wait` (non-blocking) so the runtime can fail
+        // fast when a sidecar dies mid-startup; `kill` reaps it.
+        let child = Arc::new(Mutex::new(child));
+        let child_for_liveness = child.clone();
+        let is_alive = move || -> bool {
+            child_for_liveness
+                .lock()
+                .map(|mut c| matches!(c.try_wait(), Ok(None)))
+                .unwrap_or(false)
+        };
         let kill = move || -> Result<(), SidecarError> {
             // Best-effort terminate, then reap so the child is not left as a
             // zombie. `kill` errors only when the process is already gone (the
             // desired end state); `wait` succeeds whether the child was killed
             // or had already exited.
-            let _ = child.kill();
-            let _ = child.wait();
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+                let _ = c.wait();
+            }
             Ok(())
         };
-        Ok(SidecarHandle::from_parts(pid, rx, kill))
+        Ok(SidecarHandle::from_parts(pid, rx, is_alive, kill))
     }
 }
 
