@@ -77,6 +77,7 @@ pub fn router(state: AppState) -> Router {
             post(routes::providers::post_discover),
         )
         .route("/settings/v2", post(routes::settings::post_settings_v2))
+        .route("/image/generate", post(routes::image::post_image_generate))
         .route("/video/generate", post(routes::video::post_video_generate))
         .route("/local-llm/manifest", get(routes::local_llm::get_manifest))
         .route(
