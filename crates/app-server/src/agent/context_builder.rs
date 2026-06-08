@@ -38,6 +38,12 @@ pub(crate) fn compose_system_prompt(base: &str, availability: ToolAvailability) 
              instead of only describing it in words.",
         );
     }
+    s.push_str(
+        " When a fight starts, immediately call start_combat with one initiative entry per \
+         combatant - just the names are enough (e.g. the hero and each enemy). The engine \
+         rolls initiative and assigns default stats, so NEVER ask the player for HP, AC, or \
+         initiative rolls; act with sensible defaults and keep the story moving.",
+    );
     let base = base.trim();
     if !base.is_empty() {
         s.push_str("\n\n");

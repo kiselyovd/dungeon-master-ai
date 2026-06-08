@@ -129,24 +129,24 @@ fn all_tools_core() -> Vec<Tool> {
         },
         Tool {
             name: "start_combat".into(),
-            description: "Transition the scene to combat mode. Provide initiative entries for all combatants.".into(),
+            description: "Begin combat. Pass one initiative entry per combatant (the player plus each enemy). ONLY `name` is required - the engine auto-rolls initiative and fills sensible default stats (HP/AC) for anything you omit. Call this immediately when a fight starts; never ask the player for stats or initiative.".into(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "initiative_entries": {
                         "type": "array",
+                        "description": "One entry per combatant. Just the name is enough, e.g. [{\"name\":\"Hero\"},{\"name\":\"Skeleton\"}].",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "id": { "type": "string" },
-                                "name": { "type": "string" },
-                                "roll": { "type": "integer" },
-                                "dex_mod": { "type": "integer" },
-                                "hp": { "type": "integer" },
-                                "max_hp": { "type": "integer" },
-                                "ac": { "type": "integer" }
+                                "name": { "type": "string", "description": "Combatant name (required)." },
+                                "hp": { "type": "integer", "description": "Optional; defaults to a sane value." },
+                                "max_hp": { "type": "integer", "description": "Optional; defaults to hp." },
+                                "ac": { "type": "integer", "description": "Optional; defaults to 10." },
+                                "roll": { "type": "integer", "description": "Optional initiative roll; the engine rolls one if omitted." },
+                                "dex_mod": { "type": "integer", "description": "Optional dexterity modifier." }
                             },
-                            "required": ["id","name","roll","dex_mod","hp","max_hp","ac"]
+                            "required": ["name"]
                         }
                     }
                 },
