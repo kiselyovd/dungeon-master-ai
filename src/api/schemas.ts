@@ -123,6 +123,7 @@ export const ImageGeneratedSchema = v.object({
   round: v.optional(v.number()),
   mime_type: v.string(),
   image_b64: v.string(),
+  kind: v.optional(v.picklist(['map', 'chat'])),
 });
 
 export type ImageGeneratedPayload = v.InferOutput<typeof ImageGeneratedSchema>;

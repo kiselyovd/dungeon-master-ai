@@ -102,9 +102,16 @@ export function useAgentTurn() {
             useStore.getState().chat.appendReasoningDelta(text);
           },
 
-          onImageGenerated: (dataUrl) => {
-            // Paint the agent's generated scene image as the VTT map background.
-            useStore.getState().session.setMapImage(dataUrl);
+          onImageGenerated: (dataUrl, toolCallId, kind) => {
+            // Route by kind: a map paints the VTT board (left); an illustration
+            // renders inline in its tool-call card (right). Both attach to the
+            // card so the user sees the result in place of raw JSON.
+            if (toolCallId) {
+              useStore.getState().chat.attachStreamEventImage(toolCallId, dataUrl, kind);
+            }
+            if (kind === 'map') {
+              useStore.getState().session.setMapImage(dataUrl);
+            }
           },
 
           onToolCallStart: (id, toolName, round) => {

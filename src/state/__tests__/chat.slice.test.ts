@@ -159,3 +159,39 @@ describe('chat.truncateTo', () => {
     expect(newMsg?.sequenceIndex).toBe(2);
   });
 });
+
+describe('chat.attachStreamEventImage', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+  });
+
+  it('attaches imageDataUrl and imageKind to the matching stream event', () => {
+    const chat = useStore.getState().chat;
+    chat.addToolCallStartEvent('tc-img-1', 'generate_illustration', {}, 1);
+
+    useStore
+      .getState()
+      .chat.attachStreamEventImage('tc-img-1', 'data:image/png;base64,AAA', 'chat');
+
+    const events = useStore.getState().chat.chatStreamEvents;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      id: 'tc-img-1',
+      imageDataUrl: 'data:image/png;base64,AAA',
+      imageKind: 'chat',
+    });
+  });
+
+  it('leaves other events untouched when attaching to a specific id', () => {
+    const chat = useStore.getState().chat;
+    chat.addToolCallStartEvent('tc-a', 'generate_map', {}, 1);
+    chat.addToolCallStartEvent('tc-b', 'generate_illustration', {}, 1);
+
+    useStore.getState().chat.attachStreamEventImage('tc-b', 'data:image/png;base64,BBB', 'map');
+
+    const events = useStore.getState().chat.chatStreamEvents;
+    expect(events[0]?.imageDataUrl).toBeUndefined();
+    expect(events[1]?.imageDataUrl).toBe('data:image/png;base64,BBB');
+    expect(events[1]?.imageKind).toBe('map');
+  });
+});

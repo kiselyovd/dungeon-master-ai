@@ -30,7 +30,7 @@ const MAX_IMAGES_PER_MESSAGE = 4;
 
 /** Map a ChatStreamEvent to the ToolLogEntry shape expected by ToolCallCard. */
 function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
-  return {
+  const entry: ToolLogEntry = {
     id: event.id,
     toolName: event.toolName,
     args: event.args,
@@ -41,6 +41,9 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
     timestamp: '',
     handledBy: 'engine',
   };
+  if (event.imageDataUrl !== undefined) entry.imageDataUrl = event.imageDataUrl;
+  if (event.imageKind !== undefined) entry.imageKind = event.imageKind;
+  return entry;
 }
 
 type MergedItem = { kind: 'message'; item: ChatMessage } | { kind: 'event'; item: ChatStreamEvent };

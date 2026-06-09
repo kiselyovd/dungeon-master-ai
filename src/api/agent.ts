@@ -44,11 +44,14 @@ export interface AgentTurnOptions {
   onAgentDone: (totalRounds: number) => void;
   onReasoningDelta?: (text: string) => void;
   /**
-   * A scene/map image the agent produced via `generate_image`. Delivered as a
-   * ready-to-use data URL (`data:<mime>;base64,<...>`) so the caller can drop
-   * it straight into an `<img src>` or store it for the VTT background. [M11]
+   * An image the agent produced. `kind` routes it: 'map' -> VTT board (left),
+   * 'chat' -> inline in the tool-call card (right). Delivered as a ready data URL.
    */
-  onImageGenerated?: (dataUrl: string, toolCallId?: string) => void;
+  onImageGenerated?: (
+    dataUrl: string,
+    toolCallId: string | undefined,
+    kind: 'map' | 'chat',
+  ) => void;
 }
 
 /**
@@ -162,7 +165,8 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
     case 'image_generated': {
       const p = safeParseImageGenerated(data);
       if (p && opts.onImageGenerated) {
-        opts.onImageGenerated(`data:${p.mime_type};base64,${p.image_b64}`, p.tool_call_id);
+        const kind = p.kind === 'map' ? 'map' : 'chat';
+        opts.onImageGenerated(`data:${p.mime_type};base64,${p.image_b64}`, p.tool_call_id, kind);
       }
       break;
     }
