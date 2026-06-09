@@ -47,7 +47,6 @@ impl VideoProvider for LocalVideoSidecarProvider {
             "resolution": prompt.resolution,
             "frame_count": prompt.frame_count,
             "seed": prompt.seed,
-            "teacache_threshold": prompt.teacache_threshold,
         });
         let request = self.client.post(&url).json(&body).send();
         tokio::spawn(async move {

@@ -522,17 +522,27 @@ async fn execute_generate_map(
 
 /// Cinematic illustration/portrait shown inline in the chat. Square default
 /// canvas; style preset chosen by the model (dark_fantasy | portrait).
+///
+/// The `style` arg shapes the content prompt so the image backend receives
+/// concrete framing words regardless of whether it supports style_preset:
+/// - "portrait" prepends a head-and-shoulders character framing.
+/// - "dark_fantasy" (default) appends dark-fantasy atmosphere cues.
 async fn execute_generate_illustration(
     args: &Value,
     image_provider: Option<Arc<dyn ImageProvider>>,
 ) -> (Value, bool) {
-    let raw = args["prompt"].as_str().unwrap_or("").trim().to_string();
+    let raw = args["prompt"].as_str().unwrap_or("").trim();
     let style = args
         .get("style")
         .and_then(|v| v.as_str())
-        .unwrap_or("dark_fantasy")
-        .to_string();
-    run_image_generation(raw, style, None, image_provider).await
+        .unwrap_or("dark_fantasy");
+
+    let content_prompt = match style {
+        "portrait" => format!("character portrait, head and shoulders, detailed face, {raw}"),
+        _ => format!("{raw}, dark fantasy art, dramatic lighting, moody"),
+    };
+
+    run_image_generation(content_prompt, style.to_string(), None, image_provider).await
 }
 
 async fn execute_query_rules(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
@@ -609,6 +619,67 @@ mod image_dispatch_tests {
         assert!(captured.content_prompt.contains("the lich king"));
         assert_eq!(captured.width, None);
         assert_eq!(captured.height, None);
+    }
+
+    #[tokio::test]
+    async fn illustration_portrait_style_prepends_framing() {
+        let last = Arc::new(Mutex::new(None));
+        let provider = Arc::new(CapturingProvider { last: last.clone() });
+        let (_val, is_err) = execute_generate_illustration(
+            &json!({ "prompt": "the ranger Aela", "style": "portrait" }),
+            Some(provider),
+        )
+        .await;
+        assert!(!is_err);
+        let captured = last.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.style_preset, "portrait");
+        // Framing words must appear before the raw prompt.
+        assert!(
+            captured
+                .content_prompt
+                .starts_with("character portrait, head and shoulders"),
+            "portrait style must prepend framing: got '{}'",
+            captured.content_prompt
+        );
+        assert!(captured.content_prompt.contains("the ranger Aela"));
+    }
+
+    #[tokio::test]
+    async fn illustration_dark_fantasy_style_appends_atmosphere() {
+        let last = Arc::new(Mutex::new(None));
+        let provider = Arc::new(CapturingProvider { last: last.clone() });
+        let (_val, is_err) = execute_generate_illustration(
+            &json!({ "prompt": "a ruined temple", "style": "dark_fantasy" }),
+            Some(provider),
+        )
+        .await;
+        assert!(!is_err);
+        let captured = last.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.style_preset, "dark_fantasy");
+        assert!(captured.content_prompt.contains("a ruined temple"));
+        assert!(
+            captured.content_prompt.contains("dark fantasy art"),
+            "dark_fantasy style must append atmosphere: got '{}'",
+            captured.content_prompt
+        );
+    }
+
+    #[tokio::test]
+    async fn illustration_default_style_is_dark_fantasy() {
+        // When no style arg is provided, the default "dark_fantasy" atmosphere is applied.
+        let last = Arc::new(Mutex::new(None));
+        let provider = Arc::new(CapturingProvider { last: last.clone() });
+        let (_val, is_err) = execute_generate_illustration(
+            &json!({ "prompt": "stormy battlefield" }),
+            Some(provider),
+        )
+        .await;
+        assert!(!is_err);
+        let captured = last.lock().unwrap().clone().unwrap();
+        assert!(
+            captured.content_prompt.contains("dark fantasy art"),
+            "default style must produce dark_fantasy atmosphere"
+        );
     }
 
     #[tokio::test]
