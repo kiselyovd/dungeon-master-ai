@@ -82,6 +82,15 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
   const isDead = token.hp === 0;
   const isPcToken = pcName !== null && token.name === pcName;
+  // Respect the OS-level "prefers-reduced-motion" setting so animations do not
+  // play for users who have requested less motion. Checked once at render time;
+  // does not need to be reactive since the media-query match value is stable for
+  // the lifetime of a token render. Guards against jsdom (which lacks matchMedia)
+  // by checking the method exists before calling it. [W1.7b]
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The PC's own token prefers the generated/selected portrait over class art (E4).
   const portraitSrc = isPcToken
     ? (pcPortraitUrl ?? (pcHeroClass !== null ? (CLASS_TOKEN[pcHeroClass] ?? null) : null))
@@ -224,11 +233,16 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
           top: currentTop,
           width: cellSize,
           height: cellSize,
+          // Animate model-driven and drop-committed moves (left/top change when
+          // isDragging=false). Suppress transition during live drag so the token
+          // tracks the pointer with zero lag. [W1.7a]
+          transition: isDragging ? undefined : 'left 0.25s ease, top 0.25s ease',
           // Pulse pauses during drag so the active-token glow does not
           // visually compete with the ghost + live position feedback. Dead
           // tokens never pulse - the skull overlay is the only motion cue.
+          // Suppressed when the user prefers reduced motion. [W1.7b]
           animation:
-            token.isActive && !isDragging && !isDead
+            token.isActive && !isDragging && !isDead && !prefersReducedMotion
               ? 'token-pulse 1.6s ease-in-out infinite'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
@@ -244,10 +258,21 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
             height: cellSize - 4,
             borderRadius: '50%',
             background: 'var(--color-bg-raised)',
-            border: token.isActive
-              ? '2px solid var(--color-accent)'
-              : '1px solid var(--color-border-subtle)',
-            boxShadow: token.isActive ? 'var(--glow-accent)' : undefined,
+            // PC active turn: thicker gold ring + outer glow ring to make it
+            // unmistakable at a glance. Enemy/NPC active: standard accent ring.
+            // [W1.7b]
+            border:
+              token.isActive && isPcToken
+                ? '3px solid var(--color-accent)'
+                : token.isActive
+                  ? '2px solid var(--color-accent)'
+                  : '1px solid var(--color-border-subtle)',
+            boxShadow:
+              token.isActive && isPcToken
+                ? '0 0 0 2px var(--color-accent), var(--glow-accent)'
+                : token.isActive
+                  ? 'var(--glow-accent)'
+                  : undefined,
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -368,6 +393,34 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
             }}
           />
         </div>
+
+        {/* "Your turn" cue: shown only when the PC's own token is active and
+            alive. Floats above the token circle so it does not overlap
+            conditions or the HP bar. [W1.7b] */}
+        {isPcToken && token.isActive && !isDead && (
+          <div
+            data-testid={`combat-token-${token.id}-your-turn`}
+            className="token-your-turn"
+            aria-live="polite"
+            style={{
+              position: 'absolute',
+              top: -(cellSize * 0.35),
+              left: '50%',
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              fontSize: Math.max(9, Math.floor(cellSize * 0.22)),
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
+              textShadow: '0 1px 4px rgba(0,0,0,0.7)',
+            }}
+          >
+            Your turn
+          </div>
+        )}
       </div>
     </>
   );

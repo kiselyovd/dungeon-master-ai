@@ -234,4 +234,66 @@ describe('CombatToken', () => {
       expect(onMove).not.toHaveBeenCalled();
     });
   });
+
+  // W1.7a - token move animation: transition enabled when not dragging
+  describe('move animation (W1.7a)', () => {
+    it('transition is set on left/top when token is not being dragged', () => {
+      const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
+      const el = getByTestId('combat-token-tok-1') as HTMLElement;
+      // When not dragging, inline transition should be set to animate moves.
+      expect(el.style.transition).toContain('left');
+      expect(el.style.transition).toContain('top');
+    });
+
+    it('transition is cleared during an active drag so pointer tracking has zero lag', () => {
+      // Seed the store so the token is the active PC and draggable.
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      const onMove = vi.fn();
+      const token = { ...baseToken, x: 0, y: 0 };
+      const { getByTestId } = render(
+        <CombatToken token={token} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
+      );
+      const el = getByTestId('combat-token-tok-1') as HTMLElement;
+      // Before drag: transition is set.
+      expect(el.style.transition).toContain('left');
+      // Start dragging.
+      fireEvent.pointerDown(el, { button: 0, pointerId: 1, clientX: 15, clientY: 15 });
+      fireEvent.pointerMove(el, { pointerId: 1, clientX: 60, clientY: 60 });
+      // During drag: transition must be cleared (empty string or no value).
+      expect(el.style.transition).toBe('');
+    });
+  });
+
+  // W1.7b - whose-turn visual: "Your turn" label and PC active ring
+  describe('whose-turn visuals (W1.7b)', () => {
+    it('shows "Your turn" label when PC token is active and alive', () => {
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      const activeToken = { ...baseToken, isActive: true };
+      const { getByTestId } = render(<CombatToken token={activeToken} cellSize={40} />);
+      const label = getByTestId('combat-token-tok-1-your-turn');
+      expect(label).toBeTruthy();
+      expect(label.textContent).toBe('Your turn');
+    });
+
+    it('does not show "Your turn" label on an enemy token even when active', () => {
+      // pc.name is null (default from beforeEach), so the token is not a PC token.
+      const activeToken = { ...baseToken, isActive: true };
+      const { queryByTestId } = render(<CombatToken token={activeToken} cellSize={40} />);
+      expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
+    });
+
+    it('does not show "Your turn" label when the PC token is dead (hp=0)', () => {
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      const deadActive = { ...baseToken, hp: 0, isActive: true };
+      const { queryByTestId } = render(<CombatToken token={deadActive} cellSize={40} />);
+      expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
+    });
+
+    it('does not show "Your turn" label when PC token is not the active turn', () => {
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      const inactiveToken = { ...baseToken, isActive: false };
+      const { queryByTestId } = render(<CombatToken token={inactiveToken} cellSize={40} />);
+      expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
+    });
+  });
 });
