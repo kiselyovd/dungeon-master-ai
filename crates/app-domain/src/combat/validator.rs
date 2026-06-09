@@ -52,7 +52,8 @@ pub fn validate_tool_call(
         "journal_append" => validate_journal_append(args),
         "quick_save" => validate_quick_save(args),
         "query_rules" => validate_query_rules(args),
-        "generate_image" => validate_generate_image(args),
+        "generate_map" => validate_image_tool("generate_map", args),
+        "generate_illustration" => validate_image_tool("generate_illustration", args),
         _ => Err(ToolCallError::UnknownTool(tool_name.to_string())),
     }
 }
@@ -254,7 +255,7 @@ fn validate_query_rules(args: Value) -> Result<ValidatedToolCall, ToolCallError>
     })
 }
 
-fn validate_generate_image(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
+fn validate_image_tool(name: &str, args: Value) -> Result<ValidatedToolCall, ToolCallError> {
     let prompt = args
         .get("prompt")
         .and_then(|v| v.as_str())
@@ -265,9 +266,32 @@ fn validate_generate_image(args: Value) -> Result<ValidatedToolCall, ToolCallErr
         ));
     }
     Ok(ValidatedToolCall {
-        tool_name: "generate_image".into(),
+        tool_name: name.to_string(),
         args,
     })
+}
+
+#[cfg(test)]
+mod image_tool_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn validates_generate_map_and_illustration() {
+        for name in ["generate_map", "generate_illustration"] {
+            let ok = validate_tool_call(name, json!({ "prompt": "a hall" }));
+            assert!(ok.is_ok(), "{name} should validate");
+            assert_eq!(ok.unwrap().tool_name, name);
+        }
+    }
+
+    #[test]
+    fn rejects_empty_prompt_for_image_tools() {
+        for name in ["generate_map", "generate_illustration"] {
+            let err = validate_tool_call(name, json!({ "prompt": "   " }));
+            assert!(err.is_err(), "{name} must reject empty prompt");
+        }
+    }
 }
 
 #[cfg(test)]
