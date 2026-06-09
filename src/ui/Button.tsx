@@ -2,7 +2,7 @@ import { type ButtonHTMLAttributes, forwardRef } from 'react';
 import styles from './Button.module.css';
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
-  variant?: 'default' | 'primary' | 'ghost';
+  variant?: 'default' | 'primary' | 'ghost' | 'danger';
   /** `submit` is opt-in only - default to `button` to avoid stray form submits. */
   type?: 'button' | 'submit' | 'reset';
 }

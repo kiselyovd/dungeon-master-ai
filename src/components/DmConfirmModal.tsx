@@ -8,9 +8,18 @@ interface DmConfirmModalProps {
   onConfirm: () => void;
   onCancel: () => void;
   title?: string;
+  /** When true (default), the confirm button uses the danger variant. */
+  destructive?: boolean;
 }
 
-export function DmConfirmModal({ open, message, onConfirm, onCancel, title }: DmConfirmModalProps) {
+export function DmConfirmModal({
+  open,
+  message,
+  onConfirm,
+  onCancel,
+  title,
+  destructive = true,
+}: DmConfirmModalProps) {
   const { t } = useTranslation('common');
   return (
     <Modal
@@ -20,8 +29,7 @@ export function DmConfirmModal({ open, message, onConfirm, onCancel, title }: Dm
       footer={
         <>
           <Button onClick={onCancel}>{t('cancel')}</Button>
-          {/* TODO(ux-debt): action is destructive but rendered as primary - no danger Button variant exists yet */}
-          <Button variant="primary" onClick={onConfirm}>
+          <Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>
             {t('confirm')}
           </Button>
         </>

@@ -78,4 +78,31 @@ describe('DmConfirmModal', () => {
     );
     expect(screen.getByText('Custom Title')).toBeInTheDocument();
   });
+
+  it('confirm button has danger variant by default (destructive=true)', () => {
+    render(
+      <DmConfirmModal
+        open={true}
+        message="Delete this item?"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+    expect(confirmBtn).toHaveAttribute('data-variant', 'danger');
+  });
+
+  it('confirm button has primary variant when destructive=false', () => {
+    render(
+      <DmConfirmModal
+        open={true}
+        message="Are you sure?"
+        destructive={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+    expect(confirmBtn).toHaveAttribute('data-variant', 'primary');
+  });
 });
