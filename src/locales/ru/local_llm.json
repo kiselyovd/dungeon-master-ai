@@ -7,6 +7,7 @@
   "hf_search_count_one": "{{count}} модель",
   "hf_search_count_few": "{{count}} модели",
   "hf_search_count_many": "{{count}} моделей",
+  "hf_search_count_other": "{{count}} моделей",
   "active_model_section": "Активная модель",
   "download": "Скачать",
   "delete": "Удалить",
