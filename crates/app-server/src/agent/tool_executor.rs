@@ -7,10 +7,10 @@
 //!
 //! M2/M3 boundary: the validator currently only knows the seven M2 combat
 //! tools. The eight new M3 tools (`set_scene`, `cast_spell`, `remember_npc`,
-//! `recall_npc`, `journal_append`, `quick_save`, `generate_image`,
-//! `query_rules`) come back from the validator as `UnknownTool`. That returns
-//! a graceful `is_error=true` result here without crashing the loop. Phase D
-//! extends the validator dispatch table to cover them.
+//! `recall_npc`, `journal_append`, `quick_save`, `generate_map`,
+//! `generate_illustration`, `query_rules`) come back from the validator as
+//! `UnknownTool`. That returns a graceful `is_error=true` result here without
+//! crashing the loop. Phase D extends the validator dispatch table to cover them.
 //!
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
@@ -54,9 +54,10 @@ pub async fn execute_tool(
     // Phase 1: Validate via domain dispatch table.
     // M3 NOTE: The validator currently knows only the seven M2 tools. The
     // eight new tools (set_scene, cast_spell, remember_npc, recall_npc,
-    // journal_append, quick_save, generate_image, query_rules) return
-    // `UnknownTool`. That is handled gracefully here - we record the error
-    // and return without crashing. Phase D extends the validator.
+    // journal_append, quick_save, generate_map, generate_illustration,
+    // query_rules) return `UnknownTool`. That is handled gracefully here -
+    // we record the error and return without crashing. Phase D extends the
+    // validator.
     let validated = match validate_tool_call(&tc.name, tc.args.clone()) {
         Ok(v) => v,
         Err(e) => {
@@ -81,7 +82,10 @@ pub async fn execute_tool(
         "recall_npc" => execute_recall_npc(&validated.args, pool, campaign_id).await,
         "journal_append" => execute_journal_append(&validated.args, pool, campaign_id).await,
         "quick_save" => execute_quick_save(&validated.args, pool, session_id).await,
-        "generate_image" => execute_generate_image(&validated.args, image_provider).await,
+        "generate_map" => execute_generate_map(&validated.args, image_provider).await,
+        "generate_illustration" => {
+            execute_generate_illustration(&validated.args, image_provider).await
+        }
         "query_rules" => execute_query_rules(&validated.args, pool).await,
         unknown => (
             json!({ "error": format!("unhandled tool: {}", unknown) }),
@@ -450,14 +454,14 @@ async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -
     )
 }
 
-/// Generate a scene illustration via the configured image provider.
-///
-/// On success the result carries the raw image as `image_b64`; the orchestrator
-/// peels that field off into a dedicated `AgentEvent::ImageGenerated` so the
-/// base64 blob never enters the LLM history. A `None` provider (image disabled,
-/// or the local sidecar is down) is a clean `is_error=true` result.
-async fn execute_generate_image(
-    args: &Value,
+/// Shared image-generation path. `style` selects the sidecar style preset and
+/// `dims` the output canvas (None = sidecar default 1024x1024). The final
+/// content prompt has already been shaped by the caller. The orchestrator peels
+/// `image_b64` into a dedicated `AgentEvent::ImageGenerated`.
+async fn run_image_generation(
+    content_prompt: String,
+    style: String,
+    dims: Option<(u32, u32)>,
     image_provider: Option<Arc<dyn ImageProvider>>,
 ) -> (Value, bool) {
     let Some(provider) = image_provider else {
@@ -466,23 +470,21 @@ async fn execute_generate_image(
             true,
         );
     };
-    let prompt = args["prompt"].as_str().unwrap_or("").trim().to_string();
-    if prompt.is_empty() {
+    if content_prompt.trim().is_empty() {
         return (json!({ "error": "prompt is required" }), true);
     }
-    let style = args
-        .get("style")
-        .and_then(|v| v.as_str())
-        .unwrap_or("dark_fantasy")
-        .to_string();
+    let (width, height) = match dims {
+        Some((w, h)) => (Some(w), Some(h)),
+        None => (None, None),
+    };
     let image_prompt = ImagePrompt {
-        content_prompt: prompt,
+        content_prompt,
         style_preset: style,
         scene_id: None,
         npc_ids: Vec::new(),
         backend_preset: None,
-        width: None,
-        height: None,
+        width,
+        height,
     };
     match provider.generate(image_prompt).await {
         Ok(bytes) => (
@@ -494,10 +496,43 @@ async fn execute_generate_image(
             false,
         ),
         Err(e) => {
-            warn!("generate_image failed: {e}");
+            warn!("image generation failed: {e}");
             (json!({ "error": e.to_string() }), true)
         }
     }
+}
+
+/// Top-down tactical battle map for the VTT board. Shapes the prompt to force a
+/// bird's-eye, grid-friendly, character-free render and a landscape canvas.
+async fn execute_generate_map(
+    args: &Value,
+    image_provider: Option<Arc<dyn ImageProvider>>,
+) -> (Value, bool) {
+    let raw = args["prompt"].as_str().unwrap_or("").trim();
+    if raw.is_empty() {
+        return (json!({ "error": "prompt is required" }), true);
+    }
+    let shaped = format!(
+        "Top-down tactical RPG battle map, orthographic bird's-eye view, no \
+         perspective, square grid friendly, detailed terrain and floor tiles, no \
+         characters, no tokens, no text labels. Location: {raw}"
+    );
+    run_image_generation(shaped, "map".to_string(), Some((1216, 832)), image_provider).await
+}
+
+/// Cinematic illustration/portrait shown inline in the chat. Square default
+/// canvas; style preset chosen by the model (dark_fantasy | portrait).
+async fn execute_generate_illustration(
+    args: &Value,
+    image_provider: Option<Arc<dyn ImageProvider>>,
+) -> (Value, bool) {
+    let raw = args["prompt"].as_str().unwrap_or("").trim().to_string();
+    let style = args
+        .get("style")
+        .and_then(|v| v.as_str())
+        .unwrap_or("dark_fantasy")
+        .to_string();
+    run_image_generation(raw, style, None, image_provider).await
 }
 
 async fn execute_query_rules(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
@@ -507,4 +542,80 @@ async fn execute_query_rules(args: &Value, _pool: &SqlitePool) -> (Value, bool) 
         json!({ "question": question, "chunks": [], "status": "rag_not_loaded" }),
         false,
     )
+}
+
+#[cfg(test)]
+mod image_dispatch_tests {
+    use super::*;
+    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+    use async_trait::async_trait;
+    use std::sync::Mutex;
+
+    struct CapturingProvider {
+        last: Arc<Mutex<Option<ImagePrompt>>>,
+    }
+
+    #[async_trait]
+    impl ImageProvider for CapturingProvider {
+        async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
+            *self.last.lock().unwrap() = Some(prompt);
+            Ok(ImageBytes {
+                data: vec![1, 2, 3],
+                mime_type: "image/png".into(),
+            })
+        }
+        fn estimated_seconds(&self) -> u32 {
+            1
+        }
+        fn cost_per_image(&self) -> f32 {
+            0.0
+        }
+    }
+
+    #[tokio::test]
+    async fn generate_map_is_top_down_and_landscape() {
+        let last = Arc::new(Mutex::new(None));
+        let provider = Arc::new(CapturingProvider { last: last.clone() });
+        let (val, is_err) =
+            execute_generate_map(&json!({ "prompt": "ruined throne hall" }), Some(provider)).await;
+        assert!(!is_err);
+        assert_eq!(
+            val.get("status").and_then(|v| v.as_str()),
+            Some("generated")
+        );
+        let captured = last.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.style_preset, "map");
+        assert!(
+            captured.content_prompt.to_lowercase().contains("top-down"),
+            "map prompt must request a top-down view"
+        );
+        assert!(captured.content_prompt.contains("ruined throne hall"));
+        assert_eq!(captured.width, Some(1216));
+        assert_eq!(captured.height, Some(832));
+    }
+
+    #[tokio::test]
+    async fn generate_illustration_keeps_square_default() {
+        let last = Arc::new(Mutex::new(None));
+        let provider = Arc::new(CapturingProvider { last: last.clone() });
+        let (_val, is_err) = execute_generate_illustration(
+            &json!({ "prompt": "the lich king on his throne", "style": "portrait" }),
+            Some(provider),
+        )
+        .await;
+        assert!(!is_err);
+        let captured = last.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.style_preset, "portrait");
+        assert!(captured.content_prompt.contains("the lich king"));
+        assert_eq!(captured.width, None);
+        assert_eq!(captured.height, None);
+    }
+
+    #[tokio::test]
+    async fn image_tools_error_without_provider() {
+        let (_, is_err) = execute_generate_map(&json!({ "prompt": "x" }), None).await;
+        assert!(is_err);
+        let (_, is_err2) = execute_generate_illustration(&json!({ "prompt": "x" }), None).await;
+        assert!(is_err2);
+    }
 }
