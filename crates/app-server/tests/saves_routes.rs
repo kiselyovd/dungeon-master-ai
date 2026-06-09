@@ -280,3 +280,305 @@ async fn list_saves_orders_newest_first() {
     assert_eq!(listed[0]["title"], "second");
     assert_eq!(listed[1]["title"], "first");
 }
+
+// ---- W2.3: real game_state capture + restore ----
+
+/// Helper: seed a session row so build_save_game_state can resolve the campaign_id.
+async fn seed_session(pool: &sqlx::SqlitePool, session_id: uuid::Uuid, campaign_id: uuid::Uuid) {
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO campaigns (id, name, language, created_at, last_played) \
+         VALUES (?1, 'Test Campaign', 'en', ?2, ?2)",
+    )
+    .bind(campaign_id.to_string())
+    .bind(&now)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO sessions (id, campaign_id, number, started_at) VALUES (?1, ?2, 1, ?3)",
+    )
+    .bind(session_id.to_string())
+    .bind(campaign_id.to_string())
+    .bind(&now)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn quick_save_executor_captures_real_combat_and_scene_state() {
+    use app_llm::ToolCall;
+    use app_server::agent::tool_executor::execute_tool;
+
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    db::init_db(&pool).await.unwrap();
+
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    seed_session(&pool, session_id, campaign_id).await;
+
+    // Start a combat encounter.
+    let enc_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let initiative = serde_json::json!(["hero-1", "goblin-1"]).to_string();
+    sqlx::query(
+        "INSERT INTO combat_encounters (id, session_id, round, active_turn, started_at, initiative) \
+         VALUES (?1, ?2, 3, 'hero-1', ?3, ?4)",
+    )
+    .bind(&enc_id)
+    .bind(session_id.to_string())
+    .bind(&now)
+    .bind(initiative)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Add a token with resistances.
+    sqlx::query(
+        "INSERT INTO combat_tokens \
+         (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, is_dead, resistances, immunities, vulnerabilities) \
+         VALUES (?1,?2,'Hero',12,15,14,2,3,'[\"prone\"]',0,'[\"fire\"]','[\"poison\"]','[\"bludgeoning\"]')",
+    )
+    .bind("hero-1")
+    .bind(&enc_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Insert a scene.
+    db::scene_insert(
+        &pool,
+        campaign_id,
+        "Dragon's Lair",
+        Some("Round 3"),
+        "combat",
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Execute quick_save via the tool executor.
+    let tc = ToolCall {
+        id: "tc-qs".into(),
+        name: "quick_save".into(),
+        args: serde_json::json!({ "label": "boss fight" }),
+    };
+    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "executor failed: {val}");
+
+    let save_id = val["save_id"].as_str().expect("save_id");
+
+    // Load the save and inspect game_state.
+    use sqlx::Row;
+    let row = sqlx::query("SELECT game_state FROM snapshots WHERE id = ?1")
+        .bind(save_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let gs_str: String = row.get("game_state");
+    let gs: serde_json::Value = serde_json::from_str(&gs_str).unwrap();
+
+    assert_eq!(gs["schema_version"], 2, "must be schema_version 2");
+    assert_eq!(gs["label"], "boss fight");
+
+    let combat = &gs["combat"];
+    assert!(combat.is_object(), "combat must be present");
+    assert_eq!(combat["active"], true);
+    assert_eq!(combat["round"], 3);
+    assert_eq!(combat["current_turn_id"], "hero-1");
+    let tokens = combat["tokens"].as_array().unwrap();
+    assert_eq!(tokens.len(), 1);
+    let tok = &tokens[0];
+    assert_eq!(tok["id"], "hero-1");
+    assert_eq!(tok["hp"], 12);
+    assert_eq!(tok["max_hp"], 15);
+    assert_eq!(tok["ac"], 14);
+    assert!(tok["conditions"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("prone")));
+    assert!(tok["resistances"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("fire")));
+    assert!(tok["immunities"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("poison")));
+    assert!(tok["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("bludgeoning")));
+
+    let scene = &gs["scene"];
+    assert!(scene.is_object(), "scene must be present");
+    assert_eq!(scene["title"], "Dragon's Lair");
+    assert_eq!(scene["subtitle"], "Round 3");
+    assert_eq!(scene["mode"], "combat");
+}
+
+#[tokio::test]
+async fn restore_snapshot_rehydrates_combat_encounter_and_tokens() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    db::init_db(&pool).await.unwrap();
+
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    seed_session(&pool, session_id, campaign_id).await;
+
+    // Build a game_state v2 directly and insert a save row.
+    let enc_id = "enc-restore-test".to_string();
+    let gs = serde_json::json!({
+        "schema_version": 2,
+        "label": "checkpoint",
+        "combat": {
+            "active": true,
+            "encounter_id": enc_id,
+            "round": 2,
+            "current_turn_id": "tok-a",
+            "initiative": ["tok-a", "tok-b"],
+            "tokens": [
+                {
+                    "id": "tok-a", "name": "Paladin", "hp": 20, "max_hp": 30,
+                    "ac": 18, "x": 1, "y": 2, "conditions": [],
+                    "resistances": ["radiant"], "immunities": [], "vulnerabilities": []
+                },
+                {
+                    "id": "tok-b", "name": "Orc", "hp": 8, "max_hp": 15,
+                    "ac": 12, "x": 4, "y": 5, "conditions": ["frightened"],
+                    "resistances": [], "immunities": [], "vulnerabilities": ["radiant"]
+                }
+            ]
+        },
+        "scene": {
+            "title": "Hall of Echoes",
+            "subtitle": null,
+            "mode": "combat"
+        }
+    });
+
+    let save_id = db::save_insert(
+        &pool,
+        session_id,
+        "auto",
+        "checkpoint",
+        "combat save",
+        "combat",
+        &gs,
+    )
+    .await
+    .unwrap();
+
+    // Put a different open encounter in the DB so we can verify it gets ended.
+    let now = chrono::Utc::now().to_rfc3339();
+    let old_enc_id = uuid::Uuid::new_v4().to_string();
+    sqlx::query(
+        "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) \
+         VALUES (?1, ?2, 1, ?3, '[]')",
+    )
+    .bind(&old_enc_id)
+    .bind(session_id.to_string())
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Restore the snapshot.
+    let result = db::restore_snapshot(&pool, session_id, save_id)
+        .await
+        .unwrap();
+    assert!(result.is_some(), "restore must return Some for v2 save");
+
+    // Verify the old encounter is now ended.
+    use sqlx::Row;
+    let old_enc: Option<String> =
+        sqlx::query("SELECT ended_at FROM combat_encounters WHERE id = ?1")
+            .bind(&old_enc_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .try_get("ended_at")
+            .unwrap();
+    assert!(old_enc.is_some(), "old encounter must have been ended");
+
+    // Verify the restored encounter exists and is open.
+    let row = sqlx::query(
+        "SELECT round, active_turn FROM combat_encounters WHERE id = ?1 AND ended_at IS NULL",
+    )
+    .bind(&enc_id)
+    .fetch_one(&pool)
+    .await
+    .expect("restored encounter must exist with ended_at IS NULL");
+    let round: i64 = row.get("round");
+    assert_eq!(round, 2);
+    let active_turn: String = row.get("active_turn");
+    assert_eq!(active_turn, "tok-a");
+
+    // Verify tokens were restored.
+    let tokens = sqlx::query(
+        "SELECT id, name, current_hp, ac FROM combat_tokens WHERE encounter_id = ?1 ORDER BY id",
+    )
+    .bind(&enc_id)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(tokens.len(), 2);
+    let tok_a = tokens
+        .iter()
+        .find(|r| r.get::<String, _>("id") == "tok-a")
+        .unwrap();
+    assert_eq!(tok_a.get::<i32, _>("current_hp"), 20);
+    assert_eq!(tok_a.get::<i32, _>("ac"), 18);
+
+    let tok_b = tokens
+        .iter()
+        .find(|r| r.get::<String, _>("id") == "tok-b")
+        .unwrap();
+    assert_eq!(tok_b.get::<i32, _>("current_hp"), 8);
+}
+
+#[tokio::test]
+async fn restore_save_route_returns_game_state() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    db::init_db(&pool).await.unwrap();
+
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    let pool2 = pool.clone();
+    seed_session(&pool, session_id, campaign_id).await;
+
+    // Insert a v2 save.
+    let gs = serde_json::json!({
+        "schema_version": 2,
+        "label": "route test",
+        "combat": null,
+        "scene": { "title": "Forest", "subtitle": null, "mode": "exploration" }
+    });
+    let save_id = db::save_insert(
+        &pool,
+        session_id,
+        "auto",
+        "route test",
+        "",
+        "exploration",
+        &gs,
+    )
+    .await
+    .unwrap();
+
+    let server = TestServer::start_with(Arc::new(MockProvider::new(vec![])), pool2).await;
+    let client = Client::new();
+
+    let resp = client
+        .post(server.url(&format!("/saves/{save_id}/restore?session_id={session_id}")))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200, "restore route must return 200");
+
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert!(body.get("game_state").is_some(), "must have game_state");
+    assert_eq!(body["game_state"]["schema_version"], 2);
+    assert_eq!(body["game_state"]["scene"]["title"], "Forest");
+}

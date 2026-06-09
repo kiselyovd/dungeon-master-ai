@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::db::{
-    save_delete, save_insert, save_list_by_session, save_load, save_update, SaveRow, SaveSummary,
+    restore_snapshot, save_delete, save_insert, save_list_by_session, save_load, save_update,
+    SaveRow, SaveSummary,
 };
 use crate::error::AppError;
 use crate::state::AppState;
@@ -145,6 +146,43 @@ pub async fn delete_save(
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(AppError::NotFound)
+    }
+}
+
+/// Restore a save's combat + scene state into the DB and return the full
+/// game_state for the frontend to rehydrate from.
+/// POST /saves/{save_id}/restore?session_id={session_id}
+///
+/// W2.3: This is the load-side counterpart to quick_save. It:
+///   1. Ends the current open combat encounter for `session_id`.
+///   2. Re-inserts the saved encounter + tokens.
+///   3. Returns the full `GameStateV2` so the frontend can rehydrate
+///      the combat and scene Zustand slices.
+#[derive(Debug, Deserialize)]
+pub struct RestoreQuery {
+    pub session_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RestoreResponse {
+    pub game_state: serde_json::Value,
+}
+
+pub async fn restore_save(
+    State(state): State<AppState>,
+    Path(save_id): Path<String>,
+    axum::extract::Query(q): axum::extract::Query<RestoreQuery>,
+) -> Result<Json<RestoreResponse>, AppError> {
+    let id = parse_save_id(&save_id)?;
+    let session_id = Uuid::parse_str(&q.session_id)
+        .map_err(|e| AppError::BadRequest(format!("invalid session_id: {e}")))?;
+    match restore_snapshot(state.db(), session_id, id).await? {
+        Some(gs) => {
+            let game_state = serde_json::to_value(&gs)
+                .map_err(|e| AppError::Internal(format!("serialize game_state: {e}")))?;
+            Ok(Json(RestoreResponse { game_state }))
+        }
+        None => Err(AppError::NotFound),
     }
 }
 

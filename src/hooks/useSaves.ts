@@ -15,12 +15,15 @@ import {
   fetchSessionMessages,
   fetchSessionSaves,
   quickSaveSession,
+  restoreSave,
   type SaveSummary,
   type SessionMessageWire,
   updateSaveById,
 } from '../api/saves';
 import type { ChatMessage, ChatRole, MessagePart } from '../state/chat';
+import type { SnapshotCombat } from '../state/combat';
 import type { PcData } from '../state/pc';
+import type { CurrentScene } from '../state/session';
 import { useStore } from '../state/useStore';
 
 const REHYDRATE_LIMIT = 20;
@@ -62,8 +65,11 @@ export function useSaves(): UseSavesResult {
   const setLastSaveError = useStore((s) => s.saves.setLastSaveError);
   const ensureSession = useStore((s) => s.session.ensureSession);
   const setActiveSession = useStore((s) => s.session.setActiveSession);
+  const setCurrentScene = useStore((s) => s.session.setCurrentScene);
   const setMessages = useStore((s) => s.chat.setMessages);
   const replaceFromDraft = useStore((s) => s.pc.replaceFromDraft);
+  const hydrateCombat = useStore((s) => s.combat.hydrate);
+  const endCombat = useStore((s) => s.combat.endCombat);
 
   const refresh = useCallback(async () => {
     const { sessionId } = ensureSession();
@@ -132,15 +138,19 @@ export function useSaves(): UseSavesResult {
    * Rehydrate the active session from a save row.
    *
    * Steps:
-   *   (a) Fetch the full save row.
-   *   (b) Fetch the last 20 messages for that session.
-   *   (c) Build the ChatMessage array from the wire messages.
-   *   (d) Perform all store mutations atomically (only after all fetches succeed):
-   *         setActiveSession(...), setMessages(...), replaceFromDraft(...).
-   *   (e) If the save's game_state carries a pc_snapshot, apply it.
+   *   (a) Fetch the full save row (for session_id).
+   *   (b) Call POST /saves/{id}/restore to restore combat DB state server-side
+   *       and receive the schema-v2 game_state.
+   *   (c) Fetch the last 20 messages for that session.
+   *   (d) Build the ChatMessage array from the wire messages.
+   *   (e) Perform all store mutations (only after all fetches succeed):
+   *         setActiveSession, setMessages, replaceFromDraft,
+   *         hydrateCombat (if combat present) or endCombat (if not),
+   *         setCurrentScene (if scene present).
+   *   (f) If the save's game_state carries a pc_snapshot, apply it.
    *
-   * NOTE: Combat rehydration is deferred to v2 - the V1 save envelope
-   * carries no combat snapshot data, so there is nothing to restore here.
+   * NOTE: Chat history rehydration is partial (last 20 renderable messages).
+   * Full tool-call rehydration and branching are deferred to a future milestone.
    *
    * IMPORTANT: All fallible fetches are performed BEFORE any store mutation.
    * This ensures that a fetch failure writes nothing to the store and leaves
@@ -149,13 +159,17 @@ export function useSaves(): UseSavesResult {
   const rehydrateFromSave = useCallback(
     async (saveId: string): Promise<RehydrateResult> => {
       try {
-        // (a) Fetch the full save row (provides session_id + game_state).
+        // (a) Fetch the full save row (provides session_id + raw game_state for pc_snapshot).
         const row = await fetchSaveById(saveId);
 
-        // (b) Fetch the last 20 messages for this session.
-        // fetchSessionMessages also slices client-side (the backend currently ignores
-        // ?limit=), but we apply the limit here too so the contract holds even if the
-        // fetch layer is swapped or mocked.
+        // (b) Call restore endpoint to rehydrate combat DB state server-side.
+        // Returns the schema-v2 game_state with combat + scene.
+        // We call this with the session_id from the save row.
+        const { campaignId } = ensureSession();
+        const restored = await restoreSave(saveId, row.session_id);
+        const restoredGs = restored.game_state as Record<string, unknown> | null | undefined;
+
+        // (c) Fetch the last 20 messages for this session.
         const allWireMessages = await fetchSessionMessages(row.session_id, {
           limit: REHYDRATE_LIMIT,
         });
@@ -164,14 +178,9 @@ export function useSaves(): UseSavesResult {
             ? allWireMessages.slice(-REHYDRATE_LIMIT)
             : allWireMessages;
 
-        // (c) Filter to renderable roles only, then assign positional frontend ids
-        // (stable within this single rehydration pass; the store does a full replace
-        // each time so positional ids are sufficient - they are not content-stable
-        // across separate loads if the filtered set changes).
-        // The backend ChatMessage enum also emits "assistant_with_tool_calls" and
-        // "tool_result" variants which the V1 chat UI (ChatRole in state/chat.ts)
-        // does not render. These are deliberately skipped during V1 rehydration;
-        // full tool-call rehydration is deferred to a future milestone.
+        // (d) Filter to renderable roles only, then assign positional frontend ids.
+        // "assistant_with_tool_calls" and "tool_result" variants are filtered out
+        // during V1 rehydration; full tool-call rehydration is deferred.
         const messages: ChatMessage[] = wireMessages
           .filter((wm) => RENDERABLE_ROLES.has(wm.role))
           .map((wm: SessionMessageWire, idx: number) => {
@@ -182,9 +191,6 @@ export function useSaves(): UseSavesResult {
                 .map((p) => p.text ?? '')
                 .join('') ??
               '';
-            // After the RENDERABLE_ROLES filter above, wm.role is guaranteed to be
-            // a valid ChatRole. The cast is necessary because TypeScript cannot
-            // narrow the type through a Set.has() guard on the filtered array.
             const msg: ChatMessage = {
               id: `rehydrated-${saveId}-${idx}`,
               role: wm.role as ChatRole,
@@ -215,18 +221,34 @@ export function useSaves(): UseSavesResult {
             return msg;
           });
 
-        // (d) All fetches succeeded - perform store mutations atomically.
-        // V1 assumption: the loaded session belongs to the currently-active campaign
-        // because the V1 save schema does not store a campaign_id. Cross-campaign
-        // save browsing would require the schema to carry a campaign_id field.
-        const { campaignId } = ensureSession();
+        // (e) All fetches succeeded - perform store mutations.
         setActiveSession(campaignId, row.session_id);
         setMessages(messages);
 
-        // (e) If the V1 save envelope carries a pc_snapshot, apply it.
-        // The V1 envelope does not include pc_snapshot, so this guard normally
-        // never fires. It is written defensively for forward-compatibility
-        // with future save envelope versions.
+        // Rehydrate combat slice from schema-v2 game_state.
+        const isV2 =
+          restoredGs != null &&
+          typeof restoredGs === 'object' &&
+          'schema_version' in restoredGs &&
+          restoredGs.schema_version === 2;
+        const savedCombat = isV2 ? (restoredGs?.combat as SnapshotCombat | null | undefined) : null;
+        if (savedCombat?.active) {
+          hydrateCombat(savedCombat);
+        } else {
+          endCombat();
+        }
+
+        // Rehydrate scene slice.
+        type SavedScene = { title: string; subtitle?: string | null; mode: string };
+        const savedScene = isV2 ? (restoredGs?.scene as SavedScene | null | undefined) : null;
+        if (savedScene?.title) {
+          const scene: CurrentScene = { name: savedScene.title, stepCounter: 0 };
+          setCurrentScene(scene);
+        } else {
+          setCurrentScene(null);
+        }
+
+        // (f) pc_snapshot (forward-compat; not present in v1 or v2 yet).
         const gameState = row.game_state as Record<string, unknown> | null | undefined;
         if (gameState && typeof gameState === 'object' && 'pc_snapshot' in gameState) {
           const snapshot = gameState.pc_snapshot;
@@ -242,7 +264,15 @@ export function useSaves(): UseSavesResult {
         return { ok: false, error: message };
       }
     },
-    [ensureSession, setActiveSession, setMessages, replaceFromDraft],
+    [
+      ensureSession,
+      setActiveSession,
+      setCurrentScene,
+      setMessages,
+      replaceFromDraft,
+      hydrateCombat,
+      endCombat,
+    ],
   );
 
   const deleteSave = useCallback(

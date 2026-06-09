@@ -30,6 +30,37 @@ export interface CombatToken {
 
 export const DEFAULT_SPEED_FT = 30;
 
+/**
+ * Schema-version 2 combat token shape from the backend game_state JSON.
+ * Field names match the Rust `SavedToken` struct (snake_case).
+ */
+export interface SnapshotToken {
+  id: string;
+  name: string;
+  hp: number;
+  max_hp: number;
+  ac: number;
+  x: number;
+  y: number;
+  conditions: string[];
+  resistances: string[];
+  immunities: string[];
+  vulnerabilities: string[];
+}
+
+/**
+ * Schema-version 2 combat snapshot from the backend game_state JSON.
+ * Mirrors the Rust `SavedCombat` struct.
+ */
+export interface SnapshotCombat {
+  active: boolean;
+  encounter_id: string;
+  round: number;
+  current_turn_id: string | null;
+  initiative: string[];
+  tokens: SnapshotToken[];
+}
+
 export interface CombatSlice {
   combat: {
     active: boolean;
@@ -48,6 +79,13 @@ export interface CombatSlice {
 
     startCombat: (encounterId: string, tokens: CombatToken[]) => void;
     endCombat: () => void;
+    /**
+     * Rehydrate the entire combat slice from a schema-version 2 snapshot.
+     * Maps `SnapshotToken` (snake_case backend fields) to `CombatToken`
+     * (camelCase frontend fields) and restores round/currentTurnId/initiative.
+     * Used by the Load flow in useSaves.ts. [W2.3]
+     */
+    hydrate: (snapshot: SnapshotCombat) => void;
     applyDamage: (tokenId: string, amount: number) => void;
     applyHealing: (tokenId: string, amount: number) => void;
     addCondition: (tokenId: string, condition: string) => void;
@@ -125,6 +163,34 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           ...econReset(tokens[0]?.speed, tokens[0]?.conditions),
         },
       })),
+
+    hydrate: (snapshot) => {
+      const tokens: CombatToken[] = snapshot.tokens.map((t) => ({
+        id: t.id,
+        name: t.name,
+        hp: t.hp,
+        maxHp: t.max_hp,
+        ac: t.ac,
+        x: t.x,
+        y: t.y,
+        conditions: t.conditions,
+        isActive: t.id === snapshot.current_turn_id,
+      }));
+      const activeToken = tokens.find((t) => t.id === snapshot.current_turn_id);
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          active: snapshot.active,
+          encounterId: snapshot.encounter_id,
+          tokens,
+          initiativeOrder: snapshot.initiative,
+          currentTurnId: snapshot.current_turn_id,
+          round: snapshot.round,
+          aoeTemplates: [],
+          ...econReset(activeToken?.speed, activeToken?.conditions),
+        },
+      }));
+    },
 
     endCombat: () =>
       set((s) => ({

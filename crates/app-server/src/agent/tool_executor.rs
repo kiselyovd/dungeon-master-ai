@@ -932,16 +932,71 @@ async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -
         .get("label")
         .and_then(|v| v.as_str())
         .unwrap_or("Quick save");
+
+    // Build a real game_state snapshot from DB (schema_version 2).
+    let game_state = match crate::db::build_save_game_state(pool, session_id, label).await {
+        Ok(gs) => gs,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to build game_state in execute_quick_save");
+            return (json!({ "error": e.to_string() }), true);
+        }
+    };
+
+    // Derive a human-readable summary from the game_state for the saves list.
+    let (title, summary, tag) = {
+        let combat = game_state.get("combat");
+        let scene = game_state.get("scene");
+        let is_combat = combat
+            .and_then(|c| c.as_object())
+            .map(|o| o.get("active").and_then(|v| v.as_bool()).unwrap_or(false))
+            .unwrap_or(false);
+        let scene_title = scene
+            .and_then(|s| s.as_object())
+            .and_then(|o| o.get("title"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let round = combat
+            .and_then(|c| c.as_object())
+            .and_then(|o| o.get("round"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(1);
+
+        if is_combat {
+            let summary = if scene_title.is_empty() {
+                format!("Combat round {round}")
+            } else {
+                format!("Combat in {scene_title}, round {round}")
+            };
+            (label.to_string(), summary, "combat")
+        } else if !scene_title.is_empty() {
+            let summary = format!("Scene: {scene_title}");
+            (label.to_string(), summary, "exploration")
+        } else {
+            (label.to_string(), String::new(), "exploration")
+        }
+    };
+
     let save_id = uuid::Uuid::new_v4();
     let now = chrono::Utc::now().to_rfc3339();
-    // Linear save: stores a minimal state snapshot. The full save schema lands in M5.
+    let state_json = match serde_json::to_string(&game_state) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to serialize game_state in execute_quick_save");
+            return (json!({ "error": e.to_string() }), true);
+        }
+    };
+
     if let Err(e) = sqlx::query(
-        "INSERT INTO snapshots (id, session_id, turn_number, created_at, game_state, player_action) VALUES (?1, ?2, 0, ?3, ?4, NULL)"
+        "INSERT INTO snapshots (id, session_id, turn_number, created_at, game_state, player_action, kind, title, summary, tag) \
+         VALUES (?1, ?2, 0, ?3, ?4, NULL, 'auto', ?5, ?6, ?7)",
     )
     .bind(save_id.to_string())
     .bind(session_id.to_string())
     .bind(now)
-    .bind(serde_json::json!({ "schema_version": 1, "state": { "label": label } }).to_string())
+    .bind(state_json)
+    .bind(title)
+    .bind(summary)
+    .bind(tag)
     .execute(pool)
     .await
     {

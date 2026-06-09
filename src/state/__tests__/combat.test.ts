@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { chebyshevFt, DEFAULT_SPEED_FT } from '../combat';
+import { chebyshevFt, DEFAULT_SPEED_FT, type SnapshotCombat } from '../combat';
 import { useStore } from '../useStore';
 
 beforeEach(() => {
@@ -502,6 +502,94 @@ describe('combat slice', () => {
     it('returns correct value for mixed deltas', () => {
       // dx=3, dy=5 -> max=5 -> 25 ft
       expect(chebyshevFt(0, 0, 3, 5)).toBe(25);
+    });
+  });
+
+  // W2.3 - combat.hydrate from snapshot
+  describe('hydrate', () => {
+    it('sets active=true and restores tokens/round/currentTurnId/initiativeOrder from snapshot', () => {
+      const snapshot: SnapshotCombat = {
+        active: true,
+        encounter_id: 'enc-snap-1',
+        round: 3,
+        current_turn_id: 'tok-b',
+        initiative: ['tok-a', 'tok-b'],
+        tokens: [
+          {
+            id: 'tok-a',
+            name: 'Paladin',
+            hp: 20,
+            max_hp: 30,
+            ac: 18,
+            x: 1,
+            y: 2,
+            conditions: [],
+            resistances: ['radiant'],
+            immunities: [],
+            vulnerabilities: [],
+          },
+          {
+            id: 'tok-b',
+            name: 'Orc',
+            hp: 8,
+            max_hp: 15,
+            ac: 12,
+            x: 4,
+            y: 5,
+            conditions: ['frightened'],
+            resistances: [],
+            immunities: [],
+            vulnerabilities: ['radiant'],
+          },
+        ],
+      };
+      useStore.getState().combat.hydrate(snapshot);
+      const state = useStore.getState().combat;
+
+      expect(state.active).toBe(true);
+      expect(state.encounterId).toBe('enc-snap-1');
+      expect(state.round).toBe(3);
+      expect(state.currentTurnId).toBe('tok-b');
+      expect(state.initiativeOrder).toEqual(['tok-a', 'tok-b']);
+      expect(state.tokens).toHaveLength(2);
+
+      const tokA = state.tokens.find((t) => t.id === 'tok-a');
+      expect(tokA?.name).toBe('Paladin');
+      expect(tokA?.hp).toBe(20);
+      expect(tokA?.maxHp).toBe(30);
+      expect(tokA?.ac).toBe(18);
+      expect(tokA?.x).toBe(1);
+      expect(tokA?.y).toBe(2);
+      expect(tokA?.isActive).toBe(false);
+
+      const tokB = state.tokens.find((t) => t.id === 'tok-b');
+      expect(tokB?.hp).toBe(8);
+      expect(tokB?.conditions).toContain('frightened');
+      expect(tokB?.isActive).toBe(true);
+    });
+
+    it('resets aoeTemplates on hydrate', () => {
+      // Add a template first, then hydrate - templates should be cleared.
+      useStore.getState().combat.addAoeTemplate({
+        id: 'aoe-old',
+        shape: 'sphere',
+        originX: 0,
+        originY: 0,
+        sizeInFt: 20,
+        school: 'evocation',
+        rotateDeg: 0,
+        expiresAt: Date.now() + 5000,
+      });
+      const snapshot: SnapshotCombat = {
+        active: true,
+        encounter_id: 'enc-snap-2',
+        round: 1,
+        current_turn_id: null,
+        initiative: [],
+        tokens: [],
+      };
+      useStore.getState().combat.hydrate(snapshot);
+      expect(useStore.getState().combat.aoeTemplates).toHaveLength(0);
     });
   });
 });
