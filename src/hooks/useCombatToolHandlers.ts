@@ -62,16 +62,54 @@ export const combatToolHandlers: Record<string, CombatToolHandler | undefined> =
       });
     }
 
-    // Lay combatants out left to right (8 per row) and mark the first as the
-    // active turn so the initiative tracker + board snapshot agree on round 1.
+    // Determine initiative order: use backend-sorted result.ordered if present,
+    // otherwise fall back to insertion order (older backend compatibility).
+    let orderedIds: string[];
+    const backendOrdered = Array.isArray(result.ordered)
+      ? (result.ordered as Array<{ name: string; roll: number }>)
+      : null;
+
+    if (backendOrdered && backendOrdered.length > 0) {
+      // Map each backend-ordered name to the created token's id.
+      // Names that appear in ordered but not in tokens are skipped (defensive).
+      const nameToId = new Map(tokens.map((t) => [t.name, t.id]));
+      orderedIds = backendOrdered
+        .map((entry) => nameToId.get(entry.name))
+        .filter((id): id is string => id !== undefined);
+      // Any tokens not covered by ordered (e.g. PC injected locally) go at end.
+      const coveredIds = new Set(orderedIds);
+      for (const t of tokens) {
+        if (!coveredIds.has(t.id)) {
+          orderedIds.push(t.id);
+        }
+      }
+    } else {
+      orderedIds = tokens.map((t) => t.id);
+    }
+
+    // Lay combatants out left to right (8 per row) in initiative order.
+    // Mark the first combatant in the sorted order as the active turn.
+    const firstId = orderedIds[0];
     tokens.forEach((t, i) => {
       t.x = i % 8;
       t.y = Math.floor(i / 8);
-      t.isActive = i === 0;
+      t.isActive = t.id === firstId;
+    });
+
+    // Reorder the tokens array to match initiative order so the grid layout
+    // also reflects sorted position (cosmetic, consistent with tracker).
+    const tokenById = new Map(tokens.map((t) => [t.id, t]));
+    const sortedTokens = orderedIds
+      .map((id) => tokenById.get(id))
+      .filter((t): t is CombatToken => t !== undefined);
+    // Assign positions in sorted order.
+    sortedTokens.forEach((t, i) => {
+      t.x = i % 8;
+      t.y = Math.floor(i / 8);
     });
 
     const encounterId = String(result.encounter_id ?? crypto.randomUUID());
-    store.getState().combat.startCombat(encounterId, tokens);
+    store.getState().combat.startCombat(encounterId, sortedTokens);
   },
 
   end_combat: (_args, _result, store) => {
