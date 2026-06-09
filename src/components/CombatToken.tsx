@@ -25,6 +25,8 @@ interface Props {
   /** Viewport scale; screen-px drag deltas divide by this to reach world px. */
   zoom?: number;
   onMove?: (id: string, x: number, y: number) => void;
+  /** The id of the token whose turn it currently is. Used to gate dragging. */
+  currentTurnId?: string | null | undefined;
 }
 
 interface DragSession {
@@ -69,7 +71,7 @@ function conditionColor(condition: string): string {
  * flight. Without `onMove`, no handlers attach and the token stays static
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
-export function CombatToken({ token, cellSize, zoom = 1, onMove }: Props) {
+export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }: Props) {
   const pcName = useStore((s) => s.pc.name);
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
@@ -185,7 +187,8 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove }: Props) {
 
   const currentLeft = isDragging && liveLeft !== null ? liveLeft : originLeft;
   const currentTop = isDragging && liveTop !== null ? liveTop : originTop;
-  const draggable = onMove !== undefined;
+  // A token is draggable only when it is the active PC token on its turn and alive.
+  const draggable = onMove !== undefined && isPcToken && token.id === currentTurnId && !isDead;
 
   return (
     <>

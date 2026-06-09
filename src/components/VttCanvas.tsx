@@ -45,7 +45,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
 
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
-  const moveToken = useStore((s) => s.combat.moveToken);
+  const tryMoveToken = useStore((s) => s.combat.tryMoveToken);
+  const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
   const hasMap = mapImageUrl !== null;
@@ -372,7 +373,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
               zoom={zoom}
               widthCells={effectiveWidthCells}
               heightCells={effectiveHeightCells}
-              onMoveToken={moveToken}
+              onMoveToken={tryMoveToken}
+              currentTurnId={currentTurnId}
               aoeTemplates={aoeTemplates}
             />
           )}

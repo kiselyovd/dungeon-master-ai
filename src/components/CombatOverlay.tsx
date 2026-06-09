@@ -14,6 +14,8 @@ interface Props {
   heightCells: number;
   onMoveToken?: (id: string, x: number, y: number) => void;
   aoeTemplates?: AoeTemplateEntry[];
+  /** The id of the token whose turn it currently is. Passed to each CombatToken to gate dragging. */
+  currentTurnId?: string | null;
 }
 
 /**
@@ -35,6 +37,7 @@ export function CombatOverlay({
   heightCells,
   onMoveToken,
   aoeTemplates = [],
+  currentTurnId,
 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
@@ -81,6 +84,7 @@ export function CombatOverlay({
           token={token}
           cellSize={cellSize}
           zoom={zoom}
+          currentTurnId={currentTurnId}
           {...(onMoveToken ? { onMove: onMoveToken } : {})}
         />
       ))}
