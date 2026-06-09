@@ -340,6 +340,8 @@ impl AgentOrchestrator {
                     tc,
                     &self.pool,
                     self.image_provider.clone(),
+                    self.retriever.as_deref(),
+                    &self.config.embedding_model,
                     req.campaign_id,
                     req.session_id,
                 )

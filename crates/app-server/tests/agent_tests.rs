@@ -307,7 +307,7 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -337,7 +337,7 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -533,6 +533,8 @@ async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
         &tc,
         &pool,
         Some(provider),
+        None,
+        "",
         uuid::Uuid::new_v4(),
         uuid::Uuid::new_v4(),
     )
@@ -690,8 +692,47 @@ async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() 
         name: "generate_illustration".into(),
         args: serde_json::json!({ "prompt": "anything" }),
     };
-    let (result, is_error) =
-        execute_tool(&tc, &pool, None, uuid::Uuid::new_v4(), uuid::Uuid::new_v4()).await;
+    let (result, is_error) = execute_tool(
+        &tc,
+        &pool,
+        None,
+        None,
+        "",
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    )
+    .await;
     assert!(is_error);
     assert!(result["error"].is_string());
+}
+
+#[tokio::test]
+async fn execute_set_scene_persists_and_is_retrievable() {
+    use app_server::db::scene_latest;
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let campaign_id = uuid::Uuid::new_v4();
+    let session_id = uuid::Uuid::new_v4();
+
+    let tc = app_llm::ToolCall {
+        id: "tc-scene-1".into(),
+        name: "set_scene".into(),
+        args: serde_json::json!({
+            "title": "The Dragon's Lair",
+            "subtitle": "A cave of fire",
+            "mode": "combat"
+        }),
+    };
+
+    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "execute_set_scene failed: {val}");
+    assert_eq!(val["title"].as_str(), Some("The Dragon's Lair"));
+    assert_eq!(val["mode"].as_str(), Some("combat"));
+
+    // Verify a row was written.
+    let scene = scene_latest(&pool, campaign_id).await.unwrap().unwrap();
+    assert_eq!(scene.title, "The Dragon's Lair");
+    assert_eq!(scene.subtitle.as_deref(), Some("A cave of fire"));
+    assert_eq!(scene.mode, "combat");
 }

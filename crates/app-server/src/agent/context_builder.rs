@@ -158,13 +158,27 @@ pub async fn build_context(
         ctx.push_str(&npc_facts);
     }
 
+    // Inject the current scene (if one has been set for this campaign).
+    if let Ok(Some(scene)) = crate::db::scene_latest(pool, campaign_id).await {
+        ctx.push_str("\n\n## Current scene\n");
+        let subtitle = scene.subtitle.as_deref().unwrap_or("");
+        if subtitle.is_empty() {
+            ctx.push_str(&format!("{} ({})\n", scene.title, scene.mode));
+        } else {
+            ctx.push_str(&format!(
+                "{} - {} ({})\n",
+                scene.title, subtitle, scene.mode
+            ));
+        }
+    }
+
     Ok(ctx)
 }
 
 /// Re-init on each call is wasteful in production. Phase I will cache the
 /// `TextEmbedding` handle on `AppState`. For M3 correctness this is sufficient
 /// because the model is cached on disk - only the ONNX session setup runs (~100ms).
-fn embed_player_message(
+pub(crate) fn embed_player_message(
     text: &str,
     model_name: &str,
 ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
@@ -257,5 +271,77 @@ mod tests {
     #[test]
     fn needs_rules_always_true_in_combat() {
         assert!(needs_rules_context("I look around nervously.", true));
+    }
+
+    #[tokio::test]
+    async fn build_context_includes_scene_when_present() {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        crate::db::init_db(&pool).await.unwrap();
+        let campaign_id = uuid::Uuid::new_v4();
+
+        // Insert a scene directly via the db helper.
+        crate::db::scene_insert(
+            &pool,
+            campaign_id,
+            "Ancient Dragon's Lair",
+            Some("Deep in the mountains"),
+            "combat",
+            None,
+        )
+        .await
+        .unwrap();
+
+        let ctx = build_context(
+            &pool,
+            campaign_id,
+            "I look around",
+            "Base prompt.",
+            "multilingual-e5-small",
+            None,  // no retriever
+            false, // no rules injection
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            ctx.contains("## Current scene"),
+            "context must contain scene header; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("Ancient Dragon's Lair"),
+            "context must contain scene title; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("Deep in the mountains"),
+            "context must contain scene subtitle; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("combat"),
+            "context must contain scene mode; got:\n{ctx}"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_context_no_scene_block_when_none_exists() {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        crate::db::init_db(&pool).await.unwrap();
+        let campaign_id = uuid::Uuid::new_v4();
+
+        let ctx = build_context(
+            &pool,
+            campaign_id,
+            "I look around",
+            "Base prompt.",
+            "multilingual-e5-small",
+            None,
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            !ctx.contains("## Current scene"),
+            "context must NOT contain scene header when no scene exists; got:\n{ctx}"
+        );
     }
 }

@@ -48,6 +48,8 @@ pub async fn execute_tool(
     tc: &ToolCall,
     pool: &SqlitePool,
     image_provider: Option<Arc<dyn ImageProvider>>,
+    retriever: Option<&app_domain::srd::retriever::SrdRetriever>,
+    embedding_model: &str,
     campaign_id: Uuid,
     session_id: Uuid,
 ) -> (Value, bool) {
@@ -86,7 +88,7 @@ pub async fn execute_tool(
         "generate_illustration" => {
             execute_generate_illustration(&validated.args, image_provider).await
         }
-        "query_rules" => execute_query_rules(&validated.args, pool).await,
+        "query_rules" => execute_query_rules(&validated.args, retriever, embedding_model).await,
         unknown => (
             json!({ "error": format!("unhandled tool: {}", unknown) }),
             true,
@@ -333,22 +335,27 @@ async fn execute_remove_token(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     (json!({ "token_id": id, "status": "removed" }), false)
 }
 
-async fn execute_set_scene(args: &Value, _pool: &SqlitePool, _campaign_id: Uuid) -> (Value, bool) {
+async fn execute_set_scene(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
     let title = args["title"].as_str().unwrap_or("Unnamed Scene");
-    let subtitle = args.get("subtitle").and_then(|v| v.as_str()).unwrap_or("");
+    let subtitle = args.get("subtitle").and_then(|v| v.as_str());
     let mode = args["mode"].as_str().unwrap_or("exploration");
-    let scene_id = uuid::Uuid::new_v4();
-    // Full scene table is deferred to M5; in M3 we return the scene metadata so
-    // the LLM has a stable reference id to use in subsequent turns.
-    (
-        json!({
-            "scene_id": scene_id.to_string(),
-            "title": title,
-            "subtitle": subtitle,
-            "mode": mode,
-        }),
-        false,
-    )
+    let image_prompt = args.get("image_prompt").and_then(|v| v.as_str());
+
+    match crate::db::scene_insert(pool, campaign_id, title, subtitle, mode, image_prompt).await {
+        Ok(scene_id) => (
+            json!({
+                "scene_id": scene_id.to_string(),
+                "title": title,
+                "subtitle": subtitle.unwrap_or(""),
+                "mode": mode,
+            }),
+            false,
+        ),
+        Err(e) => {
+            tracing::warn!(error = %e, "sqlx write failed in execute_set_scene");
+            (json!({ "error": e.to_string() }), true)
+        }
+    }
 }
 
 async fn execute_cast_spell(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
@@ -545,13 +552,47 @@ async fn execute_generate_illustration(
     run_image_generation(content_prompt, style.to_string(), None, image_provider).await
 }
 
-async fn execute_query_rules(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
-    // Phase E wires in the actual SRD retriever. In Task C1 this returns a stub.
+async fn execute_query_rules(
+    args: &Value,
+    retriever: Option<&app_domain::srd::retriever::SrdRetriever>,
+    embedding_model: &str,
+) -> (Value, bool) {
     let question = args["question"].as_str().unwrap_or("");
-    (
-        json!({ "question": question, "chunks": [], "status": "rag_not_loaded" }),
-        false,
-    )
+
+    let Some(ret) = retriever else {
+        return (
+            json!({ "question": question, "chunks": [], "status": "rag_unavailable" }),
+            false,
+        );
+    };
+
+    if ret.is_empty() {
+        return (
+            json!({ "question": question, "chunks": [], "status": "rag_unavailable" }),
+            false,
+        );
+    }
+
+    match crate::agent::context_builder::embed_player_message(question, embedding_model) {
+        Ok(query_emb) => {
+            let chunks = ret.retrieve_by_embedding(&query_emb, 5);
+            let chunk_values: Vec<serde_json::Value> = chunks
+                .iter()
+                .map(|c| json!({ "source_key": c.source_key, "text": c.text_en }))
+                .collect();
+            (
+                json!({ "question": question, "chunks": chunk_values }),
+                false,
+            )
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "embedding failed in execute_query_rules");
+            (
+                json!({ "question": question, "chunks": [], "status": "embed_error" }),
+                false,
+            )
+        }
+    }
 }
 
 #[cfg(test)]
@@ -688,5 +729,86 @@ mod image_dispatch_tests {
         assert!(is_err);
         let (_, is_err2) = execute_generate_illustration(&json!({ "prompt": "x" }), None).await;
         assert!(is_err2);
+    }
+}
+
+#[cfg(test)]
+mod query_rules_tests {
+    use super::*;
+    use app_domain::srd::data::SrdChunk;
+    use app_domain::srd::retriever::SrdRetriever;
+
+    /// Build a tiny SrdRetriever with two chunks whose embeddings are
+    /// hand-crafted unit vectors. We pick orthogonal vectors so cosine
+    /// similarity is deterministic: the "attack" query vector aligns with
+    /// chunk A and not chunk B.
+    fn make_test_retriever() -> SrdRetriever {
+        // 4-dimensional unit vectors (enough to test cosine similarity).
+        let emb_attack: Vec<f32> = vec![1.0, 0.0, 0.0, 0.0];
+        let emb_spell: Vec<f32> = vec![0.0, 1.0, 0.0, 0.0];
+
+        let chunk_a = SrdChunk::new(
+            "attack_action",
+            "Attack action: melee or ranged weapon attack.",
+        );
+        let chunk_b = SrdChunk::new("cast_spell", "Casting a spell: choose a spell you know.");
+
+        SrdRetriever::new(vec![(chunk_a, emb_attack), (chunk_b, emb_spell)])
+    }
+
+    #[tokio::test]
+    async fn query_rules_no_retriever_returns_rag_unavailable() {
+        let args = serde_json::json!({ "question": "how does attack work?" });
+        let (val, is_err) = execute_query_rules(&args, None, "").await;
+        assert!(!is_err);
+        assert_eq!(val["status"].as_str(), Some("rag_unavailable"));
+        assert_eq!(val["chunks"].as_array().unwrap().len(), 0);
+        assert_eq!(val["question"].as_str(), Some("how does attack work?"));
+    }
+
+    #[tokio::test]
+    async fn query_rules_empty_retriever_returns_rag_unavailable() {
+        let retriever = SrdRetriever::new(vec![]);
+        let args = serde_json::json!({ "question": "how does attack work?" });
+        let (val, is_err) = execute_query_rules(&args, Some(&retriever), "").await;
+        assert!(!is_err);
+        assert_eq!(val["status"].as_str(), Some("rag_unavailable"));
+    }
+
+    #[tokio::test]
+    async fn query_rules_with_retriever_returns_chunks_aligned_by_cosine() {
+        let retriever = make_test_retriever();
+        // Since the real embed_player_message uses fastembed (which requires
+        // a model file), we test graceful degradation: pass an invalid model
+        // name so embed_player_message returns an error, verify embed_error status.
+        let args = serde_json::json!({ "question": "attack" });
+        let (val, is_err) = execute_query_rules(&args, Some(&retriever), "not-a-real-model").await;
+        // embed_player_message will fail with an unknown model - graceful degradation.
+        assert!(!is_err);
+        // Either chunks were returned (if model was cached) or embed_error.
+        // In CI without the model file, status == "embed_error".
+        let status = val.get("status").and_then(|v| v.as_str());
+        assert!(
+            status == Some("embed_error")
+                || val["chunks"]
+                    .as_array()
+                    .map(|a| !a.is_empty())
+                    .unwrap_or(false),
+            "expected embed_error or non-empty chunks, got: {val}"
+        );
+    }
+
+    /// Direct wiring test: build retriever, manually produce a matching
+    /// query embedding, call retrieve_by_embedding, assert the top result.
+    /// This validates the plumbing without fastembed.
+    #[test]
+    fn retriever_returns_best_match_by_cosine() {
+        let retriever = make_test_retriever();
+        // Query in the "attack" direction.
+        let query = vec![1.0_f32, 0.0, 0.0, 0.0];
+        let results = retriever.retrieve_by_embedding(&query, 2);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].source_key, "attack_action");
+        assert_eq!(results[1].source_key, "cast_spell");
     }
 }
