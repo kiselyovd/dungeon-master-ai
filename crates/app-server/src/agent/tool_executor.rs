@@ -544,14 +544,321 @@ async fn execute_set_scene(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -
     }
 }
 
-async fn execute_cast_spell(args: &Value, _pool: &SqlitePool) -> (Value, bool) {
-    let spell = args["spell"].as_str().unwrap_or("unknown");
-    // Full spell resolution is delegated to the domain resolver in a later phase.
-    // For Task C1 we acknowledge the call so the LLM can continue narration.
+/// Detect whether a spell is a healing spell based on its description text
+/// (the compendium has no explicit `healing` field - we identify by description).
+fn spell_is_healing(description: &str) -> bool {
+    let lower = description.to_lowercase();
+    lower.contains("regains") && lower.contains("hit point")
+        || lower.contains("restores") && lower.contains("hit point")
+        || lower.contains("regain hit points")
+        || lower.contains("restore hit points")
+}
+
+/// Parse dice string like "1d8" and roll it with optional flat bonus.
+/// Returns (total, rolls_vec).
+fn roll_spell_dice(
+    dice_str: &str,
+    bonus: i32,
+    rng: &mut app_domain::rng::SeededRng,
+) -> (i32, Vec<i32>) {
+    let expr = parse_dice_expr(dice_str, bonus);
+    let detail = app_domain::dice::roll_expr_detailed(&expr, rng);
+    (detail.total, detail.rolls)
+}
+
+async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+    use app_domain::combat::damage::compute_effective_damage;
+    use app_domain::compendium::compendium;
+    use app_domain::rng::SeededRng;
+    use sqlx::Row;
+
+    let spell_key = args["spell"].as_str().unwrap_or("unknown");
+
+    // 1. Look up spell in compendium - match by id or name (case-insensitive).
+    let comp = compendium();
+    let spell = comp.spells.iter().find(|s| {
+        s.id.eq_ignore_ascii_case(spell_key) || s.name_en.eq_ignore_ascii_case(spell_key)
+    });
+
+    let Some(spell) = spell else {
+        return (json!({ "spell": spell_key, "status": "not_in_srd" }), false);
+    };
+
+    let spell_name = spell.name_en.clone();
+    let spell_id = spell.id.clone();
+    let spell_level = spell.level;
+
+    // 2. Determine spell kind.
+    let is_healing = spell_is_healing(&spell.description_en);
+    let has_damage = spell.damage.is_some();
+
+    // Collect targets from args (optional array of token_ids or objects).
+    let targets_val = args.get("targets").and_then(|v| v.as_array());
+
+    let mut rng = SeededRng::new_random();
+
+    // Optional save DC from args (for save-for-half spells).
+    let save_dc = args
+        .get("save_dc")
+        .and_then(|v| v.as_i64())
+        .map(|v| v as i32);
+
+    // 3a. DAMAGE spell path.
+    if has_damage {
+        let dmg_info = spell.damage.as_ref().unwrap();
+        let dice_str = &dmg_info.dice;
+        let damage_type_str = dmg_info.damage_type.to_lowercase();
+
+        // Roll damage once (shared roll for AoE; each target applies separately).
+        let (raw_damage, rolls) = roll_spell_dice(dice_str, 0, &mut rng);
+
+        let save_config = spell.save.as_ref();
+        let half_on_success = save_config.map(|s| s.half_on_success).unwrap_or(false);
+
+        // If there are targets, resolve damage for each.
+        let mut target_results: Vec<Value> = Vec::new();
+
+        if let Some(targets) = targets_val {
+            for target in targets {
+                // Accept either a plain string token_id or an object { token_id, save_bonus? }.
+                let token_id = target
+                    .as_str()
+                    .or_else(|| target.get("token_id").and_then(|v| v.as_str()))
+                    .unwrap_or_default();
+                let save_bonus = target
+                    .get("save_bonus")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0) as i32;
+
+                let row = sqlx::query(
+                    "SELECT current_hp, max_hp, resistances, immunities, vulnerabilities \
+                     FROM combat_tokens WHERE id = ?1",
+                )
+                .bind(token_id)
+                .fetch_optional(pool)
+                .await;
+
+                let Ok(Some(r)) = row else {
+                    target_results.push(json!({
+                        "token_id": token_id,
+                        "error": "token not found"
+                    }));
+                    continue;
+                };
+
+                let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
+                let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
+                let resistances: Option<String> = r.try_get("resistances").ok().flatten();
+                let immunities: Option<String> = r.try_get("immunities").ok().flatten();
+                let vulnerabilities: Option<String> = r.try_get("vulnerabilities").ok().flatten();
+
+                let resist = build_damage_resistance(
+                    resistances.as_deref(),
+                    immunities.as_deref(),
+                    vulnerabilities.as_deref(),
+                );
+
+                // Determine effective raw (before resistance) - handle save-for-half.
+                let raw_for_target = if half_on_success {
+                    if let Some(dc) = save_dc {
+                        // Roll save: d20 + save_bonus vs DC.
+                        let save_roll = {
+                            let d20 = parse_dice_expr("1d20", save_bonus);
+                            app_domain::dice::roll_expr(&d20, &mut rng)
+                        };
+                        if save_roll >= dc {
+                            raw_damage / 2
+                        } else {
+                            raw_damage
+                        }
+                    } else {
+                        raw_damage
+                    }
+                } else {
+                    raw_damage
+                };
+
+                // Apply resistance/immunity/vulnerability.
+                let effective = if let Some(dt) = parse_damage_type(&damage_type_str) {
+                    compute_effective_damage(raw_for_target, dt, &resist)
+                } else {
+                    raw_for_target
+                };
+
+                let new_hp = (current_hp - effective).max(0);
+                _ = max_hp; // read above, satisfies completeness
+
+                if let Err(e) =
+                    sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
+                        .bind(new_hp)
+                        .bind(token_id)
+                        .execute(pool)
+                        .await
+                {
+                    tracing::warn!(error = %e, "sqlx write failed in execute_cast_spell");
+                    target_results.push(json!({
+                        "token_id": token_id,
+                        "error": e.to_string()
+                    }));
+                    continue;
+                }
+
+                target_results.push(json!({
+                    "token_id": token_id,
+                    "raw_damage": raw_for_target,
+                    "effective_damage": effective,
+                    "new_hp": new_hp,
+                }));
+            }
+        }
+
+        return (
+            json!({
+                "spell": spell_id,
+                "spell_name": spell_name,
+                "level": spell_level,
+                "status": "resolved",
+                "damage_type": damage_type_str,
+                "dice": dice_str,
+                "rolls": rolls,
+                "raw_damage": raw_damage,
+                "save_dc": save_dc,
+                "targets": target_results,
+                "slots_tracked": false,
+            }),
+            false,
+        );
+    }
+
+    // 3b. HEALING spell path.
+    if is_healing {
+        // Extract healing dice from description (best-effort: parse NdX pattern).
+        // Compendium healing spells: cure-wounds=1d8, healing-word=1d4, prayer-of-healing=2d8.
+        // We search the description for the first dice expression.
+        let heal_dice = extract_dice_from_description(&spell.description_en)
+            .unwrap_or_else(|| "1d4".to_string());
+        // Bonus from caster's spellcasting modifier (optional, defaults 0).
+        let spell_mod = args
+            .get("spell_modifier")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+        let (heal_amount, rolls) = roll_spell_dice(&heal_dice, spell_mod, &mut rng);
+
+        let mut target_results: Vec<Value> = Vec::new();
+
+        if let Some(targets) = targets_val {
+            for target in targets {
+                let token_id = target
+                    .as_str()
+                    .or_else(|| target.get("token_id").and_then(|v| v.as_str()))
+                    .unwrap_or_default();
+
+                let row = sqlx::query("SELECT current_hp, max_hp FROM combat_tokens WHERE id = ?1")
+                    .bind(token_id)
+                    .fetch_optional(pool)
+                    .await;
+
+                let Ok(Some(r)) = row else {
+                    target_results.push(json!({
+                        "token_id": token_id,
+                        "error": "token not found"
+                    }));
+                    continue;
+                };
+
+                let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
+                let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
+                let new_hp = (current_hp + heal_amount).min(max_hp);
+
+                if let Err(e) =
+                    sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
+                        .bind(new_hp)
+                        .bind(token_id)
+                        .execute(pool)
+                        .await
+                {
+                    tracing::warn!(error = %e, "sqlx write failed in execute_cast_spell healing");
+                    target_results.push(json!({
+                        "token_id": token_id,
+                        "error": e.to_string()
+                    }));
+                    continue;
+                }
+
+                target_results.push(json!({
+                    "token_id": token_id,
+                    "healing": heal_amount,
+                    "new_hp": new_hp,
+                }));
+            }
+        }
+
+        return (
+            json!({
+                "spell": spell_id,
+                "spell_name": spell_name,
+                "level": spell_level,
+                "status": "resolved",
+                "kind": "healing",
+                "dice": heal_dice,
+                "rolls": rolls,
+                "healing": heal_amount,
+                "targets": target_results,
+                "slots_tracked": false,
+            }),
+            false,
+        );
+    }
+
+    // 3c. Narrative-only spell (no mechanical data in compendium - e.g. magic-missile, buffs).
     (
-        json!({ "spell": spell, "status": "cast", "result": "see narration" }),
+        json!({
+            "spell": spell_id,
+            "spell_name": spell_name,
+            "level": spell_level,
+            "status": "resolved",
+            "note": "narrative-only (no mechanical data in SRD set)",
+            "slots_tracked": false,
+        }),
         false,
     )
+}
+
+/// Extract the first dice expression (e.g. "1d8", "2d8") from a description string.
+/// Used to parse healing dice from the spell's English description when there is no
+/// explicit `damage` field (healing spells have `damage: null` in the compendium).
+fn extract_dice_from_description(desc: &str) -> Option<String> {
+    // Find first occurrence of NdX or dX pattern.
+    let lower = desc.to_lowercase();
+    let bytes = lower.as_bytes();
+    for i in 0..bytes.len() {
+        if bytes[i] == b'd' {
+            // Check preceding digits for count.
+            let count_start = bytes[..i]
+                .iter()
+                .rposition(|&b| !b.is_ascii_digit())
+                .map(|p| p + 1)
+                .unwrap_or(0);
+            let count_str = &lower[count_start..i];
+
+            // Require at least one digit after 'd'.
+            let die_start = i + 1;
+            if die_start >= lower.len() {
+                continue;
+            }
+            let die_end = lower[die_start..]
+                .find(|c: char| !c.is_ascii_digit())
+                .map(|p| die_start + p)
+                .unwrap_or(lower.len());
+            let die_str = &lower[die_start..die_end];
+            if die_str.is_empty() {
+                continue;
+            }
+            let count: u32 = count_str.parse().unwrap_or(1).max(1);
+            return Some(format!("{count}d{die_str}"));
+        }
+    }
+    None
 }
 
 async fn execute_remember_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
@@ -1113,5 +1420,285 @@ mod start_combat_tests {
         let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
         assert!(is_err, "must error when initiative_entries missing");
         assert!(val["error"].as_str().is_some());
+    }
+}
+
+#[cfg(test)]
+mod cast_spell_tests {
+    use super::*;
+
+    async fn make_pool() -> SqlitePool {
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("in-memory db");
+        crate::db::init_db(&pool).await.expect("migrate");
+        pool
+    }
+
+    /// Insert a combat encounter then a token, return the token_id.
+    async fn seed_encounter_and_token(
+        pool: &SqlitePool,
+        token_id: &str,
+        hp: i32,
+        max_hp: i32,
+        resistances: Option<&str>,
+    ) {
+        let enc_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let session_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) \
+             VALUES (?1, ?2, 1, ?3, '[]')",
+        )
+        .bind(&enc_id)
+        .bind(&session_id)
+        .bind(&now)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        let resist_json = resistances
+            .map(|r| format!("[\"{r}\"]"))
+            .unwrap_or_else(|| "null".to_string());
+        sqlx::query(
+            "INSERT INTO combat_tokens \
+             (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, resistances, immunities, vulnerabilities) \
+             VALUES (?1,?2,'TestToken',?3,?4,10,0,0,'[]',?5,null,null)",
+        )
+        .bind(token_id)
+        .bind(&enc_id)
+        .bind(hp)
+        .bind(max_hp)
+        .bind(resist_json)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn token_hp(pool: &SqlitePool, token_id: &str) -> i32 {
+        use sqlx::Row;
+        sqlx::query("SELECT current_hp FROM combat_tokens WHERE id = ?1")
+            .bind(token_id)
+            .fetch_one(pool)
+            .await
+            .unwrap()
+            .try_get("current_hp")
+            .unwrap()
+    }
+
+    // ------------------------------------------------------------------ //
+    // 1. Unknown spell -> not_in_srd                                       //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn unknown_spell_returns_not_in_srd() {
+        let pool = make_pool().await;
+        let args = json!({ "spell": "totally_made_up_spell_xyz" });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "not_in_srd must not be is_error");
+        assert_eq!(val["status"].as_str(), Some("not_in_srd"));
+    }
+
+    // ------------------------------------------------------------------ //
+    // 2. Damage spell (burning-hands) reduces target HP                   //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn damage_spell_reduces_target_hp() {
+        let pool = make_pool().await;
+        let token_id = "tok-burn-01";
+        // Give target 30 HP; burning-hands does 3d6 fire (min 3, max 18).
+        seed_encounter_and_token(&pool, token_id, 30, 30, None).await;
+
+        let args = json!({
+            "spell": "burning-hands",
+            "targets": [token_id]
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "cast must not error: {val}");
+        assert_eq!(val["status"].as_str(), Some("resolved"));
+        assert_eq!(val["spell"].as_str(), Some("burning-hands"));
+
+        let new_hp = token_hp(&pool, token_id).await;
+        // 3d6 => min=3, max=18; 30 - 18 = 12 at minimum remaining.
+        assert!(
+            new_hp < 30,
+            "HP must decrease after burning-hands, got {new_hp}"
+        );
+        assert!(
+            new_hp >= 12,
+            "HP floor wrong: got {new_hp} (30 - 18 = 12 min)"
+        );
+
+        // Verify target result structure.
+        let targets = val["targets"].as_array().unwrap();
+        assert_eq!(targets.len(), 1);
+        let t = &targets[0];
+        assert_eq!(t["token_id"].as_str(), Some(token_id));
+        assert!(t["raw_damage"].as_i64().unwrap() >= 3);
+        assert_eq!(t["new_hp"].as_i64().unwrap(), new_hp as i64);
+    }
+
+    // ------------------------------------------------------------------ //
+    // 3. Fire resistance halves damage from a fire spell                   //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn fire_resistance_halves_burning_hands_damage() {
+        let pool = make_pool().await;
+        let token_id = "tok-resist-02";
+        // Token with fire resistance.
+        seed_encounter_and_token(&pool, token_id, 30, 30, Some("fire")).await;
+
+        // Cast burning-hands (3d6 fire, save-for-half with dex save).
+        // We deliberately omit save_dc so no save is rolled; full raw is rolled.
+        let args = json!({
+            "spell": "burning-hands",
+            "targets": [token_id]
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "cast must not error: {val}");
+
+        let targets = val["targets"].as_array().unwrap();
+        let t = &targets[0];
+        let raw = t["raw_damage"].as_i64().unwrap() as i32;
+        let effective = t["effective_damage"].as_i64().unwrap() as i32;
+        // Fire resistance: effective = raw / 2 (integer).
+        assert_eq!(effective, raw / 2, "resistance must halve damage");
+        let new_hp = token_hp(&pool, token_id).await;
+        assert_eq!(new_hp, 30 - effective);
+    }
+
+    // ------------------------------------------------------------------ //
+    // 4. Save-for-half: target saves -> receives half damage                //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn save_for_half_gives_half_on_success() {
+        // Burning-hands has save.half_on_success=true (dex save).
+        // Force a definite success: save_dc=1 so any roll succeeds.
+        let pool = make_pool().await;
+        let token_id = "tok-save-03";
+        seed_encounter_and_token(&pool, token_id, 40, 40, None).await;
+
+        let args = json!({
+            "spell": "burning-hands",
+            "targets": [{ "token_id": token_id, "save_bonus": 10 }],
+            "save_dc": 1
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "cast must not error: {val}");
+
+        let targets = val["targets"].as_array().unwrap();
+        let t = &targets[0];
+        let raw = t["raw_damage"].as_i64().unwrap() as i32;
+        // With DC=1 and save_bonus=10, target always saves -> half raw.
+        // Expect raw_damage == full_roll/2 (that is what we stored as raw_for_target).
+        let full_roll = val["raw_damage"].as_i64().unwrap() as i32;
+        assert_eq!(raw, full_roll / 2, "saved target must take half damage");
+    }
+
+    // ------------------------------------------------------------------ //
+    // 5. Healing spell (cure-wounds) increases target HP, capped at max   //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn cure_wounds_heals_target() {
+        let pool = make_pool().await;
+        let token_id = "tok-heal-04";
+        seed_encounter_and_token(&pool, token_id, 5, 20, None).await;
+
+        let args = json!({
+            "spell": "cure-wounds",
+            "targets": [token_id],
+            "spell_modifier": 3
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "cure-wounds must not error: {val}");
+        assert_eq!(val["status"].as_str(), Some("resolved"));
+        assert_eq!(val["kind"].as_str(), Some("healing"));
+
+        let new_hp = token_hp(&pool, token_id).await;
+        // 1d8+3: min=4, max=11; started at 5, max=20.
+        assert!(
+            new_hp > 5,
+            "HP must increase after cure-wounds, got {new_hp}"
+        );
+        assert!(new_hp <= 20, "HP must not exceed max, got {new_hp}");
+    }
+
+    // ------------------------------------------------------------------ //
+    // 6. Narrative-only spell (no mechanical data in compendium)           //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn narrative_only_spell_returns_resolved_with_note() {
+        // magic-missile has damage: null and is not a healing spell.
+        let pool = make_pool().await;
+        let args = json!({ "spell": "magic-missile" });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "narrative spell must not error: {val}");
+        assert_eq!(val["status"].as_str(), Some("resolved"));
+        assert!(
+            val["note"].as_str().is_some(),
+            "narrative-only spell must include a note field"
+        );
+    }
+
+    // ------------------------------------------------------------------ //
+    // 7. Attack-roll spell (guiding-bolt, 4d6 radiant) reduces HP          //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn attack_spell_reduces_hp() {
+        let pool = make_pool().await;
+        let token_id = "tok-attack-05";
+        seed_encounter_and_token(&pool, token_id, 50, 50, None).await;
+
+        let args = json!({
+            "spell": "guiding-bolt",
+            "targets": [token_id]
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "guiding-bolt must not error: {val}");
+        assert_eq!(val["status"].as_str(), Some("resolved"));
+
+        let new_hp = token_hp(&pool, token_id).await;
+        // 4d6 => min=4, max=24; started at 50.
+        assert!(new_hp < 50, "HP must decrease after guiding-bolt");
+        assert!(new_hp >= 26, "min remaining: 50-24=26, got {new_hp}");
+    }
+
+    // ------------------------------------------------------------------ //
+    // 8. shatter (3d8 thunder, CON save half_on_success=true)              //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn shatter_with_failed_save_applies_full_damage() {
+        let pool = make_pool().await;
+        let token_id = "tok-shatter-06";
+        seed_encounter_and_token(&pool, token_id, 40, 40, None).await;
+
+        // DC=30 forces save failure (no d20 roll can beat 30).
+        let args = json!({
+            "spell": "shatter",
+            "targets": [{ "token_id": token_id, "save_bonus": 0 }],
+            "save_dc": 30
+        });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "shatter must not error: {val}");
+
+        let targets = val["targets"].as_array().unwrap();
+        let t = &targets[0];
+        let raw_target = t["raw_damage"].as_i64().unwrap() as i32;
+        let full_roll = val["raw_damage"].as_i64().unwrap() as i32;
+        // With DC=30 (impossible to beat): raw_for_target == full_roll.
+        assert_eq!(raw_target, full_roll, "failed save must take full damage");
+    }
+
+    // ------------------------------------------------------------------ //
+    // 9. Spell with no targets -> resolved with empty targets list          //
+    // ------------------------------------------------------------------ //
+    #[tokio::test]
+    async fn damage_spell_no_targets_resolves_cleanly() {
+        let pool = make_pool().await;
+        let args = json!({ "spell": "acid-splash" });
+        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        assert!(!is_err, "must not error with no targets: {val}");
+        assert_eq!(val["status"].as_str(), Some("resolved"));
+        let targets = val["targets"].as_array().unwrap();
+        assert_eq!(targets.len(), 0, "no targets -> empty array");
     }
 }
