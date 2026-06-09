@@ -115,6 +115,9 @@ pub enum AgentEvent {
         round: usize,
         mime_type: String,
         image_b64: String,
+        /// Routing discriminator: "map" paints the VTT board, "chat" renders
+        /// inline in the tool-call card. Derived from the tool name.
+        kind: String,
     },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
@@ -325,7 +328,7 @@ impl AgentOrchestrator {
                 // VRAM (stop it) and restart it on the same port afterwards, so
                 // SDXL is not starved on a single 10 GB card. No-op when the
                 // coordinator is absent (cloud LLM, keep-both-loaded, etc.).
-                let swap = if tc.name == "generate_image" {
+                let swap = if crate::agent::tools::image_kind(&tc.name).is_some() {
                     self.gpu_swap.clone()
                 } else {
                     None
@@ -363,6 +366,9 @@ impl AgentOrchestrator {
                                     round: total_rounds,
                                     mime_type,
                                     image_b64,
+                                    kind: crate::agent::tools::image_kind(&tc.name)
+                                        .unwrap_or("chat")
+                                        .to_string(),
                                 })
                                 .await
                                 .is_err()

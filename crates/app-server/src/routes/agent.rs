@@ -277,6 +277,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             round,
             mime_type,
             image_b64,
+            kind,
         } => Event::default()
             .event("image_generated")
             .json_data(serde_json::json!({
@@ -284,6 +285,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "round": round,
                 "mime_type": mime_type,
                 "image_b64": image_b64,
+                "kind": kind,
             }))
             .expect("image_generated json"),
         AgentEvent::TextDelta { text } => Event::default()
