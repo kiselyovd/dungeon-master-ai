@@ -22,7 +22,8 @@ use crate::agent::tools::ToolAvailability;
 /// instead of calling it or spiral into long internal deliberation that ends in
 /// an empty turn. This scaffold pins the role, demands concise output + decisive
 /// action, and - when image generation is available - explicitly tells the model
-/// to CALL `generate_image` rather than describe a scene in prose.
+/// to CALL `generate_map` or `generate_illustration` rather than describe a scene
+/// in prose.
 pub(crate) fn compose_system_prompt(base: &str, availability: ToolAvailability) -> String {
     let mut s = String::from(
         "You are the Dungeon Master of a Dungeons & Dragons 5e game. Narrate vividly \
@@ -32,10 +33,13 @@ pub(crate) fn compose_system_prompt(base: &str, availability: ToolAvailability) 
     );
     if availability.image {
         s.push_str(
-            " When the party arrives somewhere new, the scene changes, or the player asks \
-             to see, draw, show, or illustrate a place, character, item, or map, \
-             immediately call the generate_image tool with a short concrete visual prompt \
-             instead of only describing it in words.",
+            " You can show visuals with two tools. Call generate_map (a TOP-DOWN \
+             tactical battle map) when the party enters a place where positioning \
+             matters or a fight is about to start - this updates the board on the \
+             left. Call generate_illustration (a cinematic picture of a character, \
+             creature, item, or dramatic view) when the player asks to see/draw/show \
+             something or to punctuate a moment - this appears in the chat, not on \
+             the board. Prefer calling these tools over describing the image in prose.",
         );
     }
     s.push_str(
@@ -199,9 +203,13 @@ mod tests {
     }
 
     #[test]
-    fn compose_adds_generate_image_directive_only_when_image_enabled() {
-        assert!(compose_system_prompt("", avail(true)).contains("generate_image"));
-        assert!(!compose_system_prompt("", avail(false)).contains("generate_image"));
+    fn compose_adds_image_directives_only_when_image_enabled() {
+        let on = compose_system_prompt("", avail(true));
+        assert!(on.contains("generate_map"));
+        assert!(on.contains("generate_illustration"));
+        let off = compose_system_prompt("", avail(false));
+        assert!(!off.contains("generate_map"));
+        assert!(!off.contains("generate_illustration"));
     }
 
     #[test]
