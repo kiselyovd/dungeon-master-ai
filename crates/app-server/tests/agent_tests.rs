@@ -500,7 +500,7 @@ async fn agent_endpoint_streams_reasoning_text_event() {
 }
 
 #[tokio::test]
-async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
+async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
     use app_server::image::provider::ImageProvider;
     use app_server::image::stub::LocalImageSidecarProvider;
     use base64::engine::general_purpose::STANDARD as B64;
@@ -525,7 +525,7 @@ async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     let tc = app_llm::ToolCall {
         id: "tc-img-1".into(),
-        name: "generate_image".into(),
+        name: "generate_illustration".into(),
         args: serde_json::json!({ "prompt": "a torchlit dungeon corridor" }),
     };
 
@@ -538,7 +538,10 @@ async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
     )
     .await;
 
-    assert!(!is_error, "generate_image should succeed, got: {result:?}");
+    assert!(
+        !is_error,
+        "generate_illustration should succeed, got: {result:?}"
+    );
     assert_eq!(result["status"], "generated");
     assert_eq!(result["mime_type"], "image/png");
     let returned = result["image_b64"].as_str().expect("image_b64 present");
@@ -572,12 +575,12 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
 
     let pool = test_pool().await;
 
-    // MockProvider emits a generate_image tool-call then a ToolUse finish,
+    // MockProvider emits a generate_illustration tool-call then a ToolUse finish,
     // followed by an empty round that exits with a default Stop reason.
     let mock = Arc::new(MockProvider::new(vec![
         ChatChunk::ToolCallStart {
             id: "img-tc-1".into(),
-            name: "generate_image".into(),
+            name: "generate_illustration".into(),
         },
         ChatChunk::ToolCallArgsDelta {
             id: "img-tc-1".into(),
@@ -622,7 +625,9 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     while let Some(ev) = rx.recv().await {
         match &ev {
             AgentEvent::ImageGenerated { .. } => image_generated = Some(ev),
-            AgentEvent::ToolCallResult { tool_name, .. } if tool_name == "generate_image" => {
+            AgentEvent::ToolCallResult { tool_name, .. }
+                if tool_name == "generate_illustration" =>
+            {
                 tool_call_result = Some(ev)
             }
             AgentEvent::AgentDone { .. } => {
@@ -639,6 +644,7 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     if let AgentEvent::ImageGenerated {
         image_b64,
         mime_type,
+        kind,
         ..
     } = img_ev
     {
@@ -648,13 +654,14 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
             "ImageGenerated image_b64 should decode to the original bytes"
         );
         assert_eq!(mime_type, "image/png");
+        assert_eq!(kind, "chat", "generate_illustration routes to chat");
     } else {
         panic!("unexpected event type for image_generated");
     }
 
     // Assert the ToolCallResult does NOT contain image_b64 (strip fired),
     // but DOES still carry status and mime_type.
-    let result_ev = tool_call_result.expect("expected ToolCallResult for generate_image");
+    let result_ev = tool_call_result.expect("expected ToolCallResult for generate_illustration");
     if let AgentEvent::ToolCallResult { result, .. } = result_ev {
         assert!(
             result.get("image_b64").is_none(),
@@ -676,11 +683,11 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
 }
 
 #[tokio::test]
-async fn execute_tool_generate_image_without_provider_is_a_clean_error() {
+async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     let tc = app_llm::ToolCall {
         id: "tc-img-2".into(),
-        name: "generate_image".into(),
+        name: "generate_illustration".into(),
         args: serde_json::json!({ "prompt": "anything" }),
     };
     let (result, is_error) =

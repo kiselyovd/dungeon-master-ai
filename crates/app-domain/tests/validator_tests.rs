@@ -123,19 +123,31 @@ fn query_rules_valid() {
 }
 
 #[test]
-fn generate_image_valid() {
+fn generate_map_valid() {
     let v = validate_tool_call(
-        "generate_image",
-        json!({ "prompt": "Dark tavern with hooded figures", "style": "dark_fantasy" }),
+        "generate_map",
+        json!({ "prompt": "Ruined throne hall, broken pillars, central dais" }),
     )
     .unwrap();
-    assert_eq!(v.tool_name, "generate_image");
+    assert_eq!(v.tool_name, "generate_map");
 }
 
 #[test]
-fn generate_image_rejects_empty_prompt() {
-    let err = validate_tool_call("generate_image", json!({ "prompt": "" })).unwrap_err();
-    assert!(matches!(err, ToolCallError::ValidationFailed(_)));
+fn generate_illustration_valid() {
+    let v = validate_tool_call(
+        "generate_illustration",
+        json!({ "prompt": "Dark tavern with hooded figures", "style": "dark_fantasy" }),
+    )
+    .unwrap();
+    assert_eq!(v.tool_name, "generate_illustration");
+}
+
+#[test]
+fn generate_image_tools_reject_empty_prompt() {
+    for name in ["generate_map", "generate_illustration"] {
+        let err = validate_tool_call(name, json!({ "prompt": "" })).unwrap_err();
+        assert!(matches!(err, ToolCallError::ValidationFailed(_)));
+    }
 }
 
 #[test]
