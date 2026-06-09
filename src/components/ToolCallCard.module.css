@@ -92,19 +92,24 @@
   line-height: var(--leading-normal);
 }
 
-@keyframes digit-cycle {
+@keyframes pending-pulse {
   0%,
   100% {
-    opacity: 1;
+    opacity: 0.4;
   }
   50% {
-    opacity: 0.5;
+    opacity: 1;
   }
 }
 
-.cycling {
-  color: var(--color-fg-muted);
-  animation: digit-cycle 200ms ease-in-out infinite;
+.pendingDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-fg-muted);
+  animation: pending-pulse 1.2s ease-in-out infinite;
+  margin: var(--space-2) 0;
 }
 
 .settled {

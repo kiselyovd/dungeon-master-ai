@@ -3,6 +3,52 @@ import { describe, expect, it } from 'vitest';
 import '../i18n';
 import { ToolCallCard } from './ToolCallCard';
 
+// ── non-image tool fixtures ──────────────────────────────────────────────────
+
+const pendingRollDice = {
+  id: 'call_roll_1',
+  toolName: 'roll_dice',
+  args: { dice: '1d20', modifier: 2 },
+  result: null,
+  isError: false,
+  round: 1,
+  timestamp: '2026-06-09T10:00:00Z',
+  handledBy: 'agent',
+};
+
+const settledRollDice = {
+  ...pendingRollDice,
+  result: { rolls: [14], total: 16, modifier: 2 },
+};
+
+describe('ToolCallCard - non-image tools (pending indicator)', () => {
+  it('pending non-image tool shows a calm pending indicator, not random digits', () => {
+    render(<ToolCallCard entry={pendingRollDice} />);
+    const indicator = screen.getByTestId('tool-pending-indicator');
+    expect(indicator).toBeInTheDocument();
+    // Must NOT show any digit 1-20 masquerading as a result
+    expect(screen.queryByRole('code')).toBeNull();
+    // Text content of the whole card must not contain bare numbers from random()
+    const text = document.body.textContent ?? '';
+    expect(/^\d+$/.test(text.trim())).toBe(false);
+  });
+
+  it('pending non-image tool never shows random numbers (re-rendered snapshot is stable)', () => {
+    const { rerender } = render(<ToolCallCard entry={pendingRollDice} />);
+    const before = document.body.innerHTML;
+    rerender(<ToolCallCard entry={pendingRollDice} />);
+    // HTML must be identical - no cycling random value injected
+    expect(document.body.innerHTML).toBe(before);
+  });
+
+  it('settled non-image tool shows real JSON result and no pending indicator', () => {
+    render(<ToolCallCard entry={settledRollDice} />);
+    expect(screen.queryByTestId('tool-pending-indicator')).toBeNull();
+    // Real result must appear in a pre element
+    expect(screen.getByText(/"total": 16/)).toBeInTheDocument();
+  });
+});
+
 const BASE = {
   id: 'call_img_1',
   args: { prompt: 'a dark dungeon', width: 512, height: 512 },

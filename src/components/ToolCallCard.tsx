@@ -17,23 +17,19 @@ export function ToolCallCard({ entry, label }: Props) {
   const { t } = useTranslation('agent');
   const isImageTool = IMAGE_TOOLS.has(toolName);
 
-  const [displayResult, setDisplayResult] = useState<string>('...');
+  const [displayResult, setDisplayResult] = useState<string | null>(null);
   const [settled, setSettled] = useState(false);
   const [flashing, setFlashing] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
-    // Image tools never show the cycling-digits result animation.
+    // Image tools never show the text result block.
     if (isImageTool) return;
     if (pending) {
       setSettled(false);
       setFlashing(false);
-      setDisplayResult('...');
-      const interval = setInterval(() => {
-        const n = Math.floor(Math.random() * 20) + 1;
-        setDisplayResult(String(n));
-      }, 100);
-      return () => clearInterval(interval);
+      setDisplayResult(null);
+      return;
     }
     setDisplayResult(JSON.stringify(result, null, 2));
     setSettled(true);
@@ -105,11 +101,17 @@ export function ToolCallCard({ entry, label }: Props) {
           </div>
           <div className={styles.section}>
             <span className={styles.label}>result</span>
-            <pre
-              className={`${styles.code} ${pending ? styles.cycling : ''} ${settled ? styles.settled : ''}`}
-            >
-              {displayResult}
-            </pre>
+            {pending ? (
+              <span
+                className={styles.pendingDot}
+                data-testid="tool-pending-indicator"
+                aria-hidden="true"
+              />
+            ) : (
+              <pre className={`${styles.code} ${settled ? styles.settled : ''}`}>
+                {displayResult}
+              </pre>
+            )}
           </div>
         </div>
       )}
