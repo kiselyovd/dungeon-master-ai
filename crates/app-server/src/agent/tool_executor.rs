@@ -214,8 +214,72 @@ async fn execute_apply_healing(args: &Value, pool: &SqlitePool) -> (Value, bool)
 }
 
 async fn execute_start_combat(args: &Value, pool: &SqlitePool, session_id: Uuid) -> (Value, bool) {
+    use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
+    use app_domain::combat::types::CombatantId;
+    use app_domain::dice::{roll_expr_detailed, DiceExpr, Die};
+    use app_domain::rng::SeededRng;
+    use std::collections::HashMap;
+
+    let entries_raw = match args["initiative_entries"].as_array() {
+        Some(a) => a,
+        None => {
+            return (
+                json!({ "error": "initiative_entries must be an array" }),
+                true,
+            );
+        }
+    };
+
+    let mut rng = SeededRng::new_random();
+    let d20 = DiceExpr {
+        count: 1,
+        die: Die::D20,
+        modifier: 0,
+    };
+
+    // Build domain entries and a parallel id->name map in one pass.
+    let mut id_to_name: HashMap<uuid::Uuid, String> = HashMap::new();
+    let mut domain_entries: Vec<InitiativeEntry> = Vec::with_capacity(entries_raw.len());
+
+    for entry in entries_raw {
+        let name = entry["name"].as_str().unwrap_or("Unknown").to_string();
+        let dex_mod = entry
+            .get("dex_mod")
+            .or_else(|| entry.get("dex_tiebreak"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+
+        // Use provided roll if present, otherwise roll d20 + dex_mod.
+        let roll = if let Some(provided) = entry.get("roll").and_then(|v| v.as_i64()) {
+            provided as i32
+        } else {
+            roll_expr_detailed(&d20, &mut rng).total + dex_mod
+        };
+
+        let id = CombatantId(uuid::Uuid::new_v4());
+        id_to_name.insert(id.0, name);
+        domain_entries.push(InitiativeEntry {
+            id,
+            roll,
+            dex_tiebreak: dex_mod,
+        });
+    }
+
+    // Sort descending by roll, tiebreak by dex_tiebreak (via InitiativeOrder::build).
+    let order = InitiativeOrder::build(domain_entries);
+
+    // Produce the `ordered` array: [{name, roll}, ...] in sorted initiative order.
+    let ordered: Vec<Value> = order
+        .as_slice()
+        .iter()
+        .map(|e| {
+            let name = id_to_name.get(&e.id.0).cloned().unwrap_or_default();
+            json!({ "name": name, "roll": e.roll })
+        })
+        .collect();
+
+    let initiative_json = serde_json::to_string(&ordered).unwrap_or_default();
     let encounter_id = uuid::Uuid::new_v4();
-    let initiative_json = serde_json::to_string(&args["initiative_entries"]).unwrap_or_default();
     let now = chrono::Utc::now().to_rfc3339();
     if let Err(e) = sqlx::query(
         "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) VALUES (?1, ?2, 1, ?3, ?4)"
@@ -230,7 +294,10 @@ async fn execute_start_combat(args: &Value, pool: &SqlitePool, session_id: Uuid)
         tracing::warn!(error = %e, "sqlx write failed in execute_start_combat");
         return (json!({ "error": e.to_string() }), true);
     }
-    (json!({ "encounter_id": encounter_id.to_string() }), false)
+    (
+        json!({ "encounter_id": encounter_id.to_string(), "ordered": ordered }),
+        false,
+    )
 }
 
 async fn execute_end_combat(pool: &SqlitePool) -> (Value, bool) {
@@ -810,5 +877,122 @@ mod query_rules_tests {
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].source_key, "attack_action");
         assert_eq!(results[1].source_key, "cast_spell");
+    }
+}
+
+#[cfg(test)]
+mod start_combat_tests {
+    use super::*;
+
+    async fn make_pool() -> SqlitePool {
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("in-memory db");
+        crate::db::init_db(&pool).await.expect("migrate");
+        pool
+    }
+
+    /// With provided rolls and known dex_mods, `ordered` must be sorted
+    /// descending by roll with dex_tiebreak resolving ties.
+    #[tokio::test]
+    async fn start_combat_sorts_by_roll_descending() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+
+        // Goblin roll=12, Fighter roll=18, Wizard roll=12 dex_mod=4 (wins tie vs Goblin dex 2)
+        let args = json!({
+            "initiative_entries": [
+                { "name": "Goblin",  "roll": 12, "dex_mod": 2 },
+                { "name": "Fighter", "roll": 18, "dex_mod": 1 },
+                { "name": "Wizard",  "roll": 12, "dex_mod": 4 }
+            ]
+        });
+
+        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        assert!(!is_err, "start_combat must not error: {val}");
+
+        let ordered = val["ordered"].as_array().expect("ordered array present");
+        assert_eq!(ordered.len(), 3);
+
+        // First must be Fighter (roll 18)
+        assert_eq!(ordered[0]["name"].as_str(), Some("Fighter"));
+        assert_eq!(ordered[0]["roll"].as_i64(), Some(18));
+
+        // Second must be Wizard (roll 12, dex 4 > Goblin dex 2)
+        assert_eq!(ordered[1]["name"].as_str(), Some("Wizard"));
+        assert_eq!(ordered[1]["roll"].as_i64(), Some(12));
+
+        // Third is Goblin
+        assert_eq!(ordered[2]["name"].as_str(), Some("Goblin"));
+        assert_eq!(ordered[2]["roll"].as_i64(), Some(12));
+
+        // encounter_id is present
+        assert!(val["encounter_id"].as_str().is_some());
+    }
+
+    /// Without a provided roll, the engine must auto-roll d20+dex_mod,
+    /// yielding a value in [1+dex_mod, 20+dex_mod] (d20 range) for each entry.
+    #[tokio::test]
+    async fn start_combat_auto_rolls_when_no_roll_provided() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+
+        let args = json!({
+            "initiative_entries": [
+                { "name": "Rogue",  "dex_mod": 3 },
+                { "name": "Zombie", "dex_mod": -1 }
+            ]
+        });
+
+        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        assert!(!is_err, "start_combat must not error: {val}");
+
+        let ordered = val["ordered"].as_array().expect("ordered array present");
+        assert_eq!(ordered.len(), 2);
+
+        for entry in ordered {
+            let roll = entry["roll"].as_i64().expect("roll is integer");
+            // d20 (1-20) + dex_mod range: Rogue [4, 23], Zombie [0, 19]
+            // Both must be in the broadest possible range [-19, 39].
+            assert!(
+                (-19..=39).contains(&roll),
+                "auto-rolled value {roll} is outside plausible d20+mod range"
+            );
+        }
+    }
+
+    /// With a single entry and no roll provided, `ordered` has exactly one element.
+    #[tokio::test]
+    async fn start_combat_single_entry() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+
+        let args = json!({
+            "initiative_entries": [{ "name": "Hero" }]
+        });
+
+        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        assert!(!is_err, "start_combat must not error: {val}");
+        let ordered = val["ordered"].as_array().expect("ordered array");
+        assert_eq!(ordered.len(), 1);
+        assert_eq!(ordered[0]["name"].as_str(), Some("Hero"));
+        // Roll is between 1 and 20 (no dex_mod).
+        let roll = ordered[0]["roll"].as_i64().unwrap();
+        assert!(
+            (1..=20).contains(&roll),
+            "single entry roll {roll} must be 1-20"
+        );
+    }
+
+    /// Missing initiative_entries returns an error result.
+    #[tokio::test]
+    async fn start_combat_missing_entries_is_error() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+
+        let args = json!({ "other_field": 42 });
+        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        assert!(is_err, "must error when initiative_entries missing");
+        assert!(val["error"].as_str().is_some());
     }
 }
