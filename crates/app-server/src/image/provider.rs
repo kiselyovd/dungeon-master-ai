@@ -18,6 +18,13 @@ pub struct ImagePrompt {
     /// (`fast`/`balanced`/`quality`/`quality-oss`). Cloud providers ignore this.
     #[serde(default)]
     pub backend_preset: Option<String>,
+    /// Optional output dimensions forwarded to the sidecar. Maps request a
+    /// landscape, grid-friendly canvas; illustrations leave this `None` to use
+    /// the sidecar default (1024x1024). Cloud providers may ignore it.
+    #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
+    pub height: Option<u32>,
 }
 
 /// Raw image bytes returned by a provider.

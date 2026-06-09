@@ -50,6 +50,8 @@ pub async fn post_image_generate(
         scene_id: req.scene_id,
         npc_ids: Vec::new(),
         backend_preset: None,
+        width: None,
+        height: None,
     };
 
     let bytes = provider

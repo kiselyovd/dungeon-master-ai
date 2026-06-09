@@ -481,6 +481,8 @@ async fn execute_generate_image(
         scene_id: None,
         npc_ids: Vec::new(),
         backend_preset: None,
+        width: None,
+        height: None,
     };
     match provider.generate(image_prompt).await {
         Ok(bytes) => (

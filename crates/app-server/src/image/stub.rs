@@ -64,12 +64,16 @@ impl ImageProvider for LocalImageSidecarProvider {
             .backend_preset
             .clone()
             .unwrap_or_else(|| "fast".to_string());
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "prompt": prompt.content_prompt,
             "seed": 0,
             "steps": DEFAULT_STEPS,
             "backend": backend,
         });
+        if let (Some(w), Some(h)) = (prompt.width, prompt.height) {
+            body["width"] = serde_json::json!(w);
+            body["height"] = serde_json::json!(h);
+        }
         let resp = self
             .client
             .post(format!("{}/generate", self.base_url))
@@ -154,6 +158,8 @@ mod tests {
                 scene_id: Some("scene-1".into()),
                 npc_ids: vec![],
                 backend_preset: Some("balanced".into()),
+                width: None,
+                height: None,
             })
             .await
             .unwrap();
@@ -191,6 +197,8 @@ mod tests {
                 scene_id: None,
                 npc_ids: vec![],
                 backend_preset: Some("fast".into()),
+                width: None,
+                height: None,
             })
             .await
             .unwrap();
@@ -224,6 +232,8 @@ mod tests {
                 scene_id: None,
                 npc_ids: vec![],
                 backend_preset: Some("fast".into()),
+                width: None,
+                height: None,
             })
             .await
             .unwrap();
@@ -245,8 +255,43 @@ mod tests {
                 scene_id: None,
                 npc_ids: vec![],
                 backend_preset: None,
+                width: None,
+                height: None,
             })
             .await;
         assert!(matches!(result, Err(ImageError::Provider(_))));
+    }
+
+    #[tokio::test]
+    async fn forwards_width_height_to_sidecar() {
+        use wiremock::matchers::body_partial_json;
+        let server = MockServer::start().await;
+        let b64 = B64.encode(b"PNG");
+        Mock::given(method("POST"))
+            .and(path("/generate"))
+            .and(body_partial_json(
+                serde_json::json!({ "width": 1216, "height": 832 }),
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"image_b64": b64, "mime": "image/png"})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let provider = LocalImageSidecarProvider::new(server.uri());
+        provider
+            .generate(ImagePrompt {
+                content_prompt: "a hall".into(),
+                style_preset: "map".into(),
+                scene_id: None,
+                npc_ids: vec![],
+                backend_preset: Some("fast".into()),
+                width: Some(1216),
+                height: Some(832),
+            })
+            .await
+            .unwrap();
     }
 }
