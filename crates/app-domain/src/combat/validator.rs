@@ -54,6 +54,7 @@ pub fn validate_tool_call(
         "query_rules" => validate_query_rules(args),
         "generate_map" => validate_image_tool("generate_map", args),
         "generate_illustration" => validate_image_tool("generate_illustration", args),
+        "generate_video" => validate_video_tool(args),
         _ => Err(ToolCallError::UnknownTool(tool_name.to_string())),
     }
 }
@@ -271,6 +272,22 @@ fn validate_image_tool(name: &str, args: Value) -> Result<ValidatedToolCall, Too
     })
 }
 
+fn validate_video_tool(args: Value) -> Result<ValidatedToolCall, ToolCallError> {
+    let prompt = args
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ToolCallError::InvalidArgs("missing 'prompt'".into()))?;
+    if prompt.trim().is_empty() {
+        return Err(ToolCallError::ValidationFailed(
+            "'prompt' must not be empty".into(),
+        ));
+    }
+    Ok(ValidatedToolCall {
+        tool_name: "generate_video".into(),
+        args,
+    })
+}
+
 #[cfg(test)]
 mod image_tool_tests {
     use super::*;
@@ -291,6 +308,44 @@ mod image_tool_tests {
             let err = validate_tool_call(name, json!({ "prompt": "   " }));
             assert!(err.is_err(), "{name} must reject empty prompt");
         }
+    }
+}
+
+#[cfg(test)]
+mod video_tool_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn validates_generate_video_with_prompt() {
+        let ok = validate_tool_call("generate_video", json!({ "prompt": "fog rolls in" }));
+        assert!(ok.is_ok(), "generate_video should validate with a prompt");
+        assert_eq!(ok.unwrap().tool_name, "generate_video");
+    }
+
+    #[test]
+    fn validates_generate_video_with_optional_fields() {
+        let ok = validate_tool_call(
+            "generate_video",
+            json!({ "prompt": "dragon swoops", "seconds": 4.0, "frame_count": 97 }),
+        );
+        assert!(ok.is_ok());
+        let vtc = ok.unwrap();
+        assert_eq!(vtc.tool_name, "generate_video");
+        // Optional fields pass through unchanged.
+        assert_eq!(vtc.args["frame_count"].as_i64(), Some(97));
+    }
+
+    #[test]
+    fn rejects_generate_video_missing_prompt() {
+        let err = validate_tool_call("generate_video", json!({ "frame_count": 97 }));
+        assert!(err.is_err(), "missing prompt must be rejected");
+    }
+
+    #[test]
+    fn rejects_generate_video_empty_prompt() {
+        let err = validate_tool_call("generate_video", json!({ "prompt": "   " }));
+        assert!(err.is_err(), "empty prompt must be rejected");
     }
 }
 

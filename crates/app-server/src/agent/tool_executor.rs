@@ -41,13 +41,16 @@ pub async fn is_combat_active(pool: &SqlitePool) -> bool {
 }
 
 use crate::image::provider::{ImagePrompt, ImageProvider};
+use crate::video::provider::{VideoPrompt, VideoProvider};
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
 /// Never panics - errors are surfaced as `is_error=true` with a message in the result.
+#[allow(clippy::too_many_arguments)]
 pub async fn execute_tool(
     tc: &ToolCall,
     pool: &SqlitePool,
     image_provider: Option<Arc<dyn ImageProvider>>,
+    video_provider: Option<Arc<dyn VideoProvider>>,
     retriever: Option<&app_domain::srd::retriever::SrdRetriever>,
     embedding_model: &str,
     campaign_id: Uuid,
@@ -88,6 +91,7 @@ pub async fn execute_tool(
         "generate_illustration" => {
             execute_generate_illustration(&validated.args, image_provider).await
         }
+        "generate_video" => execute_generate_video(&validated.args, video_provider).await,
         "query_rules" => execute_query_rules(&validated.args, retriever, embedding_model).await,
         unknown => (
             json!({ "error": format!("unhandled tool: {}", unknown) }),
@@ -1100,6 +1104,77 @@ async fn execute_generate_illustration(
     run_image_generation(content_prompt, style.to_string(), None, image_provider).await
 }
 
+/// Generate a short video clip. Returns `{status, mime_type, video_b64}` on
+/// success. The orchestrator peels `video_b64` into a dedicated
+/// `AgentEvent::VideoGenerated` so the blob never enters LLM history.
+async fn execute_generate_video(
+    args: &Value,
+    video_provider: Option<Arc<dyn VideoProvider>>,
+) -> (Value, bool) {
+    let Some(provider) = video_provider else {
+        return (
+            json!({ "error": "video generation is not available (no video provider configured)" }),
+            true,
+        );
+    };
+    let raw = args["prompt"].as_str().unwrap_or("").trim();
+    if raw.is_empty() {
+        return (json!({ "error": "prompt is required" }), true);
+    }
+    let frame_count = args
+        .get("frame_count")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32);
+
+    let prompt = VideoPrompt {
+        text: raw.to_string(),
+        frame_count: frame_count.unwrap_or(97),
+        ..Default::default()
+    };
+
+    match provider.generate(prompt).await {
+        Ok(mut stream) => {
+            use crate::video::provider::VideoEvent;
+            // Drain the event stream to get the final Done event.
+            loop {
+                match stream.events.recv().await {
+                    Some(VideoEvent::Done {
+                        mp4_bytes,
+                        duration_seconds,
+                    }) => {
+                        return (
+                            json!({
+                                "status": "generated",
+                                "mime_type": "video/mp4",
+                                "video_b64": B64.encode(&mp4_bytes),
+                                "duration_seconds": duration_seconds,
+                            }),
+                            false,
+                        );
+                    }
+                    Some(VideoEvent::Error { message }) => {
+                        warn!("video generation error: {message}");
+                        return (json!({ "error": message }), true);
+                    }
+                    Some(VideoEvent::Started { .. } | VideoEvent::Progress { .. }) => {
+                        // Continue draining.
+                    }
+                    None => {
+                        return (
+                            json!({ "error": "video stream ended without result" }),
+                            true,
+                        );
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            warn!("video generation failed: {e}");
+            (json!({ "error": e.to_string() }), true)
+        }
+    }
+}
+
 async fn execute_query_rules(
     args: &Value,
     retriever: Option<&app_domain::srd::retriever::SrdRetriever>,
@@ -1277,6 +1352,112 @@ mod image_dispatch_tests {
         assert!(is_err);
         let (_, is_err2) = execute_generate_illustration(&json!({ "prompt": "x" }), None).await;
         assert!(is_err2);
+    }
+}
+
+#[cfg(test)]
+mod video_dispatch_tests {
+    use super::*;
+    use crate::video::provider::{
+        VideoCapabilities, VideoError, VideoEvent, VideoPrompt, VideoProvider, VideoStream,
+    };
+    use async_trait::async_trait;
+    use tokio::sync::mpsc;
+
+    struct MockVideoProvider {
+        /// Bytes returned in VideoEvent::Done.
+        mp4_bytes: Vec<u8>,
+    }
+
+    #[async_trait]
+    impl VideoProvider for MockVideoProvider {
+        async fn generate(&self, _prompt: VideoPrompt) -> Result<VideoStream, VideoError> {
+            let (tx, rx) = mpsc::channel(4);
+            let bytes = self.mp4_bytes.clone();
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(VideoEvent::Started {
+                        estimated_seconds: 1,
+                    })
+                    .await;
+                let _ = tx
+                    .send(VideoEvent::Done {
+                        mp4_bytes: bytes,
+                        duration_seconds: 4.0,
+                    })
+                    .await;
+            });
+            Ok(VideoStream { events: rx })
+        }
+
+        fn capabilities(&self) -> VideoCapabilities {
+            VideoCapabilities {
+                duration_range_secs: (3, 8),
+                max_resolution: (704, 480),
+                supports_image_init: false,
+                avg_seconds_per_clip: 4,
+            }
+        }
+    }
+
+    struct ErrorVideoProvider;
+
+    #[async_trait]
+    impl VideoProvider for ErrorVideoProvider {
+        async fn generate(&self, _prompt: VideoPrompt) -> Result<VideoStream, VideoError> {
+            Err(VideoError::BackendNotRunning)
+        }
+        fn capabilities(&self) -> VideoCapabilities {
+            VideoCapabilities {
+                duration_range_secs: (3, 8),
+                max_resolution: (704, 480),
+                supports_image_init: false,
+                avg_seconds_per_clip: 4,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_generate_video_returns_video_b64() {
+        let provider = Arc::new(MockVideoProvider {
+            mp4_bytes: vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'],
+        });
+        let (val, is_err) =
+            execute_generate_video(&json!({ "prompt": "fog rolls in" }), Some(provider)).await;
+        assert!(!is_err, "video generation must not error: {val}");
+        assert_eq!(val["status"].as_str(), Some("generated"));
+        assert_eq!(val["mime_type"].as_str(), Some("video/mp4"));
+        let b64 = val["video_b64"].as_str().expect("video_b64 present");
+        assert!(!b64.is_empty());
+        let decoded = B64.decode(b64).expect("valid base64");
+        assert_eq!(
+            decoded,
+            vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p']
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_generate_video_errors_without_provider() {
+        let (val, is_err) = execute_generate_video(&json!({ "prompt": "x" }), None).await;
+        assert!(is_err, "must error when provider is None");
+        assert!(val["error"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn execute_generate_video_errors_when_provider_fails() {
+        let provider = Arc::new(ErrorVideoProvider);
+        let (val, is_err) = execute_generate_video(&json!({ "prompt": "x" }), Some(provider)).await;
+        assert!(is_err, "must surface provider error");
+        assert!(val["error"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn execute_generate_video_rejects_empty_prompt() {
+        let provider = Arc::new(MockVideoProvider { mp4_bytes: vec![] });
+        let (val, is_err) =
+            execute_generate_video(&json!({ "prompt": "   " }), Some(provider)).await;
+        assert!(is_err, "empty prompt must be an error");
+        assert!(val["error"].as_str().is_some());
     }
 }
 

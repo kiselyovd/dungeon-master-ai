@@ -5,17 +5,25 @@ Convention (matches Rust local_runtime expectation):
 
 /generate accepts backend selection and returns base64-encoded bytes inline
 (image_b64 for image backends, video_b64 for video backends).
+
+/video/generate accepts a video generation request and streams SSE progress
+events (started, progress, done) to the caller. The Rust LocalVideoSidecarProvider
+reads this endpoint.
 """
 from __future__ import annotations
 
 import argparse
 import base64
+import json
+import queue
 import socket
+import threading
 from pathlib import Path
 from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backends.protocol import PromptParams
@@ -38,6 +46,15 @@ class GenerateRequest(BaseModel):
     height: Optional[int] = None
     style_lora: Optional[str] = None
     frame_count: Optional[int] = None
+
+
+class VideoGenerateRequest(BaseModel):
+    """Request body for POST /video/generate (SSE endpoint)."""
+    prompt: str
+    init_image_b64: Optional[str] = None
+    resolution: Optional[tuple[int, int]] = None
+    frame_count: Optional[int] = None
+    seed: Optional[int] = None
 
 
 def _to_params(req: GenerateRequest) -> PromptParams:
@@ -103,6 +120,95 @@ def create_app(weights_dir: Path):
             app.state.dispatcher.backends[loaded].unload()
             app.state.dispatcher.loaded = None
         return {"status": "unloaded"}
+
+    @app.post("/video/generate")
+    def video_generate(req: VideoGenerateRequest):
+        """Stream video generation progress as SSE events.
+
+        SSE event shapes (exactly what LocalVideoSidecarProvider parses):
+          event: started   data: {"type": "started", "estimated_seconds": N}
+          event: progress  data: {"type": "progress", "percent": 0.0..1.0, "eta_seconds": N}
+          event: done      data: {"type": "done", "mp4_bytes_b64": "<base64>", "duration_seconds": F}
+          event: error     data: {"type": "error", "message": "..."}
+        """
+        backend_id = "ltx-video"
+        if backend_id not in app.state.dispatcher.backends:
+            raise HTTPException(404, f"backend not found: {backend_id}")
+
+        backend = app.state.dispatcher.backends[backend_id]
+
+        # Build PromptParams from the request.
+        resolution = req.resolution or (704, 480)
+        params = PromptParams(
+            text=req.prompt,
+            negative=None,
+            seed=req.seed or 0,
+            steps=None,
+            guidance=None,
+            resolution=resolution,
+            style_lora=None,
+            frame_count=req.frame_count,
+        )
+
+        # Progress events are pushed via a thread-safe queue from the callback.
+        prog_queue: queue.Queue = queue.Queue()
+
+        def _on_progress(frac: float) -> None:
+            prog_queue.put(frac)
+
+        # Wire the progress callback if the backend supports it.
+        if hasattr(backend, "set_progress_callback"):
+            backend.set_progress_callback(_on_progress)
+
+        result_holder: list = []
+        error_holder: list = []
+
+        def _run_generation() -> None:
+            try:
+                backend.load()
+                mp4_bytes = backend.generate(params)
+                result_holder.append(mp4_bytes)
+            except Exception as exc:  # noqa: BLE001
+                error_holder.append(str(exc))
+            finally:
+                prog_queue.put(None)  # sentinel: generation finished
+
+        gen_thread = threading.Thread(target=_run_generation, daemon=True)
+
+        def _event_stream():
+            # started
+            yield f"event: started\ndata: {json.dumps({'type': 'started', 'estimated_seconds': 24})}\n\n"
+
+            gen_thread.start()
+
+            steps_done = 0
+            while True:
+                item = prog_queue.get()
+                if item is None:
+                    # sentinel - generation done (or errored)
+                    break
+                steps_done += 1
+                frac = float(item)
+                eta = max(0, int((1.0 - frac) * 24))
+                yield (
+                    f"event: progress\n"
+                    f"data: {json.dumps({'type': 'progress', 'percent': round(frac, 3), 'eta_seconds': eta})}\n\n"
+                )
+
+            if error_holder:
+                yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': error_holder[0]})}\n\n"
+                return
+
+            mp4_bytes = result_holder[0] if result_holder else b""
+            b64 = base64.b64encode(mp4_bytes).decode("ascii")
+            payload = json.dumps({
+                "type": "done",
+                "mp4_bytes_b64": b64,
+                "duration_seconds": round((req.frame_count or 97) / 24.0, 2),
+            })
+            yield f"event: done\ndata: {payload}\n\n"
+
+        return StreamingResponse(_event_stream(), media_type="text/event-stream")
 
     return app
 

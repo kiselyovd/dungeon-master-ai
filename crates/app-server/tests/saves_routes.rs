@@ -364,7 +364,8 @@ async fn quick_save_executor_captures_real_combat_and_scene_state() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "boss fight" }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");

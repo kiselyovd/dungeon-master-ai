@@ -42,6 +42,14 @@ pub(crate) fn compose_system_prompt(base: &str, availability: ToolAvailability) 
              the board. Prefer calling these tools over describing the image in prose.",
         );
     }
+    if availability.video {
+        s.push_str(
+            " You also have generate_video for short cinematic motion clips (3-8 s) \
+             that appear inline in the chat. Use it sparingly for dramatic moments \
+             that benefit from motion - a spell erupting, a gate slamming shut, a \
+             creature bursting from shadow. Never for maps; never for static portraits.",
+        );
+    }
     s.push_str(
         " When a fight starts, immediately call start_combat with one initiative entry per \
          combatant - just the names are enough (e.g. the hero and each enemy). The engine \

@@ -10,6 +10,7 @@ import {
   safeParseText,
   safeParseToolCallResult,
   safeParseToolCallStart,
+  safeParseVideoGenerated,
 } from './schemas';
 import { parseSseEvents } from './sse';
 
@@ -52,6 +53,11 @@ export interface AgentTurnOptions {
     toolCallId: string | undefined,
     kind: 'map' | 'chat',
   ) => void;
+  /**
+   * A video clip the agent produced. Always renders inline in the tool-call
+   * card ('chat'). Delivered as a data URL: `data:video/mp4;base64,...`
+   */
+  onVideoGenerated?: (dataUrl: string, toolCallId: string | undefined, kind: 'chat') => void;
 }
 
 /**
@@ -167,6 +173,13 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
       if (p && opts.onImageGenerated) {
         const kind = p.kind === 'map' ? 'map' : 'chat';
         opts.onImageGenerated(`data:${p.mime_type};base64,${p.image_b64}`, p.tool_call_id, kind);
+      }
+      break;
+    }
+    case 'video_generated': {
+      const p = safeParseVideoGenerated(data);
+      if (p && opts.onVideoGenerated) {
+        opts.onVideoGenerated(`data:${p.mime_type};base64,${p.video_b64}`, p.tool_call_id, 'chat');
       }
       break;
     }

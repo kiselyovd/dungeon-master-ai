@@ -17,6 +17,8 @@ export interface ToolLogEntry {
   imageDataUrl?: string;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
+  /** Data URL of a video clip produced by this tool call, if any. */
+  videoDataUrl?: string;
 }
 
 export interface ToolLogSlice {

@@ -59,6 +59,7 @@ export function useAgentTurn() {
   const addToolCallStartEvent = useStore((s) => s.chat.addToolCallStartEvent);
   const settleToolCallEvent = useStore((s) => s.chat.settleToolCallEvent);
   const clearStreamEvents = useStore((s) => s.chat.clearStreamEvents);
+  const attachStreamEventVideo = useStore((s) => s.chat.attachStreamEventVideo);
   const addPending = useStore((s) => s.toolLog.addPending);
   const settle = useStore((s) => s.toolLog.settle);
   const appendJournalEntry = useStore((s) => s.journal.appendEntry);
@@ -111,6 +112,13 @@ export function useAgentTurn() {
             }
             if (kind === 'map') {
               useStore.getState().session.setMapImage(dataUrl);
+            }
+          },
+
+          onVideoGenerated: (dataUrl, toolCallId) => {
+            // Videos always render inline in the tool-call card (never the VTT board).
+            if (toolCallId) {
+              useStore.getState().chat.attachStreamEventVideo(toolCallId, dataUrl);
             }
           },
 
@@ -206,6 +214,7 @@ export function useAgentTurn() {
       addToolCallStartEvent,
       settleToolCallEvent,
       clearStreamEvents,
+      attachStreamEventVideo,
       addPending,
       settle,
       appendJournalEntry,

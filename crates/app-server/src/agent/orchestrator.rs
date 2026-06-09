@@ -24,6 +24,7 @@ use crate::agent::context_builder::{build_context, compose_system_prompt, needs_
 use crate::agent::tool_executor::execute_tool;
 use crate::agent::tools::{classify_handler, tools_for_phase, ToolAvailability};
 use crate::image::provider::ImageProvider;
+use crate::video::provider::VideoProvider;
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -119,6 +120,16 @@ pub enum AgentEvent {
         /// inline in the tool-call card. Derived from the tool name.
         kind: String,
     },
+    /// A `generate_video` tool-call produced a video. Carries the raw mp4 bytes
+    /// base64-encoded; emitted on a dedicated event so the blob stays out of
+    /// LLM history. `kind` is always "chat" (video renders inline in the card).
+    VideoGenerated {
+        tool_call_id: String,
+        round: usize,
+        mime_type: String,
+        video_b64: String,
+        kind: String,
+    },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
 }
@@ -129,6 +140,7 @@ pub struct AgentOrchestrator {
     config: AgentConfig,
     retriever: Option<Arc<SrdRetriever>>,
     image_provider: Option<Arc<dyn ImageProvider>>,
+    video_provider: Option<Arc<dyn VideoProvider>>,
     /// Auto-Swap VRAM coordinator. `Some` only when the local LLM runtime is up
     /// and the Auto-Swap strategy is selected; wraps each `generate_image` call
     /// so the LLM's VRAM is freed during generation and restored after.
@@ -149,8 +161,15 @@ impl AgentOrchestrator {
             config,
             retriever,
             image_provider,
+            video_provider: None,
             gpu_swap: None,
         }
+    }
+
+    /// Attach a video provider (builder-style).
+    pub fn with_video_provider(mut self, video_provider: Option<Arc<dyn VideoProvider>>) -> Self {
+        self.video_provider = video_provider;
+        self
     }
 
     /// Attach an Auto-Swap coordinator (builder-style) so image generation frees
@@ -324,11 +343,13 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
-                // Auto-Swap: around an image generation, free the local LLM's
+                // Auto-Swap: around an image/video generation, free the local LLM's
                 // VRAM (stop it) and restart it on the same port afterwards, so
                 // SDXL is not starved on a single 10 GB card. No-op when the
                 // coordinator is absent (cloud LLM, keep-both-loaded, etc.).
-                let swap = if crate::agent::tools::image_kind(&tc.name).is_some() {
+                let swap = if crate::agent::tools::image_kind(&tc.name).is_some()
+                    || crate::agent::tools::video_kind(&tc.name).is_some()
+                {
                     self.gpu_swap.clone()
                 } else {
                     None
@@ -340,6 +361,7 @@ impl AgentOrchestrator {
                     tc,
                     &self.pool,
                     self.image_provider.clone(),
+                    self.video_provider.clone(),
                     self.retriever.as_deref(),
                     &self.config.embedding_model,
                     req.campaign_id,
@@ -369,6 +391,30 @@ impl AgentOrchestrator {
                                     mime_type,
                                     image_b64,
                                     kind: crate::agent::tools::image_kind(&tc.name)
+                                        .unwrap_or("chat")
+                                        .to_string(),
+                                })
+                                .await
+                                .is_err()
+                            {
+                                return Ok(());
+                            }
+                        }
+                        // generate_video returns raw video as base64 inline. Peel
+                        // it similarly so the blob stays out of LLM history.
+                        if let Some(Value::String(video_b64)) = map.remove("video_b64") {
+                            let mime_type = map
+                                .get("mime_type")
+                                .and_then(Value::as_str)
+                                .unwrap_or("video/mp4")
+                                .to_string();
+                            if tx
+                                .send(AgentEvent::VideoGenerated {
+                                    tool_call_id: tc.id.clone(),
+                                    round: total_rounds,
+                                    mime_type,
+                                    video_b64,
+                                    kind: crate::agent::tools::video_kind(&tc.name)
                                         .unwrap_or("chat")
                                         .to_string(),
                                 })

@@ -132,3 +132,18 @@ export function safeParseImageGenerated(data: unknown): ImageGeneratedPayload | 
   const r = v.safeParse(ImageGeneratedSchema, data);
   return r.success ? r.output : null;
 }
+
+export const VideoGeneratedSchema = v.object({
+  tool_call_id: v.optional(v.string()),
+  round: v.optional(v.number()),
+  mime_type: v.string(),
+  video_b64: v.string(),
+  kind: v.optional(v.picklist(['chat'])),
+});
+
+export type VideoGeneratedPayload = v.InferOutput<typeof VideoGeneratedSchema>;
+
+export function safeParseVideoGenerated(data: unknown): VideoGeneratedPayload | null {
+  const r = v.safeParse(VideoGeneratedSchema, data);
+  return r.success ? r.output : null;
+}

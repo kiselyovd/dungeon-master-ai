@@ -15,6 +15,7 @@ use serde_json::json;
 pub fn classify_handler(tool_name: &str) -> &'static str {
     match tool_name {
         "generate_map" | "generate_illustration" => "image-provider",
+        "generate_video" => "video-provider",
         _ => "engine",
     }
 }
@@ -26,6 +27,16 @@ pub fn image_kind(tool_name: &str) -> Option<&'static str> {
     match tool_name {
         "generate_map" => Some("map"),
         "generate_illustration" => Some("chat"),
+        _ => None,
+    }
+}
+
+/// Map a video-producing tool name to the frontend routing discriminator.
+/// Video always renders inline in the tool-call card ("chat"). `None` for
+/// non-video tools.
+pub fn video_kind(tool_name: &str) -> Option<&'static str> {
+    match tool_name {
+        "generate_video" => Some("chat"),
         _ => None,
     }
 }
@@ -66,9 +77,9 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
         tools.push(generate_map_tool());
         tools.push(generate_illustration_tool());
     }
-    // generate_video tool definition is added in M7.5-DM once the video tool
-    // executor lands. For now, video gen runs out-of-band via the SSE route.
-    let _ = availability.video;
+    if availability.video {
+        tools.push(generate_video_tool());
+    }
     tools
 }
 
@@ -349,6 +360,27 @@ fn generate_illustration_tool() -> Tool {
     }
 }
 
+fn generate_video_tool() -> Tool {
+    Tool {
+        name: "generate_video".into(),
+        description: "Generate a short cinematic motion clip (3-8 s) shown inline \
+            in the chat panel. Use for dramatic moments that benefit from motion: \
+            a creature emerging from shadows, a spell erupting, a gate slamming shut. \
+            This is NOT a map - it does not change the VTT board. Pass a concrete \
+            visual prompt (~30 words). Keep use sparse - at most once per major beat."
+            .into(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "30-word visual description of the motion clip" },
+                "seconds": { "type": "number", "description": "Target duration in seconds (3-8). Optional; defaults to ~4 s." },
+                "frame_count": { "type": "integer", "description": "Number of frames. Optional; defaults to 97 (24 fps)." }
+            },
+            "required": ["prompt"]
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,6 +390,30 @@ mod tests {
         let tools = all_tools();
         assert!(tools.iter().any(|t| t.name == "generate_map"));
         assert!(tools.iter().any(|t| t.name == "generate_illustration"));
+    }
+
+    #[test]
+    fn all_tools_default_includes_video_tool() {
+        let tools = all_tools();
+        assert!(tools.iter().any(|t| t.name == "generate_video"));
+    }
+
+    #[test]
+    fn all_tools_with_video_disabled_omits_video_tool() {
+        let tools = all_tools_with(ToolAvailability {
+            image: true,
+            video: false,
+        });
+        assert!(!tools.iter().any(|t| t.name == "generate_video"));
+    }
+
+    #[test]
+    fn all_tools_with_video_enabled_includes_generate_video() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: true,
+        });
+        assert!(tools.iter().any(|t| t.name == "generate_video"));
     }
 
     #[test]
@@ -377,10 +433,23 @@ mod tests {
     }
 
     #[test]
+    fn classify_handler_routes_video_tool_to_video_provider() {
+        assert_eq!(classify_handler("generate_video"), "video-provider");
+    }
+
+    #[test]
     fn image_kind_maps_tool_names() {
         assert_eq!(image_kind("generate_map"), Some("map"));
         assert_eq!(image_kind("generate_illustration"), Some("chat"));
         assert_eq!(image_kind("roll_dice"), None);
+        assert_eq!(image_kind("generate_video"), None);
+    }
+
+    #[test]
+    fn video_kind_maps_generate_video_to_chat() {
+        assert_eq!(video_kind("generate_video"), Some("chat"));
+        assert_eq!(video_kind("generate_map"), None);
+        assert_eq!(video_kind("roll_dice"), None);
     }
 
     #[test]
@@ -398,6 +467,7 @@ mod tests {
         assert!(names.contains(&"start_combat"));
         assert!(names.contains(&"generate_map"));
         assert!(names.contains(&"generate_illustration"));
+        assert!(names.contains(&"generate_video"));
         assert!(names.contains(&"set_scene"));
     }
 

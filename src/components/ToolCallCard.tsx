@@ -10,12 +10,14 @@ interface Props {
 }
 
 const IMAGE_TOOLS = new Set(['generate_map', 'generate_illustration']);
+const VIDEO_TOOLS = new Set(['generate_video']);
 
 export function ToolCallCard({ entry, label }: Props) {
-  const { toolName, args, result, isError, round, imageDataUrl, imageKind } = entry;
+  const { toolName, args, result, isError, round, imageDataUrl, imageKind, videoDataUrl } = entry;
   const pending = result === null;
   const { t } = useTranslation('agent');
   const isImageTool = IMAGE_TOOLS.has(toolName);
+  const isVideoTool = VIDEO_TOOLS.has(toolName);
 
   const [displayResult, setDisplayResult] = useState<string | null>(null);
   const [settled, setSettled] = useState(false);
@@ -23,8 +25,8 @@ export function ToolCallCard({ entry, label }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
-    // Image tools never show the text result block.
-    if (isImageTool) return;
+    // Image and video tools never show the text result block.
+    if (isImageTool || isVideoTool) return;
     if (pending) {
       setSettled(false);
       setFlashing(false);
@@ -55,7 +57,31 @@ export function ToolCallCard({ entry, label }: Props) {
         <span className={styles.round}>{t('round_label', { round })}</span>
       </div>
 
-      {isImageTool ? (
+      {isVideoTool ? (
+        <div className={styles.imageBody}>
+          {pending && !isError && (
+            <div className={styles.drawing} data-testid="tool-drawing">
+              <span className={styles.drawingShimmer} aria-hidden="true" />
+              <span>{t('drawing_video')}</span>
+            </div>
+          )}
+          {!pending && isError && (
+            <pre className={styles.code}>{JSON.stringify(result, null, 2)}</pre>
+          )}
+          {!pending && !isError && videoDataUrl && (
+            <video controls src={videoDataUrl} aria-label={t('video_alt')} className={styles.thumb}>
+              {/* Generated clips carry no spoken dialogue; an empty captions track
+                  satisfies the a11y requirement without misrepresenting content. */}
+              <track kind="captions" />
+            </video>
+          )}
+          {!pending && !isError && !videoDataUrl && (
+            <div className={styles.drawing}>
+              <span>{t('video_alt')}</span>
+            </div>
+          )}
+        </div>
+      ) : isImageTool ? (
         <div className={styles.imageBody}>
           {pending && !isError && (
             <div className={styles.drawing} data-testid="tool-drawing">

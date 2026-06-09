@@ -307,7 +307,8 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -337,7 +338,8 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -534,6 +536,7 @@ async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
         &pool,
         Some(provider),
         None,
+        None,
         "",
         uuid::Uuid::new_v4(),
         uuid::Uuid::new_v4(),
@@ -697,6 +700,7 @@ async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() 
         &pool,
         None,
         None,
+        None,
         "",
         uuid::Uuid::new_v4(),
         uuid::Uuid::new_v4(),
@@ -725,7 +729,8 @@ async fn execute_set_scene_persists_and_is_retrievable() {
         }),
     };
 
-    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "execute_set_scene failed: {val}");
     assert_eq!(val["title"].as_str(), Some("The Dragon's Lair"));
     assert_eq!(val["mode"].as_str(), Some("combat"));
@@ -756,7 +761,8 @@ async fn setup_encounter_pool() -> (SqlitePool, uuid::Uuid, uuid::Uuid) {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [{ "name": "Hero" }] }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "start_combat failed: {val}");
 
     (pool, session_id, campaign_id)
@@ -778,7 +784,17 @@ async fn apply_damage_fire_resistance_halves_damage() {
             "resistances": ["fire"]
         }),
     };
-    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "add_token failed: {val}");
 
     // Apply 10 fire damage; resistant -> effective = 5.
@@ -791,7 +807,17 @@ async fn apply_damage_fire_resistance_halves_damage() {
             "type": "fire"
         }),
     };
-    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "apply_damage failed: {val}");
     assert_eq!(
         val["new_hp"].as_i64(),
@@ -817,7 +843,17 @@ async fn apply_damage_fire_immunity_deals_zero() {
             "immunities": ["fire"]
         }),
     };
-    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "add_token failed: {val}");
 
     let dmg_tc = ToolCall {
@@ -829,7 +865,17 @@ async fn apply_damage_fire_immunity_deals_zero() {
             "type": "fire"
         }),
     };
-    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "apply_damage failed: {val}");
     assert_eq!(
         val["new_hp"].as_i64(),
@@ -855,7 +901,17 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
             "vulnerabilities": ["fire"]
         }),
     };
-    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "add_token failed: {val}");
 
     let dmg_tc = ToolCall {
@@ -867,7 +923,17 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
             "type": "fire"
         }),
     };
-    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "apply_damage failed: {val}");
     assert_eq!(
         val["new_hp"].as_i64(),
@@ -892,7 +958,17 @@ async fn apply_damage_no_relation_applies_full_damage() {
             "hp": 20, "max_hp": 20, "ac": 10
         }),
     };
-    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "add_token failed: {val}");
 
     let dmg_tc = ToolCall {
@@ -904,7 +980,17 @@ async fn apply_damage_no_relation_applies_full_damage() {
             "type": "slashing"
         }),
     };
-    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "apply_damage failed: {val}");
     assert_eq!(
         val["new_hp"].as_i64(),

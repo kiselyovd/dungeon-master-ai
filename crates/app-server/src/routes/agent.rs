@@ -63,6 +63,7 @@ pub async fn post_agent_turn(
     }
     let retriever = state.srd_retriever();
     let image_provider = state.image_provider();
+    let video_provider = state.video_provider();
     let gpu_swap = build_gpu_swap(&state).await;
     let pool = state.db().clone();
 
@@ -98,7 +99,8 @@ pub async fn post_agent_turn(
     tokio::spawn(async move {
         let orch =
             AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider)
-                .with_gpu_swap(gpu_swap);
+                .with_gpu_swap(gpu_swap)
+                .with_video_provider(video_provider);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }
@@ -167,6 +169,10 @@ fn persist_event(
         }
         AgentEvent::ImageGenerated { .. } => {
             // Transient: the generated image is streamed to the UI, not
+            // persisted to chat history.
+        }
+        AgentEvent::VideoGenerated { .. } => {
+            // Transient: the generated video is streamed to the UI, not
             // persisted to chat history.
         }
         AgentEvent::TextDelta { text } => {
@@ -324,6 +330,22 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "handled_by": handled_by,
             }))
             .expect("tool_call_result json"),
+        AgentEvent::VideoGenerated {
+            tool_call_id,
+            round,
+            mime_type,
+            video_b64,
+            kind,
+        } => Event::default()
+            .event("video_generated")
+            .json_data(serde_json::json!({
+                "tool_call_id": tool_call_id,
+                "round": round,
+                "mime_type": mime_type,
+                "video_b64": video_b64,
+                "kind": kind,
+            }))
+            .expect("video_generated json"),
         AgentEvent::AgentDone { total_rounds } => Event::default()
             .event("agent_done")
             .json_data(serde_json::json!({ "total_rounds": total_rounds }))
