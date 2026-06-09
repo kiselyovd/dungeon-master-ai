@@ -42,6 +42,8 @@
   "action_used_tooltip": "Уже использовано в этот ход",
   "bonus_used_tooltip": "Уже использовано в этот ход",
   "reaction_used_tooltip": "Уже использовано в этот ход",
+  "turn_skipped": "Ход пропущен (оглушён / без сознания)",
+  "cant_act": "Ход пропущен - не может действовать (оглушён, парализован или без сознания)",
   "movement_label": "{{remaining}}/{{total}} фт",
   "conditions": {
     "prone": "Сбит с ног",

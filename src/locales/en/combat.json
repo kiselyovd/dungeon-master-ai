@@ -42,6 +42,8 @@
   "action_used_tooltip": "Already used this turn",
   "bonus_used_tooltip": "Already used this turn",
   "reaction_used_tooltip": "Already used this turn",
+  "turn_skipped": "Turn skipped (stunned / unconscious)",
+  "cant_act": "Turn skipped - cannot act (stunned, paralyzed, or unconscious)",
   "movement_label": "{{remaining}}/{{total}} ft",
   "conditions": {
     "prone": "Prone",

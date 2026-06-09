@@ -324,6 +324,163 @@ describe('combat slice', () => {
     });
   });
 
+  // W1.5 - condition-aware turn-start movement reset
+  describe('condition-aware econReset', () => {
+    it('restrained active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-1', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('grappled active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-2', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['grappled'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('stunned active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-3', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['stunned'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('non-restricting condition (poisoned) does not reduce movementRemaining', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-4', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['poisoned'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(30);
+    });
+
+    it('restrained active token gets movementRemaining 0 on setCurrentTurn', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-5', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      useStore.getState().combat.setCurrentTurn('foe');
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('restrained token gets movementRemaining 0 on endTurn (when it becomes active)', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-6', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      // endTurn: hero -> foe (foe is restrained)
+      useStore.getState().combat.endTurn();
+      expect(useStore.getState().combat.currentTurnId).toBe('foe');
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('restrained token: tryMoveToken returns false (movementRemaining is 0)', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-7', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      const ok = useStore.getState().combat.tryMoveToken('pc', 1, 0);
+      expect(ok).toBe(false);
+      expect(useStore.getState().combat.tokens[0]?.x).toBe(0);
+    });
+  });
+
   // chebyshevFt utility
   describe('chebyshevFt', () => {
     it('returns 0 for same cell', () => {

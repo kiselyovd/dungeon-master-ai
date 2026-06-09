@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AoeShape } from '../components/AoeTemplate';
+import { aggregateConditionEffects } from './conditions';
 
 export interface AoeTemplateEntry {
   id: string;
@@ -77,14 +78,21 @@ export interface CombatSlice {
 
 /**
  * Returns fresh action-economy fields for the start of a combatant's turn.
- * movementRemaining is set to the active token's speed (or DEFAULT_SPEED_FT).
+ * movementRemaining is set to the active token's speed (or DEFAULT_SPEED_FT)
+ * multiplied by the token's aggregate condition movement multiplier so that
+ * restrained/grappled/paralyzed/etc. tokens get 0 ft of movement. [W1.5]
  */
-function econReset(speed?: number) {
+function econReset(speed?: number, conditions?: string[]) {
+  const baseFt = speed ?? DEFAULT_SPEED_FT;
+  const multiplier =
+    conditions !== undefined && conditions.length > 0
+      ? aggregateConditionEffects(conditions).movementMultiplier
+      : 1;
   return {
     actionUsed: false,
     bonusUsed: false,
     reactionUsed: false,
-    movementRemaining: speed ?? DEFAULT_SPEED_FT,
+    movementRemaining: Math.floor(baseFt * multiplier),
   };
 }
 
@@ -114,7 +122,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: tokens.map((t) => t.id),
           currentTurnId: tokens[0]?.id ?? null,
           round: 1,
-          ...econReset(tokens[0]?.speed),
+          ...econReset(tokens[0]?.speed, tokens[0]?.conditions),
         },
       })),
 
@@ -185,7 +193,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
             ...s.combat,
             currentTurnId: tokenId,
             tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
-            ...econReset(activeToken?.speed),
+            ...econReset(activeToken?.speed, activeToken?.conditions),
           },
         };
       }),
@@ -282,7 +290,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
             currentTurnId: nextId,
             round: wrapped ? s.combat.round + 1 : s.combat.round,
             tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
-            ...econReset(nextToken?.speed),
+            ...econReset(nextToken?.speed, nextToken?.conditions),
           },
         };
       }),
