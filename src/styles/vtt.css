@@ -77,7 +77,7 @@
 }
 
 .dm-vtt-empty-icon {
-  color: rgba(212, 175, 55, 0.3);
+  color: rgba(212, 175, 55, 0.6);
 }
 
 .dm-vtt-empty-art {
@@ -201,7 +201,7 @@
   align-items: center;
   gap: 8px;
   font-size: 10px;
-  color: var(--color-fg-secondary);
+  color: var(--color-fg-primary);
   background: rgba(20, 16, 26, 0.7);
   padding: 4px 8px;
   border-radius: var(--radius-sm);

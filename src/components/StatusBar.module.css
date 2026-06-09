@@ -74,8 +74,8 @@
 }
 
 .modalityOff .value {
-  color: var(--color-fg-muted);
-  opacity: 0.7;
+  color: #8c84a0;
+  opacity: 1;
 }
 
 .dot {

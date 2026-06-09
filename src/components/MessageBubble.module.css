@@ -189,11 +189,11 @@
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   padding: 2px;
-  /* Hidden by default via opacity so the buttons remain in the tab order.
-     A keyboard user tabbing into a button triggers :focus-within on .bubble,
-     which restores opacity:1. visibility:hidden would remove buttons from the
-     tab order entirely and break that path - opacity:0 does not. */
-  opacity: 0;
+  /* Resting opacity is 0.35 so the tray is discoverable at a glance while
+     remaining visually subtle. A keyboard user tabbing into a button triggers
+     :focus-within on .bubble which restores opacity:1. visibility:hidden would
+     remove buttons from the tab order entirely and break that path. */
+  opacity: 0.35;
   pointer-events: none;
   transition: opacity 0.1s ease;
 }

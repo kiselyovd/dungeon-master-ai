@@ -26,7 +26,7 @@
   "ac_label": "AC",
   "dead": "Dead",
   "empty_map_title": "NO MAP LOADED",
-  "empty_map_text": "The map will appear when the AI describes a location.",
+  "empty_map_text": "No map yet - ask the DM to describe a scene, or start combat.",
   "map_controls": "Map controls",
   "map_zoom_in": "Zoom in",
   "map_zoom_out": "Zoom out",
