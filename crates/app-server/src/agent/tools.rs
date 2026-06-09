@@ -182,7 +182,10 @@ fn all_tools_core() -> Vec<Tool> {
                     "y": { "type": "integer" },
                     "hp": { "type": "integer" },
                     "max_hp": { "type": "integer" },
-                    "ac": { "type": "integer" }
+                    "ac": { "type": "integer" },
+                    "resistances": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token resists (takes half damage), e.g. [\"fire\",\"cold\"]" },
+                    "immunities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is immune to (takes 0 damage), e.g. [\"poison\",\"psychic\"]" },
+                    "vulnerabilities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is vulnerable to (takes double damage), e.g. [\"bludgeoning\"]" }
                 },
                 "required": ["id","name","x","y","hp","max_hp","ac"]
             }),
@@ -197,7 +200,10 @@ fn all_tools_core() -> Vec<Tool> {
                     "x": { "type": "integer" },
                     "y": { "type": "integer" },
                     "hp": { "type": "integer" },
-                    "conditions": { "type": "array", "items": { "type": "string" } }
+                    "conditions": { "type": "array", "items": { "type": "string" } },
+                    "resistances": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token resists" },
+                    "immunities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is immune to" },
+                    "vulnerabilities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is vulnerable to" }
                 },
                 "required": ["id"]
             }),

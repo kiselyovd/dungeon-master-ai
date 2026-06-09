@@ -148,20 +148,99 @@ fn parse_dice_expr(s: &str, modifier: i32) -> app_domain::dice::DiceExpr {
     }
 }
 
+/// Parse a lowercase damage-type string into `DamageType`.
+/// Returns `None` for unknown types (treated as Normal/no modifier).
+fn parse_damage_type(s: &str) -> Option<app_domain::combat::types::DamageType> {
+    use app_domain::combat::types::DamageType;
+    match s {
+        "acid" => Some(DamageType::Acid),
+        "bludgeoning" => Some(DamageType::Bludgeoning),
+        "cold" => Some(DamageType::Cold),
+        "fire" => Some(DamageType::Fire),
+        "force" => Some(DamageType::Force),
+        "lightning" => Some(DamageType::Lightning),
+        "necrotic" => Some(DamageType::Necrotic),
+        "piercing" => Some(DamageType::Piercing),
+        "poison" => Some(DamageType::Poison),
+        "psychic" => Some(DamageType::Psychic),
+        "radiant" => Some(DamageType::Radiant),
+        "slashing" => Some(DamageType::Slashing),
+        "thunder" => Some(DamageType::Thunder),
+        _ => None,
+    }
+}
+
+/// Build a `DamageResistance` from three nullable JSON-array columns.
+fn build_damage_resistance(
+    resistances_json: Option<&str>,
+    immunities_json: Option<&str>,
+    vulnerabilities_json: Option<&str>,
+) -> app_domain::combat::damage::DamageResistance {
+    use app_domain::combat::damage::{DamageRelation, DamageResistance};
+
+    let mut resist = DamageResistance::default();
+
+    let parse_list = |json: Option<&str>| -> Vec<String> {
+        json.and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
+            .unwrap_or_default()
+    };
+
+    for dt_str in parse_list(resistances_json) {
+        if let Some(dt) = parse_damage_type(&dt_str) {
+            resist.set(dt, DamageRelation::Resistant);
+        }
+    }
+    for dt_str in parse_list(immunities_json) {
+        if let Some(dt) = parse_damage_type(&dt_str) {
+            resist.set(dt, DamageRelation::Immune);
+        }
+    }
+    for dt_str in parse_list(vulnerabilities_json) {
+        if let Some(dt) = parse_damage_type(&dt_str) {
+            resist.set(dt, DamageRelation::Vulnerable);
+        }
+    }
+
+    resist
+}
+
 async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+    use app_domain::combat::damage::compute_effective_damage;
+    use sqlx::Row;
+
     let token_id = args["token_id"].as_str().unwrap_or_default();
     let amount = args["amount"].as_i64().unwrap_or(0) as i32;
+    let damage_type_str = args["type"].as_str().unwrap_or("").to_lowercase();
 
-    let row = sqlx::query("SELECT current_hp, max_hp FROM combat_tokens WHERE id = ?1")
-        .bind(token_id)
-        .fetch_optional(pool)
-        .await;
+    let row = sqlx::query(
+        "SELECT current_hp, max_hp, resistances, immunities, vulnerabilities \
+         FROM combat_tokens WHERE id = ?1",
+    )
+    .bind(token_id)
+    .fetch_optional(pool)
+    .await;
 
     match row {
         Ok(Some(r)) => {
-            use sqlx::Row;
             let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
-            let new_hp = (current_hp - amount).max(0);
+            let resistances: Option<String> = r.try_get("resistances").ok().flatten();
+            let immunities: Option<String> = r.try_get("immunities").ok().flatten();
+            let vulnerabilities: Option<String> = r.try_get("vulnerabilities").ok().flatten();
+
+            let resist = build_damage_resistance(
+                resistances.as_deref(),
+                immunities.as_deref(),
+                vulnerabilities.as_deref(),
+            );
+
+            // Map the type string; unknown -> Normal (no modifier applied).
+            let effective = if let Some(dt) = parse_damage_type(&damage_type_str) {
+                compute_effective_damage(amount, dt, &resist)
+            } else {
+                amount
+            };
+
+            let new_hp = (current_hp - effective).max(0);
             if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
                 .bind(new_hp)
                 .bind(token_id)
@@ -171,7 +250,14 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
                 tracing::warn!(error = %e, "sqlx write failed in execute_apply_damage");
                 return (json!({ "error": e.to_string() }), true);
             }
-            (json!({ "new_hp": new_hp, "damage_dealt": amount }), false)
+            (
+                json!({
+                    "new_hp": new_hp,
+                    "raw_damage": amount,
+                    "effective_damage": effective
+                }),
+                false,
+            )
         }
         _ => (
             json!({ "error": "token not found", "token_id": token_id }),
@@ -313,6 +399,14 @@ async fn execute_end_combat(pool: &SqlitePool) -> (Value, bool) {
     (json!({ "status": "combat_ended" }), false)
 }
 
+/// Encode an optional JSON array field from the args into a JSON string for storage.
+/// Returns `None` if the field is absent or not an array.
+fn encode_resist_list(args: &Value, field: &str) -> Option<String> {
+    args.get(field)
+        .and_then(|v| v.as_array())
+        .map(|arr| serde_json::to_string(arr).unwrap_or_else(|_| "[]".into()))
+}
+
 async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
     let name = args["name"].as_str().unwrap_or("Unknown");
@@ -321,6 +415,10 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     let hp = args["hp"].as_i64().unwrap_or(1) as i32;
     let max_hp = args["max_hp"].as_i64().unwrap_or(1) as i32;
     let ac = args["ac"].as_i64().unwrap_or(10) as i32;
+
+    let resistances = encode_resist_list(args, "resistances");
+    let immunities = encode_resist_list(args, "immunities");
+    let vulnerabilities = encode_resist_list(args, "vulnerabilities");
 
     // Get the most recent open encounter id.
     let encounter_row = sqlx::query(
@@ -338,7 +436,9 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     };
 
     if let Err(e) = sqlx::query(
-        "INSERT OR REPLACE INTO combat_tokens (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,'[]')"
+        "INSERT OR REPLACE INTO combat_tokens \
+         (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, resistances, immunities, vulnerabilities) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,'[]',?9,?10,?11)"
     )
     .bind(id)
     .bind(encounter_id)
@@ -348,6 +448,9 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     .bind(ac)
     .bind(x)
     .bind(y)
+    .bind(resistances)
+    .bind(immunities)
+    .bind(vulnerabilities)
     .execute(pool)
     .await
     {
@@ -382,6 +485,22 @@ async fn execute_update_token(args: &Value, pool: &SqlitePool) -> (Value, bool) 
                     .await
             {
                 tracing::warn!(error = %e, "sqlx write failed in execute_update_token");
+                return (json!({ "error": e.to_string() }), true);
+            }
+        }
+    }
+    // Persist resistance fields if provided.
+    for field in &["resistances", "immunities", "vulnerabilities"] {
+        if let Some(encoded) = encode_resist_list(args, field) {
+            if let Err(e) = sqlx::query(&format!(
+                "UPDATE combat_tokens SET {field} = ?1 WHERE id = ?2"
+            ))
+            .bind(encoded)
+            .bind(id)
+            .execute(pool)
+            .await
+            {
+                tracing::warn!(error = %e, "sqlx write failed in execute_update_token ({field})");
                 return (json!({ "error": e.to_string() }), true);
             }
         }

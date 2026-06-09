@@ -736,3 +736,181 @@ async fn execute_set_scene_persists_and_is_retrievable() {
     assert_eq!(scene.subtitle.as_deref(), Some("A cave of fire"));
     assert_eq!(scene.mode, "combat");
 }
+
+// ---------------------------------------------------------------------------
+// Damage resistance / immunity / vulnerability integration tests (W2.4a)
+// ---------------------------------------------------------------------------
+
+/// Helper: spin up an in-memory pool, run migrations, start an encounter via
+/// execute_tool, and return (pool, session_id, campaign_id).
+async fn setup_encounter_pool() -> (SqlitePool, uuid::Uuid, uuid::Uuid) {
+    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let campaign_id = uuid::Uuid::new_v4();
+    let session_id = uuid::Uuid::new_v4();
+
+    // Start an encounter so add_token has an active encounter to attach to.
+    let tc = ToolCall {
+        id: "tc-start-enc".into(),
+        name: "start_combat".into(),
+        args: serde_json::json!({ "initiative_entries": [{ "name": "Hero" }] }),
+    };
+    let (val, is_err) = execute_tool(&tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "start_combat failed: {val}");
+
+    (pool, session_id, campaign_id)
+}
+
+#[tokio::test]
+async fn apply_damage_fire_resistance_halves_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    // Add a token with fire resistance; max_hp = 20, current_hp = 20.
+    let add_tc = ToolCall {
+        id: "tc-add-1".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-resist",
+            "name": "FireResistantOrc",
+            "x": 0, "y": 0,
+            "hp": 20, "max_hp": 20, "ac": 12,
+            "resistances": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    // Apply 10 fire damage; resistant -> effective = 5.
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-1".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-resist",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(15),
+        "fire-resistant token: 20 - 5 = 15; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(5));
+}
+
+#[tokio::test]
+async fn apply_damage_fire_immunity_deals_zero() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-2".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-immune",
+            "name": "FireImmuneDragon",
+            "x": 0, "y": 0,
+            "hp": 100, "max_hp": 100, "ac": 18,
+            "immunities": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-2".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-immune",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(100),
+        "fire-immune token: 100 - 0 = 100; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(0));
+}
+
+#[tokio::test]
+async fn apply_damage_fire_vulnerability_doubles_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-3".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-vuln",
+            "name": "FireVulnTroll",
+            "x": 0, "y": 0,
+            "hp": 30, "max_hp": 30, "ac": 11,
+            "vulnerabilities": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-3".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-vuln",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(10),
+        "fire-vulnerable token: 30 - 20 = 10; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(20));
+}
+
+#[tokio::test]
+async fn apply_damage_no_relation_applies_full_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-4".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-plain",
+            "name": "PlainGoblin",
+            "x": 0, "y": 0,
+            "hp": 20, "max_hp": 20, "ac": 10
+        }),
+    };
+    let (val, is_err) = execute_tool(&add_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-4".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-plain",
+            "amount": 10,
+            "type": "slashing"
+        }),
+    };
+    let (val, is_err) = execute_tool(&dmg_tc, &pool, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(10),
+        "no-resistance token: 20 - 10 = 10; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(10));
+}
