@@ -279,3 +279,64 @@ async fn list_messages_isolated_per_session() {
     assert_eq!(h1.len(), 1);
     assert_eq!(h2.len(), 1);
 }
+
+// ---- Scenes ----
+
+#[tokio::test]
+async fn scene_insert_and_latest() {
+    use app_server::db::{scene_insert, scene_latest};
+    let pool = in_memory_pool().await;
+    let campaign_id = Uuid::new_v4();
+
+    let scene_id = scene_insert(
+        &pool,
+        campaign_id,
+        "Moonlit Tavern",
+        Some("The Prancing Pony"),
+        "social",
+        None,
+    )
+    .await
+    .unwrap();
+
+    let scene = scene_latest(&pool, campaign_id).await.unwrap().unwrap();
+    assert_eq!(scene.id, scene_id);
+    assert_eq!(scene.title, "Moonlit Tavern");
+    assert_eq!(scene.subtitle.as_deref(), Some("The Prancing Pony"));
+    assert_eq!(scene.mode, "social");
+}
+
+#[tokio::test]
+async fn scene_latest_returns_none_for_new_campaign() {
+    use app_server::db::scene_latest;
+    let pool = in_memory_pool().await;
+    let result = scene_latest(&pool, Uuid::new_v4()).await.unwrap();
+    assert!(result.is_none());
+}
+
+#[tokio::test]
+async fn scene_latest_returns_most_recent() {
+    use app_server::db::{scene_insert, scene_latest};
+    let pool = in_memory_pool().await;
+    let campaign_id = Uuid::new_v4();
+
+    scene_insert(&pool, campaign_id, "First Scene", None, "exploration", None)
+        .await
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    let second_id = scene_insert(
+        &pool,
+        campaign_id,
+        "Second Scene",
+        Some("A darker place"),
+        "combat",
+        Some("dragon lair"),
+    )
+    .await
+    .unwrap();
+
+    let scene = scene_latest(&pool, campaign_id).await.unwrap().unwrap();
+    assert_eq!(scene.id, second_id);
+    assert_eq!(scene.title, "Second Scene");
+    assert_eq!(scene.mode, "combat");
+}

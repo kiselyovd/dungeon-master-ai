@@ -546,6 +546,74 @@ pub async fn srd_chunks_clear(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+// ---- Scenes ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Scene {
+    pub id: Uuid,
+    pub campaign_id: Uuid,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub mode: String,
+}
+
+/// Persist a new scene. Returns the new scene UUID.
+pub async fn scene_insert(
+    pool: &SqlitePool,
+    campaign_id: Uuid,
+    title: &str,
+    subtitle: Option<&str>,
+    mode: &str,
+    image_prompt: Option<&str>,
+) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::new_v4();
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        r#"INSERT INTO scenes (id, campaign_id, title, subtitle, mode, image_prompt, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+    )
+    .bind(id.to_string())
+    .bind(campaign_id.to_string())
+    .bind(title)
+    .bind(subtitle)
+    .bind(mode)
+    .bind(image_prompt)
+    .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(id)
+}
+
+/// Load the most recently created scene for a campaign. Returns `None` when
+/// the campaign has no scenes yet.
+pub async fn scene_latest(
+    pool: &SqlitePool,
+    campaign_id: Uuid,
+) -> Result<Option<Scene>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"SELECT id, campaign_id, title, subtitle, mode
+           FROM scenes
+           WHERE campaign_id = ?1
+           ORDER BY created_at DESC
+           LIMIT 1"#,
+    )
+    .bind(campaign_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(r) = row {
+        Ok(Some(Scene {
+            id: parse_uuid_col(&r, "id")?,
+            campaign_id: parse_uuid_col(&r, "campaign_id")?,
+            title: r.try_get("title")?,
+            subtitle: r.try_get("subtitle")?,
+            mode: r.try_get("mode")?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 // ---- M4.5 messages ----
 
 use app_llm::{ChatMessage, MessagePart, ToolCall, ToolResult};
