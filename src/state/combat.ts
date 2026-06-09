@@ -23,6 +23,8 @@ export interface CombatToken {
   y: number;
   conditions: string[];
   isActive?: boolean;
+  /** Movement speed in feet. Defaults to DEFAULT_SPEED_FT when absent. */
+  speed?: number;
 }
 
 export const DEFAULT_SPEED_FT = 30;
@@ -52,6 +54,12 @@ export interface CombatSlice {
     setCurrentTurn: (tokenId: string | null) => void;
     advanceRound: () => void;
     moveToken: (tokenId: string, x: number, y: number) => void;
+    /**
+     * Validates the move against `movementRemaining` (Chebyshev distance * 5 ft).
+     * Returns true and updates x/y + decrements movementRemaining when the move is
+     * within budget; returns false and leaves state unchanged when over budget.
+     */
+    tryMoveToken: (tokenId: string, x: number, y: number) => boolean;
     addToken: (token: CombatToken) => void;
     updateToken: (tokenId: string, patch: Partial<CombatToken>) => void;
     removeToken: (tokenId: string) => void;
@@ -67,14 +75,25 @@ export interface CombatSlice {
   };
 }
 
-const econReset = () => ({
-  actionUsed: false,
-  bonusUsed: false,
-  reactionUsed: false,
-  movementRemaining: DEFAULT_SPEED_FT,
-});
+/**
+ * Returns fresh action-economy fields for the start of a combatant's turn.
+ * movementRemaining is set to the active token's speed (or DEFAULT_SPEED_FT).
+ */
+function econReset(speed?: number) {
+  return {
+    actionUsed: false,
+    bonusUsed: false,
+    reactionUsed: false,
+    movementRemaining: speed ?? DEFAULT_SPEED_FT,
+  };
+}
 
-export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set) => ({
+/** Chebyshev distance in feet between two grid cells (5 ft per cell). */
+export function chebyshevFt(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 5;
+}
+
+export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set, get) => ({
   combat: {
     active: false,
     encounterId: null,
@@ -95,7 +114,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: tokens.map((t) => t.id),
           currentTurnId: tokens[0]?.id ?? null,
           round: 1,
-          ...econReset(),
+          ...econReset(tokens[0]?.speed),
         },
       })),
 
@@ -159,14 +178,17 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
       })),
 
     setCurrentTurn: (tokenId) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          currentTurnId: tokenId,
-          tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
-          ...econReset(),
-        },
-      })),
+      set((s) => {
+        const activeToken = s.combat.tokens.find((t) => t.id === tokenId);
+        return {
+          combat: {
+            ...s.combat,
+            currentTurnId: tokenId,
+            tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
+            ...econReset(activeToken?.speed),
+          },
+        };
+      }),
 
     advanceRound: () => set((s) => ({ combat: { ...s.combat, round: s.combat.round + 1 } })),
 
@@ -177,6 +199,22 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
         },
       })),
+
+    tryMoveToken: (tokenId, x, y) => {
+      const { combat } = get();
+      const token = combat.tokens.find((t) => t.id === tokenId);
+      if (!token) return false;
+      const distance = chebyshevFt(token.x, token.y, x, y);
+      if (distance > combat.movementRemaining) return false;
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          movementRemaining: Math.max(0, s.combat.movementRemaining - distance),
+          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
+        },
+      }));
+      return true;
+    },
 
     addToken: (token) =>
       set((s) => {
@@ -237,13 +275,14 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
         // to the top of the initiative order. idx < 0 (combat just started, no
         // current turn) is the first turn, not a wrap. [F1]
         const wrapped = idx >= 0 && nextIdx === 0;
+        const nextToken = s.combat.tokens.find((t) => t.id === nextId);
         return {
           combat: {
             ...s.combat,
             currentTurnId: nextId,
             round: wrapped ? s.combat.round + 1 : s.combat.round,
             tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
-            ...econReset(),
+            ...econReset(nextToken?.speed),
           },
         };
       }),

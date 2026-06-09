@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { chebyshevFt, DEFAULT_SPEED_FT } from '../combat';
 import { useStore } from '../useStore';
 
 beforeEach(() => {
@@ -179,5 +180,171 @@ describe('combat slice', () => {
     });
     useStore.getState().combat.removeAoeTemplate('aoe-r');
     expect(useStore.getState().combat.aoeTemplates).toHaveLength(0);
+  });
+
+  // W1.3 - movement budget consumption
+  describe('tryMoveToken', () => {
+    it('moves within budget: updates x/y and decrements movementRemaining by Chebyshev feet', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-1', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // Move 2 cells diagonally = Chebyshev 2 = 10 ft
+      const ok = useStore.getState().combat.tryMoveToken('pc', 2, 2);
+      expect(ok).toBe(true);
+      const state = useStore.getState().combat;
+      const token = state.tokens.find((t) => t.id === 'pc');
+      expect(token?.x).toBe(2);
+      expect(token?.y).toBe(2);
+      expect(state.movementRemaining).toBe(DEFAULT_SPEED_FT - 10);
+    });
+
+    it('rejects a move that exceeds movementRemaining: x/y and budget unchanged', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-2', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // Move 7 cells = 35 ft, budget is 30
+      const ok = useStore.getState().combat.tryMoveToken('pc', 7, 0);
+      expect(ok).toBe(false);
+      const state = useStore.getState().combat;
+      const token = state.tokens.find((t) => t.id === 'pc');
+      expect(token?.x).toBe(0);
+      expect(token?.y).toBe(0);
+      expect(state.movementRemaining).toBe(DEFAULT_SPEED_FT);
+    });
+
+    it('allows sequential moves that together exhaust but do not exceed budget', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-3', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // First move: 3 cells = 15 ft
+      useStore.getState().combat.tryMoveToken('pc', 3, 0);
+      // Second move: 3 more cells = 15 ft (budget now 0)
+      const ok = useStore.getState().combat.tryMoveToken('pc', 6, 0);
+      expect(ok).toBe(true);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+      // Third move: any further movement is rejected
+      const rejected = useStore.getState().combat.tryMoveToken('pc', 7, 0);
+      expect(rejected).toBe(false);
+    });
+
+    it('returns false for an unknown token id', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-4', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      const ok = useStore.getState().combat.tryMoveToken('nonexistent', 1, 1);
+      expect(ok).toBe(false);
+    });
+  });
+
+  // W1.3 - speed-aware econReset
+  describe('speed-aware movement reset', () => {
+    it('movementRemaining resets to active token speed on endTurn', () => {
+      const { combat } = useStore.getState();
+      // Foe has speed 20; when it becomes active the budget should be 20
+      combat.startCombat('enc-speed-1', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: [],
+          speed: 20,
+        },
+      ]);
+      // Initially hero's turn: budget = 30
+      expect(useStore.getState().combat.movementRemaining).toBe(30);
+      useStore.getState().combat.endTurn();
+      // Foe's turn: budget = 20
+      expect(useStore.getState().combat.movementRemaining).toBe(20);
+    });
+
+    it('startCombat sets movementRemaining to the first token speed', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-2', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 40,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(40);
+    });
+
+    it('setCurrentTurn resets movementRemaining to the new active token speed', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-3', [
+        {
+          id: 'a',
+          name: 'Alpha',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        { id: 'b', name: 'Beta', hp: 10, maxHp: 10, ac: 14, x: 1, y: 0, conditions: [], speed: 25 },
+      ]);
+      useStore.getState().combat.setCurrentTurn('b');
+      expect(useStore.getState().combat.movementRemaining).toBe(25);
+    });
+
+    it('defaults to DEFAULT_SPEED_FT when token has no speed field', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-4', [
+        // No speed field - should default
+        { id: 'hero', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(DEFAULT_SPEED_FT);
+    });
+  });
+
+  // chebyshevFt utility
+  describe('chebyshevFt', () => {
+    it('returns 0 for same cell', () => {
+      expect(chebyshevFt(3, 3, 3, 3)).toBe(0);
+    });
+
+    it('returns 5 for one cell orthogonal', () => {
+      expect(chebyshevFt(0, 0, 1, 0)).toBe(5);
+    });
+
+    it('returns 5 for one cell diagonal (Chebyshev = max of deltas)', () => {
+      expect(chebyshevFt(0, 0, 1, 1)).toBe(5);
+    });
+
+    it('returns 30 for 6 cells orthogonal', () => {
+      expect(chebyshevFt(0, 0, 6, 0)).toBe(30);
+    });
+
+    it('returns correct value for mixed deltas', () => {
+      // dx=3, dy=5 -> max=5 -> 25 ft
+      expect(chebyshevFt(0, 0, 3, 5)).toBe(25);
+    });
   });
 });
