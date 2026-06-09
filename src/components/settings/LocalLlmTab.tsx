@@ -52,6 +52,7 @@ export function LocalLlmTab() {
   const { t } = useTranslation('settings');
   const { t: tLocal } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
+  const isStreaming = useStore((s) => s.chat.isStreaming);
   // Poll runtime status so the pills + the toWireConfig port lookup reflect
   // the current sidecar state. While the Local LLM panel is mounted we always
   // poll - the user is actively configuring it, so the original `enabled`
@@ -137,9 +138,7 @@ export function LocalLlmTab() {
       <LocalLlmModelSelector
         activeId={activeWireId}
         onActiveChange={onActiveLocalChange}
-        // TODO(M9-DM): plumb session.agentTurnInFlight once the session slice
-        // exposes it; until then assume the user is not mid-turn (false).
-        agentTurnInFlight={false}
+        agentTurnInFlight={isStreaming}
       />
 
       <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
