@@ -14,8 +14,19 @@ use serde_json::json;
 /// frontend maps to a CSS class.
 pub fn classify_handler(tool_name: &str) -> &'static str {
     match tool_name {
-        "generate_image" => "image-provider",
+        "generate_map" | "generate_illustration" => "image-provider",
         _ => "engine",
+    }
+}
+
+/// Map an image-producing tool name to the frontend routing discriminator:
+/// `map` paints the VTT background (left), `chat` renders inline in the
+/// tool-call card (right). `None` for non-image tools.
+pub fn image_kind(tool_name: &str) -> Option<&'static str> {
+    match tool_name {
+        "generate_map" => Some("map"),
+        "generate_illustration" => Some("chat"),
+        _ => None,
     }
 }
 
@@ -52,7 +63,8 @@ pub fn all_tools() -> Vec<Tool> {
 pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     let mut tools = all_tools_core();
     if availability.image {
-        tools.push(generate_image_tool());
+        tools.push(generate_map_tool());
+        tools.push(generate_illustration_tool());
     }
     // generate_video tool definition is added in M7.5-DM once the video tool
     // executor lands. For now, video gen runs out-of-band via the SSE route.
@@ -290,20 +302,41 @@ fn all_tools_core() -> Vec<Tool> {
     ]
 }
 
-fn generate_image_tool() -> Tool {
+fn generate_map_tool() -> Tool {
     Tool {
-        name: "generate_image".into(),
-        description: "Show the players a picture of the current scene. CALL THIS \
-            tool (do not just describe it in prose) whenever the party arrives \
-            somewhere new, a major scene changes, or the player asks to see, draw, \
-            show, or illustrate a place, character, item, or map. Pass a concrete \
-            visual prompt. Rate limited: at most once per scene change."
+        name: "generate_map".into(),
+        description: "Render a TOP-DOWN tactical battle map of the current \
+            location and show it on the VTT (the left-hand board). Call this when \
+            the party enters a place where positioning matters (a room, dungeon, \
+            street, clearing) or when a fight is about to start. Pass a concrete \
+            visual prompt describing the location's layout and terrain - NOT a \
+            character or a single object. The engine renders it bird's-eye, \
+            grid-aligned. At most once per location."
             .into(),
         parameters: json!({
             "type": "object",
             "properties": {
-                "prompt": { "type": "string", "description": "30-word content description" },
-                "style": { "type": "string", "enum": ["dark_fantasy","portrait","map"] }
+                "prompt": { "type": "string", "description": "Location layout/terrain, e.g. 'ruined throne hall, broken pillars, central dais, rubble'" }
+            },
+            "required": ["prompt"]
+        }),
+    }
+}
+
+fn generate_illustration_tool() -> Tool {
+    Tool {
+        name: "generate_illustration".into(),
+        description: "Show the players a cinematic illustration in the chat (the \
+            right-hand panel): a character, creature, item, or a dramatic view of a \
+            scene. Call this when the player asks to see/draw/show someone or \
+            something, or to punctuate a dramatic moment. This is NOT a map - it \
+            does not change the VTT board. Pass a concrete visual prompt (~30 words)."
+            .into(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "30-word content description of the subject/scene" },
+                "style": { "type": "string", "enum": ["dark_fantasy","portrait"] }
             },
             "required": ["prompt"]
         }),
@@ -315,23 +348,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_tools_default_includes_generate_image() {
+    fn all_tools_default_includes_image_tools() {
         let tools = all_tools();
-        assert!(tools.iter().any(|t| t.name == "generate_image"));
+        assert!(tools.iter().any(|t| t.name == "generate_map"));
+        assert!(tools.iter().any(|t| t.name == "generate_illustration"));
     }
 
     #[test]
-    fn all_tools_with_image_disabled_omits_generate_image() {
+    fn all_tools_with_image_disabled_omits_image_tools() {
         let tools = all_tools_with(ToolAvailability {
             image: false,
             video: false,
         });
-        assert!(!tools.iter().any(|t| t.name == "generate_image"));
+        assert!(!tools.iter().any(|t| t.name == "generate_map"));
+        assert!(!tools.iter().any(|t| t.name == "generate_illustration"));
     }
 
     #[test]
-    fn classify_handler_routes_generate_image_to_image_provider() {
-        assert_eq!(classify_handler("generate_image"), "image-provider");
+    fn classify_handler_routes_image_tools_to_image_provider() {
+        assert_eq!(classify_handler("generate_map"), "image-provider");
+        assert_eq!(classify_handler("generate_illustration"), "image-provider");
+    }
+
+    #[test]
+    fn image_kind_maps_tool_names() {
+        assert_eq!(image_kind("generate_map"), Some("map"));
+        assert_eq!(image_kind("generate_illustration"), Some("chat"));
+        assert_eq!(image_kind("roll_dice"), None);
     }
 
     #[test]
@@ -347,7 +390,8 @@ mod tests {
         // Exploration tools and start_combat stay available.
         assert!(names.contains(&"roll_dice"));
         assert!(names.contains(&"start_combat"));
-        assert!(names.contains(&"generate_image"));
+        assert!(names.contains(&"generate_map"));
+        assert!(names.contains(&"generate_illustration"));
         assert!(names.contains(&"set_scene"));
     }
 
