@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import {
   type ComponentPropsWithoutRef,
   createContext,
@@ -112,32 +113,68 @@ const MarkdownBody = memo(function MarkdownBody({ content }: { content: string }
 const PREVIEW_MAX_CHARS = 120;
 
 /**
- * Converts plain text to minimal safe HTML suitable for `entry_html` in the
+ * Converts markdown text to sanitized HTML suitable for `entry_html` in the
  * journal store.
  *
- * Steps:
- *  1. HTML-escape special characters so no raw markup leaks.
- *  2. Split on blank-line boundaries into paragraphs; wrap each in <p>...</p>.
- *  3. Within a paragraph, convert lone newlines to <br>.
- *  4. Drop empty paragraphs.
+ * Handles:
+ *  - ATX headings: # H1, ## H2, ### H3
+ *  - **bold** / __bold__
+ *  - *italic* / _italic_
+ *  - `inline code`
+ *  - Blank-line paragraph breaks
+ *  - Lone newlines within paragraphs -> <br>
  *
- * TODO: markdown emphasis/headings are NOT converted to rich HTML here.
- * Full markdown-to-HTML for journal entries is deferred - the spec originally
- * intended Save-to-Journal to route through the backend `journal_append` tool
- * which handles HTML conversion; B4 uses a direct slice call instead.
+ * Output is sanitized via DOMPurify before being stored, so any accidental
+ * HTML-like fragments in the model output cannot inject markup.
  */
 function plainTextToEntryHtml(text: string): string {
+  // Split on blank lines into blocks first.
+  const blocks = text.split(/\n{2,}/);
+  const htmlBlocks = blocks
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0)
+    .map((block) => {
+      // ATX heading (up to ###).
+      const headingMatch = /^(#{1,3})\s+(.+)$/.exec(block);
+      if (headingMatch) {
+        const level = (headingMatch[1] ?? '').length;
+        const content = escapeAndSpan(headingMatch[2] ?? '');
+        return `<h${level}>${content}</h${level}>`;
+      }
+      // Regular paragraph: convert inline newlines to <br> then apply spans.
+      const lines = block
+        .split('\n')
+        .map((l) => escapeAndSpan(l))
+        .join('<br>');
+      return `<p>${lines}</p>`;
+    });
+
+  const raw = htmlBlocks.join('');
+  return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+}
+
+/**
+ * HTML-escapes a string and applies inline markdown spans:
+ *  - **bold** / __bold__ -> <strong>
+ *  - *italic* / _italic_ -> <em>
+ *  - `code` -> <code>
+ *
+ * Escaping happens first so no pre-existing `<` `>` `&` leaks; then the
+ * escaped asterisks/backticks are rewritten into safe HTML tags.
+ */
+function escapeAndSpan(text: string): string {
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   return escaped
-    .split(/\n{2,}/)
-    .map((para) => para.replace(/\n/g, '<br>').trim())
-    .filter((para) => para.length > 0)
-    .map((para) => `<p>${para}</p>`)
-    .join('');
+    .replace(
+      /\*\*(.+?)\*\*|__(.+?)__/g,
+      (_full, a?: string, b?: string) => `<strong>${a ?? b ?? ''}</strong>`,
+    )
+    .replace(/\*(.+?)\*|_(.+?)_/g, (_full, a?: string, b?: string) => `<em>${a ?? b ?? ''}</em>`)
+    .replace(/`(.+?)`/g, (_full, a: string) => `<code>${a}</code>`);
 }
 
 function truncate(text: string, max: number): string {

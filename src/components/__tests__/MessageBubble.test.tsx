@@ -247,6 +247,63 @@ describe('MessageBubble', () => {
       expect(arg.entry_html).toBe('<p>A passage worth remembering.</p>');
     });
 
+    it('(d2) Save to Journal converts markdown bold/italic/headings to HTML', () => {
+      const appendEntry = vi.fn();
+      useStore.setState((s) => ({
+        ...s,
+        journal: { ...s.journal, appendEntry },
+      }));
+
+      render(
+        <MessageBubble chatRole="assistant">
+          {'**Bold text** and *italic* and `code`'}
+        </MessageBubble>,
+      );
+      fireEvent.click(screen.getByLabelText(/save to journal/i));
+      // biome-ignore lint/style/noNonNullAssertion: guarded by prior render
+      const arg = appendEntry.mock.calls[0]![0];
+      expect(arg.entry_html).toContain('<strong>Bold text</strong>');
+      expect(arg.entry_html).toContain('<em>italic</em>');
+      expect(arg.entry_html).toContain('<code>code</code>');
+    });
+
+    it('(d3) Save to Journal converts ATX headings to h1/h2/h3', () => {
+      const appendEntry = vi.fn();
+      useStore.setState((s) => ({
+        ...s,
+        journal: { ...s.journal, appendEntry },
+      }));
+
+      render(
+        <MessageBubble chatRole="assistant">
+          {'# Chapter One\n\n## Scene Two\n\n### Detail'}
+        </MessageBubble>,
+      );
+      fireEvent.click(screen.getByLabelText(/save to journal/i));
+      // biome-ignore lint/style/noNonNullAssertion: guarded by prior render
+      const arg = appendEntry.mock.calls[0]![0];
+      expect(arg.entry_html).toContain('<h1>Chapter One</h1>');
+      expect(arg.entry_html).toContain('<h2>Scene Two</h2>');
+      expect(arg.entry_html).toContain('<h3>Detail</h3>');
+    });
+
+    it('(d4) Save to Journal sanitizes potential XSS in content', () => {
+      const appendEntry = vi.fn();
+      useStore.setState((s) => ({
+        ...s,
+        journal: { ...s.journal, appendEntry },
+      }));
+
+      render(
+        <MessageBubble chatRole="assistant">{'Safe text <script>alert(1)</script>'}</MessageBubble>,
+      );
+      fireEvent.click(screen.getByLabelText(/save to journal/i));
+      // biome-ignore lint/style/noNonNullAssertion: guarded by prior render
+      const arg = appendEntry.mock.calls[0]![0];
+      expect(arg.entry_html).not.toContain('<script>');
+      expect(arg.entry_html).toContain('Safe text');
+    });
+
     it('(e) Retry button calls the onRetry prop', () => {
       const onRetry = vi.fn();
       render(
