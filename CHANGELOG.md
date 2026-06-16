@@ -4,6 +4,37 @@ All notable changes to this project are tracked here. The format follows [Keep a
 
 Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk schema may change between them. See `docs/RELEASE.md` for the release pipeline and `docs/RELEASE_CHECKLIST.md` for the per-release manual smoke list.
 
+## [v0.12.0-real-engine] - 2026-06-16 - Make everything real (W1-W4)
+
+The "make everything real" workstream: tool stubs are gone and the combat layer runs on real rules. Full design in the planning dir spec `2026-06-09-dmai-make-everything-real-design.md`.
+
+### Added
+- W1 combat engine: real initiative is rolled and sorted server-side; the frontend renders the backend initiative order.
+- W1 turn-gating: token dragging is restricted to the active PC token, the movement budget is consumed on drag, and dead tokens (hp<=0) cannot be moved.
+- W1 conditions gate movement and actions; the ActionBar is shown only on the player's turn; active-turn highlight plus token-move animation.
+- W1 damage resistance/immunity/vulnerability applied in `apply_damage` (migration `0006_token_resistances`).
+- W2 `query_rules` performs real SRD retrieval through embeddings (`SrdRetriever`).
+- W2 `set_scene` persists to a new `scenes` table (migration `0005_scenes`) and the current scene is injected into model context.
+- W2 `quick_save`/load captures and restores real combat plus scene state end-to-end.
+- W2 real spell resolution: compendium lookup, damage, resistances, and saves.
+- W3 end-to-end video generation: sidecar `/video/generate` SSE, `generate_video` tool, `VideoGenerated` event, and `<video>` rendering in chat.
+- `generate_image` split into `generate_map` (top-down, routed to the VTT) and `generate_illustration` (cinematic, routed to a chat tool-call card).
+- VTT zoom/pan/fit-to-view and a layers popover (grid / scene image / tokens).
+- Local text-only models Qwen3-0.6B and Qwen3-8B via ISQ.
+- VRAM auto-swap around image generation: stops the local LLM, frees the card for SDXL, and restarts the LLM on the same port.
+
+### Changed
+- W4 honest pending indicator replaces the fake cycling-digit progress.
+- W4 `agentTurnInFlight` disables the model switch while a turn is in flight.
+- W4 danger Button variant for destructive confirmations.
+- W4 journal renders markdown as sanitized rich HTML.
+- Migrated the local LLM sidecar from the deprecated `mistralrs-server` to `mistralrs-cli serve` (clean structured tool_calls), with a parser fallback for tool-calls that leak into `delta.content`.
+
+### Known limitations
+- 7 biome warnings remain (non-null assertions in tests, exhaustive-deps, descending-specificity); they do not block the gates.
+- GGUF loading crashes after load on non-TTY Windows (upstream mistralrs); the default Gemma/ISQ path works.
+- Rendering a generated illustration directly onto the VTT map is deferred (the image is generated and delivered over SSE).
+
 ## [Unreleased] - M5 polish
 
 ### Added
