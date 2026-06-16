@@ -24,7 +24,7 @@ dependencies = [
     "fastapi==0.137.1",
     "uvicorn[standard]==0.49.0",
     "pydantic==2.13.4",
-    "pillow==10.4.0",
+    "pillow==12.2.0",
     # Video export (LTX-Video MP4 via diffusers.utils.export_to_video).
     "opencv-python==4.13.0.92",
     "imageio==2.37.3",
