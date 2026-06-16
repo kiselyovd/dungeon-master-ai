@@ -32,6 +32,13 @@ export interface SessionData {
   loadError: string | null;
   /** Active scene shown in the titlebar centre. Null when no scene is set. */
   currentScene: CurrentScene | null;
+  /**
+   * Data URL of the latest agent-generated scene image, painted as the VTT
+   * map background. Null when no image has been generated yet. Ephemeral by
+   * design - kept out of the persist whitelist so a multi-MB base64 PNG never
+   * lands in localStorage; it repaints on the next `generate_image`. [M11]
+   */
+  mapImageUrl: string | null;
 }
 
 export interface SessionActions {
@@ -50,6 +57,8 @@ export interface SessionActions {
   setCurrentScene: (scene: CurrentScene | null) => void;
   /** +1 the active scene's step counter. No-op when no scene is set. */
   incrementScene: () => void;
+  /** Set or clear the VTT map background image (data URL). */
+  setMapImage: (dataUrl: string | null) => void;
 }
 
 export interface SessionSlice {
@@ -60,9 +69,20 @@ function newUuid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // Fallback for environments without WebCrypto. Not RFC4122 strict;
-  // good enough as a stable opaque key.
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    // WebCrypto present but no randomUUID: build an RFC4122 v4 from CSPRNG bytes.
+    // Never Math.random - these ids key persisted campaign/session state.
+    const bytes = Array.from(crypto.getRandomValues(new Uint8Array(16)), (x, i) => {
+      if (i === 6) return (x & 0x0f) | 0x40; // version 4
+      if (i === 8) return (x & 0x3f) | 0x80; // variant 10x
+      return x;
+    });
+    const h = bytes.map((x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+  throw new Error(
+    'newUuid: no secure crypto source (crypto.randomUUID / getRandomValues) available',
+  );
 }
 
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set, get) => ({
@@ -71,6 +91,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     activeSessionId: null,
     loadError: null,
     currentScene: null,
+    mapImageUrl: null,
 
     setActiveSession: (campaignId, sessionId) =>
       set((s) => ({
@@ -114,5 +135,10 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
         },
       }));
     },
+
+    setMapImage: (dataUrl) =>
+      set((s) => ({
+        session: { ...s.session, mapImageUrl: dataUrl },
+      })),
   },
 });

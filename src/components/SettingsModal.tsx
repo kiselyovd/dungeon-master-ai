@@ -59,6 +59,7 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
   }, [open, isClosing]);
 
   const onSubmit = async (submission: SettingsSubmission) => {
+    setSubmitError(null);
     setProviderConfig(submission.provider);
     setActiveProvider(submission.provider.kind);
     setUiLang(submission.uiLanguage);
@@ -102,7 +103,17 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
     >
       {submitError && (
         <div role="alert" className={styles.errorBanner} data-testid="settings-save-error">
-          {t('save_error_prefix')} {submitError}
+          <span className={styles.errorBannerText}>
+            {t('save_error_prefix')} {submitError}
+          </span>
+          <button
+            type="button"
+            className={styles.errorBannerDismiss}
+            onClick={() => setSubmitError(null)}
+            aria-label={tCommon('dismiss')}
+          >
+            {tCommon('dismiss')}
+          </button>
         </div>
       )}
       <SettingsForm

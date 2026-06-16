@@ -45,6 +45,7 @@ async fn orchestrator_emits_text_events_from_mock() {
         player_message: "I search the room.".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -105,6 +106,7 @@ async fn orchestrator_executes_tool_call_and_continues() {
         player_message: "roll".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -166,6 +168,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
         player_message: "look around".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(32);
@@ -304,7 +307,8 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -334,7 +338,8 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) = execute_tool(&tc, &pool, None, campaign_id, session_id).await;
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -421,6 +426,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
         player_message: "What is the meaning of life?".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
@@ -496,7 +502,7 @@ async fn agent_endpoint_streams_reasoning_text_event() {
 }
 
 #[tokio::test]
-async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
+async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
     use app_server::image::provider::ImageProvider;
     use app_server::image::stub::LocalImageSidecarProvider;
     use base64::engine::general_purpose::STANDARD as B64;
@@ -521,7 +527,7 @@ async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     let tc = app_llm::ToolCall {
         id: "tc-img-1".into(),
-        name: "generate_image".into(),
+        name: "generate_illustration".into(),
         args: serde_json::json!({ "prompt": "a torchlit dungeon corridor" }),
     };
 
@@ -529,12 +535,18 @@ async fn execute_tool_generate_image_calls_provider_and_returns_bytes() {
         &tc,
         &pool,
         Some(provider),
+        None,
+        None,
+        "",
         uuid::Uuid::new_v4(),
         uuid::Uuid::new_v4(),
     )
     .await;
 
-    assert!(!is_error, "generate_image should succeed, got: {result:?}");
+    assert!(
+        !is_error,
+        "generate_illustration should succeed, got: {result:?}"
+    );
     assert_eq!(result["status"], "generated");
     assert_eq!(result["mime_type"], "image/png");
     let returned = result["image_b64"].as_str().expect("image_b64 present");
@@ -568,12 +580,12 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
 
     let pool = test_pool().await;
 
-    // MockProvider emits a generate_image tool-call then a ToolUse finish,
+    // MockProvider emits a generate_illustration tool-call then a ToolUse finish,
     // followed by an empty round that exits with a default Stop reason.
     let mock = Arc::new(MockProvider::new(vec![
         ChatChunk::ToolCallStart {
             id: "img-tc-1".into(),
-            name: "generate_image".into(),
+            name: "generate_illustration".into(),
         },
         ChatChunk::ToolCallArgsDelta {
             id: "img-tc-1".into(),
@@ -603,6 +615,7 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
         player_message: "draw the dungeon".into(),
         history: vec![],
         images: vec![],
+        board: None,
     };
 
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
@@ -617,7 +630,9 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     while let Some(ev) = rx.recv().await {
         match &ev {
             AgentEvent::ImageGenerated { .. } => image_generated = Some(ev),
-            AgentEvent::ToolCallResult { tool_name, .. } if tool_name == "generate_image" => {
+            AgentEvent::ToolCallResult { tool_name, .. }
+                if tool_name == "generate_illustration" =>
+            {
                 tool_call_result = Some(ev)
             }
             AgentEvent::AgentDone { .. } => {
@@ -634,6 +649,7 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     if let AgentEvent::ImageGenerated {
         image_b64,
         mime_type,
+        kind,
         ..
     } = img_ev
     {
@@ -643,13 +659,14 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
             "ImageGenerated image_b64 should decode to the original bytes"
         );
         assert_eq!(mime_type, "image/png");
+        assert_eq!(kind, "chat", "generate_illustration routes to chat");
     } else {
         panic!("unexpected event type for image_generated");
     }
 
     // Assert the ToolCallResult does NOT contain image_b64 (strip fired),
     // but DOES still carry status and mime_type.
-    let result_ev = tool_call_result.expect("expected ToolCallResult for generate_image");
+    let result_ev = tool_call_result.expect("expected ToolCallResult for generate_illustration");
     if let AgentEvent::ToolCallResult { result, .. } = result_ev {
         assert!(
             result.get("image_b64").is_none(),
@@ -671,15 +688,315 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
 }
 
 #[tokio::test]
-async fn execute_tool_generate_image_without_provider_is_a_clean_error() {
+async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     let tc = app_llm::ToolCall {
         id: "tc-img-2".into(),
-        name: "generate_image".into(),
+        name: "generate_illustration".into(),
         args: serde_json::json!({ "prompt": "anything" }),
     };
-    let (result, is_error) =
-        execute_tool(&tc, &pool, None, uuid::Uuid::new_v4(), uuid::Uuid::new_v4()).await;
+    let (result, is_error) = execute_tool(
+        &tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    )
+    .await;
     assert!(is_error);
     assert!(result["error"].is_string());
+}
+
+#[tokio::test]
+async fn execute_set_scene_persists_and_is_retrievable() {
+    use app_server::db::scene_latest;
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let campaign_id = uuid::Uuid::new_v4();
+    let session_id = uuid::Uuid::new_v4();
+
+    let tc = app_llm::ToolCall {
+        id: "tc-scene-1".into(),
+        name: "set_scene".into(),
+        args: serde_json::json!({
+            "title": "The Dragon's Lair",
+            "subtitle": "A cave of fire",
+            "mode": "combat"
+        }),
+    };
+
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "execute_set_scene failed: {val}");
+    assert_eq!(val["title"].as_str(), Some("The Dragon's Lair"));
+    assert_eq!(val["mode"].as_str(), Some("combat"));
+
+    // Verify a row was written.
+    let scene = scene_latest(&pool, campaign_id).await.unwrap().unwrap();
+    assert_eq!(scene.title, "The Dragon's Lair");
+    assert_eq!(scene.subtitle.as_deref(), Some("A cave of fire"));
+    assert_eq!(scene.mode, "combat");
+}
+
+// ---------------------------------------------------------------------------
+// Damage resistance / immunity / vulnerability integration tests (W2.4a)
+// ---------------------------------------------------------------------------
+
+/// Helper: spin up an in-memory pool, run migrations, start an encounter via
+/// execute_tool, and return (pool, session_id, campaign_id).
+async fn setup_encounter_pool() -> (SqlitePool, uuid::Uuid, uuid::Uuid) {
+    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+    app_server::db::init_db(&pool).await.unwrap();
+
+    let campaign_id = uuid::Uuid::new_v4();
+    let session_id = uuid::Uuid::new_v4();
+
+    // Start an encounter so add_token has an active encounter to attach to.
+    let tc = ToolCall {
+        id: "tc-start-enc".into(),
+        name: "start_combat".into(),
+        args: serde_json::json!({ "initiative_entries": [{ "name": "Hero" }] }),
+    };
+    let (val, is_err) =
+        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    assert!(!is_err, "start_combat failed: {val}");
+
+    (pool, session_id, campaign_id)
+}
+
+#[tokio::test]
+async fn apply_damage_fire_resistance_halves_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    // Add a token with fire resistance; max_hp = 20, current_hp = 20.
+    let add_tc = ToolCall {
+        id: "tc-add-1".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-resist",
+            "name": "FireResistantOrc",
+            "x": 0, "y": 0,
+            "hp": 20, "max_hp": 20, "ac": 12,
+            "resistances": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    // Apply 10 fire damage; resistant -> effective = 5.
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-1".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-resist",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(15),
+        "fire-resistant token: 20 - 5 = 15; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(5));
+}
+
+#[tokio::test]
+async fn apply_damage_fire_immunity_deals_zero() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-2".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-immune",
+            "name": "FireImmuneDragon",
+            "x": 0, "y": 0,
+            "hp": 100, "max_hp": 100, "ac": 18,
+            "immunities": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-2".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-immune",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(100),
+        "fire-immune token: 100 - 0 = 100; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(0));
+}
+
+#[tokio::test]
+async fn apply_damage_fire_vulnerability_doubles_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-3".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-vuln",
+            "name": "FireVulnTroll",
+            "x": 0, "y": 0,
+            "hp": 30, "max_hp": 30, "ac": 11,
+            "vulnerabilities": ["fire"]
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-3".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-vuln",
+            "amount": 10,
+            "type": "fire"
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(10),
+        "fire-vulnerable token: 30 - 20 = 10; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(20));
+}
+
+#[tokio::test]
+async fn apply_damage_no_relation_applies_full_damage() {
+    let (pool, session_id, campaign_id) = setup_encounter_pool().await;
+
+    let add_tc = ToolCall {
+        id: "tc-add-4".into(),
+        name: "add_token".into(),
+        args: serde_json::json!({
+            "id": "tok-plain",
+            "name": "PlainGoblin",
+            "x": 0, "y": 0,
+            "hp": 20, "max_hp": 20, "ac": 10
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &add_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "add_token failed: {val}");
+
+    let dmg_tc = ToolCall {
+        id: "tc-dmg-4".into(),
+        name: "apply_damage".into(),
+        args: serde_json::json!({
+            "token_id": "tok-plain",
+            "amount": 10,
+            "type": "slashing"
+        }),
+    };
+    let (val, is_err) = execute_tool(
+        &dmg_tc,
+        &pool,
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
+    assert!(!is_err, "apply_damage failed: {val}");
+    assert_eq!(
+        val["new_hp"].as_i64(),
+        Some(10),
+        "no-resistance token: 20 - 10 = 10; got {val}"
+    );
+    assert_eq!(val["raw_damage"].as_i64(), Some(10));
+    assert_eq!(val["effective_damage"].as_i64(), Some(10));
 }

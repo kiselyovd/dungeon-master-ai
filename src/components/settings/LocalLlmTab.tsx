@@ -22,6 +22,9 @@ import { ModelSelector as LocalLlmModelSelector } from './local-llm/ModelSelecto
  * manifest the backend picker reads.
  */
 const LOCAL_MODEL_WIRE_ID: Partial<Record<ModelId, string>> = {
+  qwen3_8b: 'qwen3-8b',
+  gemma4_e2b: 'gemma-4-e2b',
+  gemma4_e4b: 'gemma-4-e4b',
   qwen3_5_0_8b: 'qwen3.5-0.8b',
   qwen3_5_2b: 'qwen3.5-2b',
   qwen3_5_4b: 'qwen3.5-4b',
@@ -49,6 +52,7 @@ export function LocalLlmTab() {
   const { t } = useTranslation('settings');
   const { t: tLocal } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
+  const isStreaming = useStore((s) => s.chat.isStreaming);
   // Poll runtime status so the pills + the toWireConfig port lookup reflect
   // the current sidecar state. While the Local LLM panel is mounted we always
   // poll - the user is actively configuring it, so the original `enabled`
@@ -57,6 +61,9 @@ export function LocalLlmTab() {
 
   const [startStatus, setStartStatus] = useState<RuntimeActionStatus>('idle');
   const [stopStatus, setStopStatus] = useState<RuntimeActionStatus>('idle');
+  // Capture the backend's actual failure reason (e.g. a 0-byte/missing sidecar
+  // binary) so "runtime won't start" is debuggable instead of a mute chip.
+  const [startError, setStartError] = useState<string | null>(null);
   const startResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -85,10 +92,12 @@ export function LocalLlmTab() {
   const handleStart = useCallback(async () => {
     clearStartReset();
     setStartStatus('pending');
+    setStartError(null);
     try {
       await startLocalRuntimes();
       setStartStatus('idle');
-    } catch {
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : String(e));
       setStartStatus('error');
       startResetRef.current = setTimeout(() => {
         setStartStatus('idle');
@@ -129,9 +138,7 @@ export function LocalLlmTab() {
       <LocalLlmModelSelector
         activeId={activeWireId}
         onActiveChange={onActiveLocalChange}
-        // TODO(M9-DM): plumb session.agentTurnInFlight once the session slice
-        // exposes it; until then assume the user is not mid-turn (false).
-        agentTurnInFlight={false}
+        agentTurnInFlight={isStreaming}
       />
 
       <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
@@ -168,8 +175,9 @@ export function LocalLlmTab() {
           {startStatus === 'pending' ? tLocal('runtime_starting') : tLocal('start_runtimes')}
         </button>
         {startStatus === 'error' && (
-          <span role="alert" className={styles.localErrorChip}>
+          <span role="alert" className={styles.localErrorChip} title={startError ?? undefined}>
             {tLocal('runtime_start_error')}
+            {startError ? `: ${startError}` : ''}
           </span>
         )}
         <button

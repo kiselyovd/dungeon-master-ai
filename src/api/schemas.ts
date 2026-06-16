@@ -117,3 +117,33 @@ export function safeParseReasoningText(data: unknown): ReasoningTextPayload | nu
   const r = v.safeParse(ReasoningTextSchema, data);
   return r.success ? r.output : null;
 }
+
+export const ImageGeneratedSchema = v.object({
+  tool_call_id: v.optional(v.string()),
+  round: v.optional(v.number()),
+  mime_type: v.string(),
+  image_b64: v.string(),
+  kind: v.optional(v.picklist(['map', 'chat'])),
+});
+
+export type ImageGeneratedPayload = v.InferOutput<typeof ImageGeneratedSchema>;
+
+export function safeParseImageGenerated(data: unknown): ImageGeneratedPayload | null {
+  const r = v.safeParse(ImageGeneratedSchema, data);
+  return r.success ? r.output : null;
+}
+
+export const VideoGeneratedSchema = v.object({
+  tool_call_id: v.optional(v.string()),
+  round: v.optional(v.number()),
+  mime_type: v.string(),
+  video_b64: v.string(),
+  kind: v.optional(v.picklist(['chat'])),
+});
+
+export type VideoGeneratedPayload = v.InferOutput<typeof VideoGeneratedSchema>;
+
+export function safeParseVideoGenerated(data: unknown): VideoGeneratedPayload | null {
+  const r = v.safeParse(VideoGeneratedSchema, data);
+  return r.success ? r.output : null;
+}

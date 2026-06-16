@@ -29,12 +29,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-// TODO: The composer no longer exposes a visible <input type="file"> -
-// attachments go through paste/drag-drop into ChatPanel only. Rewriting
-// this spec means simulating a DataTransfer drop on the chat panel and
-// asserting against the ComposerAttachments thumbnail strip. Skipped
-// for now so the e2e suite stays green while the rewrite is tracked
-// separately.
+// Skipped: image attachments are paste/drag-drop only (no visible file input),
+// and synthesising a real DataTransfer drop with image bytes is unreliable in
+// headless chromium. Attachment behaviour is covered by the ComposerAttachments
+// + ChatPanel vitest unit tests; chat send/stream is covered end-to-end in
+// chat.spec.ts. Kept as a placeholder for a future drag-drop harness.
 test.skip('user can attach an image via file input and see it after sending', async ({ page }) => {
   await page.goto('/');
 

@@ -91,6 +91,23 @@ export async function deleteSaveById(saveId: string): Promise<void> {
   if (!resp.ok) throw await readError(resp, 'delete save');
 }
 
+/**
+ * Restore a save's combat + scene state on the backend and return the full
+ * schema-version 2 game_state so the frontend can rehydrate Zustand slices.
+ * POST /saves/{saveId}/restore?session_id={sessionId}   [W2.3]
+ */
+export async function restoreSave(
+  saveId: string,
+  sessionId: string,
+): Promise<{ game_state: unknown }> {
+  const url = await backendUrl(
+    `/saves/${encodeURIComponent(saveId)}/restore?session_id=${encodeURIComponent(sessionId)}`,
+  );
+  const resp = await fetch(url, { method: 'POST' });
+  if (!resp.ok) throw await readError(resp, 'restore save');
+  return (await resp.json()) as { game_state: unknown };
+}
+
 /** Overwrite an existing save's metadata in place (PUT /saves/{id}). [F3] */
 export async function updateSaveById(saveId: string, body: CreateSaveRequest): Promise<void> {
   const url = await backendUrl(`/saves/${encodeURIComponent(saveId)}`);

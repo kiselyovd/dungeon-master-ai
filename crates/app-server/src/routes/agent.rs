@@ -38,6 +38,11 @@ pub struct AgentTurnHttpRequest {
     /// text-only turns. [M11 F2]
     #[serde(default)]
     pub images: Vec<MessagePart>,
+    /// Pre-formatted live VTT board snapshot (scene + initiative + token
+    /// HP/AC/position/conditions) so the DM narrates from the real board.
+    /// Omitted outside combat.
+    #[serde(default)]
+    pub board: Option<String>,
 }
 
 #[tracing::instrument(skip_all, fields(session_id = %req.session_id, campaign_id = %req.campaign_id))]
@@ -58,6 +63,8 @@ pub async fn post_agent_turn(
     }
     let retriever = state.srd_retriever();
     let image_provider = state.image_provider();
+    let video_provider = state.video_provider();
+    let gpu_swap = build_gpu_swap(&state).await;
     let pool = state.db().clone();
 
     // Persist user message before the orchestrator runs. Best-effort.
@@ -83,6 +90,7 @@ pub async fn post_agent_turn(
         player_message: req.player_message,
         history: req.history,
         images: req.images,
+        board: req.board,
     };
 
     let (tx, rx) = mpsc::channel::<AgentEvent>(64);
@@ -90,7 +98,9 @@ pub async fn post_agent_turn(
     let pool_for_orch = pool.clone();
     tokio::spawn(async move {
         let orch =
-            AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider);
+            AgentOrchestrator::new(provider, pool_for_orch, config, retriever, image_provider)
+                .with_gpu_swap(gpu_swap)
+                .with_video_provider(video_provider);
         if let Err(e) = orch.run(turn_req, tx).await {
             tracing::warn!(error = %e, "agent loop error");
         }
@@ -112,6 +122,29 @@ pub async fn post_agent_turn(
         }));
 
     Ok(Sse::new(event_stream).keep_alive(KeepAlive::default()))
+}
+
+/// Build the Auto-Swap coordinator when a local LLM runtime is up under the
+/// Auto-Swap VRAM strategy. Returns `None` for a cloud LLM, a stopped local
+/// runtime, or any non-Auto-Swap strategy, in which case image generation runs
+/// without touching the LLM.
+async fn build_gpu_swap(
+    state: &AppState,
+) -> Option<Arc<crate::local_runtime::registry::ImageGpuSwap>> {
+    use crate::routes::local_mode::VramStrategy;
+    if state.local_mode_config().vram_strategy != VramStrategy::AutoSwap {
+        return None;
+    }
+    let port = match state.runtime_status().await.llm {
+        crate::local_runtime::runtime::RuntimeStatus::Ready { port } => port,
+        _ => return None,
+    };
+    let args = crate::routes::local_mode::build_llm_spawn_args(state, port).ok()?;
+    Some(Arc::new(crate::local_runtime::registry::ImageGpuSwap::new(
+        state.runtime_registry(),
+        args,
+        port,
+    )))
 }
 
 /// Per-round buffer used to assemble assistant + tool_call rows out of the
@@ -136,6 +169,10 @@ fn persist_event(
         }
         AgentEvent::ImageGenerated { .. } => {
             // Transient: the generated image is streamed to the UI, not
+            // persisted to chat history.
+        }
+        AgentEvent::VideoGenerated { .. } => {
+            // Transient: the generated video is streamed to the UI, not
             // persisted to chat history.
         }
         AgentEvent::TextDelta { text } => {
@@ -246,6 +283,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             round,
             mime_type,
             image_b64,
+            kind,
         } => Event::default()
             .event("image_generated")
             .json_data(serde_json::json!({
@@ -253,6 +291,7 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "round": round,
                 "mime_type": mime_type,
                 "image_b64": image_b64,
+                "kind": kind,
             }))
             .expect("image_generated json"),
         AgentEvent::TextDelta { text } => Event::default()
@@ -291,6 +330,22 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "handled_by": handled_by,
             }))
             .expect("tool_call_result json"),
+        AgentEvent::VideoGenerated {
+            tool_call_id,
+            round,
+            mime_type,
+            video_b64,
+            kind,
+        } => Event::default()
+            .event("video_generated")
+            .json_data(serde_json::json!({
+                "tool_call_id": tool_call_id,
+                "round": round,
+                "mime_type": mime_type,
+                "video_b64": video_b64,
+                "kind": kind,
+            }))
+            .expect("video_generated json"),
         AgentEvent::AgentDone { total_rounds } => Event::default()
             .event("agent_done")
             .json_data(serde_json::json!({ "total_rounds": total_rounds }))

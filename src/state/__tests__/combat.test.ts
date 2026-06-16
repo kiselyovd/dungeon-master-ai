@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { chebyshevFt, DEFAULT_SPEED_FT, type SnapshotCombat } from '../combat';
 import { useStore } from '../useStore';
 
 beforeEach(() => {
@@ -179,5 +180,416 @@ describe('combat slice', () => {
     });
     useStore.getState().combat.removeAoeTemplate('aoe-r');
     expect(useStore.getState().combat.aoeTemplates).toHaveLength(0);
+  });
+
+  // W1.3 - movement budget consumption
+  describe('tryMoveToken', () => {
+    it('moves within budget: updates x/y and decrements movementRemaining by Chebyshev feet', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-1', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // Move 2 cells diagonally = Chebyshev 2 = 10 ft
+      const ok = useStore.getState().combat.tryMoveToken('pc', 2, 2);
+      expect(ok).toBe(true);
+      const state = useStore.getState().combat;
+      const token = state.tokens.find((t) => t.id === 'pc');
+      expect(token?.x).toBe(2);
+      expect(token?.y).toBe(2);
+      expect(state.movementRemaining).toBe(DEFAULT_SPEED_FT - 10);
+    });
+
+    it('rejects a move that exceeds movementRemaining: x/y and budget unchanged', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-2', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // Move 7 cells = 35 ft, budget is 30
+      const ok = useStore.getState().combat.tryMoveToken('pc', 7, 0);
+      expect(ok).toBe(false);
+      const state = useStore.getState().combat;
+      const token = state.tokens.find((t) => t.id === 'pc');
+      expect(token?.x).toBe(0);
+      expect(token?.y).toBe(0);
+      expect(state.movementRemaining).toBe(DEFAULT_SPEED_FT);
+    });
+
+    it('allows sequential moves that together exhaust but do not exceed budget', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-3', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      // First move: 3 cells = 15 ft
+      useStore.getState().combat.tryMoveToken('pc', 3, 0);
+      // Second move: 3 more cells = 15 ft (budget now 0)
+      const ok = useStore.getState().combat.tryMoveToken('pc', 6, 0);
+      expect(ok).toBe(true);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+      // Third move: any further movement is rejected
+      const rejected = useStore.getState().combat.tryMoveToken('pc', 7, 0);
+      expect(rejected).toBe(false);
+    });
+
+    it('returns false for an unknown token id', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-move-4', [
+        { id: 'pc', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      const ok = useStore.getState().combat.tryMoveToken('nonexistent', 1, 1);
+      expect(ok).toBe(false);
+    });
+  });
+
+  // W1.3 - speed-aware econReset
+  describe('speed-aware movement reset', () => {
+    it('movementRemaining resets to active token speed on endTurn', () => {
+      const { combat } = useStore.getState();
+      // Foe has speed 20; when it becomes active the budget should be 20
+      combat.startCombat('enc-speed-1', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: [],
+          speed: 20,
+        },
+      ]);
+      // Initially hero's turn: budget = 30
+      expect(useStore.getState().combat.movementRemaining).toBe(30);
+      useStore.getState().combat.endTurn();
+      // Foe's turn: budget = 20
+      expect(useStore.getState().combat.movementRemaining).toBe(20);
+    });
+
+    it('startCombat sets movementRemaining to the first token speed', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-2', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 40,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(40);
+    });
+
+    it('setCurrentTurn resets movementRemaining to the new active token speed', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-3', [
+        {
+          id: 'a',
+          name: 'Alpha',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        { id: 'b', name: 'Beta', hp: 10, maxHp: 10, ac: 14, x: 1, y: 0, conditions: [], speed: 25 },
+      ]);
+      useStore.getState().combat.setCurrentTurn('b');
+      expect(useStore.getState().combat.movementRemaining).toBe(25);
+    });
+
+    it('defaults to DEFAULT_SPEED_FT when token has no speed field', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-speed-4', [
+        // No speed field - should default
+        { id: 'hero', name: 'Hero', hp: 10, maxHp: 10, ac: 14, x: 0, y: 0, conditions: [] },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(DEFAULT_SPEED_FT);
+    });
+  });
+
+  // W1.5 - condition-aware turn-start movement reset
+  describe('condition-aware econReset', () => {
+    it('restrained active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-1', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('grappled active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-2', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['grappled'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('stunned active token gets movementRemaining 0 on startCombat', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-3', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['stunned'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('non-restricting condition (poisoned) does not reduce movementRemaining', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-4', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['poisoned'],
+          speed: 30,
+        },
+      ]);
+      expect(useStore.getState().combat.movementRemaining).toBe(30);
+    });
+
+    it('restrained active token gets movementRemaining 0 on setCurrentTurn', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-5', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      useStore.getState().combat.setCurrentTurn('foe');
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('restrained token gets movementRemaining 0 on endTurn (when it becomes active)', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-6', [
+        {
+          id: 'hero',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: [],
+          speed: 30,
+        },
+        {
+          id: 'foe',
+          name: 'Goblin',
+          hp: 7,
+          maxHp: 7,
+          ac: 13,
+          x: 1,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      // endTurn: hero -> foe (foe is restrained)
+      useStore.getState().combat.endTurn();
+      expect(useStore.getState().combat.currentTurnId).toBe('foe');
+      expect(useStore.getState().combat.movementRemaining).toBe(0);
+    });
+
+    it('restrained token: tryMoveToken returns false (movementRemaining is 0)', () => {
+      const { combat } = useStore.getState();
+      combat.startCombat('enc-cond-7', [
+        {
+          id: 'pc',
+          name: 'Hero',
+          hp: 10,
+          maxHp: 10,
+          ac: 14,
+          x: 0,
+          y: 0,
+          conditions: ['restrained'],
+          speed: 30,
+        },
+      ]);
+      const ok = useStore.getState().combat.tryMoveToken('pc', 1, 0);
+      expect(ok).toBe(false);
+      expect(useStore.getState().combat.tokens[0]?.x).toBe(0);
+    });
+  });
+
+  // chebyshevFt utility
+  describe('chebyshevFt', () => {
+    it('returns 0 for same cell', () => {
+      expect(chebyshevFt(3, 3, 3, 3)).toBe(0);
+    });
+
+    it('returns 5 for one cell orthogonal', () => {
+      expect(chebyshevFt(0, 0, 1, 0)).toBe(5);
+    });
+
+    it('returns 5 for one cell diagonal (Chebyshev = max of deltas)', () => {
+      expect(chebyshevFt(0, 0, 1, 1)).toBe(5);
+    });
+
+    it('returns 30 for 6 cells orthogonal', () => {
+      expect(chebyshevFt(0, 0, 6, 0)).toBe(30);
+    });
+
+    it('returns correct value for mixed deltas', () => {
+      // dx=3, dy=5 -> max=5 -> 25 ft
+      expect(chebyshevFt(0, 0, 3, 5)).toBe(25);
+    });
+  });
+
+  // W2.3 - combat.hydrate from snapshot
+  describe('hydrate', () => {
+    it('sets active=true and restores tokens/round/currentTurnId/initiativeOrder from snapshot', () => {
+      const snapshot: SnapshotCombat = {
+        active: true,
+        encounter_id: 'enc-snap-1',
+        round: 3,
+        current_turn_id: 'tok-b',
+        initiative: ['tok-a', 'tok-b'],
+        tokens: [
+          {
+            id: 'tok-a',
+            name: 'Paladin',
+            hp: 20,
+            max_hp: 30,
+            ac: 18,
+            x: 1,
+            y: 2,
+            conditions: [],
+            resistances: ['radiant'],
+            immunities: [],
+            vulnerabilities: [],
+          },
+          {
+            id: 'tok-b',
+            name: 'Orc',
+            hp: 8,
+            max_hp: 15,
+            ac: 12,
+            x: 4,
+            y: 5,
+            conditions: ['frightened'],
+            resistances: [],
+            immunities: [],
+            vulnerabilities: ['radiant'],
+          },
+        ],
+      };
+      useStore.getState().combat.hydrate(snapshot);
+      const state = useStore.getState().combat;
+
+      expect(state.active).toBe(true);
+      expect(state.encounterId).toBe('enc-snap-1');
+      expect(state.round).toBe(3);
+      expect(state.currentTurnId).toBe('tok-b');
+      expect(state.initiativeOrder).toEqual(['tok-a', 'tok-b']);
+      expect(state.tokens).toHaveLength(2);
+
+      const tokA = state.tokens.find((t) => t.id === 'tok-a');
+      expect(tokA?.name).toBe('Paladin');
+      expect(tokA?.hp).toBe(20);
+      expect(tokA?.maxHp).toBe(30);
+      expect(tokA?.ac).toBe(18);
+      expect(tokA?.x).toBe(1);
+      expect(tokA?.y).toBe(2);
+      expect(tokA?.isActive).toBe(false);
+
+      const tokB = state.tokens.find((t) => t.id === 'tok-b');
+      expect(tokB?.hp).toBe(8);
+      expect(tokB?.conditions).toContain('frightened');
+      expect(tokB?.isActive).toBe(true);
+    });
+
+    it('resets aoeTemplates on hydrate', () => {
+      // Add a template first, then hydrate - templates should be cleared.
+      useStore.getState().combat.addAoeTemplate({
+        id: 'aoe-old',
+        shape: 'sphere',
+        originX: 0,
+        originY: 0,
+        sizeInFt: 20,
+        school: 'evocation',
+        rotateDeg: 0,
+        expiresAt: Date.now() + 5000,
+      });
+      const snapshot: SnapshotCombat = {
+        active: true,
+        encounter_id: 'enc-snap-2',
+        round: 1,
+        current_turn_id: null,
+        initiative: [],
+        tokens: [],
+      };
+      useStore.getState().combat.hydrate(snapshot);
+      expect(useStore.getState().combat.aoeTemplates).toHaveLength(0);
+    });
   });
 });

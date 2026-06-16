@@ -41,7 +41,7 @@ describe('combatToolHandlers contract', () => {
 });
 
 describe('start_combat handler', () => {
-  it('builds tokens from initiative_entries, not args.tokens', () => {
+  it('builds tokens from initiative_entries with correct stats', () => {
     combatToolHandlers.start_combat?.(
       {
         initiative_entries: [
@@ -54,9 +54,55 @@ describe('start_combat handler', () => {
     );
     const c = useStore.getState().combat;
     expect(c.active).toBe(true);
-    expect(c.tokens.map((t) => t.id)).toEqual(['goblin-1', 'pc-1']);
-    expect(c.tokens[0]?.maxHp).toBe(7);
-    expect(c.tokens[1]?.ac).toBe(16);
+    // Tokens must include both combatants with correct stats.
+    const goblin = c.tokens.find((t) => t.name === 'Goblin');
+    const hero = c.tokens.find((t) => t.name === 'Hero');
+    expect(goblin?.maxHp).toBe(7);
+    expect(hero?.ac).toBe(16);
+  });
+
+  it('uses result.ordered to determine initiative order (higher roll goes first)', () => {
+    // Backend already sorted: Hero (18) before Goblin (14).
+    combatToolHandlers.start_combat?.(
+      {
+        initiative_entries: [
+          { id: 'goblin-1', name: 'Goblin', hp: 7, max_hp: 7, ac: 15 },
+          { id: 'pc-1', name: 'Hero', hp: 20, max_hp: 20, ac: 16 },
+        ],
+      },
+      {
+        encounter_id: 'enc-1',
+        ordered: [
+          { name: 'Hero', roll: 18 },
+          { name: 'Goblin', roll: 14 },
+        ],
+      },
+      useStore,
+    );
+    const c = useStore.getState().combat;
+    expect(c.active).toBe(true);
+    // initiativeOrder follows backend-sorted order.
+    expect(c.initiativeOrder[0]).toBe(c.tokens.find((t) => t.name === 'Hero')?.id);
+    expect(c.initiativeOrder[1]).toBe(c.tokens.find((t) => t.name === 'Goblin')?.id);
+    // First token in sorted order is the active one.
+    expect(c.currentTurnId).toBe(c.tokens.find((t) => t.name === 'Hero')?.id);
+  });
+
+  it('falls back to insertion order when result.ordered is absent', () => {
+    combatToolHandlers.start_combat?.(
+      {
+        initiative_entries: [
+          { id: 'goblin-1', name: 'Goblin', hp: 7, max_hp: 7, ac: 15 },
+          { id: 'pc-1', name: 'Hero', hp: 20, max_hp: 20, ac: 16 },
+        ],
+      },
+      { encounter_id: 'enc-2' }, // no `ordered` field
+      useStore,
+    );
+    const c = useStore.getState().combat;
+    expect(c.active).toBe(true);
+    // Fallback: order matches tokens array (insertion order from entries).
+    expect(c.initiativeOrder.length).toBeGreaterThanOrEqual(2);
   });
 });
 

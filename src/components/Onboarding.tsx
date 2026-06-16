@@ -75,6 +75,12 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
   const finalize = (): void => {
     completeOnboarding();
+    // "Build from scratch" leaves no hero class applied: open the full
+    // CharacterWizard so the user can build a custom character. Picking a class
+    // card sets pc.heroClass, so this is skipped for the preset path.
+    if (!useStore.getState().pc.heroClass) {
+      onExitToWizard?.();
+    }
     onComplete?.(preset);
   };
 
@@ -156,14 +162,7 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
             <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
           )}
           {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
-          {currentStep === 'hero' && (
-            <HeroStep
-              titleId={titleId}
-              onBack={back}
-              onNext={next}
-              {...(onExitToWizard !== undefined ? { onExitToWizard } : {})}
-            />
-          )}
+          {currentStep === 'hero' && <HeroStep titleId={titleId} onBack={back} onNext={next} />}
         </div>
       </div>
     </div>

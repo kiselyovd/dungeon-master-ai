@@ -9,5 +9,12 @@
   "inspector_copy_curl": "Скопировать как cURL",
   "inspector_request": "Запрос",
   "inspector_response": "Ответ",
-  "inspector_handled_by": "Исполнитель: {{handler}}"
+  "inspector_handled_by": "Исполнитель: {{handler}}",
+  "drawing_map": "Рисую карту...",
+  "drawing_illustration": "Рисую сцену...",
+  "drawing_video": "Рисую видео...",
+  "map_updated": "Карта обновлена",
+  "image_alt": "Сгенерированное изображение",
+  "image_open": "Открыть изображение",
+  "video_alt": "Сгенерированное видео"
 }

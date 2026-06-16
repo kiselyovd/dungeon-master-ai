@@ -15,6 +15,8 @@
 use app_llm::sidecar_launcher::{SidecarError, SidecarHandle, SidecarLauncher};
 use async_trait::async_trait;
 use std::io;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -50,16 +52,29 @@ impl SidecarLauncher for TauriSidecarLauncher {
         let pid = child.pid();
         let (line_tx, line_rx) = mpsc::channel(64);
 
+        // tauri-plugin-shell's CommandChild has no `try_wait`, so liveness is
+        // tracked off the event stream: the child is alive until a `Terminated`
+        // event arrives (or the event channel closes).
+        let alive = Arc::new(AtomicBool::new(true));
+        let alive_for_events = alive.clone();
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
-                if let CommandEvent::Stdout(line_bytes) = event {
-                    let line = String::from_utf8_lossy(&line_bytes).to_string();
-                    if line_tx.send(line).await.is_err() {
-                        break;
+                match event {
+                    CommandEvent::Stdout(line_bytes) => {
+                        let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        if line_tx.send(line).await.is_err() {
+                            break;
+                        }
                     }
+                    CommandEvent::Terminated(_) => break,
+                    _ => {}
                 }
             }
+            alive_for_events.store(false, Ordering::SeqCst);
         });
+
+        let alive_for_liveness = alive.clone();
+        let is_alive = move || alive_for_liveness.load(Ordering::SeqCst);
 
         let name_owned = name.to_string();
         let kill_fn = move || -> Result<(), SidecarError> {
@@ -69,6 +84,6 @@ impl SidecarLauncher for TauriSidecarLauncher {
             })
         };
 
-        Ok(SidecarHandle::from_parts(pid, line_rx, kill_fn))
+        Ok(SidecarHandle::from_parts(pid, line_rx, is_alive, kill_fn))
     }
 }

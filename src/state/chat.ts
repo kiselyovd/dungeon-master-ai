@@ -51,6 +51,12 @@ export interface ChatStreamEvent {
   result: unknown | null;
   isError: boolean;
   round: number;
+  /** Data URL of an image produced by this tool call (illustration or map). */
+  imageDataUrl?: string;
+  /** Routing kind of the attached image. */
+  imageKind?: 'map' | 'chat';
+  /** Data URL of a video clip produced by this tool call (generate_video). */
+  videoDataUrl?: string;
 }
 
 /** A staged image attached to the composer before the user sends. */
@@ -134,6 +140,10 @@ export interface ChatSlice {
     addToolCallStartEvent: (id: string, toolName: string, args: unknown, round: number) => void;
     /** Settle an existing tool-call event with its result. */
     settleToolCallEvent: (id: string, result: unknown, isError: boolean) => void;
+    /** Attach a generated image (data URL) to an existing stream event. */
+    attachStreamEventImage: (id: string, dataUrl: string, kind: 'map' | 'chat') => void;
+    /** Attach a generated video (data URL) to an existing stream event. */
+    attachStreamEventVideo: (id: string, dataUrl: string) => void;
     /** Clear all stream events (called at stream start so prior turn cards are gone). */
     clearStreamEvents: () => void;
   };
@@ -335,6 +345,26 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           ...s.chat,
           chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
             e.id === id ? { ...e, result, isError, status: isError ? 'error' : 'success' } : e,
+          ),
+        },
+      })),
+
+    attachStreamEventImage: (id, dataUrl, kind) =>
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
+            e.id === id ? { ...e, imageDataUrl: dataUrl, imageKind: kind } : e,
+          ),
+        },
+      })),
+
+    attachStreamEventVideo: (id, dataUrl) =>
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
+            e.id === id ? { ...e, videoDataUrl: dataUrl } : e,
           ),
         },
       })),

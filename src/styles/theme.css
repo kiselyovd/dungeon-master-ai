@@ -73,12 +73,12 @@
 
   /* Typography */
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* Cinzel is Latin-only (no Cyrillic glyphs); Russian headings fall through
-     to the first stack member that HAS Cyrillic - a deliberate serif (PT Serif
-     / Georgia / Times) rather than an unpredictable generic serif. Bundling a
-     self-hosted Cyrillic fantasy-serif display face is a deferred polish item
-     (needs the subset woff2 asset). [M11 G1] */
-  --font-display: "Cinzel", "PT Serif", Georgia, "Times New Roman", serif;
+  /* Cinzel is Latin-only (no Cyrillic glyphs). Philosopher fills in for
+     Cyrillic headings - its @font-face in fonts.css covers only the cyrillic
+     and cyrillic-ext unicode-ranges, so the browser picks it up only when it
+     needs a Cyrillic glyph, leaving Latin headings on Cinzel. PT Serif /
+     Georgia stay as system-level backstops. */
+  --font-display: "Cinzel", "Philosopher", "PT Serif", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
 
   --text-xs: 11px;

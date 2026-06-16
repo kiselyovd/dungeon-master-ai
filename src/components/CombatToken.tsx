@@ -22,7 +22,11 @@ const CLASS_TOKEN: Record<string, string> = {
 interface Props {
   token: TokenData;
   cellSize: number;
+  /** Viewport scale; screen-px drag deltas divide by this to reach world px. */
+  zoom?: number;
   onMove?: (id: string, x: number, y: number) => void;
+  /** The id of the token whose turn it currently is. Used to gate dragging. */
+  currentTurnId?: string | null | undefined;
 }
 
 interface DragSession {
@@ -67,7 +71,7 @@ function conditionColor(condition: string): string {
  * flight. Without `onMove`, no handlers attach and the token stays static
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
-export function CombatToken({ token, cellSize, onMove }: Props) {
+export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }: Props) {
   const pcName = useStore((s) => s.pc.name);
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
@@ -78,6 +82,15 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
   const isDead = token.hp === 0;
   const isPcToken = pcName !== null && token.name === pcName;
+  // Respect the OS-level "prefers-reduced-motion" setting so animations do not
+  // play for users who have requested less motion. Checked once at render time;
+  // does not need to be reactive since the media-query match value is stable for
+  // the lifetime of a token render. Guards against jsdom (which lacks matchMedia)
+  // by checking the method exists before calling it. [W1.7b]
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The PC's own token prefers the generated/selected portrait over class art (E4).
   const portraitSrc = isPcToken
     ? (pcPortraitUrl ?? (pcHeroClass !== null ? (CLASS_TOKEN[pcHeroClass] ?? null) : null))
@@ -101,6 +114,9 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
       // so the canvas context menu and middle-pan can layer on later.
       if (event.button !== 0) return;
       event.preventDefault();
+      // Stop the canvas pan handler (on the parent .dm-vtt-canvas) from also
+      // starting - dragging a token must move the token, not pan the map.
+      event.stopPropagation();
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
       } catch {
@@ -125,14 +141,14 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
-      const deltaX = event.clientX - drag.startClientX;
-      const deltaY = event.clientY - drag.startClientY;
+      // Screen-px delta -> world px: the token lives inside the zoom-scaled
+      // world wrapper, so a screen move of D px is D/zoom world px.
+      const deltaX = (event.clientX - drag.startClientX) / zoom;
+      const deltaY = (event.clientY - drag.startClientY) / zoom;
       setLiveLeft(drag.originCol * cellSize + deltaX);
       setLiveTop(drag.originRow * cellSize + deltaY);
-      // cellSize is captured here so a parent zoom mid-drag would change snap
-      // resolution. That is the intended behavior: snap follows current grid.
     },
-    [cellSize],
+    [cellSize, zoom],
   );
 
   const onPointerEnd = useCallback(
@@ -146,15 +162,15 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
         // swallow so cleanup still runs.
       }
       if (event.type !== 'pointercancel' && onMove !== undefined) {
-        const deltaX = event.clientX - drag.startClientX;
-        const deltaY = event.clientY - drag.startClientY;
+        const deltaX = (event.clientX - drag.startClientX) / zoom;
+        const deltaY = (event.clientY - drag.startClientY) / zoom;
         const newCol = Math.max(0, drag.originCol + Math.round(deltaX / cellSize));
         const newRow = Math.max(0, drag.originRow + Math.round(deltaY / cellSize));
         onMove(token.id, newCol, newRow);
       }
       cancelDrag();
     },
-    [cancelDrag, cellSize, onMove, token.id],
+    [cancelDrag, cellSize, zoom, onMove, token.id],
   );
 
   // Escape key cancellation. Listening on window (vs. the token element) so
@@ -180,7 +196,8 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
 
   const currentLeft = isDragging && liveLeft !== null ? liveLeft : originLeft;
   const currentTop = isDragging && liveTop !== null ? liveTop : originTop;
-  const draggable = onMove !== undefined;
+  // A token is draggable only when it is the active PC token on its turn and alive.
+  const draggable = onMove !== undefined && isPcToken && token.id === currentTurnId && !isDead;
 
   return (
     <>
@@ -216,11 +233,16 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
           top: currentTop,
           width: cellSize,
           height: cellSize,
+          // Animate model-driven and drop-committed moves (left/top change when
+          // isDragging=false). Suppress transition during live drag so the token
+          // tracks the pointer with zero lag. [W1.7a]
+          transition: isDragging ? undefined : 'left 0.25s ease, top 0.25s ease',
           // Pulse pauses during drag so the active-token glow does not
           // visually compete with the ghost + live position feedback. Dead
           // tokens never pulse - the skull overlay is the only motion cue.
+          // Suppressed when the user prefers reduced motion. [W1.7b]
           animation:
-            token.isActive && !isDragging && !isDead
+            token.isActive && !isDragging && !isDead && !prefersReducedMotion
               ? 'token-pulse 1.6s ease-in-out infinite'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
@@ -236,10 +258,21 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
             height: cellSize - 4,
             borderRadius: '50%',
             background: 'var(--color-bg-raised)',
-            border: token.isActive
-              ? '2px solid var(--color-accent)'
-              : '1px solid var(--color-border-subtle)',
-            boxShadow: token.isActive ? 'var(--glow-accent)' : undefined,
+            // PC active turn: thicker gold ring + outer glow ring to make it
+            // unmistakable at a glance. Enemy/NPC active: standard accent ring.
+            // [W1.7b]
+            border:
+              token.isActive && isPcToken
+                ? '3px solid var(--color-accent)'
+                : token.isActive
+                  ? '2px solid var(--color-accent)'
+                  : '1px solid var(--color-border-subtle)',
+            boxShadow:
+              token.isActive && isPcToken
+                ? '0 0 0 2px var(--color-accent), var(--glow-accent)'
+                : token.isActive
+                  ? 'var(--glow-accent)'
+                  : undefined,
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -360,6 +393,34 @@ export function CombatToken({ token, cellSize, onMove }: Props) {
             }}
           />
         </div>
+
+        {/* "Your turn" cue: shown only when the PC's own token is active and
+            alive. Floats above the token circle so it does not overlap
+            conditions or the HP bar. [W1.7b] */}
+        {isPcToken && token.isActive && !isDead && (
+          <div
+            data-testid={`combat-token-${token.id}-your-turn`}
+            className="token-your-turn"
+            aria-live="polite"
+            style={{
+              position: 'absolute',
+              top: -(cellSize * 0.35),
+              left: '50%',
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              fontSize: Math.max(9, Math.floor(cellSize * 0.22)),
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
+              textShadow: '0 1px 4px rgba(0,0,0,0.7)',
+            }}
+          >
+            Your turn
+          </div>
+        )}
       </div>
     </>
   );

@@ -14,8 +14,30 @@ use serde_json::json;
 /// frontend maps to a CSS class.
 pub fn classify_handler(tool_name: &str) -> &'static str {
     match tool_name {
-        "generate_image" => "image-provider",
+        "generate_map" | "generate_illustration" => "image-provider",
+        "generate_video" => "video-provider",
         _ => "engine",
+    }
+}
+
+/// Map an image-producing tool name to the frontend routing discriminator:
+/// `map` paints the VTT background (left), `chat` renders inline in the
+/// tool-call card (right). `None` for non-image tools.
+pub fn image_kind(tool_name: &str) -> Option<&'static str> {
+    match tool_name {
+        "generate_map" => Some("map"),
+        "generate_illustration" => Some("chat"),
+        _ => None,
+    }
+}
+
+/// Map a video-producing tool name to the frontend routing discriminator.
+/// Video always renders inline in the tool-call card ("chat"). `None` for
+/// non-video tools.
+pub fn video_kind(tool_name: &str) -> Option<&'static str> {
+    match tool_name {
+        "generate_video" => Some("chat"),
+        _ => None,
     }
 }
 
@@ -52,11 +74,38 @@ pub fn all_tools() -> Vec<Tool> {
 pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     let mut tools = all_tools_core();
     if availability.image {
-        tools.push(generate_image_tool());
+        tools.push(generate_map_tool());
+        tools.push(generate_illustration_tool());
     }
-    // generate_video tool definition is added in M7.5-DM once the video tool
-    // executor lands. For now, video gen runs out-of-band via the SSE route.
-    let _ = availability.video;
+    if availability.video {
+        tools.push(generate_video_tool());
+    }
+    tools
+}
+
+/// Tools that only make sense once combat has started. Withholding them on
+/// exploration/narration turns shrinks the catalog a small local model (Gemma 4
+/// E2B) must reason over from 16 to ~9 - the difference between it reliably
+/// calling the right tool and drowning in deliberation. `start_combat` is NOT in
+/// this set: the model needs it available to BEGIN combat.
+const COMBAT_ONLY_TOOLS: &[&str] = &[
+    "apply_damage",
+    "apply_healing",
+    "end_combat",
+    "add_token",
+    "update_token",
+    "remove_token",
+    "cast_spell",
+];
+
+/// Select the tools to expose for this turn. Outside combat, the
+/// combat-management tools are withheld so the model sees only the
+/// exploration-relevant subset. In combat, the full catalog is exposed.
+pub fn tools_for_phase(availability: ToolAvailability, in_combat: bool) -> Vec<Tool> {
+    let mut tools = all_tools_with(availability);
+    if !in_combat {
+        tools.retain(|t| !COMBAT_ONLY_TOOLS.contains(&t.name.as_str()));
+    }
     tools
 }
 
@@ -103,24 +152,24 @@ fn all_tools_core() -> Vec<Tool> {
         },
         Tool {
             name: "start_combat".into(),
-            description: "Transition the scene to combat mode. Provide initiative entries for all combatants.".into(),
+            description: "Begin combat. Pass one initiative entry per combatant (the player plus each enemy). ONLY `name` is required - the engine auto-rolls initiative and fills sensible default stats (HP/AC) for anything you omit. Call this immediately when a fight starts; never ask the player for stats or initiative.".into(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "initiative_entries": {
                         "type": "array",
+                        "description": "One entry per combatant. Just the name is enough, e.g. [{\"name\":\"Hero\"},{\"name\":\"Skeleton\"}].",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "id": { "type": "string" },
-                                "name": { "type": "string" },
-                                "roll": { "type": "integer" },
-                                "dex_mod": { "type": "integer" },
-                                "hp": { "type": "integer" },
-                                "max_hp": { "type": "integer" },
-                                "ac": { "type": "integer" }
+                                "name": { "type": "string", "description": "Combatant name (required)." },
+                                "hp": { "type": "integer", "description": "Optional; defaults to a sane value." },
+                                "max_hp": { "type": "integer", "description": "Optional; defaults to hp." },
+                                "ac": { "type": "integer", "description": "Optional; defaults to 10." },
+                                "roll": { "type": "integer", "description": "Optional initiative roll; the engine rolls one if omitted." },
+                                "dex_mod": { "type": "integer", "description": "Optional dexterity modifier." }
                             },
-                            "required": ["id","name","roll","dex_mod","hp","max_hp","ac"]
+                            "required": ["name"]
                         }
                     }
                 },
@@ -144,7 +193,10 @@ fn all_tools_core() -> Vec<Tool> {
                     "y": { "type": "integer" },
                     "hp": { "type": "integer" },
                     "max_hp": { "type": "integer" },
-                    "ac": { "type": "integer" }
+                    "ac": { "type": "integer" },
+                    "resistances": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token resists (takes half damage), e.g. [\"fire\",\"cold\"]" },
+                    "immunities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is immune to (takes 0 damage), e.g. [\"poison\",\"psychic\"]" },
+                    "vulnerabilities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is vulnerable to (takes double damage), e.g. [\"bludgeoning\"]" }
                 },
                 "required": ["id","name","x","y","hp","max_hp","ac"]
             }),
@@ -159,7 +211,10 @@ fn all_tools_core() -> Vec<Tool> {
                     "x": { "type": "integer" },
                     "y": { "type": "integer" },
                     "hp": { "type": "integer" },
-                    "conditions": { "type": "array", "items": { "type": "string" } }
+                    "conditions": { "type": "array", "items": { "type": "string" } },
+                    "resistances": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token resists" },
+                    "immunities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is immune to" },
+                    "vulnerabilities": { "type": "array", "items": { "type": "string" }, "description": "Damage types this token is vulnerable to" }
                 },
                 "required": ["id"]
             }),
@@ -264,17 +319,62 @@ fn all_tools_core() -> Vec<Tool> {
     ]
 }
 
-fn generate_image_tool() -> Tool {
+fn generate_map_tool() -> Tool {
     Tool {
-        name: "generate_image".into(),
-        description:
-            "Generate a scene illustration. Rate limited: call at most once per scene change."
-                .into(),
+        name: "generate_map".into(),
+        description: "Render a TOP-DOWN tactical battle map of the current \
+            location and show it on the VTT (the left-hand board). Call this when \
+            the party enters a place where positioning matters (a room, dungeon, \
+            street, clearing) or when a fight is about to start. Pass a concrete \
+            visual prompt describing the location's layout and terrain - NOT a \
+            character or a single object. The engine renders it bird's-eye, \
+            grid-aligned. At most once per location."
+            .into(),
         parameters: json!({
             "type": "object",
             "properties": {
-                "prompt": { "type": "string", "description": "30-word content description" },
-                "style": { "type": "string", "enum": ["dark_fantasy","portrait","map"] }
+                "prompt": { "type": "string", "description": "Location layout/terrain, e.g. 'ruined throne hall, broken pillars, central dais, rubble'" }
+            },
+            "required": ["prompt"]
+        }),
+    }
+}
+
+fn generate_illustration_tool() -> Tool {
+    Tool {
+        name: "generate_illustration".into(),
+        description: "Show the players a cinematic illustration in the chat (the \
+            right-hand panel): a character, creature, item, or a dramatic view of a \
+            scene. Call this when the player asks to see/draw/show someone or \
+            something, or to punctuate a dramatic moment. This is NOT a map - it \
+            does not change the VTT board. Pass a concrete visual prompt (~30 words)."
+            .into(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "30-word content description of the subject/scene" },
+                "style": { "type": "string", "enum": ["dark_fantasy","portrait"] }
+            },
+            "required": ["prompt"]
+        }),
+    }
+}
+
+fn generate_video_tool() -> Tool {
+    Tool {
+        name: "generate_video".into(),
+        description: "Generate a short cinematic motion clip (3-8 s) shown inline \
+            in the chat panel. Use for dramatic moments that benefit from motion: \
+            a creature emerging from shadows, a spell erupting, a gate slamming shut. \
+            This is NOT a map - it does not change the VTT board. Pass a concrete \
+            visual prompt (~30 words). Keep use sparse - at most once per major beat."
+            .into(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "30-word visual description of the motion clip" },
+                "seconds": { "type": "number", "description": "Target duration in seconds (3-8). Optional; defaults to ~4 s." },
+                "frame_count": { "type": "integer", "description": "Number of frames. Optional; defaults to 97 (24 fps)." }
             },
             "required": ["prompt"]
         }),
@@ -286,23 +386,99 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_tools_default_includes_generate_image() {
+    fn all_tools_default_includes_image_tools() {
         let tools = all_tools();
-        assert!(tools.iter().any(|t| t.name == "generate_image"));
+        assert!(tools.iter().any(|t| t.name == "generate_map"));
+        assert!(tools.iter().any(|t| t.name == "generate_illustration"));
     }
 
     #[test]
-    fn all_tools_with_image_disabled_omits_generate_image() {
+    fn all_tools_default_includes_video_tool() {
+        let tools = all_tools();
+        assert!(tools.iter().any(|t| t.name == "generate_video"));
+    }
+
+    #[test]
+    fn all_tools_with_video_disabled_omits_video_tool() {
+        let tools = all_tools_with(ToolAvailability {
+            image: true,
+            video: false,
+        });
+        assert!(!tools.iter().any(|t| t.name == "generate_video"));
+    }
+
+    #[test]
+    fn all_tools_with_video_enabled_includes_generate_video() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: true,
+        });
+        assert!(tools.iter().any(|t| t.name == "generate_video"));
+    }
+
+    #[test]
+    fn all_tools_with_image_disabled_omits_image_tools() {
         let tools = all_tools_with(ToolAvailability {
             image: false,
             video: false,
         });
-        assert!(!tools.iter().any(|t| t.name == "generate_image"));
+        assert!(!tools.iter().any(|t| t.name == "generate_map"));
+        assert!(!tools.iter().any(|t| t.name == "generate_illustration"));
     }
 
     #[test]
-    fn classify_handler_routes_generate_image_to_image_provider() {
-        assert_eq!(classify_handler("generate_image"), "image-provider");
+    fn classify_handler_routes_image_tools_to_image_provider() {
+        assert_eq!(classify_handler("generate_map"), "image-provider");
+        assert_eq!(classify_handler("generate_illustration"), "image-provider");
+    }
+
+    #[test]
+    fn classify_handler_routes_video_tool_to_video_provider() {
+        assert_eq!(classify_handler("generate_video"), "video-provider");
+    }
+
+    #[test]
+    fn image_kind_maps_tool_names() {
+        assert_eq!(image_kind("generate_map"), Some("map"));
+        assert_eq!(image_kind("generate_illustration"), Some("chat"));
+        assert_eq!(image_kind("roll_dice"), None);
+        assert_eq!(image_kind("generate_video"), None);
+    }
+
+    #[test]
+    fn video_kind_maps_generate_video_to_chat() {
+        assert_eq!(video_kind("generate_video"), Some("chat"));
+        assert_eq!(video_kind("generate_map"), None);
+        assert_eq!(video_kind("roll_dice"), None);
+    }
+
+    #[test]
+    fn tools_for_phase_withholds_combat_tools_outside_combat() {
+        let tools = tools_for_phase(ToolAvailability::all(), false);
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        for combat in COMBAT_ONLY_TOOLS {
+            assert!(
+                !names.contains(combat),
+                "{combat} must be hidden outside combat"
+            );
+        }
+        // Exploration tools and start_combat stay available.
+        assert!(names.contains(&"roll_dice"));
+        assert!(names.contains(&"start_combat"));
+        assert!(names.contains(&"generate_map"));
+        assert!(names.contains(&"generate_illustration"));
+        assert!(names.contains(&"generate_video"));
+        assert!(names.contains(&"set_scene"));
+    }
+
+    #[test]
+    fn tools_for_phase_exposes_full_catalog_in_combat() {
+        let in_combat = tools_for_phase(ToolAvailability::all(), true);
+        let full = all_tools_with(ToolAvailability::all());
+        assert_eq!(in_combat.len(), full.len());
+        let names: Vec<&str> = in_combat.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"apply_damage"));
+        assert!(names.contains(&"cast_spell"));
     }
 
     #[test]

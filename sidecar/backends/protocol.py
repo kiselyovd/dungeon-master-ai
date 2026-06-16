@@ -18,7 +18,6 @@ class PromptParams:
     style_lora: Optional[str] = None
     # video-only
     frame_count: Optional[int] = None
-    teacache_threshold: Optional[float] = None
 
 
 @runtime_checkable

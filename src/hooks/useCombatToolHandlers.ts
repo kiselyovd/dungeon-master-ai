@@ -24,22 +24,92 @@ export type CombatToolHandler = (
 export const combatToolHandlers: Record<string, CombatToolHandler | undefined> = {
   start_combat: (args, result, store) => {
     const entries = Array.isArray(args.initiative_entries) ? args.initiative_entries : [];
+    const pc = store.getState().pc;
     const tokens: CombatToken[] = entries
       .filter((e): e is Record<string, unknown> => e !== null && typeof e === 'object')
-      .map((e, i) => ({
-        id: String(e.id ?? crypto.randomUUID()),
-        name: String(e.name ?? 'Unknown'),
-        hp: Number(e.hp ?? 1),
-        maxHp: Number(e.max_hp ?? Number(e.hp ?? 1)),
-        ac: Number(e.ac ?? 10),
-        // The backend initiative entry carries no grid position; lay
-        // combatants out left to right, 8 per row, as a sane default.
-        x: i % 8,
-        y: Math.floor(i / 8),
+      .map((e) => {
+        const name = String(e.name ?? 'Unknown');
+        const isPc = pc.name !== null && name === pc.name;
+        // The model often calls start_combat with just names. Give the player's
+        // own entry their real sheet, and enemies a sane monster default (HP 11,
+        // AC 13) instead of the old trivial HP 1 that died in a single hit.
+        const hp = Number(e.hp ?? (isPc ? pc.hp : 11));
+        return {
+          id: String(e.id ?? crypto.randomUUID()),
+          name,
+          hp,
+          maxHp: Number(e.max_hp ?? (isPc ? pc.hpMax : hp)),
+          ac: Number(e.ac ?? (isPc ? pc.ac : 13)),
+          x: 0,
+          y: 0,
+          conditions: [],
+        };
+      });
+
+    // The DM frequently omits the player's hero from start_combat. Always put
+    // the PC on the board (front of initiative) with their real HP/AC so the
+    // map and the board snapshot the model sees are never missing the player.
+    if (pc.name !== null && !tokens.some((t) => t.name === pc.name)) {
+      tokens.unshift({
+        id: 'pc',
+        name: pc.name,
+        hp: pc.hp,
+        maxHp: pc.hpMax,
+        ac: pc.ac,
+        x: 0,
+        y: 0,
         conditions: [],
-      }));
+      });
+    }
+
+    // Determine initiative order: use backend-sorted result.ordered if present,
+    // otherwise fall back to insertion order (older backend compatibility).
+    let orderedIds: string[];
+    const backendOrdered = Array.isArray(result.ordered)
+      ? (result.ordered as Array<{ name: string; roll: number }>)
+      : null;
+
+    if (backendOrdered && backendOrdered.length > 0) {
+      // Map each backend-ordered name to the created token's id.
+      // Names that appear in ordered but not in tokens are skipped (defensive).
+      const nameToId = new Map(tokens.map((t) => [t.name, t.id]));
+      orderedIds = backendOrdered
+        .map((entry) => nameToId.get(entry.name))
+        .filter((id): id is string => id !== undefined);
+      // Any tokens not covered by ordered (e.g. PC injected locally) go at end.
+      const coveredIds = new Set(orderedIds);
+      for (const t of tokens) {
+        if (!coveredIds.has(t.id)) {
+          orderedIds.push(t.id);
+        }
+      }
+    } else {
+      orderedIds = tokens.map((t) => t.id);
+    }
+
+    // Lay combatants out left to right (8 per row) in initiative order.
+    // Mark the first combatant in the sorted order as the active turn.
+    const firstId = orderedIds[0];
+    tokens.forEach((t, i) => {
+      t.x = i % 8;
+      t.y = Math.floor(i / 8);
+      t.isActive = t.id === firstId;
+    });
+
+    // Reorder the tokens array to match initiative order so the grid layout
+    // also reflects sorted position (cosmetic, consistent with tracker).
+    const tokenById = new Map(tokens.map((t) => [t.id, t]));
+    const sortedTokens = orderedIds
+      .map((id) => tokenById.get(id))
+      .filter((t): t is CombatToken => t !== undefined);
+    // Assign positions in sorted order.
+    sortedTokens.forEach((t, i) => {
+      t.x = i % 8;
+      t.y = Math.floor(i / 8);
+    });
+
     const encounterId = String(result.encounter_id ?? crypto.randomUUID());
-    store.getState().combat.startCombat(encounterId, tokens);
+    store.getState().combat.startCombat(encounterId, sortedTokens);
   },
 
   end_combat: (_args, _result, store) => {

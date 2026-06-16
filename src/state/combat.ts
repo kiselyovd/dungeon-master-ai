@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AoeShape } from '../components/AoeTemplate';
+import { aggregateConditionEffects } from './conditions';
 
 export interface AoeTemplateEntry {
   id: string;
@@ -23,9 +24,42 @@ export interface CombatToken {
   y: number;
   conditions: string[];
   isActive?: boolean;
+  /** Movement speed in feet. Defaults to DEFAULT_SPEED_FT when absent. */
+  speed?: number;
 }
 
 export const DEFAULT_SPEED_FT = 30;
+
+/**
+ * Schema-version 2 combat token shape from the backend game_state JSON.
+ * Field names match the Rust `SavedToken` struct (snake_case).
+ */
+export interface SnapshotToken {
+  id: string;
+  name: string;
+  hp: number;
+  max_hp: number;
+  ac: number;
+  x: number;
+  y: number;
+  conditions: string[];
+  resistances: string[];
+  immunities: string[];
+  vulnerabilities: string[];
+}
+
+/**
+ * Schema-version 2 combat snapshot from the backend game_state JSON.
+ * Mirrors the Rust `SavedCombat` struct.
+ */
+export interface SnapshotCombat {
+  active: boolean;
+  encounter_id: string;
+  round: number;
+  current_turn_id: string | null;
+  initiative: string[];
+  tokens: SnapshotToken[];
+}
 
 export interface CombatSlice {
   combat: {
@@ -45,6 +79,13 @@ export interface CombatSlice {
 
     startCombat: (encounterId: string, tokens: CombatToken[]) => void;
     endCombat: () => void;
+    /**
+     * Rehydrate the entire combat slice from a schema-version 2 snapshot.
+     * Maps `SnapshotToken` (snake_case backend fields) to `CombatToken`
+     * (camelCase frontend fields) and restores round/currentTurnId/initiative.
+     * Used by the Load flow in useSaves.ts. [W2.3]
+     */
+    hydrate: (snapshot: SnapshotCombat) => void;
     applyDamage: (tokenId: string, amount: number) => void;
     applyHealing: (tokenId: string, amount: number) => void;
     addCondition: (tokenId: string, condition: string) => void;
@@ -52,6 +93,12 @@ export interface CombatSlice {
     setCurrentTurn: (tokenId: string | null) => void;
     advanceRound: () => void;
     moveToken: (tokenId: string, x: number, y: number) => void;
+    /**
+     * Validates the move against `movementRemaining` (Chebyshev distance * 5 ft).
+     * Returns true and updates x/y + decrements movementRemaining when the move is
+     * within budget; returns false and leaves state unchanged when over budget.
+     */
+    tryMoveToken: (tokenId: string, x: number, y: number) => boolean;
     addToken: (token: CombatToken) => void;
     updateToken: (tokenId: string, patch: Partial<CombatToken>) => void;
     removeToken: (tokenId: string) => void;
@@ -67,14 +114,32 @@ export interface CombatSlice {
   };
 }
 
-const econReset = () => ({
-  actionUsed: false,
-  bonusUsed: false,
-  reactionUsed: false,
-  movementRemaining: DEFAULT_SPEED_FT,
-});
+/**
+ * Returns fresh action-economy fields for the start of a combatant's turn.
+ * movementRemaining is set to the active token's speed (or DEFAULT_SPEED_FT)
+ * multiplied by the token's aggregate condition movement multiplier so that
+ * restrained/grappled/paralyzed/etc. tokens get 0 ft of movement. [W1.5]
+ */
+function econReset(speed?: number, conditions?: string[]) {
+  const baseFt = speed ?? DEFAULT_SPEED_FT;
+  const multiplier =
+    conditions !== undefined && conditions.length > 0
+      ? aggregateConditionEffects(conditions).movementMultiplier
+      : 1;
+  return {
+    actionUsed: false,
+    bonusUsed: false,
+    reactionUsed: false,
+    movementRemaining: Math.floor(baseFt * multiplier),
+  };
+}
 
-export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set) => ({
+/** Chebyshev distance in feet between two grid cells (5 ft per cell). */
+export function chebyshevFt(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 5;
+}
+
+export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set, get) => ({
   combat: {
     active: false,
     encounterId: null,
@@ -95,9 +160,37 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           initiativeOrder: tokens.map((t) => t.id),
           currentTurnId: tokens[0]?.id ?? null,
           round: 1,
-          ...econReset(),
+          ...econReset(tokens[0]?.speed, tokens[0]?.conditions),
         },
       })),
+
+    hydrate: (snapshot) => {
+      const tokens: CombatToken[] = snapshot.tokens.map((t) => ({
+        id: t.id,
+        name: t.name,
+        hp: t.hp,
+        maxHp: t.max_hp,
+        ac: t.ac,
+        x: t.x,
+        y: t.y,
+        conditions: t.conditions,
+        isActive: t.id === snapshot.current_turn_id,
+      }));
+      const activeToken = tokens.find((t) => t.id === snapshot.current_turn_id);
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          active: snapshot.active,
+          encounterId: snapshot.encounter_id,
+          tokens,
+          initiativeOrder: snapshot.initiative,
+          currentTurnId: snapshot.current_turn_id,
+          round: snapshot.round,
+          aoeTemplates: [],
+          ...econReset(activeToken?.speed, activeToken?.conditions),
+        },
+      }));
+    },
 
     endCombat: () =>
       set((s) => ({
@@ -159,14 +252,17 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
       })),
 
     setCurrentTurn: (tokenId) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          currentTurnId: tokenId,
-          tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
-          ...econReset(),
-        },
-      })),
+      set((s) => {
+        const activeToken = s.combat.tokens.find((t) => t.id === tokenId);
+        return {
+          combat: {
+            ...s.combat,
+            currentTurnId: tokenId,
+            tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
+            ...econReset(activeToken?.speed, activeToken?.conditions),
+          },
+        };
+      }),
 
     advanceRound: () => set((s) => ({ combat: { ...s.combat, round: s.combat.round + 1 } })),
 
@@ -177,6 +273,22 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
           tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
         },
       })),
+
+    tryMoveToken: (tokenId, x, y) => {
+      const { combat } = get();
+      const token = combat.tokens.find((t) => t.id === tokenId);
+      if (!token) return false;
+      const distance = chebyshevFt(token.x, token.y, x, y);
+      if (distance > combat.movementRemaining) return false;
+      set((s) => ({
+        combat: {
+          ...s.combat,
+          movementRemaining: Math.max(0, s.combat.movementRemaining - distance),
+          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
+        },
+      }));
+      return true;
+    },
 
     addToken: (token) =>
       set((s) => {
@@ -237,13 +349,14 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
         // to the top of the initiative order. idx < 0 (combat just started, no
         // current turn) is the first turn, not a wrap. [F1]
         const wrapped = idx >= 0 && nextIdx === 0;
+        const nextToken = s.combat.tokens.find((t) => t.id === nextId);
         return {
           combat: {
             ...s.combat,
             currentTurnId: nextId,
             round: wrapped ? s.combat.round + 1 : s.combat.round,
             tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
-            ...econReset(),
+            ...econReset(nextToken?.speed, nextToken?.conditions),
           },
         };
       }),

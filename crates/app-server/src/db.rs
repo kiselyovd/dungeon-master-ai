@@ -271,6 +271,289 @@ pub async fn save_update(
     Ok(result.rows_affected() > 0)
 }
 
+// ---- Save game_state serialisation (W2.3) ----
+
+/// Schema-version 2 combat token shape stored inside a save's `game_state`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedToken {
+    pub id: String,
+    pub name: String,
+    pub hp: i32,
+    pub max_hp: i32,
+    pub ac: i32,
+    pub x: i32,
+    pub y: i32,
+    pub conditions: Vec<String>,
+    pub resistances: Vec<String>,
+    pub immunities: Vec<String>,
+    pub vulnerabilities: Vec<String>,
+}
+
+/// Schema-version 2 combat snapshot shape stored inside a save's `game_state`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedCombat {
+    pub active: bool,
+    pub encounter_id: String,
+    pub round: i64,
+    pub current_turn_id: Option<String>,
+    pub initiative: Vec<String>,
+    pub tokens: Vec<SavedToken>,
+}
+
+/// Schema-version 2 scene snapshot stored inside a save's `game_state`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedScene {
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub mode: String,
+}
+
+/// Schema-version 2 full game_state envelope:
+/// ```json
+/// { "schema_version": 2, "combat": {...}|null, "scene": {...}|null, "label": "..." }
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameStateV2 {
+    pub schema_version: u32,
+    pub combat: Option<SavedCombat>,
+    pub scene: Option<SavedScene>,
+    pub label: String,
+}
+
+/// Read the active combat encounter for `session_id` and its tokens.
+/// Returns `None` when there is no open encounter.
+pub async fn read_active_combat(
+    pool: &SqlitePool,
+    session_id: Uuid,
+) -> Result<Option<SavedCombat>, sqlx::Error> {
+    let enc_row = sqlx::query(
+        "SELECT id, round, active_turn, initiative FROM combat_encounters \
+         WHERE session_id = ?1 AND ended_at IS NULL \
+         ORDER BY started_at DESC LIMIT 1",
+    )
+    .bind(session_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(enc) = enc_row else {
+        return Ok(None);
+    };
+
+    let encounter_id: String = enc.try_get("id")?;
+    let round: i64 = enc.try_get("round")?;
+    let current_turn_id: Option<String> = enc.try_get("active_turn")?;
+    let initiative_json: String = enc.try_get("initiative")?;
+    let initiative: Vec<String> = serde_json::from_str(&initiative_json).unwrap_or_default();
+
+    let token_rows = sqlx::query(
+        "SELECT id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, \
+                resistances, immunities, vulnerabilities \
+         FROM combat_tokens WHERE encounter_id = ?1 AND is_dead = 0",
+    )
+    .bind(&encounter_id)
+    .fetch_all(pool)
+    .await?;
+
+    let tokens: Vec<SavedToken> = token_rows
+        .into_iter()
+        .map(|r| {
+            let conditions_json: String = r.try_get("conditions").unwrap_or_else(|_| "[]".into());
+            let conditions: Vec<String> =
+                serde_json::from_str(&conditions_json).unwrap_or_default();
+            let res_json: Option<String> = r.try_get("resistances").unwrap_or(None);
+            let imm_json: Option<String> = r.try_get("immunities").unwrap_or(None);
+            let vul_json: Option<String> = r.try_get("vulnerabilities").unwrap_or(None);
+            let resistances: Vec<String> = res_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_default();
+            let immunities: Vec<String> = imm_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_default();
+            let vulnerabilities: Vec<String> = vul_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_default();
+            SavedToken {
+                id: r.try_get("id").unwrap_or_default(),
+                name: r.try_get("name").unwrap_or_default(),
+                hp: r.try_get("current_hp").unwrap_or(0),
+                max_hp: r.try_get("max_hp").unwrap_or(0),
+                ac: r.try_get("ac").unwrap_or(10),
+                x: r.try_get("pos_x").unwrap_or(0),
+                y: r.try_get("pos_y").unwrap_or(0),
+                conditions,
+                resistances,
+                immunities,
+                vulnerabilities,
+            }
+        })
+        .collect();
+
+    Ok(Some(SavedCombat {
+        active: true,
+        encounter_id,
+        round,
+        current_turn_id,
+        initiative,
+        tokens,
+    }))
+}
+
+/// Serialise the current DB state into a schema-version 2 `game_state` JSON
+/// object suitable for persisting in the `snapshots` table.
+pub async fn build_save_game_state(
+    pool: &SqlitePool,
+    session_id: Uuid,
+    label: &str,
+) -> Result<serde_json::Value, sqlx::Error> {
+    // Derive campaign_id from the session row.
+    let campaign_id_row = sqlx::query("SELECT campaign_id FROM sessions WHERE id = ?1")
+        .bind(session_id.to_string())
+        .fetch_optional(pool)
+        .await?;
+
+    let campaign_id: Option<Uuid> = if let Some(r) = campaign_id_row {
+        let s: String = r.try_get("campaign_id")?;
+        Uuid::parse_str(&s).ok()
+    } else {
+        None
+    };
+
+    let combat = read_active_combat(pool, session_id).await?;
+
+    let scene = if let Some(cid) = campaign_id {
+        scene_latest(pool, cid).await?.map(|s| SavedScene {
+            title: s.title,
+            subtitle: s.subtitle,
+            mode: s.mode,
+        })
+    } else {
+        None
+    };
+
+    let gs = GameStateV2 {
+        schema_version: 2,
+        combat,
+        scene,
+        label: label.to_string(),
+    };
+
+    serde_json::to_value(gs).map_err(|e| {
+        sqlx::Error::Decode(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            e.to_string(),
+        )))
+    })
+}
+
+/// Restore saved combat state into `combat_encounters` and `combat_tokens`.
+///
+/// Behaviour:
+/// - Ends any currently-open encounter for `session_id` (sets ended_at = now).
+/// - Re-inserts the saved encounter with the saved round/initiative/active_turn.
+/// - Clears the old tokens for the encounter and inserts the saved tokens.
+///
+/// Returns the parsed `GameStateV2` so callers can hand it to the frontend.
+pub async fn restore_snapshot(
+    pool: &SqlitePool,
+    session_id: Uuid,
+    save_id: Uuid,
+) -> Result<Option<GameStateV2>, sqlx::Error> {
+    // Load the save row.
+    let save = save_load(pool, save_id).await?;
+    let Some(row) = save else {
+        return Ok(None);
+    };
+
+    // Verify the save belongs to this session.
+    if row.session_id != session_id {
+        return Ok(None);
+    }
+
+    // Parse game_state.
+    let gs: GameStateV2 = match serde_json::from_value(row.game_state.clone()) {
+        Ok(v) => v,
+        Err(_) => {
+            // schema_version 1 or unknown: nothing to restore, return None for combat.
+            return Ok(None);
+        }
+    };
+
+    // Only restore if schema_version == 2 and combat data is present.
+    if gs.schema_version == 2 {
+        if let Some(ref saved_combat) = gs.combat {
+            let now = chrono::Utc::now().to_rfc3339();
+
+            // End any currently-open encounter for this session.
+            sqlx::query(
+                "UPDATE combat_encounters SET ended_at = ?1 \
+                 WHERE session_id = ?2 AND ended_at IS NULL",
+            )
+            .bind(&now)
+            .bind(session_id.to_string())
+            .execute(pool)
+            .await?;
+
+            // Re-insert the saved encounter (use the saved id for FK consistency).
+            let initiative_json =
+                serde_json::to_string(&saved_combat.initiative).unwrap_or_else(|_| "[]".into());
+            sqlx::query(
+                "INSERT OR REPLACE INTO combat_encounters \
+                 (id, session_id, round, active_turn, started_at, ended_at, initiative) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6)",
+            )
+            .bind(&saved_combat.encounter_id)
+            .bind(session_id.to_string())
+            .bind(saved_combat.round)
+            .bind(&saved_combat.current_turn_id)
+            .bind(&now)
+            .bind(initiative_json)
+            .execute(pool)
+            .await?;
+
+            // Delete old tokens for this encounter then re-insert saved ones.
+            sqlx::query("DELETE FROM combat_tokens WHERE encounter_id = ?1")
+                .bind(&saved_combat.encounter_id)
+                .execute(pool)
+                .await?;
+
+            for t in &saved_combat.tokens {
+                let conditions_json =
+                    serde_json::to_string(&t.conditions).unwrap_or_else(|_| "[]".into());
+                let res_json =
+                    serde_json::to_string(&t.resistances).unwrap_or_else(|_| "[]".into());
+                let imm_json = serde_json::to_string(&t.immunities).unwrap_or_else(|_| "[]".into());
+                let vul_json =
+                    serde_json::to_string(&t.vulnerabilities).unwrap_or_else(|_| "[]".into());
+                sqlx::query(
+                    "INSERT OR REPLACE INTO combat_tokens \
+                     (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, \
+                      conditions, is_dead, resistances, immunities, vulnerabilities) \
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,0,?10,?11,?12)",
+                )
+                .bind(&t.id)
+                .bind(&saved_combat.encounter_id)
+                .bind(&t.name)
+                .bind(t.hp)
+                .bind(t.max_hp)
+                .bind(t.ac)
+                .bind(t.x)
+                .bind(t.y)
+                .bind(conditions_json)
+                .bind(res_json)
+                .bind(imm_json)
+                .bind(vul_json)
+                .execute(pool)
+                .await?;
+            }
+        }
+    }
+
+    Ok(Some(gs))
+}
+
 fn parse_uuid_col(row: &sqlx::sqlite::SqliteRow, col: &str) -> Result<Uuid, sqlx::Error> {
     let s: String = row.try_get(col)?;
     Uuid::parse_str(&s).map_err(|e| {
@@ -544,6 +827,74 @@ pub async fn srd_chunks_load_all(pool: &SqlitePool) -> Result<Vec<SrdChunkRow>, 
 pub async fn srd_chunks_clear(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM srd_chunks").execute(pool).await?;
     Ok(())
+}
+
+// ---- Scenes ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Scene {
+    pub id: Uuid,
+    pub campaign_id: Uuid,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub mode: String,
+}
+
+/// Persist a new scene. Returns the new scene UUID.
+pub async fn scene_insert(
+    pool: &SqlitePool,
+    campaign_id: Uuid,
+    title: &str,
+    subtitle: Option<&str>,
+    mode: &str,
+    image_prompt: Option<&str>,
+) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::new_v4();
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        r#"INSERT INTO scenes (id, campaign_id, title, subtitle, mode, image_prompt, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+    )
+    .bind(id.to_string())
+    .bind(campaign_id.to_string())
+    .bind(title)
+    .bind(subtitle)
+    .bind(mode)
+    .bind(image_prompt)
+    .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(id)
+}
+
+/// Load the most recently created scene for a campaign. Returns `None` when
+/// the campaign has no scenes yet.
+pub async fn scene_latest(
+    pool: &SqlitePool,
+    campaign_id: Uuid,
+) -> Result<Option<Scene>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"SELECT id, campaign_id, title, subtitle, mode
+           FROM scenes
+           WHERE campaign_id = ?1
+           ORDER BY created_at DESC
+           LIMIT 1"#,
+    )
+    .bind(campaign_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(r) = row {
+        Ok(Some(Scene {
+            id: parse_uuid_col(&r, "id")?,
+            campaign_id: parse_uuid_col(&r, "campaign_id")?,
+            title: r.try_get("title")?,
+            subtitle: r.try_get("subtitle")?,
+            mode: r.try_get("mode")?,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 // ---- M4.5 messages ----

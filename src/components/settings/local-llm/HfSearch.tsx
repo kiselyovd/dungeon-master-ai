@@ -82,23 +82,27 @@ export function HfSearch() {
     <div className={styles.root}>
       <HfTokenRow />
       <search>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void runSearch();
-          }}
-          className={styles.searchBar}
-        >
+        {/* Not a <form>: this panel renders inside the Settings <form>, and a
+            nested form is invalid HTML - a submit here would bubble to the outer
+            settings form and close the modal. Enter on the input triggers the
+            search instead. */}
+        <div className={styles.searchBar}>
           <input
             type="search"
             value={params.q}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void runSearch();
+              }
+            }}
             placeholder={t('search_placeholder')}
           />
-          <button type="submit" disabled={loading}>
+          <button type="button" disabled={loading} onClick={() => void runSearch()}>
             {loading ? t('searching') : t('search')}
           </button>
-        </form>
+        </div>
       </search>
       <HfSearchFilters
         value={params}

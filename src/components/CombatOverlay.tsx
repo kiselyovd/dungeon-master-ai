@@ -8,10 +8,14 @@ interface Props {
   active: boolean;
   tokens: CombatToken[];
   cellSize: number;
+  /** Current viewport scale, so token drag deltas (screen px) map to world px. */
+  zoom?: number;
   widthCells: number;
   heightCells: number;
   onMoveToken?: (id: string, x: number, y: number) => void;
   aoeTemplates?: AoeTemplateEntry[];
+  /** The id of the token whose turn it currently is. Passed to each CombatToken to gate dragging. */
+  currentTurnId?: string | null;
 }
 
 /**
@@ -28,10 +32,12 @@ export function CombatOverlay({
   active,
   tokens,
   cellSize,
+  zoom = 1,
   widthCells,
   heightCells,
   onMoveToken,
   aoeTemplates = [],
+  currentTurnId,
 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
@@ -77,6 +83,8 @@ export function CombatOverlay({
           key={token.id}
           token={token}
           cellSize={cellSize}
+          zoom={zoom}
+          currentTurnId={currentTurnId}
           {...(onMoveToken ? { onMove: onMoveToken } : {})}
         />
       ))}

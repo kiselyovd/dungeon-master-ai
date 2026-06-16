@@ -4,11 +4,13 @@ import { ChatError } from './errors';
 import {
   safeParseAgentDone,
   safeParseDone,
+  safeParseImageGenerated,
   safeParseReasoningText,
   safeParseStreamError,
   safeParseText,
   safeParseToolCallResult,
   safeParseToolCallStart,
+  safeParseVideoGenerated,
 } from './schemas';
 import { parseSseEvents } from './sse';
 
@@ -19,6 +21,13 @@ export interface AgentTurnOptions {
   history: ChatMessage[];
   /** Image attachments staged for this turn (vision). Omitted for text-only. [F2] */
   images?: MessagePart[];
+  /**
+   * Pre-formatted snapshot of the live VTT board (scene, round, initiative
+   * order, each token's HP/AC/grid position/conditions). Injected into the
+   * agent's system context so the DM narrates from the real board - including
+   * positions after the player drags a token. Omitted outside combat.
+   */
+  board?: string;
   model?: string;
   signal?: AbortSignal;
 
@@ -35,6 +44,36 @@ export interface AgentTurnOptions {
   ) => void;
   onAgentDone: (totalRounds: number) => void;
   onReasoningDelta?: (text: string) => void;
+  /**
+   * An image the agent produced. `kind` routes it: 'map' -> VTT board (left),
+   * 'chat' -> inline in the tool-call card (right). Delivered as a ready data URL.
+   */
+  onImageGenerated?: (
+    dataUrl: string,
+    toolCallId: string | undefined,
+    kind: 'map' | 'chat',
+  ) => void;
+  /**
+   * A video clip the agent produced. Always renders inline in the tool-call
+   * card ('chat'). Delivered as a data URL: `data:video/mp4;base64,...`
+   */
+  onVideoGenerated?: (dataUrl: string, toolCallId: string | undefined, kind: 'chat') => void;
+}
+
+/**
+ * Convert a chat-slice `ChatMessage` into the backend wire shape for the
+ * `/agent/turn` `history` field. The backend `ChatMessage` enum tags on `role`
+ * and requires `ChatMessage::User { parts: [...] }` (text + optional images);
+ * assistant/system carry `content`. Sending the raw slice message (which only
+ * has `content`, plus frontend-only `id`/`sequenceIndex`) makes the backend
+ * 422 with "history[i]: missing field `parts`" on every turn that has history.
+ */
+function toAgentWireMessage(m: ChatMessage): Record<string, unknown> {
+  if (m.role === 'user') {
+    const parts = m.parts && m.parts.length > 0 ? m.parts : [{ type: 'text', text: m.content }];
+    return { role: 'user', parts };
+  }
+  return { role: m.role, content: m.content };
 }
 
 /**
@@ -48,9 +87,10 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     campaign_id: opts.campaignId,
     session_id: opts.sessionId,
     player_message: opts.playerMessage,
-    history: opts.history,
+    history: opts.history.map(toAgentWireMessage),
     model: opts.model,
     images: opts.images ?? [],
+    ...(opts.board ? { board: opts.board } : {}),
   });
 
   const init: RequestInit = {
@@ -126,6 +166,21 @@ function handleAgentEvent(eventName: string, data: unknown, opts: AgentTurnOptio
     case 'reasoning_text': {
       const p = safeParseReasoningText(data);
       if (p && opts.onReasoningDelta) opts.onReasoningDelta(p.text);
+      break;
+    }
+    case 'image_generated': {
+      const p = safeParseImageGenerated(data);
+      if (p && opts.onImageGenerated) {
+        const kind = p.kind === 'map' ? 'map' : 'chat';
+        opts.onImageGenerated(`data:${p.mime_type};base64,${p.image_b64}`, p.tool_call_id, kind);
+      }
+      break;
+    }
+    case 'video_generated': {
+      const p = safeParseVideoGenerated(data);
+      if (p && opts.onVideoGenerated) {
+        opts.onVideoGenerated(`data:${p.mime_type};base64,${p.video_b64}`, p.tool_call_id, 'chat');
+      }
       break;
     }
     case 'agent_done': {

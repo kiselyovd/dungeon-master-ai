@@ -82,25 +82,35 @@ export const DEFAULT_PRESET: PresetId = 'local-only';
  * Returns the ordered step sequence for the given preset.
  *
  * Rules:
- * - Always included: welcome, preset, chat, hero
- * - image step: skipped when preset is 'text-only'
- * - video step: only shown for 'cloud-cinematic'
+ * - Hero comes right after the preset choice, before any technical setup: the
+ *   narrative choice (who you are) precedes provider/modality wiring.
+ * - 'manual' is an honest "skip setup": welcome, preset, hero only - no
+ *   provider/modality steps. The user lands on an empty canvas and configures
+ *   everything in Settings afterwards.
+ * - chat: included for every preset except 'manual'.
+ * - image: skipped for 'text-only' and 'manual'.
+ * - video: only shown for 'cloud-cinematic'.
  *
  * Examples:
- *   computeSteps('local-only')       -> ['welcome','preset','chat','image','hero']
- *   computeSteps('cloud-cinematic')  -> ['welcome','preset','chat','image','video','hero']
- *   computeSteps('text-only')        -> ['welcome','preset','chat','hero']
- *   computeSteps('hybrid')           -> ['welcome','preset','chat','image','hero']
- *   computeSteps('manual')           -> ['welcome','preset','chat','image','hero']
+ *   computeSteps('local-only')       -> ['welcome','preset','hero','chat','image']
+ *   computeSteps('cloud-cinematic')  -> ['welcome','preset','hero','chat','image','video']
+ *   computeSteps('text-only')        -> ['welcome','preset','hero','chat']
+ *   computeSteps('hybrid')           -> ['welcome','preset','hero','chat','image']
+ *   computeSteps('manual')           -> ['welcome','preset','hero']
  */
 export function computeSteps(preset: PresetId): Step[] {
-  const steps: Step[] = ['welcome', 'preset', 'chat'];
+  const steps: Step[] = ['welcome', 'preset', 'hero'];
+  // 'manual' skips all technical setup - it is the explicit "I'll configure it
+  // later" path, so it must not land the user on a blocking preflight modal.
+  if (preset === 'manual') {
+    return steps;
+  }
+  steps.push('chat');
   if (preset !== 'text-only') {
     steps.push('image');
   }
   if (preset === 'cloud-cinematic') {
     steps.push('video');
   }
-  steps.push('hero');
   return steps;
 }

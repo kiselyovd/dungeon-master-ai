@@ -20,10 +20,11 @@ use tokio::sync::mpsc;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::agent::context_builder::build_context;
+use crate::agent::context_builder::{build_context, compose_system_prompt, needs_rules_context};
 use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::{all_tools_with, classify_handler, ToolAvailability};
+use crate::agent::tools::{classify_handler, tools_for_phase, ToolAvailability};
 use crate::image::provider::ImageProvider;
+use crate::video::provider::VideoProvider;
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -71,6 +72,12 @@ pub struct AgentTurnRequest {
     /// Image attachments for THIS turn (vision). Appended to the current user
     /// message alongside the text; empty for text-only turns. [M11 F2]
     pub images: Vec<MessagePart>,
+    /// Pre-formatted snapshot of the live VTT board (scene, round, initiative
+    /// order, each combatant's HP/AC/grid position/conditions) built by the
+    /// frontend and injected into the system context so the DM narrates from
+    /// the actual board - positions after the player drags a token, who is
+    /// bloodied, whose turn it is. `None`/empty outside combat.
+    pub board: Option<String>,
 }
 
 /// Events emitted by the orchestrator, consumed by the SSE handler.
@@ -109,6 +116,19 @@ pub enum AgentEvent {
         round: usize,
         mime_type: String,
         image_b64: String,
+        /// Routing discriminator: "map" paints the VTT board, "chat" renders
+        /// inline in the tool-call card. Derived from the tool name.
+        kind: String,
+    },
+    /// A `generate_video` tool-call produced a video. Carries the raw mp4 bytes
+    /// base64-encoded; emitted on a dedicated event so the blob stays out of
+    /// LLM history. `kind` is always "chat" (video renders inline in the card).
+    VideoGenerated {
+        tool_call_id: String,
+        round: usize,
+        mime_type: String,
+        video_b64: String,
+        kind: String,
     },
     /// The agent loop completed.
     AgentDone { total_rounds: usize },
@@ -120,6 +140,11 @@ pub struct AgentOrchestrator {
     config: AgentConfig,
     retriever: Option<Arc<SrdRetriever>>,
     image_provider: Option<Arc<dyn ImageProvider>>,
+    video_provider: Option<Arc<dyn VideoProvider>>,
+    /// Auto-Swap VRAM coordinator. `Some` only when the local LLM runtime is up
+    /// and the Auto-Swap strategy is selected; wraps each `generate_image` call
+    /// so the LLM's VRAM is freed during generation and restored after.
+    gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
 }
 
 impl AgentOrchestrator {
@@ -136,7 +161,25 @@ impl AgentOrchestrator {
             config,
             retriever,
             image_provider,
+            video_provider: None,
+            gpu_swap: None,
         }
+    }
+
+    /// Attach a video provider (builder-style).
+    pub fn with_video_provider(mut self, video_provider: Option<Arc<dyn VideoProvider>>) -> Self {
+        self.video_provider = video_provider;
+        self
+    }
+
+    /// Attach an Auto-Swap coordinator (builder-style) so image generation frees
+    /// and restores the local LLM's VRAM around each call.
+    pub fn with_gpu_swap(
+        mut self,
+        gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
+    ) -> Self {
+        self.gpu_swap = gpu_swap;
+        self
     }
 
     pub async fn run(
@@ -144,22 +187,45 @@ impl AgentOrchestrator {
         req: AgentTurnRequest,
         tx: mpsc::Sender<AgentEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Build initial system context.
+        // Lighten the context for small local models: outside combat, withhold
+        // the combat-management tools and skip rule injection on pure-narration
+        // turns. A 16-tool catalog + 5 irrelevant SRD chunks is what makes Gemma 4
+        // E2B deliberate into an empty turn instead of acting.
+        let in_combat = crate::agent::tool_executor::is_combat_active(&self.pool).await;
+        let inject_rules = needs_rules_context(&req.player_message, in_combat);
+
+        // Prepend the DM operating directive (role + concision + decisive tool use)
+        // so small local models stay in character and call media tools instead of
+        // narrating or stalling. RAG/NPC context is layered on top by build_context.
+        let base_prompt =
+            compose_system_prompt(&self.config.system_prompt, self.config.tool_availability);
         let system_context = build_context(
             &self.pool,
             req.campaign_id,
             &req.player_message,
-            &self.config.system_prompt,
+            &base_prompt,
             &self.config.embedding_model,
             self.retriever.as_deref(),
+            inject_rules,
         )
         .await
         .unwrap_or_else(|e| {
             warn!("context build error: {e}");
-            self.config.system_prompt.clone()
+            base_prompt.clone()
         });
 
-        let tools = all_tools_with(self.config.tool_availability);
+        // Inject the live board snapshot (positions/HP/turn) so the DM narrates
+        // from the actual VTT state, not a guess - this is how the model "knows"
+        // where the player dragged a token and who is bloodied. The frontend
+        // sends it pre-formatted; we only gate on non-empty.
+        let system_context = match req.board.as_deref().map(str::trim) {
+            Some(board) if !board.is_empty() => {
+                format!("{system_context}\n\n## Current battlefield\n{board}")
+            }
+            _ => system_context,
+        };
+
+        let tools = tools_for_phase(self.config.tool_availability, in_combat);
         let mut messages: Vec<ChatMessage> = req.history;
         // The current user turn carries the text plus any staged images (F2).
         // With no images this is identical to `user_text`.
@@ -277,14 +343,34 @@ impl AgentOrchestrator {
 
             // Execute all tool-calls from this round.
             for tc in &tool_calls_this_round {
+                // Auto-Swap: around an image/video generation, free the local LLM's
+                // VRAM (stop it) and restart it on the same port afterwards, so
+                // SDXL is not starved on a single 10 GB card. No-op when the
+                // coordinator is absent (cloud LLM, keep-both-loaded, etc.).
+                let swap = if crate::agent::tools::image_kind(&tc.name).is_some()
+                    || crate::agent::tools::video_kind(&tc.name).is_some()
+                {
+                    self.gpu_swap.clone()
+                } else {
+                    None
+                };
+                if let Some(s) = &swap {
+                    s.acquire().await;
+                }
                 let (mut result_val, is_error) = execute_tool(
                     tc,
                     &self.pool,
                     self.image_provider.clone(),
+                    self.video_provider.clone(),
+                    self.retriever.as_deref(),
+                    &self.config.embedding_model,
                     req.campaign_id,
                     req.session_id,
                 )
                 .await;
+                if let Some(s) = &swap {
+                    s.release().await;
+                }
 
                 // generate_image returns the raw image as base64 inline. Peel
                 // it into a dedicated SSE event and strip it from result_val so
@@ -304,6 +390,33 @@ impl AgentOrchestrator {
                                     round: total_rounds,
                                     mime_type,
                                     image_b64,
+                                    kind: crate::agent::tools::image_kind(&tc.name)
+                                        .unwrap_or("chat")
+                                        .to_string(),
+                                })
+                                .await
+                                .is_err()
+                            {
+                                return Ok(());
+                            }
+                        }
+                        // generate_video returns raw video as base64 inline. Peel
+                        // it similarly so the blob stays out of LLM history.
+                        if let Some(Value::String(video_b64)) = map.remove("video_b64") {
+                            let mime_type = map
+                                .get("mime_type")
+                                .and_then(Value::as_str)
+                                .unwrap_or("video/mp4")
+                                .to_string();
+                            if tx
+                                .send(AgentEvent::VideoGenerated {
+                                    tool_call_id: tc.id.clone(),
+                                    round: total_rounds,
+                                    mime_type,
+                                    video_b64,
+                                    kind: crate::agent::tools::video_kind(&tc.name)
+                                        .unwrap_or("chat")
+                                        .to_string(),
                                 })
                                 .await
                                 .is_err()

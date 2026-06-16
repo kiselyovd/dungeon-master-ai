@@ -30,8 +30,16 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ['**/src-tauri/**'],
+      // 3. Ignore non-frontend trees. Watching them does nothing useful, and the
+      // Python venv (`<root>/.venv`, thousands of files), the sidecar sources and
+      // the multi-GB model cache otherwise trigger constant phantom page reloads.
+      ignored: [
+        '**/src-tauri/**',
+        '**/.venv/**',
+        '**/sidecar/**',
+        '**/.cache-models/**',
+        '**/target/**',
+      ],
     },
   },
 }));

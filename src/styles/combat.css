@@ -18,6 +18,32 @@
   }
 }
 
+/* "Your turn" label floats above the PC token on their active turn. [W1.7b] */
+@keyframes your-turn-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.token-your-turn {
+  animation: your-turn-fade-in 0.2s ease forwards;
+}
+
+/* Respect system motion preferences: disable the "Your turn" fade-in when the
+   user has requested reduced motion. The token-pulse animation is controlled
+   via an inline `style` in CombatToken.tsx; it is already skipped when
+   prefers-reduced-motion is set there via a `matchMedia` check. [W1.7b] */
+@media (prefers-reduced-motion: reduce) {
+  .token-your-turn {
+    animation: none;
+  }
+}
+
 @keyframes typing-dot {
   0%,
   100% {

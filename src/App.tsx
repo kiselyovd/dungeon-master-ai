@@ -28,6 +28,7 @@ import { UpdateAvailableModal } from './components/UpdateAvailableModal';
 import { VideoDisabledToast } from './components/VideoDisabledToast';
 import { VttCanvas } from './components/VttCanvas';
 import { useAgentTurn } from './hooks/useAgentTurn';
+import { useHydrated } from './hooks/useHydrated';
 import { useSaves } from './hooks/useSaves';
 import { useUpdater } from './hooks/useUpdater';
 import i18n from './i18n';
@@ -133,6 +134,15 @@ function App() {
   const combatRound = useStore((s) => s.combat.round);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const setCurrentTurn = useStore((s) => s.combat.setCurrentTurn);
+  // Resolve the PC token id by matching pc.name to a token name (same logic as
+  // CombatToken's isPcToken). Fall back to null when no match so the ActionBar
+  // stays hidden rather than incorrectly shown on a lookup miss. [W1.6]
+  const pcName = useStore((s) => s.pc.name);
+  const pcTokenId = combatTokens.find((t) => pcName !== null && t.name === pcName)?.id ?? null;
+  // Show the ActionBar only during the player's own turn. When currentTurnId is
+  // null or no PC token is found we keep the bar hidden; a lookup miss does not
+  // force-show it. [W1.6]
+  const showActionBar = combatActive && pcTokenId !== null && currentTurnId === pcTokenId;
   const journalEntries = useStore((s) => s.journal.entries);
   const journalOpen = useStore((s) => s.journal.isOpen);
   const closeJournal = useStore((s) => s.journal.close);
@@ -144,6 +154,10 @@ function App() {
   const toolEntries = useStore((s) => s.toolLog.entries);
   const currentScene = useStore((s) => s.session.currentScene);
   const onboardingCompleted = useStore((s) => s.onboarding.completed);
+  // Gate first-run UI on persist hydration: before the async rehydrate finishes
+  // the store still holds slice defaults (onboarding.completed === false), which
+  // would flash the Onboarding modal on every launch. (Audit blocker 1.)
+  const hydrated = useHydrated();
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
@@ -401,7 +415,7 @@ function App() {
                 onSelect={handleInitiativeSelect}
               />
             )}
-            {combatActive && (
+            {showActionBar && (
               <ActionBar
                 onIntent={(text) => {
                   void sendAgentTurn(text);
@@ -465,7 +479,7 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
-          {!onboardingCompleted && (
+          {hydrated && !onboardingCompleted && (
             <Onboarding
               onExitToWizard={() => setWizardReopen(true)}
               onComplete={(preset) => {

@@ -22,17 +22,10 @@ import { HeroStep } from '../steps/HeroStep';
 function setup(overrides: Partial<Parameters<typeof HeroStep>[0]> = {}) {
   const onBack = vi.fn();
   const onNext = vi.fn();
-  const onExitToWizard = vi.fn();
   const utils = render(
-    <HeroStep
-      titleId="test-title"
-      onBack={onBack}
-      onNext={onNext}
-      onExitToWizard={onExitToWizard}
-      {...overrides}
-    />,
+    <HeroStep titleId="test-title" onBack={onBack} onNext={onNext} {...overrides} />,
   );
-  return { ...utils, onBack, onNext, onExitToWizard };
+  return { ...utils, onBack, onNext };
 }
 
 describe('HeroStep', () => {
@@ -99,18 +92,19 @@ describe('HeroStep', () => {
   });
 
   // ------------------------------------------------------------------
-  // Test 4: "Build from scratch" calls onExitToWizard and completes
-  //         onboarding without calling applyPreset
+  // Test 4: "Build from scratch" advances WITHOUT applying a preset. The
+  //         full wizard is opened later by Onboarding.finalize (when no hero
+  //         class was chosen), not synchronously here - so hero can sit before
+  //         the chat/image steps without the wizard overlapping onboarding.
   // ------------------------------------------------------------------
-  it('"Build from scratch" calls onExitToWizard and onNext without applyPreset', async () => {
+  it('"Build from scratch" advances via onNext without applyPreset', async () => {
     const user = userEvent.setup();
     const applyPreset = vi.spyOn(useStore.getState().pc, 'applyPreset').mockClear();
-    const { onNext, onExitToWizard } = setup();
+    const { onNext } = setup();
 
     const scratchBtn = screen.getByRole('button', { name: /Build from scratch/i });
     await user.click(scratchBtn);
 
-    expect(onExitToWizard).toHaveBeenCalledTimes(1);
     expect(onNext).toHaveBeenCalledTimes(1);
     expect(applyPreset).not.toHaveBeenCalled();
   });

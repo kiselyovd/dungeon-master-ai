@@ -25,6 +25,30 @@ pub enum ModelId {
     Qwen3_5_4b,
     Qwen3_5_9b,
 
+    // chat (Gemma 4, multimodal safetensors loaded via auto-loader + ISQ - the
+    // GGUF path cannot load the `gemma4` arch). E2B fits a 10 GB GPU fully;
+    // E4B spills to CPU on 10 GB but is higher quality. Explicit rename keeps a
+    // clean wire id (default snake_case would yield `gemma4_e2b_it`); the
+    // frontend localMode ModelId uses these exact strings for /local-mode/config.
+    #[serde(rename = "gemma4_e2b")]
+    Gemma4E2bIt,
+    #[serde(rename = "gemma4_e4b")]
+    Gemma4E4bIt,
+
+    // chat (Qwen3 dense GGUF - the DEFAULT. Pre-quantized so it loads in seconds
+    // with no ISQ, the GGUF arch is `qwen3` which mistralrs supports (unlike the
+    // newer `qwen35`), and the instruct model tool-calls reliably. Text-only.
+    #[serde(rename = "qwen3_8b")]
+    Qwen3_8b,
+
+    // chat (Qwen3-0.6B dense, text-only, safetensors + ISQ via the auto-loader -
+    // NOT GGUF). On this mistralrs build the GGUF path crashes on startup and the
+    // multimodal Qwen3.5 hits a vision rotary-cache bug; this tiny text-only qwen3
+    // is the one Qwen variant that actually loads AND generates. Toy-grade: too
+    // small for reliable tool-calls (combat/scene), good for plain narration.
+    #[serde(rename = "qwen3_0_6b")]
+    Qwen3_0_6b,
+
     // image (existing)
     SdxlTurbo,
 
@@ -67,6 +91,13 @@ pub struct ModelManifest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModelKind {
     GgufFile,
+    /// Safetensors model loaded through mistralrs' auto-loader (`run -m <id>`)
+    /// with in-situ quantization. Used for arches the GGUF loader lacks (Gemma
+    /// 4). mistralrs downloads the repo from HF on first start; there is no
+    /// single local file to pre-fetch. `isq` is the mistralrs `--isq` value.
+    AutoIsq {
+        isq: &'static str,
+    },
     DiffusersFolder,
     /// VL GGUF that ships a separate mmproj GGUF.
     GgufWithMmproj {
@@ -136,6 +167,61 @@ pub const MANIFEST: &[ModelManifest] = &[
         kind: ModelKind::GgufWithMmproj {
             mmproj_filename: "mmproj-F16.gguf",
         },
+        requires: &[],
+    },
+    // --- chat: Gemma 4 (safetensors + ISQ via mistralrs auto-loader). hf_filename
+    // is unused for the AutoIsq path (mistralrs fetches the whole repo); sizes are
+    // rough estimates for the UI. ---
+    ModelManifest {
+        id: ModelId::Gemma4E2bIt,
+        display_name: "Gemma 4 E2B-it (ISQ Q4K)",
+        size_bytes_estimate: 5_500 * 1024 * 1024,
+        vram_bytes_estimate: 3_000 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "google/gemma-4-E2B-it",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "q4k" },
+        requires: &[],
+    },
+    ModelManifest {
+        id: ModelId::Gemma4E4bIt,
+        display_name: "Gemma 4 E4B-it (ISQ Q4K)",
+        size_bytes_estimate: 9_000 * 1024 * 1024,
+        vram_bytes_estimate: 6_000 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "google/gemma-4-E4B-it",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "q4k" },
+        requires: &[],
+    },
+    // --- chat: Qwen3-8B dense GGUF (DEFAULT). Pre-quantized Q4_K_M (~5 GB), arch
+    // `qwen3` (mistralrs-supported), loads in seconds, reliable tool-calls.
+    // Text-only: unsloth ships no mmproj for the dense Qwen3 (VL is a separate
+    // repo), so this is GgufFile, not GgufWithMmproj. ---
+    ModelManifest {
+        id: ModelId::Qwen3_8b,
+        display_name: "Qwen3-8B Q4_K_M",
+        size_bytes_estimate: 5_028 * 1024 * 1024,
+        vram_bytes_estimate: 6_500 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "unsloth/Qwen3-8B-GGUF",
+        hf_filename: "Qwen3-8B-Q4_K_M.gguf",
+        kind: ModelKind::GgufFile,
+        requires: &[],
+    },
+    // --- chat: Qwen3-0.6B (safetensors + ISQ via mistralrs auto-loader, text-only).
+    // hf_filename is unused for AutoIsq (mistralrs fetches the whole repo on first
+    // start). The GGUF Qwen entries above crash on this build; this is the working
+    // Qwen path. ~1.5 GB download, fits a 10 GB GPU trivially. ---
+    ModelManifest {
+        id: ModelId::Qwen3_0_6b,
+        display_name: "Qwen3-0.6B (ISQ Q4K, text-only)",
+        size_bytes_estimate: 1_500 * 1024 * 1024,
+        vram_bytes_estimate: 1_200 * 1024 * 1024,
+        sha256: "",
+        hf_repo: "Qwen/Qwen3-0.6B",
+        hf_filename: "*",
+        kind: ModelKind::AutoIsq { isq: "q4k" },
         requires: &[],
     },
     // --- image: Fast preset (existing) ---
@@ -369,7 +455,11 @@ mod tests {
         assert!(ids.contains(&&ModelId::ZImageTurboSvdq));
         assert!(ids.contains(&&ModelId::T5xxlEncoder));
         assert!(ids.contains(&&ModelId::LtxVideo09_6Distilled));
-        assert_eq!(MANIFEST.len(), 14);
+        assert!(ids.contains(&&ModelId::Gemma4E2bIt));
+        assert!(ids.contains(&&ModelId::Gemma4E4bIt));
+        assert!(ids.contains(&&ModelId::Qwen3_8b));
+        assert!(ids.contains(&&ModelId::Qwen3_0_6b));
+        assert_eq!(MANIFEST.len(), 18);
     }
 
     #[test]

@@ -160,6 +160,61 @@ impl Default for HfEndpoints {
 /// `{resolve_base}/{repo}/resolve/{rev}/{path}` which auto-redirects LFS
 /// objects to the CDN. Replaces an earlier model_index.json string-array
 /// walker that only worked for mocked schemas.
+/// Pick the subset of a diffusers repo needed for a `variant="fp16"` load:
+/// keep configs/tokenizer/json, keep fp16 weights, keep weights that have no
+/// fp16 variant, and drop onnx exports, sample images, and the fp32 weight
+/// counterpart whenever an fp16 sibling exists. Avoids pulling the whole repo
+/// (fp16 + fp32 + onnx) when only fp16 is loaded.
+fn select_diffusers_files(all: Vec<String>) -> Vec<String> {
+    // `.onnx_data` is the multi-GB external-data blob beside `.onnx`; matching
+    // only `.onnx` let it (9.5 GB for SDXL-Turbo's unet) slip through.
+    const DROP_EXT: &[&str] = &[
+        ".onnx",
+        ".onnx_data",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".ckpt",
+        ".pb",
+        ".h5",
+        ".msgpack",
+        ".pt",
+    ];
+    const WEIGHT_EXT: &[&str] = &[".safetensors", ".bin"];
+    // Repos use both `.fp16.` and `_fp16.` to tag the half-precision variant.
+    let is_fp16 = |p: &str| p.contains(".fp16.") || p.contains("_fp16.");
+    // Non-fp16 paths that DO have an fp16 sibling, e.g.
+    // "unet/diffusion_pytorch_model.safetensors" when the fp16 file exists.
+    let fp16_counterparts: std::collections::HashSet<String> = all
+        .iter()
+        .filter(|p| is_fp16(p))
+        .map(|p| p.replace(".fp16.", ".").replace("_fp16.", "."))
+        .collect();
+    all.into_iter()
+        .filter(|p| {
+            let lower = p.to_ascii_lowercase();
+            if DROP_EXT.iter().any(|e| lower.ends_with(e)) {
+                return false;
+            }
+            // Drop the fp32 weight when its fp16 variant is also present.
+            if !is_fp16(p) && fp16_counterparts.contains(p) {
+                return false;
+            }
+            // Drop root-level single-file checkpoints (e.g.
+            // "sd_xl_turbo_1.0.safetensors"): a `from_pretrained(folder,
+            // variant="fp16")` load reads only the diffusers SUBFOLDER weights,
+            // never a top-level single-file SD checkpoint, so these ~13 GB blobs
+            // are pure waste.
+            let is_weight = WEIGHT_EXT.iter().any(|e| lower.ends_with(e));
+            if is_weight && !p.contains('/') {
+                return false;
+            }
+            true
+        })
+        .collect()
+}
+
 pub async fn download_diffusers_repo(
     endpoints: &HfEndpoints,
     hf_repo: &str,
@@ -182,11 +237,16 @@ pub async fn download_diffusers_repo(
         return Err(DownloadError::Unauthorized);
     }
     let entries: Vec<HfTreeEntry> = tree_resp.error_for_status()?.json().await?;
-    let files: Vec<String> = entries
+    let all_files: Vec<String> = entries
         .into_iter()
         .filter(|e| e.kind == "file")
         .map(|e| e.path)
         .collect();
+    // Only fetch what a `variant="fp16"` diffusers load needs: configs +
+    // fp16 weights. Skip onnx exports, sample images, and the fp32 weight
+    // counterparts when an fp16 variant exists - downloading the whole repo
+    // pulled ~40 GB for SDXL-Turbo (fp16 + fp32 + onnx) instead of ~7 GB.
+    let files = select_diffusers_files(all_files);
 
     let mut bytes_total = 0u64;
     let mut files_downloaded = 0u32;
@@ -223,6 +283,92 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use tempfile::TempDir;
+
+    #[test]
+    fn select_diffusers_files_keeps_fp16_drops_fp32_and_onnx() {
+        let all = vec![
+            "model_index.json".to_string(),
+            "unet/config.json".to_string(),
+            "unet/diffusion_pytorch_model.safetensors".to_string(), // fp32 - drop
+            "unet/diffusion_pytorch_model.fp16.safetensors".to_string(), // keep
+            "text_encoder/model.onnx".to_string(),                  // drop
+            "vae/diffusion_pytorch_model.fp16.safetensors".to_string(), // keep
+            "tokenizer/merges.txt".to_string(),                     // keep
+            "sample.png".to_string(),                               // drop
+        ];
+        let mut got = select_diffusers_files(all);
+        got.sort();
+        assert_eq!(
+            got,
+            vec![
+                "model_index.json".to_string(),
+                "tokenizer/merges.txt".to_string(),
+                "unet/config.json".to_string(),
+                "unet/diffusion_pytorch_model.fp16.safetensors".to_string(),
+                "vae/diffusion_pytorch_model.fp16.safetensors".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn select_diffusers_files_drops_sdxl_turbo_root_checkpoints_and_onnx_data() {
+        // Real stabilityai/sdxl-turbo tree. The fp16 folder load needs only the
+        // subfolder fp16 weights (~6.5 GB); without these drops the walker pulled
+        // ~38 GB: root single-file checkpoints (incl. `_fp16.` naming) + the huge
+        // `.onnx_data` blobs that `.onnx` alone did not match.
+        let all = vec![
+            "model_index.json".to_string(),
+            "sd_xl_turbo_1.0.safetensors".to_string(), // root fp32 single-file - drop
+            "sd_xl_turbo_1.0_fp16.safetensors".to_string(), // root fp16 single-file - drop
+            "unet/diffusion_pytorch_model.fp16.safetensors".to_string(), // keep
+            "unet/model.onnx".to_string(),             // drop
+            "unet/model.onnx_data".to_string(),        // drop (9.5 GB leak)
+            "text_encoder_2/model.fp16.safetensors".to_string(), // keep
+            "text_encoder_2/model.onnx_data".to_string(), // drop (2.6 GB leak)
+            "vae/diffusion_pytorch_model.fp16.safetensors".to_string(), // keep
+        ];
+        let mut got = select_diffusers_files(all);
+        got.sort();
+        assert_eq!(
+            got,
+            vec![
+                "model_index.json".to_string(),
+                "text_encoder_2/model.fp16.safetensors".to_string(),
+                "unet/diffusion_pytorch_model.fp16.safetensors".to_string(),
+                "vae/diffusion_pytorch_model.fp16.safetensors".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn select_diffusers_files_drops_fp32_single_file_with_underscore_fp16_sibling() {
+        // `_fp16.` (underscore) naming must be recognised the same as `.fp16.`.
+        let all = vec![
+            "transformer/model.safetensors".to_string(), // subfolder, keep (no fp16 sibling here)
+            "pipeline_fp16.safetensors".to_string(),     // root - drop (single-file)
+        ];
+        let mut got = select_diffusers_files(all);
+        got.sort();
+        assert_eq!(got, vec!["transformer/model.safetensors".to_string()]);
+    }
+
+    #[test]
+    fn select_diffusers_files_keeps_weights_without_fp16_variant() {
+        // A repo that ships only a single non-fp16 weight must still download it.
+        let all = vec![
+            "model_index.json".to_string(),
+            "transformer/diffusion_pytorch_model.safetensors".to_string(),
+        ];
+        let mut got = select_diffusers_files(all);
+        got.sort();
+        assert_eq!(
+            got,
+            vec![
+                "model_index.json".to_string(),
+                "transformer/diffusion_pytorch_model.safetensors".to_string(),
+            ]
+        );
+    }
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -20,21 +20,21 @@
   "preset_local_only_download": "~6.5 ГБ загрузка",
 
   "preset_cloud_cinematic_name": "Облако и кино",
-  "preset_cloud_cinematic_desc": "Anthropic Claude + Replicate FLUX-Pro + Kling. Лучшее качество.",
-  "preset_cloud_cinematic_providers": "Claude + FLUX-Pro + Kling",
+  "preset_cloud_cinematic_desc": "OpenRouter (Claude / GPT) + Replicate FLUX-Pro + Kling. Лучшее качество.",
+  "preset_cloud_cinematic_providers": "OpenRouter + FLUX-Pro + Kling",
 
   "preset_hybrid_name": "Гибрид",
   "preset_hybrid_desc": "Облачный чат, локальные изображения. Баланс качества и стоимости.",
-  "preset_hybrid_providers": "Claude + SDXL-Lightning",
+  "preset_hybrid_providers": "OpenRouter + SDXL-Lightning",
   "preset_hybrid_download": "~3.4 ГБ загрузка",
 
   "preset_text_only_name": "Только текст",
   "preset_text_only_desc": "Чистое повествование, без изображений и видео. Выберите любой чат-провайдер.",
   "preset_text_only_providers": "Только чат-провайдер",
 
-  "preset_manual_name": "Вручную",
-  "preset_manual_desc": "Начать с чистыми настройками; настроить всё самостоятельно.",
-  "preset_manual_providers": "Ничего не настроено",
+  "preset_manual_name": "Пропустить настройку",
+  "preset_manual_desc": "Выберите героя сейчас; провайдеров настройте позже в Настройках.",
+  "preset_manual_providers": "Настроить позже",
 
   "preset_step_tag": "Выберите конфигурацию",
   "preset_step_title": "Выберите пресет",

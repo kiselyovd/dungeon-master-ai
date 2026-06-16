@@ -386,6 +386,51 @@ async fn post_settings_v2_rejects_local_mistralrs_custom_missing_gguf_filename()
     assert_eq!(res.status(), 400);
 }
 
+#[tokio::test]
+async fn post_settings_v2_sets_agent_model_to_active_cloud_model() {
+    // The orchestrator sends `agent_config().model` as the request model. If it
+    // stays at the default ("claude-haiku-4-5-20251001") instead of tracking the
+    // active chat model, the provider gets the wrong id - fatal for the local
+    // runtime (mistralrs 404s on an unknown model). Cloud case: it must equal
+    // the active_model_id that was applied.
+    let server = TestServer::start().await;
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert_eq!(
+        server.state.agent_config().model,
+        "anthropic/claude-haiku",
+        "agent_config.model must track the active chat model, not the default",
+    );
+}
+
+#[tokio::test]
+async fn post_settings_v2_sets_agent_model_to_local_gemma_repo_id() {
+    // Local case: agent_config().model must be the id mistralrs accepts
+    // ("google/gemma-4-E2B-it"), never the AutoIsq download glob "*" nor the
+    // stale cloud default. This is what unblocks the local DM from responding.
+    let server = TestServer::start().await;
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = Value::String("local-mistralrs".into());
+    body["chat"]["active_model_id"] = Value::String("google/gemma-4-E2B-it".into());
+    body["chat"]["providers"] = json!({
+        "local-mistralrs": { "model_id": "gemma4_e2b", "port": 9876 }
+    });
+    let res = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(res.status(), 200);
+    assert_eq!(server.state.agent_config().model, "google/gemma-4-E2B-it");
+    assert_eq!(server.state.default_model(), "google/gemma-4-E2B-it");
+}
+
 // ---- image provider rebuild ----
 
 #[tokio::test]
@@ -435,7 +480,10 @@ async fn post_settings_v2_rebuilds_replicate_image_provider() {
 }
 
 #[tokio::test]
-async fn post_settings_v2_rejects_replicate_without_api_key() {
+async fn post_settings_v2_degrades_replicate_without_api_key() {
+    // Image is an optional enhancement: a bad/unavailable image provider must
+    // NOT block the mandatory chat provider. The save succeeds with image
+    // disabled rather than 400ing the whole request.
     let server = TestServer::start().await;
     let mut body = baseline();
     body["image"]["providers"]["replicate"]["api_key"] = Value::String(String::new());
@@ -445,7 +493,11 @@ async fn post_settings_v2_rejects_replicate_without_api_key() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 400);
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.image_provider().is_none(),
+        "image degraded to off"
+    );
 }
 
 #[tokio::test]
@@ -478,7 +530,9 @@ async fn post_settings_v2_rebuilds_local_image_provider_when_sidecar_running() {
 }
 
 #[tokio::test]
-async fn post_settings_v2_rejects_local_image_without_sidecar_url() {
+async fn post_settings_v2_degrades_local_image_without_sidecar_url() {
+    // The media sidecar not being up (yet) must not block saving the chat
+    // provider - image degrades to off and the save succeeds.
     let server = TestServer::start().await;
     let mut body = baseline();
     body["image"]["active_provider_id"] = Value::String("local-sdxl-lightning".into());
@@ -490,11 +544,15 @@ async fn post_settings_v2_rejects_local_image_without_sidecar_url() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 400);
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.image_provider().is_none(),
+        "image degraded to off"
+    );
 }
 
 #[tokio::test]
-async fn post_settings_v2_rejects_replicate_without_provider_config_slice() {
+async fn post_settings_v2_degrades_replicate_without_provider_config_slice() {
     let server = TestServer::start().await;
     let mut body = baseline();
     body["image"]["providers"] = json!({});
@@ -504,7 +562,11 @@ async fn post_settings_v2_rejects_replicate_without_provider_config_slice() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 400);
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.image_provider().is_none(),
+        "image degraded to off"
+    );
 }
 
 #[tokio::test]
@@ -561,7 +623,8 @@ async fn post_settings_v2_rebuilds_local_video_provider_when_sidecar_running() {
 }
 
 #[tokio::test]
-async fn post_settings_v2_rejects_local_video_without_sidecar_url() {
+async fn post_settings_v2_degrades_local_video_without_sidecar_url() {
+    // Video is optional: the media sidecar not being up must not block the save.
     let server = TestServer::start().await;
     let mut body = baseline();
     body["video"]["enabled"] = Value::Bool(true);
@@ -571,7 +634,11 @@ async fn post_settings_v2_rejects_local_video_without_sidecar_url() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 400);
+    assert_eq!(res.status(), 200);
+    assert!(
+        server.state.video_provider().is_none(),
+        "video degraded to off"
+    );
 }
 
 #[tokio::test]

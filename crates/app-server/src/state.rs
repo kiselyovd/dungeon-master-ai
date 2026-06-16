@@ -58,9 +58,15 @@ impl AppState {
         let secrets: Arc<dyn SecretsRepo> = Arc::new(InMemorySecretsRepo::default());
         let download_manager = Arc::new(DownloadManager::new(models_dir.clone(), secrets.clone()));
         let sidecar_launcher = Arc::new(ProcessSidecarLauncher::from_current_exe());
+        // Steady 2s poll for up to 6 minutes. mistralrs-server loading +
+        // ISQ-quantizing Gemma 4 E2B (~10 GB) routinely needs 1-3 min before it
+        // binds its port; the image sidecar (Python torch/diffusers import) can
+        // also take tens of seconds. The old 8-attempt exponential budget
+        // (~64 s) gave up while the model was still loading, marking the runtime
+        // `failed`. (Audit: live Gemma start.)
         let probe_cfg = ProbeConfig {
-            max_attempts: 8,
-            initial_delay: Duration::from_millis(250),
+            max_attempts: 180,
+            initial_delay: Duration::from_millis(2000),
         };
         let llm_runtime = Arc::new(LocalRuntime::new(
             sidecar_launcher.clone(),

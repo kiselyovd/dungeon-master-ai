@@ -14,12 +14,112 @@ use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
+use crate::agent::tools::ToolAvailability;
+
+/// Prepend a concise Dungeon-Master operating directive to the user's custom
+/// system prompt. Small local models (Gemma 4 E2B in particular) ship with an
+/// empty/minimal user prompt, drift out of character, and either narrate a tool
+/// instead of calling it or spiral into long internal deliberation that ends in
+/// an empty turn. This scaffold pins the role, demands concise output + decisive
+/// action, and - when image generation is available - explicitly tells the model
+/// to CALL `generate_map` or `generate_illustration` rather than describe a scene
+/// in prose.
+pub(crate) fn compose_system_prompt(base: &str, availability: ToolAvailability) -> String {
+    let mut s = String::from(
+        "You are the Dungeon Master of a Dungeons & Dragons 5e game. Narrate vividly \
+         but concisely in the second person (\"you see ...\"). Decide quickly and keep \
+         any internal deliberation to a sentence or two - never stall or loop. Prefer \
+         calling the provided tools over describing in prose what a tool would do.",
+    );
+    if availability.image {
+        s.push_str(
+            " You can show visuals with two tools. Call generate_map (a TOP-DOWN \
+             tactical battle map) when the party enters a place where positioning \
+             matters or a fight is about to start - this updates the board on the \
+             left. Call generate_illustration (a cinematic picture of a character, \
+             creature, item, or dramatic view) when the player asks to see/draw/show \
+             something or to punctuate a moment - this appears in the chat, not on \
+             the board. Prefer calling these tools over describing the image in prose.",
+        );
+    }
+    if availability.video {
+        s.push_str(
+            " You also have generate_video for short cinematic motion clips (3-8 s) \
+             that appear inline in the chat. Use it sparingly for dramatic moments \
+             that benefit from motion - a spell erupting, a gate slamming shut, a \
+             creature bursting from shadow. Never for maps; never for static portraits.",
+        );
+    }
+    s.push_str(
+        " When a fight starts, immediately call start_combat with one initiative entry per \
+         combatant - just the names are enough (e.g. the hero and each enemy). The engine \
+         rolls initiative and assigns default stats, so NEVER ask the player for HP, AC, or \
+         initiative rolls; act with sensible defaults and keep the story moving.",
+    );
+    let base = base.trim();
+    if !base.is_empty() {
+        s.push_str("\n\n");
+        s.push_str(base);
+    }
+    s
+}
+
+/// D&D 5e mechanics terms. When the player's message mentions one (or combat is
+/// active), the turn likely needs rules grounding, so we inject SRD chunks. Pure
+/// narration/movement/dialogue ("I step into the crypt") matches none, so RAG is
+/// skipped - feeding 5 irrelevant rule chunks to a small local model on every
+/// turn is the noise that makes Gemma 4 E2B deliberate instead of acting.
+const RULES_TERMS: &[&str] = &[
+    "attack",
+    "damage",
+    "hit point",
+    " hp",
+    "armor class",
+    " ac ",
+    "saving throw",
+    " save",
+    " check",
+    "roll",
+    "dice",
+    "d20",
+    "spell",
+    "cast",
+    "condition",
+    "grapple",
+    "initiative",
+    "advantage",
+    "disadvantage",
+    "modifier",
+    "proficien",
+    "ability score",
+    " dc ",
+    "death save",
+    "concentration",
+    "resistance",
+    "immune",
+    "stealth",
+    "perception",
+];
+
+/// Decide whether this turn needs SRD rule chunks injected. True when combat is
+/// active or the message references a 5e mechanic; false for plain narration.
+pub fn needs_rules_context(message: &str, in_combat: bool) -> bool {
+    if in_combat {
+        return true;
+    }
+    let lower = format!(" {} ", message.to_ascii_lowercase());
+    RULES_TERMS.iter().any(|t| lower.contains(t))
+}
+
 /// Build the system context string for one agent round.
 ///
 /// `model_name` is the kebab-case embedding model id (e.g. "multilingual-e5-small")
 /// from `AgentConfig.embedding_model`. It must agree with the model used to
 /// build the retriever's corpus, otherwise query/corpus vectors live in
 /// different spaces and similarity is meaningless.
+///
+/// `inject_rules` gates RAG: SRD chunks are only retrieved when the turn needs
+/// rules (see `needs_rules_context`), keeping the context lean for small models.
 pub async fn build_context(
     pool: &SqlitePool,
     campaign_id: Uuid,
@@ -27,23 +127,31 @@ pub async fn build_context(
     base_prompt: &str,
     model_name: &str,
     retriever: Option<&SrdRetriever>,
+    inject_rules: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut ctx = base_prompt.to_string();
 
-    // RAG: inject top-5 SRD chunks relevant to the player's message.
-    if let Some(ret) = retriever {
-        if !ret.is_empty() {
-            match embed_player_message(player_message, model_name) {
-                Ok(query_emb) => {
-                    let chunks = ret.retrieve_by_embedding(&query_emb, 5);
-                    if !chunks.is_empty() {
-                        ctx.push_str("\n\n## Relevant D&D 5e Rules\n");
-                        for chunk in chunks {
-                            ctx.push_str(&format!("- {}: {}\n", chunk.source_key, chunk.text_en));
+    // RAG: inject top-3 SRD chunks relevant to the player's message, but only on
+    // rules-relevant turns - skipping it on narration turns keeps small local
+    // models from over-deliberating on irrelevant rule text.
+    if inject_rules {
+        if let Some(ret) = retriever {
+            if !ret.is_empty() {
+                match embed_player_message(player_message, model_name) {
+                    Ok(query_emb) => {
+                        let chunks = ret.retrieve_by_embedding(&query_emb, 3);
+                        if !chunks.is_empty() {
+                            ctx.push_str("\n\n## Relevant D&D 5e Rules\n");
+                            for chunk in chunks {
+                                ctx.push_str(&format!(
+                                    "- {}: {}\n",
+                                    chunk.source_key, chunk.text_en
+                                ));
+                            }
                         }
                     }
+                    Err(e) => warn!("query embedding failed: {e}"),
                 }
-                Err(e) => warn!("query embedding failed: {e}"),
             }
         }
     }
@@ -58,13 +166,27 @@ pub async fn build_context(
         ctx.push_str(&npc_facts);
     }
 
+    // Inject the current scene (if one has been set for this campaign).
+    if let Ok(Some(scene)) = crate::db::scene_latest(pool, campaign_id).await {
+        ctx.push_str("\n\n## Current scene\n");
+        let subtitle = scene.subtitle.as_deref().unwrap_or("");
+        if subtitle.is_empty() {
+            ctx.push_str(&format!("{} ({})\n", scene.title, scene.mode));
+        } else {
+            ctx.push_str(&format!(
+                "{} - {} ({})\n",
+                scene.title, subtitle, scene.mode
+            ));
+        }
+    }
+
     Ok(ctx)
 }
 
 /// Re-init on each call is wasteful in production. Phase I will cache the
 /// `TextEmbedding` handle on `AppState`. For M3 correctness this is sufficient
 /// because the model is cached on disk - only the ONNX session setup runs (~100ms).
-fn embed_player_message(
+pub(crate) fn embed_player_message(
     text: &str,
     model_name: &str,
 ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
@@ -82,4 +204,152 @@ async fn load_all_npc_facts(_pool: &SqlitePool, _campaign_id: Uuid) -> Result<St
     // Phase G wires this to the npc_memory table.
     // Stubbed in Task C1 to keep the build green until the table exists.
     Ok(String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn avail(image: bool) -> ToolAvailability {
+        ToolAvailability {
+            image,
+            video: false,
+        }
+    }
+
+    #[test]
+    fn compose_pins_dm_role_and_concision() {
+        let s = compose_system_prompt("", avail(false));
+        assert!(s.contains("Dungeon Master"));
+        assert!(s.contains("concisely"));
+    }
+
+    #[test]
+    fn compose_adds_image_directives_only_when_image_enabled() {
+        let on = compose_system_prompt("", avail(true));
+        assert!(on.contains("generate_map"));
+        assert!(on.contains("generate_illustration"));
+        let off = compose_system_prompt("", avail(false));
+        assert!(!off.contains("generate_map"));
+        assert!(!off.contains("generate_illustration"));
+    }
+
+    #[test]
+    fn compose_appends_user_prompt_after_scaffold() {
+        let s = compose_system_prompt("Be a grim, terse DM.", avail(false));
+        let scaffold_end = s.find("Be a grim").expect("user prompt present");
+        assert!(scaffold_end > 0, "user prompt must come AFTER the scaffold");
+        assert!(s.contains("Dungeon Master"));
+    }
+
+    #[test]
+    fn compose_ignores_blank_user_prompt() {
+        let s = compose_system_prompt("   \n  ", avail(false));
+        assert!(
+            !s.contains("\n\n"),
+            "blank base must not add a trailing block"
+        );
+    }
+
+    #[test]
+    fn needs_rules_skips_plain_narration() {
+        assert!(!needs_rules_context(
+            "I step into the ancient torchlit crypt and look around.",
+            false
+        ));
+        assert!(!needs_rules_context(
+            "I greet the innkeeper and ask for a room.",
+            false
+        ));
+    }
+
+    #[test]
+    fn needs_rules_fires_on_mechanics_terms() {
+        assert!(needs_rules_context(
+            "I attack the goblin with my sword.",
+            false
+        ));
+        assert!(needs_rules_context(
+            "Do I need a saving throw for that?",
+            false
+        ));
+        assert!(needs_rules_context("I cast fireball at the group.", false));
+    }
+
+    #[test]
+    fn needs_rules_always_true_in_combat() {
+        assert!(needs_rules_context("I look around nervously.", true));
+    }
+
+    #[tokio::test]
+    async fn build_context_includes_scene_when_present() {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        crate::db::init_db(&pool).await.unwrap();
+        let campaign_id = uuid::Uuid::new_v4();
+
+        // Insert a scene directly via the db helper.
+        crate::db::scene_insert(
+            &pool,
+            campaign_id,
+            "Ancient Dragon's Lair",
+            Some("Deep in the mountains"),
+            "combat",
+            None,
+        )
+        .await
+        .unwrap();
+
+        let ctx = build_context(
+            &pool,
+            campaign_id,
+            "I look around",
+            "Base prompt.",
+            "multilingual-e5-small",
+            None,  // no retriever
+            false, // no rules injection
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            ctx.contains("## Current scene"),
+            "context must contain scene header; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("Ancient Dragon's Lair"),
+            "context must contain scene title; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("Deep in the mountains"),
+            "context must contain scene subtitle; got:\n{ctx}"
+        );
+        assert!(
+            ctx.contains("combat"),
+            "context must contain scene mode; got:\n{ctx}"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_context_no_scene_block_when_none_exists() {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        crate::db::init_db(&pool).await.unwrap();
+        let campaign_id = uuid::Uuid::new_v4();
+
+        let ctx = build_context(
+            &pool,
+            campaign_id,
+            "I look around",
+            "Base prompt.",
+            "multilingual-e5-small",
+            None,
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            !ctx.contains("## Current scene"),
+            "context must NOT contain scene header when no scene exists; got:\n{ctx}"
+        );
+    }
 }

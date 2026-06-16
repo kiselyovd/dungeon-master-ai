@@ -9,6 +9,8 @@ fn cache_key_is_deterministic() {
         scene_id: Some("scene_1".into()),
         npc_ids: vec!["npc_a".into(), "npc_b".into()],
         backend_preset: None,
+        width: None,
+        height: None,
     };
     let key1 = image_cache_key(&prompt);
     let key2 = image_cache_key(&prompt);
@@ -23,6 +25,8 @@ fn cache_key_differs_for_different_npcs() {
         scene_id: Some("scene_1".into()),
         npc_ids: vec!["npc_a".into()],
         backend_preset: None,
+        width: None,
+        height: None,
     };
     let prompt2 = ImagePrompt {
         content_prompt: "Dark tavern".into(),
@@ -30,6 +34,8 @@ fn cache_key_differs_for_different_npcs() {
         scene_id: Some("scene_1".into()),
         npc_ids: vec!["npc_b".into()],
         backend_preset: None,
+        width: None,
+        height: None,
     };
     assert_ne!(image_cache_key(&prompt1), image_cache_key(&prompt2));
 }
@@ -42,6 +48,8 @@ fn cache_key_npc_order_is_sorted() {
         scene_id: Some("s1".into()),
         npc_ids: vec!["npc_a".into(), "npc_b".into()],
         backend_preset: None,
+        width: None,
+        height: None,
     };
     let prompt_ba = ImagePrompt {
         content_prompt: "Tavern".into(),
@@ -49,6 +57,8 @@ fn cache_key_npc_order_is_sorted() {
         scene_id: Some("s1".into()),
         npc_ids: vec!["npc_b".into(), "npc_a".into()],
         backend_preset: None,
+        width: None,
+        height: None,
     };
     assert_eq!(image_cache_key(&prompt_ab), image_cache_key(&prompt_ba));
 }

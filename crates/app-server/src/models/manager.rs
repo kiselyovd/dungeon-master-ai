@@ -259,6 +259,24 @@ impl DownloadManager {
             | ModelKind::LtxVideoSafetensors => {
                 self.spawn_single_file_download(id.clone(), m, state, token.clone())
             }
+            ModelKind::AutoIsq { .. } => {
+                // No app-side download: mistralrs fetches the safetensors repo
+                // from HF on first runtime start. Mark Completed immediately so
+                // the model is selectable + startable in the UI.
+                let events = events.clone();
+                let state = state.clone();
+                let id_done = id.clone();
+                tokio::spawn(async move {
+                    state.write().await.insert(
+                        id_done.clone(),
+                        DownloadStatus::Completed { bytes_total: 0 },
+                    );
+                    let _ = events.send(DownloadEvent::Completed {
+                        id: id_done,
+                        bytes_total: 0,
+                    });
+                })
+            }
         };
         self.handles.write().await.insert(id, handle);
         Ok(())
@@ -341,6 +359,10 @@ impl DownloadManager {
                 | ModelKind::LtxVideoSafetensors => {
                     let dest = self.base_dir.join(m.hf_filename);
                     let _ = tokio::fs::remove_file(&dest).await;
+                }
+                ModelKind::AutoIsq { .. } => {
+                    // The runtime owns the HF cache for AutoIsq models; nothing
+                    // app-side to delete.
                 }
             }
         }

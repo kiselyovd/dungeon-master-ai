@@ -73,18 +73,36 @@ impl LocalRuntime {
             .await
             .map_err(|e| std::io::Error::other(e.to_string()))?;
         let url = format!("http://127.0.0.1:{port}{}", self.health_path);
-        match (self.probe)(&url).await {
+
+        // Race the health probe against a liveness watcher. If the sidecar dies
+        // mid-startup (e.g. mistralrs loads a GGUF then exits before binding its
+        // port on a non-TTY), fail fast instead of polling its health endpoint
+        // for the whole probe budget.
+        let liveness = handle.liveness();
+        let probe = (self.probe)(&url);
+        tokio::pin!(probe);
+        let result: Result<(), String> = tokio::select! {
+            res = &mut probe => res.map_err(|e| e.to_string()),
+            () = async {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    if !liveness() {
+                        return;
+                    }
+                }
+            } => Err("sidecar process exited during startup".to_string()),
+        };
+
+        match result {
             Ok(()) => {
                 *self.handle.lock().await = Some(handle);
                 let status = RuntimeStatus::Ready { port };
                 *self.status.lock().await = status.clone();
                 Ok(status)
             }
-            Err(e) => {
+            Err(reason) => {
                 let _ = handle.kill();
-                let status = RuntimeStatus::Failed {
-                    reason: e.to_string(),
-                };
+                let status = RuntimeStatus::Failed { reason };
                 *self.status.lock().await = status.clone();
                 Ok(status)
             }
@@ -173,6 +191,45 @@ mod tests {
         let runtime = LocalRuntime::new(Arc::new(launcher), probe_always_fail(), "/health");
         let result = runtime.start("mistralrs-server", &[], 37001).await;
         assert!(matches!(result, Ok(RuntimeStatus::Failed { .. })));
+    }
+
+    /// A launcher whose handle reports the child as already dead, so the
+    /// liveness watcher fires while the (forever-blocking) probe is still
+    /// pending - exercising the fast-fail path.
+    struct DeadLauncher;
+
+    #[async_trait::async_trait]
+    impl app_llm::sidecar_launcher::SidecarLauncher for DeadLauncher {
+        async fn spawn(
+            &self,
+            _name: &str,
+            _args: &[&str],
+        ) -> Result<app_llm::sidecar_launcher::SidecarHandle, app_llm::sidecar_launcher::SidecarError>
+        {
+            let (_tx, rx) = tokio::sync::mpsc::channel(1);
+            Ok(app_llm::sidecar_launcher::SidecarHandle::from_parts(
+                0,
+                rx,
+                || false,
+                || Ok(()),
+            ))
+        }
+    }
+
+    fn probe_blocks_forever() -> ProbeFn {
+        Arc::new(|_url| Box::pin(std::future::pending::<Result<(), ProbeError>>()))
+    }
+
+    #[tokio::test]
+    async fn fails_fast_when_sidecar_dies_during_startup() {
+        let runtime = LocalRuntime::new(Arc::new(DeadLauncher), probe_blocks_forever(), "/health");
+        let status = runtime.start("x", &[], 37999).await.unwrap();
+        match &status {
+            RuntimeStatus::Failed { reason } => {
+                assert!(reason.contains("exited"), "unexpected reason: {reason}")
+            }
+            other => panic!("expected fast-fail Failed, got {other:?}"),
+        }
     }
 
     fn probe_third_attempt_ok() -> ProbeFn {

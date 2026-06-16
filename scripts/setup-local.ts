@@ -11,7 +11,6 @@
  * a working Python venv).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,35 +27,41 @@ function triple(): string {
 
 const results: { step: string; ok: boolean }[] = [];
 
-function run(step: string, cmd: string, args: string[]): void {
+function run(step: string, cmd: string, args: string[], env?: Record<string, string>): void {
   console.log(`\n=== ${step} ===\n$ ${cmd} ${args.join(' ')}`);
-  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', shell: isWin });
+  const r = spawnSync(cmd, args, {
+    cwd: ROOT,
+    stdio: 'inherit',
+    shell: isWin,
+    env: env ? { ...process.env, ...env } : process.env,
+  });
   results.push({ step, ok: r.status === 0 });
 }
 
-// 1. Python venv + image-sidecar deps -------------------------------------
-const venvPython = isWin
-  ? join(ROOT, '.venv', 'Scripts', 'python.exe')
-  : join(ROOT, '.venv', 'bin', 'python');
-if (!existsSync(venvPython)) {
-  run('create .venv', isWin ? 'python' : 'python3', ['-m', 'venv', '.venv']);
-} else {
-  console.log('\n=== .venv already exists, skipping create ===');
-  results.push({ step: 'create .venv', ok: true });
-}
-run('pip install image-sidecar deps', venvPython, [
-  '-m',
-  'pip',
-  'install',
-  '-r',
-  join('sidecar', 'requirements.txt'),
-]);
+// 1. Python 3.12 + image-sidecar deps via uv ------------------------------
+// uv owns Python provisioning and dependency install from sidecar/pyproject.toml
+// + uv.lock (reproducible). UV_PROJECT_ENVIRONMENT pins the venv at the repo
+// root (<root>/.venv) - the location dev-all.ts and the Rust dev-sidecar
+// detection already expect - even though the pyproject lives in sidecar/.
+const rootVenv = join(ROOT, '.venv');
+run('uv: provision Python 3.12', 'uv', ['python', 'install', '3.12']);
+run('uv sync: image-sidecar deps', 'uv', ['sync', '--project', join(ROOT, 'sidecar')], {
+  UV_PROJECT_ENVIRONMENT: rootVenv,
+});
 
 // 2. mistralrs-server from source ------------------------------------------
 if (isWin) {
   const args = ['-NoProfile', '-File', join('scripts', 'build_mistralrs.ps1'), '-Target', triple()];
   if (cuda) args.push('-Cuda');
-  run('build mistralrs-server', 'pwsh', args);
+  // Prefer PowerShell 7 (`pwsh`) but fall back to Windows PowerShell, which is
+  // always present - `pwsh` is NOT installed by default, so calling it blindly
+  // made `setup:local` fail before it ever built mistralrs. (Audit blocker 3.)
+  const probe = spawnSync('pwsh', ['-NoProfile', '-Command', '$host.Version.Major'], {
+    stdio: 'ignore',
+    shell: true,
+  });
+  const psExe = probe.status === 0 ? 'pwsh' : 'powershell';
+  run('build mistralrs-server', psExe, args);
 } else {
   const args = [join('scripts', 'build_mistralrs.sh'), triple()];
   if (cuda) args.push('--cuda');

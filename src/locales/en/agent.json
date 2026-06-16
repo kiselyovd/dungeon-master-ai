@@ -9,5 +9,12 @@
   "inspector_copy_curl": "Copy as cURL",
   "inspector_request": "Request",
   "inspector_response": "Response",
-  "inspector_handled_by": "Handled by: {{handler}}"
+  "inspector_handled_by": "Handled by: {{handler}}",
+  "drawing_map": "Drawing the map...",
+  "drawing_illustration": "Painting the scene...",
+  "drawing_video": "Generating video...",
+  "map_updated": "Map updated",
+  "image_alt": "Generated image",
+  "image_open": "Open image",
+  "video_alt": "Generated video"
 }

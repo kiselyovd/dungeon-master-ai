@@ -28,8 +28,6 @@ pub struct VideoPrompt {
     pub frame_count: u32,
     #[serde(default)]
     pub seed: Option<u64>,
-    #[serde(default)]
-    pub teacache_threshold: Option<f32>,
 }
 
 fn default_resolution() -> (u32, u32) {

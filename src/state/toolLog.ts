@@ -13,6 +13,12 @@ export interface ToolLogEntry {
   /// Tool Inspector so users can distinguish engine deterministic execution
   /// from provider delegation. Defaults to "engine" before settle().
   handledBy: string;
+  /** Data URL of an image produced by this tool call, if any. */
+  imageDataUrl?: string;
+  /** Routing kind of the attached image. */
+  imageKind?: 'map' | 'chat';
+  /** Data URL of a video clip produced by this tool call, if any. */
+  videoDataUrl?: string;
 }
 
 export interface ToolLogSlice {

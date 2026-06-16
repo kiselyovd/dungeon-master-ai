@@ -2,9 +2,44 @@ import { useCallback } from 'react';
 import { streamAgentTurn } from '../api/agent';
 import { ChatError } from '../api/errors';
 import type { MessagePart } from '../state/chat';
+import type { CombatToken } from '../state/combat';
 import { DISPOSITIONS, type Disposition } from '../state/npc';
-import { useStore } from '../state/useStore';
+import { type AppState, useStore } from '../state/useStore';
 import { combatToolHandlers } from './useCombatToolHandlers';
+
+/**
+ * Build a compact, model-readable snapshot of the live VTT board so the DM
+ * narrates from the actual state - whose turn it is, who is bloodied, and
+ * where each combatant stands after the player drags tokens. Returns
+ * `undefined` outside combat (no battlefield block is injected then).
+ */
+function buildBoardSnapshot(state: AppState): string | undefined {
+  const combat = state.combat;
+  if (!combat.active || combat.tokens.length === 0) return undefined;
+
+  const byId = new Map<string, CombatToken>(combat.tokens.map((t) => [t.id, t]));
+  const orderNames = combat.initiativeOrder
+    .map((id) => byId.get(id))
+    .filter((t): t is CombatToken => t !== undefined)
+    .map((t) => (t.isActive ? `${t.name} (current turn)` : t.name));
+
+  const lines = combat.tokens.map((t) => {
+    const status = t.hp <= 0 ? ' - DOWN' : '';
+    const conditions = t.conditions.length > 0 ? `, conditions: ${t.conditions.join(', ')}` : '';
+    return `- ${t.name}: HP ${t.hp}/${t.maxHp}, AC ${t.ac}, grid (${t.x},${t.y})${conditions}${status}`;
+  });
+
+  const scene = state.session.currentScene?.name;
+  const header = [
+    scene ? `Scene: ${scene}.` : null,
+    `Round ${combat.round}.`,
+    orderNames.length > 0 ? `Initiative order: ${orderNames.join(' -> ')}.` : null,
+  ]
+    .filter((s): s is string => s !== null)
+    .join(' ');
+
+  return `${header}\nGrid squares are 5 ft. Combatants:\n${lines.join('\n')}`;
+}
 
 /**
  * Agent turn orchestrator hook. Replaces useChat.send for the M3 agent endpoint.
@@ -24,6 +59,7 @@ export function useAgentTurn() {
   const addToolCallStartEvent = useStore((s) => s.chat.addToolCallStartEvent);
   const settleToolCallEvent = useStore((s) => s.chat.settleToolCallEvent);
   const clearStreamEvents = useStore((s) => s.chat.clearStreamEvents);
+  const attachStreamEventVideo = useStore((s) => s.chat.attachStreamEventVideo);
   const addPending = useStore((s) => s.toolLog.addPending);
   const settle = useStore((s) => s.toolLog.settle);
   const appendJournalEntry = useStore((s) => s.journal.appendEntry);
@@ -48,6 +84,9 @@ export function useAgentTurn() {
       const controller = new AbortController();
       beginStream(controller);
 
+      // Snapshot the live board (positions/HP/turn) so the DM narrates from it.
+      const board = buildBoardSnapshot(useStore.getState());
+
       try {
         await streamAgentTurn({
           campaignId,
@@ -55,12 +94,32 @@ export function useAgentTurn() {
           playerMessage: text,
           history,
           ...(images && images.length > 0 ? { images } : {}),
+          ...(board ? { board } : {}),
           signal: controller.signal,
 
           onTextDelta: appendDelta,
 
           onReasoningDelta: (text) => {
             useStore.getState().chat.appendReasoningDelta(text);
+          },
+
+          onImageGenerated: (dataUrl, toolCallId, kind) => {
+            // Route by kind: a map paints the VTT board (left); an illustration
+            // renders inline in its tool-call card (right). Both attach to the
+            // card so the user sees the result in place of raw JSON.
+            if (toolCallId) {
+              useStore.getState().chat.attachStreamEventImage(toolCallId, dataUrl, kind);
+            }
+            if (kind === 'map') {
+              useStore.getState().session.setMapImage(dataUrl);
+            }
+          },
+
+          onVideoGenerated: (dataUrl, toolCallId) => {
+            // Videos always render inline in the tool-call card (never the VTT board).
+            if (toolCallId) {
+              useStore.getState().chat.attachStreamEventVideo(toolCallId, dataUrl);
+            }
           },
 
           onToolCallStart: (id, toolName, round) => {
@@ -155,6 +214,7 @@ export function useAgentTurn() {
       addToolCallStartEvent,
       settleToolCallEvent,
       clearStreamEvents,
+      attachStreamEventVideo,
       addPending,
       settle,
       appendJournalEntry,

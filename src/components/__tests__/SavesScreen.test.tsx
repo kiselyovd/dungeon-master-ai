@@ -23,6 +23,9 @@ vi.mock('../../api/saves', () => ({
   fetchSaveById: vi.fn(),
   deleteSaveById: vi.fn(),
   fetchSessionMessages: vi.fn(),
+  // W2.3: restore endpoint - returns a schema-v2 game_state with no combat by default.
+  restoreSave: vi.fn(),
+  updateSaveById: vi.fn(),
 }));
 
 const fetchSessionSavesMock = vi.mocked(savesApi.fetchSessionSaves);
@@ -30,6 +33,7 @@ const fetchSaveByIdMock = vi.mocked(savesApi.fetchSaveById);
 const deleteSaveByIdMock = vi.mocked(savesApi.deleteSaveById);
 const createSaveMock = vi.mocked(savesApi.createSave);
 const fetchSessionMessagesMock = vi.mocked(savesApi.fetchSessionMessages);
+const restoreSaveMock = vi.mocked(savesApi.restoreSave);
 
 const FIXTURE: SaveSummary[] = [
   {
@@ -73,6 +77,7 @@ describe('SavesScreen', () => {
     deleteSaveByIdMock.mockReset();
     createSaveMock.mockReset();
     fetchSessionMessagesMock.mockReset();
+    restoreSaveMock.mockReset();
     fetchSessionSavesMock.mockResolvedValue([...FIXTURE]);
     fetchSaveByIdMock.mockResolvedValue({
       ...FIXTURE[0],
@@ -81,6 +86,10 @@ describe('SavesScreen', () => {
     deleteSaveByIdMock.mockResolvedValue();
     createSaveMock.mockResolvedValue({ id: 'new-1' });
     fetchSessionMessagesMock.mockResolvedValue([]);
+    // Default: restore returns a v2 game_state with no combat (exploration save).
+    restoreSaveMock.mockResolvedValue({
+      game_state: { schema_version: 2, label: 'Before the boss', combat: null, scene: null },
+    });
   });
 
   afterEach(() => {

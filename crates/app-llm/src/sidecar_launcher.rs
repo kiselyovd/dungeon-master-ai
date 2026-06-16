@@ -4,7 +4,7 @@
 //! in `src-tauri`); `MockSidecarLauncher` covers unit tests here.
 
 use async_trait::async_trait;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, Mutex as AsyncMutex};
 
 #[derive(Debug, thiserror::Error)]
@@ -30,11 +30,15 @@ pub struct SpawnSpec {
 }
 
 type KillFn = Box<dyn FnOnce() -> Result<(), SidecarError> + Send + Sync>;
+/// Cheap, repeatable liveness check: `true` while the child is still running,
+/// `false` once it has exited (or its status can no longer be read).
+type LivenessFn = Arc<dyn Fn() -> bool + Send + Sync>;
 
 pub struct SidecarHandle {
     pub child_pid: u32,
     stdout_rx: AsyncMutex<Option<mpsc::Receiver<String>>>,
     kill: KillFn,
+    liveness: LivenessFn,
 }
 
 impl SidecarHandle {
@@ -50,19 +54,35 @@ impl SidecarHandle {
         (self.kill)()
     }
 
+    /// True while the child process is still running. Used by the runtime to
+    /// fail fast if a sidecar dies during startup instead of polling its health
+    /// endpoint for the whole probe budget. (A GGUF mistralrs run, for example,
+    /// loads the model and then exits before binding its port on a non-TTY.)
+    pub fn is_alive(&self) -> bool {
+        (self.liveness)()
+    }
+
+    /// A cloneable handle to the liveness check, so a watcher task can outlive a
+    /// borrow of `&self`.
+    pub fn liveness(&self) -> LivenessFn {
+        self.liveness.clone()
+    }
+
     /// Constructor used by production launcher (Task B.3). Kept here so the
     /// `SidecarHandle` type remains the single source of truth for handle layout.
-    /// Accepts any matching `FnOnce` closure; the boxing happens internally so
-    /// callers don't need to know about the private `KillFn` alias.
+    /// Accepts any matching closures; the boxing happens internally so callers
+    /// don't need to know about the private `KillFn`/`LivenessFn` aliases.
     pub fn from_parts(
         pid: u32,
         rx: mpsc::Receiver<String>,
+        is_alive: impl Fn() -> bool + Send + Sync + 'static,
         kill: impl FnOnce() -> Result<(), SidecarError> + Send + Sync + 'static,
     ) -> Self {
         Self {
             child_pid: pid,
             stdout_rx: AsyncMutex::new(Some(rx)),
             kill: Box::new(kill),
+            liveness: Arc::new(is_alive),
         }
     }
 }
@@ -119,6 +139,7 @@ impl SidecarLauncher for MockSidecarLauncher {
             child_pid: 0,
             stdout_rx: AsyncMutex::new(Some(rx)),
             kill: Box::new(|| Ok(())),
+            liveness: Arc::new(|| true),
         })
     }
 }

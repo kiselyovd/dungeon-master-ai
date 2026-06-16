@@ -20,10 +20,41 @@
      directly from the ResizeObserver), so we don't need flex centering. */
 }
 
-.dm-vtt-canvas > canvas {
+/* The world wrapper holds the map image, the Pixi grid canvas and the token
+   overlay; it is translated + scaled by the viewport transform (zoom/pan). */
+.dm-vtt-world {
+  will-change: transform;
+}
+
+.dm-vtt-canvas canvas {
   display: block;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Agent-generated scene image, painted behind the (transparent) Pixi grid so
+   the grid lines and combat tokens overlay the map art. */
+.dm-vtt-map-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: dm-vtt-map-fade var(--t-base, 240ms) ease;
+}
+
+@keyframes dm-vtt-map-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Empty state
@@ -46,7 +77,7 @@
 }
 
 .dm-vtt-empty-icon {
-  color: rgba(212, 175, 55, 0.3);
+  color: rgba(212, 175, 55, 0.6);
 }
 
 .dm-vtt-empty-art {
@@ -123,6 +154,39 @@
   margin: 2px 0;
 }
 
+/* Layers popover (anchored just left of the controls toolbar) */
+.dm-vtt-layers {
+  position: absolute;
+  right: 60px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(20, 16, 26, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.dm-vtt-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-fg-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dm-vtt-layer-row input {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 /* Scale indicator
  *
  * Anchored to the bottom-right just left of the controls toolbar so it does
@@ -137,7 +201,7 @@
   align-items: center;
   gap: 8px;
   font-size: 10px;
-  color: var(--color-fg-secondary);
+  color: var(--color-fg-primary);
   background: rgba(20, 16, 26, 0.7);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
