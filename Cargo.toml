@@ -25,11 +25,11 @@ async-trait = "0.1"
 futures = "0.3"
 tokio-stream = "0.1"
 axum = { version = "0.8", features = ["macros"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "trace"] }
 genai = "=0.6.5"
 backon = "1"
-reqwest = { version = "0.12", features = ["json", "stream"] }
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio-native-tls", "macros", "migrate", "uuid", "chrono"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
+sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio-native-tls", "macros", "migrate", "uuid", "chrono"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
