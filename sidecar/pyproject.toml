@@ -10,7 +10,7 @@ dependencies = [
     # Diffusion stack. diffusers is pinned to git main (see [tool.uv.sources])
     # until ZImagePipeline / ZImageTransformer2DModel ship in a tagged release.
     "diffusers",
-    "transformers>=4.51,<5.0",
+    "transformers>=5.12,<5.13",
     "peft>=0.17",
     "accelerate>=1.0",
     "safetensors>=0.4.5",
