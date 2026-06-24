@@ -107,7 +107,9 @@ pub async fn download_to(
     file.flush().await?;
 
     if !expected_sha256.is_empty() {
-        let actual = format!("{:x}", hasher.finalize());
+        // sha2 0.11 / digest 0.11 returns an `Array` that no longer implements
+        // `LowerHex`, so hex-encode the digest bytes explicitly.
+        let actual: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
         if actual != expected_sha256 {
             let _ = tokio::fs::remove_file(dest).await;
             return Err(DownloadError::Sha256Mismatch {
