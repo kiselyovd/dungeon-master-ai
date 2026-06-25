@@ -10,7 +10,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
-rand = { version = "0.9", features = ["small_rng"] }
+rand = { version = "0.10", features = ["sys_rng"] }
 serde_yaml = "0.9"
 fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 tracing = { workspace = true }

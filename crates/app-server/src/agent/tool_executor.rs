@@ -496,9 +496,11 @@ async fn execute_update_token(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     // Persist resistance fields if provided.
     for field in &["resistances", "immunities", "vulnerabilities"] {
         if let Some(encoded) = encode_resist_list(args, field) {
-            if let Err(e) = sqlx::query(&format!(
+            // `field` is from a hardcoded allow-list above, not user input, so
+            // the dynamic SQL is audited-safe (sqlx 0.9 requires this assertion).
+            if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE combat_tokens SET {field} = ?1 WHERE id = ?2"
-            ))
+            )))
             .bind(encoded)
             .bind(id)
             .execute(pool)

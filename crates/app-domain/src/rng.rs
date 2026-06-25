@@ -19,10 +19,8 @@ impl SeededRng {
 
     /// Generate a random seed from the OS entropy source (for new combats).
     pub fn new_random() -> Self {
-        use rand::TryRngCore;
-        let mut buf = [0u8; 8];
-        rand::rngs::OsRng.try_fill_bytes(&mut buf).expect("os rng");
-        let seed = u64::from_le_bytes(buf);
+        use rand::TryRng;
+        let seed = rand::rngs::SysRng.try_next_u64().expect("os rng");
         Self::from_seed(seed)
     }
 

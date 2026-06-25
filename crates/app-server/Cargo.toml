@@ -36,7 +36,7 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = "0.22"
 iota_stronghold = "2"
 urlencoding = "2"
