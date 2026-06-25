@@ -1,4 +1,6 @@
-# M4 release checklist
+# Release smoke-test checklist
+
+This is a living template reused for each release. Sections below accrete per milestone (M4 onward); the unchecked `[ ]` boxes are the template - copy this file (or the relevant sections) per tag and tick them off as you verify a build. See `docs/RELEASE.md` for the automated release pipeline.
 
 ## Pre-release
 
