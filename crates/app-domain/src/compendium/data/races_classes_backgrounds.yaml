@@ -1,4 +1,4 @@
-# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) — Character Creation Dataset
+# D&D 5e SRD 5.1 (CC-BY-4.0, 2023) - Character Creation Dataset
 # Generated for the "Dungeon Master AI" companion app.
 # License: System Reference Document 5.1 by Wizards of the Coast LLC,
 #          available at https://dnd.wizards.com/resources/systems-reference-document
@@ -605,13 +605,13 @@ classes:
             name_ru: Заклинания круга
             description: |
               At 3rd, 5th, 7th, and 9th level, you gain Circle Spells tied to a chosen terrain (always prepared, not counting against limit). Choose one terrain: arctic, coast, desert, forest, grassland, mountain, or swamp. (Underdark is NOT in SRD 5.1.)
-              Arctic — 3rd: hold person, spike growth; 5th: sleet storm, slow; 7th: freedom of movement, ice storm; 9th: commune with nature, cone of cold.
-              Coast — 3rd: mirror image, misty step; 5th: water breathing, water walk; 7th: control water, freedom of movement; 9th: conjure elemental, scrying.
-              Desert — 3rd: blur, silence; 5th: create food and water, protection from energy; 7th: blight, hallucinatory terrain; 9th: insect plague, wall of stone.
-              Forest — 3rd: barkskin, spider climb; 5th: call lightning, plant growth; 7th: divination, freedom of movement; 9th: commune with nature, tree stride.
-              Grassland — 3rd: invisibility, pass without trace; 5th: daylight, haste; 7th: divination, freedom of movement; 9th: dream, insect plague.
-              Mountain — 3rd: spider climb, spike growth; 5th: lightning bolt, meld into stone; 7th: stone shape, stoneskin; 9th: passwall, wall of stone.
-              Swamp — 3rd: acid arrow, darkness; 5th: water walk, stinking cloud; 7th: freedom of movement, locate creature; 9th: insect plague, scrying.
+              Arctic - 3rd: hold person, spike growth; 5th: sleet storm, slow; 7th: freedom of movement, ice storm; 9th: commune with nature, cone of cold.
+              Coast - 3rd: mirror image, misty step; 5th: water breathing, water walk; 7th: control water, freedom of movement; 9th: conjure elemental, scrying.
+              Desert - 3rd: blur, silence; 5th: create food and water, protection from energy; 7th: blight, hallucinatory terrain; 9th: insect plague, wall of stone.
+              Forest - 3rd: barkskin, spider climb; 5th: call lightning, plant growth; 7th: divination, freedom of movement; 9th: commune with nature, tree stride.
+              Grassland - 3rd: invisibility, pass without trace; 5th: daylight, haste; 7th: divination, freedom of movement; 9th: dream, insect plague.
+              Mountain - 3rd: spider climb, spike growth; 5th: lightning bolt, meld into stone; 7th: stone shape, stoneskin; 9th: passwall, wall of stone.
+              Swamp - 3rd: acid arrow, darkness; 5th: water walk, stinking cloud; 7th: freedom of movement, locate creature; 9th: insect plague, scrying.
     source_url: https://5thsrd.org/character/classes/druid/
 
   - id: fighter
@@ -729,7 +729,7 @@ classes:
         level_1_features_if_any:
           - name_en: Tenets of Devotion
             name_ru: Принципы Преданности
-            description: "Honesty, Courage, Compassion, Honor, and Duty — paladins of this oath uphold these tenets."
+            description: "Honesty, Courage, Compassion, Honor, and Duty - paladins of this oath uphold these tenets."
           - name_en: Oath Spells
             name_ru: Заклинания клятвы
             description: |
@@ -786,9 +786,9 @@ classes:
             name_ru: Добыча охотника
             description: |
               At 3rd level, choose one feature:
-              Colossus Slayer — Once per turn when you hit a creature with a weapon attack, deal an extra 1d8 damage if the target is below its hit point maximum.
-              Giant Killer — When a Large or larger creature within 5 feet of you hits or misses you with an attack, you can use your reaction to attack that creature immediately after its attack.
-              Horde Breaker — Once on each of your turns when you make a weapon attack, you can make another attack with the same weapon against a different creature within 5 feet of the original target and within range of your weapon.
+              Colossus Slayer - Once per turn when you hit a creature with a weapon attack, deal an extra 1d8 damage if the target is below its hit point maximum.
+              Giant Killer - When a Large or larger creature within 5 feet of you hits or misses you with an attack, you can use your reaction to attack that creature immediately after its attack.
+              Horde Breaker - Once on each of your turns when you make a weapon attack, you can make another attack with the same weapon against a different creature within 5 feet of the original target and within range of your weapon.
     source_url: https://5thsrd.org/character/classes/ranger/
 
   - id: rogue

@@ -1,5 +1,7 @@
 # Dungeon Master AI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#stack)
+
 A multimodal, AI-powered Dungeons & Dragons desktop assistant. Tauri v2 + React + Rust.
 
 It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drives NPCs, resolves combat on a virtual tabletop, remembers your campaign, and can generate scene art - either fully on your machine or through a cloud model.
@@ -121,6 +123,16 @@ bun run tauri build
 - mistralrs reasoning/thinking surfacing (blocked on upstream).
 - Additional / regional cloud providers.
 
+## Known limitations
+
+Current, confirmed issues (see `CHANGELOG.md` for the per-release detail):
+
+- Local GGUF loading crashes after the model loads in a non-TTY context on Windows (upstream `mistralrs`). The default Gemma / ISQ local path works, so prefer an ISQ model id over a raw GGUF on Windows.
+- `mistralrs` reasoning/thinking surfacing is not wired up yet (blocked on upstream).
+- 7 Biome lint warnings are present and accepted (non-null assertions in tests, exhaustive-deps, descending-specificity). They are non-blocking and do not fail the gates.
+- Rendering a generated illustration directly onto the VTT map is deferred; the image is generated and delivered over SSE to a chat tool-call card instead.
+- Distribution is unsigned for now: self-signed Windows installers trigger SmartScreen "Unrecognized app" warnings until an EV certificate lands (see `docs/RELEASE.md`).
+
 ## License
 
-TBD.
+MIT. See [LICENSE](LICENSE).

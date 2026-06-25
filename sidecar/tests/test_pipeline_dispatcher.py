@@ -1,5 +1,5 @@
 """Dispatcher hot-swap unit tests. Uses stub backends so no torch / diffusers
-required for these tests to pass — real backend smoke is M7.5-DM scope."""
+required for these tests to pass - real backend smoke is M7.5-DM scope."""
 from __future__ import annotations
 
 import sys
