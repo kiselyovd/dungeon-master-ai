@@ -4,11 +4,19 @@ A multimodal, AI-powered Dungeons & Dragons desktop assistant. Tauri v2 + React 
 
 It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drives NPCs, resolves combat on a virtual tabletop, remembers your campaign, and can generate scene art - either fully on your machine or through a cloud model.
 
-> **Status: v0.11.0 (M11 - "make it actually work").** The app completes end to
-> end: onboard by any preset, create or pick a character, chat with the DM,
-> resolve a combat round on the VTT, generate an image, save, and restart with
-> state preserved. Both the local-only path (embedded LLM + image sidecars) and
-> the cloud path (any OpenAI-compatible endpoint, OpenRouter recommended) work.
+<p align="center">
+  <img src="docs/screenshots/combat.jpg" width="49%" alt="Combat on the virtual tabletop - initiative tracker, action bar and AI tool-calls" />
+  <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Guided hero creation with class presets and character art" />
+</p>
+
+> **Status: v0.12.0 (real engine).** Real server-rolled combat (initiative,
+> turn-gating, conditions, damage resistance, spell resolution), SRD rules
+> retrieval (RAG), real scene persistence and saves, and video generation. The
+> app completes end to end: onboard by any preset, create or pick a character,
+> chat with the DM, resolve a combat round on the VTT, generate an image, save,
+> and restart with state preserved. Both the local-only path (embedded LLM +
+> image sidecars) and the cloud path (any OpenAI-compatible endpoint, OpenRouter
+> recommended) work.
 
 ## Features
 
