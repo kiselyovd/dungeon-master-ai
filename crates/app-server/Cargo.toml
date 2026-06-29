@@ -44,8 +44,8 @@ urlencoding = "2"
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 app-server = { path = ".", features = ["test-support"] }
-wiremock = "0.6"
-tempfile = "3"
+wiremock = "=0.6.5"
+tempfile = "=3.27.0"
 
 [features]
 default = ["with-local-runtime"]
