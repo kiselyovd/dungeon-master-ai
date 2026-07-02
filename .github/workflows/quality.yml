@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - uses: crate-ci/typos@37bb98842b0d8c4ffebdb75301a13db0267cef89 # master
+      - uses: crate-ci/typos@bc212b92c93b7d2c8acb5fcb114250694513595b # master
 
   shellcheck:
     runs-on: ubuntu-24.04
