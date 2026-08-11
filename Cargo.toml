@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "crates/adapter-llm",
+    "crates/adapter-secrets",
+    "crates/adapter-sqlite",
     "crates/app-application",
     "crates/app-domain",
     "crates/app-llm",
@@ -36,6 +38,10 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 app-application = { path = "crates/app-application" }
 adapter-llm = { path = "crates/adapter-llm" }
+adapter-secrets = { path = "crates/adapter-secrets" }
+adapter-sqlite = { path = "crates/adapter-sqlite" }
+app-domain = { path = "crates/app-domain" }
+iota_stronghold = "2"
 
 [profile.dev]
 debug = "line-tables-only"

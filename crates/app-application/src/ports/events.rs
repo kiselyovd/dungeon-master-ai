@@ -27,3 +27,12 @@ pub struct EventSinkError {
 pub trait ApplicationEventSink: Send + Sync {
     async fn publish(&self, event: ApplicationEvent) -> Result<(), EventSinkError>;
 }
+
+pub struct NoopApplicationEventSink;
+
+#[async_trait]
+impl ApplicationEventSink for NoopApplicationEventSink {
+    async fn publish(&self, _event: ApplicationEvent) -> Result<(), EventSinkError> {
+        Ok(())
+    }
+}

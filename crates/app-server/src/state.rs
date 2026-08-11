@@ -18,22 +18,19 @@ use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
 /// Shared application state for axum handlers.
 ///
 /// Internally an `Arc<AppStateInner>` so cloning (axum's `State` extractor
-/// clones once per request) is cheap. All three provider slots (chat, image,
-/// video) are consolidated into a single `registry: RwLock<Arc<ProviderRegistry>>`
-/// so that `POST /settings/v2` can install a fully-built registry in one
-/// atomic write, eliminating the torn-state window that 3 separate set_*
-/// calls would leave behind. In-flight `/chat` streams read-lock just long
-/// enough to clone the inner `Arc`, then drop the guard before any `.await`.
+/// clones once per request) is cheap. Provider slots, the default model, and
+/// agent configuration live in one `RuntimeSettingsSnapshot` lock so that
+/// `POST /settings/v2` can install the complete prepared runtime atomically.
+/// In-flight `/chat` streams read-lock only long enough to clone the values
+/// they need, then drop the guard before any `.await`.
 #[derive(Clone)]
 pub struct AppState {
     inner: Arc<AppStateInner>,
 }
 
 struct AppStateInner {
-    registry: RwLock<Arc<crate::providers::ProviderRegistry>>,
-    default_model: RwLock<Arc<String>>,
+    settings_runtime: RwLock<RuntimeSettingsSnapshot>,
     db: SqlitePool,
-    agent_config: RwLock<AgentConfig>,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
     /// Shared base URL for the Python sidecar that hosts BOTH image and video
     /// backends (single port, single GPU mutex, PipelineDispatcher hot-swaps).
@@ -48,6 +45,19 @@ struct AppStateInner {
     runtime_registry: Arc<RuntimeRegistry>,
     models_dir: RwLock<PathBuf>,
     secrets_repo: RwLock<Arc<dyn SecretsRepo>>,
+}
+
+pub struct PreparedRuntimeSettings {
+    pub registry: crate::providers::ProviderRegistry,
+    pub default_model: String,
+    pub agent_config: AgentConfig,
+}
+
+struct RuntimeSettingsSnapshot {
+    registry: Arc<crate::providers::ProviderRegistry>,
+    default_model: Arc<String>,
+    agent_config: AgentConfig,
+    revision: u64,
 }
 
 impl AppState {
@@ -83,10 +93,13 @@ impl AppState {
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
-                registry: RwLock::new(initial_registry),
-                default_model: RwLock::new(Arc::new(default_model)),
+                settings_runtime: RwLock::new(RuntimeSettingsSnapshot {
+                    registry: initial_registry,
+                    default_model: Arc::new(default_model),
+                    agent_config: AgentConfig::default(),
+                    revision: 0,
+                }),
                 db,
-                agent_config: RwLock::new(AgentConfig::default()),
                 srd_retriever: RwLock::new(None),
                 media_sidecar_url: RwLock::new(None),
                 local_mode_config: RwLock::new(LocalModeConfig::default()),
@@ -103,38 +116,47 @@ impl AppState {
     /// long-running chat stream would block subsequent provider swaps.
     pub fn provider(&self) -> Arc<dyn LlmProvider> {
         self.inner
-            .registry
+            .settings_runtime
             .read()
-            .expect("registry lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .registry
             .chat
             .clone()
     }
 
     pub fn set_provider(&self, llm: Arc<dyn LlmProvider>) {
-        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
         let new_reg = crate::providers::ProviderRegistry {
             chat: llm,
-            image: guard.image.clone(),
-            video: guard.video.clone(),
+            image: guard.registry.image.clone(),
+            video: guard.registry.video.clone(),
         };
-        *guard = Arc::new(new_reg);
+        guard.registry = Arc::new(new_reg);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn default_model(&self) -> String {
         self.inner
-            .default_model
+            .settings_runtime
             .read()
-            .expect("model lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .default_model
             .as_str()
             .to_string()
     }
 
     pub fn set_default_model(&self, model: String) {
-        *self
+        let mut guard = self
             .inner
-            .default_model
+            .settings_runtime
             .write()
-            .expect("model lock poisoned") = Arc::new(model);
+            .expect("settings runtime lock poisoned");
+        guard.default_model = Arc::new(model);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn db(&self) -> &SqlitePool {
@@ -143,18 +165,21 @@ impl AppState {
 
     pub fn agent_config(&self) -> AgentConfig {
         self.inner
-            .agent_config
+            .settings_runtime
             .read()
-            .expect("agent config lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .agent_config
             .clone()
     }
 
     pub fn set_agent_config(&self, config: AgentConfig) {
-        *self
+        let mut guard = self
             .inner
-            .agent_config
+            .settings_runtime
             .write()
-            .expect("agent config lock poisoned") = config;
+            .expect("settings runtime lock poisoned");
+        guard.agent_config = config;
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn srd_retriever(&self) -> Option<Arc<SrdRetriever>> {
@@ -171,60 +196,82 @@ impl AppState {
 
     pub fn image_provider(&self) -> Option<Arc<dyn crate::image::provider::ImageProvider>> {
         self.inner
-            .registry
+            .settings_runtime
             .read()
-            .expect("registry lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .registry
             .image
             .clone()
     }
 
     pub fn set_image_provider(&self, provider: Arc<dyn crate::image::provider::ImageProvider>) {
-        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
         let new_reg = crate::providers::ProviderRegistry {
-            chat: guard.chat.clone(),
+            chat: guard.registry.chat.clone(),
             image: Some(provider),
-            video: guard.video.clone(),
+            video: guard.registry.video.clone(),
         };
-        *guard = Arc::new(new_reg);
+        guard.registry = Arc::new(new_reg);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn clear_image_provider(&self) {
-        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
         let new_reg = crate::providers::ProviderRegistry {
-            chat: guard.chat.clone(),
+            chat: guard.registry.chat.clone(),
             image: None,
-            video: guard.video.clone(),
+            video: guard.registry.video.clone(),
         };
-        *guard = Arc::new(new_reg);
+        guard.registry = Arc::new(new_reg);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn video_provider(&self) -> Option<Arc<dyn crate::video::VideoProvider>> {
         self.inner
-            .registry
+            .settings_runtime
             .read()
-            .expect("registry lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .registry
             .video
             .clone()
     }
 
     pub fn set_video_provider(&self, provider: Arc<dyn crate::video::VideoProvider>) {
-        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
         let new_reg = crate::providers::ProviderRegistry {
-            chat: guard.chat.clone(),
-            image: guard.image.clone(),
+            chat: guard.registry.chat.clone(),
+            image: guard.registry.image.clone(),
             video: Some(provider),
         };
-        *guard = Arc::new(new_reg);
+        guard.registry = Arc::new(new_reg);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     pub fn clear_video_provider(&self) {
-        let mut guard = self.inner.registry.write().expect("registry lock poisoned");
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
         let new_reg = crate::providers::ProviderRegistry {
-            chat: guard.chat.clone(),
-            image: guard.image.clone(),
+            chat: guard.registry.chat.clone(),
+            image: guard.registry.image.clone(),
             video: None,
         };
-        *guard = Arc::new(new_reg);
+        guard.registry = Arc::new(new_reg);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     /// Atomic registry swap. Used by `POST /settings/v2` to install a brand-new
@@ -232,17 +279,40 @@ impl AppState {
     /// chat/image/video boundary that 3 separate set_* calls would leave behind
     /// (a reader between calls could observe new chat with old image).
     pub fn swap_registry(&self, new_registry: crate::providers::ProviderRegistry) {
-        *self.inner.registry.write().expect("registry lock poisoned") = Arc::new(new_registry);
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
+        guard.registry = Arc::new(new_registry);
+        guard.revision = guard.revision.saturating_add(1);
     }
 
     /// Read-only snapshot of the full registry. Used by tests and future
     /// atomic-read consumers that need a consistent view of all three slots.
     pub fn registry(&self) -> Arc<crate::providers::ProviderRegistry> {
         self.inner
-            .registry
+            .settings_runtime
             .read()
-            .expect("registry lock poisoned")
+            .expect("settings runtime lock poisoned")
+            .registry
             .clone()
+    }
+
+    pub fn commit_runtime_settings(&self, prepared: PreparedRuntimeSettings) -> u64 {
+        let mut guard = self
+            .inner
+            .settings_runtime
+            .write()
+            .expect("settings runtime lock poisoned");
+        let revision = guard.revision.saturating_add(1);
+        *guard = RuntimeSettingsSnapshot {
+            registry: Arc::new(prepared.registry),
+            default_model: Arc::new(prepared.default_model),
+            agent_config: prepared.agent_config,
+            revision,
+        };
+        revision
     }
 
     pub fn media_sidecar_url(&self) -> Option<String> {

@@ -15,6 +15,8 @@ path = "src/bin/stub_sidecar.rs"
 
 [dependencies]
 adapter-llm = { workspace = true }
+adapter-secrets = { workspace = true }
+adapter-sqlite = { workspace = true }
 app-application = { workspace = true }
 app-llm = { path = "../app-llm" }
 app-domain = { path = "../app-domain" }
@@ -39,7 +41,6 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 sha2 = "0.11"
 base64 = "0.22"
-iota_stronghold = "2"
 urlencoding = "2"
 
 [dev-dependencies]

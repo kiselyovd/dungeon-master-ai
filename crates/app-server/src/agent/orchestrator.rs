@@ -1,51 +1,46 @@
-//! Agent loop orchestrator.
-//!
-//! Runs up to `max_rounds` of (LLM stream -> tool-calls -> engine -> inject results).
-//! Emits `AgentEvent` values to the caller's channel; the SSE handler converts these
-//! to SSE events. Using a channel instead of returning a stream keeps the orchestrator
-//! logic synchronous and easier to test.
+//! Compatibility facade for the inward-owned agent turn application service.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use app_domain::srd::retriever::SrdRetriever;
-use app_llm::{
-    ChatChunk, ChatMessage, ChatRequest, FinishReason, LlmProvider, MessagePart, ReasoningSpec,
-    ToolCall,
+use app_application::agent::context::{
+    AgentContext, AgentContextError, AgentContextPort, AgentContextRequest,
 };
+use app_application::agent::tool_dispatch::{
+    CapabilityToolDispatcher, GeneratedAgentMedia, RuntimeCoordinationError, RuntimeCoordinator,
+    ToolCapabilityHandler, ToolDispatchError, ToolDispatchRequest, ToolExecution,
+};
+use app_application::agent::tools::{
+    classify_handler, image_kind, video_kind, AgentToolCatalog, ToolAvailability,
+};
+use app_application::agent::turn::{
+    AgentTurnCommand, AgentTurnConfig, AgentTurnService, NeverCancelled,
+};
+use app_application::ports::events::NoopApplicationEventSink;
+use app_domain::srd::retriever::SrdRetriever;
+use app_llm::{LlmProvider, ReasoningSpec, ToolCall};
+use async_trait::async_trait;
 use futures::StreamExt;
-use serde_json::Value;
 use sqlx::SqlitePool;
 use tokio::sync::mpsc;
-use tracing::{info, warn};
+use uuid::Uuid;
 
 use crate::agent::context_builder::{build_context, compose_system_prompt, needs_rules_context};
-use crate::agent::tool_executor::execute_tool;
-use crate::agent::tools::{classify_handler, tools_for_phase, ToolAvailability};
+use crate::agent::tool_executor::{execute_tool, is_combat_active};
+use crate::agent::tools::tools_for_phase;
 use crate::image::provider::ImageProvider;
 use crate::video::provider::VideoProvider;
 
 pub use app_application::models::agent::{AgentEvent, AgentTurnRequest};
 
-/// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
 pub struct AgentConfig {
     pub model: String,
     pub system_prompt: String,
     pub temperature: f32,
     pub max_rounds: usize,
-    /// Kebab-case embedding model id (e.g. "multilingual-e5-small").
-    /// Must match the model used to build the SRD retriever's corpus.
-    /// Resolved by the outbound embedding adapter.
     pub embedding_model: String,
-    /// M7-DM: which modality-specific tool definitions to expose to the LLM.
-    /// Defaults to all-on for backwards compatibility; the agent route flips
-    /// flags off when the user disables image/video in Settings v2 so the LLM
-    /// stops trying to call disabled tools.
     pub tool_availability: ToolAvailability,
-    /// M8-DM: whether to enable thinking/reasoning mode for the chat provider.
     pub reasoning_enabled: bool,
-    /// M8-DM: the reasoning budget tier when enabled. Defaults to Medium.
     pub reasoning_budget: ReasoningSpec,
 }
 
@@ -71,9 +66,6 @@ pub struct AgentOrchestrator {
     retriever: Option<Arc<SrdRetriever>>,
     image_provider: Option<Arc<dyn ImageProvider>>,
     video_provider: Option<Arc<dyn VideoProvider>>,
-    /// Auto-Swap VRAM coordinator. `Some` only when the local LLM runtime is up
-    /// and the Auto-Swap strategy is selected; wraps each `generate_image` call
-    /// so the LLM's VRAM is freed during generation and restored after.
     gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
 }
 
@@ -96,14 +88,11 @@ impl AgentOrchestrator {
         }
     }
 
-    /// Attach a video provider (builder-style).
     pub fn with_video_provider(mut self, video_provider: Option<Arc<dyn VideoProvider>>) -> Self {
         self.video_provider = video_provider;
         self
     }
 
-    /// Attach an Auto-Swap coordinator (builder-style) so image generation frees
-    /// and restores the local LLM's VRAM around each call.
     pub fn with_gpu_swap(
         mut self,
         gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
@@ -114,289 +103,180 @@ impl AgentOrchestrator {
 
     pub async fn run(
         &self,
-        req: AgentTurnRequest,
+        request: AgentTurnRequest,
         tx: mpsc::Sender<AgentEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Lighten the context for small local models: outside combat, withhold
-        // the combat-management tools and skip rule injection on pure-narration
-        // turns. A 16-tool catalog + 5 irrelevant SRD chunks is what makes Gemma 4
-        // E2B deliberate into an empty turn instead of acting.
-        let in_combat = crate::agent::tool_executor::is_combat_active(&self.pool).await;
-        let inject_rules = needs_rules_context(&req.player_message, in_combat);
-
-        // Prepend the DM operating directive (role + concision + decisive tool use)
-        // so small local models stay in character and call media tools instead of
-        // narrating or stalling. RAG/NPC context is layered on top by build_context.
-        let base_prompt =
+        let base_system_prompt =
             compose_system_prompt(&self.config.system_prompt, self.config.tool_availability);
-        let system_context = build_context(
-            &self.pool,
-            req.campaign_id,
-            &req.player_message,
-            &base_prompt,
-            &self.config.embedding_model,
+        let tool_catalog = AgentToolCatalog {
+            exploration: tools_for_phase(self.config.tool_availability, false),
+            combat: tools_for_phase(self.config.tool_availability, true),
+        };
+        let legacy_tools = Arc::new(LegacyToolAdapter {
+            store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            image_provider: self.image_provider.clone(),
+            video_provider: self.video_provider.clone(),
+            retriever: self.retriever.clone(),
+            embedding_model: self.config.embedding_model.clone(),
+        });
+        let tool_dispatcher = Arc::new(CapabilityToolDispatcher::new(
+            legacy_tools.clone(),
+            legacy_tools.clone(),
+            legacy_tools.clone(),
+            legacy_tools.clone(),
+            legacy_tools,
+        ));
+        let service = Arc::new(AgentTurnService::new(
+            self.provider.clone(),
+            Arc::new(LegacyContextAdapter {
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+                retriever: self.retriever.clone(),
+            }),
+            Arc::new(adapter_sqlite::SqliteStore::new(self.pool.clone())),
+            tool_dispatcher,
+            Arc::new(LegacyRuntimeAdapter {
+                gpu_swap: self.gpu_swap.clone(),
+            }),
+            Arc::new(NoopApplicationEventSink),
+            Arc::new(NeverCancelled),
+            AgentTurnConfig {
+                model: self.config.model.clone(),
+                system_prompt: base_system_prompt,
+                temperature: self.config.temperature,
+                max_rounds: self.config.max_rounds,
+                embedding_model: self.config.embedding_model.clone(),
+                reasoning_enabled: self.config.reasoning_enabled,
+                reasoning_budget: self.config.reasoning_budget,
+                tool_availability: self.config.tool_availability,
+                tools: tool_catalog,
+            },
+        ));
+        let command = AgentTurnCommand {
+            request_id: Uuid::new_v4().to_string(),
+            request,
+        };
+        let mut events = service.execute(command);
+        while let Some(event) = events.next().await {
+            tx.send(event?)
+                .await
+                .map_err(|_| "agent event receiver dropped")?;
+        }
+        Ok(())
+    }
+}
+
+struct LegacyContextAdapter {
+    store: adapter_sqlite::SqliteStore,
+    retriever: Option<Arc<SrdRetriever>>,
+}
+
+#[async_trait]
+impl AgentContextPort for LegacyContextAdapter {
+    async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
+        let combat_active = is_combat_active(&self.store).await;
+        let inject_rules = needs_rules_context(&request.player_message, combat_active);
+        let system_prompt = build_context(
+            &self.store,
+            request.campaign_id,
+            &request.player_message,
+            &request.base_system_prompt,
+            &request.embedding_model,
             self.retriever.as_deref(),
             inject_rules,
         )
         .await
-        .unwrap_or_else(|e| {
-            warn!("context build error: {e}");
-            base_prompt.clone()
-        });
+        .unwrap_or(request.base_system_prompt);
+        Ok(AgentContext {
+            system_prompt,
+            combat_active,
+        })
+    }
+}
 
-        // Inject the live board snapshot (positions/HP/turn) so the DM narrates
-        // from the actual VTT state, not a guess - this is how the model "knows"
-        // where the player dragged a token and who is bloodied. The frontend
-        // sends it pre-formatted; we only gate on non-empty.
-        let system_context = match req.board.as_deref().map(str::trim) {
-            Some(board) if !board.is_empty() => {
-                format!("{system_context}\n\n## Current battlefield\n{board}")
-            }
-            _ => system_context,
+struct LegacyToolAdapter {
+    store: adapter_sqlite::SqliteStore,
+    image_provider: Option<Arc<dyn ImageProvider>>,
+    video_provider: Option<Arc<dyn VideoProvider>>,
+    retriever: Option<Arc<SrdRetriever>>,
+    embedding_model: String,
+}
+
+#[async_trait]
+impl ToolCapabilityHandler for LegacyToolAdapter {
+    async fn execute_capability(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<ToolExecution, ToolDispatchError> {
+        let tool_name = request.command.tool_name().to_string();
+        let call = ToolCall {
+            id: request.tool_call_id,
+            name: tool_name.clone(),
+            args: request.command.to_args(),
         };
-
-        let tools = tools_for_phase(self.config.tool_availability, in_combat);
-        let mut messages: Vec<ChatMessage> = req.history;
-        // The current user turn carries the text plus any staged images (F2).
-        // With no images this is identical to `user_text`.
-        if req.images.is_empty() {
-            messages.push(ChatMessage::user_text(req.player_message.clone()));
-        } else {
-            let mut parts = vec![MessagePart::Text {
-                text: req.player_message.clone(),
-            }];
-            parts.extend(req.images.iter().cloned());
-            messages.push(ChatMessage::User { parts });
-        }
-
-        let mut total_rounds = 0usize;
-
-        for round in 0..self.config.max_rounds {
-            total_rounds = round + 1;
-
-            let chat_req = ChatRequest {
-                messages: messages.clone(),
-                model: self.config.model.clone(),
-                max_tokens: Some(2048),
-                temperature: Some(self.config.temperature),
-                tools: tools.clone(),
-                system_prompt: Some(system_context.clone()),
-                reasoning: if self.config.reasoning_enabled {
-                    Some(self.config.reasoning_budget)
-                } else {
-                    None
-                },
-            };
-
-            let mut stream = match self.provider.stream_chat(chat_req).await {
-                Ok(s) => s,
-                Err(e) => {
-                    warn!("LLM stream error round {round}: {e}");
-                    break;
-                }
-            };
-
-            // Accumulate text + tool-call arg buffers for this round.
-            let mut round_text = String::new();
-            // Map of tool-call id -> (tool name, accumulated JSON arg fragment).
-            let mut tool_args_buf: HashMap<String, (String, String)> = HashMap::new();
-            let mut tool_calls_this_round: Vec<ToolCall> = Vec::new();
-            let mut finish_reason = FinishReason::Stop;
-
-            while let Some(chunk) = stream.next().await {
-                match chunk {
-                    Ok(ChatChunk::ThinkingDelta { text }) => {
-                        if tx.send(AgentEvent::ReasoningText { text }).await.is_err() {
-                            return Ok(());
-                        }
-                    }
-                    Ok(ChatChunk::TextDelta { text }) => {
-                        round_text.push_str(&text);
-                        if tx.send(AgentEvent::TextDelta { text }).await.is_err() {
-                            return Ok(());
-                        }
-                    }
-                    Ok(ChatChunk::ToolCallStart { id, name }) => {
-                        tool_args_buf.insert(id.clone(), (name.clone(), String::new()));
-                        if tx
-                            .send(AgentEvent::ToolCallStart {
-                                id: id.clone(),
-                                tool_name: name,
-                                round: total_rounds,
-                            })
-                            .await
-                            .is_err()
-                        {
-                            return Ok(());
-                        }
-                    }
-                    Ok(ChatChunk::ToolCallArgsDelta { id, args_fragment }) => {
-                        if let Some((_, args)) = tool_args_buf.get_mut(&id) {
-                            args.push_str(&args_fragment);
-                        }
-                    }
-                    Ok(ChatChunk::ToolCallDone { id }) => {
-                        if let Some((name, args_str)) = tool_args_buf.remove(&id) {
-                            let args: Value = serde_json::from_str(&args_str)
-                                .unwrap_or(Value::Object(Default::default()));
-                            tool_calls_this_round.push(ToolCall { id, name, args });
-                        }
-                    }
-                    Ok(ChatChunk::Done { reason }) => {
-                        finish_reason = reason;
-                        break;
-                    }
-                    Err(e) => {
-                        warn!("stream chunk error: {e}");
-                        break;
-                    }
-                }
-            }
-
-            // Inject the assistant turn (text + any tool-calls) into history.
-            if tool_calls_this_round.is_empty() {
-                if !round_text.is_empty() {
-                    messages.push(ChatMessage::Assistant {
-                        content: round_text,
+        let (mut result, is_error) = execute_tool(
+            &call,
+            &self.store,
+            self.image_provider.clone(),
+            self.video_provider.clone(),
+            self.retriever.as_deref(),
+            &self.embedding_model,
+            request.campaign_id,
+            request.session_id,
+        )
+        .await;
+        let mut media = Vec::new();
+        if !is_error {
+            if let Some(map) = result.as_object_mut() {
+                if let Some(serde_json::Value::String(data_b64)) = map.remove("image_b64") {
+                    media.push(GeneratedAgentMedia::Image {
+                        mime_type: map
+                            .get("mime_type")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("image/png")
+                            .to_string(),
+                        data_b64,
+                        kind: image_kind(&tool_name).unwrap_or("chat").to_string(),
                     });
                 }
-            } else {
-                messages.push(ChatMessage::AssistantWithToolCalls {
-                    content: if round_text.is_empty() {
-                        None
-                    } else {
-                        Some(round_text)
-                    },
-                    tool_calls: tool_calls_this_round.clone(),
-                });
-            }
-
-            // Execute all tool-calls from this round.
-            for tc in &tool_calls_this_round {
-                // Auto-Swap: around an image/video generation, free the local LLM's
-                // VRAM (stop it) and restart it on the same port afterwards, so
-                // SDXL is not starved on a single 10 GB card. No-op when the
-                // coordinator is absent (cloud LLM, keep-both-loaded, etc.).
-                let swap = if crate::agent::tools::image_kind(&tc.name).is_some()
-                    || crate::agent::tools::video_kind(&tc.name).is_some()
-                {
-                    self.gpu_swap.clone()
-                } else {
-                    None
-                };
-                if let Some(s) = &swap {
-                    s.acquire().await;
+                if let Some(serde_json::Value::String(data_b64)) = map.remove("video_b64") {
+                    media.push(GeneratedAgentMedia::Video {
+                        mime_type: map
+                            .get("mime_type")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("video/mp4")
+                            .to_string(),
+                        data_b64,
+                        kind: video_kind(&tool_name).unwrap_or("chat").to_string(),
+                    });
                 }
-                let (mut result_val, is_error) = execute_tool(
-                    tc,
-                    &self.pool,
-                    self.image_provider.clone(),
-                    self.video_provider.clone(),
-                    self.retriever.as_deref(),
-                    &self.config.embedding_model,
-                    req.campaign_id,
-                    req.session_id,
-                )
-                .await;
-                if let Some(s) = &swap {
-                    s.release().await;
-                }
-
-                // generate_image returns the raw image as base64 inline. Peel
-                // it into a dedicated SSE event and strip it from result_val so
-                // the multi-hundred-KB blob never enters the LLM history or the
-                // tool_call_result payload.
-                if !is_error {
-                    if let Value::Object(map) = &mut result_val {
-                        if let Some(Value::String(image_b64)) = map.remove("image_b64") {
-                            let mime_type = map
-                                .get("mime_type")
-                                .and_then(Value::as_str)
-                                .unwrap_or("image/png")
-                                .to_string();
-                            if tx
-                                .send(AgentEvent::ImageGenerated {
-                                    tool_call_id: tc.id.clone(),
-                                    round: total_rounds,
-                                    mime_type,
-                                    image_b64,
-                                    kind: crate::agent::tools::image_kind(&tc.name)
-                                        .unwrap_or("chat")
-                                        .to_string(),
-                                })
-                                .await
-                                .is_err()
-                            {
-                                return Ok(());
-                            }
-                        }
-                        // generate_video returns raw video as base64 inline. Peel
-                        // it similarly so the blob stays out of LLM history.
-                        if let Some(Value::String(video_b64)) = map.remove("video_b64") {
-                            let mime_type = map
-                                .get("mime_type")
-                                .and_then(Value::as_str)
-                                .unwrap_or("video/mp4")
-                                .to_string();
-                            if tx
-                                .send(AgentEvent::VideoGenerated {
-                                    tool_call_id: tc.id.clone(),
-                                    round: total_rounds,
-                                    mime_type,
-                                    video_b64,
-                                    kind: crate::agent::tools::video_kind(&tc.name)
-                                        .unwrap_or("chat")
-                                        .to_string(),
-                                })
-                                .await
-                                .is_err()
-                            {
-                                return Ok(());
-                            }
-                        }
-                    }
-                }
-                info!("tool {} -> {:?}", tc.name, result_val);
-
-                let result_str = serde_json::to_string(&result_val).unwrap_or_default();
-                if tx
-                    .send(AgentEvent::ToolCallResult {
-                        id: tc.id.clone(),
-                        tool_name: tc.name.clone(),
-                        args: tc.args.clone(),
-                        result: result_val.clone(),
-                        is_error,
-                        round: total_rounds,
-                        handled_by: classify_handler(&tc.name).to_string(),
-                    })
-                    .await
-                    .is_err()
-                {
-                    return Ok(());
-                }
-
-                messages.push(ChatMessage::ToolResult(app_llm::ToolResult {
-                    tool_call_id: tc.id.clone(),
-                    content: result_str,
-                    is_error,
-                }));
-            }
-
-            // If finish reason is Stop/Length/Error (no tool-calls expected), we are done.
-            match finish_reason {
-                FinishReason::Stop | FinishReason::Length | FinishReason::Error => break,
-                FinishReason::ToolUse => {
-                    // Continue to next round with updated history.
-                }
-            }
-
-            if tool_calls_this_round.is_empty() {
-                // LLM declared ToolUse but emitted no calls - safety exit.
-                break;
             }
         }
+        Ok(ToolExecution {
+            result,
+            is_error,
+            handled_by: classify_handler(&tool_name).to_string(),
+            media,
+        })
+    }
+}
 
-        let _ = tx.send(AgentEvent::AgentDone { total_rounds }).await;
+struct LegacyRuntimeAdapter {
+    gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
+}
+
+#[async_trait]
+impl RuntimeCoordinator for LegacyRuntimeAdapter {
+    async fn acquire_for(&self, _tool_name: &str) -> Result<(), RuntimeCoordinationError> {
+        if let Some(gpu_swap) = &self.gpu_swap {
+            gpu_swap.acquire().await;
+        }
+        Ok(())
+    }
+
+    async fn release_for(&self, _tool_name: &str) -> Result<(), RuntimeCoordinationError> {
+        if let Some(gpu_swap) = &self.gpu_swap {
+            gpu_swap.release().await;
+        }
         Ok(())
     }
 }

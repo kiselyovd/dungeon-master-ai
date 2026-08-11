@@ -1,10 +1,8 @@
-pub mod migrate;
-pub mod repo;
-pub mod stronghold;
-
-pub use migrate::{migrate_secrets_json, MigrationResult};
-pub use repo::{InMemorySecretsRepo, SecretsError, SecretsRepo};
-pub use stronghold::StrongholdSecretsRepo;
+pub use adapter_secrets::{migrate_secrets_json, MigrationResult};
+pub use adapter_secrets::{
+    InMemorySecretsStore as InMemorySecretsRepo, StrongholdSecretsStore as StrongholdSecretsRepo,
+};
+pub use app_application::ports::secrets::{SecretsError, SecretsStore as SecretsRepo};
 
 /// Vault key under which the Hugging Face access token is stored. Single
 /// well-known constant so the HF handlers, the migration shim, and any

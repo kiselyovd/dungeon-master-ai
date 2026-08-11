@@ -307,8 +307,17 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -338,8 +347,17 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -533,7 +551,7 @@ async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
 
     let (result, is_error) = execute_tool(
         &tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         Some(provider),
         None,
         None,
@@ -697,7 +715,7 @@ async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() 
     };
     let (result, is_error) = execute_tool(
         &tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -729,8 +747,17 @@ async fn execute_set_scene_persists_and_is_retrievable() {
         }),
     };
 
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "execute_set_scene failed: {val}");
     assert_eq!(val["title"].as_str(), Some("The Dragon's Lair"));
     assert_eq!(val["mode"].as_str(), Some("combat"));
@@ -761,8 +788,17 @@ async fn setup_encounter_pool() -> (SqlitePool, uuid::Uuid, uuid::Uuid) {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [{ "name": "Hero" }] }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "start_combat failed: {val}");
 
     (pool, session_id, campaign_id)
@@ -786,7 +822,7 @@ async fn apply_damage_fire_resistance_halves_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -809,7 +845,7 @@ async fn apply_damage_fire_resistance_halves_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -845,7 +881,7 @@ async fn apply_damage_fire_immunity_deals_zero() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -867,7 +903,7 @@ async fn apply_damage_fire_immunity_deals_zero() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -903,7 +939,7 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -925,7 +961,7 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -960,7 +996,7 @@ async fn apply_damage_no_relation_applies_full_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -982,7 +1018,7 @@ async fn apply_damage_no_relation_applies_full_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,

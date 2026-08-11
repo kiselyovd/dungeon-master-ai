@@ -1,4 +1,4 @@
-//! Production `SecretsRepo` backed by `iota_stronghold` 2.x snapshot files.
+//! Production `SecretsStore` backed by `iota_stronghold` 2.x snapshot files.
 //!
 //! Encrypted at rest via the standard Stronghold layered protection:
 //! the snapshot file is sealed by a 32-byte key derived from the
@@ -25,12 +25,12 @@ use async_trait::async_trait;
 use iota_stronghold::{KeyProvider, SnapshotPath, Stronghold};
 use tokio::sync::Mutex;
 
-use super::repo::{SecretsError, SecretsRepo};
+use app_application::ports::secrets::{SecretsError, SecretsStore};
 
 const CLIENT_PATH: &[u8] = b"dmai-server-secrets";
 
 /// Encrypted-at-rest secrets repository.
-pub struct StrongholdSecretsRepo {
+pub struct StrongholdSecretsStore {
     inner: Arc<Mutex<Inner>>,
 }
 
@@ -40,7 +40,7 @@ struct Inner {
     passphrase: Vec<u8>,
 }
 
-impl StrongholdSecretsRepo {
+impl StrongholdSecretsStore {
     /// Open or create a Stronghold snapshot at `snapshot_path`, sealed by
     /// `passphrase`. Returns an error if the snapshot file exists but the
     /// passphrase fails to decrypt it.
@@ -56,11 +56,11 @@ impl StrongholdSecretsRepo {
             let key_provider = build_key_provider(&passphrase)?;
             stronghold
                 .load_client_from_snapshot(CLIENT_PATH, &key_provider, &snapshot_path)
-                .map_err(|e| SecretsError::Vault(format!("load_client_from_snapshot: {e}")))?;
+                .map_err(|_| secret_error("open", "invalid_snapshot_or_passphrase"))?;
         } else {
             stronghold
                 .create_client(CLIENT_PATH)
-                .map_err(|e| SecretsError::Vault(format!("create_client: {e}")))?;
+                .map_err(|_| secret_error("open", "create_client"))?;
         }
 
         Ok(Self {
@@ -75,11 +75,11 @@ impl StrongholdSecretsRepo {
 
 fn build_key_provider(passphrase: &[u8]) -> Result<KeyProvider, SecretsError> {
     KeyProvider::with_passphrase_hashed_blake2b(passphrase.to_vec())
-        .map_err(|e| SecretsError::Vault(format!("key provider: {e}")))
+        .map_err(|_| secret_error("open", "key_provider"))
 }
 
 #[async_trait]
-impl SecretsRepo for StrongholdSecretsRepo {
+impl SecretsStore for StrongholdSecretsStore {
     async fn get(&self, key: &str) -> Result<Option<String>, SecretsError> {
         let inner = self.inner.clone();
         let key = key.to_owned();
@@ -88,21 +88,20 @@ impl SecretsRepo for StrongholdSecretsRepo {
             let client = inner
                 .stronghold
                 .get_client(CLIENT_PATH)
-                .map_err(|e| SecretsError::Vault(format!("get_client: {e}")))?;
+                .map_err(|_| secret_error("get", "client"))?;
             let store = client.store();
             let bytes = store
                 .get(key.as_bytes())
-                .map_err(|e| SecretsError::Vault(format!("store get: {e}")))?;
+                .map_err(|_| secret_error("get", "store"))?;
             match bytes {
                 Some(bytes) => Ok(Some(
-                    String::from_utf8(bytes)
-                        .map_err(|e| SecretsError::Vault(format!("utf8: {e}")))?,
+                    String::from_utf8(bytes).map_err(|_| secret_error("get", "decode"))?,
                 )),
                 None => Ok(None),
             }
         })
         .await
-        .map_err(|e| SecretsError::Vault(format!("join: {e}")))?
+        .map_err(|_| secret_error("get", "join"))?
     }
 
     async fn set(&self, key: &str, value: &str) -> Result<(), SecretsError> {
@@ -114,16 +113,16 @@ impl SecretsRepo for StrongholdSecretsRepo {
             let client = inner
                 .stronghold
                 .get_client(CLIENT_PATH)
-                .map_err(|e| SecretsError::Vault(format!("get_client: {e}")))?;
+                .map_err(|_| secret_error("set", "client"))?;
             client
                 .store()
                 .insert(key.into_bytes(), value.into_bytes(), None)
-                .map_err(|e| SecretsError::Vault(format!("store insert: {e}")))?;
+                .map_err(|_| secret_error("set", "store"))?;
             commit(&inner)?;
             Ok(())
         })
         .await
-        .map_err(|e| SecretsError::Vault(format!("join: {e}")))?
+        .map_err(|_| secret_error("set", "join"))?
     }
 
     async fn delete(&self, key: &str) -> Result<(), SecretsError> {
@@ -134,16 +133,16 @@ impl SecretsRepo for StrongholdSecretsRepo {
             let client = inner
                 .stronghold
                 .get_client(CLIENT_PATH)
-                .map_err(|e| SecretsError::Vault(format!("get_client: {e}")))?;
+                .map_err(|_| secret_error("delete", "client"))?;
             client
                 .store()
                 .delete(key.as_bytes())
-                .map_err(|e| SecretsError::Vault(format!("store delete: {e}")))?;
+                .map_err(|_| secret_error("delete", "store"))?;
             commit(&inner)?;
             Ok(())
         })
         .await
-        .map_err(|e| SecretsError::Vault(format!("join: {e}")))?
+        .map_err(|_| secret_error("delete", "join"))?
     }
 }
 
@@ -152,7 +151,11 @@ fn commit(inner: &Inner) -> Result<(), SecretsError> {
     inner
         .stronghold
         .commit_with_keyprovider(&inner.snapshot_path, &key_provider)
-        .map_err(|e| SecretsError::Vault(format!("commit: {e}")))
+        .map_err(|_| secret_error("commit", "snapshot"))
+}
+
+fn secret_error(operation: &'static str, code: &'static str) -> SecretsError {
+    SecretsError::Operation { operation, code }
 }
 
 #[cfg(test)]
@@ -164,7 +167,7 @@ mod tests {
     async fn open_then_round_trip_in_memory() {
         let dir = tempdir().unwrap();
         let snapshot = dir.path().join("vault.hold");
-        let repo = StrongholdSecretsRepo::open(snapshot, b"test-passphrase".to_vec()).unwrap();
+        let repo = StrongholdSecretsStore::open(snapshot, b"test-passphrase".to_vec()).unwrap();
 
         repo.set("anthropic", "sk-ant-real").await.unwrap();
         assert_eq!(
@@ -180,7 +183,7 @@ mod tests {
     async fn missing_key_returns_none() {
         let dir = tempdir().unwrap();
         let snapshot = dir.path().join("vault.hold");
-        let repo = StrongholdSecretsRepo::open(snapshot, b"pw".to_vec()).unwrap();
+        let repo = StrongholdSecretsStore::open(snapshot, b"pw".to_vec()).unwrap();
         assert_eq!(repo.get("absent").await.unwrap(), None);
     }
 
@@ -192,12 +195,12 @@ mod tests {
 
         // First session writes a value.
         {
-            let repo = StrongholdSecretsRepo::open(snapshot.clone(), pw.clone()).unwrap();
+            let repo = StrongholdSecretsStore::open(snapshot.clone(), pw.clone()).unwrap();
             repo.set("openai", "sk-openai-test").await.unwrap();
         }
 
         // Drop the first repo entirely, then reopen and read back.
-        let repo = StrongholdSecretsRepo::open(snapshot, pw).unwrap();
+        let repo = StrongholdSecretsStore::open(snapshot, pw).unwrap();
         assert_eq!(
             repo.get("openai").await.unwrap(),
             Some("sk-openai-test".to_string())
@@ -212,12 +215,28 @@ mod tests {
         // Seal a snapshot with one passphrase.
         {
             let repo =
-                StrongholdSecretsRepo::open(snapshot.clone(), b"correct-pw".to_vec()).unwrap();
+                StrongholdSecretsStore::open(snapshot.clone(), b"correct-pw".to_vec()).unwrap();
             repo.set("k", "v").await.unwrap();
         }
 
         // Try to reopen with the wrong one - must surface a Vault error.
-        let err = StrongholdSecretsRepo::open(snapshot, b"wrong-pw".to_vec());
+        let err = StrongholdSecretsStore::open(snapshot, b"wrong-pw".to_vec());
         assert!(err.is_err(), "wrong passphrase should not silently succeed");
+    }
+
+    #[tokio::test]
+    async fn concurrent_reads_observe_the_committed_value() {
+        let dir = tempdir().unwrap();
+        let snapshot = dir.path().join("vault.hold");
+        let store = Arc::new(StrongholdSecretsStore::open(snapshot, b"pw".to_vec()).unwrap());
+        store.set("huggingface_token", "test-token").await.unwrap();
+        let first = store.clone();
+        let second = store.clone();
+        let (first_value, second_value) = tokio::join!(
+            first.get("huggingface_token"),
+            second.get("huggingface_token")
+        );
+        assert_eq!(first_value.unwrap().as_deref(), Some("test-token"));
+        assert_eq!(second_value.unwrap().as_deref(), Some("test-token"));
     }
 }

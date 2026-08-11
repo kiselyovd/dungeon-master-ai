@@ -1,20 +1,20 @@
 [package]
-name = "app-application"
+name = "adapter-sqlite"
 version = "0.12.1"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [dependencies]
-app-domain = { path = "../app-domain" }
+app-application = { workspace = true }
 async-trait = { workspace = true }
-futures = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
+sqlx = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+app-domain = { workspace = true }
+tokio = { workspace = true }

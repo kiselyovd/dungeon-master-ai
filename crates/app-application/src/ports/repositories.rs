@@ -40,6 +40,12 @@ pub trait SaveRepository: Send + Sync {
 
 #[async_trait]
 pub trait CombatRepository: Send + Sync {
+    async fn create(
+        &self,
+        session_id: Uuid,
+        projection: CombatProjection,
+    ) -> Result<(), RepositoryError>;
+
     async fn get(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError>;
 
     async fn compare_and_set(
@@ -47,6 +53,8 @@ pub trait CombatRepository: Send + Sync {
         expected_revision: u64,
         projection: CombatProjection,
     ) -> Result<(), RepositoryError>;
+
+    async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError>;
 }
 
 #[async_trait]

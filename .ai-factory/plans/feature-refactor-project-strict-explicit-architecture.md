@@ -156,7 +156,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
 ### Phase 2: Move Workflows Behind Ports
 
-- [ ] **Task 4: Move agent and combat orchestration into application use cases** (depends on 3)
+- [x] **Task 4: Move agent and combat orchestration into application use cases** (depends on 3)
 
   **Files:**
   - Create `crates/app-application/src/agent/{turn,context,tool_dispatch,tools}.rs`
@@ -179,7 +179,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** Agent and combat workflows run in tests without Axum, SQLx, concrete LLM/media providers, or AppState; existing endpoint tests remain green through facades; combat output is authoritative and versioned.
 
-- [ ] **Task 5: Extract SQLx persistence into `adapter-sqlite`** (depends on 2, 4)
+- [x] **Task 5: Extract SQLx persistence into `adapter-sqlite`** (depends on 2, 4)
 
   **Files:**
   - Create `crates/adapter-sqlite/Cargo.toml`
@@ -199,7 +199,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** `rg`/architecture guard finds no SQLx in `app-domain`, `app-application`, `adapter-http`, or application facades; all schema/data compatibility tests pass.
 
-- [ ] **Task 6: Extract secrets and make settings/provider reconfiguration atomic** (depends on 2, 4, 5)
+- [x] **Task 6: Extract secrets and make settings/provider reconfiguration atomic** (depends on 2, 4, 5)
 
   **Files:**
   - Create `crates/adapter-secrets/Cargo.toml`

@@ -2,10 +2,12 @@
   "version": 1,
   "rustWorkspaceDependencies": {
     "adapter-llm": ["app-domain"],
+    "adapter-secrets": ["app-application"],
+    "adapter-sqlite": ["app-application"],
     "app-application": ["app-domain"],
     "app-domain": [],
     "app-llm": ["app-application"],
-    "app-server": ["adapter-llm", "app-application", "app-domain", "app-llm"],
+    "app-server": ["adapter-llm", "adapter-secrets", "adapter-sqlite", "app-application", "app-domain", "app-llm"],
     "dungeon-master-ai": ["app-llm"]
   },
   "exceptions": [

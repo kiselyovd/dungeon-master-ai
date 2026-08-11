@@ -7,8 +7,8 @@
 //! For Task C1 the NPC loader is stubbed because the `npc_memory` table is
 //! introduced in migration `0002_m3_journal_npc_srd.sql` (Phase E/F/G work).
 
+use adapter_sqlite::SqliteStore;
 use app_domain::srd::retriever::SrdRetriever;
-use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -119,7 +119,7 @@ pub fn needs_rules_context(message: &str, in_combat: bool) -> bool {
 /// `inject_rules` gates RAG: SRD chunks are only retrieved when the turn needs
 /// rules (see `needs_rules_context`), keeping the context lean for small models.
 pub async fn build_context(
-    pool: &SqlitePool,
+    store: &SqliteStore,
     campaign_id: Uuid,
     player_message: &str,
     base_prompt: &str,
@@ -156,16 +156,14 @@ pub async fn build_context(
 
     // Append NPC memory facts for NPCs currently in scope.
     // Phase G implements scene-scoped scope; for now we'd load all facts.
-    let npc_facts = load_all_npc_facts(pool, campaign_id)
-        .await
-        .unwrap_or_default();
+    let npc_facts = load_all_npc_facts(store, campaign_id).await;
     if !npc_facts.is_empty() {
         ctx.push_str("\n\n## Known NPCs\n");
         ctx.push_str(&npc_facts);
     }
 
     // Inject the current scene (if one has been set for this campaign).
-    if let Ok(Some(scene)) = crate::db::scene_latest(pool, campaign_id).await {
+    if let Ok(Some(scene)) = crate::db::scene_latest(store.pool(), campaign_id).await {
         ctx.push_str("\n\n## Current scene\n");
         let subtitle = scene.subtitle.as_deref().unwrap_or("");
         if subtitle.is_empty() {
@@ -191,10 +189,10 @@ pub(crate) fn embed_player_message(
     adapter_llm::embeddings::embed_query_by_name(text, model_name)
 }
 
-async fn load_all_npc_facts(_pool: &SqlitePool, _campaign_id: Uuid) -> Result<String, sqlx::Error> {
+async fn load_all_npc_facts(_store: &SqliteStore, _campaign_id: Uuid) -> String {
     // Phase G wires this to the npc_memory table.
     // Stubbed in Task C1 to keep the build green until the table exists.
-    Ok(String::new())
+    String::new()
 }
 
 #[cfg(test)]
@@ -291,7 +289,7 @@ mod tests {
         .unwrap();
 
         let ctx = build_context(
-            &pool,
+            &SqliteStore::new(pool.clone()),
             campaign_id,
             "I look around",
             "Base prompt.",
@@ -327,7 +325,7 @@ mod tests {
         let campaign_id = uuid::Uuid::new_v4();
 
         let ctx = build_context(
-            &pool,
+            &SqliteStore::new(pool.clone()),
             campaign_id,
             "I look around",
             "Base prompt.",

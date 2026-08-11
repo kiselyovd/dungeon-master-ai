@@ -7,57 +7,9 @@
 use app_llm::Tool;
 use serde_json::json;
 
-/// M7.5-DM: classify which subsystem handles a given tool. Surfaced to the
-/// frontend Tool Inspector as a pill so the user can see at a glance whether
-/// a tool ran inside the rules engine (deterministic) or was delegated to an
-/// external provider (e.g. image gen). Returns a stable kebab-case string the
-/// frontend maps to a CSS class.
-pub fn classify_handler(tool_name: &str) -> &'static str {
-    match tool_name {
-        "generate_map" | "generate_illustration" => "image-provider",
-        "generate_video" => "video-provider",
-        _ => "engine",
-    }
-}
-
-/// Map an image-producing tool name to the frontend routing discriminator:
-/// `map` paints the VTT background (left), `chat` renders inline in the
-/// tool-call card (right). `None` for non-image tools.
-pub fn image_kind(tool_name: &str) -> Option<&'static str> {
-    match tool_name {
-        "generate_map" => Some("map"),
-        "generate_illustration" => Some("chat"),
-        _ => None,
-    }
-}
-
-/// Map a video-producing tool name to the frontend routing discriminator.
-/// Video always renders inline in the tool-call card ("chat"). `None` for
-/// non-video tools.
-pub fn video_kind(tool_name: &str) -> Option<&'static str> {
-    match tool_name {
-        "generate_video" => Some("chat"),
-        _ => None,
-    }
-}
-
-/// Which modality-specific tools to include in the catalog. M7-DM addition:
-/// when image generation is disabled in Settings, omit `generate_image` so
-/// the LLM doesn't try to call something that will fail.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ToolAvailability {
-    pub image: bool,
-    pub video: bool,
-}
-
-impl ToolAvailability {
-    pub const fn all() -> Self {
-        Self {
-            image: true,
-            video: true,
-        }
-    }
-}
+pub use app_application::agent::tools::{
+    classify_handler, image_kind, video_kind, ToolAvailability,
+};
 
 /// The full set of tools exposed to the LLM.
 /// Descriptions are in English per bilingual discipline (tool names stay English).
