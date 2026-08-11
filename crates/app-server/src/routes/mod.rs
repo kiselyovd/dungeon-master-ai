@@ -15,12 +15,3 @@ pub mod saves;
 pub mod settings;
 pub mod srd;
 pub mod video;
-
-use serde::Deserialize;
-use uuid::Uuid;
-
-/// Query string used by all campaign-scoped GET endpoints (`/journal`, `/npcs`, etc.).
-#[derive(Deserialize)]
-pub struct CampaignQuery {
-    pub campaign_id: Uuid,
-}

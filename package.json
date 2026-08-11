@@ -1,7 +1,7 @@
 {
   "name": "dungeon-master-ai",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.12.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build": "tauri build",
-    "tauri:build:cloud": "tauri build",
+    "tauri:build:cloud": "bun scripts/tauri-build-cloud.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

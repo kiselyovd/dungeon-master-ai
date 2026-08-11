@@ -1048,6 +1048,15 @@ async fn execute_generate_video(
                         warn!("video generation error: {message}");
                         return (json!({ "error": message }), true);
                     }
+                    Some(VideoEvent::Cancelled) => {
+                        return (json!({ "error": "video generation cancelled" }), true);
+                    }
+                    Some(VideoEvent::Degraded { code }) => {
+                        return (
+                            json!({ "error": format!("video backend degraded: {code}") }),
+                            true,
+                        );
+                    }
                     Some(VideoEvent::Started { .. } | VideoEvent::Progress { .. }) => {
                         // Continue draining.
                     }

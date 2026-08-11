@@ -18,6 +18,7 @@ import json
 import queue
 import socket
 import threading
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -37,6 +38,7 @@ def _free_port() -> int:
 
 class GenerateRequest(BaseModel):
     prompt: str
+    contract_version: int = 1
     seed: int = 0
     steps: Optional[int] = None
     backend: str = "fast"
@@ -55,6 +57,8 @@ class VideoGenerateRequest(BaseModel):
     resolution: Optional[tuple[int, int]] = None
     frame_count: Optional[int] = None
     seed: Optional[int] = None
+    contract_version: int = 1
+    request_id: Optional[str] = None
 
 
 def _to_params(req: GenerateRequest) -> PromptParams:
@@ -82,10 +86,20 @@ def create_app(weights_dir: Path):
     app = FastAPI()
     app.state.dispatcher = PipelineDispatcher.production(weights_dir)
     app.state.weights_dir = weights_dir
+    app.state.video_jobs = {}
+    app.state.video_jobs_lock = threading.Lock()
 
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
+
+    @app.get("/capabilities")
+    def capabilities():
+        return {
+            "contract_version": 1,
+            "supports_video_init_image": False,
+            "supports_video_cancellation": True,
+        }
 
     @app.get("/backends")
     def backends():
@@ -101,6 +115,8 @@ def create_app(weights_dir: Path):
 
     @app.post("/generate")
     def generate(req: GenerateRequest):
+        if req.contract_version != 1:
+            raise HTTPException(409, "media_contract_version_unsupported")
         if req.backend not in app.state.dispatcher.backends:
             raise HTTPException(404, f"unknown backend: {req.backend}")
         backend = app.state.dispatcher.backends[req.backend]
@@ -115,11 +131,17 @@ def create_app(weights_dir: Path):
 
     @app.post("/unload")
     def unload():
-        loaded = app.state.dispatcher.loaded
-        if loaded is not None:
-            app.state.dispatcher.backends[loaded].unload()
-            app.state.dispatcher.loaded = None
+        app.state.dispatcher.unload()
         return {"status": "unloaded"}
+
+    @app.post("/video/cancel/{request_id}")
+    def video_cancel(request_id: str):
+        with app.state.video_jobs_lock:
+            cancellation = app.state.video_jobs.get(request_id)
+        if cancellation is None:
+            return {"status": "not-found"}
+        cancellation.set()
+        return {"status": "cancelled"}
 
     @app.post("/video/generate")
     def video_generate(req: VideoGenerateRequest):
@@ -131,11 +153,20 @@ def create_app(weights_dir: Path):
           event: done      data: {"type": "done", "mp4_bytes_b64": "<base64>", "duration_seconds": F}
           event: error     data: {"type": "error", "message": "..."}
         """
+        if req.contract_version != 1:
+            raise HTTPException(409, "media_contract_version_unsupported")
+        if req.init_image_b64 is not None:
+            raise HTTPException(422, "video_init_image_unsupported")
+
         backend_id = "ltx-video"
         if backend_id not in app.state.dispatcher.backends:
             raise HTTPException(404, f"backend not found: {backend_id}")
 
         backend = app.state.dispatcher.backends[backend_id]
+        request_id = req.request_id or str(uuid.uuid4())
+        cancellation = threading.Event()
+        with app.state.video_jobs_lock:
+            app.state.video_jobs[request_id] = cancellation
 
         # Build PromptParams from the request.
         resolution = req.resolution or (704, 480)
@@ -154,6 +185,8 @@ def create_app(weights_dir: Path):
         prog_queue: queue.Queue = queue.Queue()
 
         def _on_progress(frac: float) -> None:
+            if cancellation.is_set():
+                raise RuntimeError("video_generation_cancelled")
             prog_queue.put(frac)
 
         # Wire the progress callback if the backend supports it.
@@ -165,12 +198,15 @@ def create_app(weights_dir: Path):
 
         def _run_generation() -> None:
             try:
-                backend.load()
-                mp4_bytes = backend.generate(params)
+                if cancellation.is_set():
+                    raise RuntimeError("video_generation_cancelled")
+                mp4_bytes = app.state.dispatcher.generate(backend_id, params)
                 result_holder.append(mp4_bytes)
             except Exception as exc:  # noqa: BLE001
                 error_holder.append(str(exc))
             finally:
+                with app.state.video_jobs_lock:
+                    app.state.video_jobs.pop(request_id, None)
                 prog_queue.put(None)  # sentinel: generation finished
 
         gen_thread = threading.Thread(target=_run_generation, daemon=True)
@@ -196,6 +232,9 @@ def create_app(weights_dir: Path):
                 )
 
             if error_holder:
+                if error_holder[0] == "video_generation_cancelled":
+                    yield "event: cancelled\ndata: {\"type\": \"cancelled\"}\n\n"
+                    return
                 yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': error_holder[0]})}\n\n"
                 return
 

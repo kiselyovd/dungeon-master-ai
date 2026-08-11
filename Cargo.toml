@@ -1,9 +1,12 @@
 [workspace]
 members = [
+    "crates/adapter-http",
     "crates/adapter-llm",
+    "crates/adapter-media",
     "crates/adapter-secrets",
     "crates/adapter-sqlite",
     "crates/app-application",
+    "crates/app-bootstrap",
     "crates/app-domain",
     "crates/app-llm",
     "crates/app-server",
@@ -29,7 +32,7 @@ async-trait = "0.1"
 futures = "0.3"
 tokio-stream = "0.1"
 axum = { version = "0.8", features = ["macros"] }
-tower-http = { version = "0.7", features = ["cors", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "request-id", "trace"] }
 genai = "=0.6.5"
 backon = "1"
 reqwest = { version = "0.13", features = ["json", "stream", "query"] }
@@ -37,9 +40,12 @@ sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio", "tls-native-tls
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 app-application = { path = "crates/app-application" }
+adapter-http = { path = "crates/adapter-http", default-features = false }
 adapter-llm = { path = "crates/adapter-llm" }
+adapter-media = { path = "crates/adapter-media" }
 adapter-secrets = { path = "crates/adapter-secrets" }
 adapter-sqlite = { path = "crates/adapter-sqlite" }
+app-bootstrap = { path = "crates/app-bootstrap" }
 app-domain = { path = "crates/app-domain" }
 iota_stronghold = "2"
 

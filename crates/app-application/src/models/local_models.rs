@@ -18,6 +18,10 @@ pub struct RuntimeStatus {
     pub image_enabled: bool,
     pub video_enabled: bool,
     pub failure_code: Option<String>,
+    #[serde(default)]
+    pub llm_port: Option<u16>,
+    #[serde(default)]
+    pub media_port: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -25,6 +29,12 @@ pub struct RuntimeStartRequest {
     pub model_id: String,
     pub enable_image: bool,
     pub enable_video: bool,
+    /// Arguments for the fixed `mistralrs-server` executable. The authenticated
+    /// desktop control adapter never accepts an executable path from callers.
+    #[serde(default)]
+    pub llm_args: Vec<String>,
+    /// Weights directory passed to the fixed media sidecar executable.
+    pub weights_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -3,12 +3,63 @@
 version = 3
 
 [[package]]
+name = "adapter-http"
+version = "0.12.1"
+dependencies = [
+ "app-application",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tower-http 0.7.0",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "adapter-llm"
 version = "0.12.1"
 dependencies = [
+ "app-application",
  "app-domain",
+ "async-trait",
+ "backon",
  "fastembed",
+ "futures",
+ "genai",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
  "tracing",
+ "wiremock",
+]
+
+[[package]]
+name = "adapter-media"
+version = "0.12.1"
+dependencies = [
+ "app-application",
+ "async-trait",
+ "backon",
+ "base64 0.22.1",
+ "futures",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "urlencoding",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -230,8 +281,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-bootstrap"
+version = "0.12.1"
+dependencies = [
+ "adapter-http",
+ "adapter-llm",
+ "adapter-media",
+ "adapter-secrets",
+ "adapter-sqlite",
+ "anyhow",
+ "app-application",
+ "app-domain",
+ "app-llm",
+ "app-server",
+ "axum",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "app-domain"
-version = "0.1.0"
+version = "0.12.1"
 dependencies = [
  "rand 0.10.1",
  "serde",
@@ -243,27 +315,21 @@ dependencies = [
 
 [[package]]
 name = "app-llm"
-version = "0.1.0"
+version = "0.12.1"
 dependencies = [
+ "adapter-llm",
  "app-application",
  "async-trait",
- "backon",
- "futures",
- "genai",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
  "tokio",
- "tokio-stream",
- "tracing",
- "wiremock",
 ]
 
 [[package]]
 name = "app-server"
-version = "0.1.0"
+version = "0.12.1"
 dependencies = [
+ "adapter-http",
  "adapter-llm",
+ "adapter-media",
  "adapter-secrets",
  "adapter-sqlite",
  "anyhow",
@@ -287,7 +353,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
- "tower-http 0.7.0",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -1923,12 +1988,13 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dungeon-master-ai"
-version = "0.1.0"
+version = "0.12.1"
 dependencies = [
- "app-llm",
- "async-trait",
+ "app-application",
+ "axum",
  "env_logger",
  "log",
+ "reqwest 0.13.4",
  "serde",
  "serde_json",
  "tauri",
@@ -1939,6 +2005,7 @@ dependencies = [
  "tauri-plugin-stronghold",
  "tauri-plugin-updater",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -7489,6 +7556,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -1,14 +1,19 @@
-//! Image generation module.
-//!
-//! - `provider` - trait + types shared by all providers.
-//! - `cache` - deterministic cache key for prompt deduplication.
-//! - `replicate` - Replicate v1 predictions API provider (cloud).
-//! - `stub` - LocalImageSidecarProvider, the local HTTP loopback to the Python sidecar.
+//! Temporary compatibility facade for outbound image adapters.
 
-pub mod cache;
-pub mod provider;
-pub mod replicate;
-pub mod retry;
-pub mod stub;
+pub use adapter_media::image::*;
 
-pub use retry::{default_policy as image_default_retry_policy, RetryableImageProvider};
+pub mod cache {
+    pub use adapter_media::image::cache::*;
+}
+pub mod provider {
+    pub use app_application::ports::media::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+}
+pub mod replicate {
+    pub use adapter_media::image::replicate::*;
+}
+pub mod retry {
+    pub use adapter_media::image::retry::*;
+}
+pub mod stub {
+    pub use adapter_media::image::stub::*;
+}

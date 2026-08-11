@@ -3,6 +3,8 @@ required for these tests to pass - real backend smoke is M7.5-DM scope."""
 from __future__ import annotations
 
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import ClassVar
 
@@ -77,6 +79,46 @@ def test_dispatcher_unknown_backend_raises():
         d.generate("not-a-backend", PromptParams(text="x"))
 
 
+def test_dispatcher_serializes_concurrent_gpu_generation():
+    d = PipelineDispatcher.test_instance()
+
+    class ConcurrentProbe(StubBackend):
+        def __init__(self) -> None:
+            super().__init__("probe")
+            self.active = 0
+            self.max_active = 0
+            self.counter_lock = threading.Lock()
+
+        def generate(self, params: PromptParams) -> bytes:
+            with self.counter_lock:
+                self.active += 1
+                self.max_active = max(self.max_active, self.active)
+            time.sleep(0.05)
+            with self.counter_lock:
+                self.active -= 1
+            return params.text.encode()
+
+    backend = ConcurrentProbe()
+    d.backends["probe"] = backend
+    barrier = threading.Barrier(3)
+
+    def run(text: str) -> None:
+        barrier.wait()
+        d.generate("probe", PromptParams(text=text))
+
+    first = threading.Thread(target=run, args=("one",))
+    second = threading.Thread(target=run, args=("two",))
+    first.start()
+    second.start()
+    barrier.wait()
+    first.join(timeout=1)
+    second.join(timeout=1)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert backend.max_active == 1
+
+
 def test_production_dispatcher_registers_4_image_plus_ltx_video():
     d = PipelineDispatcher.production()
     assert set(d.backends.keys()) == {
@@ -90,5 +132,4 @@ def test_production_dispatcher_registers_4_image_plus_ltx_video():
     video_backends = [b for b in d.backends.values() if b.modality == "video"]
     assert len(image_backends) == 4
     assert len(video_backends) == 1
-
 

@@ -7,6 +7,7 @@ users don't switch presets per request.
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +23,10 @@ class PipelineDispatcher:
     def __init__(self, backends: dict[str, GenerationBackend]) -> None:
         self.backends = backends
         self.loaded: Optional[str] = None
+        # Every pipeline load/unload/generate operation is GPU-exclusive. The
+        # HTTP server can dispatch sync endpoints on multiple worker threads,
+        # so an explicit lock is required even with one process and one GPU.
+        self._gpu_lock = threading.RLock()
 
     @classmethod
     def production(cls, weights_dir: Optional[Path] = None) -> "PipelineDispatcher":
@@ -39,11 +44,18 @@ class PipelineDispatcher:
         return cls({})
 
     def generate(self, backend_id: str, params: PromptParams) -> bytes:
-        if backend_id not in self.backends:
-            raise KeyError(f"unknown backend: {backend_id}")
-        if self.loaded != backend_id:
+        with self._gpu_lock:
+            if backend_id not in self.backends:
+                raise KeyError(f"unknown backend: {backend_id}")
+            if self.loaded != backend_id:
+                if self.loaded is not None:
+                    self.backends[self.loaded].unload()
+                self.backends[backend_id].load()
+                self.loaded = backend_id
+            return self.backends[backend_id].generate(params)
+
+    def unload(self) -> None:
+        with self._gpu_lock:
             if self.loaded is not None:
                 self.backends[self.loaded].unload()
-            self.backends[backend_id].load()
-            self.loaded = backend_id
-        return self.backends[backend_id].generate(params)
+                self.loaded = None

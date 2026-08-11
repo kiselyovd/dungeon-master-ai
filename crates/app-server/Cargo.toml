@@ -1,20 +1,15 @@
 [package]
 name = "app-server"
-version = "0.1.0"
+version = "0.12.1"
+autobins = false
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
-[[bin]]
-name = "app-server"
-path = "src/main.rs"
-
-[[bin]]
-name = "stub_sidecar"
-path = "src/bin/stub_sidecar.rs"
-
 [dependencies]
+adapter-http = { workspace = true }
 adapter-llm = { workspace = true }
+adapter-media = { workspace = true }
 adapter-secrets = { workspace = true }
 adapter-sqlite = { workspace = true }
 app-application = { workspace = true }
@@ -22,7 +17,6 @@ app-llm = { path = "../app-llm" }
 app-domain = { path = "../app-domain" }
 axum = { workspace = true }
 tokio = { workspace = true }
-tower-http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -52,5 +46,5 @@ tempfile = "3"
 [features]
 default = ["with-local-runtime"]
 test-support = []
-with-local-runtime = []
+with-local-runtime = ["adapter-http/with-local-runtime"]
 cloud-only = []

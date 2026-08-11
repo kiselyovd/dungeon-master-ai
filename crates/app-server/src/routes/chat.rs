@@ -1,154 +1,39 @@
-use axum::extract::State;
-use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::response::IntoResponse;
-use axum::Json;
-use futures::stream::{Stream, StreamExt};
-use serde::{Deserialize, Deserializer};
-use std::convert::Infallible;
-use std::pin::Pin;
+//! Compatibility exports for the Axum chat adapter.
 
-use app_llm::{ChatChunk, ChatMessage, ChatRequest as LlmReq, MessagePart, ToolCall, ToolResult};
+pub use adapter_http::routes::chat::{chat, ChatHttpRequest, HttpMessage};
+
+use app_llm::{ChatMessage, MessagePart};
 
 use crate::error::AppError;
-use crate::state::AppState;
 
-const MAX_IMAGE_BYTES: usize = 5 * 1024 * 1024;
 const MAX_IMAGES_PER_MESSAGE: usize = 4;
+const MAX_IMAGE_BYTES: usize = 5 * 1024 * 1024;
 
-/// Wire-format chat message used at the HTTP boundary. Accepts either a bare
-/// `content` string (legacy ergonomics) or a full `parts` array on the user
-/// role, normalising both into `app_llm::ChatMessage::User { parts: ... }`.
-#[derive(Debug)]
-pub enum HttpMessage {
-    System {
-        content: String,
-    },
-    User {
-        parts: Vec<MessagePart>,
-    },
-    Assistant {
-        content: String,
-    },
-    AssistantWithToolCalls {
-        content: Option<String>,
-        tool_calls: Vec<ToolCall>,
-    },
-    ToolResult(ToolResult),
-}
-
-impl<'de> Deserialize<'de> for HttpMessage {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let v = serde_json::Value::deserialize(de)?;
-        let role = v
-            .get("role")
-            .and_then(|r| r.as_str())
-            .ok_or_else(|| D::Error::custom("missing role"))?;
-        match role {
-            "system" => {
-                let content = v
-                    .get("content")
-                    .and_then(|c| c.as_str())
-                    .ok_or_else(|| D::Error::custom("system requires string content"))?
-                    .to_string();
-                Ok(HttpMessage::System { content })
-            }
-            "assistant" => {
-                let content = v
-                    .get("content")
-                    .and_then(|c| c.as_str())
-                    .ok_or_else(|| D::Error::custom("assistant requires string content"))?
-                    .to_string();
-                Ok(HttpMessage::Assistant { content })
-            }
-            "assistant_with_tool_calls" => {
-                let content = v
-                    .get("content")
-                    .and_then(|c| c.as_str())
-                    .map(|s| s.to_string());
-                let tool_calls: Vec<ToolCall> = serde_json::from_value(
-                    v.get("tool_calls")
-                        .cloned()
-                        .unwrap_or_else(|| serde_json::json!([])),
-                )
-                .map_err(|e| D::Error::custom(format!("invalid tool_calls: {e}")))?;
-                Ok(HttpMessage::AssistantWithToolCalls {
-                    content,
-                    tool_calls,
-                })
-            }
-            "tool_result" => {
-                let tr: ToolResult = serde_json::from_value(v)
-                    .map_err(|e| D::Error::custom(format!("invalid tool_result: {e}")))?;
-                Ok(HttpMessage::ToolResult(tr))
-            }
-            "user" => {
-                let parts = if let Some(c) = v.get("content") {
-                    if let Some(s) = c.as_str() {
-                        vec![MessagePart::Text {
-                            text: s.to_string(),
-                        }]
-                    } else {
-                        return Err(D::Error::custom(
-                            "user.content must be a string; use `parts` for arrays",
-                        ));
-                    }
-                } else if let Some(p) = v.get("parts") {
-                    serde_json::from_value(p.clone())
-                        .map_err(|e| D::Error::custom(format!("invalid parts: {e}")))?
-                } else {
-                    return Err(D::Error::custom("user requires `content` or `parts`"));
-                };
-                Ok(HttpMessage::User { parts })
-            }
-            other => Err(D::Error::custom(format!("unknown role: {other}"))),
-        }
-    }
-}
-
-impl From<HttpMessage> for ChatMessage {
-    fn from(m: HttpMessage) -> Self {
-        match m {
-            HttpMessage::System { content } => ChatMessage::System { content },
-            HttpMessage::User { parts } => ChatMessage::User { parts },
-            HttpMessage::Assistant { content } => ChatMessage::Assistant { content },
-            HttpMessage::AssistantWithToolCalls {
-                content,
-                tool_calls,
-            } => ChatMessage::AssistantWithToolCalls {
-                content,
-                tool_calls,
-            },
-            HttpMessage::ToolResult(tr) => ChatMessage::ToolResult(tr),
-        }
-    }
-}
-
-/// Validate per-image size and per-message image count. Decodes base64 fully
-/// because length-only heuristics are off by up to two bytes per padding rules
-/// and we want exact byte counts to match Anthropic / OpenAI limits.
+/// Temporary compatibility helper for the legacy focused tests.
 pub fn enforce_size_guards(messages: &[ChatMessage]) -> Result<(), AppError> {
     use base64::Engine;
-    for m in messages {
-        if let ChatMessage::User { parts } = m {
-            let image_count = parts
+    for message in messages {
+        if let ChatMessage::User { parts } = message {
+            let count = parts
                 .iter()
-                .filter(|p| matches!(p, MessagePart::Image { .. }))
+                .filter(|part| matches!(part, MessagePart::Image { .. }))
                 .count();
-            if image_count > MAX_IMAGES_PER_MESSAGE {
+            if count > MAX_IMAGES_PER_MESSAGE {
                 return Err(AppError::PayloadTooLarge(format!(
-                    "at most {MAX_IMAGES_PER_MESSAGE} image parts per message (got {image_count})"
+                    "at most {MAX_IMAGES_PER_MESSAGE} image parts per message (got {count})"
                 )));
             }
-            for p in parts {
-                if let MessagePart::Image { data_b64, .. } = p {
-                    let raw = base64::engine::general_purpose::STANDARD
-                        .decode(data_b64.as_bytes())
-                        .map_err(|e| AppError::BadRequest(format!("invalid base64 image: {e}")))?;
-                    if raw.len() > MAX_IMAGE_BYTES {
+            for part in parts {
+                if let MessagePart::Image { data_b64, .. } = part {
+                    let bytes = base64::engine::general_purpose::STANDARD
+                        .decode(data_b64)
+                        .map_err(|error| {
+                            AppError::BadRequest(format!("invalid base64 image: {error}"))
+                        })?;
+                    if bytes.len() > MAX_IMAGE_BYTES {
                         return Err(AppError::PayloadTooLarge(format!(
                             "image exceeds 5 MB (got {} bytes)",
-                            raw.len()
+                            bytes.len()
                         )));
                     }
                 }
@@ -156,115 +41,4 @@ pub fn enforce_size_guards(messages: &[ChatMessage]) -> Result<(), AppError> {
         }
     }
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChatHttpRequest {
-    pub messages: Vec<HttpMessage>,
-    /// Optional session UUID. When provided, user + assistant messages are
-    /// persisted to the `messages` table for resumable campaigns.
-    pub session_id: Option<String>,
-    pub model: Option<String>,
-    pub max_tokens: Option<u32>,
-    pub temperature: Option<f32>,
-}
-
-pub async fn chat(
-    State(state): State<AppState>,
-    Json(req): Json<ChatHttpRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    tracing::warn!("POST /chat is deprecated - use /agent/turn instead; will be removed in M11");
-
-    if req.messages.is_empty() {
-        return Err(AppError::BadRequest("messages must not be empty".into()));
-    }
-
-    let llm_messages: Vec<ChatMessage> = req.messages.into_iter().map(Into::into).collect();
-    enforce_size_guards(&llm_messages)?;
-
-    // Persist the user message before opening the stream. Best-effort: a DB
-    // failure here logs a warning but does not fail the request - the chat
-    // continues without resumability.
-    if let Some(session_id) = req.session_id.as_deref() {
-        if let Some(last) = llm_messages.last() {
-            if matches!(last, ChatMessage::User { .. }) {
-                if let Err(e) = crate::db::insert_message(state.db(), session_id, last).await {
-                    tracing::warn!(err = %e, "failed to persist user message");
-                }
-            }
-        }
-    }
-
-    let llm_req = LlmReq {
-        messages: llm_messages,
-        model: req.model.unwrap_or_else(|| state.default_model()),
-        max_tokens: req.max_tokens,
-        temperature: req.temperature,
-        tools: Vec::new(),
-        system_prompt: None,
-        reasoning: None,
-    };
-
-    let provider = state.provider();
-    let chunk_stream = provider.stream_chat(llm_req).await?;
-
-    let session_id_for_assistant = req.session_id.clone();
-    let pool_for_assistant = state.db().clone();
-    let assistant_buf: std::sync::Arc<std::sync::Mutex<String>> =
-        std::sync::Arc::new(std::sync::Mutex::new(String::new()));
-
-    let event_stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
-        Box::pin(chunk_stream.map(move |chunk| {
-            let event = match chunk {
-                Ok(ChatChunk::TextDelta { text }) => {
-                    if let Ok(mut buf) = assistant_buf.lock() {
-                        buf.push_str(&text);
-                    }
-                    Event::default()
-                        .event("text_delta")
-                        .json_data(serde_json::json!({ "text": text }))
-                        .expect("json_data")
-                }
-                Ok(ChatChunk::Done { reason }) => {
-                    if let Some(sid) = session_id_for_assistant.clone() {
-                        let text = assistant_buf.lock().map(|g| g.clone()).unwrap_or_default();
-                        if !text.is_empty() {
-                            let pool = pool_for_assistant.clone();
-                            tokio::spawn(async move {
-                                let msg = ChatMessage::Assistant { content: text };
-                                if let Err(e) = crate::db::insert_message(&pool, &sid, &msg).await {
-                                    tracing::warn!(err = %e, "failed to persist assistant message");
-                                }
-                            });
-                        }
-                    }
-                    Event::default()
-                        .event("done")
-                        .json_data(serde_json::json!({ "reason": reason }))
-                        .expect("json_data")
-                }
-                Ok(ChatChunk::ThinkingDelta { .. }) => {
-                    // Legacy /chat endpoint does not surface thinking content.
-                    Event::default().comment("thinking_chunk_dropped")
-                }
-                Ok(ChatChunk::ToolCallStart { .. })
-                | Ok(ChatChunk::ToolCallArgsDelta { .. })
-                | Ok(ChatChunk::ToolCallDone { .. }) => {
-                    // Legacy /chat endpoint passes empty `tools`, so providers
-                    // should not produce these. If they do, drop silently;
-                    // the agent endpoint (M3 Phase I) handles tool-call chunks.
-                    Event::default().comment("tool_call_chunk_dropped")
-                }
-                Err(e) => Event::default()
-                    .event("error")
-                    .json_data(serde_json::json!({
-                        "code": "provider_error",
-                        "message": e.to_string()
-                    }))
-                    .expect("json_data"),
-            };
-            Ok(event)
-        }));
-
-    Ok(Sse::new(event_stream).keep_alive(KeepAlive::default()))
 }

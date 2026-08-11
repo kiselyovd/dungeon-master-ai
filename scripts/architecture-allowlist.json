@@ -1,14 +1,17 @@
 {
   "version": 1,
   "rustWorkspaceDependencies": {
-    "adapter-llm": ["app-domain"],
+    "adapter-http": ["app-application"],
+    "adapter-llm": ["app-application", "app-domain"],
+    "adapter-media": ["app-application"],
     "adapter-secrets": ["app-application"],
     "adapter-sqlite": ["app-application"],
     "app-application": ["app-domain"],
+    "app-bootstrap": ["adapter-http", "adapter-llm", "adapter-media", "adapter-secrets", "adapter-sqlite", "app-application", "app-domain", "app-llm", "app-server"],
     "app-domain": [],
-    "app-llm": ["app-application"],
-    "app-server": ["adapter-llm", "adapter-secrets", "adapter-sqlite", "app-application", "app-domain", "app-llm"],
-    "dungeon-master-ai": ["app-llm"]
+    "app-llm": ["adapter-llm", "app-application"],
+    "app-server": ["adapter-http", "adapter-llm", "adapter-media", "adapter-secrets", "adapter-sqlite", "app-application", "app-domain", "app-llm"],
+    "dungeon-master-ai": ["app-application"]
   },
   "exceptions": [
     {

@@ -1,6 +1,6 @@
 [package]
 name = "dungeon-master-ai"
-version = "0.1.0"
+version = "0.12.1"
 description = "Multimodal AI-powered D&D desktop application"
 authors.workspace = true
 edition.workspace = true
@@ -30,7 +30,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
 env_logger = "0.11"
-app-llm = { path = "../crates/app-llm" }
-async-trait.workspace = true
+app-application = { workspace = true }
+axum.workspace = true
+reqwest.workspace = true
 tokio.workspace = true
-
+uuid.workspace = true

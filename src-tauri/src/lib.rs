@@ -1,77 +1,16 @@
-use std::sync::Mutex;
+use tauri::{Manager, WindowEvent};
 
-use tauri::async_runtime::spawn;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-use tauri_plugin_shell::ShellExt;
+mod commands;
+mod processes;
 
-pub mod sidecar_launcher;
-
-#[derive(Default)]
-struct BackendState {
-    port: Mutex<Option<u16>>,
-    child: Mutex<Option<CommandChild>>,
-}
-
-#[tauri::command]
-fn backend_port(state: State<'_, BackendState>) -> Option<u16> {
-    *state.port.lock().expect("port lock")
-}
-
-fn spawn_backend(app: AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let sidecar = app
-        .shell()
-        .sidecar("dmai-server")
-        .map_err(|e| format!("sidecar lookup: {e}"))?;
-
-    let (mut rx, child) = sidecar
-        .spawn()
-        .map_err(|e| format!("spawn dmai-server: {e}"))?;
-
-    let state: State<BackendState> = app.state();
-    *state.child.lock().expect("child lock") = Some(child);
-
-    let app_for_task = app.clone();
-    spawn(async move {
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line_bytes) => {
-                    let line = String::from_utf8_lossy(&line_bytes);
-                    if let Some(port) = parse_listening_port(&line) {
-                        let st: State<BackendState> = app_for_task.state();
-                        *st.port.lock().expect("port lock") = Some(port);
-                        let _ = app_for_task.emit("backend-ready", port);
-                        log::info!("backend listening on port {port}");
-                    } else {
-                        log::info!("[backend] {line}");
-                    }
-                }
-                CommandEvent::Stderr(line_bytes) => {
-                    log::warn!("[backend stderr] {}", String::from_utf8_lossy(&line_bytes));
-                }
-                CommandEvent::Terminated(status) => {
-                    log::error!("backend terminated: {status:?}");
-                }
-                CommandEvent::Error(err) => log::error!("backend error: {err}"),
-                _ => {}
-            }
-        }
-    });
-
-    Ok(())
-}
-
-fn parse_listening_port(line: &str) -> Option<u16> {
-    line.strip_prefix("APP_SERVER_LISTENING port=")?
-        .split_whitespace()
-        .next()?
-        .parse()
-        .ok()
-}
+use commands::backend::{backend_port, BackendState};
+use processes::control::ControlServer;
+use processes::RuntimeProcesses;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .try_init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -79,41 +18,84 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
+        .manage(RuntimeProcesses::default())
         .setup(|app| {
-            // Resolve the per-install salt path inside `setup` so we have an
-            // initialised AppHandle. Stronghold's argon2 builder lazily writes
-            // the salt at first vault open; the file lives under the OS-native
-            // local-data dir for this app.
             let salt_path = app
                 .path()
                 .app_local_data_dir()
-                .map_err(|e| format!("resolve app_local_data_dir: {e}"))?
+                .map_err(|error| format!("resolve app_local_data_dir: {error}"))?
                 .join("salt.txt");
             app.handle()
                 .plugin(tauri_plugin_stronghold::Builder::with_argon2(&salt_path).build())?;
 
-            let handle = app.handle().clone();
-            spawn_backend(handle)?;
+            let processes = app.state::<RuntimeProcesses>().inner().clone();
+            let control = tauri::async_runtime::block_on(processes::control::start(
+                app.handle().clone(),
+                processes,
+            ))?;
+            processes::backend::spawn_backend(
+                app.handle().clone(),
+                control.endpoint(),
+                control.token(),
+            )?;
+            app.manage(control);
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if matches!(
+                event,
+                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+            ) {
+                let processes = window
+                    .app_handle()
+                    .state::<RuntimeProcesses>()
+                    .inner()
+                    .clone();
+                tauri::async_runtime::block_on(processes.stop());
+                processes::backend::stop(window.app_handle());
+                window.app_handle().state::<ControlServer>().shutdown();
+            }
         })
         .invoke_handler(tauri::generate_handler![backend_port])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("error while running the Tauri application");
 }
 
 #[cfg(test)]
-mod tests {
-    use super::parse_listening_port;
+mod packaging_tests {
+    use serde_json::Value;
 
-    #[test]
-    fn parses_port_from_listening_line() {
-        let line = "APP_SERVER_LISTENING port=51234 host=127.0.0.1";
-        assert_eq!(parse_listening_port(line), Some(51234));
+    fn external_bins(source: &str) -> Vec<String> {
+        serde_json::from_str::<Value>(source).unwrap()["bundle"]["externalBin"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap().to_owned())
+            .collect()
     }
 
     #[test]
-    fn ignores_unrelated_lines() {
-        assert_eq!(parse_listening_port("hello world"), None);
-        assert_eq!(parse_listening_port("APP_SERVER_LISTENING port=abc"), None);
+    fn local_and_cloud_manifests_declare_exact_sidecar_sets() {
+        assert_eq!(
+            external_bins(include_str!("../tauri.conf.json")),
+            vec![
+                "binaries/dmai-server",
+                "binaries/mistralrs-server",
+                "binaries/dmai-image-sidecar",
+            ]
+        );
+        assert_eq!(
+            external_bins(include_str!("../tauri.cloud.conf.json")),
+            vec!["binaries/dmai-server"]
+        );
+    }
+
+    #[test]
+    fn capability_allows_only_declared_fixed_sidecars() {
+        let source = include_str!("../capabilities/default.json");
+        for name in ["dmai-server", "mistralrs-server", "dmai-image-sidecar"] {
+            assert!(source.contains(name));
+        }
+        assert!(!source.contains("shell:allow-execute"));
     }
 }

@@ -77,7 +77,7 @@ impl SettingsFactory<PreparedRuntimeSettings> for ServerSettingsFactory {
         agent_cfg.model = model.clone();
         let auto_unload = matches!(
             self.state.local_mode_config().vram_strategy,
-            crate::routes::local_mode::VramStrategy::AutoSwap
+            crate::control_services::local_mode::VramStrategy::AutoSwap
         );
         let (image, image_mutations) = match build_image_provider(
             &cfg.image,

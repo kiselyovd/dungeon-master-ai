@@ -1,18 +1,17 @@
+use app_application::models::local_models::{RuntimeStartRequest, RuntimeStatus};
+use app_application::ports::runtime::{RuntimeControl, RuntimeError};
+use async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
 
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::LlmProvider;
 use sqlx::SqlitePool;
 
 use crate::agent::orchestrator::AgentConfig;
-use crate::local_runtime::{
-    probe_real, LocalRuntime, ProbeConfig, ProcessSidecarLauncher, RegistrySnapshot,
-    RuntimeRegistry,
-};
+use crate::control_services::local_mode::LocalModeConfig;
+use crate::local_runtime::{probe_always_fail, LocalRuntime, RegistrySnapshot, RuntimeRegistry};
 use crate::models::DownloadManager;
-use crate::routes::local_mode::LocalModeConfig;
 use crate::secrets::{InMemorySecretsRepo, SecretsRepo};
 
 /// Shared application state for axum handlers.
@@ -43,6 +42,7 @@ struct AppStateInner {
     local_mode_config: RwLock<LocalModeConfig>,
     download_manager: Arc<DownloadManager>,
     runtime_registry: Arc<RuntimeRegistry>,
+    runtime_control: RwLock<Arc<dyn RuntimeControl>>,
     models_dir: RwLock<PathBuf>,
     secrets_repo: RwLock<Arc<dyn SecretsRepo>>,
 }
@@ -67,26 +67,15 @@ impl AppState {
         // the same instance the /hf/token routes write to.
         let secrets: Arc<dyn SecretsRepo> = Arc::new(InMemorySecretsRepo::default());
         let download_manager = Arc::new(DownloadManager::new(models_dir.clone(), secrets.clone()));
-        let sidecar_launcher = Arc::new(ProcessSidecarLauncher::from_current_exe());
-        // Steady 2s poll for up to 6 minutes. mistralrs-server loading +
-        // ISQ-quantizing Gemma 4 E2B (~10 GB) routinely needs 1-3 min before it
-        // binds its port; the image sidecar (Python torch/diffusers import) can
-        // also take tens of seconds. The old 8-attempt exponential budget
-        // (~64 s) gave up while the model was still loading, marking the runtime
-        // `failed`. (Audit: live Gemma start.)
-        let probe_cfg = ProbeConfig {
-            max_attempts: 180,
-            initial_delay: Duration::from_millis(2000),
-        };
+        let sidecar_launcher = Arc::new(UnavailableSidecarLauncher);
         let llm_runtime = Arc::new(LocalRuntime::new(
             sidecar_launcher.clone(),
-            probe_real(probe_cfg),
+            probe_always_fail(),
             "/health",
         ));
         let image_runtime = Arc::new(LocalRuntime::new(
             sidecar_launcher.clone(),
-            probe_real(probe_cfg),
-            // The Python image sidecar serves /healthz (see sidecar/app.py:69).
+            probe_always_fail(),
             "/healthz",
         ));
         let runtime_registry = Arc::new(RuntimeRegistry::new(llm_runtime, image_runtime));
@@ -105,6 +94,7 @@ impl AppState {
                 local_mode_config: RwLock::new(LocalModeConfig::default()),
                 download_manager,
                 runtime_registry,
+                runtime_control: RwLock::new(Arc::new(UnavailableRuntimeControl)),
                 models_dir: RwLock::new(models_dir),
                 secrets_repo: RwLock::new(secrets),
             }),
@@ -355,6 +345,22 @@ impl AppState {
         self.inner.runtime_registry.clone()
     }
 
+    pub fn runtime_control(&self) -> Arc<dyn RuntimeControl> {
+        self.inner
+            .runtime_control
+            .read()
+            .expect("runtime control lock poisoned")
+            .clone()
+    }
+
+    pub fn set_runtime_control(&self, control: Arc<dyn RuntimeControl>) {
+        *self
+            .inner
+            .runtime_control
+            .write()
+            .expect("runtime control lock poisoned") = control;
+    }
+
     pub async fn runtime_status(&self) -> RegistrySnapshot {
         self.runtime_registry().status().await
     }
@@ -389,6 +395,42 @@ impl AppState {
             .secrets_repo
             .write()
             .expect("secrets lock poisoned") = repo;
+    }
+}
+
+struct UnavailableSidecarLauncher;
+
+#[async_trait]
+impl app_application::ports::runtime::SidecarLauncher for UnavailableSidecarLauncher {
+    async fn spawn(
+        &self,
+        name: &str,
+        _args: &[&str],
+    ) -> Result<
+        app_application::ports::runtime::SidecarHandle,
+        app_application::ports::runtime::SidecarError,
+    > {
+        Err(app_application::ports::runtime::SidecarError::MockUnconfigured(name.to_owned()))
+    }
+}
+
+struct UnavailableRuntimeControl;
+
+#[async_trait]
+impl RuntimeControl for UnavailableRuntimeControl {
+    async fn start(&self, _request: RuntimeStartRequest) -> Result<RuntimeStatus, RuntimeError> {
+        Err(RuntimeError::Operation {
+            operation: "start",
+            code: "desktop_control_unavailable",
+        })
+    }
+
+    async fn stop(&self) -> Result<RuntimeStatus, RuntimeError> {
+        Ok(RuntimeStatus::default())
+    }
+
+    async fn status(&self) -> Result<RuntimeStatus, RuntimeError> {
+        Ok(RuntimeStatus::default())
     }
 }
 

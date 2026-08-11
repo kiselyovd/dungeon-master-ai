@@ -1,6 +1,13 @@
-pub mod download;
-pub mod manager;
-pub mod manifest;
-pub use download::{download_to, DownloadError, DownloadEvent, DownloadResult};
-pub use manager::{DownloadManager, DownloadStatus};
-pub use manifest::{lookup, ModelId, ModelKind, ModelManifest, MANIFEST};
+//! Temporary compatibility facade for model download adapters.
+
+pub use adapter_media::models::*;
+
+pub mod download {
+    pub use adapter_media::models::download::*;
+}
+pub mod manager {
+    pub use adapter_media::models::manager::*;
+}
+pub mod manifest {
+    pub use adapter_media::models::manifest::*;
+}

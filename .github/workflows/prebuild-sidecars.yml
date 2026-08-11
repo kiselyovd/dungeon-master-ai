@@ -1,6 +1,6 @@
 name: prebuild-sidecars
 
-# Builds mistralrs-server from source (EricLBuehler/mistral.rs) for all four
+# Builds mistralrs-server from source (EricLBuehler/mistral.rs) for supported
 # supported targets and uploads the binaries as artifacts so the release
 # pipeline can stage them under src-tauri/binaries/ before `tauri build`.
 #
@@ -27,14 +27,13 @@ jobs:
           - { os: windows-2022, target: x86_64-pc-windows-msvc }
           - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
           - { os: macos-14,     target: aarch64-apple-darwin }
-          - { os: macos-13,     target: x86_64-apple-darwin }
     runs-on: ${{ matrix.os }}
     # A cold from-source mistralrs build is heavy and uncached (the build runs
     # in an out-of-workspace clone); 120 min gives slow Windows/macOS runners
     # headroom. The workflow is manual-dispatch only, so the ceiling is free.
     timeout-minutes: 120
     env:
-      MISTRALRS_TAG: v0.8.0
+      MISTRALRS_TAG: v0.8.3
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable

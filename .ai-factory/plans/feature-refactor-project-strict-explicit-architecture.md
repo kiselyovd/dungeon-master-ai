@@ -222,7 +222,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
 ### Phase 3: Extract Adapters and Composition
 
-- [ ] **Task 7: Complete LLM and media adapter extraction with explicit runtime contracts** (depends on 3, 4, 6)
+- [x] **Task 7: Complete LLM and media adapter extraction with explicit runtime contracts** (depends on 3, 4, 6)
 
   **Files:**
   - Move concrete `crates/app-llm/src/{genai_common,openai_compat,mistralrs_provider,retry,mock}.rs` into `crates/adapter-llm/src/**`
@@ -246,7 +246,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** `app-llm` is only a compatibility facade, application crates do not import concrete adapters, media concurrency is deterministic, and Rust/Python capability claims agree.
 
-- [ ] **Task 8: Extract a thin Axum inbound adapter** (depends on 4-7)
+- [x] **Task 8: Extract a thin Axum inbound adapter** (depends on 4-7)
 
   **Files:**
   - Create `crates/adapter-http/Cargo.toml`
@@ -265,7 +265,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** The architecture guard finds no direct adapter imports between HTTP and SQL/LLM/media/secrets adapters, all existing frontend wire tests pass, and `AppState` is no longer used inside application logic.
 
-- [ ] **Task 9: Create the composition root and make Tauri the single process owner** (depends on 7, 8)
+- [x] **Task 9: Create the composition root and make Tauri the single process owner** (depends on 7, 8)
 
   **Files:**
   - Create `crates/app-bootstrap/Cargo.toml` and `crates/app-bootstrap/src/{lib,config,paths,telemetry,wiring,main}.rs`

@@ -33,6 +33,17 @@ def test_healthz_returns_ok(app_with_weights):
     assert r.json() == {"status": "ok"}
 
 
+def test_capabilities_version_and_video_claims_match_rust_contract(app_with_weights):
+    app, _ = app_with_weights
+    r = TestClient(app).get("/capabilities")
+    assert r.status_code == 200
+    assert r.json() == {
+        "contract_version": 1,
+        "supports_video_init_image": False,
+        "supports_video_cancellation": True,
+    }
+
+
 def test_unload_returns_ok(app_with_weights):
     app, _ = app_with_weights
     r = TestClient(app).post("/unload")
@@ -114,6 +125,17 @@ def test_generate_unknown_backend_404(app_with_weights):
     assert r.status_code == 404
 
 
+def test_generate_rejects_unknown_contract_version(app_with_weights):
+    app, _ = app_with_weights
+    app.state.dispatcher.backends["fast"] = _StubImage(name="fast")
+    r = TestClient(app).post(
+        "/generate",
+        json={"prompt": "x", "backend": "fast", "contract_version": 999},
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"] == "media_contract_version_unsupported"
+
+
 def test_generate_defaults_to_fast_backend_when_field_omitted(app_with_weights):
     app, _ = app_with_weights
     stub = _StubImage(name="fast")
@@ -193,6 +215,17 @@ def test_video_generate_no_backend_404(app_with_weights):
 
     r = TestClient(app).post("/video/generate", json={"prompt": "test"})
     assert r.status_code == 404
+
+
+def test_video_generate_rejects_unsupported_init_image(app_with_weights):
+    app, _ = app_with_weights
+    app.state.dispatcher.backends["ltx-video"] = _StubVideo()
+    r = TestClient(app).post(
+        "/video/generate",
+        json={"prompt": "test", "init_image_b64": "cG5n"},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "video_init_image_unsupported"
 
 
 def test_backends_endpoint_reports_installed_state(tmp_path):
