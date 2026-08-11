@@ -26,7 +26,7 @@ use crate::hf::manifest as user_manifest;
 use crate::hf::types::{HfModel, HfSearchQuery, HfSort, SizeBucket};
 use crate::secrets::{clear_hf_token, get_hf_token, set_hf_token};
 use crate::state::AppState;
-use app_domain::local_llm::manifest::{SystemEntry, UserEntry};
+use app_application::models::local_models::{SystemEntry, UserEntry};
 
 /// `user_manifest.json` sits next to `models_dir` (one level up so the data
 /// root holds both the per-model directories and the manifest index). Falls

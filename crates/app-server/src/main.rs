@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use adapter_llm::embeddings::{embedding_dim, parse_embedding_model, DEFAULT_EMBEDDING_MODEL};
 use anyhow::Context;
-use app_domain::srd::embedder::{embedding_dim, parse_embedding_model, DEFAULT_EMBEDDING_MODEL};
 use app_llm::{LlmProvider, MockProvider};
 use app_server::secrets::StrongholdSecretsRepo;
 use app_server::{config::Settings, db::init_db, db::srd_chunks_clear, router, AppState};
@@ -105,8 +105,7 @@ async fn main() -> anyhow::Result<()> {
     let state_clone = state.clone();
     let model_name_for_log = resolved_model_name.clone();
     tokio::task::spawn_blocking(move || {
-        use app_domain::srd::embedder::embed_chunks;
-        use app_domain::srd::loader::load_all_chunks;
+        use adapter_llm::embeddings::{embed_chunks, load_all_chunks};
         let chunks = load_all_chunks();
         match embed_chunks(chunks, embedding_model) {
             Ok(retriever) => {

@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "rustWorkspaceDependencies": {
+    "adapter-llm": ["app-domain"],
+    "app-application": ["app-domain"],
+    "app-domain": [],
+    "app-llm": ["app-application"],
+    "app-server": ["adapter-llm", "app-application", "app-domain", "app-llm"],
+    "dungeon-master-ai": ["app-llm"]
+  },
+  "exceptions": [
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/agent.ts",
+      "target": "src/state/chat",
+      "reason": "Task 10 moves agent wire models into the API contract boundary."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/characterAssist.ts",
+      "target": "src/state/charCreation",
+      "reason": "Task 12 moves character feature models behind a feature boundary."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/chat.ts",
+      "target": "src/state/chat",
+      "reason": "Task 10 moves chat wire models into the API contract boundary."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/discovery.ts",
+      "target": "src/state/discoveredCatalogs",
+      "reason": "Task 12 moves discovery transport models into settings feature contracts."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/localLlm.ts",
+      "target": "src/state/local_llm/manifest",
+      "reason": "Task 12 moves local model presentation models into its feature."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/localRuntime.ts",
+      "target": "src/state/localMode",
+      "reason": "Task 12 moves local runtime models into its feature."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/providers-catalog.ts",
+      "target": "src/state/settingsMigration",
+      "reason": "Task 12 moves provider contracts into settings feature models."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/providers.ts",
+      "target": "src/state/providers",
+      "reason": "Task 12 moves provider contracts into settings feature models."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/settings.ts",
+      "target": "src/state/providers",
+      "reason": "Task 12 separates settings transport from Zustand provider state."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/settings.ts",
+      "target": "src/state/settings",
+      "reason": "Task 12 separates settings transport from Zustand settings state."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/settings.ts",
+      "target": "src/state/settingsMigration",
+      "reason": "Task 12 moves settings migration models out of the API dependency path."
+    },
+    {
+      "rule": "frontend-api-state",
+      "source": "src/api/settings.ts",
+      "target": "src/state/useStore",
+      "reason": "Task 12 removes direct global-store access from the API adapter."
+    },
+    {
+      "rule": "frontend-state-component",
+      "source": "src/state/combat.ts",
+      "target": "src/components/AoeTemplate",
+      "reason": "Task 11 moves AoeShape into the combat feature model."
+    }
+  ]
+}

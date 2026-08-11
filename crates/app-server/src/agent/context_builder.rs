@@ -7,9 +7,7 @@
 //! For Task C1 the NPC loader is stubbed because the `npc_memory` table is
 //! introduced in migration `0002_m3_journal_npc_srd.sql` (Phase E/F/G work).
 
-use app_domain::srd::embedder::parse_embedding_model;
 use app_domain::srd::retriever::SrdRetriever;
-use fastembed::{InitOptions, TextEmbedding};
 use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
@@ -190,14 +188,7 @@ pub(crate) fn embed_player_message(
     text: &str,
     model_name: &str,
 ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
-    let parsed = parse_embedding_model(model_name)
-        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.into() })?;
-    let model = TextEmbedding::try_new(InitOptions::new(parsed))?;
-    let embeddings = model.embed(vec![text], None)?;
-    embeddings
-        .into_iter()
-        .next()
-        .ok_or_else(|| "empty embedding".into())
+    adapter_llm::embeddings::embed_query_by_name(text, model_name)
 }
 
 async fn load_all_npc_facts(_pool: &SqlitePool, _campaign_id: Uuid) -> Result<String, sqlx::Error> {

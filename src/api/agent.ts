@@ -115,23 +115,40 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = '';
 
+  const dispatchCompleteBlocks = (flush: boolean): void => {
+    const separator = /\r\n\r\n|\r\r|\n\n/g;
+    let consumedThrough = 0;
+    let match = separator.exec(buffer);
+
+    while (match) {
+      const block = buffer.slice(consumedThrough, match.index);
+      if (block.trim()) {
+        for (const event of parseSseEvents(`${block}\n\n`)) {
+          handleAgentEvent(event.event, event.data, opts);
+        }
+      }
+      consumedThrough = match.index + match[0].length;
+      match = separator.exec(buffer);
+    }
+
+    buffer = buffer.slice(consumedThrough);
+    if (flush && buffer.trim()) {
+      for (const event of parseSseEvents(`${buffer}\n\n`)) {
+        handleAgentEvent(event.event, event.data, opts);
+      }
+      buffer = '';
+    }
+  };
+
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-
-      const blocks = buffer.split('\n\n');
-      buffer = blocks.pop() ?? '';
-
-      for (const block of blocks) {
-        if (!block.trim()) continue;
-        const events = parseSseEvents(`${block}\n\n`);
-        for (const ev of events) {
-          handleAgentEvent(ev.event, ev.data, opts);
-        }
-      }
+      dispatchCompleteBlocks(false);
     }
+    buffer += decoder.decode();
+    dispatchCompleteBlocks(true);
   } catch (e) {
     throw ChatError.from(e);
   }

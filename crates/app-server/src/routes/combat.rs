@@ -168,9 +168,9 @@ pub async fn post_combat_action(
     State(_state): State<AppState>,
     Json(req): Json<CombatActionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Phase 1: Validate via tool-call validator.
-    use app_domain::combat::validator::validate_tool_call;
-    let _validated = validate_tool_call(&req.action_type, req.args.clone())
+    // Phase 1: decode untrusted tool JSON at the application boundary.
+    use app_application::agent::tool_decoder::decode_tool_call;
+    let _validated = decode_tool_call(&req.action_type, &req.args)
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
     // Phase 2 (full resolution) is wired in M3 when the LLM agent loop drives

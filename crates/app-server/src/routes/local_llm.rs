@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 
-use app_domain::local_llm::manifest::{SystemEntry, UserEntry};
+use app_application::models::local_models::{SystemEntry, UserEntry};
 
 use crate::error::AppError;
 use crate::models::download::DownloadEvent;

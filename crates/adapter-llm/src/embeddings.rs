@@ -1,47 +1,10 @@
-//! fastembed-rs wrapper for embedding SRD chunks.
-//!
-//! Called once at server startup:
-//!   1. Load chunks from YAML (via loader::load_all_chunks)
-//!   2. Check SQLite for existing embeddings (srd_chunks table)
-//!   3. For any chunk without a stored embedding, embed and store
-//!   4. Return SrdRetriever with full corpus
-//!
-//! fastembed downloads the chosen ONNX model on first run from HuggingFace
-//! hub and caches it at `$HOME/.cache/huggingface/hub/`. Subsequent startups
-//! are instant (model loaded from cache).
-//!
-//! The default model is `MultilingualE5Small` (384d, ~470MB) which supports
-//! Russian, English, and 100+ other languages - aligning with the project's
-//! bilingual RU+EN scope. Override via the `DMAI_EMBEDDING_MODEL` env var or
-//! via `AgentConfig.embedding_model`.
-
+use app_domain::srd::data::{load_chunks_from_yaml, SrdChunk};
+use app_domain::srd::retriever::SrdRetriever;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use tracing::info;
+use tracing::{info, warn};
 
-use crate::srd::data::SrdChunk;
-use crate::srd::retriever::SrdRetriever;
-
-/// Default embedding model used when no override is provided.
-///
-/// Multilingual E5 Small: 384 dim, ~470MB download, supports 100+ languages
-/// including Russian and English. Matches the project's bilingual RU+EN scope.
 pub const DEFAULT_EMBEDDING_MODEL: &str = "multilingual-e5-small";
 
-/// Parse a kebab-case model name into a `fastembed::EmbeddingModel` variant.
-/// Returns Err with the rejected name if unrecognised.
-///
-/// Recognised names (subset of fastembed 4.x; expandable later):
-/// - "multilingual-e5-small" (DEFAULT, 384d, RU+EN+100 langs)
-/// - "multilingual-e5-base" (768d, RU+EN+100 langs)
-/// - "multilingual-e5-large" (1024d, RU+EN+100 langs)
-/// - "bge-small-en-v15" (384d, EN only)
-/// - "bge-small-en-v15-q" (384d, EN only, quantized ~33MB)
-/// - "bge-base-en-v15" (768d, EN only)
-/// - "bge-large-en-v15" (1024d, EN only)
-/// - "all-minilm-l6-v2" (384d, EN only, fastest)
-/// - "all-minilm-l12-v2" (384d, EN only)
-/// - "paraphrase-ml-mpnet-base-v2" (768d, multilingual paraphrase)
-/// - "paraphrase-ml-minilm-l12-v2" (384d, multilingual paraphrase)
 pub fn parse_embedding_model(name: &str) -> Result<EmbeddingModel, String> {
     match name.to_lowercase().as_str() {
         "multilingual-e5-small" => Ok(EmbeddingModel::MultilingualE5Small),
@@ -61,9 +24,6 @@ pub fn parse_embedding_model(name: &str) -> Result<EmbeddingModel, String> {
     }
 }
 
-/// Return the embedding dimension for a model. Used for cache validation
-/// (a stored embedding with a different dim than the active model means the
-/// cache must be cleared and re-built).
 pub fn embedding_dim(model: &EmbeddingModel) -> usize {
     match model {
         EmbeddingModel::AllMiniLML6V2
@@ -99,35 +59,52 @@ pub fn embedding_dim(model: &EmbeddingModel) -> usize {
     }
 }
 
-/// Embed a list of chunks using the given model and return a SrdRetriever.
-/// Blocks the calling thread during model inference (expected: <2s for 500 chunks).
-/// Call from `tokio::task::spawn_blocking` at server startup.
 pub fn embed_chunks(
     chunks: Vec<SrdChunk>,
     model: EmbeddingModel,
 ) -> Result<SrdRetriever, Box<dyn std::error::Error + Send + Sync>> {
-    info!("initializing fastembed model: {:?}", model);
+    info!(model = ?model, "initializing embedding adapter");
     let model = TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))?;
-
-    let texts: Vec<&str> = chunks.iter().map(|c| c.text_en.as_str()).collect();
-    info!("embedding {} SRD chunks", texts.len());
-
+    let texts: Vec<&str> = chunks.iter().map(|chunk| chunk.text_en.as_str()).collect();
+    info!(chunk_count = texts.len(), "embedding SRD chunks");
     let embeddings = model.embed(texts, None)?;
-
-    let corpus: Vec<(SrdChunk, Vec<f32>)> = chunks.into_iter().zip(embeddings).collect();
-
-    info!("SRD corpus ready: {} chunks", corpus.len());
+    let corpus = chunks.into_iter().zip(embeddings).collect();
     Ok(SrdRetriever::new(corpus))
 }
 
-/// Embed a single query string for retrieval. Returns the embedding vector.
 pub fn embed_query(
     model: &TextEmbedding,
     query: &str,
 ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
-    let embeddings = model.embed(vec![query], None)?;
-    embeddings
+    model
+        .embed(vec![query], None)?
         .into_iter()
         .next()
         .ok_or_else(|| "empty embedding result".into())
+}
+
+pub fn embed_query_by_name(
+    query: &str,
+    model_name: &str,
+) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    let model = parse_embedding_model(model_name)
+        .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> { error.into() })?;
+    let model = TextEmbedding::try_new(InitOptions::new(model))?;
+    embed_query(&model, query)
+}
+
+static SPELLS_YAML: &str = include_str!("../../app-domain/srd/spells.yaml");
+static MONSTERS_YAML: &str = include_str!("../../app-domain/srd/monsters.yaml");
+static RULES_YAML: &str = include_str!("../../app-domain/srd/rules.yaml");
+static CLASSES_YAML: &str = include_str!("../../app-domain/srd/classes.yaml");
+
+pub fn load_all_chunks() -> Vec<SrdChunk> {
+    let mut chunks = Vec::new();
+    for yaml in [SPELLS_YAML, MONSTERS_YAML, RULES_YAML, CLASSES_YAML] {
+        match load_chunks_from_yaml(yaml) {
+            Ok(parsed) => chunks.extend(parsed),
+            Err(error) => warn!(error = %error, "SRD yaml parse failed"),
+        }
+    }
+    chunks
 }

@@ -10,7 +10,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use app_domain::local_llm::manifest::UserEntry;
+use app_application::models::local_models::UserEntry;
 
 /// On-disk shape of `user_manifest.json`. The `version` field gates future
 /// migrations; bumping it is a deliberate, explicit step that older builds
@@ -88,7 +88,7 @@ pub fn remove_entry(path: &Path, id: &str) -> Result<(), ManifestError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use app_domain::local_llm::manifest::SystemEntry;
+    use app_application::models::local_models::SystemEntry;
     use tempfile::TempDir;
 
     fn entry(id: &str) -> UserEntry {

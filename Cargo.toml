@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    "crates/adapter-llm",
+    "crates/app-application",
     "crates/app-domain",
     "crates/app-llm",
     "crates/app-server",
@@ -32,6 +34,8 @@ reqwest = { version = "0.13", features = ["json", "stream", "query"] }
 sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio", "tls-native-tls", "macros", "migrate", "uuid", "chrono"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+app-application = { path = "crates/app-application" }
+adapter-llm = { path = "crates/adapter-llm" }
 
 [profile.dev]
 debug = "line-tables-only"

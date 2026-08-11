@@ -1,0 +1,11 @@
+[package]
+name = "adapter-llm"
+version = "0.12.1"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+app-domain = { path = "../app-domain" }
+fastembed = { version = "4", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
+tracing = { workspace = true }

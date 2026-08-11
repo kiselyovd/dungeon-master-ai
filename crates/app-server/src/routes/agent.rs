@@ -272,44 +272,42 @@ fn flush_pending(state: &Arc<Mutex<PersistState>>, pool: &SqlitePool, session_id
     });
 }
 
-fn agent_event_to_sse(ev: AgentEvent) -> Event {
+/// Convert an application event into its stable SSE event name and JSON body.
+/// Keeping this mapping pure makes the cross-process contract executable.
+pub fn agent_event_to_wire(ev: AgentEvent) -> (&'static str, serde_json::Value) {
     match ev {
-        AgentEvent::ReasoningText { text } => Event::default()
-            .event("reasoning_text")
-            .json_data(serde_json::json!({ "text": text }))
-            .expect("reasoning_text json"),
+        AgentEvent::ReasoningText { text } => {
+            ("reasoning_text", serde_json::json!({ "text": text }))
+        }
         AgentEvent::ImageGenerated {
             tool_call_id,
             round,
             mime_type,
             image_b64,
             kind,
-        } => Event::default()
-            .event("image_generated")
-            .json_data(serde_json::json!({
+        } => (
+            "image_generated",
+            serde_json::json!({
                 "tool_call_id": tool_call_id,
                 "round": round,
                 "mime_type": mime_type,
                 "image_b64": image_b64,
                 "kind": kind,
-            }))
-            .expect("image_generated json"),
-        AgentEvent::TextDelta { text } => Event::default()
-            .event("text_delta")
-            .json_data(serde_json::json!({ "text": text }))
-            .expect("text_delta json"),
+            }),
+        ),
+        AgentEvent::TextDelta { text } => ("text_delta", serde_json::json!({ "text": text })),
         AgentEvent::ToolCallStart {
             id,
             tool_name,
             round,
-        } => Event::default()
-            .event("tool_call_start")
-            .json_data(serde_json::json!({
+        } => (
+            "tool_call_start",
+            serde_json::json!({
                 "id": id,
                 "tool_name": tool_name,
                 "round": round,
-            }))
-            .expect("tool_call_start json"),
+            }),
+        ),
         AgentEvent::ToolCallResult {
             id,
             tool_name,
@@ -318,9 +316,9 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
             is_error,
             round,
             handled_by,
-        } => Event::default()
-            .event("tool_call_result")
-            .json_data(serde_json::json!({
+        } => (
+            "tool_call_result",
+            serde_json::json!({
                 "id": id,
                 "tool_name": tool_name,
                 "args": args,
@@ -328,27 +326,35 @@ fn agent_event_to_sse(ev: AgentEvent) -> Event {
                 "is_error": is_error,
                 "round": round,
                 "handled_by": handled_by,
-            }))
-            .expect("tool_call_result json"),
+            }),
+        ),
         AgentEvent::VideoGenerated {
             tool_call_id,
             round,
             mime_type,
             video_b64,
             kind,
-        } => Event::default()
-            .event("video_generated")
-            .json_data(serde_json::json!({
+        } => (
+            "video_generated",
+            serde_json::json!({
                 "tool_call_id": tool_call_id,
                 "round": round,
                 "mime_type": mime_type,
                 "video_b64": video_b64,
                 "kind": kind,
-            }))
-            .expect("video_generated json"),
-        AgentEvent::AgentDone { total_rounds } => Event::default()
-            .event("agent_done")
-            .json_data(serde_json::json!({ "total_rounds": total_rounds }))
-            .expect("agent_done json"),
+            }),
+        ),
+        AgentEvent::AgentDone { total_rounds } => (
+            "agent_done",
+            serde_json::json!({ "total_rounds": total_rounds }),
+        ),
     }
+}
+
+fn agent_event_to_sse(ev: AgentEvent) -> Event {
+    let (event_name, payload) = agent_event_to_wire(ev);
+    Event::default()
+        .event(event_name)
+        .json_data(payload)
+        .expect("agent event json")
 }

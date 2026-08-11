@@ -10,7 +10,7 @@
 # (the cargo-fmt gap that slipped through M11 before this script existed).
 #
 # Modes:
-#   --fast      cargo fmt --check, biome ci, tsc, em-dash         (pre-commit)
+#   --fast      architecture, cargo fmt, biome ci, tsc, em-dash   (pre-commit)
 #   --ci-lint   --fast + cargo clippy                              (CI lint job)
 #   (default)   --ci-lint + cargo test + vitest                    (pre-push / manual)
 #
@@ -39,6 +39,7 @@ run() {
 }
 
 # --- static checks (fast: no Rust compile) ---------------------------------
+run "architecture"         bun run architecture:check
 run "cargo fmt --check"   cargo fmt --all -- --check
 run "biome ci"            bunx biome ci .
 run "tsc (typecheck)"     bun run typecheck

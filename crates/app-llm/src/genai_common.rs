@@ -386,7 +386,7 @@ pub(crate) fn build_chat_options(
     let spec = reasoning?;
     Some(
         genai::chat::ChatOptions::default()
-            .with_reasoning_effort(spec.to_genai_effort())
+            .with_reasoning_effort(crate::provider::to_genai_effort(spec))
             .with_capture_reasoning_content(true),
     )
 }

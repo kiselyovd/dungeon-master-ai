@@ -1,16 +1,9 @@
 //! Executes validated tool-calls from the agent loop.
 //!
-//! Each call goes through `app_domain::combat::validator::validate_tool_call`
-//! first, then dispatches to the matching executor below. Executors return a
-//! `(Value, is_error)` tuple - they never panic. The result JSON is what gets
-//! injected back as a `ChatMessage::ToolResult` in the next round.
-//!
-//! M2/M3 boundary: the validator currently only knows the seven M2 combat
-//! tools. The eight new M3 tools (`set_scene`, `cast_spell`, `remember_npc`,
-//! `recall_npc`, `journal_append`, `quick_save`, `generate_map`,
-//! `generate_illustration`, `query_rules`) come back from the validator as
-//! `UnknownTool`. That returns a graceful `is_error=true` result here without
-//! crashing the loop. Phase D extends the validator dispatch table to cover them.
+//! Each call is decoded into an application-owned typed command before it is
+//! dispatched to the matching executor below. Executors return a
+//! `(Value, is_error)` tuple and never panic. The result JSON is injected back
+//! as a `ChatMessage::ToolResult` in the next round.
 //!
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
@@ -21,7 +14,7 @@ use std::sync::Arc;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 
-use app_domain::combat::validator::validate_tool_call;
+use app_application::agent::tool_decoder::decode_tool_call;
 use app_llm::ToolCall;
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
@@ -56,47 +49,38 @@ pub async fn execute_tool(
     campaign_id: Uuid,
     session_id: Uuid,
 ) -> (Value, bool) {
-    // Phase 1: Validate via domain dispatch table.
-    // M3 NOTE: The validator currently knows only the seven M2 tools. The
-    // eight new tools (set_scene, cast_spell, remember_npc, recall_npc,
-    // journal_append, quick_save, generate_map, generate_illustration,
-    // query_rules) return `UnknownTool`. That is handled gracefully here -
-    // we record the error and return without crashing. Phase D extends the
-    // validator.
-    let validated = match validate_tool_call(&tc.name, tc.args.clone()) {
+    // Decode untrusted LLM JSON once at the application boundary.
+    let command = match decode_tool_call(&tc.name, &tc.args) {
         Ok(v) => v,
         Err(e) => {
             warn!("tool validation failed: {} - {}", tc.name, e);
             return (json!({ "error": e.to_string() }), true);
         }
     };
+    let tool_name = command.tool_name();
+    let args = command.to_args();
 
-    // Phase 2: Execute the validated tool-call.
-    match validated.tool_name.as_str() {
-        "roll_dice" => execute_roll_dice(&validated.args),
-        "apply_damage" => execute_apply_damage(&validated.args, pool).await,
-        "apply_healing" => execute_apply_healing(&validated.args, pool).await,
-        "start_combat" => execute_start_combat(&validated.args, pool, session_id).await,
+    // Transitional dispatch: Task 4 moves each typed variant into a use case.
+    match tool_name {
+        "roll_dice" => execute_roll_dice(&args),
+        "apply_damage" => execute_apply_damage(&args, pool).await,
+        "apply_healing" => execute_apply_healing(&args, pool).await,
+        "start_combat" => execute_start_combat(&args, pool, session_id).await,
         "end_combat" => execute_end_combat(pool).await,
-        "add_token" => execute_add_token(&validated.args, pool).await,
-        "update_token" => execute_update_token(&validated.args, pool).await,
-        "remove_token" => execute_remove_token(&validated.args, pool).await,
-        "set_scene" => execute_set_scene(&validated.args, pool, campaign_id).await,
-        "cast_spell" => execute_cast_spell(&validated.args, pool).await,
-        "remember_npc" => execute_remember_npc(&validated.args, pool, campaign_id).await,
-        "recall_npc" => execute_recall_npc(&validated.args, pool, campaign_id).await,
-        "journal_append" => execute_journal_append(&validated.args, pool, campaign_id).await,
-        "quick_save" => execute_quick_save(&validated.args, pool, session_id).await,
-        "generate_map" => execute_generate_map(&validated.args, image_provider).await,
-        "generate_illustration" => {
-            execute_generate_illustration(&validated.args, image_provider).await
-        }
-        "generate_video" => execute_generate_video(&validated.args, video_provider).await,
-        "query_rules" => execute_query_rules(&validated.args, retriever, embedding_model).await,
-        unknown => (
-            json!({ "error": format!("unhandled tool: {}", unknown) }),
-            true,
-        ),
+        "add_token" => execute_add_token(&args, pool).await,
+        "update_token" => execute_update_token(&args, pool).await,
+        "remove_token" => execute_remove_token(&args, pool).await,
+        "set_scene" => execute_set_scene(&args, pool, campaign_id).await,
+        "cast_spell" => execute_cast_spell(&args, pool).await,
+        "remember_npc" => execute_remember_npc(&args, pool, campaign_id).await,
+        "recall_npc" => execute_recall_npc(&args, pool, campaign_id).await,
+        "journal_append" => execute_journal_append(&args, pool, campaign_id).await,
+        "quick_save" => execute_quick_save(&args, pool, session_id).await,
+        "generate_map" => execute_generate_map(&args, image_provider).await,
+        "generate_illustration" => execute_generate_illustration(&args, image_provider).await,
+        "generate_video" => execute_generate_video(&args, video_provider).await,
+        "query_rules" => execute_query_rules(&args, retriever, embedding_model).await,
+        _ => unreachable!("decoded tool command is exhaustive"),
     }
 }
 
@@ -1509,7 +1493,7 @@ mod query_rules_tests {
     #[tokio::test]
     async fn query_rules_with_retriever_returns_chunks_aligned_by_cosine() {
         let retriever = make_test_retriever();
-        // Since the real embed_player_message uses fastembed (which requires
+        // Since the real embed_player_message uses the embedding adapter (which requires
         // a model file), we test graceful degradation: pass an invalid model
         // name so embed_player_message returns an error, verify embed_error status.
         let args = serde_json::json!({ "question": "attack" });
@@ -1531,7 +1515,7 @@ mod query_rules_tests {
 
     /// Direct wiring test: build retriever, manually produce a matching
     /// query embedding, call retrieve_by_embedding, assert the top result.
-    /// This validates the plumbing without fastembed.
+    /// This validates the plumbing without loading an embedding model.
     #[test]
     fn retriever_returns_best_match_by_cosine() {
         let retriever = make_test_retriever();

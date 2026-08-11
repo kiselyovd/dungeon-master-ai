@@ -3,6 +3,15 @@
 version = 3
 
 [[package]]
+name = "adapter-llm"
+version = "0.12.1"
+dependencies = [
+ "app-domain",
+ "fastembed",
+ "tracing",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -177,17 +186,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "app-application"
+version = "0.12.1"
+dependencies = [
+ "app-domain",
+ "async-trait",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "app-domain"
 version = "0.1.0"
 dependencies = [
- "fastembed",
  "rand 0.10.1",
  "serde",
  "serde_json",
  "serde_yaml",
  "thiserror 2.0.18",
- "tokio",
- "tracing",
  "uuid",
 ]
 
@@ -195,6 +215,7 @@ dependencies = [
 name = "app-llm"
 version = "0.1.0"
 dependencies = [
+ "app-application",
  "async-trait",
  "backon",
  "futures",
@@ -212,7 +233,9 @@ dependencies = [
 name = "app-server"
 version = "0.1.0"
 dependencies = [
+ "adapter-llm",
  "anyhow",
+ "app-application",
  "app-domain",
  "app-llm",
  "app-server",
@@ -222,7 +245,6 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
- "fastembed",
  "futures",
  "iota_stronghold",
  "reqwest 0.13.4",

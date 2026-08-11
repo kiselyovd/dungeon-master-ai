@@ -18,13 +18,14 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
-use uuid::Uuid;
 
 use crate::agent::context_builder::{build_context, compose_system_prompt, needs_rules_context};
 use crate::agent::tool_executor::execute_tool;
 use crate::agent::tools::{classify_handler, tools_for_phase, ToolAvailability};
 use crate::image::provider::ImageProvider;
 use crate::video::provider::VideoProvider;
+
+pub use app_application::models::agent::{AgentEvent, AgentTurnRequest};
 
 /// Configuration for the agent that does not change between turns.
 #[derive(Clone)]
@@ -35,7 +36,7 @@ pub struct AgentConfig {
     pub max_rounds: usize,
     /// Kebab-case embedding model id (e.g. "multilingual-e5-small").
     /// Must match the model used to build the SRD retriever's corpus.
-    /// Resolved against `app_domain::srd::embedder::parse_embedding_model`.
+    /// Resolved by the outbound embedding adapter.
     pub embedding_model: String,
     /// M7-DM: which modality-specific tool definitions to expose to the LLM.
     /// Defaults to all-on for backwards compatibility; the agent route flips
@@ -55,83 +56,12 @@ impl Default for AgentConfig {
             system_prompt: String::new(),
             temperature: 0.7,
             max_rounds: 8,
-            embedding_model: app_domain::srd::embedder::DEFAULT_EMBEDDING_MODEL.into(),
+            embedding_model: adapter_llm::embeddings::DEFAULT_EMBEDDING_MODEL.into(),
             tool_availability: ToolAvailability::all(),
             reasoning_enabled: false,
             reasoning_budget: ReasoningSpec::Medium,
         }
     }
-}
-
-/// Request for a single player turn through the agent.
-pub struct AgentTurnRequest {
-    pub campaign_id: Uuid,
-    pub session_id: Uuid,
-    pub player_message: String,
-    pub history: Vec<ChatMessage>,
-    /// Image attachments for THIS turn (vision). Appended to the current user
-    /// message alongside the text; empty for text-only turns. [M11 F2]
-    pub images: Vec<MessagePart>,
-    /// Pre-formatted snapshot of the live VTT board (scene, round, initiative
-    /// order, each combatant's HP/AC/grid position/conditions) built by the
-    /// frontend and injected into the system context so the DM narrates from
-    /// the actual board - positions after the player drags a token, who is
-    /// bloodied, whose turn it is. `None`/empty outside combat.
-    pub board: Option<String>,
-}
-
-/// Events emitted by the orchestrator, consumed by the SSE handler.
-#[derive(Debug, Clone)]
-pub enum AgentEvent {
-    /// A streaming text token from the LLM.
-    TextDelta { text: String },
-    /// The LLM started a tool-call block.
-    ToolCallStart {
-        id: String,
-        tool_name: String,
-        round: usize,
-    },
-    /// The engine executed the tool-call and this is the result.
-    ToolCallResult {
-        id: String,
-        tool_name: String,
-        args: Value,
-        result: Value,
-        is_error: bool,
-        round: usize,
-        /// M7.5-DM: stable kebab-case label identifying which subsystem ran
-        /// this tool ("engine", "image-provider", ...). The Tool Inspector
-        /// surfaces it as a pill so users can tell engine deterministic
-        /// rolls apart from external provider delegations.
-        handled_by: String,
-    },
-    /// M8-DM: streaming thinking/reasoning text from the LLM. UI renders this
-    /// in a collapsible pill above the assistant bubble.
-    ReasoningText { text: String },
-    /// A `generate_image` tool-call produced an image. Carries the raw bytes
-    /// base64-encoded; emitted on a dedicated event so the blob stays out of
-    /// the LLM history and the `tool_call_result` payload.
-    ImageGenerated {
-        tool_call_id: String,
-        round: usize,
-        mime_type: String,
-        image_b64: String,
-        /// Routing discriminator: "map" paints the VTT board, "chat" renders
-        /// inline in the tool-call card. Derived from the tool name.
-        kind: String,
-    },
-    /// A `generate_video` tool-call produced a video. Carries the raw mp4 bytes
-    /// base64-encoded; emitted on a dedicated event so the blob stays out of
-    /// LLM history. `kind` is always "chat" (video renders inline in the card).
-    VideoGenerated {
-        tool_call_id: String,
-        round: usize,
-        mime_type: String,
-        video_b64: String,
-        kind: String,
-    },
-    /// The agent loop completed.
-    AgentDone { total_rounds: usize },
 }
 
 pub struct AgentOrchestrator {
