@@ -42,7 +42,8 @@ export function VideoStep({ titleId, onBack, onNext }: VideoStepProps) {
     try {
       setVideoEnabled(true);
       setVideoMode('live');
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -56,7 +57,8 @@ export function VideoStep({ titleId, onBack, onNext }: VideoStepProps) {
     setSaveError(null);
     try {
       setVideoEnabled(false);
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));

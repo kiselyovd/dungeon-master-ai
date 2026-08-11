@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from typing import ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
-from backends.protocol import GenerationBackend, PromptParams
+from backends.protocol import PromptParams
 
 
 class SdxlTurboBackend:
@@ -13,7 +13,7 @@ class SdxlTurboBackend:
     modality: ClassVar[Literal["image"]] = "image"
     vram_estimate_bytes: ClassVar[int] = 5 * 1024**3
 
-    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+    def __init__(self, weights_dir: Path | None = None) -> None:
         # The DownloadManager stores diffusers folders at <base>/<hf_repo> and
         # the sidecar is launched with that <base> as --weights-dir. Resolve the
         # model's own subdir so from_pretrained targets the real weights instead

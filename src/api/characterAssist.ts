@@ -1,4 +1,3 @@
-import type { CharacterDraft, PersonalityFlagSlotId, TestChatTurn } from '../state/charCreation';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 import { parseSseEvents } from './sse';
@@ -13,33 +12,34 @@ export type AssistField =
   | 'personality_flag'
   | 'item_name';
 
-export interface FlagContext {
-  slotId: PersonalityFlagSlotId;
+export interface FlagContext<TSlotId extends string = string> {
+  slotId: TSlotId;
   source: 'background' | 'alignment' | 'race';
   sourceLabel: string;
   pool: string[];
 }
 
-interface StreamCommon {
-  draft: CharacterDraft;
+interface StreamCommon<TDraft> {
+  draft: TDraft;
   locale: 'en' | 'ru';
   signal?: AbortSignal | undefined;
   onError: (err: Error) => void;
   onDone: () => void;
 }
 
-export interface StreamCharacterFieldArgs extends StreamCommon {
+export interface StreamCharacterFieldArgs<TDraft = unknown, TSlotId extends string = string>
+  extends StreamCommon<TDraft> {
   field: AssistField;
-  flagContext?: FlagContext | undefined;
+  flagContext?: FlagContext<TSlotId> | undefined;
   onToken: (text: string) => void;
 }
 
-export interface StreamFullCharacterArgs extends StreamCommon {
-  onPatch: (patch: Partial<CharacterDraft>) => void;
+export interface StreamFullCharacterArgs<TDraft = unknown> extends StreamCommon<TDraft> {
+  onPatch: (patch: Partial<TDraft>) => void;
 }
 
-export interface StreamTestChatArgs extends StreamCommon {
-  history: TestChatTurn[];
+export interface StreamTestChatArgs<TDraft = unknown> extends StreamCommon<TDraft> {
+  history: Array<{ role: string; text: string }>;
   userMessage: string;
   onToken: (text: string) => void;
 }
@@ -58,7 +58,7 @@ async function postAssist(body: unknown, signal?: AbortSignal): Promise<Response
 interface AssistEnvelope {
   type: 'token' | 'draft_patch' | 'error' | 'done';
   text?: string;
-  patch?: Partial<CharacterDraft>;
+  patch?: Record<string, unknown>;
   code?: string;
   message?: string;
 }
@@ -116,7 +116,9 @@ function lastSepEnd(s: string): number | null {
   return best;
 }
 
-export async function streamCharacterField(args: StreamCharacterFieldArgs): Promise<void> {
+export async function streamCharacterField<TDraft, TSlotId extends string>(
+  args: StreamCharacterFieldArgs<TDraft, TSlotId>,
+): Promise<void> {
   let resp: Response;
   try {
     const params: Record<string, unknown> = { field: args.field };
@@ -155,7 +157,9 @@ export async function streamCharacterField(args: StreamCharacterFieldArgs): Prom
   }
 }
 
-export async function streamFullCharacter(args: StreamFullCharacterArgs): Promise<void> {
+export async function streamFullCharacter<TDraft>(
+  args: StreamFullCharacterArgs<TDraft>,
+): Promise<void> {
   let resp: Response;
   try {
     resp = await postAssist(
@@ -168,7 +172,7 @@ export async function streamFullCharacter(args: StreamFullCharacterArgs): Promis
   }
   try {
     await consume(resp, (env) => {
-      if (env.type === 'draft_patch' && env.patch) args.onPatch(env.patch);
+      if (env.type === 'draft_patch' && env.patch) args.onPatch(env.patch as Partial<TDraft>);
       else if (env.type === 'error') {
         args.onError(new Error(env.message ?? env.code ?? 'assist error'));
       } else if (env.type === 'done') {
@@ -182,7 +186,7 @@ export async function streamFullCharacter(args: StreamFullCharacterArgs): Promis
   }
 }
 
-export async function streamTestChat(args: StreamTestChatArgs): Promise<void> {
+export async function streamTestChat<TDraft>(args: StreamTestChatArgs<TDraft>): Promise<void> {
   let resp: Response;
   try {
     resp = await postAssist(

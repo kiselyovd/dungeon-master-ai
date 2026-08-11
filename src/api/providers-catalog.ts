@@ -1,4 +1,9 @@
-import type { Capabilities } from '../state/settingsMigration';
+export interface Capabilities {
+  vision_input: boolean;
+  reasoning: boolean;
+  tool_calls: boolean;
+  streaming: boolean;
+}
 
 export interface CuratedModel {
   model_id: string;

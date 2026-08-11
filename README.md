@@ -11,7 +11,7 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
   <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Guided hero creation with class presets and character art" />
 </p>
 
-> **Status: v0.12.0 (real engine).** Real server-rolled combat (initiative,
+> **Status: v0.12.1 (real engine).** Real server-rolled combat (initiative,
 > turn-gating, conditions, damage resistance, spell resolution), SRD rules
 > retrieval (RAG), real scene persistence and saves, and video generation. The
 > app completes end to end: onboard by any preset, create or pick a character,
@@ -23,18 +23,18 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
 ## Features
 
 - **Agentic DM loop.** A multi-round agent turns your message into narration plus tool calls: dice rolls, `start_combat` / `apply_damage` / `apply_healing` / token updates, `set_scene`, `remember_npc` / `recall_npc`, `journal_append`, `quick_save`, and `generate_image`. Tool results feed back into the next round.
-- **Combat VTT.** PixiJS virtual tabletop with draggable tokens, HP/AC chips, condition rings, AoE templates, an initiative tracker, and an action bar that consumes the 5e action economy and posts intents to the DM.
+- **Combat VTT.** PixiJS virtual tabletop with draggable tokens, HP/AC chips, condition rings, AoE templates, an initiative tracker, and an action bar that sends typed commands. The UI updates mechanics only from newer authoritative server revisions.
 - **Character creation.** A full level-1 wizard (class, race, background, abilities by point-buy / standard array / 4d6, skills, spells, equipment, persona, AI-assisted portrait) plus quick preset heroes. Characters commit real combat stats (HP, AC, initiative, speed, proficiency bonus).
 - **Multimodal chat.** Stream narration with reasoning surfaced in a collapsible pill; attach images (vision) to a turn; render tool-call cards inline.
 - **Providers.**
-  - **Local-first:** an embedded `mistralrs` LLM sidecar (Qwen3.5 GGUF, vision capable) and a Python image sidecar (SDXL-Lightning / Z-Image-Turbo / FLUX), spawned and health-probed by the server. Models download from HuggingFace.
+  - **Local-first:** an embedded `mistralrs` LLM sidecar (Qwen3.5 GGUF, vision capable) and a Python image/video sidecar (SDXL-Lightning / Z-Image-Turbo / FLUX / LTX-Video), owned by Tauri and controlled through an authenticated loopback channel. Models download from HuggingFace.
   - **Cloud:** a single generic **OpenAI-compatible** provider. OpenRouter is the recommended hosted aggregator (one key, 100+ models, including Claude). Point it at any `/v1/chat/completions` endpoint - LM Studio, Ollama, llama.cpp, vLLM, Groq, DeepSeek, a LiteLLM proxy, etc. (Native Anthropic was removed in M11; route Claude through OpenRouter.)
 - **Persistence.** SQLite via `sqlx` (campaigns, sessions, messages, snapshots, combat); secrets in an encrypted Stronghold vault; linear saves with quick-save, overwrite, and load. State survives a restart.
 - **Localization.** Full English + Russian UI (react-i18next), Cyrillic-capable body/mono fonts.
 
 ## Stack
 
-- Desktop shell: Tauri v2 (Rust), spawning the `app-server` + model sidecars.
+- Desktop shell: Tauri v2 (Rust), the sole owner of `dmai-server` and optional model/media sidecars.
 - Frontend: React 19 + TypeScript + Vite + Zustand + react-i18next, PixiJS v8, valibot for runtime schemas.
 - Backend: Rust workspace - axum HTTP server; `genai` for the LLM provider abstraction behind an atomic-swappable `RwLock<Arc<ProviderRegistry>>` (chat / image / video slots).
 - Toolchain: Bun (package manager + scripts) + Biome (lint + format).
@@ -44,15 +44,19 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
 
 ```
 crates/
-  app-domain/   D&D 5e rules engine + SRD content loader/embedder
-  app-llm/      LLM provider abstraction (OpenAI-compat, local mistralrs, Mock)
-  app-server/   axum server: agent loop (/agent/turn SSE), combat, saves, journal,
-                NPC memory, settings/v2, providers catalog + discovery, HuggingFace
-                model manifest/download, local-runtime + sidecar lifecycle
-sidecar/        Python image-generation sidecar (diffusers backends)
-src-tauri/      Tauri shell + sidecar binaries
-src/            React app: components, hooks, Zustand state, api clients,
-                locales (en + ru), styles
+  app-domain/       deterministic D&D 5e rules and pure SRD concepts
+  app-application/  use cases, typed models, and inward-owned ports
+  adapter-http/     axum routes, DTO validation, and SSE mapping
+  adapter-sqlite/   SQLx repositories, transactions, and migrations
+  adapter-llm/      concrete LLM and embedding providers
+  adapter-media/    HuggingFace, downloads, image/video, runtime control client
+  adapter-secrets/  Stronghold and test secret stores
+  app-bootstrap/    backend composition and dmai-server entry point
+  app-llm/          compatibility provider facade
+  app-server/       compatibility server/test facade
+sidecar/            Python 3.12 image/video generation process
+src-tauri/          Tauri process owner, runtime control, capabilities, packaging
+src/                React app, feature controllers, projections, UI, locales
 e2e/            Playwright smoke tests (localStorage-backed Tauri mock)
 docs/           architecture + milestone specs/plans (planning dir, gitignored)
 ```
@@ -100,9 +104,12 @@ For CLOUD mode (OpenAI-compatible / OpenRouter) plain `bun run tauri dev` is all
 
 ```bash
 bun run gates        # full set: cargo fmt --check, clippy --all-features, biome ci,
-                     #           tsc, cargo test, vitest, em-dash (mirrors CI's blocking checks)
-bun run gates:fast   # fast subset: cargo fmt --check, biome ci, tsc, em-dash (no compile)
+                     #           architecture, tsc, cargo test, vitest, em-dash
+bun run gates:fast   # fast subset: fmt, biome, architecture, tsc, em-dash
 bun run e2e          # Playwright (its own CI job; not in gates.sh - needs a browser download)
+bun run e2e:tauri    # deterministic real Tauri/WebView smoke
+python -m ruff check sidecar
+python -m pytest sidecar/tests -q
 ```
 
 Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --fast` (seconds), **pre-push** runs the full `gates.sh`. Bypass once with `--no-verify`.
@@ -129,8 +136,8 @@ Current, confirmed issues (see `CHANGELOG.md` for the per-release detail):
 
 - Local GGUF loading crashes after the model loads in a non-TTY context on Windows (upstream `mistralrs`). The default Gemma / ISQ local path works, so prefer an ISQ model id over a raw GGUF on Windows.
 - `mistralrs` reasoning/thinking surfacing is not wired up yet (blocked on upstream).
-- 7 Biome lint warnings are present and accepted (non-null assertions in tests, exhaustive-deps, descending-specificity). They are non-blocking and do not fail the gates.
-- Rendering a generated illustration directly onto the VTT map is deferred; the image is generated and delivered over SSE to a chat tool-call card instead.
+- A small set of accepted Biome diagnostics remains (test-only non-null assertions, exhaustive-deps, descending-specificity, and a configuration deprecation notice). They are non-blocking and do not fail the gates.
+- Local model/media bundles are built separately from the normal cloud-only release matrix; a green cloud bundle does not prove the GPU path.
 - Distribution is unsigned for now: self-signed Windows installers trigger SmartScreen "Unrecognized app" warnings until an EV certificate lands (see `docs/RELEASE.md`).
 
 ## License

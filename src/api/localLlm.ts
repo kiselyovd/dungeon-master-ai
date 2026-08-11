@@ -6,8 +6,23 @@
  * (snake_case) + `crates/app-server/src/routes/local_llm.rs` (download_states).
  */
 
-import type { SystemEntry, UserEntry } from '../state/local_llm/manifest';
 import { backendUrl } from './client';
+
+export interface SystemEntry {
+  id: string;
+  hf_repo: string;
+  hf_filename: string;
+  arch: string;
+  quant: string;
+  size_gb: number;
+  license: string;
+  display_name: string;
+}
+
+export interface UserEntry extends SystemEntry {
+  added_at: string;
+  source: 'hf-search';
+}
 
 export interface DownloadStateWire {
   state: string;

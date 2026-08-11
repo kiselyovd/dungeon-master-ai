@@ -1,6 +1,6 @@
 name: release
 
-# Triggered on `v*` tag push. Builds the cloud-only Tauri bundle on all four
+# Triggered on `v*` tag push. Builds the cloud-only Tauri bundle on all three
 # supported targets, signs `latest.json` via TAURI_SIGNING_PRIVATE_KEY (so
 # the in-app updater works end-to-end), and publishes a GitHub Release with
 # the bundles attached.
@@ -11,9 +11,8 @@ name: release
 # First-GA pet-project releases ship without these; SmartScreen / Gatekeeper
 # show "unidentified developer" until a real cert lands.
 #
-# Local Mode (mistralrs sidecar + Python SDXL sidecar) is intentionally NOT
-# bundled - upstream mistral.rs ships source-only releases as of v0.8.0.
-# Coming back in a future point release. See docs/RELEASE.md.
+# Local Mode binaries are produced by separate manual prebuild workflows and
+# are intentionally not bundled by this cloud-only release job. See docs/RELEASE.md.
 
 on:
   push:

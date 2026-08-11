@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from typing import ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from backends._capabilities import assert_vram_free
-from backends.protocol import GenerationBackend, PromptParams
+from backends.protocol import PromptParams
 
 
 def _patch_nunchaku_zimage_forward(transformer_cls) -> None:
@@ -60,7 +60,7 @@ class ZImageTurboBackend:
     modality: ClassVar[Literal["image"]] = "image"
     vram_estimate_bytes: ClassVar[int] = int(6 * 1024**3)
 
-    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+    def __init__(self, weights_dir: Path | None = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
         self._pipe = None
 

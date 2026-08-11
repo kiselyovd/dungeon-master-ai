@@ -337,14 +337,20 @@ async fn execute_start_combat(
     let combatants = order
         .as_slice()
         .iter()
-        .map(|entry| {
-            Combatant::new(
+        .enumerate()
+        .map(|(index, entry)| {
+            let mut combatant = Combatant::new(
                 entry.id,
                 id_to_name.get(&entry.id.0).cloned().unwrap_or_default(),
                 10,
                 10,
                 10,
-            )
+            );
+            combatant.position = app_domain::combat::types::Position {
+                x: (index % 8) as i32,
+                y: (index / 8) as i32,
+            };
+            combatant
         })
         .collect();
     let projection = CombatProjection {
@@ -360,12 +366,16 @@ async fn execute_start_combat(
         },
         events: Vec::new(),
     };
-    if let Err(e) = store.create(session_id, projection).await {
+    if let Err(e) = store.create(session_id, projection.clone()).await {
         tracing::warn!(error = %e, "persistence failed in execute_start_combat");
         return (json!({ "error": e.to_string() }), true);
     }
     (
-        json!({ "encounter_id": encounter_id.to_string(), "ordered": ordered }),
+        json!({
+            "encounter_id": encounter_id.to_string(),
+            "ordered": ordered,
+            "projection": projection,
+        }),
         false,
     )
 }

@@ -71,7 +71,8 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
     // Read the full settings after the store updates settle in this tick.
     // Zustand updates are synchronous so .getState() now returns the merged shape.
     try {
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setSubmitError(message);

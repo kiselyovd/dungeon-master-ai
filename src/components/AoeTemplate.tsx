@@ -1,4 +1,6 @@
-export type AoeShape = 'cone' | 'sphere' | 'line' | 'cube';
+import type { AoeShape } from '../features/combat/model/types';
+
+export type { AoeShape } from '../features/combat/model/types';
 
 interface Props {
   shape: AoeShape;

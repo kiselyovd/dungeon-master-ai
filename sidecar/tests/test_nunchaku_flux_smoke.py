@@ -8,8 +8,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends.protocol import PromptParams  # noqa: E402
 from backends.nunchaku_flux import NunchakuFluxBackend  # noqa: E402
+from backends.protocol import PromptParams  # noqa: E402
 
 
 @pytest.mark.gpu

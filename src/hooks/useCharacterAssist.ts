@@ -6,7 +6,7 @@ import {
   streamFullCharacter,
   streamTestChat,
 } from '../api/characterAssist';
-import type { CharacterDraft, TestChatTurn } from '../state/charCreation';
+import type { CharacterDraft, PersonalityFlagSlotId, TestChatTurn } from '../state/charCreation';
 import { useStore } from '../state/useStore';
 
 type DirectFieldKey = 'name' | 'backstory' | 'ideals' | 'bonds' | 'flaws' | 'portraitPrompt';
@@ -21,7 +21,10 @@ const FIELD_MAP: Partial<Record<AssistField, DirectFieldKey>> = {
 };
 
 export interface UseCharacterAssist {
-  generateField: (field: AssistField, flagContext?: FlagContext) => Promise<void>;
+  generateField: (
+    field: AssistField,
+    flagContext?: FlagContext<PersonalityFlagSlotId>,
+  ) => Promise<void>;
   surpriseMe: () => Promise<void>;
   runTestChat: (userMessage: string, history: TestChatTurn[]) => Promise<string>;
   cancel: () => void;
@@ -74,7 +77,7 @@ export function useCharacterAssist(): UseCharacterAssist {
   const abortRef = useRef<AbortController | null>(null);
 
   const generateField = useCallback(
-    async (field: AssistField, flagContext?: FlagContext): Promise<void> => {
+    async (field: AssistField, flagContext?: FlagContext<PersonalityFlagSlotId>): Promise<void> => {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
       setIsAssisting(true);

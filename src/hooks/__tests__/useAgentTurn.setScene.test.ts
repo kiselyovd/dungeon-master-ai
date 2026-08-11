@@ -7,17 +7,18 @@ import { useAgentTurn } from '../useAgentTurn';
 // Mock the SSE transport so the test can drive onToolCallResult directly.
 vi.mock('../../api/agent', () => ({
   streamAgentTurn: vi.fn(async (opts: AgentTurnOptions) => {
-    opts.onToolCallStart('tc-1', 'set_scene', 1);
-    opts.onToolCallResult(
-      'tc-1',
-      'set_scene',
-      { title: 'The Sunless Citadel', mode: 'exploration' },
-      { scene_id: 's-1' },
-      false,
-      1,
-      'engine',
-    );
-    opts.onAgentDone(1);
+    opts.onEvent?.({ type: 'tool_call_start', id: 'tc-1', toolName: 'set_scene', round: 1 });
+    opts.onEvent?.({
+      type: 'tool_call_result',
+      id: 'tc-1',
+      toolName: 'set_scene',
+      args: { title: 'The Sunless Citadel', mode: 'exploration' },
+      result: { scene_id: 's-1' },
+      isError: false,
+      round: 1,
+      handledBy: 'engine',
+    });
+    opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
   }),
 }));
 

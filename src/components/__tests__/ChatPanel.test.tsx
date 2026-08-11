@@ -99,9 +99,9 @@ describe('ChatPanel', () => {
   it('runs the full send flow: type, click Send, deltas stream, assistant message lands', async () => {
     const user = userEvent.setup();
     streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
-      opts.onTextDelta('Hello, ');
-      opts.onTextDelta('traveler.');
-      opts.onAgentDone(1);
+      opts.onEvent?.({ type: 'text_delta', text: 'Hello, ' });
+      opts.onEvent?.({ type: 'text_delta', text: 'traveler.' });
+      opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
     });
 
     render(<ChatPanel />);
@@ -219,8 +219,8 @@ describe('ChatPanel', () => {
 
       const user = userEvent.setup();
       streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
-        opts.onTextDelta('reply');
-        opts.onAgentDone(1);
+        opts.onEvent?.({ type: 'text_delta', text: 'reply' });
+        opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
       });
 
       render(<ChatPanel />);
@@ -436,8 +436,8 @@ describe('ChatPanel', () => {
       }));
 
       streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
-        opts.onTextDelta('You strike again!');
-        opts.onAgentDone(1);
+        opts.onEvent?.({ type: 'text_delta', text: 'You strike again!' });
+        opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
       });
 
       render(<ChatPanel />);
@@ -486,8 +486,8 @@ describe('ChatPanel', () => {
       });
       streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
         await streamPending;
-        opts.onTextDelta('You find a key!');
-        opts.onAgentDone(1);
+        opts.onEvent?.({ type: 'text_delta', text: 'You find a key!' });
+        opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
       });
 
       render(<ChatPanel />);
@@ -547,8 +547,8 @@ describe('ChatPanel', () => {
       }));
 
       streamAgentTurnMock.mockImplementation(async (opts: AgentTurnOptions) => {
-        opts.onTextDelta('replayed reply');
-        opts.onAgentDone(1);
+        opts.onEvent?.({ type: 'text_delta', text: 'replayed reply' });
+        opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
       });
 
       render(<ChatPanel />);

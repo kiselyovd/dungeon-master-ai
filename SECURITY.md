@@ -32,5 +32,7 @@ Because this is a hobby / portfolio project, response times are best-effort rath
 - API keys and provider credentials are stored in an encrypted Stronghold vault (`tauri-plugin-stronghold` on the frontend and `iota_stronghold` on the backend), not in plaintext config. The vault lives under the OS-native app data directory.
 - Campaign data (campaigns, sessions, messages, snapshots, combat, journal, NPC memory) is stored locally in a SQLite database via `sqlx`.
 - The app talks to whatever LLM / image endpoint you configure. In cloud mode your prompts and any attached images are sent to that third-party provider; review that provider's privacy terms.
+- Tauri and `dmai-server` communicate with a random per-launch bearer token over a loopback-only runtime-control service. The token is replay-protected, never persisted, and must not appear in logs.
+- Production backend startup requires an explicit vault passphrase source; built-in fallback credentials are not an acceptable production configuration.
 
-Never commit secrets to the repository. The release signing keys and CI secrets are documented in `docs/RELEASE.md` and must stay out of version control.
+Never commit secrets to the repository. Do not log prompts, chat bodies, provider keys, Stronghold values or passphrases, runtime-control tokens, base64 media, or full third-party payloads. The release signing keys and CI secrets are documented in `docs/RELEASE.md` and must stay out of version control.

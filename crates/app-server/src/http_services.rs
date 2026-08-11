@@ -19,7 +19,7 @@ use app_application::ports::repositories::CombatRepository;
 use app_application::settings::{SettingsUpdateError, UpdateSettings};
 use app_domain::combat::combatant::Combatant;
 use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
-use app_domain::combat::types::{CombatantId, DamageType};
+use app_domain::combat::types::{CombatantId, DamageType, Position};
 use app_domain::compendium::compendium;
 use app_domain::dice::{DiceExpr, Die};
 use app_llm::{
@@ -183,6 +183,18 @@ struct AttackActionArgs {
     damage_type: DamageType,
 }
 
+#[derive(Debug, Deserialize)]
+struct ActorActionArgs {
+    combatant_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+struct MoveActionArgs {
+    combatant_id: Uuid,
+    x: i32,
+    y: i32,
+}
+
 #[async_trait]
 impl CombatHttpService for AppStateCombatHttpService {
     async fn start(&self, command: CombatStartCommand) -> Result<Uuid, HttpServiceError> {
@@ -202,24 +214,66 @@ impl CombatHttpService for AppStateCombatHttpService {
         &self,
         command: HttpCombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
-        if command.action_type != "attack" {
-            app_application::agent::tool_decoder::decode_tool_call(
-                &command.action_type,
-                &command.args,
-            )
-            .map_err(|_| HttpServiceError::BadRequest {
-                code: "combat_action_invalid",
-            })?;
-            return Ok(None);
-        }
-        let args: AttackActionArgs =
-            serde_json::from_value(command.args).map_err(|_| HttpServiceError::BadRequest {
-                code: "combat_action_invalid",
-            })?;
-        let damage_expr =
-            parse_damage_dice(&args.damage_dice).ok_or(HttpServiceError::BadRequest {
-                code: "damage_dice_invalid",
-            })?;
+        let action = match command.action_type.as_str() {
+            "attack" => {
+                let args: AttackActionArgs =
+                    serde_json::from_value(command.args).map_err(|_| {
+                        HttpServiceError::BadRequest {
+                            code: "combat_action_invalid",
+                        }
+                    })?;
+                let damage_expr =
+                    parse_damage_dice(&args.damage_dice).ok_or(HttpServiceError::BadRequest {
+                        code: "damage_dice_invalid",
+                    })?;
+                CombatActionCommand::Attack {
+                    attacker: CombatantId(args.attacker_id),
+                    target: CombatantId(args.target_id),
+                    attack_modifier: args.attack_modifier,
+                    damage_expr,
+                    damage_type: args.damage_type,
+                }
+            }
+            "cast" => {
+                let args: ActorActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_action_invalid",
+                    }
+                })?;
+                CombatActionCommand::Cast {
+                    combatant: CombatantId(args.combatant_id),
+                }
+            }
+            "move" => {
+                let args: MoveActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_action_invalid",
+                    }
+                })?;
+                CombatActionCommand::Move {
+                    combatant: CombatantId(args.combatant_id),
+                    to: Position {
+                        x: args.x,
+                        y: args.y,
+                    },
+                }
+            }
+            "end_turn" => {
+                let args: ActorActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_action_invalid",
+                    }
+                })?;
+                CombatActionCommand::EndTurn {
+                    combatant: CombatantId(args.combatant_id),
+                }
+            }
+            _ => {
+                return Err(HttpServiceError::BadRequest {
+                    code: "combat_action_invalid",
+                });
+            }
+        };
         let repository = Arc::new(adapter_sqlite::SqliteStore::new(self.state.db().clone()));
         let result = ResolveCombatAction::new(repository)
             .execute(ResolveCombatCommand {
@@ -229,13 +283,7 @@ impl CombatHttpService for AppStateCombatHttpService {
                 encounter_id: command.encounter_id,
                 expected_revision: command.expected_revision.unwrap_or(0),
                 rng_seed: command.rng_seed.unwrap_or(0),
-                action: CombatActionCommand::Attack {
-                    attacker: CombatantId(args.attacker_id),
-                    target: CombatantId(args.target_id),
-                    attack_modifier: args.attack_modifier,
-                    damage_expr,
-                    damage_type: args.damage_type,
-                },
+                action,
             })
             .await
             .map_err(combat_error)?;
@@ -269,7 +317,8 @@ fn projection_from_start(
     let order = InitiativeOrder::build(initiative);
     let combatants = entries
         .iter()
-        .map(|entry| {
+        .enumerate()
+        .map(|(index, entry)| {
             let mut combatant = Combatant::new(
                 CombatantId(entry.id),
                 entry.name.clone(),
@@ -279,6 +328,10 @@ fn projection_from_start(
             );
             combatant.initiative_roll = entry.roll;
             combatant.dex_mod = entry.dex_mod;
+            combatant.position = Position {
+                x: (index % 8) as i32,
+                y: (index / 8) as i32,
+            };
             combatant
         })
         .collect();
@@ -434,7 +487,14 @@ impl SavesHttpService for AppStateSavesHttpService {
             .await
             .map_err(save_db_error("save_restore_failed"))?
             .ok_or(HttpServiceError::NotFound)?;
-        serde_json::to_value(game_state).map_err(|_| serialization_error())
+        // Fetch the render history before returning from the mutating operation.
+        // The frontend can therefore validate one complete restore projection and
+        // commit it atomically without a fallible GET after backend state changed.
+        let messages =
+            crate::db::list_messages_by_session(self.state.db(), &session_id.to_string())
+                .await
+                .map_err(save_db_error("save_messages_failed"))?;
+        Ok(json!({ "game_state": game_state, "messages": messages }))
     }
 
     async fn update(

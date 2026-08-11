@@ -2,17 +2,9 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-interface ExceptionEntry {
-  rule: string;
-  source: string;
-  target: string;
-  reason: string;
-}
-
 interface ArchitectureConfig {
   version: number;
   rustWorkspaceDependencies: Record<string, string[]>;
-  exceptions: ExceptionEntry[];
 }
 
 interface CargoDependency {
@@ -40,7 +32,7 @@ interface Violation {
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, '..');
-const configPath = resolve(scriptDir, 'architecture-allowlist.json');
+const configPath = resolve(scriptDir, 'architecture-boundaries.json');
 const verbose = process.env.ARCH_CHECK_VERBOSE === '1';
 
 function log(level: 'DEBUG' | 'INFO' | 'ERROR', message: string): void {
@@ -206,37 +198,18 @@ function main(): void {
   const config = JSON.parse(readFileSync(configPath, 'utf8')) as ArchitectureConfig;
   if (config.version !== 1) throw new Error(`unsupported architecture config version ${config.version}`);
 
-  const exceptionKeys = new Set<string>();
-  for (const exception of config.exceptions) {
-    if (!exception.reason.trim()) throw new Error(`exception has no reason: ${violationKey(exception)}`);
-    const key = violationKey(exception);
-    if (exceptionKeys.has(key)) throw new Error(`duplicate exception: ${key}`);
-    exceptionKeys.add(key);
-  }
-
   const violations = [...rustViolations(config), ...frontendViolations()];
-  const violationKeys = new Set(violations.map(violationKey));
-  const unapproved = violations.filter((violation) => !exceptionKeys.has(violationKey(violation)));
-  const stale = config.exceptions.filter((exception) => !violationKeys.has(violationKey(exception)));
-
-  for (const violation of violations) {
-    log('DEBUG', `${exceptionKeys.has(violationKey(violation)) ? 'allowed legacy' : 'violation'} ${violationKey(violation)}`);
-  }
-  for (const violation of unapproved) log('ERROR', `unapproved ${violationKey(violation)}`);
-  for (const exception of stale) log('ERROR', `stale exception ${violationKey(exception)}`);
+  for (const violation of violations) log('ERROR', violationKey(violation));
 
   const durationMs = Math.round(performance.now() - startedAt);
-  if (unapproved.length || stale.length) {
-    log(
-      'ERROR',
-      `failed violations=${unapproved.length} stale_exceptions=${stale.length} duration_ms=${durationMs}`,
-    );
+  if (violations.length) {
+    log('ERROR', `failed violations=${violations.length} duration_ms=${durationMs}`);
     process.exitCode = 1;
     return;
   }
   log(
     'INFO',
-    `passed workspace_crates=${Object.keys(config.rustWorkspaceDependencies).length} legacy_exceptions=${config.exceptions.length} duration_ms=${durationMs}`,
+    `passed workspace_crates=${Object.keys(config.rustWorkspaceDependencies).length} legacy_exceptions=0 duration_ms=${durationMs}`,
   );
 }
 

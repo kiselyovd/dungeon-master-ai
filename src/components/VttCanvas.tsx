@@ -22,6 +22,7 @@ interface Props {
   /** Optional override; when omitted the count is derived from the container height. */
   heightCells?: number;
   cellSize?: number;
+  onMoveToken?: (id: string, x: number, y: number) => void;
 }
 
 /** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */
@@ -40,12 +41,11 @@ function deriveCells(containerPx: number, cellSize: number, override: number | u
   return Math.max(1, Math.floor(containerPx / cellSize));
 }
 
-export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
+export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken }: Props) {
   const { t } = useTranslation('combat');
 
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
-  const tryMoveToken = useStore((s) => s.combat.tryMoveToken);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
@@ -329,7 +329,6 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
 
   return (
     <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: the canvas is a 2D map surface; wheel-zoom and drag-to-pan are pointer-only interactions with no keyboard analogue, and the toolbar buttons provide accessible zoom/fit controls */}
       <div
         className="dm-vtt-canvas"
         onWheel={onWheel}
@@ -373,7 +372,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
               zoom={zoom}
               widthCells={effectiveWidthCells}
               heightCells={effectiveHeightCells}
-              onMoveToken={tryMoveToken}
+              {...(onMoveToken ? { onMoveToken } : {})}
               currentTurnId={currentTurnId}
               aoeTemplates={aoeTemplates}
             />

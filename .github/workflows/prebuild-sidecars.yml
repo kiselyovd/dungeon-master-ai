@@ -1,7 +1,7 @@
 name: prebuild-sidecars
 
 # Builds mistralrs-server from source (EricLBuehler/mistral.rs) for supported
-# supported targets and uploads the binaries as artifacts so the release
+# targets and uploads the binaries as artifacts so a local bundle can stage
 # pipeline can stage them under src-tauri/binaries/ before `tauri build`.
 #
 # CPU-only build: portable, no GPU toolchain required, ships as the default.

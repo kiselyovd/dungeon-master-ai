@@ -12,7 +12,7 @@ import { request } from '@playwright/test';
  * navigates against a warm (sub-second) server.
  */
 export default async function globalSetup(): Promise<void> {
-  const baseURL = 'http://127.0.0.1:1420';
+  const baseURL = `http://127.0.0.1:${process.env.DMAI_E2E_PORT ?? '1420'}`;
   const ctx = await request.newContext({ baseURL });
   try {
     const res = await ctx.get('/', { timeout: 300_000 });

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::conditions::Condition;
-use super::types::CombatantId;
+use super::types::{CombatantId, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBudget {
@@ -85,6 +85,8 @@ pub struct Combatant {
     pub budget: ActionBudget,
     pub death_saves: DeathSaves,
     pub is_dead: bool,
+    #[serde(default)]
+    pub position: Position,
 }
 
 impl Combatant {
@@ -103,6 +105,7 @@ impl Combatant {
             budget: ActionBudget::fresh(30),
             death_saves: DeathSaves::new(),
             is_dead: false,
+            position: Position::default(),
         }
     }
 

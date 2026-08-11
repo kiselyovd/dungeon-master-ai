@@ -10,8 +10,24 @@
  * Mirrors `src/api/localLlm.ts` (the `/local-llm/*` client).
  */
 
-import type { ModelId, RuntimeState, VramStrategy } from '../state/localMode';
 import { backendUrl } from './client';
+
+export type ModelId =
+  | 'qwen3_8b'
+  | 'qwen3_0_6b'
+  | 'gemma4_e2b'
+  | 'gemma4_e4b'
+  | 'qwen3_5_0_8b'
+  | 'qwen3_5_2b'
+  | 'qwen3_5_4b'
+  | 'qwen3_5_9b'
+  | 'sdxl_turbo';
+export type VramStrategy = 'auto-swap' | 'keep-both-loaded' | 'disable-image-gen';
+export type RuntimeState =
+  | { state: 'off' }
+  | { state: 'starting' }
+  | { state: 'ready'; port: number }
+  | { state: 'failed'; reason: string };
 
 /** Wire shape of `GET /local/runtime/status` (backend `RegistrySnapshot`). */
 export interface LocalRuntimeSnapshot {

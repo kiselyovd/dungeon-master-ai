@@ -90,9 +90,12 @@ impl ResolveCombatAction {
                 damage_expr,
                 damage_type,
             },
+            CombatActionCommand::Cast { combatant } => CombatAction::Cast { combatant },
+            CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
+            CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
         };
         let events = resolver.resolve(action)?;
-        replace_resolved_state(&mut projection, resolver.combatants, events);
+        replace_resolved_state(&mut projection, resolver.combatants, resolver.order, events);
 
         self.repository
             .compare_and_set(command.expected_revision, projection.clone())

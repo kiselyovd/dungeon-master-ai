@@ -7,6 +7,7 @@ import {
   fetchSessionMessages,
   fetchSessionSaves,
   quickSaveSession,
+  restoreSave,
 } from '../saves';
 
 vi.mock('../client', () => ({
@@ -153,6 +154,44 @@ describe('saves API', () => {
       vi.fn(async () => new Response('', { status: 404 })),
     );
     await expect(deleteSaveById('missing')).rejects.toBeInstanceOf(ChatError);
+  });
+
+  it('restoreSave validates and returns the complete atomic projection envelope', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              game_state: { schema_version: 2, combat: null, scene: null },
+              messages: [{ role: 'assistant', content: 'Restored' }],
+            }),
+            { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
+          ),
+      ),
+    );
+
+    await expect(restoreSave('save-1', 'session-1')).resolves.toEqual({
+      game_state: { schema_version: 2, combat: null, scene: null },
+      messages: [{ role: 'assistant', content: 'Restored' }],
+    });
+  });
+
+  it('restoreSave rejects malformed message roles', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ game_state: { schema_version: 2 }, messages: [{ role: 'owner' }] }),
+            { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
+          ),
+      ),
+    );
+
+    await expect(restoreSave('save-1', 'session-1')).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
   });
 
   describe('fetchSessionMessages', () => {

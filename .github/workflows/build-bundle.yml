@@ -1,11 +1,11 @@
 name: build-bundle
 
-# Per-push verification that the cloud-only Tauri bundle builds on all four
+# Per-push verification that the cloud-only Tauri bundle builds on all three
 # supported targets. Local Mode (mistralrs sidecar + Python SDXL sidecar)
 # is intentionally skipped here - upstream EricLBuehler/mistral.rs publishes
 # source-only releases as of v0.8.0, and the Python sidecar pulls torch +
 # diffusers (~5 GB) which would balloon CI time. Both come back in a future
-# point release once a real binary plan lands. See docs/RELEASE.md.
+# Local-runtime binaries are verified by separate manual workflows. See docs/RELEASE.md.
 
 on:
   pull_request:

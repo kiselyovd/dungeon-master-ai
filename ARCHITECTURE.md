@@ -1,109 +1,105 @@
 # Architecture
 
-A high-level tour of how Dungeon Master AI is put together. For setup and the development workflow, see [CONTRIBUTING.md](CONTRIBUTING.md); for the feature list and shipped status, see [README.md](README.md).
+Dungeon Master AI uses Explicit Architecture: game rules and application contracts sit at the center, while HTTP, persistence, model providers, media runtimes, Tauri, and React are adapters around them. For setup and verification, see [CONTRIBUTING.md](CONTRIBUTING.md). The mechanically enforced dependency policy lives in [`.ai-factory/ARCHITECTURE.md`](.ai-factory/ARCHITECTURE.md).
 
-## The big picture
+## Runtime topology
 
-Dungeon Master AI is a Tauri v2 desktop app. The Tauri (Rust) shell renders a React frontend in a webview and, at startup, spawns a local `axum` HTTP backend (`dmai-server`). On demand it can also spawn two model sidecars: a `mistralrs` LLM process (local text/vision generation) and a Python image-generation sidecar (diffusers). The frontend never talks to model runtimes directly; it talks to `dmai-server`, which owns provider selection, the agentic DM loop, combat, persistence, and sidecar lifecycle.
+```text
+React WebView -- HTTP/SSE --> dmai-server
+      ^                         |
+      |                         | authenticated loopback control
+      |                         v
+Tauri shell --------------> runtime-control
+      |                         |
+      +-- owns dmai-server      +-- requests start/stop/status
+      +-- owns mistralrs-server
+      +-- owns dmai-image-sidecar
 
-```
-+----------------------------------------------------------------+
-|  Tauri shell (src-tauri/, Rust)                                |
-|                                                                |
-|  +--------------------------+      spawns       +-----------+  |
-|  |  Webview: React frontend |  <-- HTTP/SSE -->  | dmai-server |
-|  |  (src/)                  |                    | (app-server)|
-|  +--------------------------+                    +-----+-----+  |
-|                                                       |        |
-|                            spawns + health-probes     |        |
-|                       +-------------------------------+        |
-|                       v                       v                |
-|              +------------------+   +----------------------+   |
-|              | mistralrs sidecar|   | Python image sidecar |   |
-|              | (local LLM)      |   | (diffusers backends) |   |
-|              +------------------+   +----------------------+   |
-+----------------------------------------------------------------+
-                       |  SQLite (sqlx)  +  Stronghold vault (secrets)
+dmai-server --> SQLite adapter
+dmai-server --> Stronghold adapter
 ```
 
-## Rust workspace
+Tauri is the only production process owner. It starts `dmai-server`, exposes an authenticated loopback runtime-control service, owns model/media child handles, and performs shutdown. The random control token is passed to the backend for the current launch only and is neither persisted nor logged. Cloud bundles declare only `dmai-server`; local bundles also declare `mistralrs-server` and `dmai-image-sidecar`.
 
-The Cargo workspace (`Cargo.toml`) has three library crates plus the Tauri binary crate.
+## Rust dependency direction
 
-### `crates/app-domain` - rules engine + SRD content
+```text
+app-domain <- app-application <- adapter-http
+                           ^  <- adapter-sqlite
+                           ^  <- adapter-llm
+                           ^  <- adapter-media
+                           ^  <- adapter-secrets
+                           ^  <- app-bootstrap
 
-Pure domain logic with no I/O of its own.
+src-tauri -> app-application runtime contracts
+```
 
-- `combat/` - the D&D 5e combat engine: `initiative`, `action_economy`, `conditions`, `damage`, `healing`, `attack`, `ability_check`, `saving_throw`, the `turn_fsm` turn state machine, the top-level `resolver`, a `validator` (dispatch table for combat tool calls), and `result_events` for emitting structured outcomes.
-- `dice.rs` / `rng.rs` - dice expression evaluation and a seedable RNG.
-- `srd/` - the SRD content pipeline: a `loader` and `data` for SRD rules/spells/monsters/classes, an `embedder` (fastembed-backed; default `multilingual-e5-small` for RU+EN), and a cosine-similarity `retriever` (`SrdRetriever`) used for rules RAG.
-- `compendium/` - the spell/monster compendium (`loader`, `types`, bundled `data`) consulted during spell resolution.
-- `local_llm/` - the local model `manifest` (which models the app can download and run).
+- `app-domain`: deterministic D&D rules, dice, combat invariants, and pure SRD retrieval. It has no transport, persistence, provider, process, or raw JSON tool-decoding responsibility.
+- `app-application`: use cases, typed commands/events, protocol-neutral models, and inward-owned ports. Agent turns, combat resolution, settings updates, and atomicity policy live here.
+- `adapter-http`: Axum routes, wire DTO validation, error mapping, and SSE serialization. Handlers delegate to an injected service bundle.
+- `adapter-sqlite`: SQLx pool, migrations, row mapping, transactions, and repository implementations.
+- `adapter-llm`: concrete `genai`, OpenAI-compatible, local mistralrs, retry, mock, and embedding implementations.
+- `adapter-media`: Hugging Face, downloads, image/video providers, local runtime protocol, and the Tauri runtime-control client.
+- `adapter-secrets`: Stronghold, legacy-secret migration, and the in-memory test implementation.
+- `app-bootstrap`: backend configuration, paths, telemetry, adapter construction, and Axum startup. It produces the stable `dmai-server` binary and `APP_SERVER_LISTENING port=...` readiness line.
+- `src-tauri`: desktop delivery adapter and sole child-process owner.
 
-### `crates/app-llm` - LLM provider abstraction
+`app-llm` remains a compatibility facade for stable provider imports and test doubles. `app-server` remains a compatibility facade for its stable public test helpers and backend package surface. Neither owns application policy or concrete composition.
 
-The `LlmProvider` trait (`provider.rs`) plus its implementations, all built on the `genai` crate:
+## Frontend dependency direction
 
-- `openai_compat.rs` - the single generic OpenAI-compatible provider (OpenRouter, LM Studio, Ollama, vLLM, Groq, DeepSeek, and so on).
-- `mistralrs_provider.rs` - the local `mistralrs` provider, talking to the spawned sidecar.
-- `mock.rs` - a `MockProvider` used throughout tests.
-- Supporting modules: `genai_common` (shared mapping), `retry` (backoff), and `sidecar_launcher`.
+```text
+main.tsx -> app -> features -> state/api -> validated wire contracts
+                   |
+                   +-> components and ui presentation
 
-The shared types (`ChatMessage`, `MessagePart` for text/image, `ChatRequest`, `ChatChunk`, `ToolCall`, `FinishReason`, `ReasoningSpec`, `LlmError`) live here so both the providers and the server agree on the wire shape. Vision support is a per-provider capability flag.
+ui -> reusable primitives only
+```
 
-### `crates/app-server` - the backend (`dmai-server`)
+- `src/main.tsx` initializes global styles and localization, then mounts `src/app/bootstrap.tsx`.
+- `src/app/` is the composition layer. It wires Zustand-backed ports and shell controllers to feature use cases.
+- `src/features/` owns feature models and controllers. Features cannot import `app` or another feature's internals.
+- `src/api/` owns HTTP/SSE transport, runtime validation, and wire mapping. It cannot import Zustand or React components.
+- `src/state/` stores projections and local presentation state. It cannot import React components.
+- `src/ui/` contains reusable primitives and cannot import app, features, state, or API modules.
 
-An `axum` HTTP server. It owns all application state and exposes the API the frontend uses.
+Combat is server-authoritative. The frontend sends typed commands and replaces its combat projection only when a newer server revision arrives. It does not calculate or optimistically commit HP, conditions, initiative, movement legality, rounds, turns, or action economy.
 
-- `state.rs` - `AppState`. The active providers across all three modalities are consolidated into a single `registry: RwLock<Arc<ProviderRegistry>>` so a settings change can install a fully-built registry in one atomic swap without tearing down `AppState`. It also holds the SRD retriever, agent config, secrets repo, models dir, and local-mode config behind `RwLock`s, plus the `RuntimeRegistry` for sidecars.
-- `providers/` - the `ProviderRegistry` (chat / image / video slots; chat is always present, image and video are optional), a `catalog` of curated providers and models, and a `discovery/` subsystem for dynamic model discovery.
-- `agent/` - the agentic DM loop (see below): `orchestrator`, `context_builder`, `tools` (definitions + availability flags), and `tool_executor`.
-- `routes/` - the HTTP surface: `agent` (`/agent/turn` SSE), `chat`, `combat`, `saves`, `journal`, `npc`, `messages`, `settings/` (settings v2), `providers`, `srd`, `hf` (HuggingFace), `image`, `video`, `local_llm`, `local_mode`, `character_assist`, and `health`.
-- `image/` - the `ImageProvider` trait, a Replicate provider, a local-sidecar path, a result `cache`, and `retry`.
-- `video/` - the `VideoProvider` trait and the video sidecar integration.
-- `local_runtime/` - sidecar lifecycle: free-`port` discovery, `process_launcher`, `health` probing with backoff, a per-process `runtime` state machine, and a `RuntimeRegistry` aggregating the LLM and image runtimes.
-- `models/` - the model `manifest`, `download` manager (resumable HTTP Range + sha256 verify), and `manager`.
-- `hf/` - the HuggingFace `client`, tree-API `compat` walker, `manifest`, and `types` for browsing and downloading models.
-- `secrets/` - the `SecretsRepo` trait, a `stronghold` implementation (`iota_stronghold`), and a one-shot `migrate` step that drains any pre-existing plaintext secrets into the vault.
-- `db.rs` + `migrations/` - SQLite persistence via `sqlx` (campaigns, sessions, messages, snapshots, combat encounters and tokens, scenes, journal entries, NPC memory).
+Save restoration is atomic in the frontend: the restore response is validated and converted into a complete session projection before one Zustand commit. Secrets, chat streams, combat projections, and base64 media are excluded from normal persisted frontend state.
 
-### `src-tauri` - the Tauri shell
+## Stable contracts
 
-The desktop binary: window/config (`tauri.conf.json`), `build.rs`, capabilities, icons, and the bundled sidecar binaries under `binaries/` (Tauri `externalBin`). It launches `dmai-server` and wires the Stronghold and updater plugins.
+Refactors must preserve:
 
-## Frontend (`src/`)
+- registered HTTP paths, status behavior, JSON envelopes, and `/agent/turn` request mapping;
+- SSE event names: `reasoning_text`, `image_generated`, `text_delta`, `tool_call_start`, `tool_call_result`, `video_generated`, and `agent_done`;
+- SQLite migration history and existing data;
+- Stronghold key names and non-disclosure behavior;
+- Tauri command `backend_port`, events `backend-ready` and `backend-exited`, external binary names, and the backend readiness line;
+- English/Russian visible product behavior while leaving machine contracts untranslated.
 
-React 19 + TypeScript + Vite.
+## Media runtime
 
-- `components/` - the UI: the chat panel and message bubbles, the PixiJS VTT (`VttCanvas`, `CombatOverlay`, `CombatToken`, `AoeTemplate`, `InitiativeTracker`, `ActionBar`), the character wizard and sheet, settings and onboarding flows, model-download and runtime-status UI, the journal and NPC memory views, and tool-call cards / inspector.
-- `state/` - Zustand stores (chat, combat, conditions, pc, npc, journal, saves, session, settings, providers, local mode/LLM, tool log), with a split-storage persistence adapter (`persistStorage`) and a Stronghold-backed secrets store. Provider configs and API keys go to the encrypted vault; non-sensitive prefs go to `settings.json`.
-- `api/` - typed clients for the backend (`agent`, `chat`, `combat` via `saves`/`srd`/etc.), an `sse` helper for streaming, valibot `schemas` for runtime validation, and the base `client`.
-- `hooks/` - React hooks that drive flows: `useAgentTurn`, `useSession`, `useChat`, `useModelDownload`, `useLocalRuntimeStatus`, `useUpdater`, `useDiscoverProvider`, combat tool handlers, and more.
-- `locales/en` + `locales/ru` - full English and Russian translations (react-i18next).
-- `styles/` - design tokens and CSS Modules.
+The Python 3.12 sidecar exposes `/healthz`, `/backends`, `/generate`, `/unload`, and `/video/generate`, and prints `LISTENING_ON_PORT=<n>` on startup. Its media contract is versioned. Image and video pipeline operations are serialized for single-GPU safety. GPU tests are opt-in with `RUN_GPU_TESTS=1`; normal CI runs Ruff and offline pytest without downloading models.
 
-## Python image sidecar (`sidecar/`)
+## Security and logging
 
-A FastAPI + diffusers process. `app.py` prints `LISTENING_ON_PORT=<n>` as its first stdout line; the Rust `LocalRuntime` parses that and probes `/healthz`. It exposes image and video generation endpoints over SSE. Backends include SDXL-Lightning (the recommended default), Z-Image-Turbo, and Nunchaku FLUX (optional). See `sidecar/README.md` for install details and the GPU/CUDA notes.
+Provider credentials stay in Stronghold. Production startup requires an explicit vault passphrase source. Runtime-control bearer tokens are random per launch, loopback-only, replay-protected, and redacted.
 
-## Persistence and secrets
+Logs may include safe IDs, event kinds, revisions, lifecycle states, ports, counts, and durations. They must never contain prompts, chat content, request/response bodies, API keys, vault values or passphrases, runtime-control tokens, base64 media, or full third-party payloads.
 
-- Campaign and session data: a local SQLite database via `sqlx`, schema-managed by the `migrations/` directory.
-- Secrets (provider API keys): an encrypted Stronghold vault, never plaintext. The frontend uses `tauri-plugin-stronghold`; the backend uses `iota_stronghold` and reopens the snapshot on startup, so a sidecar restart does not require the frontend to re-deliver keys.
+## Enforcement and verification
 
-## The provider registry
+`bun run architecture:check` combines `cargo metadata --no-deps` workspace allowlists with frontend import checks. The configuration has no legacy exceptions. `scripts/gates.sh` runs the architecture check as part of both fast and full gates.
 
-All three modalities live in one `ProviderRegistry` struct with `chat`, `image`, and `video` slots (each an `Arc<dyn _>`; chat is required, image and video are `Option`). The registry sits behind `RwLock<Arc<ProviderRegistry>>` in `AppState`. When the user saves settings, the server builds a brand-new registry and swaps the `Arc` atomically, so in-flight requests holding the old `Arc` finish cleanly while new requests pick up the new providers. This is how cloud/local provider switches happen with no restart.
+```bash
+bun run architecture:check
+bun run gates
+bun run e2e
+bun run e2e:tauri
+bun run tauri:build:cloud
+python -m ruff check sidecar
+python -m pytest sidecar/tests -q
+```
 
-## The agentic DM loop
-
-A single player turn flows through `agent/orchestrator.rs`, which runs up to `max_rounds` rounds of: stream the LLM, collect any tool calls, execute them against the engine, feed the results back, repeat. The orchestrator emits `AgentEvent`s to a channel; the `/agent/turn` route converts those to SSE events for the frontend.
-
-One turn, step by step:
-
-1. The frontend posts the player message (and any attached images) to `POST /agent/turn` and opens an SSE stream (`useAgentTurn`).
-2. `context_builder` assembles the prompt: the DM system prompt, recent chat history, the current scene, relevant NPC memory, and - when the message needs rules - SRD passages retrieved by `SrdRetriever` (RAG).
-3. The orchestrator calls the active chat provider from the registry, streaming narration tokens (and reasoning, when enabled) back over SSE as they arrive.
-4. If the model emits tool calls (for example `roll_dice`, `start_combat`, `apply_damage`, `set_scene`, `remember_npc` / `recall_npc`, `journal_append`, `quick_save`, `generate_map` / `generate_illustration`, `query_rules`), `tool_executor` runs each one. Combat tools go through the `app-domain` resolver; persistence tools hit SQLite; media tools call the image/video providers.
-5. Tool results are appended to the conversation and the loop runs another round so the model can narrate the outcome. The set of exposed tools is filtered by `ToolAvailability` (image/video tools drop out when those modalities are disabled in settings; core tools like `roll_dice` are always present).
-6. The loop ends when the model returns a final narration with no further tool calls, or when `max_rounds` is reached. The frontend renders streamed narration, inline tool-call cards, and any generated images/video.
+Focused tests, full gates, mocked Playwright, real Tauri/WebView, local-model/GPU smoke, cloud bundle builds, remote CI, and release/deployment evidence are reported separately.

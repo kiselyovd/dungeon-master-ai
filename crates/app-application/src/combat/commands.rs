@@ -1,4 +1,4 @@
-use app_domain::combat::types::{CombatantId, DamageType};
+use app_domain::combat::types::{CombatantId, DamageType, Position};
 use app_domain::dice::DiceExpr;
 use uuid::Uuid;
 
@@ -10,6 +10,16 @@ pub enum CombatActionCommand {
         attack_modifier: i32,
         damage_expr: DiceExpr,
         damage_type: DamageType,
+    },
+    Cast {
+        combatant: CombatantId,
+    },
+    Move {
+        combatant: CombatantId,
+        to: Position,
+    },
+    EndTurn {
+        combatant: CombatantId,
     },
 }
 

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use thiserror::Error;
 
-use super::action_economy::consume_action;
+use super::action_economy::{consume_action, consume_movement_ft};
 use super::attack::{roll_attack, AttackOutcome};
 use super::combatant::Combatant;
 use super::conditions::AttackModifier;
 use super::damage::{apply_damage_to_combatant, DamageResistance};
 use super::initiative::InitiativeOrder;
-use super::result_events::{DamageApplication, DiceRoll, ResultEvents};
-use super::types::{ActionKind, CombatantId, DamageType};
+use super::result_events::{DamageApplication, DiceRoll, MovementEvent, ResultEvents};
+use super::types::{ActionKind, CombatantId, DamageType, Position};
 use crate::dice::{roll_expr_detailed, DiceExpr};
 use crate::rng::SeededRng;
 
@@ -27,6 +27,8 @@ pub enum ValidationError {
     TargetNotFound,
     #[error("attacker not found")]
     AttackerNotFound,
+    #[error("combatant not found")]
+    CombatantNotFound,
 }
 
 pub enum CombatAction {
@@ -37,7 +39,16 @@ pub enum CombatAction {
         damage_expr: DiceExpr,
         damage_type: DamageType,
     },
-    // M3 will add: CastSpell, Move, Dash, Disengage, Dodge, UseItem, Improvised
+    Cast {
+        combatant: CombatantId,
+    },
+    Move {
+        combatant: CombatantId,
+        to: Position,
+    },
+    EndTurn {
+        combatant: CombatantId,
+    },
 }
 
 pub struct CombatResolver {
@@ -70,7 +81,68 @@ impl CombatResolver {
                 damage_expr,
                 damage_type,
             } => self.resolve_attack(attacker, target, attack_modifier, damage_expr, damage_type),
+            CombatAction::Cast { combatant } => self.resolve_cast(combatant),
+            CombatAction::Move { combatant, to } => self.resolve_move(combatant, to),
+            CombatAction::EndTurn { combatant } => self.resolve_end_turn(combatant),
         }
+    }
+
+    fn require_current(&self, combatant: CombatantId) -> Result<(), ValidationError> {
+        if self.order.current().id != combatant {
+            return Err(ValidationError::NotYourTurn);
+        }
+        Ok(())
+    }
+
+    fn resolve_cast(&mut self, combatant: CombatantId) -> Result<ResultEvents, ValidationError> {
+        self.require_current(combatant)?;
+        let actor = self
+            .combatants
+            .get_mut(&combatant)
+            .ok_or(ValidationError::CombatantNotFound)?;
+        consume_action(&mut actor.budget, ActionKind::Action)
+            .map_err(|error| ValidationError::ActionEconomy(error.to_string()))?;
+        Ok(ResultEvents::default())
+    }
+
+    fn resolve_move(
+        &mut self,
+        combatant: CombatantId,
+        to: Position,
+    ) -> Result<ResultEvents, ValidationError> {
+        self.require_current(combatant)?;
+        let actor = self
+            .combatants
+            .get_mut(&combatant)
+            .ok_or(ValidationError::CombatantNotFound)?;
+        let from = actor.position;
+        let feet_used = from.distance_ft(to);
+        consume_movement_ft(&mut actor.budget, feet_used)
+            .map_err(|error| ValidationError::ActionEconomy(error.to_string()))?;
+        actor.position = to;
+        let mut events = ResultEvents::default();
+        events.movement.push(MovementEvent {
+            combatant,
+            from,
+            to,
+            feet_used,
+        });
+        Ok(events)
+    }
+
+    fn resolve_end_turn(
+        &mut self,
+        combatant: CombatantId,
+    ) -> Result<ResultEvents, ValidationError> {
+        self.require_current(combatant)?;
+        self.order.advance();
+        let next = self.order.current().id;
+        let actor = self
+            .combatants
+            .get_mut(&next)
+            .ok_or(ValidationError::CombatantNotFound)?;
+        actor.budget.refresh_for_new_turn(actor.speed_ft);
+        Ok(ResultEvents::default())
     }
 
     fn resolve_attack(

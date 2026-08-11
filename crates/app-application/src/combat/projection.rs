@@ -30,6 +30,7 @@ pub fn resolver_state(
 pub fn replace_resolved_state(
     projection: &mut CombatProjection,
     combatants: HashMap<CombatantId, Combatant>,
+    order: InitiativeOrder,
     events: app_domain::combat::result_events::ResultEvents,
 ) {
     projection.revision += 1;
@@ -39,5 +40,8 @@ pub fn replace_resolved_state(
         .iter()
         .filter_map(|entry| combatants.get(&entry.id).cloned())
         .collect();
+    projection.snapshot.round = order.round();
+    projection.snapshot.current_combatant = (!order.is_empty()).then(|| order.current().id);
+    projection.snapshot.initiative = order.as_slice().to_vec();
     projection.events = vec![events];
 }

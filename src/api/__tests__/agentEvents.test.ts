@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type AgentTurnOptions, streamAgentTurn } from '../agent';
+import { type AgentEvent, streamAgentTurn } from '../agent';
 import { setBackendPortForTesting } from '../client';
 
 const encoder = new TextEncoder();
@@ -16,28 +16,35 @@ function streamingResponse(chunks: string[]): Response {
   );
 }
 
-function callbacks(
-  events: string[],
-): Pick<
-  AgentTurnOptions,
-  | 'onTextDelta'
-  | 'onToolCallStart'
-  | 'onToolCallResult'
-  | 'onAgentDone'
-  | 'onReasoningDelta'
-  | 'onImageGenerated'
-  | 'onVideoGenerated'
-> {
-  return {
-    onTextDelta: (text) => events.push(`text:${text}`),
-    onToolCallStart: (id, toolName, round) => events.push(`tool-start:${id}:${toolName}:${round}`),
-    onToolCallResult: (id, toolName, _args, _result, isError, round, handledBy) =>
-      events.push(`tool-result:${id}:${toolName}:${isError}:${round}:${handledBy}`),
-    onAgentDone: (rounds) => events.push(`done:${rounds}`),
-    onReasoningDelta: (text) => events.push(`reasoning:${text}`),
-    onImageGenerated: (url, toolCallId, kind) => events.push(`image:${toolCallId}:${kind}:${url}`),
-    onVideoGenerated: (url, toolCallId, kind) => events.push(`video:${toolCallId}:${kind}:${url}`),
-  };
+function captureEvent(events: string[], event: AgentEvent): void {
+  switch (event.type) {
+    case 'text_delta':
+      events.push(`text:${event.text}`);
+      break;
+    case 'reasoning_text':
+      events.push(`reasoning:${event.text}`);
+      break;
+    case 'tool_call_start':
+      events.push(`tool-start:${event.id}:${event.toolName}:${event.round}`);
+      break;
+    case 'tool_call_result':
+      events.push(
+        `tool-result:${event.id}:${event.toolName}:${event.isError}:${event.round}:${event.handledBy}`,
+      );
+      break;
+    case 'image_generated':
+    case 'video_generated':
+      events.push(
+        `${event.type === 'image_generated' ? 'image' : 'video'}:${event.toolCallId}:${event.kind}:${event.dataUrl}`,
+      );
+      break;
+    case 'agent_done':
+      events.push(`done:${event.totalRounds}`);
+      break;
+    case 'done':
+    case 'error':
+      break;
+  }
 }
 
 async function consume(chunks: string[], events: string[]): Promise<void> {
@@ -51,7 +58,7 @@ async function consume(chunks: string[], events: string[]): Promise<void> {
     sessionId: 'session-1',
     playerMessage: 'advance',
     history: [],
-    ...callbacks(events),
+    onEvent: (event) => captureEvent(events, event),
   });
 }
 
@@ -143,7 +150,7 @@ describe('streamAgentTurn event framing', () => {
         sessionId: 'session-1',
         playerMessage: 'advance',
         history: [],
-        ...callbacks(events),
+        onEvent: (event) => captureEvent(events, event),
       }),
     ).rejects.toMatchObject({ code: 'aborted' });
     expect(events).toEqual([]);

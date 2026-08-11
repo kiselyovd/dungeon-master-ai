@@ -33,8 +33,88 @@ export interface CreateSaveRequest {
   tag: SaveTag;
 }
 
-interface CreateSaveResponse {
-  id: string;
+export interface RestoreSaveResponse {
+  game_state: unknown;
+  messages: SessionMessageWire[];
+}
+
+function invalidResponse(label: string): never {
+  throw new ChatError('invalid_response', `${label} response is invalid`);
+}
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) invalidResponse(label);
+  return value as Record<string, unknown>;
+}
+
+function stringField(value: unknown, label: string): string {
+  if (typeof value !== 'string') invalidResponse(label);
+  return value;
+}
+
+function numberField(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) invalidResponse(label);
+  return value;
+}
+
+function parseSaveSummary(value: unknown): SaveSummary {
+  const row = record(value, 'save');
+  const kind = stringField(row.kind, 'save.kind');
+  const tag = stringField(row.tag, 'save.tag');
+  if (kind !== 'manual' && kind !== 'auto' && kind !== 'checkpoint') invalidResponse('save.kind');
+  if (tag !== 'combat' && tag !== 'exploration' && tag !== 'dialog' && tag !== 'npc') {
+    invalidResponse('save.tag');
+  }
+  return {
+    id: stringField(row.id, 'save.id'),
+    session_id: stringField(row.session_id, 'save.session_id'),
+    kind,
+    title: stringField(row.title, 'save.title'),
+    summary: stringField(row.summary, 'save.summary'),
+    tag,
+    created_at: stringField(row.created_at, 'save.created_at'),
+    turn_number: numberField(row.turn_number, 'save.turn_number'),
+  };
+}
+
+function parseMessage(value: unknown): SessionMessageWire {
+  const message = record(value, 'message');
+  const role = stringField(message.role, 'message.role');
+  if (
+    role !== 'user' &&
+    role !== 'assistant' &&
+    role !== 'system' &&
+    role !== 'assistant_with_tool_calls' &&
+    role !== 'tool_result'
+  ) {
+    invalidResponse('message.role');
+  }
+  const parsed: SessionMessageWire = { role };
+  if (message.content !== undefined)
+    parsed.content = stringField(message.content, 'message.content');
+  if (message.parts !== undefined) {
+    if (!Array.isArray(message.parts)) invalidResponse('message.parts');
+    parsed.parts = message.parts.map((partValue) => {
+      const part = record(partValue, 'message.part');
+      const parsedPart: NonNullable<SessionMessageWire['parts']>[number] = {
+        type: stringField(part.type, 'message.part.type'),
+      };
+      if (part.text !== undefined) parsedPart.text = stringField(part.text, 'message.part.text');
+      if (part.mime !== undefined) parsedPart.mime = stringField(part.mime, 'message.part.mime');
+      if (part.data_b64 !== undefined) {
+        parsedPart.data_b64 = stringField(part.data_b64, 'message.part.data_b64');
+      }
+      if (part.name === null) parsedPart.name = null;
+      else if (part.name !== undefined)
+        parsedPart.name = stringField(part.name, 'message.part.name');
+      return parsedPart;
+    });
+  }
+  if (message.tool_calls !== undefined) {
+    if (!Array.isArray(message.tool_calls)) invalidResponse('message.tool_calls');
+    parsed.tool_calls = message.tool_calls;
+  }
+  return parsed;
 }
 
 async function readError(resp: Response, label: string): Promise<ChatError> {
@@ -52,7 +132,9 @@ export async function fetchSessionSaves(sessionId: string): Promise<SaveSummary[
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves`);
   const resp = await fetch(url);
   if (!resp.ok) throw await readError(resp, 'list saves');
-  return (await resp.json()) as SaveSummary[];
+  const json: unknown = await resp.json();
+  if (!Array.isArray(json)) invalidResponse('list saves');
+  return json.map(parseSaveSummary);
 }
 
 export async function createSave(
@@ -66,23 +148,24 @@ export async function createSave(
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw await readError(resp, 'create save');
-  const json = (await resp.json()) as CreateSaveResponse;
-  return { id: json.id };
+  const json = record(await resp.json(), 'create save');
+  return { id: stringField(json.id, 'create save.id') };
 }
 
 export async function quickSaveSession(sessionId: string): Promise<{ id: string }> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves/quick`);
   const resp = await fetch(url, { method: 'POST' });
   if (!resp.ok) throw await readError(resp, 'quick save');
-  const json = (await resp.json()) as CreateSaveResponse;
-  return { id: json.id };
+  const json = record(await resp.json(), 'quick save');
+  return { id: stringField(json.id, 'quick save.id') };
 }
 
 export async function fetchSaveById(saveId: string): Promise<SaveRow> {
   const url = await backendUrl(`/saves/${encodeURIComponent(saveId)}`);
   const resp = await fetch(url);
   if (!resp.ok) throw await readError(resp, 'load save');
-  return (await resp.json()) as SaveRow;
+  const json = record(await resp.json(), 'load save');
+  return { ...parseSaveSummary(json), game_state: json.game_state };
 }
 
 export async function deleteSaveById(saveId: string): Promise<void> {
@@ -96,16 +179,18 @@ export async function deleteSaveById(saveId: string): Promise<void> {
  * schema-version 2 game_state so the frontend can rehydrate Zustand slices.
  * POST /saves/{saveId}/restore?session_id={sessionId}   [W2.3]
  */
-export async function restoreSave(
-  saveId: string,
-  sessionId: string,
-): Promise<{ game_state: unknown }> {
+export async function restoreSave(saveId: string, sessionId: string): Promise<RestoreSaveResponse> {
   const url = await backendUrl(
     `/saves/${encodeURIComponent(saveId)}/restore?session_id=${encodeURIComponent(sessionId)}`,
   );
   const resp = await fetch(url, { method: 'POST' });
   if (!resp.ok) throw await readError(resp, 'restore save');
-  return (await resp.json()) as { game_state: unknown };
+  const json = record(await resp.json(), 'restore save');
+  if (!Array.isArray(json.messages)) invalidResponse('restore save.messages');
+  return {
+    game_state: json.game_state,
+    messages: json.messages.map(parseMessage),
+  };
 }
 
 /** Overwrite an existing save's metadata in place (PUT /saves/{id}). [F3] */
@@ -149,10 +234,6 @@ export interface SessionMessageWire {
   tool_calls?: unknown[];
 }
 
-interface MessagesResponse {
-  messages: SessionMessageWire[];
-}
-
 export async function fetchSessionMessages(
   sessionId: string,
   opts?: { limit?: number },
@@ -167,10 +248,11 @@ export async function fetchSessionMessages(
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/messages${query}`);
   const resp = await fetch(url);
   if (!resp.ok) throw await readError(resp, 'fetch messages');
-  const json = (await resp.json()) as MessagesResponse;
+  const json = record(await resp.json(), 'fetch messages');
+  if (!Array.isArray(json.messages)) invalidResponse('fetch messages.messages');
   // Client-side enforcement of the limit: slice to the last N messages in
   // chronological order. This is the authoritative guard - see NOTE above.
-  const messages = json.messages;
+  const messages = json.messages.map(parseMessage);
   if (opts?.limit !== undefined && messages.length > opts.limit) {
     return messages.slice(-opts.limit);
   }

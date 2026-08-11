@@ -1,376 +1,181 @@
 import type { StateCreator } from 'zustand';
-import type { AoeShape } from '../components/AoeTemplate';
-import { aggregateConditionEffects } from './conditions';
+import { projectionTokens } from '../features/combat/model/combatProjection';
+import type {
+  AoeTemplateEntry,
+  CombatProjectionDto,
+  CombatToken,
+  SnapshotCombat,
+} from '../features/combat/model/types';
 
-export interface AoeTemplateEntry {
-  id: string;
-  shape: AoeShape;
-  originX: number;
-  originY: number;
-  sizeInFt: number;
-  school: string;
-  rotateDeg: number;
-  /** Unix ms timestamp; auto-removed when Date.now() >= expiresAt. */
-  expiresAt: number;
-}
-
-export interface CombatToken {
-  id: string;
-  name: string;
-  hp: number;
-  maxHp: number;
-  ac: number;
-  x: number;
-  y: number;
-  conditions: string[];
-  isActive?: boolean;
-  /** Movement speed in feet. Defaults to DEFAULT_SPEED_FT when absent. */
-  speed?: number;
-}
+export type {
+  AoeShape,
+  AoeTemplateEntry,
+  CombatToken,
+  SnapshotCombat,
+} from '../features/combat/model/types';
 
 export const DEFAULT_SPEED_FT = 30;
-
-/**
- * Schema-version 2 combat token shape from the backend game_state JSON.
- * Field names match the Rust `SavedToken` struct (snake_case).
- */
-export interface SnapshotToken {
-  id: string;
-  name: string;
-  hp: number;
-  max_hp: number;
-  ac: number;
-  x: number;
-  y: number;
-  conditions: string[];
-  resistances: string[];
-  immunities: string[];
-  vulnerabilities: string[];
-}
-
-/**
- * Schema-version 2 combat snapshot from the backend game_state JSON.
- * Mirrors the Rust `SavedCombat` struct.
- */
-export interface SnapshotCombat {
-  active: boolean;
-  encounter_id: string;
-  round: number;
-  current_turn_id: string | null;
-  initiative: string[];
-  tokens: SnapshotToken[];
-}
 
 export interface CombatSlice {
   combat: {
     active: boolean;
     encounterId: string | null;
+    revision: number;
     tokens: CombatToken[];
-    initiativeOrder: string[]; // ordered list of token ids
+    initiativeOrder: string[];
     currentTurnId: string | null;
     round: number;
-
     actionUsed: boolean;
     bonusUsed: boolean;
     reactionUsed: boolean;
     movementRemaining: number;
-
+    pendingCommands: Record<string, string>;
     aoeTemplates: AoeTemplateEntry[];
-
-    startCombat: (encounterId: string, tokens: CombatToken[]) => void;
-    endCombat: () => void;
-    /**
-     * Rehydrate the entire combat slice from a schema-version 2 snapshot.
-     * Maps `SnapshotToken` (snake_case backend fields) to `CombatToken`
-     * (camelCase frontend fields) and restores round/currentTurnId/initiative.
-     * Used by the Load flow in useSaves.ts. [W2.3]
-     */
+    replaceProjection: (projection: CombatProjectionDto) => boolean;
+    markCommandPending: (commandId: string, kind: string) => void;
+    settleCommand: (commandId: string) => void;
+    clearProjection: () => void;
     hydrate: (snapshot: SnapshotCombat) => void;
-    applyDamage: (tokenId: string, amount: number) => void;
-    applyHealing: (tokenId: string, amount: number) => void;
-    addCondition: (tokenId: string, condition: string) => void;
-    removeCondition: (tokenId: string, condition: string) => void;
-    setCurrentTurn: (tokenId: string | null) => void;
-    advanceRound: () => void;
-    moveToken: (tokenId: string, x: number, y: number) => void;
-    /**
-     * Validates the move against `movementRemaining` (Chebyshev distance * 5 ft).
-     * Returns true and updates x/y + decrements movementRemaining when the move is
-     * within budget; returns false and leaves state unchanged when over budget.
-     */
-    tryMoveToken: (tokenId: string, x: number, y: number) => boolean;
-    addToken: (token: CombatToken) => void;
-    updateToken: (tokenId: string, patch: Partial<CombatToken>) => void;
-    removeToken: (tokenId: string) => void;
-
-    useAction: () => void;
-    useBonus: () => void;
-    useReaction: () => void;
-    moveBy: (distance: number) => void;
-    endTurn: () => void;
-
     addAoeTemplate: (template: AoeTemplateEntry) => void;
     removeAoeTemplate: (id: string) => void;
   };
 }
 
-/**
- * Returns fresh action-economy fields for the start of a combatant's turn.
- * movementRemaining is set to the active token's speed (or DEFAULT_SPEED_FT)
- * multiplied by the token's aggregate condition movement multiplier so that
- * restrained/grappled/paralyzed/etc. tokens get 0 ft of movement. [W1.5]
- */
-function econReset(speed?: number, conditions?: string[]) {
-  const baseFt = speed ?? DEFAULT_SPEED_FT;
-  const multiplier =
-    conditions !== undefined && conditions.length > 0
-      ? aggregateConditionEffects(conditions).movementMultiplier
-      : 1;
+export function emptyCombatProjectionState() {
   return {
+    active: false,
+    encounterId: null,
+    revision: -1,
+    tokens: [] as CombatToken[],
+    initiativeOrder: [] as string[],
+    currentTurnId: null,
+    round: 1,
     actionUsed: false,
     bonusUsed: false,
     reactionUsed: false,
-    movementRemaining: Math.floor(baseFt * multiplier),
+    movementRemaining: 0,
+    pendingCommands: {} as Record<string, string>,
   };
 }
 
-/** Chebyshev distance in feet between two grid cells (5 ft per cell). */
-export function chebyshevFt(x1: number, y1: number, x2: number, y2: number): number {
-  return Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 5;
+function derivedProjection(projection: CombatProjectionDto) {
+  const tokens = projectionTokens(projection);
+  const active = tokens.find((token) => token.id === projection.snapshot.current_combatant);
+  return {
+    active: projection.snapshot.active,
+    encounterId: projection.encounter_id,
+    revision: projection.revision,
+    tokens,
+    initiativeOrder: projection.snapshot.initiative.map((entry) => entry.id),
+    currentTurnId: projection.snapshot.current_combatant,
+    round: projection.snapshot.round,
+    actionUsed: active ? active.actionAvailable === false : false,
+    bonusUsed: active ? active.bonusAvailable === false : false,
+    reactionUsed: active ? active.reactionAvailable === false : false,
+    movementRemaining: active?.movementRemaining ?? 0,
+  };
+}
+
+export function legacyCombatProjectionState(snapshot: SnapshotCombat) {
+  const tokens: CombatToken[] = snapshot.tokens.map((token) => ({
+    id: token.id,
+    name: token.name,
+    hp: token.hp,
+    maxHp: token.max_hp,
+    ac: token.ac,
+    x: token.x,
+    y: token.y,
+    conditions: [...token.conditions],
+    isActive: token.id === snapshot.current_turn_id,
+    speed: DEFAULT_SPEED_FT,
+    actionAvailable: true,
+    bonusAvailable: true,
+    reactionAvailable: true,
+    movementRemaining: DEFAULT_SPEED_FT,
+  }));
+  return {
+    active: snapshot.active,
+    encounterId: snapshot.encounter_id,
+    revision: 0,
+    tokens,
+    initiativeOrder: [...snapshot.initiative],
+    currentTurnId: snapshot.current_turn_id,
+    round: snapshot.round,
+    actionUsed: false,
+    bonusUsed: false,
+    reactionUsed: false,
+    movementRemaining: snapshot.active ? DEFAULT_SPEED_FT : 0,
+    pendingCommands: {} as Record<string, string>,
+  };
 }
 
 export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> = (set, get) => ({
   combat: {
-    active: false,
-    encounterId: null,
-    tokens: [],
-    initiativeOrder: [],
-    currentTurnId: null,
-    round: 1,
+    ...emptyCombatProjectionState(),
     aoeTemplates: [],
-    ...econReset(),
 
-    startCombat: (encounterId, tokens) =>
-      set((s) => ({
+    replaceProjection: (projection) => {
+      const current = get().combat;
+      if (
+        current.encounterId === projection.encounter_id &&
+        projection.revision <= current.revision
+      ) {
+        console.warn('[combat.projection]', {
+          code: 'stale_combat_projection',
+          encounterId: projection.encounter_id,
+          currentRevision: current.revision,
+          incomingRevision: projection.revision,
+        });
+        return false;
+      }
+      set((state) => ({
         combat: {
-          ...s.combat,
-          active: true,
-          encounterId,
-          tokens,
-          initiativeOrder: tokens.map((t) => t.id),
-          currentTurnId: tokens[0]?.id ?? null,
-          round: 1,
-          ...econReset(tokens[0]?.speed, tokens[0]?.conditions),
-        },
-      })),
-
-    hydrate: (snapshot) => {
-      const tokens: CombatToken[] = snapshot.tokens.map((t) => ({
-        id: t.id,
-        name: t.name,
-        hp: t.hp,
-        maxHp: t.max_hp,
-        ac: t.ac,
-        x: t.x,
-        y: t.y,
-        conditions: t.conditions,
-        isActive: t.id === snapshot.current_turn_id,
-      }));
-      const activeToken = tokens.find((t) => t.id === snapshot.current_turn_id);
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          active: snapshot.active,
-          encounterId: snapshot.encounter_id,
-          tokens,
-          initiativeOrder: snapshot.initiative,
-          currentTurnId: snapshot.current_turn_id,
-          round: snapshot.round,
-          aoeTemplates: [],
-          ...econReset(activeToken?.speed, activeToken?.conditions),
-        },
-      }));
-    },
-
-    endCombat: () =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          active: false,
-          encounterId: null,
-          tokens: [],
-          initiativeOrder: [],
-          currentTurnId: null,
-          round: 1,
-          aoeTemplates: [],
-          ...econReset(),
-        },
-      })),
-
-    applyDamage: (tokenId, amount) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) =>
-            t.id === tokenId ? { ...t, hp: Math.max(0, t.hp - amount) } : t,
-          ),
-        },
-      })),
-
-    applyHealing: (tokenId, amount) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) =>
-            t.id === tokenId ? { ...t, hp: Math.min(t.maxHp, t.hp + amount) } : t,
-          ),
-        },
-      })),
-
-    addCondition: (tokenId, condition) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) =>
-            t.id === tokenId && !t.conditions.includes(condition)
-              ? { ...t, conditions: [...t.conditions, condition] }
-              : t,
-          ),
-        },
-      })),
-
-    removeCondition: (tokenId, condition) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) =>
-            t.id === tokenId
-              ? { ...t, conditions: t.conditions.filter((c) => c !== condition) }
-              : t,
-          ),
-        },
-      })),
-
-    setCurrentTurn: (tokenId) =>
-      set((s) => {
-        const activeToken = s.combat.tokens.find((t) => t.id === tokenId);
-        return {
-          combat: {
-            ...s.combat,
-            currentTurnId: tokenId,
-            tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === tokenId })),
-            ...econReset(activeToken?.speed, activeToken?.conditions),
-          },
-        };
-      }),
-
-    advanceRound: () => set((s) => ({ combat: { ...s.combat, round: s.combat.round + 1 } })),
-
-    moveToken: (tokenId, x, y) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
-        },
-      })),
-
-    tryMoveToken: (tokenId, x, y) => {
-      const { combat } = get();
-      const token = combat.tokens.find((t) => t.id === tokenId);
-      if (!token) return false;
-      const distance = chebyshevFt(token.x, token.y, x, y);
-      if (distance > combat.movementRemaining) return false;
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          movementRemaining: Math.max(0, s.combat.movementRemaining - distance),
-          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, x, y } : t)),
+          ...state.combat,
+          ...derivedProjection(projection),
         },
       }));
       return true;
     },
 
-    addToken: (token) =>
-      set((s) => {
-        if (s.combat.tokens.some((t) => t.id === token.id)) {
-          return { combat: s.combat };
-        }
-        return {
-          combat: {
-            ...s.combat,
-            tokens: [...s.combat.tokens, token],
-            initiativeOrder: [...s.combat.initiativeOrder, token.id],
-          },
-        };
+    markCommandPending: (commandId, kind) =>
+      set((state) => ({
+        combat: {
+          ...state.combat,
+          pendingCommands: { ...state.combat.pendingCommands, [commandId]: kind },
+        },
+      })),
+
+    settleCommand: (commandId) =>
+      set((state) => {
+        const pendingCommands = { ...state.combat.pendingCommands };
+        delete pendingCommands[commandId];
+        return { combat: { ...state.combat, pendingCommands } };
       }),
 
-    updateToken: (tokenId, patch) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.map((t) => (t.id === tokenId ? { ...t, ...patch } : t)),
-        },
+    clearProjection: () =>
+      set((state) => ({
+        combat: { ...state.combat, ...emptyCombatProjectionState(), aoeTemplates: [] },
       })),
 
-    removeToken: (tokenId) =>
-      set((s) => ({
+    hydrate: (snapshot) => {
+      set((state) => ({
         combat: {
-          ...s.combat,
-          tokens: s.combat.tokens.filter((t) => t.id !== tokenId),
-          initiativeOrder: s.combat.initiativeOrder.filter((id) => id !== tokenId),
-          currentTurnId: s.combat.currentTurnId === tokenId ? null : s.combat.currentTurnId,
+          ...state.combat,
+          ...legacyCombatProjectionState(snapshot),
+          aoeTemplates: [],
         },
-      })),
-
-    useAction: () => set((s) => ({ combat: { ...s.combat, actionUsed: true } })),
-
-    useBonus: () => set((s) => ({ combat: { ...s.combat, bonusUsed: true } })),
-
-    useReaction: () => set((s) => ({ combat: { ...s.combat, reactionUsed: true } })),
-
-    moveBy: (distance) =>
-      set((s) => ({
-        combat: {
-          ...s.combat,
-          movementRemaining: Math.max(0, s.combat.movementRemaining - distance),
-        },
-      })),
-
-    endTurn: () =>
-      set((s) => {
-        if (s.combat.initiativeOrder.length === 0) {
-          return { combat: s.combat };
-        }
-        const order = s.combat.initiativeOrder;
-        const idx = s.combat.currentTurnId ? order.indexOf(s.combat.currentTurnId) : -1;
-        const nextIdx = (idx + 1) % order.length;
-        const nextId = order[nextIdx] ?? null;
-        // A new round begins when the turn wraps past the last combatant back
-        // to the top of the initiative order. idx < 0 (combat just started, no
-        // current turn) is the first turn, not a wrap. [F1]
-        const wrapped = idx >= 0 && nextIdx === 0;
-        const nextToken = s.combat.tokens.find((t) => t.id === nextId);
-        return {
-          combat: {
-            ...s.combat,
-            currentTurnId: nextId,
-            round: wrapped ? s.combat.round + 1 : s.combat.round,
-            tokens: s.combat.tokens.map((t) => ({ ...t, isActive: t.id === nextId })),
-            ...econReset(nextToken?.speed, nextToken?.conditions),
-          },
-        };
-      }),
+      }));
+    },
 
     addAoeTemplate: (template) =>
-      set((s) => ({
-        combat: { ...s.combat, aoeTemplates: [...s.combat.aoeTemplates, template] },
+      set((state) => ({
+        combat: { ...state.combat, aoeTemplates: [...state.combat.aoeTemplates, template] },
       })),
-
     removeAoeTemplate: (id) =>
-      set((s) => ({
+      set((state) => ({
         combat: {
-          ...s.combat,
-          aoeTemplates: s.combat.aoeTemplates.filter((t) => t.id !== id),
+          ...state.combat,
+          aoeTemplates: state.combat.aoeTemplates.filter((template) => template.id !== id),
         },
       })),
   },

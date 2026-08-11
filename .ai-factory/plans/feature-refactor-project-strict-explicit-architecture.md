@@ -291,7 +291,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
 ### Phase 4: Thin the React Presentation Adapter
 
-- [ ] **Task 10: Separate typed agent transport from event reduction** (depends on 4, 8)
+- [x] **Task 10: Separate typed agent transport from event reduction** (depends on 4, 8)
 
   **Files:**
   - Create `src/api/contracts/agent.ts` and `src/api/sseStream.ts`
@@ -311,7 +311,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** `useAgentTurn` no longer acts as a service locator, transport is independent of Zustand/components, production-root and existing chat tests remain green.
 
-- [ ] **Task 11: Replace client combat mechanics with authoritative server projections** (depends on 4, 8, 10)
+- [x] **Task 11: Replace client combat mechanics with authoritative server projections** (depends on 4, 8, 10)
 
   **Files:**
   - Create `src/features/combat/model/{types,combatProjection,commands,selectors}.ts`
@@ -330,7 +330,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** TypeScript contains no competing combat-rule tables or mutation paths, server revisions are the only authority, controls retain their visible behavior, and deterministic browser combat acceptance passes.
 
-- [ ] **Task 12: Make save restoration atomic and split the production shell by feature** (depends on 10, 11)
+- [x] **Task 12: Make save restoration atomic and split the production shell by feature** (depends on 10, 11)
 
   **Files:**
   - Refactor `src/api/saves.ts`
@@ -351,7 +351,7 @@ At every checkpoint, stage an explicit file list, inspect `git diff --cached`, r
 
   **Acceptance:** `main.tsx` only initializes styles/i18n and mounts bootstrap, `App` is composition-focused, feature modules do not import sibling internals, save restore cannot partially mutate the frontend, and visible EN/RU behavior is preserved.
 
-- [ ] **Task 13: Enforce final boundaries, remove facades, document the delivered architecture, and run acceptance** (depends on 1-12)
+- [x] **Task 13: Enforce final boundaries, remove facades, document the delivered architecture, and run acceptance** (depends on 1-12)
 
   **Files:**
   - Tighten `scripts/check-architecture.ts` and delete `scripts/architecture-allowlist.json` when empty

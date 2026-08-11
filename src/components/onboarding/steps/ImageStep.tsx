@@ -38,7 +38,8 @@ export interface ImageStepProps {
 
 async function handleSkip(onNext: () => void): Promise<void> {
   useStore.getState().settings.setImageEnabled(false);
-  await postSettingsV2(useStore.getState().settings);
+  const state = useStore.getState();
+  await postSettingsV2(state.settings, state.localMode);
   onNext();
 }
 
@@ -97,7 +98,8 @@ function LocalImageStep({ onBack, onNext, titleId, targetPreset }: LocalImageSte
     try {
       setImageEnabled(true);
       setImagePreset(targetPreset);
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -270,7 +272,8 @@ function CloudImageStep({ onBack, onNext, titleId }: Omit<ImageStepProps, 'prese
       setReplicateApiKey(trimmedKey);
       setImageEnabled(true);
       setImagePreset('cloud');
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));

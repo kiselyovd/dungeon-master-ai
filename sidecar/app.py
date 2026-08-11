@@ -20,7 +20,6 @@ import socket
 import threading
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -40,25 +39,25 @@ class GenerateRequest(BaseModel):
     prompt: str
     contract_version: int = 1
     seed: int = 0
-    steps: Optional[int] = None
+    steps: int | None = None
     backend: str = "fast"
-    negative: Optional[str] = None
-    guidance: Optional[float] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    style_lora: Optional[str] = None
-    frame_count: Optional[int] = None
+    negative: str | None = None
+    guidance: float | None = None
+    width: int | None = None
+    height: int | None = None
+    style_lora: str | None = None
+    frame_count: int | None = None
 
 
 class VideoGenerateRequest(BaseModel):
     """Request body for POST /video/generate (SSE endpoint)."""
     prompt: str
-    init_image_b64: Optional[str] = None
-    resolution: Optional[tuple[int, int]] = None
-    frame_count: Optional[int] = None
-    seed: Optional[int] = None
+    init_image_b64: str | None = None
+    resolution: tuple[int, int] | None = None
+    frame_count: int | None = None
+    seed: int | None = None
     contract_version: int = 1
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
 
 def _to_params(req: GenerateRequest) -> PromptParams:

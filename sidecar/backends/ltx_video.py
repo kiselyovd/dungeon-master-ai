@@ -8,11 +8,12 @@ ComfyUI GGUF Q8 path deferred to M9-DM+."""
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from backends._capabilities import assert_vram_free
-from backends.protocol import GenerationBackend, PromptParams
+from backends.protocol import PromptParams
 
 
 class LtxVideoBackend:
@@ -20,10 +21,10 @@ class LtxVideoBackend:
     modality: ClassVar[Literal["video"]] = "video"
     vram_estimate_bytes: ClassVar[int] = 7 * 1024**3
 
-    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+    def __init__(self, weights_dir: Path | None = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
         self._pipe = None
-        self._progress_callback: Optional[Callable[[float], None]] = None
+        self._progress_callback: Callable[[float], None] | None = None
 
     def set_progress_callback(self, cb: Callable[[float], None]) -> None:
         self._progress_callback = cb

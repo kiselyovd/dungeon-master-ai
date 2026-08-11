@@ -89,6 +89,7 @@ describe('SavesScreen', () => {
     // Default: restore returns a v2 game_state with no combat (exploration save).
     restoreSaveMock.mockResolvedValue({
       game_state: { schema_version: 2, label: 'Before the boss', combat: null, scene: null },
+      messages: [],
     });
   });
 
@@ -234,7 +235,7 @@ describe('SavesScreen', () => {
   });
 
   // C5: minimal rehydration on Load
-  it('C5: fetchSessionMessages is called with the save session_id on Load', async () => {
+  it('C5: restore returns messages without a fallible fetch after backend mutation', async () => {
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -242,7 +243,8 @@ describe('SavesScreen', () => {
     });
     await user.click(screen.getByRole('button', { name: /Load/i }));
     await waitFor(() => {
-      expect(fetchSessionMessagesMock).toHaveBeenCalledWith('sess1', { limit: 20 });
+      expect(restoreSaveMock).toHaveBeenCalledWith('s1', 'sess1');
+      expect(fetchSessionMessagesMock).not.toHaveBeenCalled();
     });
   });
 
@@ -251,7 +253,10 @@ describe('SavesScreen', () => {
       { role: 'user', content: 'Hello dungeon master', parts: [] },
       { role: 'assistant', content: 'Welcome, adventurer', parts: [] },
     ];
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue({
+      game_state: { schema_version: 2, combat: null, scene: null },
+      messages: wireMessages,
+    });
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -284,7 +289,7 @@ describe('SavesScreen', () => {
 
   it('C5: an inline error is shown and modal stays open when Load fails', async () => {
     useStore.getState().saves.open();
-    fetchSessionMessagesMock.mockRejectedValue(new Error('network error'));
+    restoreSaveMock.mockRejectedValue(new Error('network error'));
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -308,7 +313,10 @@ describe('SavesScreen', () => {
       content: `message-${i}`,
       parts: [],
     }));
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue({
+      game_state: { schema_version: 2, combat: null, scene: null },
+      messages: wireMessages,
+    });
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -340,7 +348,10 @@ describe('SavesScreen', () => {
       { role: 'tool_result', content: 'You find a sword.', parts: [] },
       { role: 'assistant', content: 'You find a gleaming sword!', parts: [] },
     ];
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue({
+      game_state: { schema_version: 2, combat: null, scene: null },
+      messages: wireMessages,
+    });
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {

@@ -29,11 +29,6 @@ pub struct RestoreQuery {
     pub session_id: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct RestoreResponse {
-    pub game_state: Value,
-}
-
 fn parse_id(raw: &str, code: &'static str) -> Result<Uuid, HttpServiceError> {
     Uuid::parse_str(raw).map_err(|_| HttpServiceError::BadRequest { code })
 }
@@ -124,15 +119,15 @@ pub async fn restore_save(
     Extension(services): Extension<HttpServices>,
     Path(save_id): Path<String>,
     Query(query): Query<RestoreQuery>,
-) -> Result<Json<RestoreResponse>, HttpServiceError> {
-    let game_state = services
+) -> Result<Json<Value>, HttpServiceError> {
+    let projection = services
         .saves
         .restore(
             parse_id(&query.session_id, "session_id_invalid")?,
             parse_id(&save_id, "save_id_invalid")?,
         )
         .await?;
-    Ok(Json(RestoreResponse { game_state }))
+    Ok(Json(projection))
 }
 
 pub async fn update_save(

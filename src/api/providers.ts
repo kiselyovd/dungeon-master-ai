@@ -2,7 +2,6 @@
  * HTTP wiring for the providers info endpoint exposed by app-server.
  */
 
-import type { ProviderKind } from '../state/providers';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
 
@@ -29,3 +28,4 @@ export async function getProviders(): Promise<ProvidersInfo> {
   }
   return (await resp.json()) as ProvidersInfo;
 }
+export type ProviderKind = 'openai-compat' | 'local-mistralrs';
