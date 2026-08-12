@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import '../../i18n';
+import i18n from '../../i18n';
 import { useStore } from '../../state/useStore';
 import { Onboarding } from '../Onboarding';
 
@@ -27,8 +27,9 @@ import { Onboarding } from '../Onboarding';
 describe('Onboarding', () => {
   const originalFetch = globalThis.fetch;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     useStore.setState(useStore.getInitialState());
+    await i18n.changeLanguage('en');
     globalThis.fetch = vi.fn(
       async () =>
         new Response(JSON.stringify({ kind: 'anthropic', model: 'claude-haiku-4-5-20251001' }), {
@@ -136,16 +137,16 @@ describe('Onboarding', () => {
     const user = userEvent.setup();
     render(<Onboarding />);
 
-    expect(useStore.getState().settings.uiLanguage).toBe('en');
-
-    const ruButton = screen.getByRole('button', { name: 'RU' });
-    expect(ruButton).toHaveAttribute('aria-pressed', 'false');
-
-    await user.click(ruButton);
-
     expect(useStore.getState().settings.uiLanguage).toBe('ru');
-    expect(screen.getByRole('button', { name: 'RU' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'false');
+
+    const ruButton = screen.getByRole('button', { name: 'РУ' });
+    expect(ruButton).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'EN' }));
+
+    expect(useStore.getState().settings.uiLanguage).toBe('en');
+    expect(screen.getByRole('button', { name: 'РУ' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   // ------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Language } from '../state/settings';
 import { useStore } from '../state/useStore';
+import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import type { PresetId, Step } from './onboarding/presets';
 import { computeSteps, DEFAULT_PRESET } from './onboarding/presets';
 import { ChatStep } from './onboarding/steps/ChatStep';
@@ -110,11 +110,13 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
         aria-labelledby={titleId}
         aria-label={t('dialog_label')}
       >
-        <LanguagePicker
-          value={uiLanguage}
-          onChange={setUiLanguage}
-          ariaLabel={tCommon('language')}
-        />
+        <div className="dm-onboarding-lang">
+          <LanguageSegmentedControl
+            value={uiLanguage}
+            onChange={setUiLanguage}
+            ariaLabel={tCommon('language')}
+          />
+        </div>
 
         <div className="dm-onboarding-counter" aria-live="polite">
           {counterText}
@@ -165,43 +167,6 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
           {currentStep === 'hero' && <HeroStep titleId={titleId} onBack={back} onNext={next} />}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ---- LanguagePicker ----------------------------------------------------
-
-interface LanguagePickerProps {
-  value: Language;
-  onChange: (lang: Language) => void;
-  ariaLabel: string;
-}
-
-/**
- * Two-button toggle (EN / RU) sitting in the top-right of the onboarding card.
- * Visible on all steps so a brand-new user can flip language before
- * onboarding completes (Settings is reachable only afterwards). We deliberately
- * use the bare locale codes - flag emojis are politically charged for RU users.
- */
-function LanguagePicker({ value, onChange, ariaLabel }: LanguagePickerProps) {
-  const langs: readonly { code: Language; label: string }[] = [
-    { code: 'en', label: 'EN' },
-    { code: 'ru', label: 'RU' },
-  ];
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: <fieldset> would force a default border + legend layout that fights the pill-toggle styling; role="group" matches the WAI-ARIA Toolbar/Group pattern for inline controls
-    <div className="dm-onboarding-lang" role="group" aria-label={ariaLabel}>
-      {langs.map((l) => (
-        <button
-          key={l.code}
-          type="button"
-          className={`dm-onboarding-lang-btn${value === l.code ? ' is-active' : ''}`}
-          aria-pressed={value === l.code}
-          onClick={() => onChange(l.code)}
-        >
-          {l.label}
-        </button>
-      ))}
     </div>
   );
 }

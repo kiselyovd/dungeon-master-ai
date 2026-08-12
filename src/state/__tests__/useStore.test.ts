@@ -68,8 +68,8 @@ describe('useStore - settings slice', () => {
     expect(s.activeProvider).toBe('openai-compat');
     expect(s.providers['openai-compat']).toBeNull();
     expect(s.providers['local-mistralrs']).toBeNull();
-    expect(s.uiLanguage).toBe('en');
-    expect(s.narrationLanguage).toBe('en');
+    expect(s.uiLanguage).toBe('ru');
+    expect(s.narrationLanguage).toBe('ru');
   });
 
   it('setProviderConfig stores per-kind config without affecting other kinds', () => {
