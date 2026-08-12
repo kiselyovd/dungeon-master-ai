@@ -50,3 +50,36 @@ Each token used its approved portrait as an image-edit reference with this share
 > Preserve this exact character's face, ancestry, age, clothing, armour and equipment. Recompose as a top-down three-quarter full-body tabletop combat token, complete readable silhouette inside a circular crop-safe area, neutral grounded stance, painterly edge detail matching the source portrait, exactly one character on a perfectly uniform bright chroma green background. No ring, base, text, external cast shadow, extra weapon, watermark, or second person.
 
 The chroma background was converted to a soft alpha matte with the bundled `remove_chroma_key.py` helper, then each token was encoded at 1024 x 1024. The final PNGs were inspected again after alpha conversion.
+
+## Wave 2
+
+| Role | Final path | Candidate | Pixels | Old bytes | New bytes | QA |
+|---|---|---|---:|---:|---:|---|
+| Innkeeper NPC | `src/assets/living-tabletop/npc-innkeeper.webp` | `.artifacts/living-tabletop/candidates/npc-innkeeper.png` | 1024 x 1024 | 1,262,970 | 126,716 | Approved: flour, keys, hearth, welcoming but observant expression |
+| Guard NPC | `src/assets/living-tabletop/npc-guard.webp` | `.artifacts/living-tabletop/candidates/npc-guard.png` | 1024 x 1024 | 1,286,836 | 106,840 | Approved: tired expression, patched blue tabard, safe spear silhouette |
+| Merchant NPC | `src/assets/living-tabletop/npc-merchant.webp` | `.artifacts/living-tabletop/candidates/npc-merchant.png` | 1024 x 1024 | 1,413,434 | 103,128 | Approved: elderly tiefling, readable scales and cloth sample |
+| Rogue NPC | `src/assets/living-tabletop/npc-rogue.webp` | `.artifacts/living-tabletop/candidates/npc-rogue.png` | 1024 x 1024 | 1,294,932 | 87,916 | Approved: watchful half-elf profile, restrained concealed weapon |
+| Mage NPC | `src/assets/living-tabletop/npc-mage.webp` | `.artifacts/living-tabletop/candidates/npc-mage.png` | 1024 x 1024 | 1,377,440 | 95,648 | Approved: ink-stained hands, practical robe, restrained violet charm |
+| Priestess NPC | `src/assets/living-tabletop/npc-priestess.webp` | `.artifacts/living-tabletop/candidates/npc-priestess.png` | 1024 x 1024 | 1,208,369 | 134,802 | Approved: dwarf identity, compassionate gaze, iron sun pendant |
+| Knight NPC | `src/assets/living-tabletop/npc-knight.webp` | `.artifacts/living-tabletop/candidates/npc-knight.png` | 1024 x 1024 | 1,555,656 | 137,542 | Approved: scratched plate, red wool cloak, disciplined calm |
+| Peasant NPC | `src/assets/living-tabletop/npc-peasant.webp` | `.artifacts/living-tabletop/candidates/npc-peasant.png` | 1024 x 1024 | 1,170,905 | 189,694 | Approved: older halfling, herb basket, warm countryside identity |
+| Combat save | `src/assets/living-tabletop/save-combat.webp` | `.artifacts/living-tabletop/candidates/save-combat.png` | 1280 x 832 | 1,636,264 | 178,414 | Approved: readable bridge defence with quiet metadata strip |
+| Exploration save | `src/assets/living-tabletop/save-exploration.webp` | `.artifacts/living-tabletop/candidates/save-exploration.png` | 1280 x 832 | 1,842,121 | 185,954 | Approved: four travelers, map and distant ruins, crop-safe composition |
+| Dialog save | `src/assets/living-tabletop/save-dialog.webp` | `.artifacts/living-tabletop/candidates/save-dialog.png` | 1280 x 832 | 1,572,082 | 110,308 | Approved: peaceful tension, expressive hands, quiet metadata strip |
+| NPC save | `src/assets/living-tabletop/save-npc.webp` | `.artifacts/living-tabletop/candidates/save-npc.png` | 1280 x 832 | 1,839,034 | 118,630 | Approved: innkeeper identity carried across portrait and campaign memory |
+| Combat scene | `src/assets/living-tabletop/scene-combat.webp` | `.artifacts/living-tabletop/candidates/scene-combat.png` | 1920 x 1080 | 6,991,117 | 130,918 | Approved after one rejected photoreal candidate: painterly shield, sword and approaching light |
+| Dialog scene | `src/assets/living-tabletop/scene-dialog.webp` | `.artifacts/living-tabletop/candidates/scene-dialog.png` | 1920 x 1080 | 3,811,223 | 149,140 | Approved: sealed letter, restrained silhouettes, central title space |
+| Exploration scene | `src/assets/living-tabletop/scene-exploration.webp` | `.artifacts/living-tabletop/candidates/scene-exploration.png` | 1920 x 1080 | 10,015,540 | 231,682 | Approved: living village, travelers, birds and broad hopeful scale |
+| Dungeon scene | `src/assets/living-tabletop/scene-dungeon.webp` | `.artifacts/living-tabletop/candidates/scene-dungeon.png` | 1920 x 1080 | 5,114,833 | 241,542 | Approved: descending stair, damp masonry, lantern and quiet dread |
+
+### NPC portraits
+
+Eight individual classic-fantasy NPC portraits were generated in oil and gouache with visible brushwork, believable faces and hands, lived-in clothing, local environmental light, simple readable backgrounds, and silhouettes designed to survive a 96-pixel presentation. The subjects are a human innkeeper, human city guard, tiefling merchant, half-elf information broker, human hedge-mage, dwarf priestess, human knight, and halfling farmer. Every prompt excluded writing, watermarks, technological ornament, decorative runes, and plastic rendering.
+
+### Campaign memories
+
+The save illustrations depict a torchlit bridge defence, a misty valley journey, a peaceful but tense tavern negotiation, and a reunion with the approved innkeeper. Each prompt kept the narrative action above a quiet bottom strip reserved for metadata, required grounded medieval materials and visible painterly brushwork, and prohibited embedded labels or technological motifs.
+
+### Scene transitions
+
+The transition stills depict an approaching battle through abandoned equipment, a sealed-letter conversation, a road leaving a living village at sunrise, and a lantern-lit descent into a crypt. Each prompt requested a wide hand-painted book illustration with calm atmospheric motion cues and negative space for the interface title. A photoreal first combat candidate was rejected and replaced before encoding.

@@ -17,6 +17,18 @@ const WAVE_1: ReadonlyArray<readonly [string, number]> = [
   ['token-cleric.png', 1_000_000],
 ];
 
+const WAVE_2: ReadonlyArray<readonly [string, number]> = [
+  ...['innkeeper', 'guard', 'merchant', 'rogue', 'mage', 'priestess', 'knight', 'peasant'].map(
+    (role) => [`npc-${role}.webp`, 550_000] as const,
+  ),
+  ...['combat', 'exploration', 'dialog', 'npc'].map(
+    (role) => [`save-${role}.webp`, 700_000] as const,
+  ),
+  ...['combat', 'dialog', 'exploration', 'dungeon'].map(
+    (role) => [`scene-${role}.webp`, 1_000_000] as const,
+  ),
+];
+
 describe('living tabletop asset registry', () => {
   it('exposes every reachable semantic role', () => {
     expect(Object.keys(HERO_ART)).toEqual(['fighter', 'wizard', 'rogue', 'cleric']);
@@ -38,6 +50,13 @@ describe('living tabletop asset registry', () => {
 });
 
 it.each(WAVE_1)('%s exists within its encoded budget', (name, maxBytes) => {
+  const file = resolve(__dirname, `../living-tabletop/${name}`);
+  const bytes = statSync(file).size;
+  expect(bytes).toBeGreaterThan(10_000);
+  expect(bytes).toBeLessThanOrEqual(maxBytes);
+});
+
+it.each(WAVE_2)('%s exists within its encoded budget', (name, maxBytes) => {
   const file = resolve(__dirname, `../living-tabletop/${name}`);
   const bytes = statSync(file).size;
   expect(bytes).toBeGreaterThan(10_000);
