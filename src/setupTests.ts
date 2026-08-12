@@ -21,46 +21,48 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
  * unimplemented. The production root mounts the real Pixi VTT, so provide a
  * browser-platform shim instead of replacing the VTT component with a mock.
  */
-const canvasContexts = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
-Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-  configurable: true,
-  value(this: HTMLCanvasElement, contextId: string) {
-    if (contextId !== '2d') return null;
-    const existing = canvasContexts.get(this);
-    if (existing) return existing;
+if (typeof globalThis.HTMLCanvasElement !== 'undefined') {
+  const canvasContexts = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value(this: HTMLCanvasElement, contextId: string) {
+      if (contextId !== '2d') return null;
+      const existing = canvasContexts.get(this);
+      if (existing) return existing;
 
-    const methods: Record<PropertyKey, unknown> = {
-      canvas: this,
-      createImageData: (width: number, height: number) => ({
-        data: new Uint8ClampedArray(width * height * 4),
-        height,
-        width,
-      }),
-      createLinearGradient: () => ({ addColorStop: () => {} }),
-      createPattern: () => null,
-      createRadialGradient: () => ({ addColorStop: () => {} }),
-      getImageData: (_x: number, _y: number, width: number, height: number) => ({
-        data: new Uint8ClampedArray(width * height * 4),
-        height,
-        width,
-      }),
-      getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
-      imageSmoothingEnabled: true,
-      measureText: (text: string) => ({ width: text.length * 8 }),
-    };
-    const context = new Proxy(methods, {
-      get(target, property) {
-        return property in target ? target[property] : () => {};
-      },
-      set(target, property, value) {
-        target[property] = value;
-        return true;
-      },
-    }) as unknown as CanvasRenderingContext2D;
-    canvasContexts.set(this, context);
-    return context;
-  },
-});
+      const methods: Record<PropertyKey, unknown> = {
+        canvas: this,
+        createImageData: (width: number, height: number) => ({
+          data: new Uint8ClampedArray(width * height * 4),
+          height,
+          width,
+        }),
+        createLinearGradient: () => ({ addColorStop: () => {} }),
+        createPattern: () => null,
+        createRadialGradient: () => ({ addColorStop: () => {} }),
+        getImageData: (_x: number, _y: number, width: number, height: number) => ({
+          data: new Uint8ClampedArray(width * height * 4),
+          height,
+          width,
+        }),
+        getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+        imageSmoothingEnabled: true,
+        measureText: (text: string) => ({ width: text.length * 8 }),
+      };
+      const context = new Proxy(methods, {
+        get(target, property) {
+          return property in target ? target[property] : () => {};
+        },
+        set(target, property, value) {
+          target[property] = value;
+          return true;
+        },
+      }) as unknown as CanvasRenderingContext2D;
+      canvasContexts.set(this, context);
+      return context;
+    },
+  });
+}
 
 /**
  * tauri-plugin-store is unavailable in jsdom because it speaks to the Tauri

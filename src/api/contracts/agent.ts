@@ -36,6 +36,8 @@ export interface AgentTurnRequest {
   signal?: AbortSignal;
 }
 
+export type ImageSource = { type: 'generated' } | { type: 'bundled'; assetId: string };
+
 export type AgentEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'reasoning_text'; text: string }
@@ -55,6 +57,7 @@ export type AgentEvent =
       dataUrl: string;
       toolCallId?: string;
       kind: 'map' | 'chat';
+      source: ImageSource;
     }
   | { type: 'video_generated'; dataUrl: string; toolCallId?: string; kind: 'chat' }
   | { type: 'agent_done'; totalRounds: number }
@@ -121,6 +124,10 @@ export function decodeAgentEvent(raw: RawAgentEvent): AgentEvent | null {
         dataUrl: `data:${payload.mime_type};base64,${payload.image_b64}`,
         ...(payload.tool_call_id ? { toolCallId: payload.tool_call_id } : {}),
         kind: payload.kind === 'map' ? 'map' : 'chat',
+        source:
+          payload.source === 'bundled' && payload.asset_id
+            ? { type: 'bundled', assetId: payload.asset_id }
+            : { type: 'generated' },
       };
     }
     case 'video_generated': {

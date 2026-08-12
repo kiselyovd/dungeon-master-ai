@@ -3,6 +3,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::chat::{ChatMessage, MessagePart};
+use crate::ports::media::ImageSource;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentTurnRequest {
@@ -43,6 +44,7 @@ pub enum AgentEvent {
         mime_type: String,
         image_b64: String,
         kind: String,
+        source: ImageSource,
     },
     VideoGenerated {
         tool_call_id: String,

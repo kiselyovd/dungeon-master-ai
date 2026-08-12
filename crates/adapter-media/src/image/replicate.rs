@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{info, warn};
 
-use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource};
 
 const REPLICATE_API_BASE: &str = "https://api.replicate.com/v1";
 const SDXL_MODEL: &str =
@@ -65,7 +65,7 @@ struct PredictionResponse {
 impl ImageProvider for ReplicateProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         let full_prompt = self.full_prompt(&prompt);
-        info!(prompt = %full_prompt, "Replicate: generating image");
+        info!(provider = "replicate", "Replicate: generating image");
 
         let body = CreatePredictionRequest {
             version: SDXL_MODEL,
@@ -146,8 +146,6 @@ impl ImageProvider for ReplicateProvider {
                         .and_then(|o| o.into_iter().next())
                         .ok_or_else(|| ImageError::Provider("no output URL".into()))?;
 
-                    info!(url = %url, "Replicate: image ready");
-
                     let img_resp = self
                         .client
                         .get(&url)
@@ -161,9 +159,17 @@ impl ImageProvider for ReplicateProvider {
                         .await
                         .map_err(|e| ImageError::Network(e.to_string()))?;
 
+                    info!(
+                        provider = "replicate",
+                        prediction_id = %prediction_id,
+                        byte_count = bytes.len(),
+                        "Replicate: image ready"
+                    );
+
                     return Ok(ImageBytes {
                         data: bytes.to_vec(),
                         mime_type: "image/png".into(),
+                        source: ImageSource::Generated,
                     });
                 }
                 "failed" | "canceled" => {

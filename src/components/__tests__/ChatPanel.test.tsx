@@ -52,10 +52,27 @@ describe('ChatPanel', () => {
 
   it('shows streaming assistant text when present', () => {
     useStore.setState((s) => ({
-      chat: { ...s.chat, streamingAssistant: 'in progress...' },
+      chat: { ...s.chat, streamingAssistant: 'in progress...', isStreaming: true },
     }));
     render(<ChatPanel />);
     expect(screen.getByText('in progress...')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-history')).toHaveAttribute('data-streaming', 'true');
+  });
+
+  it('marks the history as settled when no assistant turn is streaming', () => {
+    render(<ChatPanel />);
+    expect(screen.getByTestId('chat-history')).toHaveAttribute('data-streaming', 'false');
+  });
+
+  it('exposes the stable agent error code without requiring localized text parsing', () => {
+    useStore.setState((s) => ({
+      chat: {
+        ...s.chat,
+        lastError: { code: 'provider_error', message: 'Provider unavailable' },
+      },
+    }));
+    render(<ChatPanel />);
+    expect(screen.getByTestId('chat-error')).toHaveAttribute('data-error-code', 'provider_error');
   });
 
   it('disables send button when input is empty', () => {

@@ -6,6 +6,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::commands::AgentToolCommand;
+use crate::ports::media::ImageSource;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolCapability {
@@ -54,6 +55,7 @@ pub enum GeneratedAgentMedia {
         mime_type: String,
         data_b64: String,
         kind: String,
+        source: ImageSource,
     },
     Video {
         mime_type: String,

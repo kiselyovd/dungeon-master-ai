@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 
-use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource};
 
 const REQUEST_TIMEOUT_SECS: u64 = 120;
 const DEFAULT_STEPS: u32 = 4;
@@ -118,6 +118,7 @@ impl ImageProvider for LocalImageSidecarProvider {
         Ok(ImageBytes {
             data,
             mime_type: mime,
+            source: ImageSource::Generated,
         })
     }
 

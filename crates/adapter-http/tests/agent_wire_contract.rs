@@ -1,5 +1,6 @@
 use adapter_http::sse::agent_event_to_wire;
 use app_application::models::agent::AgentEvent;
+use app_application::ports::media::ImageSource;
 use serde_json::json;
 
 #[test]
@@ -19,6 +20,9 @@ fn maps_every_agent_event_to_the_stable_sse_wire_contract() {
                 mime_type: "image/png".into(),
                 image_b64: "aQ==".into(),
                 kind: "map".into(),
+                source: ImageSource::Bundled {
+                    asset_id: "map-forest-crossing".into(),
+                },
             },
             "image_generated",
             json!({
@@ -27,6 +31,27 @@ fn maps_every_agent_event_to_the_stable_sse_wire_contract() {
                 "mime_type": "image/png",
                 "image_b64": "aQ==",
                 "kind": "map",
+                "source": "bundled",
+                "asset_id": "map-forest-crossing",
+            }),
+        ),
+        (
+            AgentEvent::ImageGenerated {
+                tool_call_id: "img-2".into(),
+                round: 1,
+                mime_type: "image/webp".into(),
+                image_b64: "Z2Vu".into(),
+                kind: "chat".into(),
+                source: ImageSource::Generated,
+            },
+            "image_generated",
+            json!({
+                "tool_call_id": "img-2",
+                "round": 1,
+                "mime_type": "image/webp",
+                "image_b64": "Z2Vu",
+                "kind": "chat",
+                "source": "generated",
             }),
         ),
         (

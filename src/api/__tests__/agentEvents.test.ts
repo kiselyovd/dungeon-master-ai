@@ -33,10 +33,12 @@ function captureEvent(events: string[], event: AgentEvent): void {
       );
       break;
     case 'image_generated':
-    case 'video_generated':
       events.push(
-        `${event.type === 'image_generated' ? 'image' : 'video'}:${event.toolCallId}:${event.kind}:${event.dataUrl}`,
+        `image:${event.toolCallId}:${event.kind}:${event.source.type}:${event.source.type === 'bundled' ? event.source.assetId : '-'}:${event.dataUrl}`,
       );
+      break;
+    case 'video_generated':
+      events.push(`video:${event.toolCallId}:${event.kind}:${event.dataUrl}`);
       break;
     case 'agent_done':
       events.push(`done:${event.totalRounds}`);
@@ -73,7 +75,7 @@ describe('streamAgentTurn event framing', () => {
     await consume(
       [
         'event: reasoning_text\ndata: {"text":"plan"}\n\n',
-        'event: image_generated\ndata: {"tool_call_id":"img-1","round":1,"mime_type":"image/png","image_b64":"aQ==","kind":"map"}\n\n',
+        'event: image_generated\ndata: {"tool_call_id":"img-1","round":1,"mime_type":"image/png","image_b64":"aQ==","kind":"map","source":"bundled","asset_id":"map-forest-crossing"}\n\n',
         'event: text_delta\ndata: {"text":"hello"}\n\n',
         'event: tool_call_start\ndata: {"id":"call-1","tool_name":"roll_dice","round":1}\n\n',
         'event: tool_call_result\ndata: {"id":"call-1","tool_name":"roll_dice","args":{},"result":{"total":7},"is_error":false,"round":1,"handled_by":"engine"}\n\n',
@@ -85,13 +87,25 @@ describe('streamAgentTurn event framing', () => {
 
     expect(events).toEqual([
       'reasoning:plan',
-      'image:img-1:map:data:image/png;base64,aQ==',
+      'image:img-1:map:bundled:map-forest-crossing:data:image/png;base64,aQ==',
       'text:hello',
       'tool-start:call-1:roll_dice:1',
       'tool-result:call-1:roll_dice:false:1:engine',
       'video:vid-1:chat:data:video/mp4;base64,dg==',
       'done:1',
     ]);
+  });
+
+  it('defaults legacy image events without provenance to generated', async () => {
+    const events: string[] = [];
+    await consume(
+      [
+        'event: image_generated\ndata: {"tool_call_id":"legacy-1","mime_type":"image/png","image_b64":"aQ==","kind":"chat"}\n\n',
+      ],
+      events,
+    );
+
+    expect(events).toEqual(['image:legacy-1:chat:generated:-:data:image/png;base64,aQ==']);
   });
 
   it('decodes fragmented CRLF and CR events and flushes the final EOF event', async () => {

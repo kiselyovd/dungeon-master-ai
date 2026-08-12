@@ -23,6 +23,7 @@
     "install-hooks": "bun scripts/run-bash.ts scripts/install-pre-commit.sh",
     "e2e": "playwright test --config=e2e/playwright.config.ts",
     "e2e:tauri": "bun scripts/tauri-cdp-e2e.ts",
+    "e2e:tauri:play": "bun scripts/tauri-cdp-play.ts",
     "architecture:check": "bun scripts/check-architecture.ts",
     "gates": "bun scripts/run-bash.ts scripts/gates.sh",
     "gates:fast": "bun scripts/run-bash.ts scripts/gates.sh --fast",

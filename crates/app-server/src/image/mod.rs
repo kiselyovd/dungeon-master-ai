@@ -6,7 +6,9 @@ pub mod cache {
     pub use adapter_media::image::cache::*;
 }
 pub mod provider {
-    pub use app_application::ports::media::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+    pub use app_application::ports::media::{
+        ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource,
+    };
 }
 pub mod replicate {
     pub use adapter_media::image::replicate::*;

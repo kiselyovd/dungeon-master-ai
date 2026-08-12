@@ -125,6 +125,7 @@ describe('reduceAgentEvent', () => {
         toolCallId: 'tc-1',
         dataUrl: 'data:image/png;base64,AA',
         kind: 'map',
+        source: { type: 'generated' },
       },
       context,
       state,

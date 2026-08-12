@@ -285,6 +285,7 @@ export function ChatPanel() {
         className={styles.history}
         onScroll={onScroll}
         data-testid="chat-history"
+        data-streaming={isStreaming ? 'true' : 'false'}
       >
         {sessionLoadError !== null && (
           <div role="alert" className={`${styles.sessionLoadError} dm-chat-error`}>
@@ -355,7 +356,12 @@ export function ChatPanel() {
           </div>
         )}
         {lastError !== null && (
-          <div role="alert" className={styles.errorAlert}>
+          <div
+            role="alert"
+            className={styles.errorAlert}
+            data-testid="chat-error"
+            data-error-code={lastError.code}
+          >
             {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
           </div>
         )}

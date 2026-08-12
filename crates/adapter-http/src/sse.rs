@@ -1,4 +1,5 @@
 use app_application::models::agent::AgentEvent;
+use app_application::ports::media::ImageSource;
 use axum::response::sse::Event;
 
 /// Pure mapping from application events to the stable frontend SSE contract.
@@ -13,16 +14,25 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
             mime_type,
             image_b64,
             kind,
-        } => (
-            "image_generated",
-            serde_json::json!({
+            source,
+        } => {
+            let (source, asset_id) = match source {
+                ImageSource::Generated => ("generated", None),
+                ImageSource::Bundled { asset_id } => ("bundled", Some(asset_id)),
+            };
+            let mut payload = serde_json::json!({
                 "tool_call_id": tool_call_id,
                 "round": round,
                 "mime_type": mime_type,
                 "image_b64": image_b64,
                 "kind": kind,
-            }),
-        ),
+                "source": source,
+            });
+            if let Some(asset_id) = asset_id {
+                payload["asset_id"] = serde_json::Value::String(asset_id);
+            }
+            ("image_generated", payload)
+        }
         AgentEvent::TextDelta { text } => ("text_delta", serde_json::json!({ "text": text })),
         AgentEvent::ToolCallStart {
             id,

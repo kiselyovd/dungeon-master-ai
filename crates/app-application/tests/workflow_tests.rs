@@ -270,6 +270,7 @@ async fn agent_turn_orders_media_before_tool_result_and_persists_each_role() {
                 mime_type: "image/png".into(),
                 data_b64: "AA==".into(),
                 kind: "map".into(),
+                source: app_application::ports::media::ImageSource::Generated,
             }],
         },
         calls: AtomicUsize::new(0),

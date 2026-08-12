@@ -37,7 +37,7 @@ pub async fn is_combat_active(store: &SqliteStore) -> bool {
     store.is_combat_active().await.unwrap_or(false)
 }
 
-use crate::image::provider::{ImagePrompt, ImageProvider};
+use crate::image::provider::{ImagePrompt, ImageProvider, ImageSource};
 use crate::video::provider::{VideoPrompt, VideoProvider};
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
@@ -948,14 +948,22 @@ async fn run_image_generation(
         height,
     };
     match provider.generate(image_prompt).await {
-        Ok(bytes) => (
-            json!({
+        Ok(bytes) => {
+            let (source, asset_id) = match bytes.source {
+                ImageSource::Generated => ("generated", None),
+                ImageSource::Bundled { asset_id } => ("bundled", Some(asset_id)),
+            };
+            (
+                json!({
                 "status": "generated",
                 "mime_type": bytes.mime_type,
                 "image_b64": B64.encode(&bytes.data),
-            }),
-            false,
-        ),
+                "source": source,
+                "asset_id": asset_id,
+                }),
+                false,
+            )
+        }
         Err(e) => {
             warn!("image generation failed: {e}");
             (json!({ "error": e.to_string() }), true)
@@ -1132,7 +1140,7 @@ async fn execute_query_rules(
 #[cfg(test)]
 mod image_dispatch_tests {
     use super::*;
-    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource};
     use async_trait::async_trait;
     use std::sync::Mutex;
 
@@ -1147,6 +1155,7 @@ mod image_dispatch_tests {
             Ok(ImageBytes {
                 data: vec![1, 2, 3],
                 mime_type: "image/png".into(),
+                source: ImageSource::Generated,
             })
         }
         fn estimated_seconds(&self) -> u32 {

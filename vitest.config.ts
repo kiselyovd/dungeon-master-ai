@@ -20,7 +20,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     css: true,
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'src-tauri/**', 'target/**'],
     server: {
       deps: {

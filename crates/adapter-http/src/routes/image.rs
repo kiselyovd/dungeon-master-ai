@@ -1,4 +1,4 @@
-use app_application::ports::media::ImagePrompt;
+use app_application::ports::media::{ImagePrompt, ImageSource};
 use axum::extract::Extension;
 use axum::http::StatusCode;
 use axum::Json;
@@ -21,6 +21,9 @@ pub struct ImageGenerateRequest {
 pub struct ImageGenerateResponse {
     pub url: String,
     pub mime_type: String,
+    pub source: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
 }
 
 pub async fn post_image_generate(
@@ -51,9 +54,15 @@ pub async fn post_image_generate(
         generated.mime_type,
         B64.encode(&generated.data)
     );
+    let (source, asset_id) = match generated.source {
+        ImageSource::Generated => ("generated", None),
+        ImageSource::Bundled { asset_id } => ("bundled", Some(asset_id)),
+    };
     Ok(Json(ImageGenerateResponse {
         url,
         mime_type: generated.mime_type,
+        source,
+        asset_id,
     }))
 }
 

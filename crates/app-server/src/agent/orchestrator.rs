@@ -16,6 +16,7 @@ use app_application::agent::turn::{
     AgentTurnCommand, AgentTurnConfig, AgentTurnService, NeverCancelled,
 };
 use app_application::ports::events::NoopApplicationEventSink;
+use app_application::ports::media::ImageSource;
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::{LlmProvider, ReasoningSpec, ToolCall};
 use async_trait::async_trait;
@@ -228,6 +229,21 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
         if !is_error {
             if let Some(map) = result.as_object_mut() {
                 if let Some(serde_json::Value::String(data_b64)) = map.remove("image_b64") {
+                    let source = match map
+                        .remove("source")
+                        .and_then(|value| value.as_str().map(str::to_owned))
+                    {
+                        Some(source) if source == "bundled" => ImageSource::Bundled {
+                            asset_id: map
+                                .remove("asset_id")
+                                .and_then(|value| value.as_str().map(str::to_owned))
+                                .unwrap_or_else(|| "unknown".to_string()),
+                        },
+                        _ => {
+                            map.remove("asset_id");
+                            ImageSource::Generated
+                        }
+                    };
                     media.push(GeneratedAgentMedia::Image {
                         mime_type: map
                             .get("mime_type")
@@ -236,6 +252,7 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                             .to_string(),
                         data_b64,
                         kind: image_kind(&tool_name).unwrap_or("chat").to_string(),
+                        source,
                     });
                 }
                 if let Some(serde_json::Value::String(data_b64)) = map.remove("video_b64") {

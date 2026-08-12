@@ -333,12 +333,14 @@ impl AgentTurnService {
                             mime_type,
                             data_b64,
                             kind,
+                            source,
                         } => AgentEvent::ImageGenerated {
                             tool_call_id: tool_call.id.clone(),
                             round: total_rounds,
                             mime_type,
                             image_b64: data_b64,
                             kind,
+                            source,
                         },
                         GeneratedAgentMedia::Video {
                             mime_type,

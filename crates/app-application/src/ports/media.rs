@@ -33,6 +33,14 @@ pub struct ImagePrompt {
 pub struct ImageBytes {
     pub data: Vec<u8>,
     pub mime_type: String,
+    pub source: ImageSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "source", rename_all = "snake_case")]
+pub enum ImageSource {
+    Generated,
+    Bundled { asset_id: String },
 }
 
 #[derive(Debug, Error)]
@@ -158,6 +166,24 @@ mod tests {
         assert_eq!(caps.contract_version, 1);
         assert!(!caps.supports_video_init_image);
         assert!(caps.supports_video_cancellation);
+    }
+
+    #[test]
+    fn image_source_keeps_generated_and_bundled_wire_shapes() {
+        assert_eq!(
+            serde_json::to_value(ImageSource::Generated).expect("generated source serializes"),
+            serde_json::json!({ "source": "generated" })
+        );
+        assert_eq!(
+            serde_json::to_value(ImageSource::Bundled {
+                asset_id: "map-forest-crossing".into(),
+            })
+            .expect("bundled source serializes"),
+            serde_json::json!({
+                "source": "bundled",
+                "asset_id": "map-forest-crossing",
+            })
+        );
     }
 
     #[test]

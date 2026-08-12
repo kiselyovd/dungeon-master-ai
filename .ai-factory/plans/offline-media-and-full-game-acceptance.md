@@ -117,7 +117,7 @@ At each checkpoint: run focused checks, inspect `git diff --cached`, stage only 
 - Produces: `data-streaming="true|false"` on `[data-testid="chat-history"]`
 - Consumes: existing `CdpClient`, `evaluateInPage`, and `waitForPageCondition`
 
-- [ ] **Step 1: Add a failing pure regression test**
+- [x] **Step 1: Add a failing pure regression test**
 
 ```typescript
 import { describe, expect, it } from 'vitest';
@@ -147,21 +147,21 @@ describe('evaluateDmReply', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 Run: `bunx vitest run scripts/lib/dm-reply.test.ts`
 
 Expected: FAIL because `scripts/lib/dm-reply.ts` does not exist and scripts are not yet included by Vitest.
 
-- [ ] **Step 3: Implement the pure state evaluator and script-test inclusion**
+- [x] **Step 3: Implement the pure state evaluator and script-test inclusion**
 
 Add `scripts/**/*.test.ts` to `vitest.config.ts` while retaining the existing `src` include and Node environment annotation on the new test. `evaluateDmReply` must trim the newest post-baseline message, reject empty/placeholder content, return error first, and require `isStreaming === false`.
 
-- [ ] **Step 4: Expose stream state and update the CDP driver**
+- [x] **Step 4: Expose stream state and update the CDP driver**
 
 Snapshot the assistant count before submit. Poll all assistant bubbles plus `chat-history.dataset.streaming`, then call `evaluateDmReply`. Remove reasoning selectors from success logic, stop logging `prompt`, and log only safe lifecycle/status fields. Preserve backend-port discovery and existing localized settings selectors; repair any mojibake literals encountered in the touched hunks with valid UTF-8 English/Russian patterns.
 
-- [ ] **Step 5: Verify GREEN and truthful failure diagnostics**
+- [x] **Step 5: Verify GREEN and truthful failure diagnostics**
 
 Run:
 
@@ -199,7 +199,7 @@ Expected: all pass; the script contains no reasoning-as-success branch and no pr
 - Extends: `ImageGenerateResponse` with `source` and optional `asset_id`
 - Preserves: event ordering and all existing fields
 
-- [ ] **Step 1: Write failing Rust and TypeScript golden tests**
+- [x] **Step 1: Write failing Rust and TypeScript golden tests**
 
 Rust must assert exact generated and bundled wire payloads:
 
@@ -211,7 +211,7 @@ assert!(payload.get("image_b64").is_some());
 
 TypeScript must decode missing provenance as `{ type: 'generated' }` for backward compatibility and decode `{source:'bundled', asset_id:'map-forest-crossing'}` exactly.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -222,19 +222,19 @@ bunx vitest run src/api/__tests__/agentEvents.test.ts
 
 Expected: FAIL because provenance fields/types do not exist.
 
-- [ ] **Step 3: Add provenance to inward-owned models and media extraction**
+- [x] **Step 3: Add provenance to inward-owned models and media extraction**
 
 Use the canonical `ImageSource` interface above. Add `source: ImageSource` to `ImageBytes`; add `source` and `asset_id` to `GeneratedAgentMedia::Image` and `AgentEvent::ImageGenerated`; preserve these fields when `tool_executor` peels base64 out of the tool result and when the application turn forwards generated media.
 
-- [ ] **Step 4: Extend transport schemas compatibly**
+- [x] **Step 4: Extend transport schemas compatibly**
 
 `ImageGeneratedSchema` accepts optional `source` and `asset_id`; decoder defaults absent source to generated. `adapter-http` serializes `source: generated|bundled`, includes `asset_id` only for bundled content, and leaves all current keys intact. `/image/generate` returns the same provenance metadata.
 
-- [ ] **Step 5: Remove unsafe media logging in the touched provider**
+- [x] **Step 5: Remove unsafe media logging in the touched provider**
 
 Replace Replicate logs that contain the full prompt or generated URL with safe fields such as provider, prediction ID, duration, and byte count. Add a source-scan assertion or focused test proving `prompt = %full_prompt` and `url = %url` are absent.
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run the RED commands again, plus:
 
