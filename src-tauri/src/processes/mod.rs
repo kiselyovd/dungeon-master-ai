@@ -44,22 +44,51 @@ impl RuntimeProcesses {
             .clone()
     }
 
+    pub fn start_in_background(
+        &self,
+        app: AppHandle,
+        request: RuntimeStartRequest,
+    ) -> RuntimeStatus {
+        let Some(acknowledgement) = self.reserve_start(&request) else {
+            return self.status();
+        };
+        let processes = self.clone();
+        tauri::async_runtime::spawn(async move {
+            processes.start(&app, request).await;
+        });
+        acknowledgement
+    }
+
+    fn reserve_start(&self, request: &RuntimeStartRequest) -> Option<RuntimeStatus> {
+        let mut inner = self.inner.lock().expect("runtime process lock poisoned");
+        if matches!(
+            inner.status.state,
+            RuntimeState::Starting | RuntimeState::Running | RuntimeState::Degraded
+        ) {
+            return None;
+        }
+        let status = starting_status(request);
+        inner.status = status.clone();
+        Some(status)
+    }
+
     pub async fn start(&self, app: &AppHandle, request: RuntimeStartRequest) -> RuntimeStatus {
-        self.stop().await;
-        let generation = {
+        let (media, model, generation) = {
             let mut inner = self.inner.lock().expect("runtime process lock poisoned");
             inner.generation = inner.generation.wrapping_add(1);
-            inner.status = RuntimeStatus {
-                state: RuntimeState::Starting,
-                model_id: Some(request.model_id.clone()),
-                image_enabled: request.enable_image,
-                video_enabled: request.enable_video,
-                failure_code: None,
-                llm_port: None,
-                media_port: None,
-            };
-            inner.generation
+            inner.status = starting_status(&request);
+            (
+                inner.media_child.take(),
+                inner.model_child.take(),
+                inner.generation,
+            )
         };
+        if let Some(child) = media {
+            let _ = child.kill();
+        }
+        if let Some(child) = model {
+            let _ = child.kill();
+        }
 
         let llm_port = match model_runtime::free_loopback_port() {
             Ok(port) => port,
@@ -237,6 +266,18 @@ impl RuntimeProcesses {
     }
 }
 
+fn starting_status(request: &RuntimeStartRequest) -> RuntimeStatus {
+    RuntimeStatus {
+        state: RuntimeState::Starting,
+        model_id: Some(request.model_id.clone()),
+        image_enabled: request.enable_image,
+        video_enabled: request.enable_video,
+        failure_code: None,
+        llm_port: None,
+        media_port: None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,5 +298,43 @@ mod tests {
             },
         );
         assert_eq!(processes.status().state, RuntimeState::Stopped);
+    }
+
+    #[test]
+    fn start_acknowledgement_preserves_requested_capabilities() {
+        let request = RuntimeStartRequest {
+            model_id: "qwen3_0_6b".into(),
+            enable_image: true,
+            enable_video: false,
+            llm_args: vec!["serve".into()],
+            weights_dir: Some("models".into()),
+        };
+        assert_eq!(
+            starting_status(&request),
+            RuntimeStatus {
+                state: RuntimeState::Starting,
+                model_id: Some("qwen3_0_6b".into()),
+                image_enabled: true,
+                video_enabled: false,
+                failure_code: None,
+                llm_port: None,
+                media_port: None,
+            }
+        );
+    }
+
+    #[test]
+    fn duplicate_start_is_rejected_while_the_first_start_is_reserved() {
+        let processes = RuntimeProcesses::default();
+        let request = RuntimeStartRequest {
+            model_id: "qwen3_0_6b".into(),
+            enable_image: false,
+            enable_video: false,
+            llm_args: vec![],
+            weights_dir: None,
+        };
+        assert!(processes.reserve_start(&request).is_some());
+        assert!(processes.reserve_start(&request).is_none());
+        assert_eq!(processes.status().state, RuntimeState::Starting);
     }
 }

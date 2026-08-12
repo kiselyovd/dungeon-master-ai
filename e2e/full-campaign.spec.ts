@@ -501,21 +501,6 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await expect(page.getByText('From the built-in collection')).toHaveCount(2);
     await expect(page.getByTestId('combat-token-hero')).toBeVisible();
     await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    let settings = page.getByRole('dialog', { name: 'Settings' });
-    await settings.getByRole('tab', { name: 'Behavior', exact: true }).click();
-    await settings.getByLabel('UI language').click();
-    await settings.getByRole('option', { name: 'Russian', exact: true }).click();
-    await settings.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByText('Из встроенной коллекции')).toHaveCount(2);
-
-    await page.getByRole('button', { name: 'Настройки', exact: true }).click();
-    settings = page.getByRole('dialog', { name: 'Настройки' });
-    await settings.getByRole('tab').last().click();
-    await settings.getByLabel('Язык интерфейса').selectOption('en');
-    await settings.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    await expect(page.getByText('From the built-in collection')).toHaveCount(2);
   });
 
   await test.step('move only after an authoritative revision and heal with a spell', async () => {

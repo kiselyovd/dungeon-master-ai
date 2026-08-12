@@ -75,6 +75,7 @@ export function Select<T extends string>({
         aria-expanded={open}
         aria-controls={listboxId}
         aria-activedescendant={open ? `${listboxId}-option-${activeIndex}` : undefined}
+        data-value={value}
         disabled={disabled}
         className={styles.trigger}
         onClick={() => {
@@ -115,6 +116,7 @@ export function Select<T extends string>({
               type="button"
               role="option"
               aria-selected={option.value === value}
+              data-value={option.value}
               disabled={option.disabled}
               className={styles.option}
               data-active={index === activeIndex}

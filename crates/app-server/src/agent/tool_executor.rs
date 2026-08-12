@@ -386,11 +386,17 @@ async fn execute_end_combat(store: &SqliteStore) -> (Value, bool) {
         Ok(None) => return (json!({ "status": "combat_ended" }), false),
         Err(e) => return (json!({ "error": e.to_string() }), true),
     };
-    if let Err(e) = store.end(encounter_id).await {
-        tracing::warn!(error = %e, "persistence failed in execute_end_combat");
-        return (json!({ "error": e.to_string() }), true);
+    match store.end(encounter_id).await {
+        Ok(Some(projection)) => (
+            json!({ "status": "combat_ended", "projection": projection }),
+            false,
+        ),
+        Ok(None) => (json!({ "status": "combat_ended" }), false),
+        Err(e) => {
+            tracing::warn!(error = %e, "persistence failed in execute_end_combat");
+            (json!({ "error": e.to_string() }), true)
+        }
     }
-    (json!({ "status": "combat_ended" }), false)
 }
 
 /// Encode an optional JSON array field from the args into a JSON string for storage.
@@ -805,7 +811,10 @@ async fn execute_remember_npc(
         tracing::warn!(error = %e, "persistence failed in execute_remember_npc");
         return (json!({ "error": e.to_string() }), true);
     }
-    (json!({ "name": name, "status": "remembered" }), false)
+    (
+        json!({ "npc_id": name, "name": name, "status": "remembered" }),
+        false,
+    )
 }
 
 async fn execute_recall_npc(args: &Value, store: &SqliteStore, campaign_id: Uuid) -> (Value, bool) {
@@ -1580,6 +1589,28 @@ mod start_combat_tests {
             execute_start_combat(&args, &SqliteStore::new(pool.clone()), session_id).await;
         assert!(is_err, "must error when initiative_entries missing");
         assert!(val["error"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn end_combat_returns_the_authoritative_inactive_projection() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+        let store = SqliteStore::new(pool);
+        let args = json!({
+            "initiative_entries": [
+                { "name": "Hero", "roll": 20 },
+                { "name": "Goblin", "roll": 1 }
+            ]
+        });
+        let (_, start_error) = execute_start_combat(&args, &store, session_id).await;
+        assert!(!start_error);
+
+        let (ended, end_error) = execute_end_combat(&store).await;
+
+        assert!(!end_error, "end_combat must not error: {ended}");
+        assert_eq!(ended["status"], "combat_ended");
+        assert_eq!(ended["projection"]["revision"], 1);
+        assert_eq!(ended["projection"]["snapshot"]["active"], false);
     }
 }
 

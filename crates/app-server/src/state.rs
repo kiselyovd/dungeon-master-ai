@@ -495,11 +495,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn registry_initial_state_has_chat_no_media() {
+    async fn registry_initial_state_has_chat_and_bundled_image_fallback() {
         let s = test_state().await;
         let reg = s.registry();
         assert_eq!(reg.chat.name(), "mock");
-        assert!(reg.image.is_none());
+        assert!(reg.image.is_some());
         assert!(reg.video.is_none());
     }
 
@@ -534,8 +534,9 @@ mod tests {
     #[tokio::test]
     async fn swap_registry_replaces_all_three_atomically() {
         let s = test_state().await;
-        // Sanity: pre-swap there is no media.
-        assert!(s.image_provider().is_none());
+        // Sanity: the zero-runtime bundled image fallback is installed before
+        // the atomic swap, while video remains opt-in.
+        assert!(s.image_provider().is_some());
         assert!(s.video_provider().is_none());
 
         // Build a brand-new registry that populates ALL three slots so we can

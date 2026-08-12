@@ -158,7 +158,11 @@ async fn start_runtime(
     Json(request): Json<RuntimeStartRequest>,
 ) -> Result<Json<RuntimeStatus>, StatusCode> {
     authorize(&state, &headers)?;
-    Ok(Json(state.processes.start(&state.app, request).await))
+    Ok(Json(
+        state
+            .processes
+            .start_in_background(state.app.clone(), request),
+    ))
 }
 
 async fn stop_runtime(

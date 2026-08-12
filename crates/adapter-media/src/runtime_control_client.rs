@@ -2,6 +2,7 @@ use app_application::models::local_models::{RuntimeStartRequest, RuntimeStatus};
 use app_application::ports::runtime::{RuntimeControl, RuntimeError};
 use async_trait::async_trait;
 use reqwest::header::{HeaderValue, AUTHORIZATION};
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Authenticated client for the Tauri-owned loopback process controller.
@@ -23,7 +24,13 @@ impl LoopbackRuntimeControl {
                 }
             })?;
         Ok(Self {
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .build()
+                .map_err(|_| RuntimeError::Operation {
+                    operation: "configure",
+                    code: "control_client_invalid",
+                })?,
             endpoint: endpoint.into().trim_end_matches('/').to_owned(),
             authorization,
         })
