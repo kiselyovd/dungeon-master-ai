@@ -91,6 +91,11 @@ const settledIllustrationEntry = {
   imageKind: 'chat' as const,
 };
 
+const bundledMapEntry = {
+  ...settledMapEntry,
+  imageSource: { type: 'bundled' as const, assetId: 'map-tavern-interior' },
+};
+
 describe('ToolCallCard - image tools', () => {
   it('pending generate_map shows drawing indicator and NOT raw args JSON', () => {
     render(<ToolCallCard entry={pendingMapEntry} />);
@@ -121,5 +126,20 @@ describe('ToolCallCard - image tools', () => {
     const img = screen.getByRole('img', { name: /generated image|image_alt/i });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', TEST_DATA_URL);
+  });
+
+  it('labels bundled images while keeping the map routing note', () => {
+    render(<ToolCallCard entry={bundledMapEntry} />);
+    expect(screen.getByText('From the built-in collection')).toBeInTheDocument();
+    expect(screen.getByText('Map updated')).toBeInTheDocument();
+  });
+
+  it('does not label generated or legacy images as bundled', () => {
+    const { rerender } = render(<ToolCallCard entry={settledMapEntry} />);
+    expect(screen.queryByText('From the built-in collection')).toBeNull();
+    rerender(
+      <ToolCallCard entry={{ ...settledMapEntry, imageSource: { type: 'generated' as const } }} />,
+    );
+    expect(screen.queryByText('From the built-in collection')).toBeNull();
   });
 });

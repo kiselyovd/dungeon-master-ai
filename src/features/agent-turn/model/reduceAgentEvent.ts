@@ -1,10 +1,10 @@
-import type { AgentEvent } from '../../../api/contracts/agent';
+import type { AgentEvent, ImageSource } from '../../../api/contracts/agent';
 import type { AgentTurnPorts } from './ports';
 
 const DISPOSITIONS = new Set(['friendly', 'neutral', 'hostile', 'unknown']);
 
 type PendingMedia =
-  | { kind: 'image'; dataUrl: string; imageKind: 'map' | 'chat' }
+  | { kind: 'image'; dataUrl: string; imageKind: 'map' | 'chat'; source: ImageSource }
   | { kind: 'video'; dataUrl: string };
 
 export interface AgentEventReducerState {
@@ -34,8 +34,10 @@ function recordMedia(
     state.pendingMedia.set(id, pending);
     return;
   }
-  if (media.kind === 'image') ports.chat.attachImage(id, media.dataUrl, media.imageKind);
-  else ports.chat.attachVideo(id, media.dataUrl);
+  if (media.kind === 'image') {
+    ports.chat.attachImage(id, media.dataUrl, media.imageKind, media.source);
+    ports.toolLog.attachImage(id, media.dataUrl, media.imageKind, media.source);
+  } else ports.chat.attachVideo(id, media.dataUrl);
 }
 
 function flushMedia(id: string, state: AgentEventReducerState, ports: AgentTurnPorts): void {
@@ -132,7 +134,7 @@ export function reduceAgentEvent(
     case 'image_generated':
       recordMedia(
         event.toolCallId,
-        { kind: 'image', dataUrl: event.dataUrl, imageKind: event.kind },
+        { kind: 'image', dataUrl: event.dataUrl, imageKind: event.kind, source: event.source },
         state,
         ports,
       );

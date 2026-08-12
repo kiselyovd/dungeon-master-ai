@@ -171,7 +171,9 @@ describe('chat.attachStreamEventImage', () => {
 
     useStore
       .getState()
-      .chat.attachStreamEventImage('tc-img-1', 'data:image/png;base64,AAA', 'chat');
+      .chat.attachStreamEventImage('tc-img-1', 'data:image/png;base64,AAA', 'chat', {
+        type: 'generated',
+      });
 
     const events = useStore.getState().chat.chatStreamEvents;
     expect(events).toHaveLength(1);
@@ -187,7 +189,10 @@ describe('chat.attachStreamEventImage', () => {
     chat.addToolCallStartEvent('tc-a', 'generate_map', {}, 1);
     chat.addToolCallStartEvent('tc-b', 'generate_illustration', {}, 1);
 
-    useStore.getState().chat.attachStreamEventImage('tc-b', 'data:image/png;base64,BBB', 'map');
+    useStore.getState().chat.attachStreamEventImage('tc-b', 'data:image/png;base64,BBB', 'map', {
+      type: 'bundled',
+      assetId: 'map-forest-crossing',
+    });
 
     const events = useStore.getState().chat.chatStreamEvents;
     expect(events[0]?.imageDataUrl).toBeUndefined();

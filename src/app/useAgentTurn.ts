@@ -25,8 +25,8 @@ export function useAgentTurn() {
           useStore.getState().chat.addToolCallStartEvent(id, toolName, args, round),
         settleTool: (id, result, isError) =>
           useStore.getState().chat.settleToolCallEvent(id, result, isError),
-        attachImage: (id, dataUrl, kind) =>
-          useStore.getState().chat.attachStreamEventImage(id, dataUrl, kind),
+        attachImage: (id, dataUrl, kind, source) =>
+          useStore.getState().chat.attachStreamEventImage(id, dataUrl, kind, source),
         attachVideo: (id, dataUrl) => useStore.getState().chat.attachStreamEventVideo(id, dataUrl),
       },
       toolLog: {
@@ -34,6 +34,8 @@ export function useAgentTurn() {
           useStore.getState().toolLog.addPending(id, toolName, args, round),
         settle: (id, result, isError, handledBy) =>
           useStore.getState().toolLog.settle(id, result, isError, handledBy),
+        attachImage: (id, dataUrl, kind, source) =>
+          useStore.getState().toolLog.attachImage(id, dataUrl, kind, source),
       },
       journal: {
         append: (entry) =>

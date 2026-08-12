@@ -1,5 +1,6 @@
 import i18next from 'i18next';
 import type { StateCreator } from 'zustand';
+import type { ImageSource } from '../api/contracts/agent';
 import type { ChatErrorPayload } from '../api/errors';
 
 export type ChatRole = 'user' | 'assistant' | 'system';
@@ -55,6 +56,8 @@ export interface ChatStreamEvent {
   imageDataUrl?: string;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
+  /** Provenance for the ephemeral generated or bundled image. */
+  imageSource?: ImageSource;
   /** Data URL of a video clip produced by this tool call (generate_video). */
   videoDataUrl?: string;
 }
@@ -141,7 +144,12 @@ export interface ChatSlice {
     /** Settle an existing tool-call event with its result. */
     settleToolCallEvent: (id: string, result: unknown, isError: boolean) => void;
     /** Attach a generated image (data URL) to an existing stream event. */
-    attachStreamEventImage: (id: string, dataUrl: string, kind: 'map' | 'chat') => void;
+    attachStreamEventImage: (
+      id: string,
+      dataUrl: string,
+      kind: 'map' | 'chat',
+      source: ImageSource,
+    ) => void;
     /** Attach a generated video (data URL) to an existing stream event. */
     attachStreamEventVideo: (id: string, dataUrl: string) => void;
     /** Clear all stream events (called at stream start so prior turn cards are gone). */
@@ -349,12 +357,12 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
         },
       })),
 
-    attachStreamEventImage: (id, dataUrl, kind) =>
+    attachStreamEventImage: (id, dataUrl, kind, source) =>
       set((s) => ({
         chat: {
           ...s.chat,
           chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
-            e.id === id ? { ...e, imageDataUrl: dataUrl, imageKind: kind } : e,
+            e.id === id ? { ...e, imageDataUrl: dataUrl, imageKind: kind, imageSource: source } : e,
           ),
         },
       })),

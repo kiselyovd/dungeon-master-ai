@@ -21,7 +21,7 @@ function createPorts(): AgentTurnPorts {
       attachImage: vi.fn(),
       attachVideo: vi.fn(),
     },
-    toolLog: { addPending: vi.fn(), settle: vi.fn() },
+    toolLog: { addPending: vi.fn(), settle: vi.fn(), attachImage: vi.fn() },
     journal: { append: vi.fn() },
     npcs: { upsert: vi.fn() },
     session: {
@@ -139,7 +139,46 @@ describe('reduceAgentEvent', () => {
       state,
       ports,
     );
-    expect(ports.chat.attachImage).toHaveBeenCalledWith('tc-1', 'data:image/png;base64,AA', 'map');
+    expect(ports.chat.attachImage).toHaveBeenCalledWith('tc-1', 'data:image/png;base64,AA', 'map', {
+      type: 'generated',
+    });
+  });
+
+  it('keeps bundled provenance before and after the tool start', () => {
+    const bundled = { type: 'bundled' as const, assetId: 'illustration-tavern' };
+    for (const mediaFirst of [true, false]) {
+      const ports = createPorts();
+      const state = createAgentEventReducerState();
+      const context = { campaignId: 'campaign-1' };
+      const start = {
+        type: 'tool_call_start' as const,
+        id: 'tc-bundled',
+        toolName: 'generate_illustration',
+        round: 1,
+      };
+      const media = {
+        type: 'image_generated' as const,
+        toolCallId: 'tc-bundled',
+        dataUrl: 'data:image/webp;base64,AA',
+        kind: 'chat' as const,
+        source: bundled,
+      };
+      for (const event of mediaFirst ? [media, start] : [start, media]) {
+        reduceAgentEvent(event, context, state, ports);
+      }
+      expect(ports.chat.attachImage).toHaveBeenCalledWith(
+        'tc-bundled',
+        'data:image/webp;base64,AA',
+        'chat',
+        bundled,
+      );
+      expect(ports.toolLog.attachImage).toHaveBeenCalledWith(
+        'tc-bundled',
+        'data:image/webp;base64,AA',
+        'chat',
+        bundled,
+      );
+    }
   });
 
   it('isolates a combat projection handler failure', () => {

@@ -13,7 +13,17 @@ const IMAGE_TOOLS = new Set(['generate_map', 'generate_illustration']);
 const VIDEO_TOOLS = new Set(['generate_video']);
 
 export function ToolCallCard({ entry, label }: Props) {
-  const { toolName, args, result, isError, round, imageDataUrl, imageKind, videoDataUrl } = entry;
+  const {
+    toolName,
+    args,
+    result,
+    isError,
+    round,
+    imageDataUrl,
+    imageKind,
+    imageSource,
+    videoDataUrl,
+  } = entry;
   const pending = result === null;
   const { t } = useTranslation('agent');
   const isImageTool = IMAGE_TOOLS.has(toolName);
@@ -38,7 +48,7 @@ export function ToolCallCard({ entry, label }: Props) {
     setFlashing(true);
     const flashTimer = setTimeout(() => setFlashing(false), 600);
     return () => clearTimeout(flashTimer);
-  }, [pending, result, isImageTool]);
+  }, [pending, result, isImageTool, isVideoTool]);
 
   const statusKey = pending ? 'tool_pending' : isError ? 'tool_error' : 'tool_success';
   const statusLabel = pending ? 'pending' : isError ? 'error' : 'success';
@@ -97,6 +107,9 @@ export function ToolCallCard({ entry, label }: Props) {
           {!pending && !isError && imageDataUrl && (
             <>
               {imageKind === 'map' && <div className={styles.mapNote}>{t('map_updated')}</div>}
+              {imageSource?.type === 'bundled' && (
+                <div className={styles.sourceNote}>{t('image_source_bundled')}</div>
+              )}
               <button
                 type="button"
                 className={styles.thumbButton}

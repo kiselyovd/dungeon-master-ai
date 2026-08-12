@@ -398,11 +398,11 @@ bun run architecture:check
 - Extends: `ChatStreamEvent` and `ToolLogEntry` with `imageSource?: ImageSource`
 - Presents: `From the built-in collection` / `Из встроенной коллекции`
 
-- [ ] **Step 1: Add failing reducer and component tests**
+- [x] **Step 1: Add failing reducer and component tests**
 
 Reducer tests assert bundled metadata survives media-before-tool-start and media-after-tool-start ordering. Component tests assert the label appears only for bundled images, map routing note remains, and generated/legacy events have no label.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -410,19 +410,19 @@ Run:
 bunx vitest run src/api/__tests__/agentEvents.test.ts src/features/agent-turn/model/__tests__/reduceAgentEvent.test.ts src/components/ToolCallCard.test.tsx src/state/__tests__/persistStorage.test.ts
 ```
 
-- [ ] **Step 3: Carry provenance through narrow ports and state**
+- [x] **Step 3: Carry provenance through narrow ports and state**
 
 Use the shared API contract type rather than duplicating string unions. Pending media queues must retain source. Store metadata on ephemeral `chatStreamEvents`/tool-log entries only. `session.mapImageUrl` remains ephemeral and unchanged.
 
-- [ ] **Step 4: Render a quiet localized badge using existing tokens**
+- [x] **Step 4: Render a quiet localized badge using existing tokens**
 
 Place the label near the map note/image thumbnail, use existing muted/accent typography and spacing tokens, and do not introduce new animation. Keep lightbox, lazy loading, accessibility, and current test IDs intact.
 
-- [ ] **Step 5: Verify persistence and locale parity**
+- [x] **Step 5: Verify persistence and locale parity**
 
 Assert persisted JSON contains neither `data:image`, `imageDataUrl`, `mapImageUrl`, nor bundled asset bytes. Assert both locales contain the same new key and visible Russian/English copy renders.
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run the focused suite again, then:
 
@@ -446,25 +446,25 @@ bun run build
 - Consumes existing HTTP/SSE routes and UI test IDs
 - Produces one serial, deterministic campaign fixture with monotonic combat revisions and bundled media provenance
 
-- [ ] **Step 1: Write the failing Playwright scenario with a scripted backend**
+- [x] **Step 1: Write the failing Playwright scenario with a scripted backend**
 
 The scenario must cover in one session: character creation, completed narration, `set_scene`, bundled illustration, bundled tactical map, VTT mount, movement command with no optimistic position mutation, authoritative reconciliation, start combat, initiative, PC-turn gate, attack/damage, healing or spell, turn advance, end combat, NPC memory, journal entry, quick save, state mutation, restore, and EN/RU bundled label assertions.
 
-- [ ] **Step 2: Run the scenario and record the first real failure**
+- [x] **Step 2: Run the scenario and record the first real failure**
 
 Run: `bunx playwright test e2e/full-campaign.spec.ts --config=e2e/playwright.config.ts --workers=1`
 
 Expected: FAIL at the first missing fixture/helper/UI behavior; do not weaken assertions to make it pass.
 
-- [ ] **Step 3: Implement only missing deterministic fixtures and test seams**
+- [x] **Step 3: Implement only missing deterministic fixtures and test seams**
 
 Use controlled SSE and real frontend reducers/controllers. Model mechanics with server snapshots/revisions, never direct Zustand mutation from the test page. A model's prose is fixture data; combat outcome comes from authoritative events.
 
-- [ ] **Step 4: Prove media routing and persistence boundaries**
+- [x] **Step 4: Prove media routing and persistence boundaries**
 
 Assert map data appears in the VTT, illustration remains in the tool card, bundled label renders, stale combat revision is ignored, and reload/restore does not rehydrate base64 media.
 
-- [ ] **Step 5: Verify GREEN with existing critical browser specs**
+- [x] **Step 5: Verify GREEN with existing critical browser specs**
 
 Run:
 

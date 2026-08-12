@@ -1,4 +1,8 @@
-import type { AgentHistoryMessage, AgentMessagePart } from '../../../api/contracts/agent';
+import type {
+  AgentHistoryMessage,
+  AgentMessagePart,
+  ImageSource,
+} from '../../../api/contracts/agent';
 import type { ChatErrorPayload } from '../../../api/errors';
 
 export interface BoardToken {
@@ -34,13 +38,14 @@ export interface ChatPort {
   setError(error: ChatErrorPayload): void;
   addToolStart(id: string, toolName: string, args: unknown, round: number): void;
   settleTool(id: string, result: unknown, isError: boolean): void;
-  attachImage(id: string, dataUrl: string, kind: 'map' | 'chat'): void;
+  attachImage(id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource): void;
   attachVideo(id: string, dataUrl: string): void;
 }
 
 export interface ToolLogPort {
   addPending(id: string, toolName: string, args: unknown, round: number): void;
   settle(id: string, result: unknown, isError: boolean, handledBy: string): void;
+  attachImage(id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource): void;
 }
 
 export interface JournalPort {

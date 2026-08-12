@@ -153,6 +153,11 @@
   color: var(--color-fg-muted);
   margin-bottom: 6px;
 }
+.sourceNote {
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  margin-bottom: 6px;
+}
 .thumbButton {
   display: block;
   padding: 0;

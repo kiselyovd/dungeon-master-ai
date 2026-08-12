@@ -43,6 +43,7 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
   };
   if (event.imageDataUrl !== undefined) entry.imageDataUrl = event.imageDataUrl;
   if (event.imageKind !== undefined) entry.imageKind = event.imageKind;
+  if (event.imageSource !== undefined) entry.imageSource = event.imageSource;
   return entry;
 }
 
