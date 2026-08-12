@@ -110,6 +110,10 @@ describe('SavesScreen', () => {
       // (auto-selected on mount), so use getAllByText.
       expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
     });
+    expect(document.querySelector('.dm-save-thumb[data-tag="exploration"] img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('save-exploration'),
+    );
   });
 
   it('Auto tab narrows the list to auto saves only', async () => {

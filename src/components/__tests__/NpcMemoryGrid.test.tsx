@@ -22,6 +22,10 @@ describe('NpcMemoryGrid', () => {
     render(<NpcMemoryGrid npcs={mockNpcs} onClose={vi.fn()} />);
     expect(screen.getByText('Mira')).toBeInTheDocument();
     expect(screen.getByText('Innkeeper')).toBeInTheDocument();
+    expect(document.querySelector('img[data-archetype="innkeeper"]')).toHaveAttribute(
+      'src',
+      expect.stringContaining('npc-innkeeper'),
+    );
   });
 
   it('shows disposition label', () => {
