@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import sceneCombat from '../assets/scene-transition-combat.mp4';
-import sceneDialog from '../assets/scene-transition-dialog.mp4';
-import sceneDungeon from '../assets/scene-transition-dungeon.mp4';
-import sceneExploration from '../assets/scene-transition-exploration.mp4';
+import { SCENE_ART } from '../assets/livingTabletop';
 import { useStore } from '../state/useStore';
 
 const FADE_OUT_MS = 280;
@@ -11,12 +8,7 @@ const DEBOUNCE_MS = 30_000;
 
 type SceneTag = 'combat' | 'dialog' | 'exploration' | 'dungeon';
 
-const TAG_VIDEO: Record<SceneTag, string> = {
-  combat: sceneCombat,
-  dialog: sceneDialog,
-  exploration: sceneExploration,
-  dungeon: sceneDungeon,
-};
+const TAG_VIDEO: Record<SceneTag, string> = SCENE_ART;
 
 const KEYWORD_TAG: ReadonlyArray<readonly [RegExp, SceneTag]> = [
   [/combat|battle|fight|skirmish|ambush|боев|сраж|битв|драк/i, 'combat'],

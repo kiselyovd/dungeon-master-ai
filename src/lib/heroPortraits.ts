@@ -6,11 +6,8 @@
  * imports; they live here now to avoid duplication.
  */
 
-import portraitCleric from '../assets/char-portrait-cleric.png';
-import portraitFighter from '../assets/char-portrait-fighter.png';
 import portraitPaladin from '../assets/char-portrait-paladin.png';
-import portraitRogue from '../assets/char-portrait-rogue.png';
-import portraitWizard from '../assets/char-portrait-wizard.png';
+import { HERO_ART } from '../assets/livingTabletop';
 import type { HeroClassId } from '../state/pc';
 
 /**
@@ -19,9 +16,6 @@ import type { HeroClassId } from '../state/pc';
  * canonical onboarding classes are fighter / wizard / rogue / cleric.
  */
 export const HERO_PORTRAIT: Record<HeroClassId | 'paladin', string> = {
-  fighter: portraitFighter,
-  wizard: portraitWizard,
-  rogue: portraitRogue,
-  cleric: portraitCleric,
+  ...HERO_ART,
   paladin: portraitPaladin,
 };

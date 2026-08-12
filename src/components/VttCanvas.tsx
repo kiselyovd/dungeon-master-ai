@@ -9,7 +9,7 @@ import type {
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import vttEmptyArt from '../assets/vtt-empty.png';
+import { KEY_ART } from '../assets/livingTabletop';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { CombatOverlay } from './CombatOverlay';
@@ -434,7 +434,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
 
       {isEmpty && (
         <div className="dm-vtt-empty" aria-live="polite">
-          <img src={vttEmptyArt} alt="" className="dm-vtt-empty-art" />
+          <img src={KEY_ART.vttEmpty} alt="" className="dm-vtt-empty-art" />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>
         </div>

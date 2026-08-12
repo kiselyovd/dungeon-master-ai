@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { backendUrl } from '../api/client';
+import { KEY_ART } from '../assets/livingTabletop';
 import splashVideo from '../assets/splash.mp4';
-import splashPoster from '../assets/splash.png';
 
 const POLL_INTERVAL_MS = 250;
 const FADE_OUT_MS = 320;
@@ -73,7 +73,7 @@ export function SplashOverlay() {
       <video
         className="dm-splash-video"
         src={splashVideo}
-        poster={splashPoster}
+        poster={KEY_ART.splash}
         autoPlay
         muted
         playsInline
