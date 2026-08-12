@@ -6,6 +6,7 @@ test.beforeEach(async ({ page }) => {
     onboarding_completed: true,
     hero_class: 'fighter',
     active_provider: 'local-mistralrs',
+    ui_language: 'en',
   });
   await page.route('**/sessions/**', async (route) => {
     if (route.request().url().includes('/saves')) {

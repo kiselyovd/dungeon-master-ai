@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
     onboarding_completed: true,
     hero_class: 'fighter',
     active_provider: 'local-mistralrs',
+    ui_language: 'en',
   });
 
   // Mock the /chat SSE endpoint with a short scripted response.

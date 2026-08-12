@@ -126,10 +126,11 @@
 
 .composer {
   border-top: 1px solid var(--color-border-strong);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: flex-end;
+  background: linear-gradient(180deg, var(--color-bg-raised), var(--color-bg-deep));
 }
 
 .composerCol {
@@ -149,22 +150,36 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  background: linear-gradient(180deg, rgba(212, 175, 55, 0.18), rgba(168, 134, 42, 0.1));
-  border: 1px solid rgba(212, 175, 55, 0.4);
+  min-width: 104px;
+  min-height: 48px;
+  justify-content: center;
+  padding: 0 var(--space-4);
+  background: linear-gradient(180deg, var(--color-accent), var(--color-accent-deep));
+  border: 1px solid var(--color-accent-soft);
   color: var(--color-accent-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 700;
   transition:
     background var(--t-fast),
     border-color var(--t-fast);
 }
 
 .sendBtn:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(212, 175, 55, 0.28), rgba(168, 134, 42, 0.15));
+  background: linear-gradient(180deg, var(--color-accent-soft), var(--color-accent));
+  color: var(--color-bg-deep);
+  box-shadow: var(--glow-accent);
+}
+
+.sendBtn:not(:disabled) {
+  color: var(--color-bg-deep);
+}
+
+.sendBtn:focus-visible {
+  outline: 2px solid var(--color-accent-soft);
+  outline-offset: 2px;
 }
 
 .sendBtn:disabled {
@@ -182,7 +197,30 @@
 
 .draft {
   width: 100%;
+  min-height: 52px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-input);
+  color: var(--color-fg-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   resize: none;
+}
+
+.draft:hover {
+  border-color: var(--color-border-accent);
+}
+
+.draft:focus {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--color-accent-tint);
+  outline-offset: 1px;
+}
+
+.draft::placeholder {
+  color: var(--color-fg-muted);
 }
 
 .hint {

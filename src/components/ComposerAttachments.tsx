@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { StagedImage } from '../state/chat';
+import { Icons } from '../ui/Icons';
 import styles from './ComposerAttachments.module.css';
 
 interface Props {
@@ -26,7 +27,7 @@ export function ComposerAttachments({ items, onRemove }: Props) {
             className={styles.remove}
             onClick={() => onRemove(i)}
           >
-            ×
+            <Icons.X size={12} />
           </button>
         </li>
       ))}

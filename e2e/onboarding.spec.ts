@@ -10,7 +10,7 @@ import { mockTauri } from './fixtures/tauri-mock';
  * No `onboarding_completed` seed here so the modal mounts on load.
  */
 test.beforeEach(async ({ page }) => {
-  await mockTauri(page);
+  await mockTauri(page, { ui_language: 'en' });
 });
 
 test('mounts on first run and shows the welcome step', async ({ page }) => {
@@ -80,7 +80,11 @@ test('language picker flips EN/RU', async ({ page }) => {
 test('onboarding does NOT reappear once completed (hydration gate)', async ({ page }) => {
   // Seed the persisted completed flag: the redesigned hydration gate must keep
   // the modal from flashing on a relaunch. (Audit blocker 1.)
-  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
+  await mockTauri(page, {
+    onboarding_completed: true,
+    hero_class: 'fighter',
+    ui_language: 'en',
+  });
   await page.goto('/');
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
   // The onboarding step counter must be absent (modal never mounted).

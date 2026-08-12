@@ -66,6 +66,7 @@ test('token movement remains a request until a newer server projection arrives',
     onboarding_completed: true,
     hero_class: 'fighter',
     active_provider: 'local-mistralrs',
+    ui_language: 'en',
     pc: {
       heroClass: 'fighter',
       name: 'Hero',

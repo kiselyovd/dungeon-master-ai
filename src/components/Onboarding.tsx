@@ -110,16 +110,20 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
         aria-labelledby={titleId}
         aria-label={t('dialog_label')}
       >
-        <div className="dm-onboarding-lang">
-          <LanguageSegmentedControl
-            value={uiLanguage}
-            onChange={setUiLanguage}
-            ariaLabel={tCommon('language')}
-          />
-        </div>
-
-        <div className="dm-onboarding-counter" aria-live="polite">
-          {counterText}
+        <div className="dm-onboarding-header">
+          <div className="dm-onboarding-heading-context">
+            <div className="dm-onboarding-counter" aria-live="polite">
+              {counterText}
+            </div>
+            <div className="dm-onboarding-current-step">{stepLabels[stepIndex]}</div>
+          </div>
+          <div className="dm-onboarding-lang">
+            <LanguageSegmentedControl
+              value={uiLanguage}
+              onChange={setUiLanguage}
+              ariaLabel={tCommon('language')}
+            />
+          </div>
         </div>
 
         <ol className="dm-onboarding-steps" aria-label={t('stepper_label')}>

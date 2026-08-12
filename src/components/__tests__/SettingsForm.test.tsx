@@ -94,11 +94,15 @@ describe('SettingsForm', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('exposes openai-compat and local-mistralrs in the provider select', () => {
+  it('exposes openai-compat and local-mistralrs in the provider select', async () => {
+    const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
     const select = screen.getByRole('combobox', { name: /Provider/i });
-    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
-    expect(options).toEqual(['openai-compat', 'local-mistralrs']);
+    await user.click(select);
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'OpenAI-compatible (cloud or local server)',
+      'Local mistralrs (embedded, on-device)',
+    ]);
   });
 
   it('shows the local-mistralrs fields on the Local LLM tab', async () => {
@@ -140,10 +144,8 @@ describe('SettingsForm', () => {
     render(<SettingsForm onSubmit={() => {}} />);
     await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
 
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /VRAM strategy/i }),
-      'keep-both-loaded',
-    );
+    await user.click(screen.getByRole('combobox', { name: /VRAM strategy/i }));
+    await user.click(screen.getByRole('option', { name: /Keep both loaded/i }));
 
     expect(useStore.getState().localMode.vramStrategy).toBe('keep-both-loaded');
   });
@@ -159,10 +161,8 @@ describe('SettingsForm', () => {
     useStore.getState().localMode.selectModel('qwen3_5_2b');
 
     render(<SettingsForm formId="f" onSubmit={onSubmit} />);
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /Provider/i }),
-      'local-mistralrs',
-    );
+    await user.click(screen.getByRole('combobox', { name: /Provider/i }));
+    await user.click(screen.getByRole('option', { name: /Local mistralrs/i }));
 
     fireEvent.submit(document.getElementById('f') as HTMLFormElement);
 
@@ -305,7 +305,8 @@ describe('SettingsForm model discovery integration', () => {
   it('switching to openai-compat shows a ModelSelector backed by openai-compat discovery', async () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
-    await user.selectOptions(screen.getByRole('combobox', { name: /Provider/i }), 'openai-compat');
+    await user.click(screen.getByRole('combobox', { name: /Provider/i }));
+    await user.click(screen.getByRole('option', { name: /OpenAI-compatible/i }));
     // The Discover button is still present in the openai-compat sub-form.
     expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
 

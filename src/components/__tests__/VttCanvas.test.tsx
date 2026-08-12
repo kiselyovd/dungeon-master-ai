@@ -183,8 +183,10 @@ describe('VttCanvas', () => {
   it('grid toggle button loses is-active class after click', () => {
     const { getByRole } = render(<VttCanvas />);
     const gridBtn = getByRole('button', { name: /toggle grid|сетка/i });
+    expect(gridBtn).toHaveAttribute('aria-pressed', 'true');
     expect(gridBtn.className).toContain('is-active');
     fireEvent.click(gridBtn);
+    expect(gridBtn).toHaveAttribute('aria-pressed', 'false');
     expect(gridBtn.className).not.toContain('is-active');
   });
 
@@ -193,6 +195,7 @@ describe('VttCanvas', () => {
     const measureBtn = getByRole('button', { name: /measure|измерить/i });
     fireEvent.click(measureBtn);
     expect(measureBtn.className).toContain('is-active');
+    expect(measureBtn).toHaveAttribute('aria-pressed', 'true');
     expect(container.querySelector('[data-testid="measure-overlay"]')).toBeTruthy();
   });
 

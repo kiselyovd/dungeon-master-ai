@@ -34,7 +34,9 @@ import ruUpdater from './locales/ru/updater.json';
 import ruWizard from './locales/ru/wizard.json';
 
 void i18n.use(initReactI18next).init({
-  lng: 'ru',
+  // Keep component tests deterministic in English; production boot is Russian
+  // until the persisted store applies the user's saved preference.
+  lng: import.meta.env.MODE === 'test' ? 'en' : 'ru',
   fallbackLng: 'ru',
   supportedLngs: ['en', 'ru'],
   defaultNS: 'common',

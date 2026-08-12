@@ -18,9 +18,9 @@ test('app renders header, grid placeholder, and chat panel', async ({ page }) =>
   await page.goto('/');
   // Title is a span (DUNGEON MASTER AI brand mark), not a semantic heading.
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
-  // Composer placeholder text changed from "Type a message" to "What do you do?".
-  await expect(page.getByPlaceholder(/what do you do/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+  // A clean profile starts in Russian; persisted settings may override this.
+  await expect(page.getByPlaceholder('Что ты делаешь?')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Отправить' })).toBeDisabled();
   await expect(page.locator('.dm-vtt-empty-art')).toBeVisible();
   await expect(page.locator('.dm-vtt-empty')).toHaveAttribute(
     'data-art-direction',
@@ -34,8 +34,8 @@ test('settings modal opens and closes', async ({ page }) => {
   // (Chat provider settings / Image gen settings / Video gen settings) that
   // also match a loose /Settings/i regex. Use exact name to target the
   // titlebar button only.
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Настройки', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: /Cancel/i }).click();
+  await page.getByRole('button', { name: 'Отмена' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });

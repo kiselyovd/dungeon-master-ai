@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadEvents } from '../../../hooks/useDownloadEvents';
 import { mergeManifests } from '../../../state/local_llm/manifest';
 import { useLocalLlmStore } from '../../../state/localLlm';
+import { Icons } from '../../../ui/Icons';
 import { ActiveModelPicker } from './ActiveModelPicker';
 import { CollapsibleCard } from './CollapsibleCard';
 import { HfSearch } from './HfSearch';
@@ -77,6 +78,7 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
 
       <CollapsibleCard
         title={t('manage_downloads')}
+        icon={<Icons.Download size={17} />}
         chip={t('installed_count', { installed: installedCount, total: totalCount })}
       >
         <ManageDownloads
@@ -86,7 +88,11 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
         />
       </CollapsibleCard>
 
-      <CollapsibleCard title={t('search_hf')} chip={t('hf_search_count', { count: merged.length })}>
+      <CollapsibleCard
+        title={t('search_hf')}
+        icon={<Icons.Globe size={17} />}
+        chip={t('hf_search_count', { count: merged.length })}
+      >
         <HfSearch />
       </CollapsibleCard>
     </div>

@@ -16,6 +16,7 @@ import {
 } from '../state/providers';
 import { useStore } from '../state/useStore';
 import { Field } from '../ui/Field';
+import { Select } from '../ui/Select';
 import { activeProviderCaps } from '../utils/capabilities';
 import { isOssLicense } from '../utils/license';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -209,22 +210,20 @@ export function SettingsForm({
           <ErrorBoundary level="section">
             <Field label={t('provider_label')}>
               {({ id }) => (
-                <select
+                <Select
                   id={id}
                   value={activeKind}
-                  onChange={(e) => setActiveKind(e.target.value as ProviderKind)}
-                  className={styles.fullWidth}
-                >
-                  {PROVIDER_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {t(
-                        `provider_${k.replace('-', '_')}` as
-                          | 'provider_openai_compat'
-                          | 'provider_local_mistralrs',
-                      )}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setActiveKind}
+                  ariaLabel={t('provider_label')}
+                  options={PROVIDER_KINDS.map((kind) => ({
+                    value: kind,
+                    label: t(
+                      `provider_${kind.replace('-', '_')}` as
+                        | 'provider_openai_compat'
+                        | 'provider_local_mistralrs',
+                    ),
+                  }))}
+                />
               )}
             </Field>
 
@@ -414,15 +413,15 @@ function LanguageSelect({
 }) {
   const { t } = useTranslation('settings');
   return (
-    <select
+    <Select
       id={id}
       value={value}
-      onChange={(e) => onChange(e.target.value as 'en' | 'ru')}
-      className={styles.fullWidth}
-    >
-      <option value="en">{t('lang_en')}</option>
-      <option value="ru">{t('lang_ru')}</option>
-    </select>
+      onChange={onChange}
+      options={[
+        { value: 'ru', label: t('lang_ru') },
+        { value: 'en', label: t('lang_en') },
+      ]}
+    />
   );
 }
 
@@ -721,18 +720,20 @@ function ReasoningSection({
         />
         <span>{t('reasoning_enable_label')}</span>
       </label>
-      <label className={styles.checkboxRow}>
+      <div className={styles.checkboxRow}>
         {t('reasoning_budget_label')}
-        <select
+        <Select
           value={slice.reasoningBudget}
-          onChange={(e) => slice.setReasoningBudget(e.target.value as 'low' | 'medium' | 'high')}
+          onChange={slice.setReasoningBudget}
           disabled={!slice.reasoningEnabled || !caps.reasoning}
-        >
-          <option value="low">{t('reasoning_budget_low')}</option>
-          <option value="medium">{t('reasoning_budget_medium')}</option>
-          <option value="high">{t('reasoning_budget_high')}</option>
-        </select>
-      </label>
+          ariaLabel={t('reasoning_budget_label')}
+          options={[
+            { value: 'low', label: t('reasoning_budget_low') },
+            { value: 'medium', label: t('reasoning_budget_medium') },
+            { value: 'high', label: t('reasoning_budget_high') },
+          ]}
+        />
+      </div>
       {!caps.reasoning && <p className={styles.hint}>{t('reasoning_unsupported_hint')}</p>}
     </fieldset>
   );

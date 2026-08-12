@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
     onboarding_completed: true,
     hero_class: 'fighter',
     active_provider: 'local-mistralrs',
+    ui_language: 'en',
   });
   await page.route('**/local/runtime/status', async (route) => {
     await route.fulfill({
@@ -50,7 +51,8 @@ test('unified provider block: local hides Base URL, OpenAI-compat shows it', asy
   // config instead.
   await expect(dialog.getByLabel(/Base URL/i)).toHaveCount(0);
   // Switch the provider to OpenAI-compatible -> cloud fields appear.
-  await dialog.getByLabel(/Provider/i).selectOption('openai-compat');
+  await dialog.getByLabel(/Provider/i).click();
+  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
   await expect(dialog.getByLabel(/Base URL/i)).toBeVisible();
   await expect(dialog.getByLabel(/API key/i)).toBeVisible();
   // Model is a ModelSelector (combobox), targeted by its placeholder.
@@ -78,7 +80,8 @@ test('Save persists and closes (POST /settings mocked 200)', async ({ page }) =>
   });
   await openSettings(page);
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel(/Provider/i).selectOption('openai-compat');
+  await dialog.getByLabel(/Provider/i).click();
+  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
   await dialog.getByLabel(/Base URL/i).fill('https://openrouter.ai/api/v1');
   await dialog.getByLabel(/API key/i).fill('sk-test-key');
   await dialog.getByPlaceholder('qwen3-1.7b').fill('anthropic/claude-3.5-sonnet');

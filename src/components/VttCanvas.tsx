@@ -479,6 +479,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
           className={`dm-vtt-ctrl${showGrid ? ' is-active' : ''}`}
           title={t('map_toggle_grid')}
           aria-label={t('map_toggle_grid')}
+          aria-pressed={showGrid}
           onClick={() => setShowGrid((v) => !v)}
         >
           <Icons.GridIcon size={16} />
@@ -488,6 +489,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
           className={`dm-vtt-ctrl${measureMode ? ' is-active' : ''}`}
           title={t('map_measure')}
           aria-label={t('map_measure')}
+          aria-pressed={measureMode}
           onClick={() => setMeasureMode((v) => !v)}
         >
           <Icons.Ruler size={16} />
@@ -498,6 +500,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
           title={t('map_layers')}
           aria-label={t('map_layers')}
           aria-expanded={layersOpen}
+          aria-pressed={layersOpen}
           onClick={() => setLayersOpen((v) => !v)}
         >
           <Icons.Layers size={16} />

@@ -251,8 +251,8 @@ function App() {
         <header className="dm-titlebar" data-tauri-drag-region>
           <div className="dm-titlebar-left">
             <div className="dm-app-mark">
-              <div className="dm-app-mark-glyph">
-                <Icons.D20 size={14} />
+              <div className="dm-app-mark-glyph" data-testid="brand-crest">
+                <Icons.Crest size={18} strokeWidth={1.35} />
               </div>
               <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
             </div>
@@ -312,6 +312,7 @@ function App() {
               <button
                 type="button"
                 className="dm-window-ctrl"
+                data-testid="window-minimize"
                 onClick={() => void tauriWindowAction('minimize')}
                 aria-label={t('minimize')}
                 title={t('minimize')}
@@ -321,6 +322,7 @@ function App() {
               <button
                 type="button"
                 className="dm-window-ctrl"
+                data-testid="window-maximize"
                 onClick={() => void tauriWindowAction('toggleMaximize')}
                 aria-label={t('maximize')}
                 title={t('maximize')}
@@ -330,6 +332,7 @@ function App() {
               <button
                 type="button"
                 className="dm-window-ctrl dm-window-close"
+                data-testid="window-close"
                 onClick={() => void tauriWindowAction('close')}
                 aria-label={t('close')}
                 title={t('close')}

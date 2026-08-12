@@ -13,6 +13,7 @@ test.beforeEach(async ({ page }) => {
     onboarding_completed: true,
     hero_class: 'fighter',
     active_provider: 'local-mistralrs',
+    ui_language: 'en',
   });
   // SavesScreen fetches the saves list on open; return an empty list. The
   // pattern is a tight regex (not `**/saves**`) so it does NOT swallow vite's

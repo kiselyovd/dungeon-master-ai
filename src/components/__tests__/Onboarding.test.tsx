@@ -82,6 +82,16 @@ describe('Onboarding', () => {
     expect(screen.getByText(/Step 2 of 5/i)).toBeInTheDocument();
   });
 
+  it('pairs the compact counter with the current step in a dedicated header', () => {
+    const { container } = render(<Onboarding />);
+
+    const header = container.querySelector('.dm-onboarding-header');
+    expect(header).toBeInTheDocument();
+    expect(header?.querySelector('.dm-onboarding-counter')).toHaveTextContent(/Step 1 of 5/i);
+    expect(header?.querySelector('.dm-onboarding-current-step')).toHaveTextContent('Welcome');
+    expect(within(header as HTMLElement).getByRole('group')).toBeInTheDocument();
+  });
+
   // ------------------------------------------------------------------
   // Test 4: Back from preset step returns to welcome
   // ------------------------------------------------------------------

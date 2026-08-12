@@ -505,7 +505,8 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     let settings = page.getByRole('dialog', { name: 'Settings' });
     await settings.getByRole('tab', { name: 'Behavior', exact: true }).click();
-    await settings.getByLabel('UI language').selectOption('ru');
+    await settings.getByLabel('UI language').click();
+    await settings.getByRole('option', { name: 'Russian', exact: true }).click();
     await settings.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Из встроенной коллекции')).toHaveCount(2);
 
