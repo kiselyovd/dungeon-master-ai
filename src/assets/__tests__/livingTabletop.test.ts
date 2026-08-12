@@ -29,6 +29,10 @@ const WAVE_2: ReadonlyArray<readonly [string, number]> = [
   ),
 ];
 
+const MATERIALS = ['leather', 'stone', 'oak', 'parchment', 'velvet', 'bronze'].map(
+  (role) => [`material-${role}.webp`, 450_000] as const,
+);
+
 describe('living tabletop asset registry', () => {
   it('exposes every reachable semantic role', () => {
     expect(Object.keys(HERO_ART)).toEqual(['fighter', 'wizard', 'rogue', 'cleric']);
@@ -57,6 +61,13 @@ it.each(WAVE_1)('%s exists within its encoded budget', (name, maxBytes) => {
 });
 
 it.each(WAVE_2)('%s exists within its encoded budget', (name, maxBytes) => {
+  const file = resolve(__dirname, `../living-tabletop/${name}`);
+  const bytes = statSync(file).size;
+  expect(bytes).toBeGreaterThan(10_000);
+  expect(bytes).toBeLessThanOrEqual(maxBytes);
+});
+
+it.each(MATERIALS)('%s exists within its encoded budget', (name, maxBytes) => {
   const file = resolve(__dirname, `../living-tabletop/${name}`);
   const bytes = statSync(file).size;
   expect(bytes).toBeGreaterThan(10_000);

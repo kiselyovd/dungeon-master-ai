@@ -83,3 +83,18 @@ The save illustrations depict a torchlit bridge defence, a misty valley journey,
 ### Scene transitions
 
 The transition stills depict an approaching battle through abandoned equipment, a sealed-letter conversation, a road leaving a living village at sunrise, and a lantern-lit descent into a crypt. Each prompt requested a wide hand-painted book illustration with calm atmospheric motion cues and negative space for the interface title. A photoreal first combat candidate was rejected and replaced before encoding.
+
+## Wave 3
+
+| Role | Final path | Candidate | Pixels | Old bytes | New bytes | QA |
+|---|---|---|---:|---:|---:|---|
+| Leather | `src/assets/living-tabletop/material-leather.webp` | `.artifacts/living-tabletop/candidates/material-leather.png` | 1024 x 1024 | 11,348 | 80,682 | Approved: dark worn hide, soft mirrored repeat, no visible hard seam |
+| Stone | `src/assets/living-tabletop/material-stone.webp` | `.artifacts/living-tabletop/candidates/material-stone-v2.png` | 1024 x 1024 | 22,644 | 165,684 | Approved after seam correction: irregular matte masonry, quiet warm-gray range |
+| Oak | `src/assets/living-tabletop/material-oak.webp` | `.artifacts/living-tabletop/candidates/material-oak.png` | 1024 x 1024 | 18,344 | 131,044 | Approved: aged horizontal boards, restrained grain and warm brown value |
+| Parchment | `src/assets/living-tabletop/material-parchment.webp` | `.artifacts/living-tabletop/candidates/material-parchment.png` | 1024 x 1024 | 39,140 | 51,640 | Approved: pale natural fibre, low contrast, clean behind readable content |
+| Velvet | `src/assets/living-tabletop/material-velvet.webp` | `.artifacts/living-tabletop/candidates/material-velvet-v2.png` | 1024 x 1024 | 13,004 | 53,646 | Approved after seam correction: near-black aubergine pile, no bright purple bands |
+| Bronze | `src/assets/living-tabletop/material-bronze.webp` | `.artifacts/living-tabletop/candidates/material-bronze.png` | 1024 x 1024 | 33,602 | 112,060 | Approved: muted antique brushing, dark overlay-ready, no decorative symbols |
+
+### Physical materials
+
+The six material sources were generated as evenly illuminated orthographic scans with no text, objects, borders, perspective, or technological motifs. Final production tiles use a mirrored edge construction before WebP encoding, so both axes remain continuous in 2 x 2 repeat tests without sacrificing the project’s existing semantic CSS roles. The reduced-transparency media query still removes material imagery entirely.
