@@ -243,6 +243,57 @@ async fn agent_turn_endpoint_streams_text() {
 }
 
 #[tokio::test]
+async fn agent_map_tool_uses_bundled_provider_without_sidecar_or_persisted_base64() {
+    let pool = test_pool().await;
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    let mock = Arc::new(MockProvider::new(vec![
+        ChatChunk::ToolCallStart {
+            id: "map-fallback-1".into(),
+            name: "generate_map".into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: "map-fallback-1".into(),
+            args_fragment: r#"{"prompt":"forest crossing"}"#.into(),
+        },
+        ChatChunk::ToolCallDone {
+            id: "map-fallback-1".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
+    ]));
+    let server = TestServer::start_with(mock, pool.clone()).await;
+    assert!(server.state.media_sidecar_url().is_none());
+
+    let response = Client::new()
+        .post(server.url("/agent/turn"))
+        .json(&serde_json::json!({
+            "player_message": "Show the crossing",
+            "history": [],
+            "campaign_id": campaign_id,
+            "session_id": session_id
+        }))
+        .send()
+        .await
+        .expect("agent request");
+
+    assert_eq!(response.status(), 200);
+    let body = response.text().await.expect("SSE body");
+    assert!(body.contains("event: image_generated"));
+    assert!(body.contains(r#""source":"bundled""#));
+    assert!(body.contains(r#""kind":"map""#));
+    assert!(body.contains(r#""asset_id":"map-"#));
+
+    let persisted = app_server::db::list_messages_by_session(&pool, &session_id.to_string())
+        .await
+        .expect("persisted history");
+    let json = serde_json::to_string(&persisted).expect("serialized history");
+    assert!(!json.contains("image_b64"));
+    assert!(!json.contains("data:image"));
+}
+
+#[tokio::test]
 async fn agent_tool_call_result_contains_tool_name() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     app_server::db::init_db(&pool).await.unwrap();

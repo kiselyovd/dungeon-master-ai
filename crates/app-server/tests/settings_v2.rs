@@ -568,10 +568,8 @@ async fn post_settings_v2_rebuilds_replicate_image_provider() {
 
 #[tokio::test]
 async fn post_settings_v2_degrades_replicate_without_api_key() {
-    // Image is an optional enhancement: a bad/unavailable image provider must
-    // NOT block the mandatory chat provider. The save succeeds with image
-    // disabled rather than 400ing the whole request.
     let server = TestServer::start().await;
+    let original_revision = server.state.settings_revision();
     let mut body = baseline();
     body["image"]["providers"]["replicate"]["api_key"] = Value::String(String::new());
     let res = reqwest::Client::new()
@@ -580,10 +578,11 @@ async fn post_settings_v2_degrades_replicate_without_api_key() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 200);
+    assert_eq!(res.status(), 400);
+    assert_eq!(server.state.settings_revision(), original_revision);
     assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
+        server.state.image_provider().is_some(),
+        "invalid settings must not clear the bundled default"
     );
 }
 
@@ -632,15 +631,14 @@ async fn post_settings_v2_degrades_local_image_without_sidecar_url() {
         .await
         .expect("request");
     assert_eq!(res.status(), 200);
-    assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
-    );
+    let p = server.state.image_provider().expect("bundled fallback");
+    assert_eq!(p.cost_per_image(), 0.0);
 }
 
 #[tokio::test]
 async fn post_settings_v2_degrades_replicate_without_provider_config_slice() {
     let server = TestServer::start().await;
+    let original_revision = server.state.settings_revision();
     let mut body = baseline();
     body["image"]["providers"] = json!({});
     let res = reqwest::Client::new()
@@ -649,10 +647,11 @@ async fn post_settings_v2_degrades_replicate_without_provider_config_slice() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 200);
+    assert_eq!(res.status(), 400);
+    assert_eq!(server.state.settings_revision(), original_revision);
     assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
+        server.state.image_provider().is_some(),
+        "invalid settings must not clear the bundled default"
     );
 }
 

@@ -265,7 +265,7 @@ bun run architecture:check
 - Produces: stable `BundledAsset { id, category, keywords, mime_type, bytes }`
 - Consumes: `ImagePrompt.style_preset == "map"` to select the tactical-map catalog; all other presets select illustrations
 
-- [ ] **Step 1: Write the failing catalog/provider tests**
+- [x] **Step 1: Write the failing catalog/provider tests**
 
 Tests must assert:
 
@@ -280,21 +280,21 @@ assert!(!first.data.is_empty());
 
 Also assert map and illustration IDs use distinct prefixes, every ID is unique, all compiled bytes begin with a valid WebP RIFF signature, dimensions/categories meet catalog constraints, and normalization makes whitespace/case variants select the same asset.
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [x] **Step 2: Run the tests and verify RED**
 
 Run: `cargo test -p adapter-media --test bundled_image_provider`
 
 Expected: FAIL because the provider and catalog do not exist.
 
-- [ ] **Step 3: Generate only missing artwork with the `imagegen` skill**
+- [x] **Step 3: Generate only missing artwork with the `imagegen` skill**
 
 Create a cohesive calm-classic set. Required tactical maps: tavern interior, forest crossing, ruined courtyard, cave chamber, dungeon hall, temple floor, village square, tower chamber. Required illustrations: tavern, village, forest road, ruins, cave, dungeon, temple, wizard tower. Reuse approved `living-tabletop` illustrations only when they meet the exact scene contract; generate the rest. Maps must be orthographic top-down, grid-friendly, character-free, token-free, and text-free. Output WebP assets with bounded dimensions and sizes suitable for SSE.
 
-- [ ] **Step 4: Implement deterministic selection without a new dependency**
+- [x] **Step 4: Implement deterministic selection without a new dependency**
 
 Normalize with lowercase plus collapsed Unicode whitespace. Use an explicit stable FNV-1a 64-bit implementation over `category + "\0" + style_preset + "\0" + normalized_prompt`; do not use `DefaultHasher`, whose stability is not a public contract. Compile bytes with `include_bytes!` and return `ImageSource::Bundled { asset_id }`.
 
-- [ ] **Step 5: Verify GREEN and inventory quality**
+- [x] **Step 5: Verify GREEN and inventory quality**
 
 Run:
 
@@ -326,19 +326,19 @@ Visually inspect every new file at full resolution and reject maps containing pe
 - Produces: `bundled_image_provider() -> Arc<dyn ImageProvider>` re-exported by `adapter-media::image`
 - Fallback policy: `Provider`, `Network`, `Timeout`, and `Degraded` fall back; `Auth` and `Cancelled` propagate unchanged
 
-- [ ] **Step 1: Add failing fallback-policy tests**
+- [x] **Step 1: Add failing fallback-policy tests**
 
 Use a scripted primary and counting fallback to prove generated success does not call fallback; transient failures call it once; auth/cancel never call it; result provenance is retained; estimated time/cost reflects the primary while bundled-only remains zero-cost.
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [x] **Step 2: Run the tests and verify RED**
 
 Run: `cargo test -p adapter-media --test resilient_image_provider`
 
-- [ ] **Step 3: Implement the resilient adapter**
+- [x] **Step 3: Implement the resilient adapter**
 
 Clone `ImagePrompt` only for the primary/fallback handoff. Do not catch panics. Emit one safe WARN on fallback with error class and chosen asset ID after success. If fallback also fails, return its typed error with a safe `bundled_fallback_failed` code at the server boundary.
 
-- [ ] **Step 4: Wire defaults and settings atomically**
+- [x] **Step 4: Wire defaults and settings atomically**
 
 Rules:
 
@@ -353,11 +353,11 @@ restricted mode + incompatible primary-> bundled provider when images remain ena
 
 Do not let the existing `prepare` catch-all turn `image_api_key_missing`, malformed config, or unknown provider into a successful fallback. Preserve the current atomic `PreparedRuntimeSettings` commit.
 
-- [ ] **Step 5: Prove agent tools and direct HTTP both work with media runtime absent**
+- [x] **Step 5: Prove agent tools and direct HTTP both work with media runtime absent**
 
 Add tests around `/image/generate` and an agent `generate_map`/`generate_illustration` turn using no sidecar URL. Assert HTTP 200/SSE success, `source=bundled`, correct `kind`, map/illustration category separation, and no base64 in persisted LLM history.
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run:
 

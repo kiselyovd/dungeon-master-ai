@@ -79,18 +79,12 @@ impl SettingsFactory<PreparedRuntimeSettings> for ServerSettingsFactory {
             self.state.local_mode_config().vram_strategy,
             crate::control_services::local_mode::VramStrategy::AutoSwap
         );
-        let (image, image_mutations) = match build_image_provider(
+        let (image, image_mutations) = build_image_provider(
             &cfg.image,
             self.state.media_sidecar_url(),
             restricted,
             auto_unload,
-        ) {
-            Ok(result) => result,
-            Err(code) => {
-                tracing::warn!(code, "image provider unavailable; disabling image");
-                (None, Vec::new())
-            }
-        };
+        )?;
         mutations.extend(image_mutations);
         let video =
             match build_video_provider(&cfg.video, self.state.media_sidecar_url(), restricted) {
@@ -210,7 +204,7 @@ fn build_image_provider(
             .find(|entry| entry.id == image.active_provider_id)
             .is_some_and(|entry| !is_oss_license(entry.license))
     {
-        return Ok((None, Vec::new()));
+        return Ok((Some(crate::image::bundled_image_provider()), Vec::new()));
     }
     match image.active_provider_id.as_str() {
         "replicate" => {
@@ -229,17 +223,27 @@ fn build_image_provider(
             };
             let raw: Arc<dyn crate::image::provider::ImageProvider> =
                 Arc::new(ReplicateProvider::new(cfg.api_key));
+            let primary: Arc<dyn crate::image::provider::ImageProvider> =
+                Arc::new(crate::image::RetryableImageProvider::new(raw));
             Ok((
-                Some(Arc::new(crate::image::RetryableImageProvider::new(raw))),
+                Some(Arc::new(crate::image::ResilientImageProvider::new(
+                    primary,
+                    crate::image::bundled_image_provider(),
+                ))),
                 vec![mutation],
             ))
         }
         id if id.starts_with("local-") => {
-            let url = sidecar_url.ok_or("media_sidecar_unavailable")?;
+            let Some(url) = sidecar_url else {
+                return Ok((Some(crate::image::bundled_image_provider()), Vec::new()));
+            };
+            let primary: Arc<dyn crate::image::provider::ImageProvider> =
+                Arc::new(LocalImageSidecarProvider::new(url).with_auto_unload(auto_unload));
             Ok((
-                Some(Arc::new(
-                    LocalImageSidecarProvider::new(url).with_auto_unload(auto_unload),
-                )),
+                Some(Arc::new(crate::image::ResilientImageProvider::new(
+                    primary,
+                    crate::image::bundled_image_provider(),
+                ))),
                 Vec::new(),
             ))
         }

@@ -14,7 +14,9 @@ use app_application::models::combat::{
     CombatProjection, CombatSnapshot, COMBAT_PROJECTION_VERSION,
 };
 use app_application::models::local_models::{RuntimeStartRequest, RuntimeState, RuntimeStatus};
-use app_application::ports::media::{ImageBytes, ImagePrompt, VideoPrompt, VideoStream};
+use app_application::ports::media::{
+    ImageBytes, ImageError, ImagePrompt, VideoPrompt, VideoStream,
+};
 use app_application::ports::repositories::CombatRepository;
 use app_application::settings::{SettingsUpdateError, UpdateSettings};
 use app_domain::combat::combatant::Combatant;
@@ -69,12 +71,7 @@ impl MediaHttpService for AppStateMediaHttpService {
             .state
             .image_provider()
             .ok_or(HttpServiceError::NotFound)?;
-        provider
-            .generate(prompt)
-            .await
-            .map_err(|_| HttpServiceError::Internal {
-                code: "image_generation_failed",
-            })
+        provider.generate(prompt).await.map_err(image_http_error)
     }
 
     async fn generate_video(&self, prompt: VideoPrompt) -> Result<VideoStream, HttpServiceError> {
@@ -88,6 +85,26 @@ impl MediaHttpService for AppStateMediaHttpService {
             .map_err(|_| HttpServiceError::Internal {
                 code: "video_generation_failed",
             })
+    }
+}
+
+fn image_http_error(error: ImageError) -> HttpServiceError {
+    match error {
+        ImageError::Auth => HttpServiceError::Unauthorized {
+            code: "image_auth_failed",
+        },
+        ImageError::Degraded {
+            code: "bundled_fallback_failed",
+        } => HttpServiceError::Internal {
+            code: "bundled_fallback_failed",
+        },
+        ImageError::Provider(_)
+        | ImageError::Network(_)
+        | ImageError::Timeout { .. }
+        | ImageError::Degraded { .. }
+        | ImageError::Cancelled => HttpServiceError::Internal {
+            code: "image_generation_failed",
+        },
     }
 }
 

@@ -305,6 +305,14 @@ impl AppState {
         revision
     }
 
+    pub fn settings_revision(&self) -> u64 {
+        self.inner
+            .settings_runtime
+            .read()
+            .expect("settings runtime lock poisoned")
+            .revision
+    }
+
     pub fn media_sidecar_url(&self) -> Option<String> {
         self.inner
             .media_sidecar_url
