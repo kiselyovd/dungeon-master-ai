@@ -29,12 +29,17 @@ beforeEach(async () => {
 
 describe('production application root', () => {
   it('renders the adapted product shell and default campaign identity', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
     expect(await screen.findByText('DUNGEON MASTER AI')).toBeInTheDocument();
     expect(screen.getByText('Untitled Campaign')).toBeInTheDocument();
     expect(screen.getByText('The Adventure')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('What do you do?')).toBeInTheDocument();
+    expect(container.querySelector('.dm-vtt-empty-art')).toHaveAttribute(
+      'src',
+      expect.stringContaining('vtt-empty'),
+    );
+    expect(container.querySelector('[data-art-direction="living-tabletop"]')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/Anthropic|Claude/i)).not.toBeInTheDocument());
   });
 

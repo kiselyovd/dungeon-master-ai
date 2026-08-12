@@ -98,3 +98,17 @@ The transition stills depict an approaching battle through abandoned equipment, 
 ### Physical materials
 
 The six material sources were generated as evenly illuminated orthographic scans with no text, objects, borders, perspective, or technological motifs. Final production tiles use a mirrored edge construction before WebP encoding, so both axes remain continuous in 2 x 2 repeat tests without sacrificing the project’s existing semantic CSS roles. The reduced-transparency media query still removes material imagery entirely.
+
+## Retired legacy paths
+
+| Legacy path group | Replacement |
+|---|---|
+| `src/assets/char-portrait-*.png`, `src/assets/class-*.png` | `src/assets/living-tabletop/hero-*.webp` through `HERO_ART` |
+| `src/assets/token-*.png` | `src/assets/living-tabletop/token-*.png` through `TOKEN_ART` |
+| `src/assets/npc-fallback-*.png` | `src/assets/living-tabletop/npc-*.webp` through `NPC_ART` |
+| `src/assets/save-thumb-*.png` | `src/assets/living-tabletop/save-*.webp` through `SAVE_ART` |
+| `src/assets/scene-transition-*.mp4` | `src/assets/living-tabletop/scene-*.webp` through `SCENE_ART` |
+| `src/assets/splash.png`, `src/assets/splash.mp4`, `src/assets/onboarding-hero.png`, `src/assets/vtt-empty.png` | `KEY_ART` semantic stills |
+| `src/assets/npc-intro.mp4`, `src/assets/ornament-line.png`, `src/assets/parchment-texture.png` | Removed after zero-consumer scan; living-tabletop CSS and semantic art provide the presentation layer |
+
+The untracked `src/assets/materials/` source directory is intentionally preserved and is not part of this cleanup.
