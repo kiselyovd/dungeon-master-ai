@@ -36,6 +36,17 @@ describe('CombatToken', () => {
     expect(getByTestId('combat-token-tok-1')).toBeTruthy();
   });
 
+  it('uses the living tabletop class token for the player character', () => {
+    useStore.setState((s) => ({
+      ...s,
+      pc: { ...s.pc, name: 'Hero', heroClass: 'fighter' },
+    }));
+    const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
+    const token = getByTestId('combat-token-tok-1');
+    const portrait = token.firstElementChild as HTMLElement;
+    expect(portrait.style.backgroundImage).toContain('token-fighter');
+  });
+
   it('renders AC chip with the AC value', () => {
     const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
     const ac = getByTestId('combat-token-tok-1-ac');

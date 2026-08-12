@@ -117,6 +117,7 @@ describe('VttCanvas', () => {
     const { container } = render(<VttCanvas />);
     const empty = container.querySelector('.dm-vtt-empty');
     expect(empty).toBeInTheDocument();
+    expect(empty).toHaveAttribute('data-art-direction', 'living-tabletop');
     // Container's title node carries the translated/key text; assert it is non-empty.
     const title = container.querySelector('.dm-vtt-empty-title');
     expect(title?.textContent ?? '').not.toBe('');

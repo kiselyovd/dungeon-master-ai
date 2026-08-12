@@ -18,10 +18,19 @@
   pointer-events: none;
 }
 
-.dm-splash-video {
+.dm-splash-art,
+.dm-splash-image {
   width: 100%;
   height: 100%;
+}
+
+.dm-splash-art {
+  overflow: hidden;
+}
+
+.dm-splash-image {
   object-fit: cover;
+  animation: dm-ambient-breathe 12s ease-in-out infinite;
 }
 
 /* Scene transition overlay - sits over the VTT, click/Esc to skip. */

@@ -433,7 +433,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
       </div>
 
       {isEmpty && (
-        <div className="dm-vtt-empty" aria-live="polite">
+        <div className="dm-vtt-empty" aria-live="polite" data-art-direction="living-tabletop">
           <img src={KEY_ART.vttEmpty} alt="" className="dm-vtt-empty-art" />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>

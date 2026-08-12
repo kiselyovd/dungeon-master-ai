@@ -21,6 +21,11 @@ test('app renders header, grid placeholder, and chat panel', async ({ page }) =>
   // Composer placeholder text changed from "Type a message" to "What do you do?".
   await expect(page.getByPlaceholder(/what do you do/i)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+  await expect(page.locator('.dm-vtt-empty-art')).toBeVisible();
+  await expect(page.locator('.dm-vtt-empty')).toHaveAttribute(
+    'data-art-direction',
+    'living-tabletop',
+  );
 });
 
 test('settings modal opens and closes', async ({ page }) => {

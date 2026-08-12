@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { backendUrl } from '../api/client';
 import { KEY_ART } from '../assets/livingTabletop';
-import splashVideo from '../assets/splash.mp4';
 
 const POLL_INTERVAL_MS = 250;
 const FADE_OUT_MS = 320;
@@ -70,17 +69,11 @@ export function SplashOverlay() {
       aria-live="polite"
       aria-label="Loading"
     >
-      <video
-        className="dm-splash-video"
-        src={splashVideo}
-        poster={KEY_ART.splash}
-        autoPlay
-        muted
-        playsInline
-        loop
-      >
-        <track kind="captions" />
-      </video>
+      <div className="dm-splash-art" data-art-direction="living-tabletop">
+        <img src={KEY_ART.splash} alt="" className="dm-splash-image" />
+        <span className="dm-ambient-light" aria-hidden="true" />
+        <span className="dm-ambient-dust" aria-hidden="true" />
+      </div>
     </div>
   );
 }

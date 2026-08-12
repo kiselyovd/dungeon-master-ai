@@ -62,7 +62,7 @@ export function HeroStep({ titleId, onBack, onNext }: HeroStepProps) {
         {t('step_hero_title')}
       </h1>
 
-      <div className="dm-hero-cards">
+      <div className="dm-hero-cards" data-art-direction="living-tabletop">
         {HERO_CLASSES.map((classId) => {
           const preset = PRESETS[classId];
           const portrait = HERO_PORTRAIT[classId];

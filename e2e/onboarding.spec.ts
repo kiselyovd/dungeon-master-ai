@@ -18,6 +18,7 @@ test('mounts on first run and shows the welcome step', async ({ page }) => {
   // The step counter (e.g. "Step 1 of 5") is unique to the onboarding modal.
   await expect(page.getByText(/Step 1 of 5/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+  await expect(page.getByTestId('onboarding-hero-art')).toBeVisible();
 });
 
 test('Continue advances Welcome -> Preset (hero precedes the technical steps)', async ({
@@ -43,6 +44,16 @@ test('"Skip setup" preset trims the flow to welcome -> preset -> hero', async ({
   // Lands directly on the Hero step (no chat/image).
   await expect(page.getByText(/Step 3 of 3/i)).toBeVisible();
   await expect(page.getByText(/Build from scratch/i)).toBeVisible();
+  await expect(page.locator('.dm-hero-cards[data-art-direction="living-tabletop"]')).toBeVisible();
+});
+
+test('reduced motion keeps welcome art visible without ambient animation', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+
+  const art = page.getByTestId('onboarding-hero-art');
+  await expect(art).toBeVisible();
+  await expect(page.locator('.dm-onboarding-hero')).toHaveCSS('animation-name', 'none');
 });
 
 test('completing the manual flow by picking a class dismisses onboarding', async ({ page }) => {
