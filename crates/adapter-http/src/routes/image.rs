@@ -70,6 +70,8 @@ fn status_for_service_error(error: HttpServiceError) -> StatusCode {
     match error {
         HttpServiceError::NotFound => StatusCode::NOT_FOUND,
         HttpServiceError::BadRequest { .. } => StatusCode::BAD_REQUEST,
+        HttpServiceError::Conflict { .. } => StatusCode::CONFLICT,
+        HttpServiceError::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
         HttpServiceError::PayloadTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
         HttpServiceError::Unauthorized { .. } => StatusCode::UNAUTHORIZED,
         HttpServiceError::RateLimit { .. } => StatusCode::TOO_MANY_REQUESTS,

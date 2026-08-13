@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use adapter_http::routes::campaigns::{CampaignResponse, CampaignSummaryResponse};
 use adapter_http::services::{
     AgentHttpService, AgentTurnHttpCommand, CampaignHttpService, CharacterAssistHttpService,
     ChatHttpCommand, ChatHttpService, CombatActionCommand as HttpCombatActionCommand,
@@ -7,13 +8,19 @@ use adapter_http::services::{
     LocalControlOperation, LocalEventStream, MediaHttpService, ProviderDiscoveryCommand,
     SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
 };
+use adapter_sqlite::SqliteStore;
+use app_application::campaigns::{
+    CreateCampaign, CreateCampaignCommand, GetCampaign, ListCampaigns,
+};
 use app_application::combat::commands::{CombatActionCommand, ResolveCombatCommand};
 use app_application::combat::resolve::{ResolveCombatAction, ResolveCombatError};
 use app_application::models::agent::AgentEvent;
 use app_application::models::combat::{
     CombatProjection, CombatSnapshot, COMBAT_PROJECTION_VERSION,
 };
+use app_application::models::identity::CampaignId;
 use app_application::models::local_models::{RuntimeStartRequest, RuntimeState, RuntimeStatus};
+use app_application::models::session::{CampaignDetail, CampaignSummary};
 use app_application::ports::media::{
     ImageBytes, ImageError, ImagePrompt, VideoPrompt, VideoStream,
 };
@@ -31,6 +38,7 @@ use app_llm::{
 use async_trait::async_trait;
 use axum::extract::{Path, Query, State};
 use axum::Json;
+use chrono::{DateTime, SecondsFormat, Utc};
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -130,6 +138,39 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn create_campaign(
+        &self,
+        command: CreateCampaignCommand,
+    ) -> Result<CampaignResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let detail = CreateCampaign::new(repository)
+            .execute(command)
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_response(detail)
+    }
+
+    async fn list_campaigns(&self) -> Result<Vec<CampaignSummaryResponse>, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        ListCampaigns::new(repository)
+            .execute()
+            .await
+            .map_err(campaign_use_case_error)?
+            .into_iter()
+            .map(campaign_summary_response)
+            .collect()
+    }
+
+    async fn get_campaign(&self, campaign_id: Uuid) -> Result<CampaignResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let detail = GetCampaign::new(repository)
+            .execute(CampaignId(campaign_id))
+            .await
+            .map_err(campaign_use_case_error)?
+            .ok_or(HttpServiceError::NotFound)?;
+        campaign_response(detail)
+    }
+
     async fn journal(&self, campaign_id: Uuid) -> Result<Value, HttpServiceError> {
         let entries = crate::db::journal_list(self.state.db(), campaign_id)
             .await
@@ -174,6 +215,57 @@ impl CampaignHttpService for AppStateCampaignHttpService {
         }
         .map_err(|_| serialization_error())
     }
+}
+
+fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> HttpServiceError {
+    match error {
+        app_application::campaigns::CampaignError::InvalidInput { code } => {
+            HttpServiceError::UnprocessableEntity { code }
+        }
+        app_application::campaigns::CampaignError::Persistence { .. } => {
+            HttpServiceError::Internal {
+                code: "campaign_operation_failed",
+            }
+        }
+    }
+}
+
+fn campaign_response(detail: CampaignDetail) -> Result<CampaignResponse, HttpServiceError> {
+    Ok(CampaignResponse {
+        id: detail.id.0,
+        schema_version: detail.schema_version,
+        ruleset_id: detail.ruleset_id,
+        title: detail.title,
+        premise: detail.premise,
+        seed: detail.seed,
+        last_session_id: detail.last_session_id.0,
+        revision: detail.revision.0,
+        created_at: campaign_timestamp(detail.created_at_epoch_ms)?,
+        updated_at: campaign_timestamp(detail.updated_at_epoch_ms)?,
+    })
+}
+
+fn campaign_summary_response(
+    summary: CampaignSummary,
+) -> Result<CampaignSummaryResponse, HttpServiceError> {
+    Ok(CampaignSummaryResponse {
+        id: summary.id.0,
+        schema_version: summary.schema_version,
+        ruleset_id: summary.ruleset_id,
+        title: summary.title,
+        premise: summary.premise,
+        last_session_id: summary.last_session_id.0,
+        revision: summary.revision.0,
+        updated_at: campaign_timestamp(summary.updated_at_epoch_ms)?,
+    })
+}
+
+fn campaign_timestamp(epoch_ms: i64) -> Result<String, HttpServiceError> {
+    DateTime::<Utc>::from_timestamp_millis(epoch_ms)
+        .map(|timestamp| timestamp.to_rfc3339_opts(SecondsFormat::Millis, true))
+        .ok_or(HttpServiceError::Internal {
+            code: "campaign_timestamp_invalid",
+        })
 }
 
 pub fn campaign_http_service(state: AppState) -> Arc<dyn CampaignHttpService> {

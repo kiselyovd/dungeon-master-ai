@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod campaigns;
 pub mod character_assist;
 pub mod chat;
 pub mod combat;

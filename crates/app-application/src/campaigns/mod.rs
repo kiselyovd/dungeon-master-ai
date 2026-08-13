@@ -1,7 +1,10 @@
 mod create;
+mod get;
 mod list;
 
+pub use app_domain::ruleset::{GAME_SCHEMA_VERSION, RULESET_ID};
 pub use create::{CreateCampaign, CreateCampaignCommand};
+pub use get::GetCampaign;
 pub use list::ListCampaigns;
 
 use thiserror::Error;

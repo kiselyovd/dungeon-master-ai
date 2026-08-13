@@ -270,7 +270,7 @@ git commit -m "feat(sqlite): persist versioned campaigns and events"
 - Produces `GET /campaigns`, `POST /campaigns`, `GET /campaigns/{id}`.
 - Wire responses use `schema_version`, `ruleset_id`, snake_case fields, UUID strings, and RFC 3339 timestamps.
 
-- [ ] **Step 1: Write exact wire tests**
+- [x] **Step 1: Write exact wire tests**
 
 Assert:
 
@@ -286,25 +286,25 @@ Assert:
 
 and `409` for duplicate/stale commands, `422` for invalid seed values, and safe error bodies without internal messages.
 
-- [ ] **Step 2: Run and verify missing route failure**
+- [x] **Step 2: Run and verify missing route failure**
 
 Run: `cargo test -p adapter-http --test campaign_wire_contract`
 Expected: FAIL with route not found.
 
-- [ ] **Step 3: Add `CampaignHttpService` methods using application DTOs**
+- [x] **Step 3: Add `CampaignHttpService` methods using application DTOs**
 
 Handlers deserialize/validate, call exactly one service method, and serialize the result. They do not import SQLx or construct repositories.
 
-- [ ] **Step 4: Wire the service in `app-server` compatibility composition**
+- [x] **Step 4: Wire the service in `app-server` compatibility composition**
 
 Keep `app_server::router` and existing test support compiling until later cleanup; do not create a second composition root.
 
-- [ ] **Step 5: Run HTTP and server tests**
+- [x] **Step 5: Run HTTP and server tests**
 
 Run: `cargo test -p adapter-http && cargo test -p app-server`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add crates/adapter-http/src/routes/campaigns.rs crates/adapter-http/src/routes/mod.rs crates/adapter-http/src/services.rs crates/adapter-http/src/lib.rs crates/adapter-http/tests/campaign_wire_contract.rs crates/app-server/src/http_services.rs

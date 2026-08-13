@@ -18,6 +18,8 @@ use uuid::Uuid;
 pub enum HttpServiceError {
     NotFound,
     BadRequest { code: &'static str },
+    Conflict { code: &'static str },
+    UnprocessableEntity { code: &'static str },
     PayloadTooLarge { code: &'static str },
     Unauthorized { code: &'static str },
     RateLimit { code: &'static str },
@@ -30,6 +32,8 @@ impl IntoResponse for HttpServiceError {
         let (status, code) = match self {
             Self::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             Self::BadRequest { code } => (StatusCode::BAD_REQUEST, code),
+            Self::Conflict { code } => (StatusCode::CONFLICT, code),
+            Self::UnprocessableEntity { code } => (StatusCode::UNPROCESSABLE_ENTITY, code),
             Self::PayloadTooLarge { code } => (StatusCode::PAYLOAD_TOO_LARGE, code),
             Self::Unauthorized { code } => (StatusCode::UNAUTHORIZED, code),
             Self::RateLimit { code } => (StatusCode::TOO_MANY_REQUESTS, code),
@@ -65,6 +69,17 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn create_campaign(
+        &self,
+        command: app_application::campaigns::CreateCampaignCommand,
+    ) -> Result<crate::routes::campaigns::CampaignResponse, HttpServiceError>;
+    async fn list_campaigns(
+        &self,
+    ) -> Result<Vec<crate::routes::campaigns::CampaignSummaryResponse>, HttpServiceError>;
+    async fn get_campaign(
+        &self,
+        campaign_id: Uuid,
+    ) -> Result<crate::routes::campaigns::CampaignResponse, HttpServiceError>;
     async fn journal(&self, campaign_id: Uuid) -> Result<Value, HttpServiceError>;
     async fn npcs(&self, campaign_id: Uuid) -> Result<Value, HttpServiceError>;
     async fn messages(&self, session_id: String) -> Result<Value, HttpServiceError>;

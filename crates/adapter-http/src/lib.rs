@@ -24,6 +24,14 @@ pub fn router(services: HttpServices) -> Router {
     let router = Router::new()
         .route("/health", get(routes::health::health))
         .route("/agent/turn", post(routes::agent::post_agent_turn))
+        .route(
+            "/campaigns",
+            get(routes::campaigns::get_campaigns).post(routes::campaigns::post_campaign),
+        )
+        .route(
+            "/campaigns/{campaign_id}",
+            get(routes::campaigns::get_campaign),
+        )
         .route("/chat", post(routes::chat::chat))
         .route("/providers", get(routes::settings::get_providers))
         .route("/combat/start", post(routes::combat::post_combat_start))
