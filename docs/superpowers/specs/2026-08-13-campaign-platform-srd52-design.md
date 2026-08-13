@@ -440,7 +440,7 @@ Live local-model play is a separate, non-deterministic proof and cannot replace 
 
 ### 15.4 Packaged evidence
 
-CI builds the actual bundle, verifies the artifact manifest and hashes, unpacks or installs in an isolated environment, launches the packaged application, runs a CDP smoke, and confirms that shutdown leaves no backend/model/media child processes. Platform bundle evidence is reported separately for each target.
+CI builds the actual bundle, verifies the artifact manifest and hashes, unpacks or installs in an isolated environment, launches the packaged application, inspects the real WebView (WebView2 CDP on Windows and the WebKit inspector on Linux/macOS), and confirms that shutdown leaves no backend/model/media child processes. Platform bundle evidence is reported separately for each target.
 
 ## 16. Documentation and cleanup
 
