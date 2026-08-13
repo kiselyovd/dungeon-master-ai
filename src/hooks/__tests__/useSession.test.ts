@@ -17,24 +17,19 @@ describe('useSession', () => {
     fetchMock.mockReset();
   });
 
-  it('mints a fresh (campaignId, sessionId) on first mount', async () => {
-    fetchMock.mockResolvedValue([]);
-
-    expect(useStore.getState().session.activeCampaignId).toBeNull();
-    expect(useStore.getState().session.activeSessionId).toBeNull();
-
+  it('fails closed without minting IDs when no campaign is active', async () => {
     renderHook(() => useSession());
 
     await waitFor(() => {
-      expect(useStore.getState().session.activeCampaignId).not.toBeNull();
-      expect(useStore.getState().session.activeSessionId).not.toBeNull();
+      expect(useStore.getState().session.loadError).toBe('campaign_required');
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const sessionId = useStore.getState().session.activeSessionId;
-    expect(fetchMock).toHaveBeenCalledWith(sessionId);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().session.activeCampaignId).toBeNull();
+    expect(useStore.getState().session.activeSessionId).toBeNull();
   });
 
   it('seeds the chat slice with persisted history when the backend returns messages', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     const persisted: ChatMessage[] = [
       { id: 'a', role: 'user', content: 'hello' },
       { id: 'b', role: 'assistant', content: 'world' },
@@ -54,6 +49,7 @@ describe('useSession', () => {
   });
 
   it('leaves the chat empty when the backend fetch rejects', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     fetchMock.mockRejectedValue(new Error('backend down'));
 
     renderHook(() => useSession());
@@ -65,6 +61,7 @@ describe('useSession', () => {
   });
 
   it('records the load error on session.loadError when the fetch rejects', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     fetchMock.mockRejectedValue(new Error('backend down'));
 
     renderHook(() => useSession());
@@ -75,6 +72,7 @@ describe('useSession', () => {
   });
 
   it('refetch retries the fetch and clears loadError on success', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     fetchMock.mockRejectedValueOnce(new Error('backend down'));
 
     const { result } = renderHook(() => useSession());
@@ -96,6 +94,7 @@ describe('useSession', () => {
   });
 
   it('does not overwrite the chat slice when the backend returns no messages', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     useStore.setState((s) => ({
       chat: {
         ...s.chat,

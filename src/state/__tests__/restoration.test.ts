@@ -6,7 +6,7 @@ describe('atomic session restoration', () => {
   beforeEach(() => {
     useStore.getState().chat.reset();
     useStore.getState().combat.clearProjection();
-    useStore.getState().session.clearSession();
+    useStore.getState().session.clear();
   });
 
   it('applies session, messages, pc, combat, and scene in one Zustand notification', () => {

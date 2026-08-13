@@ -14,6 +14,7 @@ export type ChatErrorCode =
   | 'http_error'
   | 'aborted'
   | 'invalid_response'
+  | 'campaign_required'
   | 'unknown';
 
 export interface ChatErrorPayload {

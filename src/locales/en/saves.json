@@ -1,5 +1,6 @@
 {
   "save_failed": "Save failed",
+  "campaign_required": "Choose or create a campaign first.",
   "title": "Chronicles of Adventure",
   "subtitle": "Linear save model",
   "all_saves_chapter": "All saves",

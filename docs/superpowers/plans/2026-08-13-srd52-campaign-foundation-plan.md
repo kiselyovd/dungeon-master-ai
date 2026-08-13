@@ -331,11 +331,11 @@ git commit -m "feat(http): expose campaign lifecycle endpoints"
 - Produces `fetchCampaigns`, `createCampaign`, `fetchCampaign` with Valibot-validated responses.
 - Removes automatic UUID minting from `ensureSession`; active IDs come from backend campaign creation/selection.
 
-- [ ] **Step 1: Write API schema rejection tests**
+- [x] **Step 1: Write API schema rejection tests**
 
 Assert invalid `schema_version`, `ruleset_id`, UUID, or missing `last_session_id` shape rejects before store mutation.
 
-- [ ] **Step 2: Write pure route tests**
+- [x] **Step 2: Write pure route tests**
 
 ```typescript
 expect(resolveAppRoute({ hydrated: true, onboardingComplete: true, active: null }))
@@ -344,16 +344,16 @@ expect(resolveAppRoute({ hydrated: true, onboardingComplete: true, active: campa
   .toEqual({ kind: 'character-create', campaignId: campaignWithoutHero.id });
 ```
 
-- [ ] **Step 3: Run focused Vitest and verify failures**
+- [x] **Step 3: Run focused Vitest and verify failures**
 
 Run: `bun run test -- src/api/__tests__/campaigns.test.ts src/features/campaigns/model/__tests__/route.test.ts src/state/__tests__/session.test.ts`
 Expected: FAIL because modules do not exist and `ensureSession` still mints IDs.
 
-- [ ] **Step 4: Implement validated transport and pure routing**
+- [x] **Step 4: Implement validated transport and pure routing**
 
 API modules may not import Zustand. The route resolver accepts a plain input object and returns a discriminated union.
 
-- [ ] **Step 5: Change session state to explicit activation**
+- [x] **Step 5: Change session state to explicit activation**
 
 Replace `ensureSession()` with:
 
@@ -364,12 +364,12 @@ clear: () => void;
 
 Existing agent/save callers must fail closed with a localized `campaign_required` UI state until routed to the game table; they must not mint new IDs.
 
-- [ ] **Step 6: Run focused tests, typecheck, and architecture guard**
+- [x] **Step 6: Run focused tests, typecheck, and architecture guard**
 
 Run: `bun run test -- src/api/__tests__/campaigns.test.ts src/features/campaigns/model/__tests__/route.test.ts src/state/__tests__/session.test.ts && bun run typecheck && bun run architecture:check`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/api/contracts/campaign.ts src/api/campaigns.ts src/features/campaigns/model/types.ts src/features/campaigns/model/route.ts src/features/campaigns/model/__tests__/route.test.ts src/features/campaigns/useCampaigns.ts src/state/campaigns.ts src/state/session.ts src/state/useStore.ts src/api/__tests__/campaigns.test.ts src/state/__tests__/session.test.ts

@@ -71,7 +71,7 @@ const FIXTURE: SaveSummary[] = [
 describe('SavesScreen', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
-    useStore.getState().session.setActiveSession('camp-1', 'sess1');
+    useStore.getState().session.activate('camp-1', 'sess1');
     fetchSessionSavesMock.mockReset();
     fetchSaveByIdMock.mockReset();
     deleteSaveByIdMock.mockReset();

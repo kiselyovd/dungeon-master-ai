@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   createSave as apiCreateSave,
   type CreateSaveRequest,
@@ -34,6 +35,7 @@ export interface UseSavesResult {
 let nextOperation = 0;
 
 export function useSaves(): UseSavesResult {
+  const { t } = useTranslation('saves');
   const saves = useStore((state) => state.saves.list);
   const selectedSaveId = useStore((state) => state.saves.selectedSaveId);
   const isOpen = useStore((state) => state.saves.isOpen);
@@ -44,16 +46,26 @@ export function useSaves(): UseSavesResult {
   const close = useStore((state) => state.saves.close);
   const setLastQuickSaveAt = useStore((state) => state.saves.setLastQuickSaveAt);
   const setLastSaveError = useStore((state) => state.saves.setLastSaveError);
-  const ensureSession = useStore((state) => state.session.ensureSession);
+  const currentSession = useStore((state) => state.session.current);
   const applyRestoredSession = useStore((state) => state.restoration.apply);
 
   const refresh = useCallback(async () => {
-    const { sessionId } = ensureSession();
+    const active = currentSession();
+    if (active === null) {
+      setLastSaveError(t('campaign_required'));
+      return;
+    }
+    const { sessionId } = active;
     setList(await fetchSessionSaves(sessionId));
-  }, [ensureSession, setList]);
+  }, [currentSession, setLastSaveError, setList, t]);
 
   const quickSave = useCallback(async () => {
-    const { sessionId } = ensureSession();
+    const active = currentSession();
+    if (active === null) {
+      setLastSaveError(t('campaign_required'));
+      return null;
+    }
+    const { sessionId } = active;
     try {
       const result = await quickSaveSession(sessionId);
       setLastQuickSaveAt(new Date().toISOString());
@@ -69,11 +81,16 @@ export function useSaves(): UseSavesResult {
       setLastSaveError(errorMessage(error));
       return null;
     }
-  }, [ensureSession, setLastQuickSaveAt, setList, setLastSaveError]);
+  }, [currentSession, setLastQuickSaveAt, setList, setLastSaveError, t]);
 
   const manualSave = useCallback(
     async (body: CreateSaveRequest) => {
-      const { sessionId } = ensureSession();
+      const active = currentSession();
+      if (active === null) {
+        setLastSaveError(t('campaign_required'));
+        return null;
+      }
+      const { sessionId } = active;
       try {
         const result = await apiCreateSave(sessionId, body);
         setList(await fetchSessionSaves(sessionId));
@@ -85,12 +102,17 @@ export function useSaves(): UseSavesResult {
         return null;
       }
     },
-    [ensureSession, setList, setLastSaveError],
+    [currentSession, setList, setLastSaveError, t],
   );
 
   const overwriteSave = useCallback(
     async (saveId: string, body: CreateSaveRequest) => {
-      const { sessionId } = ensureSession();
+      const active = currentSession();
+      if (active === null) {
+        setLastSaveError(t('campaign_required'));
+        return false;
+      }
+      const { sessionId } = active;
       try {
         await updateSaveById(saveId, body);
         setList(await fetchSessionSaves(sessionId));
@@ -102,7 +124,7 @@ export function useSaves(): UseSavesResult {
         return false;
       }
     },
-    [ensureSession, setList, setLastSaveError],
+    [currentSession, setList, setLastSaveError, t],
   );
 
   const rehydrateFromSave = useCallback(
@@ -110,11 +132,15 @@ export function useSaves(): UseSavesResult {
       const operationId = `restore-${++nextOperation}`;
       const startedAt = performance.now();
       try {
+        const active = currentSession();
+        if (active === null) {
+          return { ok: false, error: t('campaign_required') };
+        }
         // The read-only row lookup resolves the target session. The mutating
         // restore response then includes both game state and messages, so no
         // fallible network call occurs after backend mutation.
         const row = await fetchSaveById(saveId);
-        const { campaignId } = ensureSession();
+        const { campaignId } = active;
         const restored = await restoreSave(saveId, row.session_id);
         const projection = buildRestoredSession({ saveId, campaignId, row, restored });
         applyRestoredSession(projection);
@@ -140,7 +166,7 @@ export function useSaves(): UseSavesResult {
         return { ok: false, error: errorMessage(error) };
       }
     },
-    [applyRestoredSession, ensureSession],
+    [applyRestoredSession, currentSession, t],
   );
 
   const deleteSave = useCallback(

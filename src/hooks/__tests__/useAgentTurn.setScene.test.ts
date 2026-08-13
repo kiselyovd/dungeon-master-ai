@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentTurnOptions } from '../../api/agent';
+import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { useStore } from '../../state/useStore';
 import { useAgentTurn } from '../useAgentTurn';
 
@@ -24,10 +24,19 @@ vi.mock('../../api/agent', () => ({
 
 beforeEach(() => {
   useStore.setState(useStore.getInitialState());
+  vi.mocked(streamAgentTurn).mockClear();
 });
 
 describe('useAgentTurn set_scene handler', () => {
+  it('fails closed when no campaign is active', async () => {
+    const { result } = renderHook(() => useAgentTurn());
+    await result.current.send('explore the ruins');
+    expect(streamAgentTurn).not.toHaveBeenCalled();
+    expect(useStore.getState().chat.lastError).toMatchObject({ code: 'campaign_required' });
+  });
+
   it('updates the session scene when a set_scene tool result arrives', async () => {
+    useStore.getState().session.activate('campaign-1', 'session-1');
     const { result } = renderHook(() => useAgentTurn());
     await result.current.send('explore the ruins');
     expect(useStore.getState().session.currentScene).toEqual({

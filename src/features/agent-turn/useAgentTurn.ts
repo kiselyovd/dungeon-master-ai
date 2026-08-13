@@ -9,7 +9,12 @@ export function useAgentTurn(ports: AgentTurnPorts) {
   const send = useCallback(
     async (text: string, images?: Parameters<AgentTurnPorts['chat']['appendUser']>[1]) => {
       if (!text.trim() || ports.chat.isStreaming()) return;
-      const { campaignId, sessionId } = ports.session.ensure();
+      const active = ports.session.current();
+      if (active === null) {
+        ports.chat.setError({ code: 'campaign_required', message: 'campaign_required' });
+        return;
+      }
+      const { campaignId, sessionId } = active;
       ports.chat.clearTurnEvents();
       const history = ports.chat.history();
       ports.chat.appendUser(text, images);

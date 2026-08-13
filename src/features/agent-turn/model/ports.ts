@@ -71,7 +71,7 @@ export interface NpcPort {
 }
 
 export interface SessionPort {
-  ensure(): { campaignId: string; sessionId: string };
+  current(): { campaignId: string; sessionId: string } | null;
   currentSceneName(): string | undefined;
   setScene(title: string): void;
   setMapImage(dataUrl: string): void;

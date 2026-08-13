@@ -25,7 +25,7 @@ function createPorts(): AgentTurnPorts {
     journal: { append: vi.fn() },
     npcs: { upsert: vi.fn() },
     session: {
-      ensure: vi.fn(() => ({ campaignId: 'campaign-1', sessionId: 'session-1' })),
+      current: vi.fn(() => ({ campaignId: 'campaign-1', sessionId: 'session-1' })),
       currentSceneName: vi.fn(() => undefined),
       setScene: vi.fn(),
       setMapImage: vi.fn(),
