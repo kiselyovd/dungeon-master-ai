@@ -49,16 +49,68 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 7);
-    let columns = sqlx::query("PRAGMA table_info(combat_encounters)")
+    assert_eq!(migration_count, 1);
+
+    let tables = sqlx::query_scalar::<_, String>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
+    )
+    .fetch_all(store.pool())
+    .await
+    .unwrap();
+    for required in [
+        "campaigns",
+        "sessions",
+        "campaign_events",
+        "campaign_snapshots",
+        "messages",
+        "saves",
+        "scenes",
+        "combat",
+        "combat_tokens",
+        "journal_entries",
+        "npc_memory",
+        "srd_chunks",
+    ] {
+        assert!(
+            tables.iter().any(|table| table == required),
+            "missing {required}"
+        );
+    }
+
+    let campaign_columns = sqlx::query("PRAGMA table_info(campaigns)")
         .fetch_all(store.pool())
         .await
         .unwrap()
         .into_iter()
         .map(|row| row.get::<String, _>("name"))
         .collect::<Vec<_>>();
-    assert!(columns.contains(&"revision".to_string()));
-    assert!(columns.contains(&"projection".to_string()));
+    for required in ["schema_version", "ruleset_id", "title", "premise"] {
+        assert!(
+            campaign_columns.iter().any(|column| column == required),
+            "missing campaigns.{required}"
+        );
+    }
+
+    let invalid_ruleset = sqlx::query(
+        "INSERT INTO campaigns \
+         (id, schema_version, ruleset_id, title, premise, created_at, updated_at) \
+         VALUES (?1, 1, 'srd-5.1', 'Wrong ruleset', '', ?2, ?2)",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind("2026-08-13T00:00:00Z")
+    .execute(store.pool())
+    .await;
+    assert!(invalid_ruleset.is_err());
+
+    let combat_columns = sqlx::query("PRAGMA table_info(combat_encounters)")
+        .fetch_all(store.pool())
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get::<String, _>("name"))
+        .collect::<Vec<_>>();
+    assert!(combat_columns.contains(&"revision".to_string()));
+    assert!(combat_columns.contains(&"projection".to_string()));
 }
 
 #[tokio::test]

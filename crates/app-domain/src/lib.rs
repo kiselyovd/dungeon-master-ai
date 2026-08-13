@@ -4,4 +4,5 @@ pub mod combat;
 pub mod compendium;
 pub mod dice;
 pub mod rng;
+pub mod ruleset;
 pub mod srd;

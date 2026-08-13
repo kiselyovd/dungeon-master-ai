@@ -40,7 +40,7 @@
 - Produces: `GAME_SCHEMA_VERSION: u16 = 1`, `RULESET_ID: &str = "srd-5.2.1"`.
 - Produces tables: `campaigns`, `sessions`, `campaign_events`, `campaign_snapshots`, `messages`, `saves`, `scenes`, `combat`, `combat_tokens`, `journal_entries`, `npc_memory`, `srd_chunks`.
 
-- [ ] **Step 1: Write the failing ruleset identity test**
+- [x] **Step 1: Write the failing ruleset identity test**
 
 ```rust
 #[test]
@@ -50,19 +50,19 @@ fn production_ruleset_is_srd_521_only() {
 }
 ```
 
-- [ ] **Step 2: Run the focused test and verify the missing module failure**
+- [x] **Step 2: Run the focused test and verify the missing module failure**
 
 Run: `cargo test -p app-domain --test ruleset_tests`
 Expected: FAIL because `app_domain::ruleset` does not exist.
 
-- [ ] **Step 3: Add the pure ruleset constants and export the module**
+- [x] **Step 3: Add the pure ruleset constants and export the module**
 
 ```rust
 pub const RULESET_ID: &str = "srd-5.2.1";
 pub const GAME_SCHEMA_VERSION: u16 = 1;
 ```
 
-- [ ] **Step 4: Replace the migration chain with one development baseline**
+- [x] **Step 4: Replace the migration chain with one development baseline**
 
 The new `0001_initial.sql` must create every current production table plus:
 
@@ -99,16 +99,16 @@ CREATE TABLE campaign_events (
 
 Move the final shape of existing tables into this migration; do not keep SQL from superseded migrations in Rust startup code.
 
-- [ ] **Step 5: Add a fresh-database schema assertion**
+- [x] **Step 5: Add a fresh-database schema assertion**
 
 In `repository_contracts.rs`, open an in-memory store and query `PRAGMA table_info(campaigns)` plus `sqlite_master`; assert all required tables exist and the ruleset constraint rejects `srd-5.1`.
 
-- [ ] **Step 6: Run schema and domain tests**
+- [x] **Step 6: Run schema and domain tests**
 
 Run: `cargo test -p app-domain && cargo test -p adapter-sqlite --test repository_contracts`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add crates/app-domain/src/ruleset.rs crates/app-domain/src/lib.rs crates/app-domain/tests/ruleset_tests.rs crates/adapter-sqlite/migrations/0001_initial.sql crates/adapter-sqlite/migrations/0002_m3_journal_npc_srd.sql crates/adapter-sqlite/migrations/0003_m4_5_messages.sql crates/adapter-sqlite/migrations/0004_m5_save_metadata.sql crates/adapter-sqlite/migrations/0005_scenes.sql crates/adapter-sqlite/migrations/0006_token_resistances.sql crates/adapter-sqlite/migrations/0007_combat_projection_revision.sql crates/adapter-sqlite/src/pool.rs crates/adapter-sqlite/tests/repository_contracts.rs
