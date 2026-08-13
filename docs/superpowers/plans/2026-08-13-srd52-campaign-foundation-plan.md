@@ -132,7 +132,7 @@ git commit -m "feat(domain): reset storage for SRD 5.2.1"
 - Produces: `CampaignId`, `SessionId`, `Revision`, `CampaignSummary`, `CampaignDetail`, `CampaignSeed`, `CampaignEvent`, `CampaignRepository`, `SessionRepository`, `EventRepository`.
 - Produces: `CreateCampaign::execute(CreateCampaignCommand) -> Result<CampaignDetail, CampaignError>`.
 
-- [ ] **Step 1: Write repository-independent workflow tests**
+- [x] **Step 1: Write repository-independent workflow tests**
 
 Test an in-memory port implementation with this behavior:
 
@@ -148,12 +148,12 @@ assert_eq!(detail.revision, Revision(1));
 assert_eq!(list.execute().await.unwrap()[0].id, detail.id);
 ```
 
-- [ ] **Step 2: Run and verify missing-type failures**
+- [x] **Step 2: Run and verify missing-type failures**
 
 Run: `cargo test -p app-application --test campaign_workflow`
 Expected: FAIL because the campaign use cases and ports are absent.
 
-- [ ] **Step 3: Define IDs and revision as newtypes**
+- [x] **Step 3: Define IDs and revision as newtypes**
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -166,7 +166,7 @@ pub struct SessionId(pub Uuid);
 pub struct Revision(pub u64);
 ```
 
-- [ ] **Step 4: Define repository contracts with atomic append semantics**
+- [x] **Step 4: Define repository contracts with atomic append semantics**
 
 ```rust
 #[async_trait]
@@ -185,16 +185,16 @@ pub trait EventRepository: Send + Sync {
 }
 ```
 
-- [ ] **Step 5: Implement creation as one application transaction boundary**
+- [x] **Step 5: Implement creation as one application transaction boundary**
 
 Creation must write the campaign, initial session, and `campaign_created` event or write none. Express the required unit-of-work operation as one inward repository method rather than coordinating three fallible writes in React or HTTP.
 
-- [ ] **Step 6: Run workflow and contract tests**
+- [x] **Step 6: Run workflow and contract tests**
 
 Run: `cargo test -p app-application --test campaign_workflow && cargo test -p app-application --test contracts`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add crates/app-application/src/models/identity.rs crates/app-application/src/models/session.rs crates/app-application/src/campaigns/mod.rs crates/app-application/src/campaigns/create.rs crates/app-application/src/campaigns/list.rs crates/app-application/src/models/mod.rs crates/app-application/src/lib.rs crates/app-application/src/ports/repositories.rs crates/app-application/tests/campaign_workflow.rs

@@ -7,6 +7,10 @@ use crate::models::campaign::{
 };
 use crate::models::chat::ChatMessage;
 use crate::models::combat::CombatProjection;
+use crate::models::identity::{CampaignId, Revision, SessionId};
+use crate::models::session::{
+    CampaignDetail, CampaignEvent, CampaignSession, CampaignSummary, InitialCampaign,
+};
 
 #[derive(Debug, Error)]
 pub enum RepositoryError {
@@ -19,6 +23,44 @@ pub enum RepositoryError {
     NotFound,
     #[error("revision conflict: expected {expected}, actual {actual}")]
     RevisionConflict { expected: u64, actual: u64 },
+    #[error("campaign revision conflict: expected {expected}, actual {actual}")]
+    Conflict {
+        expected: Revision,
+        actual: Revision,
+    },
+}
+
+#[async_trait]
+pub trait CampaignRepository: Send + Sync {
+    /// Atomically persists the campaign, initial session, and first event.
+    async fn create(&self, campaign: InitialCampaign) -> Result<CampaignDetail, RepositoryError>;
+    async fn list(&self) -> Result<Vec<CampaignSummary>, RepositoryError>;
+    async fn get(&self, campaign_id: CampaignId)
+        -> Result<Option<CampaignDetail>, RepositoryError>;
+}
+
+#[async_trait]
+pub trait SessionRepository: Send + Sync {
+    async fn get(&self, session_id: SessionId) -> Result<Option<CampaignSession>, RepositoryError>;
+    async fn latest_for_campaign(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<Option<CampaignSession>, RepositoryError>;
+}
+
+#[async_trait]
+pub trait EventRepository: Send + Sync {
+    async fn append(
+        &self,
+        campaign_id: CampaignId,
+        expected: Revision,
+        events: Vec<CampaignEvent>,
+    ) -> Result<Revision, RepositoryError>;
+    async fn since(
+        &self,
+        campaign_id: CampaignId,
+        after: Revision,
+    ) -> Result<Vec<CampaignEvent>, RepositoryError>;
 }
 
 #[async_trait]
