@@ -20,11 +20,10 @@ async fn post_combat_start_returns_200() {
         .send()
         .await
         .expect("post");
+    assert_eq!(resp.status(), 200);
     assert_eq!(
-        resp.status(),
-        200,
-        "body: {}",
-        resp.text().await.unwrap_or_default()
+        resp.headers().get(reqwest::header::CONNECTION),
+        Some(&reqwest::header::HeaderValue::from_static("close"))
     );
 }
 

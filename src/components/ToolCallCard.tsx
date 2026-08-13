@@ -57,7 +57,11 @@ export function ToolCallCard({ entry, label }: Props) {
     <div
       className={`${styles.card} ${isError ? styles.cardError : ''} ${flashing ? styles.cardFlash : ''}`}
       data-testid={`tool-call-card-${entry.id}`}
+      data-tool-name={toolName}
       data-status={statusLabel}
+      data-image-kind={imageKind}
+      data-image-source={imageSource?.type}
+      data-image-asset-id={imageSource?.type === 'bundled' ? imageSource.assetId : undefined}
     >
       <div className={styles.header}>
         <span className={styles.toolName}>{label ?? toolName}</span>

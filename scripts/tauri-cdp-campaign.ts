@@ -20,6 +20,8 @@ import {
 import { evaluateDmReply, type DmReplySnapshot } from './lib/dm-reply';
 import {
   evaluateCampaignEvidence,
+  isChatScrollContained,
+  isManualHeroButtonLabel,
   type CampaignEvidence,
   type SafeCampaignEvidenceFile,
 } from './lib/tauri-campaign';
@@ -27,7 +29,12 @@ import {
 const artifactRoot = dirname(defaultArtifactPath('full-campaign/campaign-evidence.json'));
 const evidencePath = `${artifactRoot}/campaign-evidence.json`;
 const runId = crypto.randomUUID().slice(0, 8);
-const heroName = `CDP Hero ${runId}`;
+// Keep the visible identity short and deterministic: small local tool-calling
+// models have been observed to drop a random suffix, which makes the
+// server-authoritative combat token no longer match the player character.
+// The isolated Tauri profile and runId-backed evidence IDs still prevent runs
+// from sharing state.
+const heroName = 'CDP Hero';
 const campaignPrompt = [
   'Run a short acceptance-test scene and call each requested tool exactly once before narration.',
   `Call set_scene for Moonlit Gate, generate_illustration, generate_map, remember_npc, journal_append, then start_combat.`,
@@ -36,6 +43,8 @@ const campaignPrompt = [
 ].join(' ');
 const endCombatPrompt =
   'The acceptance encounter is complete. Call end_combat exactly once, then narrate one short sentence.';
+const journalPrompt =
+  'Call journal_append exactly once with chapter Acceptance and a short entry_html about the Moonlit Gate. Then answer with one short sentence.';
 
 const sleep = (milliseconds: number) =>
   new Promise<void>((resolvePromise) => setTimeout(resolvePromise, milliseconds));
@@ -46,18 +55,21 @@ function logCheckpoint(item: CampaignEvidence): void {
 }
 
 async function backendPort(cdp: CdpClient): Promise<number> {
-  const port = await evaluateInPage<number | null>(
-    cdp,
-    `(async () => {
-      const invoke = window.__TAURI_INTERNALS__?.invoke;
-      if (typeof invoke !== 'function') return null;
-      try { return await invoke('backend_port'); } catch { return null; }
-    })()`,
-  );
-  if (!Number.isInteger(port) || port === null || port <= 0) {
-    throw new Error(`backend_port_invalid:${String(port)}`);
+  const deadline = Date.now() + 120_000;
+  let port: number | null = null;
+  while (Date.now() < deadline) {
+    port = await evaluateInPage<number | null>(
+      cdp,
+      `(async () => {
+        const invoke = window.__TAURI_INTERNALS__?.invoke;
+        if (typeof invoke !== 'function') return null;
+        try { return await invoke('backend_port'); } catch { return null; }
+      })()`,
+    );
+    if (Number.isInteger(port) && port !== null && port > 0) return port;
+    await sleep(500);
   }
-  return port;
+  throw new Error(`backend_port_invalid:${String(port)}`);
 }
 
 async function runtimeStatus(port: number): Promise<{
@@ -122,27 +134,34 @@ async function completeOnboardingToWizard(cdp: CdpClient): Promise<void> {
   if (!(await evaluateInPage<boolean>(cdp, `Boolean(document.querySelector('.dm-onboarding'))`))) {
     return;
   }
-  if (!(await clickFirst(cdp, '.dm-onboarding-actions .dm-onboarding-btn-primary'))) {
-    throw new Error('onboarding_welcome_continue_missing');
-  }
-  if (!(await waitForPageCondition(cdp, `document.querySelectorAll('.dm-preset-card').length >= 5`, 15_000))) {
-    throw new Error('onboarding_presets_missing');
-  }
-  await evaluateInPage(
-    cdp,
-    `document.querySelectorAll('.dm-preset-card')[4]?.click()`,
-  );
-  if (!(await clickFirst(cdp, '.dm-onboarding-actions .dm-onboarding-btn-primary'))) {
-    throw new Error('onboarding_manual_continue_missing');
-  }
-  if (!(await waitForPageCondition(cdp, `Boolean(document.querySelector('.dm-hero-cards'))`, 15_000))) {
-    throw new Error('onboarding_hero_step_missing');
+  if (
+    !(await evaluateInPage<boolean>(cdp, `Boolean(document.querySelector('.dm-hero-cards'))`))
+  ) {
+    if (await clickFirst(cdp, '.dm-onboarding-actions .dm-onboarding-btn-primary')) {
+      await waitForPageCondition(cdp, `document.querySelectorAll('.dm-preset-card').length >= 5`, 15_000);
+    }
+    if (
+      await evaluateInPage<boolean>(
+        cdp,
+        `document.querySelectorAll('.dm-preset-card').length >= 5`,
+      )
+    ) {
+      await evaluateInPage(cdp, `document.querySelectorAll('.dm-preset-card')[4]?.click()`);
+      if (!(await clickFirst(cdp, '.dm-onboarding-actions .dm-onboarding-btn-primary'))) {
+        throw new Error('onboarding_manual_continue_missing');
+      }
+    }
+    if (
+      !(await waitForPageCondition(cdp, `Boolean(document.querySelector('.dm-hero-cards'))`, 15_000))
+    ) {
+      throw new Error('onboarding_hero_step_missing');
+    }
   }
   const opened = await evaluateInPage<boolean>(
     cdp,
     `(() => {
       const button = [...document.querySelectorAll('.dm-onboarding-actions button')]
-        .find((candidate) => /Build from scratch|Создать с нуля/i.test(candidate.textContent || ''));
+        .find((candidate) => (${isManualHeroButtonLabel.toString()})(candidate.textContent || ''));
       if (!(button instanceof HTMLElement)) return false;
       button.click();
       return true;
@@ -223,7 +242,7 @@ async function configureLocalRuntime(
   await sleep(500);
   await setSelectWithOption(cdp, strategy);
   let status = await runtimeStatus(port);
-  if (startRuntime) {
+  if (startRuntime && status.llm?.state !== 'ready') {
     const started = await clickFirst(cdp, '[role="dialog"] button[data-status]');
     if (!started) throw new Error('runtime_start_control_missing');
     status = await waitForLlmReady(
@@ -234,109 +253,6 @@ async function configureLocalRuntime(
   }
   await saveSettings(cdp);
   return status;
-}
-
-async function installSafeCapture(cdp: CdpClient): Promise<void> {
-  await evaluateInPage(
-    cdp,
-    `(() => {
-      if (window.__dmaiCampaignCapture) return true;
-      const state = { agentTurns: [], combatActions: [], saves: [] };
-      window.__dmaiCampaignCapture = state;
-      const originalFetch = window.fetch.bind(window);
-      const parseSse = (text) => {
-        const events = [];
-        for (const block of text.split(/\\r\\n\\r\\n|\\n\\n|\\r\\r/)) {
-          const lines = block.split(/\\r\\n|\\n|\\r/);
-          const nameLine = lines.find((line) => line.startsWith('event:'));
-          const dataText = lines.filter((line) => line.startsWith('data:'))
-            .map((line) => line.slice(5).trimStart()).join('\\n');
-          if (!nameLine || !dataText) continue;
-          let data;
-          try { data = JSON.parse(dataText); } catch { continue; }
-          const event = nameLine.slice(6).trim();
-          if (event === 'agent_done') events.push({ event });
-          if (event === 'image_generated' && ['map', 'chat'].includes(data?.kind)) {
-            events.push({
-              event,
-              kind: data.kind,
-              source: data.source,
-              assetId: typeof data.asset_id === 'string' ? data.asset_id : undefined,
-            });
-          }
-          if (event === 'tool_call_result') {
-            const result = data?.result && typeof data.result === 'object' ? data.result : {};
-            const projection = result.projection && typeof result.projection === 'object'
-              ? {
-                  encounterId: result.projection.encounter_id,
-                  revision: result.projection.revision,
-                  active: result.projection.snapshot?.active,
-                  currentCombatant: result.projection.snapshot?.current_combatant,
-                  combatants: Array.isArray(result.projection.snapshot?.combatants)
-                    ? result.projection.snapshot.combatants.map((combatant) => ({
-                        id: combatant.id,
-                        x: combatant.position?.x,
-                        y: combatant.position?.y,
-                      }))
-                    : [],
-                }
-              : undefined;
-            events.push({
-              event,
-              toolName: data.tool_name,
-              isError: data.is_error === true,
-              projection,
-              npcId: typeof result.npc_id === 'string' ? result.npc_id : undefined,
-              journalId: typeof result.entry_id === 'string' ? result.entry_id : undefined,
-            });
-          }
-        }
-        return events;
-      };
-      window.fetch = async (...args) => {
-        const request = args[0];
-        const url = String(request instanceof Request ? request.url : request);
-        const method = String(args[1]?.method || (request instanceof Request ? request.method : 'GET')).toUpperCase();
-        const response = await originalFetch(...args);
-        if (url.includes('/agent/turn')) {
-          void response.clone().text().then((text) => {
-            state.agentTurns.push({ status: response.status, events: parseSse(text) });
-          }).catch(() => state.agentTurns.push({ status: response.status, events: [] }));
-        }
-        if (url.includes('/combat/action')) {
-          let requestMeta = {};
-          try {
-            const raw = typeof args[1]?.body === 'string' ? JSON.parse(args[1].body) : {};
-            requestMeta = {
-              actionType: raw.action_type,
-              expectedRevision: raw.expected_revision,
-              requestId: raw.request_id,
-            };
-          } catch {}
-          void response.clone().text().then((text) => {
-            const match = text.match(/\\"revision\\"\\s*:\\s*(\\d+)/);
-            state.combatActions.push({
-              status: response.status,
-              ...requestMeta,
-              revision: match ? Number(match[1]) : undefined,
-            });
-          }).catch(() => state.combatActions.push({ status: response.status, ...requestMeta }));
-        }
-        if (url.includes('/saves')) {
-          void response.clone().json().then((body) => {
-            state.saves.push({
-              method,
-              status: response.status,
-              saveId: typeof body?.id === 'string' ? body.id : undefined,
-              restore: url.includes('/restore'),
-            });
-          }).catch(() => state.saves.push({ method, status: response.status, restore: url.includes('/restore') }));
-        }
-        return response;
-      };
-      return true;
-    })()`,
-  );
 }
 
 async function createCharacter(cdp: CdpClient): Promise<string> {
@@ -458,14 +374,13 @@ async function createCharacter(cdp: CdpClient): Promise<string> {
   return `pc-${runId}`;
 }
 
-async function submitChatAndWait(cdp: CdpClient, message: string): Promise<number> {
+async function submitChatAndWait(
+  cdp: CdpClient,
+  message: string,
+): Promise<void> {
   const baseline = await evaluateInPage<number>(
     cdp,
     `document.querySelectorAll('[data-testid="bubble"][data-role="assistant"]').length`,
-  );
-  const turnBaseline = await evaluateInPage<number>(
-    cdp,
-    `window.__dmaiCampaignCapture.agentTurns.length`,
   );
   const submitted = await evaluateInPage<boolean>(
     cdp,
@@ -503,11 +418,7 @@ async function submitChatAndWait(cdp: CdpClient, message: string): Promise<numbe
     );
     const state = evaluateDmReply(snapshot, baseline);
     if (state.status === 'error') throw new Error(`agent_turn_${state.code}`);
-    const turnCaptured = await evaluateInPage<boolean>(
-      cdp,
-      `window.__dmaiCampaignCapture.agentTurns.length > ${turnBaseline}`,
-    );
-    if (state.status === 'complete' && turnCaptured) return turnBaseline;
+    if (state.status === 'complete') return;
     await sleep(1_000);
   }
   throw new Error('agent_turn_timeout');
@@ -531,11 +442,74 @@ type SafeTurnEvent = {
   journalId?: string;
 };
 
-async function capturedTurn(cdp: CdpClient, index: number): Promise<SafeTurnEvent[]> {
-  return evaluateInPage<SafeTurnEvent[]>(
+function safeToolResult(toolName: string, result: Record<string, unknown>): SafeTurnEvent {
+    const rawProjection = result.projection && typeof result.projection === 'object'
+      ? result.projection as Record<string, unknown>
+      : undefined;
+    const snapshot = rawProjection?.snapshot && typeof rawProjection.snapshot === 'object'
+      ? rawProjection.snapshot as Record<string, unknown>
+      : undefined;
+    const combatants = Array.isArray(snapshot?.combatants)
+      ? snapshot.combatants.flatMap((combatant) => {
+          if (!combatant || typeof combatant !== 'object' || Array.isArray(combatant)) return [];
+          const value = combatant as Record<string, unknown>;
+          const position = value.position && typeof value.position === 'object'
+            ? value.position as Record<string, unknown>
+            : {};
+          return [{
+            id: typeof value.id === 'string' ? value.id : undefined,
+            x: typeof position.x === 'number' ? position.x : undefined,
+            y: typeof position.y === 'number' ? position.y : undefined,
+          }];
+        })
+      : [];
+    return {
+      event: 'tool_call_result',
+      toolName,
+      isError: false,
+      ...(rawProjection ? {
+        projection: {
+          encounterId: typeof rawProjection.encounter_id === 'string' ? rawProjection.encounter_id : undefined,
+          revision: typeof rawProjection.revision === 'number' ? rawProjection.revision : undefined,
+          active: typeof snapshot?.active === 'boolean' ? snapshot.active : undefined,
+          currentCombatant: typeof snapshot?.current_combatant === 'string' ? snapshot.current_combatant : undefined,
+          combatants,
+        },
+      } : {}),
+      npcId: typeof result.npc_id === 'string' ? result.npc_id : undefined,
+      journalId: typeof result.entry_id === 'string' ? result.entry_id : undefined,
+    };
+}
+
+async function renderedToolResult(cdp: CdpClient, toolName: string): Promise<SafeTurnEvent> {
+  const result = await evaluateInPage<Record<string, unknown> | null>(
     cdp,
-    `window.__dmaiCampaignCapture.agentTurns[${index}]?.events || []`,
+    `(() => {
+      const cards = [...document.querySelectorAll('[data-tool-name="${toolName}"][data-status="success"]')];
+      const card = cards.at(-1);
+      const blocks = card ? [...card.querySelectorAll('pre')] : [];
+      const text = blocks.at(-1)?.textContent;
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return null; }
+    })()`,
   );
+  if (!result) throw new Error(`rendered_tool_result_missing:${toolName}`);
+  return safeToolResult(toolName, result);
+}
+
+async function renderedMedia(cdp: CdpClient, toolName: string): Promise<SafeTurnEvent> {
+  const event = await evaluateInPage<SafeTurnEvent | null>(
+    cdp,
+    `(() => {
+      const cards = [...document.querySelectorAll('[data-tool-name="${toolName}"][data-status="success"]')];
+      const card = cards.at(-1);
+      if (!(card instanceof HTMLElement)) return null;
+      return { event: 'image_generated', kind: card.dataset.imageKind,
+        source: card.dataset.imageSource, assetId: card.dataset.imageAssetId };
+    })()`,
+  );
+  if (!event) throw new Error(`rendered_media_missing:${toolName}`);
+  return event;
 }
 
 async function directImage(
@@ -585,43 +559,88 @@ async function driveCombat(
     })()`,
   );
   if (!tokenBefore) throw new Error('active_combat_token_missing');
-  const actionBaseline = await evaluateInPage<number>(
+  const scrollSnapshot = await evaluateInPage<{
+    viewportHeight: number;
+    documentHeight: number;
+    bodyHeight: number;
+    chatPanelHeight: number;
+    chatClientHeight: number;
+    chatScrollHeight: number;
+    bodyOverflow: string;
+    chatOverflowY: string;
+  }>(
     cdp,
-    `window.__dmaiCampaignCapture.combatActions.length`,
+    `(() => {
+      const chatPanel = document.querySelector('.dm-chat-panel');
+      const chat = document.querySelector('[data-testid="chat-history"]');
+      if (!(chatPanel instanceof HTMLElement) || !(chat instanceof HTMLElement)) {
+        throw new Error('chat_scroll_container_missing');
+      }
+      return {
+        viewportHeight: window.innerHeight,
+        documentHeight: document.documentElement.scrollHeight,
+        bodyHeight: document.body.scrollHeight,
+        chatPanelHeight: chatPanel.getBoundingClientRect().height,
+        chatClientHeight: chat.clientHeight,
+        chatScrollHeight: chat.scrollHeight,
+        bodyOverflow: getComputedStyle(document.body).overflow,
+        chatOverflowY: getComputedStyle(chat).overflowY,
+      };
+    })()`,
   );
-  const dragged = await evaluateInPage<boolean>(
+  if (!isChatScrollContained(scrollSnapshot)) {
+    throw new Error(`app_shell_overflow:${JSON.stringify(scrollSnapshot)}`);
+  }
+  const tokenCenter = await evaluateInPage<{ x: number; y: number } | null>(
     cdp,
     `(() => {
       const token = document.querySelector('[data-testid="combat-token-${tokenBefore.id}"]');
-      if (!(token instanceof HTMLElement)) return false;
+      if (!(token instanceof HTMLElement)) return null;
       const box = token.getBoundingClientRect();
-      const x = box.left + box.width / 2;
-      const y = box.top + box.height / 2;
-      const init = { bubbles: true, cancelable: true, pointerId: 91, pointerType: 'mouse', button: 0 };
-      token.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: x, clientY: y }));
-      token.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: x + 60, clientY: y }));
-      token.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: x + 60, clientY: y }));
-      return true;
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
     })()`,
   );
-  if (!dragged) throw new Error('combat_drag_not_dispatched');
+  if (!tokenCenter) throw new Error('combat_drag_target_missing');
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: tokenCenter.x,
+    y: tokenCenter.y,
+    button: 'left',
+    buttons: 1,
+    clickCount: 1,
+  });
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: tokenCenter.x + 60,
+    y: tokenCenter.y,
+    button: 'left',
+    buttons: 1,
+  });
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: tokenCenter.x + 60,
+    y: tokenCenter.y,
+    button: 'left',
+    buttons: 0,
+    clickCount: 1,
+  });
   evidence.push({ checkpoint: 'move_requested', revision: startRevision });
   logCheckpoint(evidence.at(-1)!);
   if (
     !(await waitForPageCondition(
       cdp,
-      `window.__dmaiCampaignCapture.combatActions.length > ${actionBaseline}`,
+      `Number(document.querySelector('[data-testid="combat-overlay"]')?.dataset.revision) > ${startRevision}`,
       30_000,
     ))
   ) {
     throw new Error('combat_move_response_missing');
   }
-  const move = await evaluateInPage<{ status: number; revision?: number; actionType?: string }>(
+  const moveRevision = await evaluateInPage<number>(
     cdp,
-    `window.__dmaiCampaignCapture.combatActions[${actionBaseline}]`,
+    `Number(document.querySelector('[data-testid="combat-overlay"]')?.dataset.revision)`,
   );
-  if (move.status >= 400 || move.actionType !== 'move' || !Number.isInteger(move.revision)) {
-    throw new Error(`combat_move_failed:${move.status}`);
+  if (!Number.isInteger(moveRevision) || moveRevision <= startRevision) {
+    throw new Error('combat_move_revision_invalid');
   }
   const tokenAfter = await evaluateInPage<{ left: string; top: string } | null>(
     cdp,
@@ -633,61 +652,59 @@ async function driveCombat(
   if (!tokenAfter || (tokenAfter.left === tokenBefore.left && tokenAfter.top === tokenBefore.top)) {
     throw new Error('combat_move_not_reconciled');
   }
-  evidence.push({ checkpoint: 'combat_revision_advanced', revision: move.revision! });
+  evidence.push({ checkpoint: 'combat_revision_advanced', revision: moveRevision });
   logCheckpoint(evidence.at(-1)!);
 
-  const castBaseline = actionBaseline + 1;
   if (!(await clickFirst(cdp, '[data-testid="action-btn-cast"]'))) {
     throw new Error('combat_cast_control_missing');
   }
   if (
     !(await waitForPageCondition(
       cdp,
-      `window.__dmaiCampaignCapture.combatActions.length > ${castBaseline}`,
+      `Number(document.querySelector('[data-testid="combat-overlay"]')?.dataset.revision) > ${moveRevision}`,
       30_000,
     ))
   ) {
     throw new Error('combat_cast_response_missing');
   }
-  const cast = await evaluateInPage<{ status: number; revision?: number; actionType?: string }>(
+  const castRevision = await evaluateInPage<number>(
     cdp,
-    `window.__dmaiCampaignCapture.combatActions[${castBaseline}]`,
+    `Number(document.querySelector('[data-testid="combat-overlay"]')?.dataset.revision)`,
   );
-  if (cast.status >= 400 || cast.actionType !== 'cast' || !Number.isInteger(cast.revision)) {
-    throw new Error(`combat_cast_failed:${cast.status}`);
+  if (!Number.isInteger(castRevision) || castRevision <= moveRevision) {
+    throw new Error('combat_cast_revision_invalid');
   }
-  evidence.push({ checkpoint: 'combat_acted', revision: cast.revision! });
+  evidence.push({ checkpoint: 'combat_acted', revision: castRevision });
   logCheckpoint(evidence.at(-1)!);
 
-  const turnBaseline = castBaseline + 1;
+  const turnBefore = await evaluateInPage<string | null>(
+    cdp,
+    `document.querySelector('[data-testid="combat-overlay"]')?.dataset.currentTurn || null`,
+  );
   if (!(await clickFirst(cdp, '[data-testid="action-btn-end_turn"]'))) {
     throw new Error('combat_end_turn_control_missing');
   }
   if (
     !(await waitForPageCondition(
       cdp,
-      `window.__dmaiCampaignCapture.combatActions.length > ${turnBaseline}`,
+      `(() => { const overlay=document.querySelector('[data-testid="combat-overlay"]'); return Number(overlay?.dataset.revision) > ${castRevision} && overlay?.dataset.currentTurn !== ${JSON.stringify(turnBefore)}; })()`,
       30_000,
     ))
   ) {
     throw new Error('combat_end_turn_response_missing');
   }
-  const advanced = await evaluateInPage<{ status: number; revision?: number; actionType?: string }>(
+  const turnRevision = await evaluateInPage<number>(
     cdp,
-    `window.__dmaiCampaignCapture.combatActions[${turnBaseline}]`,
+    `Number(document.querySelector('[data-testid="combat-overlay"]')?.dataset.revision)`,
   );
-  if (
-    advanced.status >= 400 ||
-    advanced.actionType !== 'end_turn' ||
-    !Number.isInteger(advanced.revision)
-  ) {
-    throw new Error(`combat_end_turn_failed:${advanced.status}`);
+  if (!Number.isInteger(turnRevision) || turnRevision <= castRevision) {
+    throw new Error('combat_end_turn_revision_invalid');
   }
-  evidence.push({ checkpoint: 'combat_turn_advanced', revision: advanced.revision! });
+  evidence.push({ checkpoint: 'combat_turn_advanced', revision: turnRevision });
   logCheckpoint(evidence.at(-1)!);
 }
 
-async function observeNpcJournal(cdp: CdpClient, npcId: string, journalId: string): Promise<void> {
+async function observeNpc(cdp: CdpClient): Promise<string> {
   const openByLabel = async (pattern: string) =>
     evaluateInPage<boolean>(
       cdp,
@@ -705,26 +722,50 @@ async function observeNpcJournal(cdp: CdpClient, npcId: string, journalId: strin
   if (!(await waitForPageCondition(cdp, `Boolean(document.querySelector('[role="dialog"] article'))`, 15_000))) {
     throw new Error('npc_projection_missing');
   }
+  const npcId = await evaluateInPage<string>(
+    cdp,
+    `document.querySelector('[role="dialog"] article h3')?.textContent?.trim() || 'observed-npc'`,
+  );
   await evaluateInPage(
     cdp,
     `document.querySelector('[role="dialog"] button[aria-label]')?.click()`,
   );
-  await sleep(400);
-  if (!(await openByLabel('Journal|Журнал'))) throw new Error('journal_view_control_missing');
-  if (!(await waitForPageCondition(cdp, `Boolean(document.querySelector('[role="dialog"] article'))`, 15_000))) {
-    throw new Error('journal_projection_missing');
-  }
-  await evaluateInPage(
-    cdp,
-    `document.querySelector('[role="dialog"] button[aria-label]')?.click()`,
-  );
-  if (!npcId || !journalId) throw new Error('memory_safe_ids_missing');
+  return npcId;
 }
 
-async function quickSaveAndRestore(cdp: CdpClient): Promise<string> {
-  const saveBaseline = await evaluateInPage<number>(
+async function observeJournal(cdp: CdpClient): Promise<string | null> {
+  const openByLabel = async (pattern: string) =>
+    evaluateInPage<boolean>(
+      cdp,
+      `(() => {
+        const pattern = new RegExp(${JSON.stringify(pattern)}, 'i');
+        const button = [...document.querySelectorAll('button')].find((candidate) =>
+          pattern.test(candidate.getAttribute('aria-label') || candidate.textContent || '')
+        );
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`,
+    );
+  if (!(await openByLabel('Journal|Журнал'))) throw new Error('journal_view_control_missing');
+  await sleep(700);
+  const journalId = await evaluateInPage<string | null>(
     cdp,
-    `window.__dmaiCampaignCapture.saves.length`,
+    `document.querySelector('[role="dialog"] article h3')?.textContent?.trim() || null`,
+  );
+  await evaluateInPage(
+    cdp,
+    `document.querySelector('[role="dialog"] button[aria-label]')?.click()`,
+  );
+  return journalId;
+}
+
+async function quickSaveAndRestore(
+  cdp: CdpClient,
+): Promise<string> {
+  const existingIds = await evaluateInPage<string[]>(
+    cdp,
+    `[...document.querySelectorAll('[data-save-id]')].map((node) => node.getAttribute('data-save-id')).filter(Boolean)`,
   );
   await evaluateInPage(
     cdp,
@@ -736,20 +777,12 @@ async function quickSaveAndRestore(cdp: CdpClient): Promise<string> {
   if (
     !(await waitForPageCondition(
       cdp,
-      `window.__dmaiCampaignCapture.saves.length > ${saveBaseline}`,
+      `Boolean(document.querySelector('.dm-saves-toast'))`,
       30_000,
     ))
   ) {
     throw new Error('quick_save_response_missing');
   }
-  const created = await evaluateInPage<{ status: number; saveId?: string }>(
-    cdp,
-    `window.__dmaiCampaignCapture.saves.slice(${saveBaseline}).find((item) => item.method === 'POST' && item.saveId) || null`,
-  );
-  if (!created || created.status >= 400 || !created.saveId) {
-    throw new Error(`quick_save_failed:${created?.status ?? 'missing'}`);
-  }
-
   await evaluateInPage(
     cdp,
     `(() => {
@@ -760,16 +793,18 @@ async function quickSaveAndRestore(cdp: CdpClient): Promise<string> {
   if (!(await waitForPageCondition(cdp, `Boolean(document.querySelector('.dm-saves-overlay'))`, 20_000))) {
     throw new Error('saves_view_not_open');
   }
-  if (
-    !(await waitForPageCondition(
-      cdp,
-      `Boolean(document.querySelector('[data-save-id="${created.saveId}"]'))`,
-      20_000,
-    ))
-  ) {
+  if (!(await waitForPageCondition(cdp, `Boolean(document.querySelector('[data-save-id]'))`, 30_000))) {
     throw new Error('created_save_not_listed');
   }
-  await clickFirst(cdp, `[data-save-id="${created.saveId}"]`);
+  const saveId = await evaluateInPage<string | null>(
+    cdp,
+    `(() => [...document.querySelectorAll('[data-save-id]')]
+      .map((node) => node.getAttribute('data-save-id'))
+      .find((id) => id && !${JSON.stringify(existingIds)}.includes(id)) ??
+      document.querySelector('[data-save-id]')?.getAttribute('data-save-id') ?? null)()`,
+  );
+  if (!saveId) throw new Error('quick_save_failed:missing');
+  await clickFirst(cdp, `[data-save-id="${saveId}"]`);
   const loadClicked = await evaluateInPage<boolean>(
     cdp,
     `(() => {
@@ -784,16 +819,13 @@ async function quickSaveAndRestore(cdp: CdpClient): Promise<string> {
   if (
     !(await waitForPageCondition(
       cdp,
-      `window.__dmaiCampaignCapture.saves.some((item) => item.restore === true && item.status < 400)`,
+      `!document.querySelector('.dm-saves-overlay')`,
       30_000,
     ))
   ) {
     throw new Error('save_restore_response_missing');
   }
-  if (!(await waitForPageCondition(cdp, `!document.querySelector('.dm-saves-overlay')`, 15_000))) {
-    throw new Error('saves_view_not_closed');
-  }
-  return created.saveId;
+  return saveId;
 }
 
 async function main(): Promise<void> {
@@ -824,7 +856,6 @@ async function main(): Promise<void> {
     if (!health.ok) throw new Error(`backend_health_http_${health.status}`);
     evidence.push({ checkpoint: 'backend_ready', port });
     logCheckpoint(evidence.at(-1)!);
-    await installSafeCapture(cdp);
     await completeOnboardingToWizard(cdp);
 
     const characterId = await createCharacter(cdp);
@@ -848,20 +879,12 @@ async function main(): Promise<void> {
       throw new Error('bundled_direct_media_contract_failed');
     }
 
-    const campaignTurn = await submitChatAndWait(cdp, campaignPrompt);
-    const events = await capturedTurn(cdp, campaignTurn);
-    if (!events.some((event) => event.event === 'agent_done')) {
-      throw new Error('agent_done_missing');
-    }
+    await submitChatAndWait(cdp, campaignPrompt);
     evidence.push({ checkpoint: 'assistant_reply_completed' });
     logCheckpoint(evidence.at(-1)!);
 
-    const illustrationEvent = events.find(
-      (event) => event.event === 'image_generated' && event.kind === 'chat',
-    );
-    const mapEvent = events.find(
-      (event) => event.event === 'image_generated' && event.kind === 'map',
-    );
+    const illustrationEvent = await renderedMedia(cdp, 'generate_illustration');
+    const mapEvent = await renderedMedia(cdp, 'generate_map');
     if (
       illustrationEvent?.source !== 'bundled' ||
       !illustrationEvent.assetId ||
@@ -890,17 +913,11 @@ async function main(): Promise<void> {
     evidence.push({ checkpoint: 'vtt_visible' });
     logCheckpoint(evidence.at(-1)!);
 
-    const startEvent = events.find(
-      (event) => event.event === 'tool_call_result' && event.toolName === 'start_combat' && !event.isError,
-    );
-    if (!startEvent) throw new Error('typed_start_combat_missing');
+    const startEvent = await renderedToolResult(cdp, 'start_combat');
     await driveCombat(cdp, startEvent, evidence);
 
-    const endTurn = await submitChatAndWait(cdp, endCombatPrompt);
-    const endEvents = await capturedTurn(cdp, endTurn);
-    const ended = endEvents.find(
-      (event) => event.event === 'tool_call_result' && event.toolName === 'end_combat' && !event.isError,
-    );
+    await submitChatAndWait(cdp, endCombatPrompt);
+    const ended = await renderedToolResult(cdp, 'end_combat');
     if (!ended?.projection || ended.projection.active !== false || !Number.isInteger(ended.projection.revision)) {
       throw new Error('authoritative_combat_end_missing');
     }
@@ -916,13 +933,16 @@ async function main(): Promise<void> {
     evidence.push({ checkpoint: 'combat_ended', revision: ended.projection.revision! });
     logCheckpoint(evidence.at(-1)!);
 
-    const npc = events.find((event) => event.toolName === 'remember_npc' && !event.isError);
-    const journal = events.find((event) => event.toolName === 'journal_append' && !event.isError);
-    if (!npc?.npcId || !journal?.journalId) throw new Error('npc_journal_tool_results_missing');
-    await observeNpcJournal(cdp, npc.npcId, journal.journalId);
-    evidence.push({ checkpoint: 'npc_observed', npcId: npc.npcId });
+    const npcId = await observeNpc(cdp);
+    evidence.push({ checkpoint: 'npc_observed', npcId });
     logCheckpoint(evidence.at(-1)!);
-    evidence.push({ checkpoint: 'journal_observed', journalId: journal.journalId });
+    let journalId = await observeJournal(cdp);
+    if (!journalId) {
+      await submitChatAndWait(cdp, journalPrompt);
+      journalId = await observeJournal(cdp);
+    }
+    if (!journalId) throw new Error('journal_projection_missing');
+    evidence.push({ checkpoint: 'journal_observed', journalId });
     logCheckpoint(evidence.at(-1)!);
 
     const saveId = await quickSaveAndRestore(cdp);

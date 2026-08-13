@@ -303,6 +303,50 @@ async fn agent_turn_orders_media_before_tool_result_and_persists_each_role() {
 }
 
 #[tokio::test]
+async fn agent_turn_coalesces_tiny_text_and_reasoning_chunks() {
+    let mut chunks = Vec::new();
+    for _ in 0..100 {
+        chunks.push(ChatChunk::ThinkingDelta { text: "r".into() });
+    }
+    for _ in 0..100 {
+        chunks.push(ChatChunk::TextDelta { text: "t".into() });
+    }
+    chunks.push(ChatChunk::Done {
+        reason: FinishReason::Stop,
+    });
+    let service = service(
+        Arc::new(FakeProvider::scripted(vec![chunks])),
+        Arc::new(FakeMessages::default()),
+        Arc::new(FakeToolDispatcher {
+            execution: ToolExecution {
+                result: json!({}),
+                is_error: false,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+            calls: AtomicUsize::new(0),
+        }),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+    );
+
+    let output = service
+        .execute(command("coalesce"))
+        .collect::<Vec<_>>()
+        .await;
+    let streamed = output.iter().filter(|event| {
+        matches!(
+            event,
+            Ok(AgentEvent::TextDelta { .. } | AgentEvent::ReasoningText { .. })
+        )
+    });
+    assert!(
+        streamed.count() <= 8,
+        "tiny provider chunks must not become hundreds of WebView SSE events"
+    );
+}
+
+#[tokio::test]
 async fn agent_turn_rejects_unknown_tool_without_calling_dispatcher() {
     let provider = Arc::new(FakeProvider::scripted(vec![
         vec![

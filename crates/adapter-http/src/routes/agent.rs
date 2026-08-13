@@ -1,11 +1,11 @@
-use std::convert::Infallible;
-
 use app_application::models::agent::{AgentEvent, AgentTurnRequest};
 use app_application::models::chat::{ChatMessage, MessagePart};
 use axum::extract::Extension;
+use axum::http::{header, HeaderValue};
 use axum::response::sse::{KeepAlive, Sse};
+use axum::response::IntoResponse;
 use axum::Json;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use serde::Deserialize;
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
@@ -29,8 +29,7 @@ pub struct AgentTurnHttpRequest {
 pub async fn post_agent_turn(
     Extension(services): Extension<HttpServices>,
     Json(request): Json<AgentTurnHttpRequest>,
-) -> Result<Sse<impl Stream<Item = Result<axum::response::sse::Event, Infallible>>>, HttpServiceError>
-{
+) -> Result<impl IntoResponse, HttpServiceError> {
     if request.player_message.trim().is_empty() {
         return Err(HttpServiceError::BadRequest {
             code: "player_message_empty",
@@ -58,9 +57,15 @@ pub async fn post_agent_turn(
             event_count,
             "agent SSE event"
         );
-        Ok(agent_event_to_sse(event))
+        Ok::<_, std::convert::Infallible>(agent_event_to_sse(event))
     });
-    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+    let mut response = Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response();
+    response
+        .headers_mut()
+        .insert(header::CONNECTION, HeaderValue::from_static("close"));
+    Ok(response)
 }
 
 fn agent_event_kind(event: &AgentEvent) -> &'static str {

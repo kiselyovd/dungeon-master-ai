@@ -11,6 +11,7 @@
  */
 
 import { backendUrl } from './client';
+import { discardResponseBody } from './response';
 
 export type ModelId =
   | 'qwen3_8b'
@@ -76,6 +77,7 @@ export async function startLocalRuntimes(): Promise<void> {
   if (!res.ok) {
     throw await responseError(res, 'POST', '/local/runtime/start');
   }
+  await discardResponseBody(res);
 }
 
 /** POST /local/runtime/stop - stop both sidecar runtimes. */
@@ -85,6 +87,7 @@ export async function stopLocalRuntimes(): Promise<void> {
   if (!res.ok) {
     throw await responseError(res, 'POST', '/local/runtime/stop');
   }
+  await discardResponseBody(res);
 }
 
 /** POST /local-mode/config - persist the selected Qwen variant + VRAM strategy. */
@@ -98,4 +101,5 @@ export async function persistLocalModeConfig(config: LocalModeConfigWire): Promi
   if (!res.ok) {
     throw await responseError(res, 'POST', '/local-mode/config');
   }
+  await discardResponseBody(res);
 }

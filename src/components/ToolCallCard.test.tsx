@@ -130,6 +130,11 @@ describe('ToolCallCard - image tools', () => {
 
   it('labels bundled images while keeping the map routing note', () => {
     render(<ToolCallCard entry={bundledMapEntry} />);
+    const card = screen.getByTestId('tool-call-card-call_img_1');
+    expect(card).toHaveAttribute('data-tool-name', 'generate_map');
+    expect(card).toHaveAttribute('data-image-kind', 'map');
+    expect(card).toHaveAttribute('data-image-source', 'bundled');
+    expect(card).toHaveAttribute('data-image-asset-id', 'map-tavern-interior');
     expect(screen.getByText('From the built-in collection')).toBeInTheDocument();
     expect(screen.getByText('Map updated')).toBeInTheDocument();
   });

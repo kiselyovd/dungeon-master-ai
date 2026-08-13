@@ -3,6 +3,7 @@ use std::pin::Pin;
 
 use app_application::models::combat::CombatProjection;
 use axum::extract::Extension;
+use axum::http::{header, HeaderValue};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::Json;
@@ -47,6 +48,17 @@ pub enum CombatSseEvent {
     CombatProjection {
         projection: CombatProjection,
     },
+}
+
+fn close_sse<S>(sse: Sse<S>) -> axum::response::Response
+where
+    S: Stream<Item = Result<Event, Infallible>> + Send + 'static,
+{
+    let mut response = sse.into_response();
+    response
+        .headers_mut()
+        .insert(header::CONNECTION, HeaderValue::from_static("close"));
+    response
 }
 
 impl CombatSseEvent {
@@ -114,7 +126,7 @@ pub struct EndCombatRequest {
 pub async fn post_combat_start(
     Extension(services): Extension<HttpServices>,
     Json(request): Json<StartCombatRequest>,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, HttpServiceError> {
+) -> Result<axum::response::Response, HttpServiceError> {
     let initiative = request.initiative_entries;
     let encounter_id = services
         .combat
@@ -128,10 +140,12 @@ pub async fn post_combat_start(
         encounter_id,
         initiative,
     };
-    Ok(Sse::new(stream::once(async move {
-        Ok::<Event, Infallible>(event.to_sse_event())
-    }))
-    .keep_alive(KeepAlive::default()))
+    Ok(close_sse(
+        Sse::new(stream::once(async move {
+            Ok::<Event, Infallible>(event.to_sse_event())
+        }))
+        .keep_alive(KeepAlive::default()),
+    ))
 }
 
 pub async fn post_combat_action(
@@ -158,20 +172,22 @@ pub async fn post_combat_action(
         }
         None => Box::pin(stream::empty()),
     };
-    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+    Ok(close_sse(Sse::new(stream).keep_alive(KeepAlive::default())))
 }
 
 pub async fn post_combat_end(
     Extension(services): Extension<HttpServices>,
     Json(request): Json<EndCombatRequest>,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, HttpServiceError> {
+) -> Result<axum::response::Response, HttpServiceError> {
     services.combat.end(request.encounter_id).await?;
     let event = CombatSseEvent::CombatEnded {
         encounter_id: request.encounter_id,
         reason: "manual_end".into(),
     };
-    Ok(Sse::new(stream::once(async move {
-        Ok::<Event, Infallible>(event.to_sse_event())
-    }))
-    .keep_alive(KeepAlive::default()))
+    Ok(close_sse(
+        Sse::new(stream::once(async move {
+            Ok::<Event, Infallible>(event.to_sse_event())
+        }))
+        .keep_alive(KeepAlive::default()),
+    ))
 }

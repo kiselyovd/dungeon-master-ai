@@ -3,9 +3,40 @@ import { describe, expect, it } from 'vitest';
 import {
   REQUIRED_CAMPAIGN_CHECKPOINTS,
   evaluateCampaignEvidence,
+  isChatScrollContained,
+  isManualHeroButtonLabel,
   parseCapturedAgentEvents,
   type CampaignEvidence,
 } from './tauri-campaign';
+
+describe('isChatScrollContained', () => {
+  const contained = {
+    viewportHeight: 900,
+    documentHeight: 900,
+    bodyHeight: 900,
+    chatPanelHeight: 836,
+    chatClientHeight: 610,
+    chatScrollHeight: 2_700,
+    bodyOverflow: 'hidden',
+    chatOverflowY: 'auto',
+  };
+
+  it('accepts a fixed application shell with an independently scrolling transcript', () => {
+    expect(isChatScrollContained(contained)).toBe(true);
+  });
+
+  it('rejects the regression where chat content expands the whole window', () => {
+    expect(
+      isChatScrollContained({
+        ...contained,
+        documentHeight: 3_697,
+        bodyHeight: 3_697,
+        chatPanelHeight: 3_633,
+        bodyOverflow: 'visible',
+      }),
+    ).toBe(false);
+  });
+});
 
 function completeEvidence(): CampaignEvidence[] {
   return [
@@ -137,5 +168,20 @@ describe('parseCapturedAgentEvents', () => {
     expect(JSON.stringify(parsed)).not.toContain('private narration');
     expect(JSON.stringify(parsed)).not.toContain('SECRET');
     expect(JSON.stringify(parsed)).not.toContain('PRIVATE');
+  });
+});
+
+describe('isManualHeroButtonLabel', () => {
+  it.each([
+    'Build from scratch',
+    'Create manually (advanced mode)',
+    'Создать с нуля',
+    'Создать вручную (расширенный режим)',
+  ])('recognizes the resumable hero-wizard action: %s', (label) => {
+    expect(isManualHeroButtonLabel(label)).toBe(true);
+  });
+
+  it('does not mistake the back action for hero creation', () => {
+    expect(isManualHeroButtonLabel('Назад')).toBe(false);
   });
 });

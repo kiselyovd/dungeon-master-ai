@@ -15,6 +15,7 @@ function mockFetch(response: Partial<Response>): ReturnType<typeof vi.fn> {
     ok: true,
     status: 200,
     json: async () => ({}),
+    body: { cancel: vi.fn(async () => undefined) },
     ...response,
   });
   vi.stubGlobal('fetch', fn);
@@ -39,15 +40,27 @@ describe('localRuntime API client', () => {
   });
 
   it('startLocalRuntimes POSTs to the backend port', async () => {
-    const fn = mockFetch({ ok: true, status: 200 });
+    const cancel = vi.fn(async () => undefined);
+    const fn = mockFetch({
+      ok: true,
+      status: 200,
+      body: { cancel } as unknown as ReadableStream,
+    });
     await startLocalRuntimes();
     expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/start`, { method: 'POST' });
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it('stopLocalRuntimes POSTs to the backend port', async () => {
-    const fn = mockFetch({ ok: true, status: 200 });
+    const cancel = vi.fn(async () => undefined);
+    const fn = mockFetch({
+      ok: true,
+      status: 200,
+      body: { cancel } as unknown as ReadableStream,
+    });
     await stopLocalRuntimes();
     expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/stop`, { method: 'POST' });
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it('persistLocalModeConfig POSTs the JSON body to the backend port', async () => {

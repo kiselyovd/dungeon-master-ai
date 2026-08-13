@@ -83,6 +83,29 @@ export interface SafeCampaignEvidenceFile {
   screenshots: string[];
 }
 
+export interface ScrollContainmentSnapshot {
+  viewportHeight: number;
+  documentHeight: number;
+  bodyHeight: number;
+  chatPanelHeight: number;
+  chatClientHeight: number;
+  chatScrollHeight: number;
+  bodyOverflow: string;
+  chatOverflowY: string;
+}
+
+export function isChatScrollContained(snapshot: ScrollContainmentSnapshot): boolean {
+  const tolerance = 1;
+  return (
+    snapshot.documentHeight <= snapshot.viewportHeight + tolerance &&
+    snapshot.bodyHeight <= snapshot.viewportHeight + tolerance &&
+    snapshot.chatPanelHeight <= snapshot.viewportHeight + tolerance &&
+    snapshot.chatScrollHeight > snapshot.chatClientHeight &&
+    snapshot.bodyOverflow === 'hidden' &&
+    (snapshot.chatOverflowY === 'auto' || snapshot.chatOverflowY === 'scroll')
+  );
+}
+
 export type CapturedAgentEvent =
   | { event: 'agent_done' }
   | {
@@ -97,6 +120,10 @@ export type CapturedAgentEvent =
       isError: boolean;
       result: unknown;
     };
+
+export function isManualHeroButtonLabel(label: string): boolean {
+  return /Build from scratch|Create manually|Создать с нуля|Создать вручную/i.test(label.trim());
+}
 
 export function parseCapturedAgentEvents(sse: string): CapturedAgentEvent[] {
   const captured: CapturedAgentEvent[] = [];

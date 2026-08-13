@@ -37,6 +37,7 @@ pub fn run() {
                 app.handle().clone(),
                 control.endpoint(),
                 control.token(),
+                control.executor(),
             )?;
             app.manage(control);
             Ok(())
@@ -97,5 +98,21 @@ mod packaging_tests {
             assert!(source.contains(name));
         }
         assert!(!source.contains("shell:allow-execute"));
+    }
+
+    #[test]
+    fn backend_sidecar_rebuild_tracks_every_in_process_workspace_layer() {
+        let build_script = include_str!("../build.rs");
+        for source in [
+            "../crates/app-bootstrap/src",
+            "../crates/app-server/src",
+            "../crates/app-application/src",
+            "../crates/adapter-llm/src",
+        ] {
+            assert!(
+                build_script.contains(&format!("cargo:rerun-if-changed={source}")),
+                "missing sidecar rebuild trigger for {source}"
+            );
+        }
     }
 }

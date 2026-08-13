@@ -7,6 +7,7 @@
 
 import { backendUrl } from './client';
 import { ChatError } from './errors';
+import { discardResponseBody } from './response';
 
 export type SaveKind = 'manual' | 'auto' | 'checkpoint';
 export type SaveTag = 'combat' | 'exploration' | 'dialog' | 'npc';
@@ -172,6 +173,7 @@ export async function deleteSaveById(saveId: string): Promise<void> {
   const url = await backendUrl(`/saves/${encodeURIComponent(saveId)}`);
   const resp = await fetch(url, { method: 'DELETE' });
   if (!resp.ok) throw await readError(resp, 'delete save');
+  await discardResponseBody(resp);
 }
 
 /**
@@ -202,6 +204,7 @@ export async function updateSaveById(saveId: string, body: CreateSaveRequest): P
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw await readError(resp, 'overwrite save');
+  await discardResponseBody(resp);
 }
 
 /**

@@ -49,6 +49,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const decoder = new SseStreamDecoder();
   let byteCount = 0;
   let eventSequence = 0;
+  let completed = false;
 
   const dispatch = (rawEvents: ReturnType<SseStreamDecoder['finish']>): void => {
     for (const raw of rawEvents) {
@@ -71,6 +72,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       });
       if (event.type === 'error') throw new ChatError(event.code, event.message);
       opts.onEvent(event);
+      if (event.type === 'agent_done') completed = true;
     }
   };
 
@@ -80,6 +82,10 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       if (done) break;
       byteCount += value.byteLength;
       dispatch(decoder.push(value));
+      if (completed) {
+        await reader.cancel();
+        break;
+      }
     }
     dispatch(decoder.finish());
     console.debug('[agent.transport]', {
@@ -91,6 +97,8 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     });
   } catch (error) {
     throw ChatError.from(error);
+  } finally {
+    reader.releaseLock();
   }
 }
 

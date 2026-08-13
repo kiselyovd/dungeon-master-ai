@@ -207,14 +207,16 @@ impl AgentTurnService {
             let mut tool_buffers: HashMap<String, (String, String)> = HashMap::new();
             let mut tool_calls = Vec::new();
             let mut finish_reason = FinishReason::Stop;
+            let mut pending_delta: Option<AgentEvent> = None;
 
             while let Some(chunk) = chunks.next().await {
                 self.ensure_not_cancelled()?;
                 match chunk.map_err(|_| AgentTurnError::Provider)? {
                     ChatChunk::ThinkingDelta { text } => {
-                        self.emit(
+                        self.push_delta(
                             request.session_id,
                             &mut sequence,
+                            &mut pending_delta,
                             AgentEvent::ReasoningText { text },
                             tx,
                         )
@@ -222,15 +224,18 @@ impl AgentTurnService {
                     }
                     ChatChunk::TextDelta { text } => {
                         round_text.push_str(&text);
-                        self.emit(
+                        self.push_delta(
                             request.session_id,
                             &mut sequence,
+                            &mut pending_delta,
                             AgentEvent::TextDelta { text },
                             tx,
                         )
                         .await?;
                     }
                     ChatChunk::ToolCallStart { id, name } => {
+                        self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
+                            .await?;
                         tool_buffers.insert(id.clone(), (name.clone(), String::new()));
                         self.emit(
                             request.session_id,
@@ -260,11 +265,15 @@ impl AgentTurnService {
                         }
                     }
                     ChatChunk::Done { reason } => {
+                        self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
+                            .await?;
                         finish_reason = reason;
                         break;
                     }
                 }
             }
+            self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
+                .await?;
 
             let assistant_message = if tool_calls.is_empty() {
                 (!round_text.is_empty()).then(|| ChatMessage::Assistant {
@@ -438,6 +447,58 @@ impl AgentTurnService {
         tx.send(Ok(event))
             .await
             .map_err(|_| AgentTurnError::Cancelled)
+    }
+
+    async fn push_delta(
+        &self,
+        session_id: uuid::Uuid,
+        sequence: &mut u64,
+        pending: &mut Option<AgentEvent>,
+        incoming: AgentEvent,
+        tx: &mpsc::Sender<Result<AgentEvent, AgentTurnError>>,
+    ) -> Result<(), AgentTurnError> {
+        const FLUSH_CHARS: usize = 256;
+        let merged = match (pending.as_mut(), incoming) {
+            (Some(AgentEvent::TextDelta { text }), AgentEvent::TextDelta { text: next }) => {
+                text.push_str(&next);
+                true
+            }
+            (
+                Some(AgentEvent::ReasoningText { text }),
+                AgentEvent::ReasoningText { text: next },
+            ) => {
+                text.push_str(&next);
+                true
+            }
+            (_, event) => {
+                self.flush_delta(session_id, sequence, pending, tx).await?;
+                *pending = Some(event);
+                false
+            }
+        };
+        let should_flush = match pending.as_ref() {
+            Some(AgentEvent::TextDelta { text } | AgentEvent::ReasoningText { text }) => {
+                text.chars().count() >= FLUSH_CHARS
+            }
+            _ => false,
+        };
+        if merged && should_flush {
+            self.flush_delta(session_id, sequence, pending, tx).await?;
+        }
+        Ok(())
+    }
+
+    async fn flush_delta(
+        &self,
+        session_id: uuid::Uuid,
+        sequence: &mut u64,
+        pending: &mut Option<AgentEvent>,
+        tx: &mpsc::Sender<Result<AgentEvent, AgentTurnError>>,
+    ) -> Result<(), AgentTurnError> {
+        if let Some(event) = pending.take() {
+            self.emit(session_id, sequence, event, tx).await?;
+        }
+        Ok(())
     }
 }
 

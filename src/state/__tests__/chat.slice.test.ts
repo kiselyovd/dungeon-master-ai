@@ -40,6 +40,31 @@ describe('chat.finalizeAssistant empty-stream placeholder', () => {
   });
 });
 
+describe('chat reasoning token estimate', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+  });
+
+  it('is monotonic across multiple reasoning fragments in one agent turn', () => {
+    const chat = useStore.getState().chat;
+    chat.beginStream(new AbortController());
+    chat.appendReasoningDelta('x'.repeat(10_828));
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(2_707);
+
+    chat.appendReasoningDelta('tiny');
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(2_708);
+  });
+
+  it('resets only when a new agent turn starts', () => {
+    const chat = useStore.getState().chat;
+    chat.appendReasoningDelta('x'.repeat(400));
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(100);
+
+    chat.beginStream(new AbortController());
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(0);
+  });
+});
+
 describe('chat.truncateTo', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());

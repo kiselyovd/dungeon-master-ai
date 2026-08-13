@@ -47,6 +47,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
+  const combatRevision = useStore((s) => s.combat.revision);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
   const hasMap = mapImageUrl !== null;
@@ -374,6 +375,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
               heightCells={effectiveHeightCells}
               {...(onMoveToken ? { onMoveToken } : {})}
               currentTurnId={currentTurnId}
+              revision={combatRevision}
               aoeTemplates={aoeTemplates}
             />
           )}

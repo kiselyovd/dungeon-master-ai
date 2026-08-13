@@ -41,7 +41,6 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
   const startDownload = useLocalLlmStore((s) => s.startDownload);
   const deleteModel = useLocalLlmStore((s) => s.deleteModel);
 
-  useDownloadEvents();
   // Re-derive `merged` whenever any of the four backing fields change. We
   // subscribe to each via its own selector so unrelated `loading` / `error`
   // updates do not force a re-render, and so the `useMemo` dependency array
@@ -51,6 +50,17 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
   const user = useLocalLlmStore((s) => s.user);
   const installedIds = useLocalLlmStore((s) => s.installedIds);
   const downloadStates = useLocalLlmStore((s) => s.downloadStates);
+  const hasActiveDownload = useMemo(
+    () =>
+      [...downloadStates.values()].some(
+        ({ state }) => state === 'queued' || state === 'downloading' || state === 'verifying',
+      ),
+    [downloadStates],
+  );
+  // A permanently-open EventSource consumes one of Chromium's small pool of
+  // loopback HTTP connections. Subscribe only while progress can actually
+  // arrive, otherwise repeated Settings mounts can starve gameplay requests.
+  useDownloadEvents(hasActiveDownload);
   const merged = useMemo(
     () => mergeManifests(system, user, installedIds, downloadStates),
     [system, user, installedIds, downloadStates],

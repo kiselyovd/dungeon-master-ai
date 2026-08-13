@@ -1,4 +1,5 @@
-use tauri::async_runtime::spawn;
+use std::future::Future;
+
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -73,6 +74,7 @@ pub fn spawn_backend(
     app: AppHandle,
     control_endpoint: &str,
     control_token: &str,
+    executor: &tokio::runtime::Handle,
 ) -> Result<(), Box<dyn std::error::Error>> {
     stop(&app);
     let sidecar = app
@@ -89,7 +91,7 @@ pub fn spawn_backend(
     *state.child.lock().expect("backend child lock poisoned") = Some(child);
 
     let app_for_events = app.clone();
-    spawn(async move {
+    spawn_backend_monitor(executor, async move {
         let mut lifecycle = BackendLifecycle::default();
         while let Some(event) = events.recv().await {
             match event {
@@ -137,6 +139,13 @@ pub fn spawn_backend(
     Ok(())
 }
 
+fn spawn_backend_monitor(
+    executor: &tokio::runtime::Handle,
+    monitor: impl Future<Output = ()> + Send + 'static,
+) {
+    executor.spawn(monitor);
+}
+
 fn parse_listening_port(line: &str) -> Option<u16> {
     line.trim()
         .strip_prefix("APP_SERVER_LISTENING port=")?
@@ -149,6 +158,25 @@ fn parse_listening_port(line: &str) -> Option<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backend_monitor_runs_on_persistent_executor() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+
+        spawn_backend_monitor(runtime.handle(), async move {
+            let _ = tx.send("drained");
+        });
+        runtime.block_on(tokio::task::yield_now());
+
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap(),
+            "drained"
+        );
+    }
 
     #[test]
     fn parses_port_from_listening_line() {

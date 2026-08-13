@@ -68,6 +68,7 @@ export function ChatPanel() {
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
   const streamingReasoning = useStore((s) => s.chat.streamingReasoning);
+  const streamingReasoningTokens = useStore((s) => s.chat.streamingReasoningTokens);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -344,6 +345,7 @@ export function ChatPanel() {
             <ReasoningPill
               text={streamingReasoning ?? ''}
               isStreaming={isStreaming && streamingReasoning === null}
+              totalTokens={streamingReasoningTokens}
             />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>

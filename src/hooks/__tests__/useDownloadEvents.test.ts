@@ -23,6 +23,16 @@ afterEach(() => {
 });
 
 describe('useDownloadEvents - EventSource leak on fast unmount', () => {
+  it('does not reserve an SSE connection while there is no active download', async () => {
+    renderHook(() => useDownloadEvents(false));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(subscribeDownloadEventsMock).not.toHaveBeenCalled();
+  });
+
   it('tears down a late-resolving subscription when the component unmounted before the promise resolved', async () => {
     const cancelFn = vi.fn();
 

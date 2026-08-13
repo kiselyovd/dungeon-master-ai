@@ -5,11 +5,16 @@
   grid-template-rows: var(--header-height) 1fr var(--statusbar-height);
   grid-template-columns: 1fr var(--chat-width);
   height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--color-bg-base);
 }
 
 .dm-vtt-panel {
   position: relative;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -18,6 +23,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  min-width: 0;
+  min-height: 0;
   /* overflow visible so the resize handle's hit-area can extend a few pixels
    * over the divider; the inner ChatPanel clips its own scrolling content. */
   overflow: visible;

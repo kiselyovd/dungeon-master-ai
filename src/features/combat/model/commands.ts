@@ -61,17 +61,25 @@ export async function sendCombatCommand(input: {
   const decoder = new SseStreamDecoder();
   const reader = response.body.getReader();
   let projection: CombatProjectionDto | null = null;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const event of decoder.push(value)) {
-      if (event.event !== 'combat_projection' || !isRecord(event.data)) continue;
-      projection = parseCombatProjection(event.data.projection);
+  try {
+    read: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const event of decoder.push(value)) {
+        if (event.event !== 'combat_projection' || !isRecord(event.data)) continue;
+        projection = parseCombatProjection(event.data.projection);
+        break read;
+      }
     }
-  }
-  for (const event of decoder.finish()) {
-    if (event.event !== 'combat_projection' || !isRecord(event.data)) continue;
-    projection = parseCombatProjection(event.data.projection);
+    if (!projection) {
+      for (const event of decoder.finish()) {
+        if (event.event !== 'combat_projection' || !isRecord(event.data)) continue;
+        projection = parseCombatProjection(event.data.projection);
+      }
+    }
+  } finally {
+    if (projection) await reader.cancel();
+    reader.releaseLock();
   }
   if (!projection) throw new ChatError('invalid_response', 'combat projection missing');
   return projection;

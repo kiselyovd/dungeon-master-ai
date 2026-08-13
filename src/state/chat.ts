@@ -92,6 +92,8 @@ export interface ChatSlice {
     _nextSeq: number;
     streamingAssistant: string | null;
     streamingReasoning: string | null;
+    /** Monotonic estimated total for the active turn; never resets between tool rounds. */
+    streamingReasoningTokens: number;
     isStreaming: boolean;
     lastError: ChatErrorPayload | null;
     abortController: AbortController | null;
@@ -164,6 +166,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
     _nextSeq: 0,
     streamingAssistant: null,
     streamingReasoning: null,
+    streamingReasoningTokens: 0,
     isStreaming: false,
     lastError: null,
     abortController: null,
@@ -208,12 +211,19 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     appendReasoningDelta: (text) => {
       if (text.length === 0) return;
-      set((s) => ({
-        chat: {
-          ...s.chat,
-          streamingReasoning: (s.chat.streamingReasoning ?? '') + text,
-        },
-      }));
+      set((s) => {
+        const streamingReasoning = (s.chat.streamingReasoning ?? '') + text;
+        return {
+          chat: {
+            ...s.chat,
+            streamingReasoning,
+            streamingReasoningTokens: Math.max(
+              s.chat.streamingReasoningTokens,
+              Math.ceil(streamingReasoning.length / 4),
+            ),
+          },
+        };
+      });
     },
 
     appendReasoning: (turnId, delta) => {
@@ -257,6 +267,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             ],
             streamingAssistant: null,
             streamingReasoning: null,
+            streamingReasoningTokens: 0,
           },
         };
       });
@@ -271,6 +282,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           _nextSeq: 0,
           streamingAssistant: null,
           streamingReasoning: null,
+          streamingReasoningTokens: 0,
           reasoningStreams: new Map<string, string>(),
           lastError: null,
         },
@@ -298,6 +310,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             chatStreamEvents: [],
             streamingAssistant: null,
             streamingReasoning: null,
+            streamingReasoningTokens: 0,
             reasoningStreams: new Map<string, string>(),
             lastError: null,
             abortController: null,
@@ -308,7 +321,14 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     beginStream: (controller) =>
       set((s) => ({
-        chat: { ...s.chat, isStreaming: true, abortController: controller, lastError: null },
+        chat: {
+          ...s.chat,
+          isStreaming: true,
+          abortController: controller,
+          lastError: null,
+          streamingReasoning: null,
+          streamingReasoningTokens: 0,
+        },
       })),
 
     endStream: () =>

@@ -16,11 +16,16 @@ describe('CombatOverlay', () => {
         cellSize={30}
         widthCells={20}
         heightCells={20}
+        revision={7}
+        currentTurnId="a"
       />,
     );
     const el = getByTestId('combat-overlay');
     expect(el.className).toContain('active');
     expect(el.dataset.active).toBe('true');
+    expect(el.style.zIndex).toBe('2');
+    expect(el.dataset.revision).toBe('7');
+    expect(el.dataset.currentTurn).toBe('a');
   });
 
   it('omits the active class when active=false', () => {

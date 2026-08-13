@@ -44,8 +44,9 @@ impl RuntimeProcesses {
             .clone()
     }
 
-    pub fn start_in_background(
+    pub fn start_in_background_on(
         &self,
+        executor: &tokio::runtime::Handle,
         app: AppHandle,
         request: RuntimeStartRequest,
     ) -> RuntimeStatus {
@@ -53,7 +54,7 @@ impl RuntimeProcesses {
             return self.status();
         };
         let processes = self.clone();
-        tauri::async_runtime::spawn(async move {
+        executor.spawn(async move {
             processes.start(&app, request).await;
         });
         acknowledgement
@@ -73,6 +74,10 @@ impl RuntimeProcesses {
     }
 
     pub async fn start(&self, app: &AppHandle, request: RuntimeStartRequest) -> RuntimeStatus {
+        log::info!(
+            "[FIX:runtime-control-executor] process_role=runtime lifecycle=start-task-entered model_id={}",
+            request.model_id
+        );
         let (media, model, generation) = {
             let mut inner = self.inner.lock().expect("runtime process lock poisoned");
             inner.generation = inner.generation.wrapping_add(1);
@@ -117,6 +122,9 @@ impl RuntimeProcesses {
             .model_child = Some(model_child);
 
         if !model_runtime::probe(llm_port).await {
+            log::error!(
+                "[FIX:runtime-control-executor] process_role=model-runtime lifecycle=health-failed port={llm_port}"
+            );
             self.stop().await;
             return self.fail(generation.wrapping_add(1), "llm_health_failed");
         }
@@ -236,7 +244,7 @@ impl RuntimeProcesses {
         role: &'static str,
     ) {
         let processes = self.clone();
-        tauri::async_runtime::spawn(async move {
+        tokio::spawn(async move {
             while let Some(event) = events.recv().await {
                 match event {
                     CommandEvent::Terminated(status) => {

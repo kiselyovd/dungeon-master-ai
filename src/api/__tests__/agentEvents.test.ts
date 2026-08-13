@@ -169,4 +169,37 @@ describe('streamAgentTurn event framing', () => {
     ).rejects.toMatchObject({ code: 'aborted' });
     expect(events).toEqual([]);
   });
+
+  it('cancels and releases the response reader after agent_done', async () => {
+    const cancel = vi.fn(async () => undefined);
+    const releaseLock = vi.fn();
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce({
+        done: false,
+        value: encoder.encode('event: agent_done\ndata: {"total_rounds":1}\n\n'),
+      })
+      .mockResolvedValueOnce({ done: true, value: undefined });
+    setBackendPortForTesting(45678);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        body: { getReader: () => ({ read, cancel, releaseLock }) },
+      })),
+    );
+
+    await streamAgentTurn({
+      campaignId: 'campaign-1',
+      sessionId: 'session-1',
+      playerMessage: 'advance',
+      history: [],
+      onEvent: () => undefined,
+    });
+
+    expect(releaseLock).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledOnce();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });

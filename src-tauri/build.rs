@@ -6,6 +6,12 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-changed=../crates/app-bootstrap/src");
     println!("cargo:rerun-if-changed=../crates/app-server/src");
+    println!("cargo:rerun-if-changed=../crates/app-application/src");
+    println!("cargo:rerun-if-changed=../crates/adapter-http/src");
+    println!("cargo:rerun-if-changed=../crates/adapter-sqlite/src");
+    println!("cargo:rerun-if-changed=../crates/adapter-llm/src");
+    println!("cargo:rerun-if-changed=../crates/adapter-media/src");
+    println!("cargo:rerun-if-changed=../crates/adapter-secrets/src");
     println!("cargo:rerun-if-changed=../crates/app-llm/src");
     println!("cargo:rerun-if-changed=../crates/app-domain/src");
     println!("cargo:rerun-if-env-changed=DMAI_SKIP_SIDECAR_BUILD");

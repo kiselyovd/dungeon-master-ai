@@ -16,6 +16,7 @@ interface Props {
   aoeTemplates?: AoeTemplateEntry[];
   /** The id of the token whose turn it currently is. Passed to each CombatToken to gate dragging. */
   currentTurnId?: string | null;
+  revision?: number;
 }
 
 /**
@@ -38,6 +39,7 @@ export function CombatOverlay({
   onMoveToken,
   aoeTemplates = [],
   currentTurnId,
+  revision,
 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
@@ -69,6 +71,8 @@ export function CombatOverlay({
     <div
       data-testid="combat-overlay"
       data-active={active ? 'true' : undefined}
+      data-revision={revision}
+      data-current-turn={currentTurnId ?? undefined}
       className={`vtt-combat-overlay${active ? ' active' : ''}`}
       style={{
         position: 'absolute',
@@ -76,6 +80,7 @@ export function CombatOverlay({
         left: 0,
         width,
         height,
+        zIndex: 2,
       }}
     >
       {tokens.map((token) => (

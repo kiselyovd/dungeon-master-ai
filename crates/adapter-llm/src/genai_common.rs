@@ -10,6 +10,7 @@ use genai::chat::{
     ToolCall as GToolCall, ToolResponse as GToolResponse,
 };
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc::Sender;
 use tracing::warn;
 
@@ -86,6 +87,11 @@ pub(crate) fn convert_messages(messages: Vec<ChatMessage>, tools: Vec<Tool>) -> 
 /// `ToolCallChunk` when content and tool_calls share a chunk - so we recover
 /// the call from the leaked text instead. See `parse_leaked_tool_calls`.
 const LEAKED_TOOL_MARKER: &str = "<|tool_call>";
+static LEAKED_STREAM_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+fn leaked_tool_call_id(stream_id: u64, index: usize) -> String {
+    format!("leaked-{stream_id}-{index}")
+}
 
 /// Parse mistralrs/Gemma's leaked tool-call text into `(fn_name, args_json)`
 /// pairs. The raw text looks like:
@@ -214,6 +220,7 @@ pub(crate) async fn pump_genai_stream(
     mut g_stream: ChatStream,
     tx: Sender<Result<ChatChunk, LlmError>>,
 ) {
+    let leaked_stream_id = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut args_seen: HashMap<String, String> = HashMap::new();
     let mut content_mode = ContentMode::Undecided;
     let mut pending = String::new();
@@ -322,7 +329,7 @@ pub(crate) async fn pump_genai_stream(
                 if matches!(content_mode, ContentMode::Tool) {
                     let calls = parse_leaked_tool_calls(&tool_text);
                     for (i, (name, args)) in calls.into_iter().enumerate() {
-                        let id = format!("leaked-{i}");
+                        let id = leaked_tool_call_id(leaked_stream_id, i);
                         if tx
                             .send(Ok(ChatChunk::ToolCallStart {
                                 id: id.clone(),
@@ -486,6 +493,21 @@ mod tests {
     fn parse_leaked_tool_calls_ignores_plain_text() {
         assert!(
             parse_leaked_tool_calls("The goblin lunges at you with a rusty dagger.").is_empty()
+        );
+    }
+
+    #[test]
+    fn leaked_tool_call_ids_are_distinct_across_agent_rounds() {
+        let first_round = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let second_round = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+
+        assert_ne!(
+            leaked_tool_call_id(first_round, 0),
+            leaked_tool_call_id(second_round, 0)
+        );
+        assert_ne!(
+            leaked_tool_call_id(first_round, 0),
+            leaked_tool_call_id(first_round, 1)
         );
     }
 

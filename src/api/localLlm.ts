@@ -7,6 +7,7 @@
  */
 
 import { backendUrl } from './client';
+import { discardResponseBody } from './response';
 
 export interface SystemEntry {
   id: string;
@@ -71,6 +72,7 @@ export async function setActiveLocalModel(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`POST /local-llm/active-model HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /** POST /local-llm/download/:model_id - initiates a background download (202). */
@@ -80,6 +82,7 @@ export async function startModelDownload(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`POST /local-llm/download/${id} HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /** DELETE /local-llm/model/:model_id - cancels in-progress or removes installed (204). */
@@ -89,6 +92,7 @@ export async function cancelOrDeleteModel(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`DELETE /local-llm/model/${id} HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /**

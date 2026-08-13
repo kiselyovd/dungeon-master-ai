@@ -227,6 +227,10 @@ async fn agent_turn_endpoint_streams_text() {
         .unwrap();
 
     assert_eq!(resp.status(), 200);
+    assert_eq!(
+        resp.headers().get(reqwest::header::CONNECTION),
+        Some(&reqwest::header::HeaderValue::from_static("close"))
+    );
     let body = resp.text().await.unwrap();
     assert!(
         body.contains("text_delta"),
@@ -516,10 +520,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
             _ => {}
         }
     }
-    assert_eq!(
-        reasoning_texts,
-        vec!["Step 1: think.", " Step 2: conclude."]
-    );
+    assert_eq!(reasoning_texts, vec!["Step 1: think. Step 2: conclude."]);
     assert_eq!(text, "The answer is 42.");
     assert!(done);
 }

@@ -8,6 +8,7 @@
 
 import { backendUrl } from './client';
 import { ChatError } from './errors';
+import { discardResponseBody } from './response';
 
 export type ImagePreset = 'fast' | 'balanced' | 'quality' | 'quality-oss' | 'cloud';
 export type ProviderConfig =
@@ -226,6 +227,7 @@ export async function postSettingsV2(
     const message = parsed.error?.message ?? `POST /settings/v2 HTTP ${resp.status}`;
     throw new ChatError('provider_error', message);
   }
+  await discardResponseBody(resp);
 }
 
 function assertNeverProvider(value: never): never {

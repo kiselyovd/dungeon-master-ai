@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { backendUrl } from '../api/client';
+import { discardResponseBody } from '../api/response';
 import type { ModelId } from '../state/localMode';
 import { useStore } from '../state/useStore';
 
@@ -21,6 +22,7 @@ export function useModelDownload(modelId: ModelId) {
       setDownloadState(modelId, { state: 'failed', reason, authRequired: false });
       throw new Error(reason);
     }
+    await discardResponseBody(resp);
     setDownloadState(modelId, { state: 'downloading', bytesDone: 0, totalBytes: null });
     esRef.current?.close();
     const es = new EventSource(await backendUrl(`/local/download/${modelId}/progress`));
@@ -57,7 +59,10 @@ export function useModelDownload(modelId: ModelId) {
   const cancel = useCallback(async () => {
     esRef.current?.close();
     esRef.current = null;
-    await fetch(await backendUrl(`/local/download/${modelId}`), { method: 'DELETE' });
+    const response = await fetch(await backendUrl(`/local/download/${modelId}`), {
+      method: 'DELETE',
+    });
+    await discardResponseBody(response);
     setDownloadState(modelId, { state: 'idle' });
   }, [modelId, setDownloadState]);
 

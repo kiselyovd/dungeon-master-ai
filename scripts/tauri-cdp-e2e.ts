@@ -1,165 +1,122 @@
 /**
- * Real-Tauri e2e over the raw Chrome DevTools Protocol.
+ * Real Tauri smoke test over the raw Chrome DevTools Protocol.
  *
- * Drives the LIVE WebView2 window (not the vite/browser mock) with the real
- * `dmai-server` sidecar running behind it. WebView2 exposes a page-level CDP
- * endpoint but not the browser-level endpoint Playwright's connectOverCDP
- * needs, so this talks CDP directly over bun's native WebSocket.
+ * Windows/WebView2 launch example:
+ *   $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9222'
+ *   bun run tauri dev
+ *   bun run e2e:tauri
  *
- * Launch first:
- *   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9222" bun run tauri dev
- * then:  bun scripts/tauri-cdp-e2e.ts
- *
- * Every assertion exercises the real frontend, the real Tauri plugin-store /
- * Stronghold persistence, and the real HTTP backend.
+ * The test talks to the live Tauri WebView, the real dmai-server sidecar and
+ * the real Tauri persistence plugins. It does not use the browser mock.
  */
-const CDP_HTTP = process.env.CDP_HTTP ?? 'http://127.0.0.1:9222';
-const SHOT = 'D:/Projects/GitHub/dungeon-master-ai/.cache-models/tauri_real_e2e.png';
+import {
+  CdpClient,
+  captureScreenshot,
+  defaultArtifactPath,
+  evaluateInPage,
+  findAppPageWebSocket,
+  waitForPageCondition,
+} from './lib/cdp';
 
-function log(m: string): void {
-  // eslint-disable-next-line no-console
-  console.log(m);
+const screenshotPath =
+  process.env.TAURI_E2E_SCREENSHOT ?? defaultArtifactPath('tauri-real-e2e.png');
+
+function log(message: string): void {
+  console.log(message);
 }
 
-interface Target {
-  url: string;
-  type: string;
-  webSocketDebuggerUrl?: string;
-}
-
-async function appPageWsUrl(): Promise<string> {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    try {
-      const list = (await (await fetch(`${CDP_HTTP}/json/list`)).json()) as Target[];
-      const page = list.find(
-        (t) => t.type === 'page' && (t.url.includes('1420') || t.url.includes('tauri.localhost')),
-      );
-      if (page?.webSocketDebuggerUrl) return page.webSocketDebuggerUrl;
-    } catch {
-      /* app still booting */
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('app page (localhost:1420) not found over CDP');
-}
-
-class Cdp {
-  private ws: WebSocket;
-  private id = 0;
-  private pending = new Map<number, (v: unknown) => void>();
-  private ready: Promise<void>;
-
-  constructor(url: string) {
-    this.ws = new WebSocket(url);
-    this.ready = new Promise((resolve, reject) => {
-      this.ws.addEventListener('open', () => resolve());
-      this.ws.addEventListener('error', (e) => reject(new Error(`ws error: ${String(e)}`)));
-    });
-    this.ws.addEventListener('message', (ev) => {
-      const msg = JSON.parse(String((ev as MessageEvent).data)) as { id?: number; result?: unknown };
-      if (msg.id !== undefined && this.pending.has(msg.id)) {
-        this.pending.get(msg.id)?.(msg.result);
-        this.pending.delete(msg.id);
-      }
-    });
-  }
-
-  async open(): Promise<void> {
-    await this.ready;
-  }
-
-  send<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-    const id = ++this.id;
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`CDP ${method} timed out`)), 60_000);
-      this.pending.set(id, (v) => {
-        clearTimeout(timer);
-        resolve(v as T);
-      });
-      this.ws.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  close(): void {
-    this.ws.close();
-  }
-}
-
-/** Evaluate a JS expression in the page and return its (by-value) result. */
-async function evalInPage<T>(cdp: Cdp, expression: string): Promise<T> {
-  const r = await cdp.send<{ result?: { value?: T } }>('Runtime.evaluate', {
-    expression,
-    returnByValue: true,
-    awaitPromise: true,
-  });
-  return r.result?.value as T;
-}
-
-/** Poll a boolean expression until true or timeout. */
-async function waitFor(cdp: Cdp, expression: string, timeoutMs = 30_000): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await evalInPage<boolean>(cdp, `Boolean(${expression})`)) return true;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return false;
+interface Check {
+  name: string;
+  ok: boolean;
+  detail?: string;
 }
 
 async function main(): Promise<void> {
-  const wsUrl = await appPageWsUrl();
-  log(`connecting raw CDP to ${wsUrl}`);
-  const cdp = new Cdp(wsUrl);
-  await cdp.open();
-  await cdp.send('Runtime.enable');
-  await cdp.send('Page.enable');
+  const websocketUrl = await findAppPageWebSocket({ timeoutMs: 90_000 });
+  log(`Connecting to the real Tauri WebView: ${websocketUrl}`);
 
-  const checks: { name: string; ok: boolean; detail?: string }[] = [];
+  const cdp = new CdpClient(websocketUrl);
+  const uncaughtExceptions: string[] = [];
+  const checks: Check[] = [];
   const record = (name: string, ok: boolean, detail?: string) => {
     checks.push({ name, ok, detail });
     log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` - ${detail}` : ''}`);
   };
 
-  // 0. It really is the Tauri runtime (not the vite browser mock).
-  const hasTauri = await evalInPage<boolean>(cdp, '!!window.__TAURI_INTERNALS__');
-  record('real Tauri runtime present (window.__TAURI_INTERNALS__)', hasTauri);
+  try {
+    await cdp.open();
+    await cdp.send('Runtime.enable');
+    await cdp.send('Page.enable');
+    cdp.on('Runtime.exceptionThrown', (params) => {
+      const event = params as {
+        exceptionDetails?: { text?: string; exception?: { description?: string } };
+      };
+      uncaughtExceptions.push(
+        event.exceptionDetails?.exception?.description ??
+          event.exceptionDetails?.text ??
+          'Unknown uncaught page exception',
+      );
+    });
 
-  // 1. Real frontend rendered inside WebView2.
-  const titlebar = await waitFor(cdp, `document.body.innerText.includes('DUNGEON MASTER AI')`);
-  record('titlebar renders in the real WebView2', titlebar);
+    const hasTauri = await evaluateInPage<boolean>(cdp, 'Boolean(window.__TAURI_INTERNALS__)');
+    record('real Tauri runtime is present', hasTauri);
 
-  // 2. Real backend reachable: SplashOverlay only drops after the real
-  //    dmai-server answers /health, after which the chat composer mounts.
-  //    Language-agnostic (the real app may be in RU): assert the splash is gone
-  //    and the composer <textarea> is present.
-  const composer = await waitFor(
-    cdp,
-    `!document.querySelector('.dm-splash') && !!document.querySelector('textarea')`,
-  );
-  record('composer visible / splash dismissed (real dmai-server /health passed)', composer);
+    const appRendered = await waitForPageCondition(
+      cdp,
+      `document.body.innerText.includes('DUNGEON MASTER AI') && document.body.children.length > 0`,
+      180_000,
+    );
+    record('application shell renders in the real WebView', appRendered);
 
-  // 3. Real persistence: settings.json (onboarding_completed=true) read back
-  //    through the real plugin-store / Stronghold hydration. Onboarding must
-  //    not re-show (audit blocker 1, against the real vault).
-  const noOnboarding = await evalInPage<boolean>(
-    cdp,
-    `!/Step \\d of \\d/i.test(document.body.innerText)`,
-  );
-  record('onboarding does not re-show (real Stronghold hydration gate)', noOnboarding);
+    const backendReady = await waitForPageCondition(
+      cdp,
+      `!document.querySelector('.dm-splash') && Boolean(document.querySelector('textarea'))`,
+      120_000,
+    );
+    record('splash closes and chat composer mounts', backendReady);
 
-  // Proof screenshot of the real app.
-  const cap = await cdp.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
-  await Bun.write(SHOT, Buffer.from(cap.data, 'base64'));
-  log(`screenshot: ${SHOT}`);
+    const backendPort = await evaluateInPage<number | null>(
+      cdp,
+      `(async () => {
+        try {
+          const invoke = window.__TAURI_INTERNALS__?.invoke;
+          return typeof invoke === 'function' ? await invoke('backend_port') : null;
+        } catch { return null; }
+      })()`,
+    );
+    record(
+      'backend sidecar reports a dynamic port',
+      typeof backendPort === 'number' && backendPort > 0,
+      backendPort === null ? 'no port returned' : String(backendPort),
+    );
 
-  cdp.close();
+    const noOnboarding = await evaluateInPage<boolean>(
+      cdp,
+      `!(/Step\s+\d+\s+of\s+\d+/i.test(document.body.innerText))`,
+    );
+    record('persisted onboarding state does not regress', noOnboarding);
 
-  const failed = checks.filter((c) => !c.ok);
-  log(`\n=== ${checks.length - failed.length}/${checks.length} real-Tauri checks passed ===`);
-  if (failed.length > 0) process.exit(1);
+    const pageTitle = await evaluateInPage<string>(cdp, 'document.title');
+    record('window title is configured', pageTitle.includes('Dungeon Master AI'), pageTitle);
+
+    await captureScreenshot(cdp, screenshotPath);
+    log(`Screenshot: ${screenshotPath}`);
+
+    record(
+      'no uncaught page exceptions during smoke test',
+      uncaughtExceptions.length === 0,
+      uncaughtExceptions.slice(0, 3).join(' | ') || undefined,
+    );
+  } finally {
+    cdp.close();
+  }
+
+  const failures = checks.filter((check) => !check.ok);
+  log(`\n=== ${checks.length - failures.length}/${checks.length} real-Tauri checks passed ===`);
+  if (failures.length > 0) process.exit(1);
 }
 
-main().catch((e) => {
-  log(`ERROR: ${(e as Error).stack ?? e}`);
+main().catch((error) => {
+  console.error(`ERROR ${(error as Error).stack ?? String(error)}`);
   process.exit(1);
 });
