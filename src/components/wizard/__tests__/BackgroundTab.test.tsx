@@ -45,6 +45,6 @@ describe('BackgroundTab', () => {
 
   it('shows SRD limit note', () => {
     render(<BackgroundTab compendium={compendium} />);
-    expect(screen.getByText(/SRD 5.1/)).toBeInTheDocument();
+    expect(screen.getByText(/SRD 5.2.1/)).toBeInTheDocument();
   });
 });

@@ -32,6 +32,7 @@ export interface UseCharacterAssist {
 
 function snapshotDraft(s: ReturnType<typeof useStore.getState>): CharacterDraft {
   return {
+    rulesetId: s.charCreation.rulesetId,
     classId: s.charCreation.classId,
     subclassId: s.charCreation.subclassId,
     raceId: s.charCreation.raceId,

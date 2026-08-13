@@ -82,7 +82,16 @@ export function SpellsTab({ compendium }: { compendium: Compendium }) {
             className={`dm-wizard-card${spells.cantrips.includes(s.id) ? ' is-selected' : ''}`}
             onClick={() => toggleSpell(s, 'cantrips')}
           >
-            <div>{lang === 'ru' ? s.name_ru : s.name_en}</div>
+            <div>
+              {s.name_key
+                ? i18n.t(s.name_key, {
+                    ns: 'character',
+                    defaultValue: lang === 'ru' ? s.name_ru : s.name_en,
+                  })
+                : lang === 'ru'
+                  ? s.name_ru
+                  : s.name_en}
+            </div>
             <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
               {s.school} - {s.casting_time}
             </div>
@@ -100,7 +109,16 @@ export function SpellsTab({ compendium }: { compendium: Compendium }) {
             className={`dm-wizard-card${spells.level1.includes(s.id) ? ' is-selected' : ''}`}
             onClick={() => toggleSpell(s, 'level1')}
           >
-            <div>{lang === 'ru' ? s.name_ru : s.name_en}</div>
+            <div>
+              {s.name_key
+                ? i18n.t(s.name_key, {
+                    ns: 'character',
+                    defaultValue: lang === 'ru' ? s.name_ru : s.name_en,
+                  })
+                : lang === 'ru'
+                  ? s.name_ru
+                  : s.name_en}
+            </div>
             <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
               {s.school} - {s.casting_time}
             </div>

@@ -30,7 +30,14 @@ export function BackgroundTab({ compendium }: BackgroundTabProps) {
             onClick={() => setDraftField('backgroundId', b.id)}
           >
             <div style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>
-              {lang === 'ru' ? b.name_ru : b.name_en}
+              {b.name_key
+                ? i18n.t(b.name_key, {
+                    ns: 'character',
+                    defaultValue: lang === 'ru' ? b.name_ru : b.name_en,
+                  })
+                : lang === 'ru'
+                  ? b.name_ru
+                  : b.name_en}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
               {b.skill_proficiencies.join(' / ')}

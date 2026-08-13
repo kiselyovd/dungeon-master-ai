@@ -1,6 +1,13 @@
+import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import { type CharCreationSlice, createCharCreationSlice, EMPTY_DRAFT } from '../charCreation';
+import {
+  type CharCreationSlice,
+  CURRENT_CHARACTER_RULESET_ID,
+  createCharCreationSlice,
+  EMPTY_DRAFT,
+} from '../charCreation';
+import { CharCreationDraftSchema, StrictCharCreationDraftSchema } from '../charCreationSchema';
 
 function buildStore() {
   return createStore<CharCreationSlice>()((...a) => ({ ...createCharCreationSlice(...a) }));
@@ -9,6 +16,7 @@ function buildStore() {
 describe('charCreation slice', () => {
   it('starts with empty draft and class as active tab', () => {
     const s = buildStore().getState().charCreation;
+    expect(s.rulesetId).toBe(CURRENT_CHARACTER_RULESET_ID);
     expect(s.classId).toBeNull();
     expect(s.activeTab).toBe('class');
     expect(s.isAssisting).toBe(false);
@@ -69,8 +77,28 @@ describe('charCreation slice', () => {
   });
 
   it('EMPTY_DRAFT exports a usable initial value', () => {
+    expect(EMPTY_DRAFT.rulesetId).toBe(CURRENT_CHARACTER_RULESET_ID);
     expect(EMPTY_DRAFT.classId).toBeNull();
     expect(EMPTY_DRAFT.abilities.str).toBe(10);
+  });
+
+  it('rejects persisted drafts without the current ruleset identity', () => {
+    expect(v.safeParse(CharCreationDraftSchema, { classId: 'fighter' }).success).toBe(false);
+    expect(
+      v.safeParse(CharCreationDraftSchema, { rulesetId: 'srd-5.1', classId: 'fighter' }).success,
+    ).toBe(false);
+    expect(
+      v.safeParse(CharCreationDraftSchema, {
+        rulesetId: CURRENT_CHARACTER_RULESET_ID,
+        classId: 'fighter',
+      }).success,
+    ).toBe(true);
+    expect(
+      v.safeParse(StrictCharCreationDraftSchema, {
+        ...EMPTY_DRAFT,
+        activeTab: 'class',
+      }).success,
+    ).toBe(true);
   });
 
   it('setIsAssisting toggles the assisting flag', () => {

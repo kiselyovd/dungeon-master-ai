@@ -1,4 +1,4 @@
-//! Typed mirror of the SRD 5.1 character-creation YAML datasets.
+//! Typed mirror of the SRD 5.2.1 character-creation catalog.
 //!
 //! Top-level identifying fields are strict (`id`, `name_en`, `name_ru`, etc.)
 //! so wizard code can pattern-match. Deeply nested or heterogeneous fields
@@ -9,6 +9,17 @@
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value as YamlValue;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RulesetProvenance {
+    pub ruleset_id: String,
+    pub source_title: String,
+    pub source_url: String,
+    pub published_on: String,
+    pub license_id: String,
+    pub license_url: String,
+    pub attribution: String,
+}
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AbilityScores {
@@ -65,6 +76,8 @@ pub struct RaceTrait {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Subrace {
     pub id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     #[serde(default)]
@@ -76,6 +89,10 @@ pub struct Subrace {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Race {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     #[serde(default)]
@@ -94,8 +111,12 @@ pub struct Race {
     #[serde(default)]
     pub subraces: Vec<Subrace>,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
     pub srd_section: String,
 }
+
+pub type CharacterSpecies = Race;
 
 /// Class-level entry. Free-form nested arrays (skill_proficiencies choose
 /// blocks, starting_equipment options, level_1_features, spellcasting block,
@@ -104,6 +125,10 @@ pub struct Race {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Class {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     pub hit_die: i32,
@@ -122,6 +147,8 @@ pub struct Class {
     #[serde(default)]
     pub starting_equipment: YamlValue,
     #[serde(default)]
+    pub starting_gold: Option<i32>,
+    #[serde(default)]
     pub level_1_features: YamlValue,
     #[serde(default)]
     pub spellcasting: YamlValue,
@@ -130,7 +157,13 @@ pub struct Class {
     #[serde(default)]
     pub subclasses: YamlValue,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
+    #[serde(default)]
+    pub srd_section: String,
 }
+
+pub type CharacterClass = Class;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BackgroundFeature {
@@ -142,6 +175,10 @@ pub struct BackgroundFeature {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Background {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     #[serde(default)]
@@ -154,12 +191,22 @@ pub struct Background {
     pub starting_equipment: YamlValue,
     #[serde(default)]
     pub starting_gold: Option<i32>,
+    #[serde(default)]
+    pub ability_score_options: Vec<String>,
+    #[serde(default)]
+    pub feat_id: String,
     pub feature: BackgroundFeature,
     #[serde(default)]
     pub suggested_characteristics: YamlValue,
     #[serde(default)]
     pub source_url: Option<String>,
+    #[serde(default)]
+    pub source_page: i32,
+    #[serde(default)]
+    pub srd_section: String,
 }
+
+pub type CharacterBackground = Background;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SpellComponents {
@@ -201,6 +248,10 @@ pub struct BilingualText {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Spell {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     pub level: i32,
@@ -229,6 +280,8 @@ pub struct Spell {
     #[serde(default)]
     pub scales_with_level: Option<String>,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
     pub srd_section: String,
 }
 
@@ -262,6 +315,10 @@ pub struct WeaponDamage {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Weapon {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     pub category: String,
@@ -272,16 +329,24 @@ pub struct Weapon {
     #[serde(default)]
     pub properties: Vec<String>,
     #[serde(default)]
+    pub mastery: Option<String>,
+    #[serde(default)]
     pub range_ft: WeaponRange,
     #[serde(default)]
     pub special_rules: Option<BilingualText>,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
     pub srd_section: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Armor {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     pub category: String,
@@ -300,12 +365,18 @@ pub struct Armor {
     #[serde(default)]
     pub doff_time: Option<String>,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
     pub srd_section: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdventuringGear {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     #[serde(default)]
@@ -317,6 +388,8 @@ pub struct AdventuringGear {
     pub description_ru: Option<String>,
     #[serde(default)]
     pub source_url: Option<String>,
+    #[serde(default)]
+    pub source_page: i32,
     #[serde(default)]
     pub srd_section: Option<String>,
 }
@@ -344,6 +417,10 @@ pub struct FeatPrerequisite {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Feat {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     #[serde(default)]
@@ -357,14 +434,37 @@ pub struct Feat {
     #[serde(default)]
     pub mechanical_hooks: YamlValue,
     pub source_url: String,
+    #[serde(default)]
+    pub source_page: i32,
     pub srd_section: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WeaponProperty {
     pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    #[serde(default)]
+    pub name_key: String,
     pub name_en: String,
     pub name_ru: String,
     pub description_en: String,
     pub description_ru: String,
+    #[serde(default)]
+    pub source_page: i32,
+    #[serde(default)]
+    pub srd_section: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WeaponMastery {
+    pub id: String,
+    #[serde(default)]
+    pub ruleset_id: String,
+    pub name_key: String,
+    pub name_en: String,
+    pub name_ru: String,
+    #[serde(default)]
+    pub source_page: i32,
+    pub srd_section: String,
 }

@@ -1,4 +1,4 @@
-//! Structured access to the SRD 5.1 character-creation data shipped in the binary.
+//! Structured access to the SRD 5.2.1 character-creation data shipped in the binary.
 //!
 //! Unlike the sibling `app_domain::srd` module (which embeds raw SRD prose
 //! for LLM retrieval), this module exposes typed records of races, classes,
@@ -8,4 +8,5 @@
 mod loader;
 pub mod types;
 
-pub use loader::{compendium, Compendium};
+pub use loader::{character_catalog, compendium, CharacterCatalog, Compendium, CURRENT_RULESET_ID};
+pub use types::{CharacterBackground, CharacterClass, CharacterSpecies, RulesetProvenance};

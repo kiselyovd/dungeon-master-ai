@@ -176,22 +176,33 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
     (pc.heroClass !== null
       ? (HERO_PORTRAIT[pc.heroClass as HeroClassId | 'paladin'] ?? null)
       : null);
-  const className = pc.heroClass !== null ? t(`class_${pc.heroClass}` as 'class_fighter') : '';
+  const className =
+    pc.heroClass !== null
+      ? t(`catalog.classes.${pc.heroClass}`, {
+          defaultValue: t(`class_${pc.heroClass}` as 'class_fighter'),
+        })
+      : '';
+  const speciesName =
+    pc.race !== null ? t(`catalog.species.${pc.race}`, { defaultValue: pc.race }) : '';
+  const backgroundName =
+    pc.background !== null
+      ? t(`catalog.backgrounds.${pc.background}`, { defaultValue: pc.background })
+      : '';
   const meta =
     pc.subclass !== null
       ? t('meta_race_subclass_level', {
-          race: pc.race ?? '',
+          race: speciesName,
           className,
           subclass: pc.subclass,
           level: pc.level,
         })
       : t('meta_race_class_level', {
-          race: pc.race ?? '',
+          race: speciesName,
           className,
           level: pc.level,
         });
   const bgLine = t('meta_background_alignment', {
-    background: pc.background ?? '',
+    background: backgroundName,
     alignment: pc.alignment ?? '',
   });
 

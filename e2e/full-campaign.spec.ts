@@ -116,6 +116,8 @@ const compendium = {
   races: [
     {
       id: 'human',
+      ruleset_id: 'srd-5.2.1',
+      name_key: 'catalog.species.human',
       name_en: 'Human',
       name_ru: 'Человек',
       ability_score_increases: {},
@@ -128,12 +130,15 @@ const compendium = {
       traits: [],
       subraces: [],
       source_url: '',
-      srd_section: '',
+      source_page: 78,
+      srd_section: 'Character Origins / Species / Human',
     },
   ],
   classes: [
     {
       id: 'fighter',
+      ruleset_id: 'srd-5.2.1',
+      name_key: 'catalog.classes.fighter',
       name_en: 'Fighter',
       name_ru: 'Воин',
       hit_die: 10,
@@ -148,11 +153,15 @@ const compendium = {
       spellcasting: null,
       subclasses: [],
       source_url: '',
+      source_page: 24,
+      srd_section: 'Character Classes / Fighter',
     },
   ],
   backgrounds: [
     {
       id: 'soldier',
+      ruleset_id: 'srd-5.2.1',
+      name_key: 'catalog.backgrounds.soldier',
       name_en: 'Soldier',
       name_ru: 'Солдат',
       skill_proficiencies: ['athletics'],
@@ -160,8 +169,13 @@ const compendium = {
       language_proficiencies: {},
       starting_equipment: [],
       starting_gold: 10,
+      ability_score_options: ['str', 'dex', 'con'],
+      feat_id: 'savage-attacker',
       feature: { name_en: '', name_ru: '', description: '' },
       suggested_characteristics: {},
+      source_url: '',
+      source_page: 83,
+      srd_section: 'Character Origins / Soldier',
     },
   ],
   spells: [],
@@ -194,6 +208,7 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     active_campaign_id: CAMPAIGN_ID,
     active_session_id: SESSION_ID,
     char_creation_draft: {
+      rulesetId: 'srd-5.2.1',
       classId: 'fighter',
       raceId: 'human',
       backgroundId: 'soldier',

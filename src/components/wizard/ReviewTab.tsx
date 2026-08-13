@@ -118,6 +118,14 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
     // uses, so a wizard-built character commits non-zero HP and a real AC
     // instead of the EMPTY_PC defaults (hp 0/0, ac 10, initiative 0).
     const sheet = computeLiveSheet(draft, compendium);
+    const derivedAbilities = {
+      str: sheet.abilities.str.score,
+      dex: sheet.abilities.dex.score,
+      con: sheet.abilities.con.score,
+      int: sheet.abilities.int.score,
+      wis: sheet.abilities.wis.score,
+      cha: sheet.abilities.cha.score,
+    };
 
     replaceFromDraft({
       heroClass: draft.classId,
@@ -127,7 +135,7 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       background: draft.backgroundId,
       alignment: draft.alignment,
       level: 1,
-      abilities: draft.abilities,
+      abilities: derivedAbilities,
       hp: sheet.hp ?? 0,
       hpMax: sheet.hpMax ?? 0,
       ac: sheet.ac ?? 10,

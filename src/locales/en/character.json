@@ -59,5 +59,38 @@
   "empty_desc": "Run the onboarding wizard to create your hero.",
   "empty_action": "Go to onboarding",
 
-  "create_new_character": "Create new character"
+  "create_new_character": "Create new character",
+  "catalog": {
+    "species": {
+      "dragonborn": "Dragonborn",
+      "dwarf": "Dwarf",
+      "elf": "Elf",
+      "gnome": "Gnome",
+      "goliath": "Goliath",
+      "halfling": "Halfling",
+      "human": "Human",
+      "orc": "Orc",
+      "tiefling": "Tiefling"
+    },
+    "classes": {
+      "barbarian": "Barbarian",
+      "bard": "Bard",
+      "cleric": "Cleric",
+      "druid": "Druid",
+      "fighter": "Fighter",
+      "monk": "Monk",
+      "paladin": "Paladin",
+      "ranger": "Ranger",
+      "rogue": "Rogue",
+      "sorcerer": "Sorcerer",
+      "warlock": "Warlock",
+      "wizard": "Wizard"
+    },
+    "backgrounds": {
+      "acolyte": "Acolyte",
+      "criminal": "Criminal",
+      "sage": "Sage",
+      "soldier": "Soldier"
+    }
+  }
 }

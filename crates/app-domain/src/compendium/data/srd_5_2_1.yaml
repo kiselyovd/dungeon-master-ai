@@ -1,0 +1,2896 @@
+{
+  "provenance": {
+    "ruleset_id": "srd-5.2.1",
+    "source_title": "System Reference Document 5.2.1",
+    "source_url": "https://www.dndbeyond.com/srd",
+    "published_on": "2025-05-01",
+    "license_id": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+    "attribution": "This work includes material from the System Reference Document 5.2.1 (SRD 5.2.1) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License."
+  },
+  "races": [
+    {
+      "id": "dragonborn",
+      "name_key": "catalog.species.dragonborn",
+      "name_en": "Dragonborn",
+      "name_ru": "Драконорождённый",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 84,
+      "srd_section": "Character Origins / Dragonborn"
+    },
+    {
+      "id": "dwarf",
+      "name_key": "catalog.species.dwarf",
+      "name_en": "Dwarf",
+      "name_ru": "Дварф",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 350
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 84,
+      "srd_section": "Character Origins / Dwarf"
+    },
+    {
+      "id": "elf",
+      "name_key": "catalog.species.elf",
+      "name_en": "Elf",
+      "name_ru": "Эльф",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 750
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 85,
+      "srd_section": "Character Origins / Elf"
+    },
+    {
+      "id": "gnome",
+      "name_key": "catalog.species.gnome",
+      "name_en": "Gnome",
+      "name_ru": "Гном",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Small or Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 86,
+      "srd_section": "Character Origins / Gnome"
+    },
+    {
+      "id": "goliath",
+      "name_key": "catalog.species.goliath",
+      "name_en": "Goliath",
+      "name_ru": "Голиаф",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Medium",
+      "speed": 35,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 86,
+      "srd_section": "Character Origins / Goliath"
+    },
+    {
+      "id": "halfling",
+      "name_key": "catalog.species.halfling",
+      "name_en": "Halfling",
+      "name_ru": "Полурослик",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Small or Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 87,
+      "srd_section": "Character Origins / Halfling"
+    },
+    {
+      "id": "human",
+      "name_key": "catalog.species.human",
+      "name_en": "Human",
+      "name_ru": "Человек",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 87,
+      "srd_section": "Character Origins / Human"
+    },
+    {
+      "id": "orc",
+      "name_key": "catalog.species.orc",
+      "name_en": "Orc",
+      "name_ru": "Орк",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 88,
+      "srd_section": "Character Origins / Orc"
+    },
+    {
+      "id": "tiefling",
+      "name_key": "catalog.species.tiefling",
+      "name_en": "Tiefling",
+      "name_ru": "Тифлинг",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_increases": {},
+      "age": {
+        "mature_at": 18,
+        "max_lifespan": 80
+      },
+      "size": "Medium",
+      "speed": 30,
+      "languages": [],
+      "proficiencies": {},
+      "senses": {},
+      "traits": [],
+      "subraces": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 88,
+      "srd_section": "Character Origins / Tiefling"
+    }
+  ],
+  "classes": [
+    {
+      "id": "barbarian",
+      "name_key": "catalog.classes.barbarian",
+      "name_en": "Barbarian",
+      "name_ru": "Варвар",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 12,
+      "primary_ability": [
+        "str"
+      ],
+      "saving_throw_proficiencies": [
+        "str",
+        "con"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "medium",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple",
+        "martial"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "animal_handling",
+          "athletics",
+          "intimidation",
+          "nature",
+          "perception",
+          "survival"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Greataxe",
+            "4 Handaxes",
+            "Explorer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 15,
+      "level_1_features": [],
+      "spellcasting": null,
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 22,
+      "srd_section": "Classes / Barbarian"
+    },
+    {
+      "id": "bard",
+      "name_key": "catalog.classes.bard",
+      "name_en": "Bard",
+      "name_ru": "Бард",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "cha"
+      ],
+      "saving_throw_proficiencies": [
+        "dex",
+        "cha"
+      ],
+      "armor_proficiencies": [
+        "light"
+      ],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 3,
+        "from": [
+          "acrobatics",
+          "animal_handling",
+          "arcana",
+          "athletics",
+          "deception",
+          "history",
+          "insight",
+          "intimidation",
+          "investigation",
+          "medicine",
+          "nature",
+          "perception",
+          "performance",
+          "persuasion",
+          "religion",
+          "sleight_of_hand",
+          "stealth",
+          "survival"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Leather Armor",
+            "2 Daggers",
+            "Musical Instrument",
+            "Entertainer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 19,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 2,
+        "spells_prepared": 4
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 27,
+      "srd_section": "Classes / Bard"
+    },
+    {
+      "id": "cleric",
+      "name_key": "catalog.classes.cleric",
+      "name_en": "Cleric",
+      "name_ru": "Жрец",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "wis"
+      ],
+      "saving_throw_proficiencies": [
+        "wis",
+        "cha"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "medium",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "history",
+          "insight",
+          "medicine",
+          "persuasion",
+          "religion"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Chain Shirt",
+            "Shield",
+            "Mace",
+            "Holy Symbol",
+            "Priest's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 7,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 3,
+        "spells_prepared": 4
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 32,
+      "srd_section": "Classes / Cleric"
+    },
+    {
+      "id": "druid",
+      "name_key": "catalog.classes.druid",
+      "name_en": "Druid",
+      "name_ru": "Друид",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "wis"
+      ],
+      "saving_throw_proficiencies": [
+        "int",
+        "wis"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "animal_handling",
+          "arcana",
+          "insight",
+          "medicine",
+          "nature",
+          "perception",
+          "religion",
+          "survival"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Leather Armor",
+            "Shield",
+            "Sickle",
+            "Druidic Focus",
+            "Explorer's Pack",
+            "Herbalism Kit"
+          ]
+        }
+      ],
+      "starting_gold": 9,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 2,
+        "spells_prepared": 4
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 37,
+      "srd_section": "Classes / Druid"
+    },
+    {
+      "id": "fighter",
+      "name_key": "catalog.classes.fighter",
+      "name_en": "Fighter",
+      "name_ru": "Воин",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 10,
+      "primary_ability": [
+        "str",
+        "dex"
+      ],
+      "saving_throw_proficiencies": [
+        "str",
+        "con"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "medium",
+        "heavy",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple",
+        "martial"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "acrobatics",
+          "animal_handling",
+          "athletics",
+          "history",
+          "insight",
+          "intimidation",
+          "persuasion",
+          "perception",
+          "survival"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Chain Mail",
+            "Greatsword",
+            "Flail",
+            "8 Javelins",
+            "Dungeoneer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 4,
+      "level_1_features": [],
+      "spellcasting": null,
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 42,
+      "srd_section": "Classes / Fighter"
+    },
+    {
+      "id": "monk",
+      "name_key": "catalog.classes.monk",
+      "name_en": "Monk",
+      "name_ru": "Монах",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "dex",
+        "wis"
+      ],
+      "saving_throw_proficiencies": [
+        "str",
+        "dex"
+      ],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": [
+        "simple",
+        "martial-light"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "acrobatics",
+          "athletics",
+          "history",
+          "insight",
+          "religion",
+          "stealth"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Spear",
+            "5 Daggers",
+            "Explorer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 11,
+      "level_1_features": [],
+      "spellcasting": null,
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 47,
+      "srd_section": "Classes / Monk"
+    },
+    {
+      "id": "paladin",
+      "name_key": "catalog.classes.paladin",
+      "name_en": "Paladin",
+      "name_ru": "Паладин",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 10,
+      "primary_ability": [
+        "str",
+        "cha"
+      ],
+      "saving_throw_proficiencies": [
+        "wis",
+        "cha"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "medium",
+        "heavy",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple",
+        "martial"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "athletics",
+          "insight",
+          "intimidation",
+          "medicine",
+          "persuasion",
+          "religion"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Chain Mail",
+            "Shield",
+            "Longsword",
+            "6 Javelins",
+            "Holy Symbol",
+            "Priest's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 9,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 0,
+        "spells_prepared": 2
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 52,
+      "srd_section": "Classes / Paladin"
+    },
+    {
+      "id": "ranger",
+      "name_key": "catalog.classes.ranger",
+      "name_en": "Ranger",
+      "name_ru": "Следопыт",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 10,
+      "primary_ability": [
+        "dex",
+        "wis"
+      ],
+      "saving_throw_proficiencies": [
+        "str",
+        "dex"
+      ],
+      "armor_proficiencies": [
+        "light",
+        "medium",
+        "shield"
+      ],
+      "weapon_proficiencies": [
+        "simple",
+        "martial"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 3,
+        "from": [
+          "animal_handling",
+          "athletics",
+          "insight",
+          "investigation",
+          "nature",
+          "perception",
+          "stealth",
+          "survival"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Studded Leather Armor",
+            "Scimitar",
+            "Shortsword",
+            "Longbow",
+            "20 Arrows",
+            "Quiver",
+            "Druidic Focus",
+            "Explorer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 7,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 0,
+        "spells_prepared": 2
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 57,
+      "srd_section": "Classes / Ranger"
+    },
+    {
+      "id": "rogue",
+      "name_key": "catalog.classes.rogue",
+      "name_en": "Rogue",
+      "name_ru": "Плут",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "dex"
+      ],
+      "saving_throw_proficiencies": [
+        "dex",
+        "int"
+      ],
+      "armor_proficiencies": [
+        "light"
+      ],
+      "weapon_proficiencies": [
+        "simple",
+        "martial-finesse-or-light"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 4,
+        "from": [
+          "acrobatics",
+          "athletics",
+          "deception",
+          "insight",
+          "intimidation",
+          "investigation",
+          "perception",
+          "persuasion",
+          "sleight_of_hand",
+          "stealth"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Leather Armor",
+            "2 Daggers",
+            "Shortsword",
+            "Shortbow",
+            "20 Arrows",
+            "Quiver",
+            "Thieves' Tools",
+            "Burglar's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 8,
+      "level_1_features": [],
+      "spellcasting": null,
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 62,
+      "srd_section": "Classes / Rogue"
+    },
+    {
+      "id": "sorcerer",
+      "name_key": "catalog.classes.sorcerer",
+      "name_en": "Sorcerer",
+      "name_ru": "Чародей",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 6,
+      "primary_ability": [
+        "cha"
+      ],
+      "saving_throw_proficiencies": [
+        "con",
+        "cha"
+      ],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "arcana",
+          "deception",
+          "insight",
+          "intimidation",
+          "persuasion",
+          "religion"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Spear",
+            "2 Daggers",
+            "Arcane Focus",
+            "Dungeoneer's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 28,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 4,
+        "spells_prepared": 2
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 67,
+      "srd_section": "Classes / Sorcerer"
+    },
+    {
+      "id": "warlock",
+      "name_key": "catalog.classes.warlock",
+      "name_en": "Warlock",
+      "name_ru": "Колдун",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 8,
+      "primary_ability": [
+        "cha"
+      ],
+      "saving_throw_proficiencies": [
+        "wis",
+        "cha"
+      ],
+      "armor_proficiencies": [
+        "light"
+      ],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "arcana",
+          "deception",
+          "history",
+          "intimidation",
+          "investigation",
+          "nature",
+          "religion"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "Leather Armor",
+            "Sickle",
+            "2 Daggers",
+            "Arcane Focus",
+            "Book",
+            "Scholar's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 15,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 2,
+        "spells_prepared": 2
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 72,
+      "srd_section": "Classes / Warlock"
+    },
+    {
+      "id": "wizard",
+      "name_key": "catalog.classes.wizard",
+      "name_en": "Wizard",
+      "name_ru": "Волшебник",
+      "ruleset_id": "srd-5.2.1",
+      "hit_die": 6,
+      "primary_ability": [
+        "int"
+      ],
+      "saving_throw_proficiencies": [
+        "int",
+        "wis"
+      ],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": [
+        "simple"
+      ],
+      "tool_proficiencies": [],
+      "skill_proficiencies": {
+        "choose": 2,
+        "from": [
+          "arcana",
+          "history",
+          "insight",
+          "investigation",
+          "medicine",
+          "nature",
+          "religion"
+        ]
+      },
+      "starting_equipment": [
+        {
+          "option_letter": "fixed",
+          "items": [
+            "2 Daggers",
+            "Arcane Focus",
+            "Robe",
+            "Spellbook",
+            "Scholar's Pack"
+          ]
+        }
+      ],
+      "starting_gold": 5,
+      "level_1_features": [],
+      "spellcasting": {
+        "cantrips_known": 3,
+        "spells_prepared": 4
+      },
+      "subclass_at_level": 3,
+      "subclasses": [],
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 77,
+      "srd_section": "Classes / Wizard"
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "acolyte",
+      "name_key": "catalog.backgrounds.acolyte",
+      "name_en": "Acolyte",
+      "name_ru": "Послушник",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_options": [
+        "int",
+        "wis",
+        "cha"
+      ],
+      "feat_id": "magic-initiate",
+      "skill_proficiencies": [
+        "insight",
+        "religion"
+      ],
+      "tool_proficiencies": [
+        "Calligrapher's Supplies"
+      ],
+      "language_proficiencies": {},
+      "starting_equipment": [
+        "Calligrapher's Supplies",
+        "Book",
+        "Holy Symbol",
+        "10 Parchment",
+        "Robe"
+      ],
+      "starting_gold": 8,
+      "feature": {
+        "name_en": "Origin Feat",
+        "name_ru": "Черта происхождения",
+        "description": ""
+      },
+      "suggested_characteristics": {},
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 83,
+      "srd_section": "Character Origins / Acolyte"
+    },
+    {
+      "id": "criminal",
+      "name_key": "catalog.backgrounds.criminal",
+      "name_en": "Criminal",
+      "name_ru": "Преступник",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_options": [
+        "dex",
+        "con",
+        "int"
+      ],
+      "feat_id": "alert",
+      "skill_proficiencies": [
+        "sleight_of_hand",
+        "stealth"
+      ],
+      "tool_proficiencies": [
+        "Thieves' Tools"
+      ],
+      "language_proficiencies": {},
+      "starting_equipment": [
+        "2 Daggers",
+        "Thieves' Tools",
+        "Crowbar",
+        "2 Pouches",
+        "Traveler's Clothes"
+      ],
+      "starting_gold": 16,
+      "feature": {
+        "name_en": "Origin Feat",
+        "name_ru": "Черта происхождения",
+        "description": ""
+      },
+      "suggested_characteristics": {},
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 83,
+      "srd_section": "Character Origins / Criminal"
+    },
+    {
+      "id": "sage",
+      "name_key": "catalog.backgrounds.sage",
+      "name_en": "Sage",
+      "name_ru": "Мудрец",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_options": [
+        "con",
+        "int",
+        "wis"
+      ],
+      "feat_id": "magic-initiate",
+      "skill_proficiencies": [
+        "arcana",
+        "history"
+      ],
+      "tool_proficiencies": [
+        "Calligrapher's Supplies"
+      ],
+      "language_proficiencies": {},
+      "starting_equipment": [
+        "Quarterstaff",
+        "Calligrapher's Supplies",
+        "Book",
+        "8 Parchment",
+        "Robe"
+      ],
+      "starting_gold": 8,
+      "feature": {
+        "name_en": "Origin Feat",
+        "name_ru": "Черта происхождения",
+        "description": ""
+      },
+      "suggested_characteristics": {},
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 83,
+      "srd_section": "Character Origins / Sage"
+    },
+    {
+      "id": "soldier",
+      "name_key": "catalog.backgrounds.soldier",
+      "name_en": "Soldier",
+      "name_ru": "Солдат",
+      "ruleset_id": "srd-5.2.1",
+      "ability_score_options": [
+        "str",
+        "dex",
+        "con"
+      ],
+      "feat_id": "savage-attacker",
+      "skill_proficiencies": [
+        "athletics",
+        "intimidation"
+      ],
+      "tool_proficiencies": [
+        "Gaming Set"
+      ],
+      "language_proficiencies": {},
+      "starting_equipment": [
+        "Spear",
+        "Shortbow",
+        "20 Arrows",
+        "Gaming Set",
+        "Healer's Kit",
+        "Quiver",
+        "Traveler's Clothes"
+      ],
+      "starting_gold": 14,
+      "feature": {
+        "name_en": "Origin Feat",
+        "name_ru": "Черта происхождения",
+        "description": ""
+      },
+      "suggested_characteristics": {},
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 83,
+      "srd_section": "Character Origins / Soldier"
+    }
+  ],
+  "spells": [
+    {
+      "id": "acid-splash",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.acid-splash",
+      "name_en": "Acid Splash",
+      "name_ru": "Кислотные брызги",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "damage": {
+        "dice": "1d6",
+        "type": "acid"
+      },
+      "save": {
+        "ability": "dex",
+        "half_on_success": false
+      },
+      "scales_with_level": "character_level",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Acid Splash"
+    },
+    {
+      "id": "eldritch-blast",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.eldritch-blast",
+      "name_en": "Eldritch Blast",
+      "name_ru": "Мистический заряд",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "warlock"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Eldritch Blast"
+    },
+    {
+      "id": "fire-bolt",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.fire-bolt",
+      "name_en": "Fire Bolt",
+      "name_ru": "Огненный снаряд",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Fire Bolt"
+    },
+    {
+      "id": "guidance",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.guidance",
+      "name_en": "Guidance",
+      "name_ru": "Указание",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "cleric",
+        "druid"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Guidance"
+    },
+    {
+      "id": "light",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.light",
+      "name_en": "Light",
+      "name_ru": "Свет",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Light"
+    },
+    {
+      "id": "mage-hand",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.mage-hand",
+      "name_en": "Mage Hand",
+      "name_ru": "Волшебная рука",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Mage Hand"
+    },
+    {
+      "id": "mending",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.mending",
+      "name_en": "Mending",
+      "name_ru": "Починка",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "druid",
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Mending"
+    },
+    {
+      "id": "minor-illusion",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.minor-illusion",
+      "name_en": "Minor Illusion",
+      "name_ru": "Малая иллюзия",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Minor Illusion"
+    },
+    {
+      "id": "prestidigitation",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.prestidigitation",
+      "name_en": "Prestidigitation",
+      "name_ru": "Фокусы",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Prestidigitation"
+    },
+    {
+      "id": "ray-of-frost",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.ray-of-frost",
+      "name_en": "Ray of Frost",
+      "name_ru": "Луч холода",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Ray of Frost"
+    },
+    {
+      "id": "sacred-flame",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.sacred-flame",
+      "name_en": "Sacred Flame",
+      "name_ru": "Священное пламя",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "cleric"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Sacred Flame"
+    },
+    {
+      "id": "thorn-whip",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.thorn-whip",
+      "name_en": "Thorn Whip",
+      "name_ru": "Терновый кнут",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "druid"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Thorn Whip"
+    },
+    {
+      "id": "vicious-mockery",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.vicious-mockery",
+      "name_en": "Vicious Mockery",
+      "name_ru": "Злая насмешка",
+      "level": 0,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Vicious Mockery"
+    },
+    {
+      "id": "bless",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.bless",
+      "name_en": "Bless",
+      "name_ru": "Благословение",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "cleric",
+        "paladin"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Bless"
+    },
+    {
+      "id": "burning-hands",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.burning-hands",
+      "name_en": "Burning Hands",
+      "name_ru": "Огненные ладони",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "damage": {
+        "dice": "3d6",
+        "type": "fire"
+      },
+      "save": {
+        "ability": "dex",
+        "half_on_success": true
+      },
+      "scales_with_level": "upcast",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Burning Hands"
+    },
+    {
+      "id": "charm-person",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.charm-person",
+      "name_en": "Charm Person",
+      "name_ru": "Очарование личности",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "druid",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Charm Person"
+    },
+    {
+      "id": "command",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.command",
+      "name_en": "Command",
+      "name_ru": "Приказ",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "paladin"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Command"
+    },
+    {
+      "id": "cure-wounds",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.cure-wounds",
+      "name_en": "Cure Wounds",
+      "name_ru": "Лечение ран",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "druid",
+        "paladin",
+        "ranger"
+      ],
+      "description_en": "Restores 2d8 plus the spellcasting ability modifier in hit points.",
+      "description_ru": "Восстанавливает хиты в размере 2к8 плюс модификатор базовой характеристики заклинаний.",
+      "scales_with_level": "upcast",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Cure Wounds"
+    },
+    {
+      "id": "detect-magic",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.detect-magic",
+      "name_en": "Detect Magic",
+      "name_ru": "Обнаружение магии",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "druid",
+        "paladin",
+        "ranger",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Detect Magic"
+    },
+    {
+      "id": "divine-favor",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.divine-favor",
+      "name_en": "Divine Favor",
+      "name_ru": "Божественное благоволение",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "paladin"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Divine Favor"
+    },
+    {
+      "id": "guiding-bolt",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.guiding-bolt",
+      "name_en": "Guiding Bolt",
+      "name_ru": "Направляющий снаряд",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "cleric"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "damage": {
+        "dice": "4d6",
+        "type": "radiant"
+      },
+      "attack": {
+        "kind": "ranged_spell"
+      },
+      "scales_with_level": "upcast",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Guiding Bolt"
+    },
+    {
+      "id": "healing-word",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.healing-word",
+      "name_en": "Healing Word",
+      "name_ru": "Лечащее слово",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "cleric",
+        "druid"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Healing Word"
+    },
+    {
+      "id": "hex",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.hex",
+      "name_en": "Hex",
+      "name_ru": "Сглаз",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "warlock"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Hex"
+    },
+    {
+      "id": "hunters-mark",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.hunters-mark",
+      "name_en": "Hunter's Mark",
+      "name_ru": "Метка охотника",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "ranger"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Hunter's Mark"
+    },
+    {
+      "id": "magic-missile",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.magic-missile",
+      "name_en": "Magic Missile",
+      "name_ru": "Волшебная стрела",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Magic Missile"
+    },
+    {
+      "id": "shield",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.shield",
+      "name_en": "Shield",
+      "name_ru": "Щит",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Shield"
+    },
+    {
+      "id": "sleep",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.sleep",
+      "name_en": "Sleep",
+      "name_ru": "Сон",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Sleep"
+    },
+    {
+      "id": "thunderwave",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.thunderwave",
+      "name_en": "Thunderwave",
+      "name_ru": "Волна грома",
+      "level": 1,
+      "school": "",
+      "casting_time": "Action",
+      "range_ft": null,
+      "components": {},
+      "duration": "",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "druid",
+        "sorcerer",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 104,
+      "srd_section": "Spells / Thunderwave"
+    },
+    {
+      "id": "shatter",
+      "ruleset_id": "srd-5.2.1",
+      "name_key": "catalog.spells.shatter",
+      "name_en": "Shatter",
+      "name_ru": "Дробление",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "Action",
+      "range_ft": 60,
+      "components": {
+        "v": true,
+        "s": true,
+        "m": "a chip of mica"
+      },
+      "duration": "Instantaneous",
+      "ritual": false,
+      "concentration": false,
+      "classes": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "description_en": "",
+      "description_ru": "",
+      "damage": {
+        "dice": "3d8",
+        "type": "thunder"
+      },
+      "save": {
+        "ability": "con",
+        "half_on_success": true
+      },
+      "scales_with_level": "upcast",
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 189,
+      "srd_section": "Spells / Shatter"
+    }
+  ],
+  "equipment": {
+    "weapons": [
+      {
+        "id": "club",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.club",
+        "name_en": "Club",
+        "name_ru": "Дубинка",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d4",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "light"
+        ],
+        "mastery": "slow",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "dagger",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.dagger",
+        "name_en": "Dagger",
+        "name_ru": "Кинжал",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d4",
+          "type": "physical"
+        },
+        "weight_lb": 1,
+        "properties": [
+          "finesse",
+          "light",
+          "thrown"
+        ],
+        "mastery": "nick",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "handaxe",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.handaxe",
+        "name_en": "Handaxe",
+        "name_ru": "Ручной топор",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "light",
+          "thrown"
+        ],
+        "mastery": "vex",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "javelin",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.javelin",
+        "name_en": "Javelin",
+        "name_ru": "Метательное копьё",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "thrown"
+        ],
+        "mastery": "slow",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "mace",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.mace",
+        "name_en": "Mace",
+        "name_ru": "Булава",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 4,
+        "properties": [],
+        "mastery": "sap",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "quarterstaff",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.quarterstaff",
+        "name_en": "Quarterstaff",
+        "name_ru": "Боевой посох",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 4,
+        "properties": [
+          "versatile"
+        ],
+        "mastery": "topple",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "sickle",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.sickle",
+        "name_en": "Sickle",
+        "name_ru": "Серп",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d4",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "light"
+        ],
+        "mastery": "nick",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "spear",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.spear",
+        "name_en": "Spear",
+        "name_ru": "Копьё",
+        "category": "simple_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 3,
+        "properties": [
+          "thrown",
+          "versatile"
+        ],
+        "mastery": "sap",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "shortbow",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.shortbow",
+        "name_en": "Shortbow",
+        "name_ru": "Короткий лук",
+        "category": "simple_ranged",
+        "cost": {
+          "gp": 10
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "ammunition",
+          "two-handed"
+        ],
+        "mastery": "vex",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "greataxe",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.greataxe",
+        "name_en": "Greataxe",
+        "name_ru": "Секира",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d12",
+          "type": "physical"
+        },
+        "weight_lb": 7,
+        "properties": [
+          "heavy",
+          "two-handed"
+        ],
+        "mastery": "cleave",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "greatsword",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.greatsword",
+        "name_en": "Greatsword",
+        "name_ru": "Двуручный меч",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 10
+        },
+        "damage": {
+          "dice": "2d6",
+          "type": "physical"
+        },
+        "weight_lb": 6,
+        "properties": [
+          "heavy",
+          "two-handed"
+        ],
+        "mastery": "graze",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "flail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.flail",
+        "name_en": "Flail",
+        "name_ru": "Цеп",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d8",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [],
+        "mastery": "sap",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "longsword",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.longsword",
+        "name_en": "Longsword",
+        "name_ru": "Длинный меч",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 10
+        },
+        "damage": {
+          "dice": "1d8",
+          "type": "physical"
+        },
+        "weight_lb": 3,
+        "properties": [
+          "versatile"
+        ],
+        "mastery": "sap",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "scimitar",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.scimitar",
+        "name_en": "Scimitar",
+        "name_ru": "Скимитар",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 2
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 3,
+        "properties": [
+          "finesse",
+          "light"
+        ],
+        "mastery": "nick",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "shortsword",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.shortsword",
+        "name_en": "Shortsword",
+        "name_ru": "Короткий меч",
+        "category": "martial_melee",
+        "cost": {
+          "gp": 10
+        },
+        "damage": {
+          "dice": "1d6",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "finesse",
+          "light"
+        ],
+        "mastery": "vex",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      },
+      {
+        "id": "longbow",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.longbow",
+        "name_en": "Longbow",
+        "name_ru": "Длинный лук",
+        "category": "martial_ranged",
+        "cost": {
+          "gp": 10
+        },
+        "damage": {
+          "dice": "1d8",
+          "type": "physical"
+        },
+        "weight_lb": 2,
+        "properties": [
+          "ammunition",
+          "heavy",
+          "two-handed"
+        ],
+        "mastery": "slow",
+        "range_ft": {},
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 90,
+        "srd_section": "Equipment / Weapons"
+      }
+    ],
+    "armor": [
+      {
+        "id": "leather-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.leather-armor",
+        "name_en": "Leather Armor",
+        "name_ru": "Кожаный доспех",
+        "category": "light",
+        "cost": {
+          "gp": 10
+        },
+        "ac_base": 11,
+        "weight_lb": 10,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 93,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "studded-leather-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.studded-leather-armor",
+        "name_en": "Studded Leather Armor",
+        "name_ru": "Клёпаный кожаный доспех",
+        "category": "light",
+        "cost": {
+          "gp": 10
+        },
+        "ac_base": 12,
+        "weight_lb": 13,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 93,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "chain-shirt",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.chain-shirt",
+        "name_en": "Chain Shirt",
+        "name_ru": "Кольчужная рубаха",
+        "category": "medium",
+        "cost": {
+          "gp": 10
+        },
+        "ac_base": 13,
+        "weight_lb": 20,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 93,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "chain-mail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.chain-mail",
+        "name_en": "Chain Mail",
+        "name_ru": "Кольчуга",
+        "category": "heavy",
+        "cost": {
+          "gp": 10
+        },
+        "ac_base": 16,
+        "weight_lb": 55,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 93,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "shield",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.shield",
+        "name_en": "Shield",
+        "name_ru": "Щит",
+        "category": "shield",
+        "cost": {
+          "gp": 10
+        },
+        "ac_base": 2,
+        "weight_lb": 6,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 93,
+        "srd_section": "Equipment / Armor"
+      }
+    ],
+    "adventuring_gear": [
+      {
+        "id": "explorers-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.explorers-pack",
+        "name_en": "Explorer's Pack",
+        "name_ru": "Набор путешественника",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "entertainers-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.entertainers-pack",
+        "name_en": "Entertainer's Pack",
+        "name_ru": "Набор артиста",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "priests-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.priests-pack",
+        "name_en": "Priest's Pack",
+        "name_ru": "Набор священника",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "dungeoneers-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.dungeoneers-pack",
+        "name_en": "Dungeoneer's Pack",
+        "name_ru": "Набор исследователя подземелий",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "burglars-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.burglars-pack",
+        "name_en": "Burglar's Pack",
+        "name_ru": "Набор взломщика",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "scholars-pack",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.scholars-pack",
+        "name_en": "Scholar's Pack",
+        "name_ru": "Набор учёного",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "musical-instrument",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.musical-instrument",
+        "name_en": "Musical Instrument",
+        "name_ru": "Музыкальный инструмент",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "holy-symbol",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.holy-symbol",
+        "name_en": "Holy Symbol",
+        "name_ru": "Священный символ",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "arcane-focus",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.arcane-focus",
+        "name_en": "Arcane Focus",
+        "name_ru": "Магическая фокусировка",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "druidic-focus",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.druidic-focus",
+        "name_en": "Druidic Focus",
+        "name_ru": "Друидическая фокусировка",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "thieves-tools",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.thieves-tools",
+        "name_en": "Thieves' Tools",
+        "name_ru": "Воровские инструменты",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "herbalism-kit",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.herbalism-kit",
+        "name_en": "Herbalism Kit",
+        "name_ru": "Набор травника",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "gaming-set",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.gaming-set",
+        "name_en": "Gaming Set",
+        "name_ru": "Игровой набор",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "calligraphers-supplies",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.calligraphers-supplies",
+        "name_en": "Calligrapher's Supplies",
+        "name_ru": "Инструменты каллиграфа",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "book",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.book",
+        "name_en": "Book",
+        "name_ru": "Книга",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "parchment",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.parchment",
+        "name_en": "Parchment",
+        "name_ru": "Пергамент",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "robe",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.robe",
+        "name_en": "Robe",
+        "name_ru": "Роба",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "crowbar",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.crowbar",
+        "name_en": "Crowbar",
+        "name_ru": "Лом",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "pouch",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.pouch",
+        "name_en": "Pouch",
+        "name_ru": "Кошель",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "travelers-clothes",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.travelers-clothes",
+        "name_en": "Traveler's Clothes",
+        "name_ru": "Дорожная одежда",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "healers-kit",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.healers-kit",
+        "name_en": "Healer's Kit",
+        "name_ru": "Набор лекаря",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "quiver",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.quiver",
+        "name_en": "Quiver",
+        "name_ru": "Колчан",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "arrows-20",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.arrows-20",
+        "name_en": "20 Arrows",
+        "name_ru": "20 стрел",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      },
+      {
+        "id": "spellbook",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.spellbook",
+        "name_en": "Spellbook",
+        "name_ru": "Книга заклинаний",
+        "cost": {
+          "gp": 1
+        },
+        "weight_lb": 1,
+        "source_url": "https://www.dndbeyond.com/srd",
+        "source_page": 95,
+        "srd_section": "Equipment / Adventuring Gear"
+      }
+    ]
+  },
+  "feats": [
+    {
+      "id": "alert",
+      "name_key": "catalog.feats.alert",
+      "name_en": "Alert",
+      "name_ru": "Бдительный",
+      "ruleset_id": "srd-5.2.1",
+      "prerequisites": [],
+      "asi_grants": null,
+      "effects_en": [],
+      "effects_ru": [],
+      "mechanical_hooks": null,
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 97,
+      "srd_section": "Feats / Alert"
+    },
+    {
+      "id": "magic-initiate",
+      "name_key": "catalog.feats.magic-initiate",
+      "name_en": "Magic Initiate",
+      "name_ru": "Посвящённый в магию",
+      "ruleset_id": "srd-5.2.1",
+      "prerequisites": [],
+      "asi_grants": null,
+      "effects_en": [],
+      "effects_ru": [],
+      "mechanical_hooks": null,
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 97,
+      "srd_section": "Feats / Magic Initiate"
+    },
+    {
+      "id": "savage-attacker",
+      "name_key": "catalog.feats.savage-attacker",
+      "name_en": "Savage Attacker",
+      "name_ru": "Свирепый атакующий",
+      "ruleset_id": "srd-5.2.1",
+      "prerequisites": [],
+      "asi_grants": null,
+      "effects_en": [],
+      "effects_ru": [],
+      "mechanical_hooks": null,
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 97,
+      "srd_section": "Feats / Savage Attacker"
+    },
+    {
+      "id": "skilled",
+      "name_key": "catalog.feats.skilled",
+      "name_en": "Skilled",
+      "name_ru": "Умелый",
+      "ruleset_id": "srd-5.2.1",
+      "prerequisites": [],
+      "asi_grants": null,
+      "effects_en": [],
+      "effects_ru": [],
+      "mechanical_hooks": null,
+      "source_url": "https://www.dndbeyond.com/srd",
+      "source_page": 97,
+      "srd_section": "Feats / Skilled"
+    }
+  ],
+  "weapon_properties": [
+    {
+      "id": "ammunition",
+      "name_key": "catalog.weapon_properties.ammunition",
+      "name_en": "Ammunition",
+      "name_ru": "ammunition",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "finesse",
+      "name_key": "catalog.weapon_properties.finesse",
+      "name_en": "Finesse",
+      "name_ru": "finesse",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "heavy",
+      "name_key": "catalog.weapon_properties.heavy",
+      "name_en": "Heavy",
+      "name_ru": "heavy",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "light",
+      "name_key": "catalog.weapon_properties.light",
+      "name_en": "Light",
+      "name_ru": "light",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "loading",
+      "name_key": "catalog.weapon_properties.loading",
+      "name_en": "Loading",
+      "name_ru": "loading",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "range",
+      "name_key": "catalog.weapon_properties.range",
+      "name_en": "Range",
+      "name_ru": "range",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "reach",
+      "name_key": "catalog.weapon_properties.reach",
+      "name_en": "Reach",
+      "name_ru": "reach",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "thrown",
+      "name_key": "catalog.weapon_properties.thrown",
+      "name_en": "Thrown",
+      "name_ru": "thrown",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "two-handed",
+      "name_key": "catalog.weapon_properties.two-handed",
+      "name_en": "Two Handed",
+      "name_ru": "two-handed",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    },
+    {
+      "id": "versatile",
+      "name_key": "catalog.weapon_properties.versatile",
+      "name_en": "Versatile",
+      "name_ru": "versatile",
+      "ruleset_id": "srd-5.2.1",
+      "description_en": "",
+      "description_ru": "",
+      "source_page": 89,
+      "srd_section": "Equipment / Weapon Properties"
+    }
+  ],
+  "weapon_masteries": [
+    {
+      "id": "cleave",
+      "name_key": "catalog.weapon_masteries.cleave",
+      "name_en": "Cleave",
+      "name_ru": "cleave",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "graze",
+      "name_key": "catalog.weapon_masteries.graze",
+      "name_en": "Graze",
+      "name_ru": "graze",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "nick",
+      "name_key": "catalog.weapon_masteries.nick",
+      "name_en": "Nick",
+      "name_ru": "nick",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "push",
+      "name_key": "catalog.weapon_masteries.push",
+      "name_en": "Push",
+      "name_ru": "push",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "sap",
+      "name_key": "catalog.weapon_masteries.sap",
+      "name_en": "Sap",
+      "name_ru": "sap",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "slow",
+      "name_key": "catalog.weapon_masteries.slow",
+      "name_en": "Slow",
+      "name_ru": "slow",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "topple",
+      "name_key": "catalog.weapon_masteries.topple",
+      "name_en": "Topple",
+      "name_ru": "topple",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    },
+    {
+      "id": "vex",
+      "name_key": "catalog.weapon_masteries.vex",
+      "name_en": "Vex",
+      "name_ru": "vex",
+      "ruleset_id": "srd-5.2.1",
+      "source_page": 90,
+      "srd_section": "Equipment / Mastery Properties"
+    }
+  ]
+}

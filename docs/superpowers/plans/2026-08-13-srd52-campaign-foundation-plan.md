@@ -470,33 +470,33 @@ git commit -m "feat(ui): add campaign home and creation flow"
 - Produces `CharacterCatalog`, `CharacterSpecies`, `CharacterBackground`, `CharacterClass`, and `RulesetProvenance` owned by `app-domain`.
 - Every catalog entry carries the fixed `ruleset_id = "srd-5.2.1"`; product-visible names come from locale keys, not copied prose in React.
 
-- [ ] **Step 1: Add catalog identity and unsupported-entry tests**
+- [x] **Step 1: Add catalog identity and unsupported-entry tests**
 
 Build the expected identifier sets from the checked-in SRD source manifest. Assert every species, background, class, feat, spell, weapon property, and mastery used by character creation is present in SRD 5.2.1, is unique, and has source attribution. Assert identifiers found only in the legacy catalog are absent.
 
-- [ ] **Step 2: Run domain tests and verify the legacy catalog fails**
+- [x] **Step 2: Run domain tests and verify the legacy catalog fails**
 
 Run: `cargo test -p app-domain --test srd_521_catalog`
 Expected: FAIL because the consolidated SRD 5.2.1 catalog and provenance fields do not exist.
 
-- [ ] **Step 3: Import only official SRD 5.2.1 data**
+- [x] **Step 3: Import only official SRD 5.2.1 data**
 
 Create one normalized YAML catalog from the official SRD 5.2.1 source. Store identifiers, numeric mechanics, locale keys, page/section provenance, and license metadata; do not copy non-SRD adventure or setting content. Remove the legacy mixed-edition character YAML after all loader callers use the new catalog.
 
-- [ ] **Step 4: Update the character draft schema**
+- [x] **Step 4: Update the character draft schema**
 
 Replace legacy race/background/class assumptions with catalog-backed IDs. Reject a draft whose `rulesetId` is missing or differs from `srd-5.2.1`. Keep only UI state in Zustand; compute HP, proficiency, saves, skills, equipment choices, spell choices, and mastery eligibility from domain/API projections.
 
-- [ ] **Step 5: Update the wizard and sheet tests before rendering changes**
+- [x] **Step 5: Update the wizard and sheet tests before rendering changes**
 
 Cover Russian-default visible labels, English parity, keyboard flow, catalog validation, deterministic derived values, and absence of legacy option labels. Do not introduce new visual tokens or icons.
 
-- [ ] **Step 6: Run focused and frontend gates**
+- [x] **Step 6: Run focused and frontend gates**
 
 Run: `cargo test -p app-domain && bun run test -- src/components/__tests__/CharacterWizard.test.tsx src/state/__tests__/charCreation.test.ts && bun run lint && bun run typecheck && bun run build`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add crates/app-domain/src/compendium/data/srd_5_2_1.yaml crates/app-domain/src/compendium/data/equipment.yaml crates/app-domain/src/compendium/data/feats.yaml crates/app-domain/src/compendium/data/races_classes_backgrounds.yaml crates/app-domain/src/compendium/data/spells_level_0_1.yaml crates/app-domain/src/compendium/data/spells_level_2_a_k.yaml crates/app-domain/src/compendium/data/spells_level_2_l_z.yaml crates/app-domain/src/compendium/data/weapon_properties.yaml crates/app-domain/src/compendium/types.rs crates/app-domain/src/compendium/loader.rs crates/app-domain/src/compendium/mod.rs crates/app-domain/tests/srd_521_catalog.rs src/state/charCreationSchema.ts src/state/charCreation.ts src/hooks/useCharacterDraft.ts src/components/CharacterWizard.tsx src/components/CharacterSheet.tsx src/components/__tests__/CharacterWizard.test.tsx src/state/__tests__/charCreation.test.ts src/locales/en/character.json src/locales/ru/character.json

@@ -110,6 +110,7 @@ type FilterChip = 'all' | 'weapons' | 'armor' | 'gear';
 
 interface CatalogEntry {
   id: string;
+  nameKey?: string;
   name_en: string;
   name_ru: string;
   costGp: number;
@@ -127,6 +128,7 @@ function buildCatalog(comp: Compendium): CatalogEntry[] {
   for (const w of comp.equipment.weapons as Weapon[]) {
     out.push({
       id: w.id,
+      nameKey: w.name_key,
       name_en: w.name_en,
       name_ru: w.name_ru,
       costGp: gpOf(w.cost),
@@ -137,6 +139,7 @@ function buildCatalog(comp: Compendium): CatalogEntry[] {
   for (const a of comp.equipment.armor as Armor[]) {
     out.push({
       id: a.id,
+      nameKey: a.name_key,
       name_en: a.name_en,
       name_ru: a.name_ru,
       costGp: gpOf(a.cost),
@@ -147,6 +150,7 @@ function buildCatalog(comp: Compendium): CatalogEntry[] {
   for (const g of comp.equipment.adventuring_gear as AdventuringGear[]) {
     out.push({
       id: g.id,
+      nameKey: g.name_key,
       name_en: g.name_en,
       name_ru: g.name_ru,
       costGp: gpOf(g.cost),
@@ -155,6 +159,17 @@ function buildCatalog(comp: Compendium): CatalogEntry[] {
     });
   }
   return out;
+}
+
+function localizedCatalogName(
+  entry: CatalogEntry,
+  language: 'en' | 'ru',
+  translate: (key: string, options: { ns: string; defaultValue: string }) => string,
+): string {
+  const fallback = language === 'ru' ? entry.name_ru : entry.name_en;
+  return entry.nameKey
+    ? translate(entry.nameKey, { ns: 'character', defaultValue: fallback })
+    : fallback;
 }
 
 function readStartingGold(comp: Compendium, classId: string | null): number {
@@ -487,7 +502,7 @@ function GoldMode({
   onAdd,
   onRemove,
 }: GoldModeProps) {
-  const { t } = useTranslation('wizard');
+  const { t, i18n } = useTranslation('wizard');
   const [chip, setChip] = useState<FilterChip>('all');
   const [search, setSearch] = useState('');
   const catalog = buildCatalog(compendium);
@@ -503,7 +518,7 @@ function GoldMode({
       if (chip === 'gear' && e.category !== 'gear') return false;
     }
     if (search.length > 0) {
-      const name = lang === 'ru' ? e.name_ru : e.name_en;
+      const name = localizedCatalogName(e, lang, i18n.t);
       if (!name.toLowerCase().includes(search.toLowerCase())) return false;
     }
     return true;
@@ -557,7 +572,7 @@ function GoldMode({
 
       <div className="dm-wizard-card-grid">
         {filtered.slice(0, 60).map((entry) => {
-          const name = lang === 'ru' ? entry.name_ru : entry.name_en;
+          const name = localizedCatalogName(entry, lang, i18n.t);
           const canAfford = gold >= entry.costGp;
           return (
             <div key={entry.id} className="dm-wizard-card" style={{ cursor: 'default' }}>
@@ -596,7 +611,7 @@ function GoldMode({
                     borderBottom: '1px solid rgba(212,175,55,0.1)',
                   }}
                 >
-                  <span>{found ? (lang === 'ru' ? found.name_ru : found.name_en) : it.name}</span>
+                  <span>{found ? localizedCatalogName(found, lang, i18n.t) : it.name}</span>
                   <button
                     type="button"
                     aria-label={t('remove_from_inventory')}
