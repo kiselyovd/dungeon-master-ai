@@ -1,6 +1,6 @@
 .dm-wizard {
   position: fixed;
-  inset: 0;
+  inset: var(--header-height) 0 0;
   background: radial-gradient(circle at center top, #2a1e3a 0%, #14101a 70%);
   display: grid;
   grid-template-rows: 56px 1fr auto;

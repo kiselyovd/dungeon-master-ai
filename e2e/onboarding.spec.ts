@@ -69,7 +69,7 @@ test('completing the manual flow by picking a class dismisses onboarding', async
 
 test('language picker flips EN/RU', async ({ page }) => {
   await page.goto('/');
-  const ru = page.getByRole('button', { name: 'RU', exact: true });
+  const ru = page.getByRole('button', { name: 'РУ', exact: true });
   const en = page.getByRole('button', { name: 'EN', exact: true });
   await expect(en).toHaveAttribute('aria-pressed', 'true');
   await ru.click();

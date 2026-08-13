@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import enAgent from './locales/en/agent.json';
+import enCampaigns from './locales/en/campaigns.json';
 import enCharacter from './locales/en/character.json';
 import enChat from './locales/en/chat.json';
 import enCombat from './locales/en/combat.json';
@@ -17,6 +18,7 @@ import enTools from './locales/en/tools.json';
 import enUpdater from './locales/en/updater.json';
 import enWizard from './locales/en/wizard.json';
 import ruAgent from './locales/ru/agent.json';
+import ruCampaigns from './locales/ru/campaigns.json';
 import ruCharacter from './locales/ru/character.json';
 import ruChat from './locales/ru/chat.json';
 import ruCombat from './locales/ru/combat.json';
@@ -55,6 +57,7 @@ void i18n.use(initReactI18next).init({
     'onboarding',
     'saves',
     'character',
+    'campaigns',
     'wizard',
     'tools',
   ],
@@ -74,6 +77,7 @@ void i18n.use(initReactI18next).init({
       onboarding: enOnboarding,
       saves: enSaves,
       character: enCharacter,
+      campaigns: enCampaigns,
       wizard: enWizard,
       tools: enTools,
     },
@@ -92,6 +96,7 @@ void i18n.use(initReactI18next).init({
       onboarding: ruOnboarding,
       saves: ruSaves,
       character: ruCharacter,
+      campaigns: ruCampaigns,
       wizard: ruWizard,
       tools: ruTools,
     },

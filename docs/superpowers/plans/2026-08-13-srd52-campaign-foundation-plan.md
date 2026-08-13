@@ -398,7 +398,7 @@ git commit -m "feat(frontend): add explicit campaign routing"
 - Consumes `AppRoute` and `useCampaigns` from Task 5.
 - Produces Option A home and Option A default creation path without document ingestion yet.
 
-- [ ] **Step 1: Extend production-root tests before changing App**
+- [x] **Step 1: Extend production-root tests before changing App**
 
 Assert the real `App` renders Russian labels by default:
 
@@ -408,33 +408,33 @@ expect(screen.getByRole('button', { name: 'Новая кампания' })).toBe
 expect(screen.queryByText(/создать комнату|join room/i)).not.toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Write home behavior tests**
+- [x] **Step 2: Write home behavior tests**
 
 Cover empty library, primary last-campaign hero, continue callback, new campaign path, keyboard focus order, and no modal semantics.
 
-- [ ] **Step 3: Run tests and verify current-root failure**
+- [x] **Step 3: Run tests and verify current-root failure**
 
 Run: `bun run test -- src/app/__tests__/productionRoot.test.tsx src/features/campaigns/__tests__/CampaignHome.test.tsx`
 Expected: FAIL because the production root still opens the VTT/onboarding flow.
 
-- [ ] **Step 4: Implement prop-driven home components with existing tokens/icons**
+- [x] **Step 4: Implement prop-driven home components with existing tokens/icons**
 
 Do not add colors, spacing scales, fonts, icons, or animation constants. Reuse theme variables and `Icons`. Keep all visible strings in RU/EN locale files.
 
-- [ ] **Step 5: Implement the four-step creation shell**
+- [x] **Step 5: Implement the four-step creation shell**
 
 Steps are source, campaign tuning, character handoff, and preparation handoff. The source screen defaults to `collaborative`; `document` and `bundled` display honest next-stage placeholders only where the current phase routes to future feature screens, not disabled global navigation.
 
-- [ ] **Step 6: Add Playwright campaign-home coverage**
+- [x] **Step 6: Add Playwright campaign-home coverage**
 
 Mock `/campaigns`; verify continue, empty/new flow, Russian default, English switch, no inherited actor identity, and that the screen occupies the root without a VTT behind it.
 
-- [ ] **Step 7: Run frontend checkpoint**
+- [x] **Step 7: Run frontend checkpoint**
 
 Run: `bun run lint && bun run typecheck && bun run build && bun run test && bun run e2e -- e2e/campaign-home.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/features/campaigns/CampaignHome.tsx src/features/campaigns/CampaignHome.module.css src/features/campaigns/CampaignCreate.tsx src/features/campaigns/CampaignCreate.module.css src/features/campaigns/components/CampaignHeroCard.tsx src/features/campaigns/components/CampaignPathCard.tsx src/features/campaigns/__tests__/CampaignHome.test.tsx src/app/App.tsx src/app/AppShell.tsx src/app/__tests__/productionRoot.test.tsx src/i18n.ts src/locales/en/campaigns.json src/locales/ru/campaigns.json e2e/campaign-home.spec.ts

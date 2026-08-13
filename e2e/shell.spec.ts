@@ -19,9 +19,12 @@ test.beforeEach(async ({ page }) => {
   // pattern is a tight regex (not `**/saves**`) so it does NOT swallow vite's
   // own source modules whose path contains "saves" (e.g. /src/state/saves.ts) -
   // that would replace the JS with `[]` and blank the whole app.
-  await page.route(/\/saves(\?|$|\/)/, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
+  await page.route(
+    /^http:\/\/127\.0\.0\.1:31415\/(?:sessions\/[^/]+\/)?saves(?:\/|\?|$)/,
+    async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    },
+  );
 });
 
 test('Journal button opens and closes the journal dialog', async ({ page }) => {

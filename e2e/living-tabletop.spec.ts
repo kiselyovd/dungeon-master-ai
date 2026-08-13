@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.startsWith('onboarding welcome')) {
+    await mockTauri(page, { ui_language: 'en' });
+    return;
+  }
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: 'fighter',
@@ -52,7 +56,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('onboarding welcome and four class portraits use living-tabletop art', async ({ page }) => {
-  await mockTauri(page);
   await page.goto('/');
 
   await expect(page.getByTestId('onboarding-hero-art')).toHaveAttribute(
@@ -111,8 +114,11 @@ test('reduced motion stops every living-tabletop descendant animation', async ({
   const art = page.getByTestId('scene-transition-art');
   await expect(art).toBeVisible();
   const animatedDescendants = page.locator('[data-art-direction="living-tabletop"] *');
-  const count = await animatedDescendants.count();
-  for (let index = 0; index < count; index += 1) {
-    await expect(animatedDescendants.nth(index)).toHaveCSS('animation-name', 'none');
-  }
+  await expect
+    .poll(async () =>
+      animatedDescendants.evaluateAll((elements) =>
+        elements.every((element) => getComputedStyle(element).animationName === 'none'),
+      ),
+    )
+    .toBe(true);
 });

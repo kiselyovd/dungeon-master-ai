@@ -26,6 +26,10 @@ import { ToolInspectorDrawer } from '../components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from '../components/UpdateAvailableModal';
 import { VideoDisabledToast } from '../components/VideoDisabledToast';
 import { VttCanvas } from '../components/VttCanvas';
+import { CampaignCreate } from '../features/campaigns/CampaignCreate';
+import { CampaignHome } from '../features/campaigns/CampaignHome';
+import { resolveAppRoute } from '../features/campaigns/model/route';
+import { useCampaigns } from '../features/campaigns/useCampaigns';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
@@ -35,6 +39,7 @@ import type { PreflightInput, PreflightStatus } from '../lib/preflight';
 import { isPreflightDismissed, runPreflight } from '../lib/preflight';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
+import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import { AppOverlays } from './AppOverlays';
 import { AppShell } from './AppShell';
 import { useAgentTurn } from './useAgentTurn';
@@ -114,6 +119,92 @@ async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'
   }
 }
 
+interface CampaignTitleBarProps {
+  language: 'en' | 'ru';
+  campaignTitle?: string;
+  onLanguageChange: (language: 'en' | 'ru') => void;
+  onOpenSettings: () => void;
+}
+
+function CampaignTitleBar({
+  language,
+  campaignTitle,
+  onLanguageChange,
+  onOpenSettings,
+}: CampaignTitleBarProps) {
+  const { t } = useTranslation('common');
+  const { t: tCampaigns } = useTranslation('campaigns');
+
+  return (
+    <header className="dm-titlebar" data-tauri-drag-region>
+      <div className="dm-titlebar-left">
+        <div className="dm-app-mark">
+          <div className="dm-app-mark-glyph" data-testid="brand-crest">
+            <Icons.Crest size={18} strokeWidth={1.35} />
+          </div>
+          <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
+        </div>
+        <div className="dm-titlebar-divider" />
+        <div className="dm-titlebar-campaign">
+          <Icons.Book size={12} />
+          <span>{campaignTitle ?? tCampaigns('library_eyebrow')}</span>
+        </div>
+      </div>
+
+      <div className="dm-titlebar-center" />
+
+      <div className="dm-titlebar-right">
+        <LanguageSegmentedControl
+          value={language}
+          onChange={onLanguageChange}
+          ariaLabel={t('language')}
+        />
+        <button
+          type="button"
+          className="dm-btn-tb dm-btn-tb-icon"
+          onClick={onOpenSettings}
+          aria-label={t('settings')}
+          title={t('settings')}
+        >
+          <Icons.Settings size={14} />
+        </button>
+        <div className="dm-window-controls">
+          <button
+            type="button"
+            className="dm-window-ctrl"
+            data-testid="window-minimize"
+            onClick={() => void tauriWindowAction('minimize')}
+            aria-label={t('minimize')}
+            title={t('minimize')}
+          >
+            <Icons.Minimize size={10} />
+          </button>
+          <button
+            type="button"
+            className="dm-window-ctrl"
+            data-testid="window-maximize"
+            onClick={() => void tauriWindowAction('toggleMaximize')}
+            aria-label={t('maximize')}
+            title={t('maximize')}
+          >
+            <Icons.Square size={10} />
+          </button>
+          <button
+            type="button"
+            className="dm-window-ctrl dm-window-close"
+            data-testid="window-close"
+            onClick={() => void tauriWindowAction('close')}
+            aria-label={t('close')}
+            title={t('close')}
+          >
+            <Icons.X size={10} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function App() {
   const { t } = useTranslation('common');
   const { t: tSettings } = useTranslation('settings');
@@ -153,6 +244,11 @@ function App() {
   // the store still holds slice defaults (onboarding.completed === false), which
   // would flash the Onboarding modal on every launch. (Audit blocker 1.)
   const hydrated = useHydrated();
+  const campaignsFeature = useCampaigns();
+  const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
+  const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
+  const [campaignCreateOpen, setCampaignCreateOpen] = useState(false);
+  const [campaignNeedsHero, setCampaignNeedsHero] = useState<string | null>(null);
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
@@ -243,6 +339,100 @@ function App() {
     preflightStatus !== 'ok' &&
     !preflightDismissedThisSession &&
     !isPreflightDismissed(preflightStatus);
+
+  useEffect(() => {
+    if (hydrated && onboardingCompleted && campaignsFeature.active === null) {
+      if (persistedCampaignId) {
+        void campaignsFeature.activate(persistedCampaignId);
+      } else {
+        void campaignsFeature.refresh();
+      }
+    }
+  }, [
+    campaignsFeature.active,
+    campaignsFeature.activate,
+    campaignsFeature.refresh,
+    hydrated,
+    onboardingCompleted,
+    persistedCampaignId,
+  ]);
+
+  const campaignRoute = campaignCreateOpen
+    ? ({ kind: 'campaign-create', draftId: 'local' } as const)
+    : resolveAppRoute({
+        hydrated,
+        onboardingComplete: onboardingCompleted,
+        active: campaignsFeature.active
+          ? {
+              id: campaignsFeature.active.id,
+              sessionId: campaignsFeature.active.last_session_id,
+              heroReady: pcHeroClass !== null && campaignsFeature.active.id !== campaignNeedsHero,
+              worldReady: pcHeroClass !== null,
+            }
+          : null,
+      });
+
+  if (hydrated && onboardingCompleted && campaignRoute.kind !== 'game-table') {
+    return (
+      <ErrorBoundary level="top">
+        <ProviderMigrationBanner />
+        <AppShell>
+          <CampaignTitleBar
+            language={uiLanguage}
+            {...(campaignsFeature.active?.title
+              ? { campaignTitle: campaignsFeature.active.title }
+              : {})}
+            onLanguageChange={setUiLanguage}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          {campaignRoute.kind === 'campaign-create' ? (
+            <CampaignCreate
+              busy={campaignsFeature.loading}
+              onBack={() => setCampaignCreateOpen(false)}
+              onCreate={async (input) => {
+                const campaign = await campaignsFeature.create(input);
+                if (campaign) {
+                  useStore.getState().charCreation.resetDraft();
+                  setCampaignNeedsHero(campaign.id);
+                  setCampaignCreateOpen(false);
+                }
+              }}
+            />
+          ) : (
+            <CampaignHome
+              campaigns={campaignsFeature.campaigns}
+              loading={campaignsFeature.loading}
+              onContinue={(campaignId) => {
+                void campaignsFeature.activate(campaignId);
+              }}
+              onNew={() => setCampaignCreateOpen(true)}
+            />
+          )}
+          <AppOverlays>
+            <SettingsModal
+              open={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              initialTab={settingsInitialTab}
+              onRequestCharacterRecreate={() => {
+                setSettingsOpen(false);
+                if (campaignsFeature.active) {
+                  setCampaignNeedsHero(campaignsFeature.active.id);
+                }
+              }}
+            />
+            {campaignRoute.kind === 'character-create' && (
+              <CharacterWizard
+                mode="initial"
+                onClose={() => setCampaignNeedsHero(null)}
+                onOpenImageSettings={handleOpenImageSettings}
+                hidden={settingsOpen}
+              />
+            )}
+          </AppOverlays>
+        </AppShell>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary level="top">
