@@ -14,7 +14,7 @@ use std::sync::Arc;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 
-use adapter_sqlite::legacy::{LegacyTokenInsert, LegacyTokenPatch};
+use adapter_sqlite::tool_support::{TokenInsert, TokenPatch};
 use adapter_sqlite::SqliteStore;
 use app_application::agent::tool_decoder::decode_tool_call;
 use app_application::models::combat::{
@@ -421,7 +421,7 @@ async fn execute_add_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let vulnerabilities = encode_resist_list(args, "vulnerabilities");
 
     if let Err(e) = store
-        .add_token(LegacyTokenInsert {
+        .add_token(TokenInsert {
             id,
             name,
             hp,
@@ -444,7 +444,7 @@ async fn execute_add_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
 
 async fn execute_update_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
-    let patch = LegacyTokenPatch {
+    let patch = TokenPatch {
         hp: args["hp"].as_i64().map(|value| value as i32),
         position: args["x"]
             .as_i64()
@@ -1656,7 +1656,7 @@ mod cast_spell_tests {
             .await
             .unwrap();
         store
-            .add_token(LegacyTokenInsert {
+            .add_token(TokenInsert {
                 id: token_id,
                 name: "TestToken",
                 hp,

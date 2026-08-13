@@ -215,7 +215,7 @@ git commit -m "feat(application): add campaign lifecycle contracts"
 - Consumes the ports from Task 2.
 - Produces `SqliteStore` implementations with monotonic revision and rollback on conflicts.
 
-- [ ] **Step 1: Write contract tests for create/list/get and append conflict**
+- [x] **Step 1: Write contract tests for create/list/get and append conflict**
 
 Include:
 
@@ -227,29 +227,29 @@ assert!(matches!(stale, Err(RepositoryError::Conflict { .. })));
 assert_eq!(EventRepository::since(&store, id, Revision(0)).await?.len(), 1);
 ```
 
-- [ ] **Step 2: Run and verify trait-implementation failures**
+- [x] **Step 2: Run and verify trait-implementation failures**
 
 Run: `cargo test -p adapter-sqlite --test campaign_contracts`
 Expected: FAIL because `SqliteStore` lacks the new implementations.
 
-- [ ] **Step 3: Implement campaign and session mapping in focused files**
+- [x] **Step 3: Implement campaign and session mapping in focused files**
 
 Keep UUID parsing and JSON decoding failures mapped to operation codes; do not log row payloads.
 
-- [ ] **Step 4: Implement event append inside `BEGIN IMMEDIATE` transaction**
+- [x] **Step 4: Implement event append inside `BEGIN IMMEDIATE` transaction**
 
 Read current revision, compare to `expected`, insert ordered event rows, update the session/campaign revision, and commit. Roll back on every mismatch or SQL error.
 
-- [ ] **Step 5: Delete the legacy adapter surface and update imports**
+- [x] **Step 5: Delete the legacy adapter surface and update imports**
 
 Run `rg -n "adapter_sqlite::legacy|mod legacy|LegacyDb" crates` and remove all remaining callers instead of re-exporting them.
 
-- [ ] **Step 6: Run adapter tests**
+- [x] **Step 6: Run adapter tests**
 
 Run: `cargo test -p adapter-sqlite`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add crates/adapter-sqlite/src/campaigns.rs crates/adapter-sqlite/src/events.rs crates/adapter-sqlite/src/sessions.rs crates/adapter-sqlite/src/lib.rs crates/adapter-sqlite/src/legacy.rs crates/adapter-sqlite/tests/campaign_contracts.rs

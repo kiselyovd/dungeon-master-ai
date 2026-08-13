@@ -70,17 +70,29 @@ pub struct CampaignSession {
     pub updated_at_epoch_ms: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CampaignEventKind {
-    CampaignCreated,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CampaignEventKind(String);
 
 impl CampaignEventKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::CampaignCreated => "campaign_created",
-        }
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&str> for CampaignEventKind {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<String> for CampaignEventKind {
+    fn from(value: String) -> Self {
+        Self::new(value)
     }
 }
 

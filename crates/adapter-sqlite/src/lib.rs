@@ -1,12 +1,15 @@
+pub mod campaigns;
 pub mod combat;
+pub mod events;
 pub mod journal;
-pub mod legacy;
 pub mod messages;
 pub mod npcs;
 pub mod pool;
 pub mod saves;
 pub mod scenes;
+pub mod sessions;
 pub mod srd;
+pub mod tool_support;
 
 use sqlx::SqlitePool;
 

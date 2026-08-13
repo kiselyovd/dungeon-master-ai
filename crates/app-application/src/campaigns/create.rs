@@ -70,7 +70,7 @@ impl CreateCampaign {
                 event_id: Uuid::new_v4(),
                 campaign_id,
                 revision,
-                kind: CampaignEventKind::CampaignCreated,
+                kind: CampaignEventKind::new("campaign_created"),
                 payload: json!({
                     "title": detail.title,
                     "premise": detail.premise,

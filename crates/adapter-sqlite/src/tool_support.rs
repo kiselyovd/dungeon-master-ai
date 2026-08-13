@@ -1,6 +1,5 @@
-//! Compatibility persistence operations used while legacy agent tools are
-//! migrated to dedicated application use cases. SQL and row decoding remain
-//! inside the outbound adapter.
+//! Focused persistence support for compatibility agent tools.
+//! These operations stay in the outbound adapter until each tool has a typed use case.
 
 use app_application::ports::repositories::RepositoryError;
 use sqlx::Row;
@@ -10,7 +9,7 @@ use crate::messages::repository_error;
 use crate::SqliteStore;
 
 #[derive(Debug, Clone)]
-pub struct LegacyTokenState {
+pub struct TokenState {
     pub current_hp: i32,
     pub max_hp: i32,
     pub resistances: Option<String>,
@@ -19,7 +18,7 @@ pub struct LegacyTokenState {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct LegacyTokenPatch {
+pub struct TokenPatch {
     pub hp: Option<i32>,
     pub position: Option<(i32, i32)>,
     pub resistances: Option<String>,
@@ -28,7 +27,7 @@ pub struct LegacyTokenPatch {
 }
 
 #[derive(Debug, Clone)]
-pub struct LegacyTokenInsert<'a> {
+pub struct TokenInsert<'a> {
     pub id: &'a str,
     pub name: &'a str,
     pub hp: i32,
@@ -67,10 +66,7 @@ impl SqliteStore {
         .transpose()
     }
 
-    pub async fn token_state(
-        &self,
-        token_id: &str,
-    ) -> Result<Option<LegacyTokenState>, RepositoryError> {
+    pub async fn token_state(&self, token_id: &str) -> Result<Option<TokenState>, RepositoryError> {
         let row = sqlx::query(
             "SELECT current_hp, max_hp, resistances, immunities, vulnerabilities \
              FROM combat_tokens WHERE id = ?1",
@@ -80,7 +76,7 @@ impl SqliteStore {
         .await
         .map_err(|_| repository_error("read_combat_token"))?;
         row.map(|row| {
-            Ok(LegacyTokenState {
+            Ok(TokenState {
                 current_hp: row
                     .try_get("current_hp")
                     .map_err(|_| repository_error("decode_combat_token"))?,
@@ -114,7 +110,7 @@ impl SqliteStore {
         Ok(())
     }
 
-    pub async fn add_token(&self, token: LegacyTokenInsert<'_>) -> Result<(), RepositoryError> {
+    pub async fn add_token(&self, token: TokenInsert<'_>) -> Result<(), RepositoryError> {
         let encounter_id = self
             .active_combat_id()
             .await?
@@ -145,7 +141,7 @@ impl SqliteStore {
     pub async fn update_token(
         &self,
         token_id: &str,
-        patch: LegacyTokenPatch,
+        patch: TokenPatch,
     ) -> Result<(), RepositoryError> {
         let mut transaction = self
             .pool
