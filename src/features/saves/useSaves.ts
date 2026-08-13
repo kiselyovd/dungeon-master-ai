@@ -4,7 +4,6 @@ import {
   createSave as apiCreateSave,
   type CreateSaveRequest,
   deleteSaveById,
-  fetchSaveById,
   fetchSessionSaves,
   quickSaveSession,
   restoreSave,
@@ -48,6 +47,8 @@ export function useSaves(): UseSavesResult {
   const setLastSaveError = useStore((state) => state.saves.setLastSaveError);
   const currentSession = useStore((state) => state.session.current);
   const applyRestoredSession = useStore((state) => state.restoration.apply);
+  const activeCampaign = useStore((state) => state.campaigns.active);
+  const pc = useStore((state) => state.pc);
 
   const refresh = useCallback(async () => {
     const active = currentSession();
@@ -67,7 +68,16 @@ export function useSaves(): UseSavesResult {
     }
     const { sessionId } = active;
     try {
-      const result = await quickSaveSession(sessionId);
+      if (activeCampaign === null) {
+        setLastSaveError(t('campaign_required'));
+        return null;
+      }
+      const result = await quickSaveSession(sessionId, {
+        campaignId: activeCampaign.id,
+        expectedRevision: activeCampaign.revision,
+        character: pc,
+        causationId: `quick-save-${crypto.randomUUID()}`,
+      });
       setLastQuickSaveAt(new Date().toISOString());
       try {
         setList(await fetchSessionSaves(sessionId));
@@ -81,7 +91,7 @@ export function useSaves(): UseSavesResult {
       setLastSaveError(errorMessage(error));
       return null;
     }
-  }, [currentSession, setLastQuickSaveAt, setList, setLastSaveError, t]);
+  }, [activeCampaign, currentSession, pc, setLastQuickSaveAt, setList, setLastSaveError, t]);
 
   const manualSave = useCallback(
     async (body: CreateSaveRequest) => {
@@ -92,7 +102,16 @@ export function useSaves(): UseSavesResult {
       }
       const { sessionId } = active;
       try {
-        const result = await apiCreateSave(sessionId, body);
+        if (activeCampaign === null) {
+          setLastSaveError(t('campaign_required'));
+          return null;
+        }
+        const result = await apiCreateSave(sessionId, body, {
+          campaignId: activeCampaign.id,
+          expectedRevision: activeCampaign.revision,
+          character: pc,
+          causationId: `manual-save-${crypto.randomUUID()}`,
+        });
         setList(await fetchSessionSaves(sessionId));
         setLastSaveError(null);
         return result;
@@ -102,7 +121,7 @@ export function useSaves(): UseSavesResult {
         return null;
       }
     },
-    [currentSession, setList, setLastSaveError, t],
+    [activeCampaign, currentSession, pc, setList, setLastSaveError, t],
   );
 
   const overwriteSave = useCallback(
@@ -136,20 +155,30 @@ export function useSaves(): UseSavesResult {
         if (active === null) {
           return { ok: false, error: t('campaign_required') };
         }
-        // The read-only row lookup resolves the target session. The mutating
-        // restore response then includes both game state and messages, so no
-        // fallible network call occurs after backend mutation.
-        const row = await fetchSaveById(saveId);
-        const { campaignId } = active;
-        const restored = await restoreSave(saveId, row.session_id);
-        const projection = buildRestoredSession({ saveId, campaignId, row, restored });
+        if (activeCampaign === null) {
+          return { ok: false, error: t('campaign_required') };
+        }
+        const { campaignId, sessionId } = active;
+        const restored = await restoreSave(saveId, {
+          campaignId,
+          sessionId,
+          expectedRevision: activeCampaign.revision,
+          causationId: `restore-${crypto.randomUUID()}`,
+        });
+        const projection = buildRestoredSession({
+          saveId,
+          campaignId,
+          sessionId,
+          expectedRevision: activeCampaign.revision,
+          restored,
+        });
         applyRestoredSession(projection);
         console.debug('[save.restore]', {
           operationId,
           saveId,
           sessionId: projection.sessionId,
           messageCount: projection.messages.length,
-          combatActive: projection.combat?.active ?? false,
+          combatActive: projection.combat?.snapshot.active ?? false,
           durationMs: Math.round(performance.now() - startedAt),
           transition: 'committed',
         });
@@ -166,7 +195,7 @@ export function useSaves(): UseSavesResult {
         return { ok: false, error: errorMessage(error) };
       }
     },
-    [applyRestoredSession, currentSession, t],
+    [activeCampaign, applyRestoredSession, currentSession, t],
   );
 
   const deleteSave = useCallback(

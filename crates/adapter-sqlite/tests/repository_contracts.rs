@@ -4,9 +4,17 @@ use app_application::models::chat::{ChatMessage, ToolCall, ToolResult};
 use app_application::models::combat::{
     CombatProjection, CombatSnapshot, COMBAT_PROJECTION_VERSION,
 };
+use app_application::models::identity::{CampaignId, Revision, SessionId};
+use app_application::models::session::{
+    CampaignDetail, CampaignEvent, CampaignEventKind, CampaignSeed, CampaignSession,
+    InitialCampaign,
+};
+use app_application::models::snapshot::{
+    CreateSnapshotRecord, RestoreSnapshotRecord, SNAPSHOT_SCHEMA_VERSION,
+};
 use app_application::ports::repositories::{
-    CombatRepository, JournalRepository, MessageRepository, NpcRepository, SaveRepository,
-    SceneRepository, SrdRepository,
+    CampaignRepository, CombatRepository, JournalRepository, MessageRepository, NpcRepository,
+    SaveRepository, SceneRepository, SnapshotRepository, SrdRepository,
 };
 use app_domain::combat::combatant::Combatant;
 use app_domain::combat::initiative::InitiativeEntry;
@@ -19,6 +27,76 @@ async fn store() -> SqliteStore {
     let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
     pool::migrate(&pool).await.unwrap();
     SqliteStore::new(pool)
+}
+
+async fn campaign(store: &SqliteStore, revision: u64) -> (CampaignId, SessionId) {
+    let campaign_id = CampaignId(Uuid::new_v4());
+    let session_id = SessionId(Uuid::new_v4());
+    let now = 1_700_000_000_000;
+    let initial = InitialCampaign {
+        detail: CampaignDetail {
+            id: campaign_id,
+            schema_version: 1,
+            ruleset_id: "srd-5.2.1".into(),
+            title: "Moonlit Gate".into(),
+            premise: "A sealed road".into(),
+            seed: CampaignSeed::Collaborative {
+                answers: Default::default(),
+            },
+            last_session_id: session_id,
+            revision: Revision(1),
+            created_at_epoch_ms: now,
+            updated_at_epoch_ms: now,
+        },
+        session: CampaignSession {
+            id: session_id,
+            campaign_id,
+            revision: Revision(1),
+            created_at_epoch_ms: now,
+            updated_at_epoch_ms: now,
+        },
+        event: CampaignEvent {
+            event_id: Uuid::new_v4(),
+            campaign_id,
+            revision: Revision(1),
+            kind: CampaignEventKind::new("campaign_created"),
+            payload: json!({"seed": {"kind": "collaborative", "answers": {}}}),
+            causation_id: Some("campaign-create".into()),
+            created_at_epoch_ms: now,
+        },
+    };
+    CampaignRepository::create(store, initial).await.unwrap();
+    if revision != 1 {
+        sqlx::query("UPDATE sessions SET revision = ?1 WHERE id = ?2")
+            .bind(revision as i64)
+            .bind(session_id.0.to_string())
+            .execute(store.pool())
+            .await
+            .unwrap();
+    }
+    (campaign_id, session_id)
+}
+
+fn create_snapshot_record(
+    campaign_id: CampaignId,
+    session_id: SessionId,
+    revision: Revision,
+    causation_id: &str,
+) -> CreateSnapshotRecord {
+    CreateSnapshotRecord {
+        id: Uuid::new_v4(),
+        campaign_id,
+        session_id,
+        expected_revision: revision,
+        schema_version: SNAPSHOT_SCHEMA_VERSION,
+        ruleset_id: "srd-5.2.1".into(),
+        title: "At the gate".into(),
+        kind: "manual".into(),
+        summary: "Before entering".into(),
+        tag: "exploration".into(),
+        causation_id: causation_id.into(),
+        character: json!({"name": "Mira", "hp": 12}),
+    }
 }
 
 fn combat_projection(encounter_id: Uuid, combatant_id: CombatantId) -> CombatProjection {
@@ -227,8 +305,7 @@ async fn combat_compare_and_set_is_atomic_and_rejects_stale_writers() {
     let encounter_id = Uuid::new_v4();
     let combatant_id = CombatantId(Uuid::new_v4());
     let projection = combat_projection(encounter_id, combatant_id);
-    store
-        .create(Uuid::new_v4(), projection.clone())
+    CombatRepository::create(&store, Uuid::new_v4(), projection.clone())
         .await
         .unwrap();
 
@@ -279,7 +356,9 @@ async fn combat_create_rolls_back_every_row_when_a_token_insert_fails() {
         .combatants
         .push(Combatant::new(combatant_id, "Duplicate".into(), 5, 5, 10));
 
-    assert!(store.create(Uuid::new_v4(), projection).await.is_err());
+    assert!(CombatRepository::create(&store, Uuid::new_v4(), projection)
+        .await
+        .is_err());
     assert!(CombatRepository::get(&store, encounter_id)
         .await
         .unwrap()
@@ -299,8 +378,7 @@ async fn concurrent_combat_writers_allow_exactly_one_revision_commit() {
     let encounter_id = Uuid::new_v4();
     let combatant_id = CombatantId(Uuid::new_v4());
     let projection = combat_projection(encounter_id, combatant_id);
-    store
-        .create(Uuid::new_v4(), projection.clone())
+    CombatRepository::create(&store, Uuid::new_v4(), projection.clone())
         .await
         .unwrap();
     let mut first = projection.clone();
@@ -324,4 +402,102 @@ async fn concurrent_combat_writers_allow_exactly_one_revision_commit() {
         .unwrap();
     assert_eq!(stored.revision, 1);
     assert!([6, 8].contains(&stored.snapshot.combatants[0].current_hp));
+}
+
+#[tokio::test]
+async fn campaign_snapshot_is_complete_revision_bound_and_idempotent() {
+    let store = store().await;
+    let (campaign_id, session_id) = campaign(&store, 4).await;
+    MessageRepository::append(
+        &store,
+        session_id.0,
+        ChatMessage::user_text("Open the gate"),
+    )
+    .await
+    .unwrap();
+    let record = create_snapshot_record(campaign_id, session_id, Revision(4), "save-request-1");
+    let first = store.create_snapshot(record.clone()).await.unwrap();
+    let retried = store.create_snapshot(record).await.unwrap();
+    assert_eq!(retried.save_id, first.save_id);
+    assert_eq!(retried.snapshot.id, first.snapshot.id);
+    assert_eq!(first.snapshot.revision, Revision(4));
+    assert_eq!(first.snapshot.ruleset_id, "srd-5.2.1");
+    assert_eq!(first.snapshot.projection.messages.len(), 1);
+    assert_eq!(first.snapshot.projection.character["name"], "Mira");
+    let save_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM saves")
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(save_count, 1);
+
+    let mut stale = create_snapshot_record(campaign_id, session_id, Revision(3), "stale-save");
+    stale.id = Uuid::new_v4();
+    assert!(matches!(
+        store.create_snapshot(stale).await,
+        Err(app_application::ports::repositories::RepositoryError::Conflict { .. })
+    ));
+}
+
+#[tokio::test]
+async fn restore_rolls_back_every_projection_when_active_pointer_update_fails() {
+    let store = store().await;
+    let (campaign_id, session_id) = campaign(&store, 4).await;
+    MessageRepository::append(
+        &store,
+        session_id.0,
+        ChatMessage::user_text("Saved message"),
+    )
+    .await
+    .unwrap();
+    let save = create_snapshot_record(campaign_id, session_id, Revision(4), "save-request-2");
+    let save_id = save.id;
+    store.create_snapshot(save).await.unwrap();
+    sqlx::query("DELETE FROM messages WHERE session_id = ?1")
+        .bind(session_id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    MessageRepository::append(
+        &store,
+        session_id.0,
+        ChatMessage::user_text("Current message"),
+    )
+    .await
+    .unwrap();
+    sqlx::query(
+        "CREATE TRIGGER fail_snapshot_activation BEFORE UPDATE OF active_snapshot_id ON sessions \
+         BEGIN SELECT RAISE(ABORT, 'forced activation failure'); END",
+    )
+    .execute(store.pool())
+    .await
+    .unwrap();
+
+    let result = store
+        .restore_snapshot(RestoreSnapshotRecord {
+            save_id,
+            campaign_id,
+            session_id,
+            expected_revision: Revision(4),
+            causation_id: "restore-request-1".into(),
+        })
+        .await;
+    assert!(result.is_err());
+    let messages = MessageRepository::list(&store, session_id.0).await.unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(
+        messages[0].message,
+        ChatMessage::user_text("Current message")
+    );
+    let active: Option<String> =
+        sqlx::query_scalar("SELECT active_snapshot_id FROM sessions WHERE id = ?1")
+            .bind(session_id.0.to_string())
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    assert!(active.is_none());
+    let restore_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM snapshot_restores")
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(restore_count, 0);
 }

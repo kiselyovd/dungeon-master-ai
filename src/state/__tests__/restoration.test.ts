@@ -17,10 +17,13 @@ describe('atomic session restoration', () => {
     const projection: RestoredSessionProjection = {
       campaignId: 'campaign-1',
       sessionId: 'session-restored',
+      revision: 4,
       messages: [{ id: 'm1', role: 'assistant', content: 'Restored', sequenceIndex: 0 }],
       pc: { name: 'Restored Hero', hp: 7 },
       scene: { name: 'Vault', stepCounter: 0 },
       combat: null,
+      journal: [],
+      npcs: [],
     };
 
     useStore.getState().restoration.apply(projection);

@@ -6,11 +6,12 @@ use adapter_http::services::{
     ChatHttpCommand, ChatHttpService, CombatActionCommand as HttpCombatActionCommand,
     CombatHttpService, CombatStartCommand, HttpOutcome, HttpServiceError, LocalControlHttpService,
     LocalControlOperation, LocalEventStream, MediaHttpService, ProviderDiscoveryCommand,
-    SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
+    RestoreSaveCommand, SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
 };
 use adapter_sqlite::SqliteStore;
 use app_application::campaigns::{
-    CreateCampaign, CreateCampaignCommand, GetCampaign, ListCampaigns,
+    CreateCampaign, CreateCampaignCommand, CreateSnapshot, CreateSnapshotCommand, GetCampaign,
+    ListCampaigns, RestoreSnapshot, RestoreSnapshotCommand,
 };
 use app_application::combat::commands::{CombatActionCommand, ResolveCombatCommand};
 use app_application::combat::resolve::{ResolveCombatAction, ResolveCombatError};
@@ -18,13 +19,13 @@ use app_application::models::agent::AgentEvent;
 use app_application::models::combat::{
     CombatProjection, CombatSnapshot, COMBAT_PROJECTION_VERSION,
 };
-use app_application::models::identity::CampaignId;
+use app_application::models::identity::{CampaignId, Revision, SessionId};
 use app_application::models::local_models::{RuntimeStartRequest, RuntimeState, RuntimeStatus};
 use app_application::models::session::{CampaignDetail, CampaignSummary};
 use app_application::ports::media::{
     ImageBytes, ImageError, ImagePrompt, VideoPrompt, VideoStream,
 };
-use app_application::ports::repositories::CombatRepository;
+use app_application::ports::repositories::{CombatRepository, SnapshotRepository};
 use app_application::settings::{SettingsUpdateError, UpdateSettings};
 use app_domain::combat::combatant::Combatant;
 use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
@@ -222,6 +223,14 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
         app_application::campaigns::CampaignError::InvalidInput { code } => {
             HttpServiceError::UnprocessableEntity { code }
         }
+        app_application::campaigns::CampaignError::Persistence {
+            code: "snapshot_revision_conflict",
+        } => HttpServiceError::Conflict {
+            code: "snapshot_revision_conflict",
+        },
+        app_application::campaigns::CampaignError::Persistence {
+            code: "snapshot_not_found",
+        } => HttpServiceError::NotFound,
         app_application::campaigns::CampaignError::Persistence { .. } => {
             HttpServiceError::Internal {
                 code: "campaign_operation_failed",
@@ -520,28 +529,14 @@ impl AppStateSavesHttpService {
     }
 }
 
-fn save_envelope(metadata: &SaveMetadataCommand) -> Value {
-    json!({
-        "schema_version": 1,
-        "state": {
-            "title": metadata.title,
-            "summary": metadata.summary,
-            "tag": metadata.tag,
-            "kind": metadata.kind,
-        }
-    })
-}
-
-fn save_db_error(code: &'static str) -> impl FnOnce(sqlx::Error) -> HttpServiceError {
-    move |_| HttpServiceError::Internal { code }
-}
-
 #[async_trait]
 impl SavesHttpService for AppStateSavesHttpService {
     async fn list(&self, session_id: Uuid) -> Result<Value, HttpServiceError> {
-        let saves = crate::db::save_list_by_session(self.state.db(), session_id)
+        let store = SqliteStore::new(self.state.db().clone());
+        let saves = store
+            .list_snapshots(SessionId(session_id))
             .await
-            .map_err(save_db_error("save_list_failed"))?;
+            .map_err(snapshot_repository_error)?;
         serde_json::to_value(saves).map_err(|_| serialization_error())
     }
 
@@ -550,27 +545,54 @@ impl SavesHttpService for AppStateSavesHttpService {
         session_id: Uuid,
         metadata: SaveMetadataCommand,
     ) -> Result<Uuid, HttpServiceError> {
-        let envelope = save_envelope(&metadata);
-        crate::db::save_insert(
-            self.state.db(),
-            session_id,
-            &metadata.kind,
-            &metadata.title,
-            &metadata.summary,
-            &metadata.tag,
-            &envelope,
-        )
-        .await
-        .map_err(save_db_error("save_create_failed"))
+        let save_id = Uuid::new_v4();
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let snapshot = CreateSnapshot::new(repository)
+            .execute(CreateSnapshotCommand {
+                id: save_id,
+                campaign_id: CampaignId(metadata.campaign_id),
+                session_id: SessionId(session_id),
+                expected_revision: Revision(metadata.expected_revision),
+                title: metadata.title,
+                kind: metadata.kind,
+                summary: metadata.summary,
+                tag: metadata.tag,
+                causation_id: metadata.causation_id,
+                character: metadata.character,
+            })
+            .await
+            .map_err(campaign_use_case_error)?;
+        Ok(snapshot.save_id)
     }
 
     async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError> {
+        let row = sqlx::query("SELECT campaign_id, revision FROM sessions WHERE id = ?1")
+            .bind(session_id.to_string())
+            .fetch_optional(self.state.db())
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "save_session_failed",
+            })?
+            .ok_or(HttpServiceError::NotFound)?;
+        use sqlx::Row as _;
+        let campaign_id = row
+            .try_get::<String, _>("campaign_id")
+            .ok()
+            .and_then(|value| Uuid::parse_str(&value).ok())
+            .ok_or(HttpServiceError::Internal {
+                code: "save_session_invalid",
+            })?;
+        let expected_revision = row.try_get::<i64, _>("revision").unwrap_or_default() as u64;
         self.create(
             session_id,
             SaveMetadataCommand {
+                campaign_id,
+                expected_revision,
+                causation_id: format!("quick-save-{}", Uuid::new_v4()),
+                character: json!({}),
                 kind: "auto".into(),
                 title: "Quick save".into(),
-                summary: "(no scene)".into(),
+                summary: "".into(),
                 tag: "exploration".into(),
             },
         )
@@ -578,32 +600,34 @@ impl SavesHttpService for AppStateSavesHttpService {
     }
 
     async fn get(&self, save_id: Uuid) -> Result<Value, HttpServiceError> {
-        let save = crate::db::save_load(self.state.db(), save_id)
+        let save = SqliteStore::new(self.state.db().clone())
+            .get_snapshot(save_id)
             .await
-            .map_err(save_db_error("save_load_failed"))?
+            .map_err(snapshot_repository_error)?
             .ok_or(HttpServiceError::NotFound)?;
         serde_json::to_value(save).map_err(|_| serialization_error())
     }
 
     async fn delete(&self, save_id: Uuid) -> Result<bool, HttpServiceError> {
-        crate::db::save_delete(self.state.db(), save_id)
+        SqliteStore::new(self.state.db().clone())
+            .delete_snapshot(save_id)
             .await
-            .map_err(save_db_error("save_delete_failed"))
+            .map_err(snapshot_repository_error)
     }
 
-    async fn restore(&self, session_id: Uuid, save_id: Uuid) -> Result<Value, HttpServiceError> {
-        let game_state = crate::db::restore_snapshot(self.state.db(), session_id, save_id)
+    async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let snapshot = RestoreSnapshot::new(repository)
+            .execute(RestoreSnapshotCommand {
+                save_id: command.save_id,
+                campaign_id: CampaignId(command.campaign_id),
+                session_id: SessionId(command.session_id),
+                expected_revision: Revision(command.expected_revision),
+                causation_id: command.causation_id,
+            })
             .await
-            .map_err(save_db_error("save_restore_failed"))?
-            .ok_or(HttpServiceError::NotFound)?;
-        // Fetch the render history before returning from the mutating operation.
-        // The frontend can therefore validate one complete restore projection and
-        // commit it atomically without a fallible GET after backend state changed.
-        let messages =
-            crate::db::list_messages_by_session(self.state.db(), &session_id.to_string())
-                .await
-                .map_err(save_db_error("save_messages_failed"))?;
-        Ok(json!({ "game_state": game_state, "messages": messages }))
+            .map_err(campaign_use_case_error)?;
+        serde_json::to_value(snapshot).map_err(|_| serialization_error())
     }
 
     async fn update(
@@ -611,18 +635,37 @@ impl SavesHttpService for AppStateSavesHttpService {
         save_id: Uuid,
         metadata: SaveMetadataCommand,
     ) -> Result<bool, HttpServiceError> {
-        let envelope = save_envelope(&metadata);
-        crate::db::save_update(
-            self.state.db(),
-            save_id,
-            &metadata.kind,
-            &metadata.title,
-            &metadata.summary,
-            &metadata.tag,
-            &envelope,
-        )
-        .await
-        .map_err(save_db_error("save_update_failed"))
+        SqliteStore::new(self.state.db().clone())
+            .update_snapshot_metadata(
+                save_id,
+                metadata.kind,
+                metadata.title,
+                metadata.summary,
+                metadata.tag,
+            )
+            .await
+            .map_err(snapshot_repository_error)
+    }
+}
+
+fn snapshot_repository_error(
+    error: app_application::ports::repositories::RepositoryError,
+) -> HttpServiceError {
+    match error {
+        app_application::ports::repositories::RepositoryError::NotFound => {
+            HttpServiceError::NotFound
+        }
+        app_application::ports::repositories::RepositoryError::RevisionConflict { .. }
+        | app_application::ports::repositories::RepositoryError::Conflict { .. } => {
+            HttpServiceError::Conflict {
+                code: "snapshot_revision_conflict",
+            }
+        }
+        app_application::ports::repositories::RepositoryError::Operation { .. } => {
+            HttpServiceError::Internal {
+                code: "snapshot_repository_failed",
+            }
+        }
     }
 }
 

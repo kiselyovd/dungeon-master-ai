@@ -10,6 +10,7 @@ import type {
 export type {
   AoeShape,
   AoeTemplateEntry,
+  CombatProjectionDto,
   CombatToken,
   SnapshotCombat,
 } from '../features/combat/model/types';
@@ -58,7 +59,7 @@ export function emptyCombatProjectionState() {
   };
 }
 
-function derivedProjection(projection: CombatProjectionDto) {
+export function combatProjectionState(projection: CombatProjectionDto) {
   const tokens = projectionTokens(projection);
   const active = tokens.find((token) => token.id === projection.snapshot.current_combatant);
   return {
@@ -131,7 +132,7 @@ export const createCombatSlice: StateCreator<CombatSlice, [], [], CombatSlice> =
       set((state) => ({
         combat: {
           ...state.combat,
-          ...derivedProjection(projection),
+          ...combatProjectionState(projection),
         },
       }));
       return true;

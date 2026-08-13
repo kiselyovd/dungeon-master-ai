@@ -19,6 +19,7 @@ CREATE TABLE sessions (
     id          TEXT PRIMARY KEY NOT NULL,
     campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     revision    INTEGER NOT NULL DEFAULT 0,
+    active_snapshot_id TEXT,
     created_at  TEXT NOT NULL DEFAULT '',
     updated_at  TEXT NOT NULL DEFAULT '',
     -- Transitional columns consumed by the compatibility server until Task 3.
@@ -59,7 +60,19 @@ CREATE TABLE saves (
     snapshot_id TEXT REFERENCES campaign_snapshots(id) ON DELETE SET NULL,
     revision    INTEGER NOT NULL,
     title       TEXT NOT NULL,
+    kind        TEXT NOT NULL DEFAULT 'manual',
+    summary     TEXT NOT NULL DEFAULT '',
+    tag         TEXT NOT NULL DEFAULT 'exploration',
+    causation_id TEXT NOT NULL UNIQUE,
     created_at  TEXT NOT NULL
+);
+
+CREATE TABLE snapshot_restores (
+    causation_id TEXT PRIMARY KEY NOT NULL,
+    save_id      TEXT NOT NULL REFERENCES saves(id) ON DELETE CASCADE,
+    session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    snapshot_id  TEXT NOT NULL REFERENCES campaign_snapshots(id) ON DELETE CASCADE,
+    created_at   TEXT NOT NULL
 );
 
 CREATE TABLE snapshots (

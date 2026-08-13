@@ -1,11 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { RestoredSessionProjection } from '../features/saves/model/buildRestoredSession';
 import type { ChatSlice } from './chat';
-import {
-  type CombatSlice,
-  emptyCombatProjectionState,
-  legacyCombatProjectionState,
-} from './combat';
+import { type CombatSlice, combatProjectionState, emptyCombatProjectionState } from './combat';
+import type { JournalSlice } from './journal';
+import type { NpcSlice } from './npc';
 import type { PcSlice } from './pc';
 import type { SessionSlice } from './session';
 
@@ -15,7 +13,13 @@ export interface RestorationSlice {
   };
 }
 
-type RestorationState = ChatSlice & CombatSlice & PcSlice & SessionSlice & RestorationSlice;
+type RestorationState = ChatSlice &
+  CombatSlice &
+  PcSlice &
+  SessionSlice &
+  JournalSlice &
+  NpcSlice &
+  RestorationSlice;
 
 export const createRestorationSlice: StateCreator<RestorationState, [], [], RestorationSlice> = (
   set,
@@ -43,13 +47,18 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
           abortController: null,
           reasoningStreams: new Map<string, string>(),
         },
-        pc: projection.pc === null ? state.pc : { ...state.pc, ...projection.pc },
+        pc: { ...state.pc, ...projection.pc },
         combat: {
           ...state.combat,
           ...(projection.combat === null
             ? emptyCombatProjectionState()
-            : legacyCombatProjectionState(projection.combat)),
+            : combatProjectionState(projection.combat)),
           aoeTemplates: [],
+        },
+        journal: { ...state.journal, entries: projection.journal },
+        npcs: {
+          ...state.npcs,
+          records: Object.fromEntries(projection.npcs.map((npc) => [npc.name, npc])),
         },
       })),
   },

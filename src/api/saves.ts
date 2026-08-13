@@ -14,7 +14,10 @@ export type SaveTag = 'combat' | 'exploration' | 'dialog' | 'npc';
 
 export interface SaveSummary {
   id: string;
+  campaign_id?: string;
   session_id: string;
+  snapshot_id?: string;
+  revision?: number;
   kind: SaveKind;
   title: string;
   summary: string;
@@ -35,8 +38,27 @@ export interface CreateSaveRequest {
 }
 
 export interface RestoreSaveResponse {
-  game_state: unknown;
-  messages: SessionMessageWire[];
+  id: string;
+  campaign_id: string;
+  session_id: string;
+  revision: number;
+  schema_version: 1;
+  ruleset_id: 'srd-5.2.1';
+  projection: {
+    messages: SessionMessageWire[];
+    character: unknown;
+    combat: unknown | null;
+    scene: unknown | null;
+    journal: unknown[];
+    npcs: unknown[];
+  };
+}
+
+export interface SnapshotContext {
+  campaignId: string;
+  expectedRevision: number;
+  character: unknown;
+  causationId: string;
 }
 
 function invalidResponse(label: string): never {
@@ -68,13 +90,16 @@ function parseSaveSummary(value: unknown): SaveSummary {
   }
   return {
     id: stringField(row.id, 'save.id'),
+    campaign_id: stringField(row.campaign_id, 'save.campaign_id'),
     session_id: stringField(row.session_id, 'save.session_id'),
+    snapshot_id: stringField(row.snapshot_id, 'save.snapshot_id'),
+    revision: numberField(row.revision, 'save.revision'),
     kind,
     title: stringField(row.title, 'save.title'),
     summary: stringField(row.summary, 'save.summary'),
     tag,
     created_at: stringField(row.created_at, 'save.created_at'),
-    turn_number: numberField(row.turn_number, 'save.turn_number'),
+    turn_number: numberField(row.revision, 'save.revision'),
   };
 }
 
@@ -141,21 +166,44 @@ export async function fetchSessionSaves(sessionId: string): Promise<SaveSummary[
 export async function createSave(
   sessionId: string,
   body: CreateSaveRequest,
+  context: SnapshotContext,
 ): Promise<{ id: string }> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves`);
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      campaign_id: context.campaignId,
+      expected_revision: context.expectedRevision,
+      character: context.character,
+      causation_id: context.causationId,
+    }),
   });
   if (!resp.ok) throw await readError(resp, 'create save');
   const json = record(await resp.json(), 'create save');
   return { id: stringField(json.id, 'create save.id') };
 }
 
-export async function quickSaveSession(sessionId: string): Promise<{ id: string }> {
+export async function quickSaveSession(
+  sessionId: string,
+  context: SnapshotContext,
+): Promise<{ id: string }> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves/quick`);
-  const resp = await fetch(url, { method: 'POST' });
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      kind: 'auto',
+      title: 'Quick save',
+      summary: '',
+      tag: 'exploration',
+      campaign_id: context.campaignId,
+      expected_revision: context.expectedRevision,
+      character: context.character,
+      causation_id: context.causationId,
+    }),
+  });
   if (!resp.ok) throw await readError(resp, 'quick save');
   const json = record(await resp.json(), 'quick save');
   return { id: stringField(json.id, 'quick save.id') };
@@ -166,7 +214,7 @@ export async function fetchSaveById(saveId: string): Promise<SaveRow> {
   const resp = await fetch(url);
   if (!resp.ok) throw await readError(resp, 'load save');
   const json = record(await resp.json(), 'load save');
-  return { ...parseSaveSummary(json), game_state: json.game_state };
+  return { ...parseSaveSummary(json), game_state: json.snapshot };
 }
 
 export async function deleteSaveById(saveId: string): Promise<void> {
@@ -181,17 +229,49 @@ export async function deleteSaveById(saveId: string): Promise<void> {
  * schema-version 2 game_state so the frontend can rehydrate Zustand slices.
  * POST /saves/{saveId}/restore?session_id={sessionId}   [W2.3]
  */
-export async function restoreSave(saveId: string, sessionId: string): Promise<RestoreSaveResponse> {
-  const url = await backendUrl(
-    `/saves/${encodeURIComponent(saveId)}/restore?session_id=${encodeURIComponent(sessionId)}`,
-  );
-  const resp = await fetch(url, { method: 'POST' });
+export async function restoreSave(
+  saveId: string,
+  input: {
+    campaignId: string;
+    sessionId: string;
+    expectedRevision: number;
+    causationId: string;
+  },
+): Promise<RestoreSaveResponse> {
+  const url = await backendUrl(`/saves/${encodeURIComponent(saveId)}/restore`);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      campaign_id: input.campaignId,
+      session_id: input.sessionId,
+      expected_revision: input.expectedRevision,
+      causation_id: input.causationId,
+    }),
+  });
   if (!resp.ok) throw await readError(resp, 'restore save');
   const json = record(await resp.json(), 'restore save');
-  if (!Array.isArray(json.messages)) invalidResponse('restore save.messages');
+  const projection = record(json.projection, 'restore save.projection');
+  if (!Array.isArray(projection.messages)) invalidResponse('restore save.messages');
+  if (!Array.isArray(projection.journal)) invalidResponse('restore save.journal');
+  if (!Array.isArray(projection.npcs)) invalidResponse('restore save.npcs');
+  if (json.schema_version !== 1) invalidResponse('restore save.schema_version');
+  if (json.ruleset_id !== 'srd-5.2.1') invalidResponse('restore save.ruleset_id');
   return {
-    game_state: json.game_state,
-    messages: json.messages.map(parseMessage),
+    id: stringField(json.id, 'restore save.id'),
+    campaign_id: stringField(json.campaign_id, 'restore save.campaign_id'),
+    session_id: stringField(json.session_id, 'restore save.session_id'),
+    revision: numberField(json.revision, 'restore save.revision'),
+    schema_version: 1,
+    ruleset_id: 'srd-5.2.1',
+    projection: {
+      messages: projection.messages.map(parseMessage),
+      character: projection.character,
+      combat: projection.combat ?? null,
+      scene: projection.scene ?? null,
+      journal: projection.journal,
+      npcs: projection.npcs,
+    },
   };
 }
 

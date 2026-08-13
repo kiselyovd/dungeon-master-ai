@@ -115,10 +115,23 @@ pub trait CombatHttpService: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct SaveMetadataCommand {
+    pub campaign_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
+    pub character: Value,
     pub kind: String,
     pub title: String,
     pub summary: String,
     pub tag: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RestoreSaveCommand {
+    pub save_id: Uuid,
+    pub campaign_id: Uuid,
+    pub session_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
 }
 
 #[async_trait]
@@ -132,7 +145,7 @@ pub trait SavesHttpService: Send + Sync {
     async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError>;
     async fn get(&self, save_id: Uuid) -> Result<Value, HttpServiceError>;
     async fn delete(&self, save_id: Uuid) -> Result<bool, HttpServiceError>;
-    async fn restore(&self, session_id: Uuid, save_id: Uuid) -> Result<Value, HttpServiceError>;
+    async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError>;
     async fn update(
         &self,
         save_id: Uuid,

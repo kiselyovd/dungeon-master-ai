@@ -11,6 +11,10 @@ use crate::models::identity::{CampaignId, Revision, SessionId};
 use crate::models::session::{
     CampaignDetail, CampaignEvent, CampaignSession, CampaignSummary, InitialCampaign,
 };
+use crate::models::snapshot::{
+    CampaignSnapshot, CreateSnapshotRecord, RestoreSnapshotRecord, SnapshotCreated,
+    SnapshotSaveDetails, SnapshotSaveSummary,
+};
 
 #[derive(Debug, Error)]
 pub enum RepositoryError {
@@ -78,6 +82,43 @@ pub trait MessageRepository: Send + Sync {
 pub trait SaveRepository: Send + Sync {
     async fn put(&self, save: CampaignSave) -> Result<(), RepositoryError>;
     async fn get(&self, save_id: Uuid) -> Result<Option<CampaignSave>, RepositoryError>;
+}
+
+#[async_trait]
+pub trait SnapshotRepository: Send + Sync {
+    /// Captures all server-owned projections and the supplied character inside one transaction.
+    /// Repeating a causation id must return the first snapshot without creating a duplicate.
+    async fn create_snapshot(
+        &self,
+        record: CreateSnapshotRecord,
+    ) -> Result<SnapshotCreated, RepositoryError>;
+
+    /// Validates identity and revision and switches the active snapshot in one transaction.
+    async fn restore_snapshot(
+        &self,
+        record: RestoreSnapshotRecord,
+    ) -> Result<CampaignSnapshot, RepositoryError>;
+
+    async fn list_snapshots(
+        &self,
+        session_id: SessionId,
+    ) -> Result<Vec<SnapshotSaveSummary>, RepositoryError>;
+
+    async fn get_snapshot(
+        &self,
+        save_id: Uuid,
+    ) -> Result<Option<SnapshotSaveDetails>, RepositoryError>;
+
+    async fn delete_snapshot(&self, save_id: Uuid) -> Result<bool, RepositoryError>;
+
+    async fn update_snapshot_metadata(
+        &self,
+        save_id: Uuid,
+        kind: String,
+        title: String,
+        summary: String,
+        tag: String,
+    ) -> Result<bool, RepositoryError>;
 }
 
 #[async_trait]

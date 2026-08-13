@@ -91,7 +91,7 @@ impl MessageRepository for SqliteStore {
     }
 }
 
-fn encode_message(
+pub(crate) fn encode_message(
     message: &ChatMessage,
 ) -> (&'static str, String, Option<String>, Option<String>, bool) {
     match message {
@@ -118,7 +118,7 @@ fn encode_message(
     }
 }
 
-fn decode_message(
+pub(crate) fn decode_message(
     role: &str,
     parts_json: &str,
     tool_calls_json: Option<&str>,

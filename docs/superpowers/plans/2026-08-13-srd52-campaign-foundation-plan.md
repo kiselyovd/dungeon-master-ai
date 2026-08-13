@@ -526,33 +526,33 @@ git commit -m "feat(characters): adopt the SRD 5.2.1 catalog"
 - Produces `CampaignSnapshot { campaign_id, session_id, revision, schema_version, ruleset_id, projection }`.
 - `CreateSnapshot` and `RestoreSnapshot` operate through one repository transaction and return a complete frontend projection.
 
-- [ ] **Step 1: Write application invariants**
+- [x] **Step 1: Write application invariants**
 
 Test rejection of cross-campaign session IDs, future revisions, wrong schema/ruleset IDs, and partial projections. Test duplicate restore commands by causation ID and prove the second call is idempotent.
 
-- [ ] **Step 2: Add repository rollback tests**
+- [x] **Step 2: Add repository rollback tests**
 
 Inject a failure after the snapshot row is read but before the active-session pointer is updated. Assert campaign events, active revision, messages, combat, scene, journal, and NPC memory remain unchanged.
 
-- [ ] **Step 3: Run and verify failures**
+- [x] **Step 3: Run and verify failures**
 
 Run: `cargo test -p app-application --test campaign_snapshots && cargo test -p adapter-sqlite --test repository_contracts`
 Expected: FAIL until snapshot contracts and the transactional unit of work exist.
 
-- [ ] **Step 4: Implement snapshot creation and restore**
+- [x] **Step 4: Implement snapshot creation and restore**
 
 Snapshot only confirmed event revisions. Restore by validating the envelope, rebuilding the complete projection in memory, then committing the active session/revision change in one SQLite transaction. Never perform an HTTP follow-up fetch after server mutation.
 
-- [ ] **Step 5: Return the full projection from HTTP**
+- [x] **Step 5: Return the full projection from HTTP**
 
 Keep the existing save route names where compatible, but change the versioned response schema to include session, messages, character, combat, scene, journal, and NPC projections plus revision. Validate it in `src/api/saves.ts` before one atomic Zustand update.
 
-- [ ] **Step 6: Run backend, frontend, and architecture checks**
+- [x] **Step 6: Run backend, frontend, and architecture checks**
 
 Run: `cargo test -p app-application --test campaign_snapshots && cargo test -p adapter-sqlite --test repository_contracts && cargo test -p adapter-http --test saves_routes && bun run test -- src/features/saves/model/__tests__/buildRestoredSession.test.ts && bun run architecture:check`
 Expected: PASS with no partial writes on any failure path.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add crates/app-application/src/models/snapshot.rs crates/app-application/src/campaigns/mod.rs crates/app-application/src/campaigns/snapshots.rs crates/app-application/src/lib.rs crates/app-application/src/models/mod.rs crates/app-application/src/ports/repositories.rs crates/app-application/tests/campaign_snapshots.rs crates/adapter-sqlite/src/saves.rs crates/adapter-sqlite/tests/repository_contracts.rs crates/adapter-http/src/routes/saves.rs crates/adapter-http/tests/saves_routes.rs src/api/saves.ts src/features/saves/model/buildRestoredSession.ts src/features/saves/model/__tests__/buildRestoredSession.test.ts src/features/saves/useSaves.ts
