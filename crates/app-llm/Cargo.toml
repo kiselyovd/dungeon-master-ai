@@ -19,4 +19,4 @@ genai = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-wiremock = "0.6"
+wiremock = "=0.6.5"
