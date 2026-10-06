@@ -66,7 +66,7 @@ impl CombatRepository for SqliteStore {
         &self,
         session_id: Uuid,
         mut projection: CombatProjection,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<CombatProjection, RepositoryError> {
         let mut transaction = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
@@ -83,8 +83,8 @@ impl CombatRepository for SqliteStore {
             .map(|id| id.0.to_string());
         sqlx::query(
             "INSERT INTO combat_encounters \
-             (id, session_id, round, active_turn, started_at, initiative, revision, projection) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (id, session_id, round, active_turn, started_at, initiative, revision, projection, ended_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )
         .bind(projection.encounter_id.to_string())
         .bind(session_id.to_string())
@@ -94,6 +94,7 @@ impl CombatRepository for SqliteStore {
         .bind(initiative_json)
         .bind(projection.revision as i64)
         .bind(projection_json)
+        .bind(if projection.snapshot.active{None}else{Some(chrono::Utc::now().to_rfc3339())})
         .execute(&mut *transaction)
         .await
         .map_err(|_| repository_error("create_combat"))?;
@@ -123,30 +124,43 @@ impl CombatRepository for SqliteStore {
             .commit()
             .await
             .map_err(|_| repository_error("commit_combat_create"))?;
-        Ok(())
+        Ok(projection)
     }
 
     #[tracing::instrument(skip_all, fields(encounter_id = %encounter_id, repository = "combat"))]
     async fn get(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|_| repository_error("begin_combat_read"))?;
         let row = sqlx::query(
             "SELECT projection FROM combat_encounters WHERE id = ?1 AND ended_at IS NULL",
         )
         .bind(encounter_id.to_string())
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|_| repository_error("get_combat"))?;
-        row.map(|row| {
-            let projection: Option<String> = row
-                .try_get("projection")
-                .map_err(|_| repository_error("decode_combat"))?;
-            projection
-                .ok_or_else(|| repository_error("missing_combat_projection"))
-                .and_then(|value| {
-                    serde_json::from_str(&value)
-                        .map_err(|_| repository_error("decode_combat_projection"))
-                })
-        })
-        .transpose()
+        let mut projection: Option<CombatProjection> = row
+            .map(|row| {
+                let projection: Option<String> = row
+                    .try_get("projection")
+                    .map_err(|_| repository_error("decode_combat"))?;
+                projection
+                    .ok_or_else(|| repository_error("missing_combat_projection"))
+                    .and_then(|value| {
+                        serde_json::from_str(&value)
+                            .map_err(|_| repository_error("decode_combat_projection"))
+                    })
+            })
+            .transpose()?;
+        if let Some(projection) = &mut projection {
+            crate::combat_binding::recover_loadouts(&mut tx, projection).await?;
+        }
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_combat_read"))?;
+        Ok(projection)
     }
 
     #[tracing::instrument(skip_all, fields(
@@ -228,7 +242,7 @@ async fn persist_projection(
         .map(|id| id.0.to_string());
     let updated = sqlx::query(
         "UPDATE combat_encounters SET revision = ?1, projection = ?2, round = ?3, \
-             active_turn = ?4 WHERE id = ?5 AND revision = ?6 AND ended_at IS NULL",
+             active_turn = ?4, ended_at = ?7 WHERE id = ?5 AND revision = ?6 AND ended_at IS NULL",
     )
     .bind(projection.revision as i64)
     .bind(projection_json)
@@ -236,6 +250,11 @@ async fn persist_projection(
     .bind(active_turn)
     .bind(projection.encounter_id.to_string())
     .bind(expected_revision as i64)
+    .bind(if projection.snapshot.active {
+        None
+    } else {
+        Some(chrono::Utc::now().to_rfc3339())
+    })
     .execute(&mut **transaction)
     .await
     .map_err(|_| repository_error("update_combat_projection"))?;

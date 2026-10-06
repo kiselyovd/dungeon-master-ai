@@ -75,6 +75,8 @@ pub struct Combatant {
     pub id: CombatantId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub character_id: Option<CharacterId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loadout: Option<super::loadout::CombatLoadout>,
     pub name: String,
     pub max_hp: i32,
     pub current_hp: i32,
@@ -96,6 +98,7 @@ impl Combatant {
         Self {
             id,
             character_id: None,
+            loadout: None,
             name,
             max_hp,
             current_hp,
@@ -114,6 +117,7 @@ impl Combatant {
 
     /// Apply damage after resistances have been computed. Returns effective HP change.
     pub fn apply_raw_damage(&mut self, amount: i32) -> i32 {
+        let amount = amount.max(0);
         let bleed_through = (amount - self.temp_hp).max(0);
         self.temp_hp = (self.temp_hp - amount).max(0);
         let actual = bleed_through.min(self.current_hp);

@@ -12,6 +12,9 @@ export type CombatCommand =
       attackModifier: number;
       damageDice: string;
       damageType: string;
+      weaponId?: string;
+      mode?: 'default' | 'melee' | 'thrown' | 'ranged';
+      twoHanded?: boolean;
     }
   | { kind: 'cast'; combatantId: string }
   | { kind: 'move'; combatantId: string; x: number; y: number }
@@ -23,9 +26,9 @@ function commandArgs(command: CombatCommand): Record<string, unknown> {
       return {
         attacker_id: command.attackerId,
         target_id: command.targetId,
-        attack_modifier: command.attackModifier,
-        damage_dice: command.damageDice,
-        damage_type: command.damageType,
+        ...(command.weaponId ? { weapon_id: command.weaponId } : {}),
+        ...(command.mode ? { mode: command.mode } : {}),
+        ...(command.twoHanded !== undefined ? { two_handed: command.twoHanded } : {}),
       };
     case 'cast':
     case 'end_turn':
@@ -47,7 +50,7 @@ export async function sendCombatCommand(input: {
     headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
     body: JSON.stringify({
       encounter_id: input.encounterId,
-      action_type: input.command.kind,
+      action_type: input.command.kind === 'attack' ? 'weapon_attack' : input.command.kind,
       args: commandArgs(input.command),
       request_id: input.commandId,
       expected_revision: input.revision,

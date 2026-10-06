@@ -4,6 +4,13 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CombatActionCommand {
+    WeaponAttack {
+        attacker: CombatantId,
+        target: CombatantId,
+        weapon_id: Option<String>,
+        mode: app_domain::combat::loadout::WeaponMode,
+        two_handed: bool,
+    },
     Attack {
         attacker: CombatantId,
         target: CombatantId,

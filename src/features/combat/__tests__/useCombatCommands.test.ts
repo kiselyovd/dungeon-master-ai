@@ -91,9 +91,9 @@ describe('useCombatCommands', () => {
         }),
     );
     const { result } = renderHook(() => useCombatCommands());
-    let request!: Promise<void>;
+    let request!: Promise<boolean>;
     act(() => {
-      request = result.current.move('hero', 2, 0) as Promise<void>;
+      request = result.current.move('hero', 2, 0) as Promise<boolean>;
     });
     act(() => {
       useStore.getState().session.beginTransition();
@@ -113,9 +113,9 @@ describe('useCombatCommands', () => {
         }),
     );
     const { result } = renderHook(() => useCombatCommands());
-    let request!: Promise<void>;
+    let request!: Promise<boolean>;
     act(() => {
-      request = result.current.move('hero', 2, 0) as Promise<void>;
+      request = result.current.move('hero', 2, 0) as Promise<boolean>;
     });
     expect(useStore.getState().combat.tokens[0]?.x).toBe(0);
     expect(Object.keys(useStore.getState().combat.pendingCommands)).toHaveLength(1);

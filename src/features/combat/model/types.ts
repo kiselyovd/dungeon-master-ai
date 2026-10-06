@@ -1,5 +1,28 @@
 export type AoeShape = 'cone' | 'sphere' | 'line' | 'cube';
 
+export interface WeaponAttackProfileDto {
+  weapon_id: string;
+  attack_bonus: number;
+  damage: { count: number; die: string; modifier: number };
+  damage_type: string;
+  reach_ft: number;
+  normal_range_ft: number;
+  long_range_ft: number;
+  ranged: boolean;
+  thrown: boolean;
+  ammunition: boolean;
+  two_handed: boolean;
+  versatile_damage: { count: number; die: string; modifier: number } | null;
+  heavy_disadvantage: boolean;
+}
+export interface CombatLoadoutDto {
+  default_weapon: string;
+  attacks: WeaponAttackProfileDto[];
+  quantities: Record<string, number>;
+  arrows: number;
+  shield: boolean;
+}
+
 export interface AoeTemplateEntry {
   id: string;
   shape: AoeShape;
@@ -14,6 +37,7 @@ export interface AoeTemplateEntry {
 export interface CombatToken {
   id: string;
   characterId?: string;
+  loadout?: CombatLoadoutDto;
   name: string;
   hp: number;
   maxHp: number;
@@ -47,6 +71,7 @@ export interface CombatProjectionDto {
     combatants: Array<{
       id: string;
       character_id?: string | null;
+      loadout?: CombatLoadoutDto | null;
       name: string;
       max_hp: number;
       current_hp: number;

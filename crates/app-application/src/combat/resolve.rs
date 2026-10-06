@@ -73,12 +73,28 @@ impl ResolveCombatAction {
             });
         }
 
-        let mut projection = self
+        let current = self
             .repository
             .get(command.encounter_id)
             .await
-            .map_err(|_| ResolveCombatError::Persistence)?
-            .ok_or(ResolveCombatError::NotFound)?;
+            .map_err(|_| ResolveCombatError::Persistence)?;
+        let mut projection = match current {
+            Some(projection) => projection,
+            None => {
+                if let Some(projection) = self
+                    .repository
+                    .find_action(command.encounter_id, &command.request_id, &signature)
+                    .await
+                    .map_err(repository_error)?
+                {
+                    return Ok(ResolveCombatResult {
+                        projection,
+                        duplicate: true,
+                    });
+                }
+                return Err(ResolveCombatError::NotFound);
+            }
+        };
         if projection.revision != command.expected_revision {
             // An exact simultaneous request may have committed after the
             // initial receipt read but before this projection read.
@@ -107,6 +123,19 @@ impl ResolveCombatAction {
         let mut resolver =
             CombatResolver::new(combatants, order, SeededRng::from_seed(command.rng_seed));
         let action = match command.action {
+            CombatActionCommand::WeaponAttack {
+                attacker,
+                target,
+                weapon_id,
+                mode,
+                two_handed,
+            } => CombatAction::WeaponAttack {
+                attacker,
+                target,
+                weapon_id,
+                mode,
+                two_handed,
+            },
             CombatActionCommand::Attack {
                 attacker,
                 target,
@@ -124,8 +153,18 @@ impl ResolveCombatAction {
             CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
             CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
         };
-        let events = resolver.resolve(action)?;
-        replace_resolved_state(&mut projection, resolver.combatants, resolver.order, events);
+        let first = resolver.resolve(action)?;
+        let mut events = vec![first];
+        super::automation::settle_npcs(&mut resolver, &mut events)
+            .map_err(|_| ResolveCombatError::InvalidState)?;
+        replace_resolved_state(
+            &mut projection,
+            resolver.combatants,
+            resolver.order,
+            Default::default(),
+        );
+        projection.events = events;
+        super::automation::finish_if_resolved(&mut projection);
 
         let committed = self
             .repository

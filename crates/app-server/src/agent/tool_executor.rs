@@ -375,13 +375,9 @@ async fn execute_start_combat(
         },
         events: Vec::new(),
     };
-    if let Err(e) = store.create(session_id, projection.clone()).await {
-        tracing::warn!(error = %e, "persistence failed in execute_start_combat");
-        return (json!({ "error": e.to_string() }), true);
-    }
-    let projection = match store.get(encounter_id).await {
-        Ok(Some(projection)) => projection,
-        _ => return (json!({"error":"combat_start_read_failed"}), true),
+    let projection = match store.create(session_id, projection).await {
+        Ok(projection) => projection,
+        Err(error) => return (json!({"error":error.to_string()}), true),
     };
     let ordered: Vec<Value> = projection
         .snapshot

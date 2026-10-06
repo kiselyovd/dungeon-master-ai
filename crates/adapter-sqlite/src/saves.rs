@@ -486,7 +486,7 @@ pub(crate) async fn capture_projection(
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let combat = sqlx::query_scalar::<_, Option<String>>(
+    let mut combat: Option<serde_json::Value> = sqlx::query_scalar::<_, Option<String>>(
         "SELECT projection FROM combat_encounters \
          WHERE session_id = ?1 AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
     )
@@ -498,6 +498,13 @@ pub(crate) async fn capture_projection(
     .map(|value| serde_json::from_str(&value))
     .transpose()
     .map_err(|_| repository_error("decode_snapshot_combat"))?;
+    if let Some(value) = &mut combat {
+        let mut projection = serde_json::from_value(value.clone())
+            .map_err(|_| repository_error("decode_snapshot_combat"))?;
+        crate::combat_binding::recover_loadouts(transaction, &mut projection).await?;
+        *value = serde_json::to_value(projection)
+            .map_err(|_| repository_error("encode_snapshot_combat"))?;
+    }
     let scene = sqlx::query(
         "SELECT id, title, subtitle, mode FROM scenes WHERE campaign_id = ?1 \
          ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -844,6 +851,14 @@ async fn restore_combat(
     let mut projection: app_application::models::combat::CombatProjection =
         serde_json::from_value(value.clone())
             .map_err(|_| repository_error("decode_snapshot_combat_projection"))?;
+    if let Some(scope) = &projection.campaign_scope {
+        app_application::combat::hero::recover_bound_loadouts(
+            scope.character_id,
+            &snapshot.projection.character,
+            &mut projection,
+        )
+        .map_err(repository_error)?;
+    }
     let previous: Option<i64> =
         sqlx::query_scalar("SELECT revision FROM combat_encounters WHERE id=?1")
             .bind(projection.encounter_id.to_string())

@@ -46,6 +46,11 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
     if (
       !isRecord(combatant) ||
       !(
+        combatant.loadout === undefined ||
+        combatant.loadout === null ||
+        validLoadout(combatant.loadout)
+      ) ||
+      !(
         combatant.character_id === undefined ||
         combatant.character_id === null ||
         typeof combatant.character_id === 'string'
@@ -86,6 +91,7 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
   return projection.snapshot.combatants.map((combatant) => ({
     id: combatant.id,
     ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
+    ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
     name: combatant.name,
     hp: combatant.current_hp,
     maxHp: combatant.max_hp,
@@ -100,4 +106,44 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
     reactionAvailable: combatant.budget.reaction,
     movementRemaining: combatant.budget.movement_ft,
   }));
+}
+
+function validLoadout(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    typeof value.default_weapon !== 'string' ||
+    !Array.isArray(value.attacks) ||
+    !isRecord(value.quantities) ||
+    !Number.isSafeInteger(value.arrows) ||
+    (value.arrows as number) < 0 ||
+    typeof value.shield !== 'boolean'
+  )
+    return false;
+  if (
+    !Object.values(value.quantities).every(
+      (quantity) => Number.isSafeInteger(quantity) && (quantity as number) >= 0,
+    )
+  )
+    return false;
+  const dice = (value: unknown) =>
+    isRecord(value) &&
+    Number.isSafeInteger(value.count) &&
+    (value.count as number) >= 0 &&
+    typeof value.die === 'string' &&
+    Number.isSafeInteger(value.modifier);
+  return value.attacks.every(
+    (attack) =>
+      isRecord(attack) &&
+      typeof attack.weapon_id === 'string' &&
+      Number.isSafeInteger(attack.attack_bonus) &&
+      dice(attack.damage) &&
+      typeof attack.damage_type === 'string' &&
+      ['reach_ft', 'normal_range_ft', 'long_range_ft'].every(
+        (key) => Number.isSafeInteger(attack[key]) && (attack[key] as number) >= 0,
+      ) &&
+      ['ranged', 'thrown', 'ammunition', 'two_handed', 'heavy_disadvantage'].every(
+        (key) => typeof attack[key] === 'boolean',
+      ) &&
+      (attack.versatile_damage === null || dice(attack.versatile_damage)),
+  );
 }

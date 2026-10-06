@@ -76,3 +76,21 @@ pub struct ResultEvents {
     pub spell_slots_consumed: Vec<SpellSlotConsumption>,
     pub ability_scores_checked: Vec<(CombatantId, AbilityScore, i32)>, // (who, which, DC)
 }
+
+impl ResultEvents {
+    pub fn append(&mut self, mut other: Self) {
+        self.rolls.append(&mut other.rolls);
+        self.damage.append(&mut other.damage);
+        self.healing.append(&mut other.healing);
+        self.conditions_added.append(&mut other.conditions_added);
+        self.conditions_removed
+            .append(&mut other.conditions_removed);
+        self.deaths.append(&mut other.deaths);
+        self.death_saves.append(&mut other.death_saves);
+        self.movement.append(&mut other.movement);
+        self.spell_slots_consumed
+            .append(&mut other.spell_slots_consumed);
+        self.ability_scores_checked
+            .append(&mut other.ability_scores_checked);
+    }
+}

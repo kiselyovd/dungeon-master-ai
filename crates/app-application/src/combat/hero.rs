@@ -25,6 +25,7 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
         sheet["ac"].as_i64().ok_or("combat_hero_invalid")? as i32,
     );
     actor.character_id = Some(CharacterId(character_id));
+    actor.loadout = Some(loadout_from_sheet(sheet)?);
     actor.dex_mod = ability_modifier(
         sheet["abilities"]["dex"]
             .as_i64()
@@ -58,6 +59,15 @@ pub fn bind_hero(
         .collect::<Vec<_>>();
     for (index, npc) in npcs.iter_mut().enumerate() {
         npc.character_id = None;
+        npc.loadout = Some(app_domain::combat::loadout::CombatLoadout {
+            default_weapon: "unarmed".into(),
+            attacks: vec![app_domain::combat::loadout::WeaponAttackProfile::unarmed(
+                0, 2,
+            )],
+            quantities: Default::default(),
+            arrows: 0,
+            shield: false,
+        });
         npc.position = Position {
             x: 9 + index as i32,
             y: 8,
@@ -87,5 +97,116 @@ pub fn bind_hero(
     projection.snapshot.current_combatant = Some(order.current().id);
     projection.snapshot.initiative = order.as_slice().to_vec();
     projection.snapshot.combatants = npcs;
+    let (actors, order) =
+        super::projection::resolver_state(&projection.snapshot).ok_or("combat_state_invalid")?;
+    let mut engine = app_domain::combat::resolver::CombatResolver::new(
+        actors,
+        order,
+        SeededRng::from_seed(seed),
+    );
+    let mut events = Vec::new();
+    super::automation::settle_npcs(&mut engine, &mut events)?;
+    super::projection::replace_resolved_state(
+        projection,
+        engine.combatants,
+        engine.order,
+        Default::default(),
+    );
+    projection.revision = 0;
+    projection.events = events;
+    super::automation::finish_if_resolved(projection);
     Ok(())
+}
+
+/// Upgrade only missing profiles; preserve the accepted encounter timeline.
+pub fn recover_bound_loadouts(
+    character_id: Uuid,
+    sheet: &Value,
+    projection: &mut crate::models::combat::CombatProjection,
+) -> Result<(), &'static str> {
+    for actor in &mut projection.snapshot.combatants {
+        if actor.loadout.is_some() {
+            continue;
+        }
+        actor.loadout = Some(if let Some(owner) = actor.character_id {
+            if owner.0 != character_id {
+                return Err("combat_hero_identity_mismatch");
+            }
+            loadout_from_sheet(sheet)?
+        } else {
+            app_domain::combat::loadout::CombatLoadout {
+                default_weapon: "unarmed".into(),
+                attacks: vec![app_domain::combat::loadout::WeaponAttackProfile::unarmed(
+                    0, 2,
+                )],
+                quantities: Default::default(),
+                arrows: 0,
+                shield: false,
+            }
+        });
+    }
+    Ok(())
+}
+
+fn loadout_from_sheet(
+    sheet: &Value,
+) -> Result<app_domain::combat::loadout::CombatLoadout, &'static str> {
+    use app_domain::combat::loadout::{CombatLoadout, LoadoutInput};
+    let class = sheet["heroClass"].as_str().ok_or("combat_hero_invalid")?;
+    let mut owned = Vec::new();
+    let mut arrows = 0u32;
+    for item in sheet["inventory"]
+        .as_array()
+        .ok_or("combat_hero_inventory_invalid")?
+    {
+        let id = item["id"].as_str().ok_or("combat_hero_inventory_invalid")?;
+        let count = u32::try_from(
+            item["count"]
+                .as_u64()
+                .ok_or("combat_hero_inventory_invalid")?,
+        )
+        .map_err(|_| "combat_hero_inventory_invalid")?;
+        let normalized = id.strip_prefix(&format!("{class}-")).unwrap_or(id);
+        let ammunition = match normalized {
+            "arrows-20" => count.checked_mul(20),
+            "arrows" => Some(count),
+            _ => Some(0),
+        }
+        .ok_or("combat_hero_inventory_invalid")?;
+        arrows = arrows
+            .checked_add(ammunition)
+            .ok_or("combat_hero_inventory_invalid")?;
+        owned.push((id.into(), count));
+    }
+    if let Some(saved) = sheet.get("combatResources").and_then(|r| r.get("arrows")) {
+        arrows = u32::try_from(saved.as_u64().ok_or("combat_resources_invalid")?)
+            .map_err(|_| "combat_resources_invalid")?
+            .min(arrows);
+    }
+    let mut loadout = CombatLoadout::derive(LoadoutInput {
+        class_id: class,
+        level: sheet["level"].as_u64().ok_or("combat_hero_invalid")? as u8,
+        strength: sheet["abilities"]["str"]
+            .as_i64()
+            .ok_or("combat_hero_invalid")? as i32,
+        dexterity: sheet["abilities"]["dex"]
+            .as_i64()
+            .ok_or("combat_hero_invalid")? as i32,
+        owned,
+        arrows,
+    })?;
+    if let Some(saved) = sheet
+        .get("combatResources")
+        .and_then(|r| r.get("quantities"))
+        .and_then(Value::as_object)
+    {
+        for (id, quantity) in &mut loadout.quantities {
+            if let Some(value) = saved.get(id) {
+                *quantity = u32::try_from(value.as_u64().ok_or("combat_resources_invalid")?)
+                    .map_err(|_| "combat_resources_invalid")?
+                    .min(*quantity);
+            }
+        }
+    }
+    Ok(loadout)
 }

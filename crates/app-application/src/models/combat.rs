@@ -1,4 +1,4 @@
-use app_domain::combat::combatant::Combatant;
+pub use app_domain::combat::combatant::Combatant;
 use app_domain::combat::initiative::InitiativeEntry;
 use app_domain::combat::result_events::ResultEvents;
 use app_domain::combat::types::CombatantId;

@@ -9,12 +9,24 @@ use crate::models::combat::{CombatProjection, CombatSnapshot};
 pub fn resolver_state(
     snapshot: &CombatSnapshot,
 ) -> Option<(HashMap<CombatantId, Combatant>, InitiativeOrder)> {
-    let combatants = snapshot
+    let combatants: HashMap<CombatantId, Combatant> = snapshot
         .combatants
         .iter()
         .cloned()
         .map(|combatant| (combatant.id, combatant))
         .collect();
+    let ids = snapshot
+        .initiative
+        .iter()
+        .map(|entry| entry.id)
+        .collect::<std::collections::HashSet<_>>();
+    if combatants.len() != snapshot.combatants.len()
+        || ids.len() != snapshot.initiative.len()
+        || ids.len() != combatants.len()
+        || ids.iter().any(|id| !combatants.contains_key(id))
+    {
+        return None;
+    }
     let order = InitiativeOrder::restore(
         snapshot.initiative.clone(),
         snapshot.current_combatant?,

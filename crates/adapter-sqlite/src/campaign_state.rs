@@ -8,11 +8,6 @@ pub(crate) async fn snapshot_character(
     id: CampaignId,
     supplied: Value,
 ) -> Result<Value, RepositoryError> {
-    let bound:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM combat_encounters e JOIN sessions s ON s.id=e.session_id WHERE s.campaign_id=?1 AND e.ended_at IS NULL AND json_type(e.projection,'$.campaign_scope')='object')").bind(id.0.to_string()).fetch_one(&mut **tx).await.map_err(|_|repository_error("read_checkpoint_combat_binding"))?;
-    if bound
-        || supplied
-            .as_object()
-            .is_some_and(|document| document.is_empty())
     {
         let current: Option<String> = sqlx::query_scalar(
             "SELECT character_json FROM campaign_characters WHERE campaign_id = ?1",

@@ -34,6 +34,7 @@ import { resolveAppRoute } from '../features/campaigns/model/route';
 import { useCampaigns } from '../features/campaigns/useCampaigns';
 import { isPlayerToken } from '../features/combat/model/selectors';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
+import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
 import { useUpdater } from '../hooks/useUpdater';
@@ -225,6 +226,9 @@ function App() {
   const combatRound = useStore((s) => s.combat.round);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const combatCommands = useCombatCommands();
+  const [weaponAttackScope, setWeaponAttackScope] = useState<string | null>(null);
+  const combatEncounterId = useStore((s) => s.combat.encounterId);
+  const sessionGeneration = useStore((s) => s.session.transitionGeneration);
   const pcName = useStore((s) => s.pc.name);
   const pcCharacterId = useStore((s) => s.pc.characterId);
   const pcTokenId =
@@ -233,6 +237,8 @@ function App() {
   // null or no PC token is found we keep the bar hidden; a lookup miss does not
   // force-show it. [W1.6]
   const showActionBar = combatActive && pcTokenId !== null && currentTurnId === pcTokenId;
+  const ownedCombatToken = combatTokens.find((token) => token.id === pcTokenId);
+  const currentAttackScope = `${combatEncounterId}:${ownedCombatToken?.id}:${sessionGeneration}`;
   const journalEntries = useStore((s) => s.journal.entries);
   const journalOpen = useStore((s) => s.journal.isOpen);
   const closeJournal = useStore((s) => s.journal.close);
@@ -598,6 +604,11 @@ function App() {
             {showActionBar && (
               <ActionBar
                 pending={combatCommands.pending}
+                onAttack={
+                  ownedCombatToken?.loadout
+                    ? () => setWeaponAttackScope(currentAttackScope)
+                    : undefined
+                }
                 onCast={() => void combatCommands.cast()}
                 onEndTurn={() => void combatCommands.endTurn()}
                 onIntent={(text) => {
@@ -605,6 +616,20 @@ function App() {
                 }}
               />
             )}
+            {weaponAttackScope === currentAttackScope &&
+              showActionBar &&
+              ownedCombatToken?.loadout && (
+                <WeaponAttackDialog
+                  key={currentAttackScope}
+                  actor={ownedCombatToken}
+                  targets={combatTokens.filter(
+                    (token) =>
+                      token.id !== ownedCombatToken.id && !token.characterId && token.hp > 0,
+                  )}
+                  onClose={() => setWeaponAttackScope(null)}
+                  onAttack={combatCommands.weaponAttack}
+                />
+              )}
             <CharFab
               onOpen={() => setCharacterSheetOpen(true)}
               onOpenWizard={() => setWizardReopen(true)}

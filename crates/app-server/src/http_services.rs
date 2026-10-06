@@ -379,6 +379,19 @@ struct ActorActionArgs {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WeaponActionArgs {
+    attacker_id: Uuid,
+    target_id: Uuid,
+    #[serde(default)]
+    weapon_id: Option<String>,
+    #[serde(default)]
+    mode: app_domain::combat::loadout::WeaponMode,
+    #[serde(default)]
+    two_handed: bool,
+}
+
+#[derive(Debug, Deserialize)]
 struct MoveActionArgs {
     combatant_id: Uuid,
     x: i32,
@@ -410,14 +423,7 @@ impl CombatHttpService for AppStateCombatHttpService {
             .await
             .map_err(|_| HttpServiceError::Internal {
                 code: "combat_start_failed",
-            })?;
-        repository
-            .get(encounter_id)
-            .await
-            .map_err(|_| HttpServiceError::Internal {
-                code: "combat_start_read_failed",
-            })?
-            .ok_or(HttpServiceError::NotFound)
+            })
     }
 
     async fn action(
@@ -425,6 +431,21 @@ impl CombatHttpService for AppStateCombatHttpService {
         command: HttpCombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
         let action = match command.action_type.as_str() {
+            "weapon_attack" => {
+                let args: WeaponActionArgs =
+                    serde_json::from_value(command.args).map_err(|_| {
+                        HttpServiceError::BadRequest {
+                            code: "combat_weapon_intention_invalid",
+                        }
+                    })?;
+                CombatActionCommand::WeaponAttack {
+                    attacker: CombatantId(args.attacker_id),
+                    target: CombatantId(args.target_id),
+                    weapon_id: args.weapon_id,
+                    mode: args.mode,
+                    two_handed: args.two_handed,
+                }
+            }
             "attack" => {
                 let args: AttackActionArgs =
                     serde_json::from_value(command.args).map_err(|_| {

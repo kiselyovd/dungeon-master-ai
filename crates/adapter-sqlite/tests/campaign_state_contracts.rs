@@ -104,9 +104,20 @@ async fn restore_updates_current_character_instead_of_selecting_newest_save() {
         character: hero("Mira"),
     };
     let first = store.create_snapshot(record.clone()).await.unwrap();
+    let changed = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: committed.character_id.unwrap(),
+            expected_revision: first.snapshot.revision,
+            causation_id: "change-hero".into(),
+            character: hero("Changed"),
+        })
+        .await
+        .unwrap();
     let mut second_record = record;
     second_record.id = Uuid::new_v4();
-    second_record.expected_revision = first.snapshot.revision;
+    second_record.expected_revision = changed.campaign.revision;
     second_record.causation_id = "save-after".into();
     second_record.character = hero("Changed");
     let second = store.create_snapshot(second_record).await.unwrap();

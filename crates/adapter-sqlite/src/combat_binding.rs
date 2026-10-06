@@ -7,6 +7,29 @@ use app_application::ports::repositories::RepositoryError;
 use sqlx::{Row, Sqlite, Transaction};
 use uuid::Uuid;
 
+pub(crate) async fn recover_loadouts(
+    tx: &mut Transaction<'_, Sqlite>,
+    projection: &mut CombatProjection,
+) -> Result<(), RepositoryError> {
+    let Some(scope) = &projection.campaign_scope else {
+        return Ok(());
+    };
+    if projection
+        .snapshot
+        .combatants
+        .iter()
+        .all(|actor| actor.loadout.is_some())
+    {
+        return Ok(());
+    }
+    let raw: Option<String> = sqlx::query_scalar("SELECT cc.character_json FROM campaign_characters cc JOIN sessions s ON s.campaign_id=cc.campaign_id WHERE cc.campaign_id=?1 AND cc.character_id=?2 AND s.id=?3")
+        .bind(scope.campaign_id.to_string()).bind(scope.character_id.to_string()).bind(scope.session_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_legacy_combat_sheet"))?;
+    let sheet = serde_json::from_str(&raw.ok_or_else(|| repository_error("combat_hero_missing"))?)
+        .map_err(|_| repository_error("decode_legacy_combat_sheet"))?;
+    app_application::combat::hero::recover_bound_loadouts(scope.character_id, &sheet, projection)
+        .map_err(repository_error)
+}
+
 pub(crate) async fn bind_start(
     tx: &mut Transaction<'_, Sqlite>,
     session_id: Uuid,
@@ -44,6 +67,15 @@ pub(crate) async fn bind_start(
         Uuid::new_v4().as_u128() as u64,
     )
     .map_err(repository_error)?;
+    let hero = projection
+        .snapshot
+        .combatants
+        .iter()
+        .find(|actor| actor.character_id.is_some_and(|id| id.0 == character_id))
+        .ok_or_else(|| repository_error("combat_hero_missing"))?;
+    let mut sheet = current.projection.character.clone();
+    apply_hero_resources(&mut sheet, hero)?;
+    crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
     projection.campaign_scope = Some(
         advance(
             tx,
@@ -98,7 +130,7 @@ pub(crate) async fn sync_hero(
     {
         return Err(repository_error("combat_hero_stats_changed"));
     }
-    sheet["hp"] = serde_json::json!(hero.current_hp);
+    apply_hero_resources(&mut sheet, hero)?;
     crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
     projection.campaign_scope = Some(
         advance(
@@ -110,6 +142,25 @@ pub(crate) async fn sync_hero(
         )
         .await?,
     );
+    Ok(())
+}
+
+fn apply_hero_resources(
+    sheet: &mut serde_json::Value,
+    hero: &app_application::models::combat::Combatant,
+) -> Result<(), RepositoryError> {
+    sheet["hp"] = serde_json::json!(hero.current_hp);
+    if let Some(loadout) = &hero.loadout {
+        if !sheet
+            .get("combatResources")
+            .is_some_and(serde_json::Value::is_object)
+        {
+            sheet["combatResources"] = serde_json::json!({});
+        }
+        sheet["combatResources"]["arrows"] = serde_json::json!(loadout.arrows);
+        sheet["combatResources"]["quantities"] = serde_json::to_value(&loadout.quantities)
+            .map_err(|_| repository_error("encode_combat_resources"))?;
+    }
     Ok(())
 }
 

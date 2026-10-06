@@ -169,7 +169,7 @@ pub trait CombatRepository: Send + Sync {
         &self,
         session_id: Uuid,
         projection: CombatProjection,
-    ) -> Result<(), RepositoryError>;
+    ) -> Result<CombatProjection, RepositoryError>;
 
     async fn get(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError>;
 

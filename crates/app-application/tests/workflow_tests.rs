@@ -684,10 +684,10 @@ impl CombatRepository for FakeCombatRepository {
         &self,
         _session_id: Uuid,
         projection: CombatProjection,
-    ) -> Result<(), RepositoryError> {
-        *self.projection.lock().unwrap() = projection;
+    ) -> Result<CombatProjection, RepositoryError> {
+        *self.projection.lock().unwrap() = projection.clone();
         self.writes.fetch_add(1, Ordering::SeqCst);
-        Ok(())
+        Ok(projection)
     }
 
     async fn get(&self, _encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError> {

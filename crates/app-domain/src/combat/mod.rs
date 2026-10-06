@@ -6,6 +6,7 @@ pub mod conditions;
 pub mod damage;
 pub mod healing;
 pub mod initiative;
+pub mod loadout;
 pub mod resolver;
 pub mod result_events;
 pub mod saving_throw;

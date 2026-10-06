@@ -13,13 +13,13 @@ export function useCombatCommands() {
   const execute = useCallback(async (command: CombatCommand) => {
     const state = useStore.getState();
     const combat = state.combat;
-    if (!combat.encounterId || combat.revision < 0) return;
+    if (!combat.encounterId || combat.revision < 0) return false;
     if (state.pc.characterId) {
       const owned = combat.tokens.find((token) => token.characterId === state.pc.characterId);
       const actorId = command.kind === 'attack' ? command.attackerId : command.combatantId;
-      if (!owned || owned.id !== actorId || combat.currentTurnId !== owned.id) return;
+      if (!owned || owned.id !== actorId || combat.currentTurnId !== owned.id) return false;
     }
-    if (state.session.mutationId || Object.keys(combat.pendingCommands).length > 0) return;
+    if (state.session.mutationId || Object.keys(combat.pendingCommands).length > 0) return false;
     const scope = {
       campaignId: state.session.activeCampaignId,
       sessionId: state.session.activeSessionId,
@@ -62,7 +62,7 @@ export function useCombatCommands() {
     try {
       const projection = await sendCombatCommand(input);
       if (retry.current?.input.commandId === commandId) retry.current = null;
-      if (!isCurrent() || projection.encounter_id !== input.encounterId) return;
+      if (!isCurrent() || projection.encounter_id !== input.encounterId) return false;
       const accepted = applyCombatOutcome(projection);
       console.debug('[combat.command]', {
         commandId,
@@ -72,6 +72,7 @@ export function useCombatCommands() {
         incomingRevision: projection.revision,
         transition: accepted ? 'reconciled' : 'stale',
       });
+      return accepted;
     } catch {
       console.warn('[combat.command]', {
         code: 'combat_command_rejected',
@@ -80,6 +81,7 @@ export function useCombatCommands() {
         actionKind: command.kind,
         currentRevision: combat.revision,
       });
+      return false;
     } finally {
       useStore.getState().combat.settleCommand(commandId);
     }
@@ -113,6 +115,30 @@ export function useCombatCommands() {
     },
     [execute],
   );
+  const weaponAttack = useCallback(
+    (
+      targetId: string,
+      weaponId: string,
+      mode: 'default' | 'melee' | 'thrown' | 'ranged',
+      twoHanded: boolean,
+    ) => {
+      const attackerId = useStore.getState().combat.currentTurnId;
+      return attackerId
+        ? execute({
+            kind: 'attack',
+            attackerId,
+            targetId,
+            weaponId,
+            mode,
+            twoHanded,
+            attackModifier: 0,
+            damageDice: '',
+            damageType: '',
+          })
+        : Promise.resolve(false);
+    },
+    [execute],
+  );
 
-  return { pending, move, endTurn, cast, attack };
+  return { pending, move, endTurn, cast, attack, weaponAttack };
 }
