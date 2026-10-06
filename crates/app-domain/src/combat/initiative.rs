@@ -17,6 +17,23 @@ pub struct InitiativeOrder {
 }
 
 impl InitiativeOrder {
+    /// Rehydrate an already ordered encounter without advancing turns or
+    /// rebuilding its round counter from one.
+    pub fn restore(
+        entries: Vec<InitiativeEntry>,
+        current: CombatantId,
+        round: u32,
+    ) -> Option<Self> {
+        if round == 0 {
+            return None;
+        }
+        let current_index = entries.iter().position(|entry| entry.id == current)?;
+        Some(Self {
+            entries,
+            current_index,
+            round,
+        })
+    }
     pub fn build(mut entries: Vec<InitiativeEntry>) -> Self {
         // Sort descending by roll, then descending by DEX for ties.
         entries.sort_by(|a, b| {

@@ -826,6 +826,10 @@ async fn restore_combat(
     transaction: &mut Transaction<'_, Sqlite>,
     snapshot: &CampaignSnapshot,
 ) -> Result<(), RepositoryError> {
+    // Every encounter in this session belongs to the superseded timeline,
+    // including an encounter absent from the restored snapshot.
+    sqlx::query("DELETE FROM combat_action_receipts WHERE encounter_id IN (SELECT id FROM combat_encounters WHERE session_id=?1)")
+        .bind(snapshot.session_id.0.to_string()).execute(&mut **transaction).await.map_err(|_|repository_error("clear_snapshot_combat_receipts"))?;
     sqlx::query(
         "UPDATE combat_encounters SET ended_at = ?1 WHERE session_id = ?2 AND ended_at IS NULL",
     )
@@ -837,9 +841,30 @@ async fn restore_combat(
     let Some(value) = &snapshot.projection.combat else {
         return Ok(());
     };
-    let projection: app_application::models::combat::CombatProjection =
+    let mut projection: app_application::models::combat::CombatProjection =
         serde_json::from_value(value.clone())
             .map_err(|_| repository_error("decode_snapshot_combat_projection"))?;
+    let previous: Option<i64> =
+        sqlx::query_scalar("SELECT revision FROM combat_encounters WHERE id=?1")
+            .bind(projection.encounter_id.to_string())
+            .fetch_optional(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_restored_combat_revision"))?;
+    let previous = u64::try_from(previous.unwrap_or(0))
+        .map_err(|_| repository_error("combat_revision_invalid"))?;
+    projection.revision = projection
+        .revision
+        .max(previous)
+        .checked_add(1)
+        .filter(|revision| *revision <= i64::MAX as u64)
+        .ok_or_else(|| repository_error("combat_revision_invalid"))?;
+    // Old receipt payloads belong to the superseded timeline. A fresh combat
+    // revision prevents their original expected revisions from being reapplied.
+    sqlx::query("DELETE FROM combat_action_receipts WHERE encounter_id=?1")
+        .bind(projection.encounter_id.to_string())
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("clear_restored_combat_receipts"))?;
     let initiative = serde_json::to_string(&projection.snapshot.initiative)
         .map_err(|_| repository_error("encode_snapshot_initiative"))?;
     let active_turn = projection

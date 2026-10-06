@@ -149,6 +149,22 @@ pub trait SnapshotRepository: Send + Sync {
 
 #[async_trait]
 pub trait CombatRepository: Send + Sync {
+    async fn find_action(
+        &self,
+        encounter_id: Uuid,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<Option<CombatProjection>, RepositoryError>;
+
+    /// Commit the projection and its immutable request/result receipt in the
+    /// same transaction. A simultaneous exact duplicate returns that receipt.
+    async fn commit_action(
+        &self,
+        expected_revision: u64,
+        projection: CombatProjection,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<crate::models::combat::CombatActionCommit, RepositoryError>;
     async fn create(
         &self,
         session_id: Uuid,

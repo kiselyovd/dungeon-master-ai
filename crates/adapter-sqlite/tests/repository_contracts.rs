@@ -127,7 +127,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 5);
+    assert_eq!(migration_count, 6);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -151,6 +151,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         "scenes",
         "combat",
         "combat_tokens",
+        "combat_action_receipts",
         "journal_entries",
         "npc_memory",
         "srd_chunks",

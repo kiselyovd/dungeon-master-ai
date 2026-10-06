@@ -1,16 +1,50 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useStore } from '../../state/useStore';
 import { type CombatCommand, sendCombatCommand } from './model/commands';
 
-let commandSequence = 1;
-
 export function useCombatCommands() {
   const pending = useStore((state) => Object.keys(state.combat.pendingCommands).length > 0);
+  const retry = useRef<{
+    signature: string;
+    input: Parameters<typeof sendCombatCommand>[0];
+  } | null>(null);
 
   const execute = useCallback(async (command: CombatCommand) => {
-    const combat = useStore.getState().combat;
+    const state = useStore.getState();
+    const combat = state.combat;
     if (!combat.encounterId || combat.revision < 0) return;
-    const commandId = `combat-${commandSequence++}`;
+    if (state.session.mutationId || Object.keys(combat.pendingCommands).length > 0) return;
+    const scope = {
+      campaignId: state.session.activeCampaignId,
+      sessionId: state.session.activeSessionId,
+      generation: state.session.transitionGeneration,
+    };
+    const signature = JSON.stringify({
+      ...scope,
+      encounterId: combat.encounterId,
+      revision: combat.revision,
+      command,
+    });
+    const input =
+      retry.current?.signature === signature
+        ? retry.current.input
+        : {
+            encounterId: combat.encounterId,
+            revision: combat.revision,
+            commandId: crypto.randomUUID(),
+            command: structuredClone(command),
+          };
+    retry.current = { signature, input };
+    const commandId = input.commandId;
+    const isCurrent = () => {
+      const current = useStore.getState();
+      return (
+        current.session.activeCampaignId === scope.campaignId &&
+        current.session.activeSessionId === scope.sessionId &&
+        current.session.transitionGeneration === scope.generation &&
+        current.combat.encounterId === input.encounterId
+      );
+    };
     combat.markCommandPending(commandId, command.kind);
     console.debug('[combat.command]', {
       commandId,
@@ -20,12 +54,9 @@ export function useCombatCommands() {
       transition: 'pending',
     });
     try {
-      const projection = await sendCombatCommand({
-        encounterId: combat.encounterId,
-        revision: combat.revision,
-        commandId,
-        command,
-      });
+      const projection = await sendCombatCommand(input);
+      if (retry.current?.input.commandId === commandId) retry.current = null;
+      if (!isCurrent() || projection.encounter_id !== input.encounterId) return;
       const accepted = useStore.getState().combat.replaceProjection(projection);
       console.debug('[combat.command]', {
         commandId,

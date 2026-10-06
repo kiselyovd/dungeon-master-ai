@@ -611,12 +611,75 @@ async fn agent_turn_surfaces_provider_persistence_cancellation_and_duplicate_fai
 
 struct FakeCombatRepository {
     projection: Mutex<CombatProjection>,
+    receipts: Mutex<std::collections::HashMap<(Uuid, String), (String, CombatProjection)>>,
     writes: AtomicUsize,
     fail_write: AtomicBool,
 }
 
 #[async_trait]
 impl CombatRepository for FakeCombatRepository {
+    async fn find_action(
+        &self,
+        encounter_id: Uuid,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<Option<CombatProjection>, RepositoryError> {
+        match self
+            .receipts
+            .lock()
+            .unwrap()
+            .get(&(encounter_id, request_id.into()))
+        {
+            Some((original, projection)) if original == signature => Ok(Some(projection.clone())),
+            Some(_) => Err(RepositoryError::Operation {
+                operation: "combat_receipt",
+                code: "combat_request_mismatch",
+            }),
+            None => Ok(None),
+        }
+    }
+    async fn commit_action(
+        &self,
+        expected_revision: u64,
+        projection: CombatProjection,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<app_application::models::combat::CombatActionCommit, RepositoryError> {
+        let mut receipts = self.receipts.lock().unwrap();
+        let key = (projection.encounter_id, request_id.into());
+        if let Some((original, recorded)) = receipts.get(&key) {
+            if original != signature {
+                return Err(RepositoryError::Operation {
+                    operation: "combat_receipt",
+                    code: "combat_request_mismatch",
+                });
+            }
+            return Ok(app_application::models::combat::CombatActionCommit {
+                projection: recorded.clone(),
+                duplicate: true,
+            });
+        }
+        if self.fail_write.load(Ordering::SeqCst) {
+            return Err(RepositoryError::Operation {
+                operation: "combat_cas",
+                code: "injected",
+            });
+        }
+        let mut current = self.projection.lock().unwrap();
+        if current.revision != expected_revision {
+            return Err(RepositoryError::RevisionConflict {
+                expected: expected_revision,
+                actual: current.revision,
+            });
+        }
+        *current = projection.clone();
+        self.writes.fetch_add(1, Ordering::SeqCst);
+        receipts.insert(key, (signature.into(), projection.clone()));
+        Ok(app_application::models::combat::CombatActionCommit {
+            projection,
+            duplicate: false,
+        })
+    }
     async fn create(
         &self,
         _session_id: Uuid,
@@ -667,6 +730,7 @@ fn combat_fixture() -> (Arc<FakeCombatRepository>, CombatantId, CombatantId, Uui
     let attacker = CombatantId(Uuid::new_v4());
     let target = CombatantId(Uuid::new_v4());
     let repository = Arc::new(FakeCombatRepository {
+        receipts: Mutex::new(std::collections::HashMap::new()),
         projection: Mutex::new(CombatProjection {
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,

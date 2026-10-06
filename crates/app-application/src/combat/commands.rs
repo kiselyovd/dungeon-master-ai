@@ -2,7 +2,7 @@ use app_domain::combat::types::{CombatantId, DamageType, Position};
 use app_domain::dice::DiceExpr;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CombatActionCommand {
     Attack {
         attacker: CombatantId,

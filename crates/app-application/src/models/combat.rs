@@ -7,6 +7,12 @@ use uuid::Uuid;
 
 pub const COMBAT_PROJECTION_VERSION: u16 = 1;
 
+#[derive(Debug, Clone)]
+pub struct CombatActionCommit {
+    pub projection: CombatProjection,
+    pub duplicate: bool,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CombatSnapshot {
     pub active: bool,
