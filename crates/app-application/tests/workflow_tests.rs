@@ -94,6 +94,7 @@ struct FakeContext;
 impl AgentContextPort for FakeContext {
     async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
         Ok(AgentContext {
+            adventure_active: false,
             system_prompt: request.base_system_prompt,
             combat_active: false,
         })
@@ -202,7 +203,7 @@ fn command(request_id: &str) -> AgentTurnCommand {
 }
 
 fn service(
-    provider: Arc<FakeProvider>,
+    provider: Arc<dyn LlmProvider>,
     messages: Arc<FakeMessages>,
     dispatcher: Arc<FakeToolDispatcher>,
     events: Arc<dyn ApplicationEventSink>,
@@ -218,6 +219,143 @@ fn service(
         cancellation,
         config(),
     ))
+}
+
+#[tokio::test]
+async fn recovered_final_reply_is_delivered_without_generating_or_appending_again() {
+    let provider = Arc::new(FakeProvider::failing());
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let events = service(
+        provider.clone(),
+        messages.clone(),
+        dispatcher,
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+    )
+    .execute_recovered(
+        command("final-checkpoint"),
+        Some(vec![
+            ChatMessage::user_text("act"),
+            ChatMessage::Assistant {
+                content: "Confirmed reply".into(),
+            },
+        ]),
+    )
+    .collect::<Vec<_>>()
+    .await;
+    assert!(events
+        .iter()
+        .any(|event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text=="Confirmed reply")));
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    assert!(messages.values.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn provider_eof_does_not_commit_an_unfinished_assistant_reply() {
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let output = service(
+        Arc::new(FakeProvider::scripted(vec![vec![ChatChunk::TextDelta {
+            text: "Unfinished draft".into(),
+        }]])),
+        messages.clone(),
+        dispatcher,
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+    )
+    .execute(command("partial-eof"))
+    .collect::<Vec<_>>()
+    .await;
+    assert_eq!(output.last(), Some(&Err(AgentTurnError::Provider)));
+    assert!(!output
+        .iter()
+        .any(|event| matches!(event, Ok(AgentEvent::AgentDone { .. }))));
+    assert!(matches!(
+        messages.values.lock().unwrap().as_slice(),
+        [ChatMessage::User { .. }]
+    ));
+}
+
+struct HangingProvider {
+    before_stream: bool,
+    entered: tokio::sync::Notify,
+}
+#[async_trait]
+impl LlmProvider for HangingProvider {
+    async fn stream_chat(&self, _: ChatRequest) -> Result<ChunkStream, LlmError> {
+        self.entered.notify_one();
+        if self.before_stream {
+            futures::future::pending().await
+        } else {
+            Ok(stream::pending().boxed())
+        }
+    }
+    fn name(&self) -> &'static str {
+        "hanging"
+    }
+    fn active_model(&self) -> &str {
+        "hanging"
+    }
+    fn capabilities_for_model(&self, _: &str) -> Capabilities {
+        Capabilities::default()
+    }
+}
+#[tokio::test]
+async fn cancellation_wakes_both_provider_connection_and_chunk_waits() {
+    for before_stream in [true, false] {
+        let provider = Arc::new(HangingProvider {
+            before_stream,
+            entered: tokio::sync::Notify::new(),
+        });
+        let cancellation =
+            Arc::new(app_application::agent::operations::TurnCancellation::default());
+        let dispatcher = Arc::new(FakeToolDispatcher {
+            execution: ToolExecution {
+                result: json!({}),
+                is_error: false,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+            calls: AtomicUsize::new(0),
+        });
+        let events = service(
+            provider.clone(),
+            Arc::new(FakeMessages::default()),
+            dispatcher,
+            Arc::new(NoopApplicationEventSink),
+            cancellation.clone(),
+        )
+        .execute(command("hanging"));
+        let task = tokio::spawn(events.collect::<Vec<_>>());
+        provider.entered.notified().await;
+        cancellation.cancel();
+        let output = tokio::time::timeout(std::time::Duration::from_millis(500), task)
+            .await
+            .expect("cancel must wake provider wait")
+            .unwrap();
+        assert_eq!(output.last(), Some(&Err(AgentTurnError::Cancelled)));
+    }
 }
 
 fn event_kind(event: &AgentEvent) -> &'static str {

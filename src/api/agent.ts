@@ -20,6 +20,8 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const startedAt = performance.now();
   const url = await backendUrl('/agent/turn');
   const body = JSON.stringify({
+    request_id: opts.requestId ?? crypto.randomUUID(),
+    resume: opts.resume ?? false,
     campaign_id: opts.campaignId,
     session_id: opts.sessionId,
     player_message: opts.playerMessage,
@@ -50,6 +52,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   let byteCount = 0;
   let eventSequence = 0;
   let completed = false;
+  let terminal = false;
 
   const dispatch = (rawEvents: ReturnType<SseStreamDecoder['finish']>): void => {
     for (const raw of rawEvents) {
@@ -71,6 +74,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
         byteCount,
       });
       if (event.type === 'error') throw new ChatError(event.code, event.message);
+      if (event.type === 'agent_done' || event.type === 'done') terminal = true;
       opts.onEvent(event);
       if (event.type === 'agent_done') completed = true;
     }
@@ -88,6 +92,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       }
     }
     dispatch(decoder.finish());
+    if (!terminal) throw new ChatError('network', 'agent_stream_incomplete');
     console.debug('[agent.transport]', {
       requestId,
       eventKind: 'stream_complete',

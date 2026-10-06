@@ -146,6 +146,11 @@ impl CampaignHttpService for AppStateCampaignHttpService {
         &self,
         command: app_application::models::adventure::AdventureCommand,
     ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let state = app_application::campaigns::ActInAdventure::new(repository)
             .execute(command)
@@ -166,6 +171,11 @@ impl CampaignHttpService for AppStateCampaignHttpService {
         &self,
         command: app_application::models::campaign_state::CommitCampaignCharacter,
     ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let state = app_application::campaigns::CommitCharacter::new(repository)
             .execute(command)
@@ -607,6 +617,11 @@ impl SavesHttpService for AppStateSavesHttpService {
         session_id: Uuid,
         metadata: SaveMetadataCommand,
     ) -> Result<SaveCreated, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(metadata.campaign_id)
+            .lock_owned()
+            .await;
         let save_id = Uuid::new_v4();
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let snapshot = CreateSnapshot::new(repository)
@@ -681,6 +696,11 @@ impl SavesHttpService for AppStateSavesHttpService {
     }
 
     async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id)
+            .lock_owned()
+            .await;
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let snapshot = RestoreSnapshot::new(repository.clone())
             .execute(RestoreSnapshotCommand {
@@ -924,8 +944,8 @@ impl AgentHttpService for AppStateAgentHttpService {
     ) -> Result<mpsc::Receiver<AgentEvent>, HttpServiceError> {
         let provider = self.state.provider();
         let mut config = self.state.agent_config();
-        if let Some(model) = command.model {
-            config.model = model;
+        if let Some(model) = &command.model {
+            config.model = model.clone();
         }
         let retriever = self.state.srd_retriever();
         let image_provider = self.state.image_provider();
@@ -934,22 +954,93 @@ impl AgentHttpService for AppStateAgentHttpService {
         // restart the model child, so no legacy in-process GPU swap is built.
         let gpu_swap = None;
         let pool = self.state.db().clone();
-        let (sender, receiver) = mpsc::channel::<AgentEvent>(64);
-        tokio::spawn(async move {
-            let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
-                provider,
-                pool,
-                config,
-                retriever,
-                image_provider,
-            )
-            .with_gpu_swap(gpu_swap)
-            .with_video_provider(video_provider);
-            if let Err(error) = orchestrator.run(command.request, sender).await {
-                tracing::warn!(error = %error, "agent loop error");
-            }
+        let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
+            provider,
+            pool.clone(),
+            config,
+            retriever,
+            image_provider,
+        )
+        .with_gpu_swap(gpu_swap)
+        .with_video_provider(video_provider);
+        let driver = Arc::new(DurableOrchestratorDriver {
+            orchestrator,
+            lane: self.state.campaign_lane(command.request.campaign_id),
         });
-        Ok(receiver)
+        let service = app_application::agent::operations::DurableAgentTurns::new(
+            Arc::new(SqliteStore::new(pool)),
+            driver,
+            self.state.process_id(),
+        );
+        service
+            .execute_mode(
+                app_application::agent::operations::AgentOperation {
+                    request_id: command.request_id.unwrap_or_else(Uuid::new_v4),
+                    request: command.request,
+                    model: command.model,
+                },
+                command.resume,
+            )
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_request_mismatch"
+                        | "agent_turn_running"
+                        | "agent_turn_interrupted"
+                        | "agent_turn_superseded"
+                        | "agent_turn_recovery_unavailable"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                _ => HttpServiceError::Internal {
+                    code: "agent_operation_failed",
+                },
+            })
+    }
+}
+
+struct DurableOrchestratorDriver {
+    orchestrator: crate::agent::orchestrator::AgentOrchestrator,
+    lane: Arc<tokio::sync::Mutex<()>>,
+}
+#[async_trait]
+impl app_application::agent::operations::AgentOperationDriver for DurableOrchestratorDriver {
+    async fn acquire(&self) -> Box<dyn Send> {
+        Box::new(self.lane.clone().lock_owned().await)
+    }
+    async fn resume(
+        &self,
+        input: app_application::agent::operations::AgentOperation,
+        messages: Vec<app_application::models::chat::ChatMessage>,
+        events: mpsc::Sender<AgentEvent>,
+        cancellation: Arc<app_application::agent::operations::TurnCancellation>,
+    ) -> Result<(), &'static str> {
+        self.orchestrator
+            .run_recovered(
+                input.request,
+                events,
+                input.request_id.to_string(),
+                cancellation,
+                Some(messages),
+            )
+            .await
+            .map_err(|_| "agent_turn_failed")
+    }
+    async fn run(
+        &self,
+        input: app_application::agent::operations::AgentOperation,
+        events: mpsc::Sender<AgentEvent>,
+        cancellation: Arc<app_application::agent::operations::TurnCancellation>,
+    ) -> Result<(), &'static str> {
+        self.orchestrator
+            .run_with_id(
+                input.request,
+                events,
+                input.request_id.to_string(),
+                cancellation,
+            )
+            .await
+            .map_err(|_| "agent_turn_failed")
     }
 }
 

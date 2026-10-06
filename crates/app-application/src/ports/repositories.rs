@@ -57,6 +57,12 @@ pub trait CampaignStateRepository: Send + Sync {
 
 #[async_trait]
 pub trait AdventureRepository: Send + Sync {
+    async fn act_as_dm(
+        &self,
+        _intent: crate::models::adventure::AdventureIntent,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError> {
+        Err(RepositoryError::NotFound)
+    }
     async fn act(
         &self,
         command: crate::models::adventure::AdventureCommand,

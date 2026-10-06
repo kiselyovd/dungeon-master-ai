@@ -28,3 +28,11 @@ pub struct AdventureCommand {
     pub causation_id: String,
     pub action: Action,
 }
+
+#[derive(Debug, Clone)]
+pub struct AdventureIntent {
+    pub campaign_id: CampaignId,
+    pub session_id: SessionId,
+    pub causation_id: String,
+    pub action: Action,
+}

@@ -28,7 +28,8 @@ pub fn capability(command: &AgentToolCommand) -> ToolCapability {
         | AgentToolCommand::UpdateToken(_)
         | AgentToolCommand::RemoveToken(_)
         | AgentToolCommand::CastSpell(_) => ToolCapability::Combat,
-        AgentToolCommand::SetScene(_)
+        AgentToolCommand::AdventureAction(_)
+        | AgentToolCommand::SetScene(_)
         | AgentToolCommand::RememberNpc(_)
         | AgentToolCommand::RecallNpc(_)
         | AgentToolCommand::JournalAppend(_)
@@ -49,7 +50,7 @@ pub struct ToolDispatchRequest {
     pub command: AgentToolCommand,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GeneratedAgentMedia {
     Image {
         mime_type: String,
@@ -64,7 +65,7 @@ pub enum GeneratedAgentMedia {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ToolExecution {
     pub result: Value,
     pub is_error: bool,

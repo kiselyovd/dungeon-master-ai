@@ -60,6 +60,53 @@ pub(crate) async fn persist(
 
 #[async_trait]
 impl AdventureRepository for SqliteStore {
+    async fn act_as_dm(
+        &self,
+        intent: app_application::models::adventure::AdventureIntent,
+    ) -> Result<CampaignSessionState, RepositoryError> {
+        use app_application::ports::repositories::CampaignStateRepository;
+        if intent.causation_id.trim().is_empty() || intent.causation_id.len() > 256 {
+            return Err(rejected("adventure_command_invalid"));
+        }
+        let current = self.load_current(intent.campaign_id).await?;
+        if current.projection.adventure.is_none() {
+            return Err(rejected("adventure_not_initialized"));
+        }
+        if current.session_id != intent.session_id {
+            return Err(rejected("adventure_session_mismatch"));
+        }
+        let character_id = current
+            .character_id
+            .ok_or_else(|| rejected("adventure_character_mismatch"))?;
+        let original:Option<String>=sqlx::query_scalar("SELECT request_json FROM adventure_operations WHERE campaign_id=?1 AND causation_id=?2")
+            .bind(intent.campaign_id.0.to_string()).bind(&intent.causation_id).fetch_optional(&self.pool).await.map_err(|_|repository_error("read_adventure_intent_receipt"))?;
+        let command = match original {
+            Some(raw) => {
+                let original: AdventureCommand = serde_json::from_str(&raw)
+                    .map_err(|_| repository_error("decode_adventure_intent_receipt"))?;
+                if original.campaign_id != intent.campaign_id
+                    || original.session_id != intent.session_id
+                    || original.character_id != character_id
+                    || original.action != intent.action
+                {
+                    return Err(rejected("adventure_causation_mismatch"));
+                }
+                original
+            }
+            None => AdventureCommand {
+                campaign_id: intent.campaign_id,
+                session_id: intent.session_id,
+                character_id,
+                expected_revision: current.campaign.revision,
+                causation_id: intent.causation_id,
+                action: intent.action,
+            },
+        };
+        self.act(command).await?;
+        // A replay after a rewind acknowledges the old effect without sending
+        // its obsolete inventory/scene back into a new renderer timeline.
+        self.load_current(intent.campaign_id).await
+    }
     #[tracing::instrument(skip_all,fields(campaign_id=%command.campaign_id.0, expected_revision=command.expected_revision.0))]
     async fn act(
         &self,

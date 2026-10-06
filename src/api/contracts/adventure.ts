@@ -56,6 +56,24 @@ export const AdventureProjectionSchema = v.object({
 export type AdventureAction = v.InferOutput<typeof AdventureActionSchema>;
 export type AdventureProjection = v.InferOutput<typeof AdventureProjectionSchema>;
 
+export const AdventureToolOutcomeSchema = v.object({
+  schema_version: v.literal(1),
+  ruleset_id: v.literal('srd-5.2.1'),
+  campaign_id: v.pipe(v.string(), v.uuid()),
+  session_id: v.pipe(v.string(), v.uuid()),
+  character_id: v.pipe(v.string(), v.uuid()),
+  revision: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(Number.MAX_SAFE_INTEGER)),
+  adventure: AdventureProjectionSchema,
+  inventory: v.array(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      count: v.pipe(v.number(), v.integer(), v.minValue(0)),
+      icon: v.optional(v.string()),
+    }),
+  ),
+});
+
 export function parseAdventureProjection(value: unknown): AdventureProjection | null {
   if (value == null) return null;
   const parsed = v.safeParse(AdventureProjectionSchema, value);

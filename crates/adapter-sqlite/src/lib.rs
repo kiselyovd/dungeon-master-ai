@@ -1,4 +1,5 @@
 pub mod adventure;
+pub mod agent_operations;
 pub mod campaign_state;
 pub mod campaigns;
 pub mod combat;

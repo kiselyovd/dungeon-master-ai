@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AdventureActionCommand {
+    pub action: crate::models::adventure::Action,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RollDiceCommand {
     pub dice: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -189,6 +195,7 @@ pub struct GenerateVideoCommand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentToolCommand {
+    AdventureAction(AdventureActionCommand),
     RollDice(RollDiceCommand),
     ApplyDamage(ApplyDamageCommand),
     ApplyHealing(ApplyHealingCommand),
@@ -212,6 +219,7 @@ pub enum AgentToolCommand {
 impl AgentToolCommand {
     pub const fn tool_name(&self) -> &'static str {
         match self {
+            Self::AdventureAction(_) => "adventure_action",
             Self::RollDice(_) => "roll_dice",
             Self::ApplyDamage(_) => "apply_damage",
             Self::ApplyHealing(_) => "apply_healing",
@@ -235,6 +243,7 @@ impl AgentToolCommand {
 
     pub fn to_args(&self) -> Value {
         match self {
+            Self::AdventureAction(value) => serde_json::to_value(value),
             Self::RollDice(value) => serde_json::to_value(value),
             Self::ApplyDamage(value) => serde_json::to_value(value),
             Self::ApplyHealing(value) => serde_json::to_value(value),

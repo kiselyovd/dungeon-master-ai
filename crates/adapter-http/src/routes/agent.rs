@@ -15,6 +15,10 @@ use crate::sse::agent_event_to_sse;
 
 #[derive(Debug, Deserialize)]
 pub struct AgentTurnHttpRequest {
+    #[serde(default)]
+    pub resume: bool,
+    #[serde(default)]
+    pub request_id: Option<Uuid>,
     pub campaign_id: Uuid,
     pub session_id: Uuid,
     pub player_message: String,
@@ -35,9 +39,16 @@ pub async fn post_agent_turn(
             code: "player_message_empty",
         });
     }
+    if request.request_id.is_some_and(|id| id.is_nil()) {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
     let events = services
         .agent
         .turn(AgentTurnHttpCommand {
+            resume: request.resume,
+            request_id: request.request_id,
             model: request.model,
             request: AgentTurnRequest {
                 campaign_id: request.campaign_id,

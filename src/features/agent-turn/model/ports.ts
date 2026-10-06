@@ -25,6 +25,7 @@ export interface BoardCombatState {
 }
 
 export interface ChatPort {
+  prepareReplay?(historyLength: number): void;
   isStreaming(): boolean;
   history(): AgentHistoryMessage[];
   appendUser(text: string, images?: AgentMessagePart[]): void;
@@ -71,6 +72,8 @@ export interface NpcPort {
 }
 
 export interface SessionPort {
+  acceptRevision?(value: unknown): void;
+  acceptAdventureOutcome?(value: unknown): void;
   mutationPending?(): boolean;
   generation?(): number;
   current(): { campaignId: string; sessionId: string } | null;

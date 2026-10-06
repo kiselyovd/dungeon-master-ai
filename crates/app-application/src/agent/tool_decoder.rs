@@ -25,6 +25,7 @@ pub fn decode_tool_call(
     }
 
     let command = match tool_name {
+        "adventure_action" => AgentToolCommand::AdventureAction(decode(args)?),
         "roll_dice" => AgentToolCommand::RollDice(decode(args)?),
         "apply_damage" => AgentToolCommand::ApplyDamage(decode(args)?),
         "apply_healing" => AgentToolCommand::ApplyHealing(decode(args)?),
@@ -96,6 +97,7 @@ fn require_text(value: &str, field: &str) -> Result<(), ToolDecodeError> {
 
 fn validate(command: &AgentToolCommand) -> Result<(), ToolDecodeError> {
     match command {
+        AgentToolCommand::AdventureAction(_) => Ok(()),
         AgentToolCommand::RollDice(command) => require_text(&command.dice, "dice"),
         AgentToolCommand::ApplyDamage(command) => {
             require_text(&command.token_id, "token_id")?;

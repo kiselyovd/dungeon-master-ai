@@ -107,6 +107,33 @@ impl AgentOrchestrator {
         request: AgentTurnRequest,
         tx: mpsc::Sender<AgentEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.run_with_id(
+            request,
+            tx,
+            Uuid::new_v4().to_string(),
+            Arc::new(NeverCancelled),
+        )
+        .await
+    }
+
+    pub async fn run_with_id(
+        &self,
+        request: AgentTurnRequest,
+        tx: mpsc::Sender<AgentEvent>,
+        request_id: String,
+        cancellation: Arc<dyn app_application::agent::turn::CancellationSignal>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.run_recovered(request, tx, request_id, cancellation, None)
+            .await
+    }
+    pub async fn run_recovered(
+        &self,
+        request: AgentTurnRequest,
+        tx: mpsc::Sender<AgentEvent>,
+        request_id: String,
+        cancellation: Arc<dyn app_application::agent::turn::CancellationSignal>,
+        checkpoint: Option<Vec<app_application::models::chat::ChatMessage>>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let base_system_prompt =
             compose_system_prompt(&self.config.system_prompt, self.config.tool_availability);
         let tool_catalog = AgentToolCatalog {
@@ -121,11 +148,26 @@ impl AgentOrchestrator {
             embedding_model: self.config.embedding_model.clone(),
         });
         let tool_dispatcher = Arc::new(CapabilityToolDispatcher::new(
-            legacy_tools.clone(),
-            legacy_tools.clone(),
-            legacy_tools.clone(),
-            legacy_tools.clone(),
-            legacy_tools,
+            Arc::new(super::checkpoint_tools::CheckpointTools {
+                inner: legacy_tools.clone(),
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            }),
+            Arc::new(super::checkpoint_tools::CheckpointTools {
+                inner: legacy_tools.clone(),
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            }),
+            Arc::new(super::checkpoint_tools::CheckpointTools {
+                inner: legacy_tools.clone(),
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            }),
+            Arc::new(super::checkpoint_tools::CheckpointTools {
+                inner: legacy_tools.clone(),
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            }),
+            Arc::new(super::checkpoint_tools::CheckpointTools {
+                inner: legacy_tools,
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+            }),
         ));
         let service = Arc::new(AgentTurnService::new(
             self.provider.clone(),
@@ -133,13 +175,16 @@ impl AgentOrchestrator {
                 store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
                 retriever: self.retriever.clone(),
             }),
-            Arc::new(adapter_sqlite::SqliteStore::new(self.pool.clone())),
+            Arc::new(adapter_sqlite::messages::OperationMessages {
+                store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
+                request_id: Uuid::parse_str(&request_id).unwrap_or_else(|_| Uuid::nil()),
+            }),
             tool_dispatcher,
             Arc::new(LegacyRuntimeAdapter {
                 gpu_swap: self.gpu_swap.clone(),
             }),
             Arc::new(NoopApplicationEventSink),
-            Arc::new(NeverCancelled),
+            cancellation,
             AgentTurnConfig {
                 model: self.config.model.clone(),
                 system_prompt: base_system_prompt,
@@ -153,16 +198,25 @@ impl AgentOrchestrator {
             },
         ));
         let command = AgentTurnCommand {
-            request_id: Uuid::new_v4().to_string(),
+            request_id,
             request,
         };
-        let mut events = service.execute(command);
+        let mut events = service.execute_recovered(command, checkpoint);
+        let mut failure = None;
         while let Some(event) = events.next().await {
-            tx.send(event?)
-                .await
-                .map_err(|_| "agent event receiver dropped")?;
+            match event {
+                Ok(event) => {
+                    if tx.send(event).await.is_err() {
+                        failure = Some("agent event receiver dropped".to_string());
+                    }
+                }
+                Err(error) => failure = Some(error.to_string()),
+            }
         }
-        Ok(())
+        match failure {
+            Some(error) => Err(error.into()),
+            None => Ok(()),
+        }
     }
 }
 
@@ -186,8 +240,27 @@ impl AgentContextPort for LegacyContextAdapter {
             inject_rules,
         )
         .await
-        .unwrap_or(request.base_system_prompt);
+        .map_err(|_| AgentContextError {
+            code: "campaign_context_failed",
+        })?;
+        use app_application::ports::repositories::CampaignStateRepository;
+        let adventure_active = match self
+            .store
+            .load_current(app_application::models::identity::CampaignId(
+                request.campaign_id,
+            ))
+            .await
+        {
+            Ok(state) => state.projection.adventure.is_some(),
+            Err(app_application::ports::repositories::RepositoryError::NotFound) => false,
+            Err(_) => {
+                return Err(AgentContextError {
+                    code: "campaign_context_failed",
+                })
+            }
+        };
         Ok(AgentContext {
+            adventure_active,
             system_prompt,
             combat_active,
         })
@@ -209,6 +282,46 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
         request: ToolDispatchRequest,
     ) -> Result<ToolExecution, ToolDispatchError> {
         let tool_name = request.command.tool_name().to_string();
+        if let app_application::agent::commands::AgentToolCommand::AdventureAction(command) =
+            &request.command
+        {
+            use app_application::ports::repositories::AdventureRepository;
+            let outcome = self
+                .store
+                .act_as_dm(app_application::models::adventure::AdventureIntent {
+                    campaign_id: app_application::models::identity::CampaignId(request.campaign_id),
+                    session_id: app_application::models::identity::SessionId(request.session_id),
+                    causation_id: format!("agent:{}:{}", request.request_id, request.tool_call_id),
+                    action: command.action,
+                })
+                .await;
+            return Ok(match outcome {
+                Ok(state) => ToolExecution {
+                    result: serde_json::json!({"schema_version":1,"ruleset_id":"srd-5.2.1","campaign_id":state.campaign.id.0,"session_id":state.session_id.0,"character_id":state.character_id,"revision":state.campaign.revision.0,"adventure":state.projection.adventure,"inventory":state.projection.character["inventory"]}),
+                    is_error: false,
+                    handled_by: "engine".into(),
+                    media: vec![],
+                },
+                Err(error) => {
+                    let code = match error {
+                        app_application::ports::repositories::RepositoryError::Operation {
+                            code,
+                            ..
+                        } => code,
+                        app_application::ports::repositories::RepositoryError::NotFound => {
+                            "campaign_not_found"
+                        }
+                        _ => "campaign_revision_conflict",
+                    };
+                    ToolExecution {
+                        result: serde_json::json!({"error":code}),
+                        is_error: true,
+                        handled_by: "engine".into(),
+                        media: vec![],
+                    }
+                }
+            });
+        }
         let call = ToolCall {
             id: request.tool_call_id,
             name: tool_name.clone(),

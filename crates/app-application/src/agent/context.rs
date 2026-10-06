@@ -12,6 +12,7 @@ pub struct AgentContextRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentContext {
+    pub adventure_active: bool,
     pub system_prompt: String,
     pub combat_active: bool,
 }

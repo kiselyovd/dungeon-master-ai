@@ -56,6 +56,8 @@ function reduceToolResult(
   ports.toolLog.settle(event.id, event.result, event.isError, event.handledBy);
   ports.chat.settleTool(event.id, event.result, event.isError);
   if (event.isError) return;
+  if (event.toolName === 'adventure_action') ports.session.acceptAdventureOutcome?.(event.result);
+  if (event.toolName === 'quick_save') ports.session.acceptRevision?.(event.result);
 
   const args =
     event.args && typeof event.args === 'object' ? (event.args as Record<string, unknown>) : {};

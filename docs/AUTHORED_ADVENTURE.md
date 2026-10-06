@@ -39,8 +39,11 @@ Private canon and scene-relevant NPC knowledge are assembled in
 `app-application::campaigns::adventure_context` for the DM. Public projections
 contain identifiers for discovered facts and available actions, never private
 NPC agendas. A model receives engine-confirmed state rather than inventing the
-quest's progress. This stage uses explicit UI intentions; adding the adventure
-tool to recoverable AI turns is the next mechanics/AI stage.
+quest's progress. The ongoing AI stage adds a typed `adventure_action` tool over
+the same intentions. Prepared campaigns restrict unrelated mutation tools and
+withhold private model reasoning from player events. Scripted-provider and
+browser projection coverage passed; durable turn recovery and real-model
+acceptance are still pending.
 
 ## Verification
 

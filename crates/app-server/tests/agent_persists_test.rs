@@ -15,7 +15,7 @@ const CAMPAIGN_ID: &str = "00000000-0000-0000-0000-000000000001";
 async fn agent_turn_persists_user_and_assistant() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     db::init_db(&pool).await.unwrap();
-    let mock = Arc::new(MockProvider::new(vec![
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::TextDelta {
             text: "You hear footsteps".into(),
         },
@@ -62,9 +62,8 @@ async fn agent_turn_persists_assistant_with_tool_calls_and_tool_result() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     db::init_db(&pool).await.unwrap();
 
-    // Round 1: tool call. Round 2: stop (no second LLM round simulated; the
-    // orchestrator should emit AgentDone after the single tool execution).
-    let mock = Arc::new(MockProvider::new(vec![
+    // Round 1: tool call. Round 2 explicitly confirms Stop before AgentDone.
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::TextDelta {
             text: "Rolling: ".into(),
         },
@@ -117,4 +116,10 @@ async fn agent_turn_persists_assistant_with_tool_calls_and_tool_result() {
         "no ToolResult row; got {} rows",
         history.len()
     );
+}
+
+fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
+    MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
+        reason: FinishReason::Stop,
+    }]])
 }

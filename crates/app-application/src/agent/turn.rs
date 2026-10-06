@@ -43,8 +43,14 @@ pub struct AgentTurnCommand {
     pub request: AgentTurnRequest,
 }
 
+#[async_trait::async_trait]
 pub trait CancellationSignal: Send + Sync {
     fn is_cancelled(&self) -> bool;
+    async fn cancelled(&self) {
+        while !self.is_cancelled() {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }
 }
 
 pub struct NeverCancelled;
@@ -116,6 +122,13 @@ impl AgentTurnService {
         self: Arc<Self>,
         command: AgentTurnCommand,
     ) -> BoxStream<'static, Result<AgentEvent, AgentTurnError>> {
+        self.execute_recovered(command, None)
+    }
+    pub fn execute_recovered(
+        self: Arc<Self>,
+        command: AgentTurnCommand,
+        checkpoint: Option<Vec<ChatMessage>>,
+    ) -> BoxStream<'static, Result<AgentEvent, AgentTurnError>> {
         let claimed = self
             .claimed_requests
             .lock()
@@ -128,7 +141,7 @@ impl AgentTurnService {
         let (tx, rx) = mpsc::channel(64);
         tokio::spawn(async move {
             let request_id = command.request_id.clone();
-            if let Err(error) = self.run(command, &tx).await {
+            if let Err(error) = self.run(command, &tx, checkpoint).await {
                 tracing::error!(
                     request_id,
                     error_code = error_code(&error),
@@ -156,15 +169,41 @@ impl AgentTurnService {
         &self,
         command: AgentTurnCommand,
         tx: &mpsc::Sender<Result<AgentEvent, AgentTurnError>>,
+        checkpoint: Option<Vec<ChatMessage>>,
     ) -> Result<(), AgentTurnError> {
         let started_at = Instant::now();
         self.ensure_not_cancelled()?;
         let request = command.request;
         let user_message = user_message(&request);
-        self.messages
-            .append(request.session_id, user_message.clone())
-            .await
-            .map_err(|_| AgentTurnError::Persistence)?;
+        let checkpoint = checkpoint.filter(|messages| !messages.is_empty());
+        if let Some(ChatMessage::Assistant { content }) =
+            checkpoint.as_ref().and_then(|saved| saved.last())
+        {
+            let mut sequence = 0;
+            self.emit(
+                request.session_id,
+                &mut sequence,
+                AgentEvent::TextDelta {
+                    text: content.clone(),
+                },
+                tx,
+            )
+            .await?;
+            self.emit(
+                request.session_id,
+                &mut sequence,
+                AgentEvent::AgentDone { total_rounds: 0 },
+                tx,
+            )
+            .await?;
+            return Ok(());
+        }
+        if checkpoint.is_none() {
+            self.messages
+                .append(request.session_id, user_message.clone())
+                .await
+                .map_err(|_| AgentTurnError::Persistence)?;
+        }
 
         let context = self
             .context
@@ -176,162 +215,236 @@ impl AgentTurnService {
             })
             .await
             .map_err(|error| AgentTurnError::Context(error.code))?;
-        let system_prompt = append_board(context.system_prompt, request.board.as_deref());
-        let tools = self.config.tools.for_combat_state(context.combat_active);
+        let mut system_prompt = append_board(context.system_prompt, request.board.as_deref());
+        if checkpoint.is_some() {
+            system_prompt.push_str("\nThis is an interrupted turn continuation. Recorded tool results are already confirmed. Finish the original intention from those results; do not repeat confirmed effects. Provide a coherent reply without replaying an unfinished draft.");
+        }
+        let tools = self
+            .config
+            .tools
+            .for_context(context.combat_active, context.adventure_active);
+        let mut pending_recovered = Vec::new();
+        if let Some(saved) = &checkpoint {
+            let completed = saved
+                .iter()
+                .filter_map(|message| match message {
+                    ChatMessage::ToolResult(result) => Some(result.tool_call_id.clone()),
+                    _ => None,
+                })
+                .collect::<HashSet<_>>();
+            for message in saved {
+                if let ChatMessage::AssistantWithToolCalls { tool_calls, .. } = message {
+                    pending_recovered.extend(
+                        tool_calls
+                            .iter()
+                            .filter(|call| !completed.contains(&call.id))
+                            .cloned(),
+                    );
+                }
+            }
+        }
         let mut messages = request.history;
-        messages.push(user_message);
+        if let Some(saved) = checkpoint {
+            messages.extend(saved);
+        } else {
+            messages.push(user_message);
+        }
         let mut sequence = 0_u64;
         let mut total_rounds = 0_usize;
 
         for round_index in 0..self.config.max_rounds {
             self.ensure_not_cancelled()?;
             total_rounds = round_index + 1;
-            let chat_request = ChatRequest {
-                messages: messages.clone(),
-                model: self.config.model.clone(),
-                max_tokens: Some(2048),
-                temperature: Some(self.config.temperature),
-                tools: tools.clone(),
-                system_prompt: Some(system_prompt.clone()),
-                reasoning: self
-                    .config
-                    .reasoning_enabled
-                    .then_some(self.config.reasoning_budget),
+            let mut tool_calls = if round_index == 0 {
+                std::mem::take(&mut pending_recovered)
+            } else {
+                Vec::new()
             };
-            let mut chunks = self
-                .provider
-                .stream_chat(chat_request)
-                .await
-                .map_err(|_| AgentTurnError::Provider)?;
-            let mut round_text = String::new();
-            let mut tool_buffers: HashMap<String, (String, String)> = HashMap::new();
-            let mut tool_calls = Vec::new();
-            let mut finish_reason = FinishReason::Stop;
-            let mut pending_delta: Option<AgentEvent> = None;
+            let recovering_tools = !tool_calls.is_empty();
+            let mut finish_reason = if recovering_tools {
+                FinishReason::ToolUse
+            } else {
+                FinishReason::Stop
+            };
+            if !recovering_tools {
+                let chat_request = ChatRequest {
+                    messages: messages.clone(),
+                    model: self.config.model.clone(),
+                    max_tokens: Some(2048),
+                    temperature: Some(self.config.temperature),
+                    tools: tools.clone(),
+                    system_prompt: Some(system_prompt.clone()),
+                    reasoning: self
+                        .config
+                        .reasoning_enabled
+                        .then_some(self.config.reasoning_budget),
+                };
+                let mut chunks = tokio::select! {
+                    biased;
+                    _ = self.cancellation.cancelled() => return Err(AgentTurnError::Cancelled),
+                    chunks = self.provider.stream_chat(chat_request) => chunks.map_err(|_| AgentTurnError::Provider)?,
+                };
+                let mut provider_done = false;
+                let mut round_text = String::new();
+                let mut tool_buffers: HashMap<String, (String, String)> = HashMap::new();
+                let mut pending_delta: Option<AgentEvent> = None;
 
-            while let Some(chunk) = chunks.next().await {
-                self.ensure_not_cancelled()?;
-                match chunk.map_err(|_| AgentTurnError::Provider)? {
-                    ChatChunk::ThinkingDelta { text } => {
-                        self.push_delta(
-                            request.session_id,
-                            &mut sequence,
-                            &mut pending_delta,
-                            AgentEvent::ReasoningText { text },
-                            tx,
-                        )
-                        .await?;
-                    }
-                    ChatChunk::TextDelta { text } => {
-                        round_text.push_str(&text);
-                        self.push_delta(
-                            request.session_id,
-                            &mut sequence,
-                            &mut pending_delta,
-                            AgentEvent::TextDelta { text },
-                            tx,
-                        )
-                        .await?;
-                    }
-                    ChatChunk::ToolCallStart { id, name } => {
-                        self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
-                            .await?;
-                        tool_buffers.insert(id.clone(), (name.clone(), String::new()));
-                        self.emit(
-                            request.session_id,
-                            &mut sequence,
-                            AgentEvent::ToolCallStart {
-                                id,
-                                tool_name: name,
-                                round: total_rounds,
-                            },
-                            tx,
-                        )
-                        .await?;
-                    }
-                    ChatChunk::ToolCallArgsDelta { id, args_fragment } => {
-                        if let Some((_, args)) = tool_buffers.get_mut(&id) {
-                            args.push_str(&args_fragment);
+                loop {
+                    let chunk = tokio::select! {
+                        biased;
+                        _ = self.cancellation.cancelled() => return Err(AgentTurnError::Cancelled),
+                        chunk = chunks.next() => match chunk {Some(chunk)=>chunk,None=>break},
+                    };
+                    self.ensure_not_cancelled()?;
+                    match chunk.map_err(|_| AgentTurnError::Provider)? {
+                        ChatChunk::ThinkingDelta { text } => {
+                            if !context.adventure_active {
+                                self.push_delta(
+                                    request.session_id,
+                                    &mut sequence,
+                                    &mut pending_delta,
+                                    AgentEvent::ReasoningText { text },
+                                    tx,
+                                )
+                                .await?;
+                            }
                         }
-                    }
-                    ChatChunk::ToolCallDone { id } => {
-                        if let Some((name, args)) = tool_buffers.remove(&id) {
-                            tool_calls.push(ToolCall {
-                                id,
-                                name,
-                                args: serde_json::from_str(&args)
-                                    .unwrap_or_else(|_| Value::Object(Default::default())),
-                            });
-                        }
-                    }
-                    ChatChunk::Done { reason } => {
-                        self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
+                        ChatChunk::TextDelta { text } => {
+                            round_text.push_str(&text);
+                            self.push_delta(
+                                request.session_id,
+                                &mut sequence,
+                                &mut pending_delta,
+                                AgentEvent::TextDelta { text },
+                                tx,
+                            )
                             .await?;
-                        finish_reason = reason;
-                        break;
+                        }
+                        ChatChunk::ToolCallStart { id, name } => {
+                            self.flush_delta(
+                                request.session_id,
+                                &mut sequence,
+                                &mut pending_delta,
+                                tx,
+                            )
+                            .await?;
+                            tool_buffers.insert(id.clone(), (name.clone(), String::new()));
+                            self.emit(
+                                request.session_id,
+                                &mut sequence,
+                                AgentEvent::ToolCallStart {
+                                    id,
+                                    tool_name: name,
+                                    round: total_rounds,
+                                },
+                                tx,
+                            )
+                            .await?;
+                        }
+                        ChatChunk::ToolCallArgsDelta { id, args_fragment } => {
+                            if let Some((_, args)) = tool_buffers.get_mut(&id) {
+                                args.push_str(&args_fragment);
+                            }
+                        }
+                        ChatChunk::ToolCallDone { id } => {
+                            if let Some((name, args)) = tool_buffers.remove(&id) {
+                                tool_calls.push(ToolCall {
+                                    id,
+                                    name,
+                                    args: serde_json::from_str(&args)
+                                        .unwrap_or_else(|_| Value::Object(Default::default())),
+                                });
+                            }
+                        }
+                        ChatChunk::Done { reason } => {
+                            provider_done = true;
+                            self.flush_delta(
+                                request.session_id,
+                                &mut sequence,
+                                &mut pending_delta,
+                                tx,
+                            )
+                            .await?;
+                            finish_reason = reason;
+                            break;
+                        }
                     }
                 }
-            }
-            self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
-                .await?;
+                if !provider_done {
+                    return Err(AgentTurnError::Provider);
+                }
+                self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
+                    .await?;
 
-            let assistant_message = if tool_calls.is_empty() {
-                (!round_text.is_empty()).then(|| ChatMessage::Assistant {
-                    content: round_text.clone(),
-                })
-            } else {
-                Some(ChatMessage::AssistantWithToolCalls {
-                    content: (!round_text.is_empty()).then_some(round_text.clone()),
-                    tool_calls: tool_calls.clone(),
-                })
-            };
-            if let Some(message) = assistant_message {
-                self.messages
-                    .append(request.session_id, message.clone())
-                    .await
-                    .map_err(|_| AgentTurnError::Persistence)?;
-                messages.push(message);
+                let assistant_message = if tool_calls.is_empty() {
+                    (!round_text.is_empty()).then(|| ChatMessage::Assistant {
+                        content: round_text.clone(),
+                    })
+                } else {
+                    Some(ChatMessage::AssistantWithToolCalls {
+                        content: (!round_text.is_empty()).then_some(round_text.clone()),
+                        tool_calls: tool_calls.clone(),
+                    })
+                };
+                if let Some(message) = assistant_message {
+                    self.messages
+                        .append(request.session_id, message.clone())
+                        .await
+                        .map_err(|_| AgentTurnError::Persistence)?;
+                    messages.push(message);
+                }
             }
 
             for tool_call in &tool_calls {
                 self.ensure_not_cancelled()?;
-                let execution = match decode_tool_call(&tool_call.name, &tool_call.args) {
-                    Ok(decoded) => {
-                        if is_media_tool(&tool_call.name) {
-                            self.runtime
-                                .acquire_for(&tool_call.name)
-                                .await
-                                .map_err(|error| AgentTurnError::Runtime(error.code))?;
-                        }
-                        let result = self
-                            .tools
-                            .execute(ToolDispatchRequest {
-                                request_id: command.request_id.clone(),
-                                tool_call_id: tool_call.id.clone(),
-                                campaign_id: request.campaign_id,
-                                session_id: request.session_id,
-                                command: decoded,
-                            })
-                            .await;
-                        if is_media_tool(&tool_call.name) {
-                            self.runtime
-                                .release_for(&tool_call.name)
-                                .await
-                                .map_err(|error| AgentTurnError::Runtime(error.code))?;
-                        }
-                        result.map_err(|error| AgentTurnError::ToolDispatch(error.code))?
+                let execution = if context.adventure_active
+                    && !tools.iter().any(|tool| tool.name == tool_call.name)
+                {
+                    super::tool_dispatch::ToolExecution {
+                        result: json!({"error":"tool_not_available_in_authored_adventure"}),
+                        is_error: true,
+                        handled_by: "engine".into(),
+                        media: vec![],
                     }
-                    Err(error) => {
-                        tracing::warn!(
-                            tool_call_id = tool_call.id,
-                            tool_name = tool_call.name,
-                            "rejected invalid model tool call"
-                        );
-                        super::tool_dispatch::ToolExecution {
-                            result: json!({ "error": error.to_string() }),
-                            is_error: true,
-                            handled_by: classify_handler(&tool_call.name).to_string(),
-                            media: Vec::new(),
+                } else {
+                    match decode_tool_call(&tool_call.name, &tool_call.args) {
+                        Ok(decoded) => {
+                            if is_media_tool(&tool_call.name) {
+                                self.runtime
+                                    .acquire_for(&tool_call.name)
+                                    .await
+                                    .map_err(|error| AgentTurnError::Runtime(error.code))?;
+                            }
+                            let result = self
+                                .tools
+                                .execute(ToolDispatchRequest {
+                                    request_id: command.request_id.clone(),
+                                    tool_call_id: tool_call.id.clone(),
+                                    campaign_id: request.campaign_id,
+                                    session_id: request.session_id,
+                                    command: decoded,
+                                })
+                                .await;
+                            if is_media_tool(&tool_call.name) {
+                                self.runtime
+                                    .release_for(&tool_call.name)
+                                    .await
+                                    .map_err(|error| AgentTurnError::Runtime(error.code))?;
+                            }
+                            result.map_err(|error| AgentTurnError::ToolDispatch(error.code))?
+                        }
+                        Err(error) => {
+                            tracing::warn!(
+                                tool_call_id = tool_call.id,
+                                tool_name = tool_call.name,
+                                "rejected invalid model tool call"
+                            );
+                            super::tool_dispatch::ToolExecution {
+                                result: json!({ "error": error.to_string() }),
+                                is_error: true,
+                                handled_by: classify_handler(&tool_call.name).to_string(),
+                                media: Vec::new(),
+                            }
                         }
                     }
                 };

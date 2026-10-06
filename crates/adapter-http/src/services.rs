@@ -201,6 +201,8 @@ pub trait SettingsHttpService: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct AgentTurnHttpCommand {
+    pub resume: bool,
+    pub request_id: Option<Uuid>,
     pub request: AgentTurnRequest,
     pub model: Option<String>,
 }

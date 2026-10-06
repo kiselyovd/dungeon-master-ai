@@ -1,8 +1,9 @@
 use app_application::models::local_models::{RuntimeStartRequest, RuntimeStatus};
 use app_application::ports::runtime::{RuntimeControl, RuntimeError};
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::LlmProvider;
@@ -28,6 +29,8 @@ pub struct AppState {
 }
 
 struct AppStateInner {
+    campaign_lanes: Mutex<HashMap<uuid::Uuid, Weak<tokio::sync::Mutex<()>>>>,
+    process_id: uuid::Uuid,
     settings_runtime: RwLock<RuntimeSettingsSnapshot>,
     db: SqlitePool,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
@@ -82,6 +85,8 @@ impl AppState {
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
+                campaign_lanes: Mutex::new(HashMap::new()),
+                process_id: uuid::Uuid::new_v4(),
                 settings_runtime: RwLock::new(RuntimeSettingsSnapshot {
                     registry: initial_registry,
                     default_model: Arc::new(default_model),
@@ -112,6 +117,24 @@ impl AppState {
             .registry
             .chat
             .clone()
+    }
+
+    pub fn process_id(&self) -> uuid::Uuid {
+        self.inner.process_id
+    }
+    pub fn campaign_lane(&self, id: uuid::Uuid) -> Arc<tokio::sync::Mutex<()>> {
+        let mut lanes = self
+            .inner
+            .campaign_lanes
+            .lock()
+            .expect("campaign lane registry poisoned");
+        if let Some(lane) = lanes.get(&id).and_then(Weak::upgrade) {
+            return lane;
+        }
+        lanes.retain(|_, lane| lane.strong_count() > 0);
+        let lane = Arc::new(tokio::sync::Mutex::new(()));
+        lanes.insert(id, Arc::downgrade(&lane));
+        lane
     }
 
     pub fn set_provider(&self, llm: Arc<dyn LlmProvider>) {

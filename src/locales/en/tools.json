@@ -11,5 +11,6 @@
   "show_aoe_template": "Dungeon Master places an area template...",
   "journal_append": "Dungeon Master writes in the journal...",
   "remember_npc": "Dungeon Master records an NPC...",
-  "generate_image": "Dungeon Master conjures an image..."
+  "generate_image": "Dungeon Master conjures an image...",
+  "adventure_action": "Dungeon Master confirms your adventure action..."
 }

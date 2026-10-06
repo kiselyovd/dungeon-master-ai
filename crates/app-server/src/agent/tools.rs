@@ -25,6 +25,11 @@ pub fn all_tools() -> Vec<Tool> {
 /// modality is disabled.
 pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     let mut tools = all_tools_core();
+    tools.push(Tool {
+        name:"adventure_action".into(),
+        description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["move","inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}}}}),
+    });
     if availability.image {
         tools.push(generate_map_tool());
         tools.push(generate_illustration_tool());

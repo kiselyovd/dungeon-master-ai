@@ -26,6 +26,8 @@ export type AgentWireMessage =
   | { role: 'assistant' | 'system'; content: string };
 
 export interface AgentTurnRequest {
+  requestId?: string;
+  resume?: boolean;
   campaignId: string;
   sessionId: string;
   playerMessage: string;

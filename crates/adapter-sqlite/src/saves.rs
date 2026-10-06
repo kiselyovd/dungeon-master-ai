@@ -241,7 +241,7 @@ impl SnapshotRepository for SqliteStore {
         )
         .await?;
         let updated = sqlx::query(
-            "UPDATE sessions SET active_snapshot_id = ?1 WHERE id = ?2 AND revision = ?3",
+            "UPDATE sessions SET active_snapshot_id = ?1, restore_generation = restore_generation + 1 WHERE id = ?2 AND revision = ?3",
         )
         .bind(snapshot.id.to_string())
         .bind(record.session_id.0.to_string())

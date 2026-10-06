@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { AgentTurnPorts } from '../features/agent-turn/model/ports';
 import { useAgentTurn as useFeatureAgentTurn } from '../features/agent-turn/useAgentTurn';
 import { projectionFromToolResult } from '../features/combat/model/combatProjection';
+import { applyAdventureToolOutcome } from '../state/adventureOutcome';
 import type { Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
 
@@ -10,6 +11,17 @@ export function useAgentTurn() {
   const ports = useMemo<AgentTurnPorts>(
     () => ({
       chat: {
+        prepareReplay: (historyLength) =>
+          useStore.setState((state) => ({
+            chat: {
+              ...state.chat,
+              messages: state.chat.messages.slice(0, historyLength),
+              _nextSeq: historyLength,
+              streamingAssistant: null,
+              streamingReasoning: null,
+              chatStreamEvents: [],
+            },
+          })),
         isStreaming: () => useStore.getState().chat.isStreaming,
         history: () => useStore.getState().chat.messages,
         appendUser: (text, images) => useStore.getState().chat.appendUser(text, images),
@@ -61,6 +73,25 @@ export function useAgentTurn() {
           }),
       },
       session: {
+        acceptRevision: (value) => {
+          if (!value || typeof value !== 'object') return;
+          const result = value as Record<string, unknown>;
+          const state = useStore.getState();
+          const active = state.campaigns.active;
+          if (
+            active &&
+            result.campaign_id === active.id &&
+            result.session_id === state.session.activeSessionId &&
+            typeof result.revision === 'number' &&
+            Number.isSafeInteger(result.revision) &&
+            result.revision >= active.revision
+          )
+            state.campaigns.setActive({ ...active, revision: result.revision });
+        },
+        acceptAdventureOutcome: (value) => {
+          if (!applyAdventureToolOutcome(value))
+            console.warn('[agent.adventure]', { code: 'adventure_outcome_ignored' });
+        },
         generation: () => useStore.getState().session.transitionGeneration,
         mutationPending: () => useStore.getState().session.mutationId !== null,
         current: () => useStore.getState().session.current(),

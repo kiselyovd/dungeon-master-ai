@@ -66,6 +66,7 @@ pub async fn execute_tool(
 
     // Transitional dispatch: Task 4 moves each typed variant into a use case.
     match tool_name {
+        "adventure_action" => (json!({"error":"adventure_requires_turn_identity"}), true),
         "roll_dice" => execute_roll_dice(&args),
         "apply_damage" => execute_apply_damage(&args, store).await,
         "apply_healing" => execute_apply_healing(&args, store).await,

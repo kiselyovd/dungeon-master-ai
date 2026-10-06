@@ -17,7 +17,7 @@ async fn test_pool() -> SqlitePool {
 #[tokio::test]
 async fn orchestrator_emits_text_events_from_mock() {
     let pool = test_pool().await;
-    let mock = Arc::new(MockProvider::new(vec![
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::TextDelta {
             text: "Hello ".into(),
         },
@@ -73,10 +73,9 @@ async fn orchestrator_executes_tool_call_and_continues() {
     let pool = test_pool().await;
 
     // Round 1: LLM emits a roll_dice tool-call.
-    // Round 2: after tool result injected, the mock provider returns an empty
-    // stream (chunks were drained on round 1), so the orchestrator records a
-    // default Stop reason and exits gracefully.
-    let mock = Arc::new(MockProvider::new(vec![
+    // Round 2: after the tool result is injected, the fixture explicitly sends
+    // a terminal Stop chunk. An empty transport stream would be incomplete.
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::ToolCallStart {
             id: "c1".into(),
             name: "roll_dice".into(),
@@ -138,7 +137,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
     // Hallucinated tool name not in the validator dispatch.
     // validate_tool_call returns UnknownTool, executor returns is_error=true.
     let pool = test_pool().await;
-    let mock = Arc::new(MockProvider::new(vec![
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::ToolCallStart {
             id: "c2".into(),
             name: "fly_dragon".into(),
@@ -205,7 +204,7 @@ async fn orchestrator_handles_unknown_tool_gracefully() {
 async fn agent_turn_endpoint_streams_text() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     app_server::db::init_db(&pool).await.unwrap();
-    let mock = Arc::new(MockProvider::new(vec![
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::TextDelta {
             text: "The goblin growls.".into(),
         },
@@ -251,7 +250,7 @@ async fn agent_map_tool_uses_bundled_provider_without_sidecar_or_persisted_base6
     let pool = test_pool().await;
     let session_id = uuid::Uuid::new_v4();
     let campaign_id = uuid::Uuid::new_v4();
-    let mock = Arc::new(MockProvider::new(vec![
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::ToolCallStart {
             id: "map-fallback-1".into(),
             name: "generate_map".into(),
@@ -302,7 +301,7 @@ async fn agent_tool_call_result_contains_tool_name() {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     app_server::db::init_db(&pool).await.unwrap();
 
-    let mock = std::sync::Arc::new(MockProvider::new(vec![
+    let mock = std::sync::Arc::new(finishing_mock(vec![
         ChatChunk::ToolCallStart {
             id: "c1".into(),
             name: "roll_dice".into(),
@@ -451,7 +450,7 @@ async fn journal_endpoint_returns_entries_after_agent_appends() {
     .await
     .unwrap();
 
-    let server = TestServer::start_with(std::sync::Arc::new(MockProvider::new(vec![])), pool).await;
+    let server = TestServer::start_with(std::sync::Arc::new(finishing_mock(vec![])), pool).await;
 
     let client = reqwest::Client::new();
     let resp = client
@@ -471,7 +470,7 @@ async fn journal_endpoint_returns_entries_after_agent_appends() {
 async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
     let pool = test_pool().await;
     let mock = Arc::new(
-        MockProvider::new(vec![
+        finishing_mock(vec![
             ChatChunk::TextDelta {
                 text: "The answer is 42.".into(),
             },
@@ -532,7 +531,7 @@ async fn agent_endpoint_streams_reasoning_text_event() {
     app_server::db::init_db(&pool).await.unwrap();
 
     let mock = Arc::new(
-        MockProvider::new(vec![
+        finishing_mock(vec![
             ChatChunk::TextDelta {
                 text: "Narration.".into(),
             },
@@ -651,8 +650,8 @@ async fn orchestrator_strips_image_b64_from_tool_result_into_dedicated_event() {
     let pool = test_pool().await;
 
     // MockProvider emits a generate_illustration tool-call then a ToolUse finish,
-    // followed by an empty round that exits with a default Stop reason.
-    let mock = Arc::new(MockProvider::new(vec![
+    // followed by a round with an explicit terminal Stop chunk.
+    let mock = Arc::new(finishing_mock(vec![
         ChatChunk::ToolCallStart {
             id: "img-tc-1".into(),
             name: "generate_illustration".into(),
@@ -1087,4 +1086,10 @@ async fn apply_damage_no_relation_applies_full_damage() {
     );
     assert_eq!(val["raw_damage"].as_i64(), Some(10));
     assert_eq!(val["effective_damage"].as_i64(), Some(10));
+}
+
+fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
+    MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
+        reason: FinishReason::Stop,
+    }]])
 }

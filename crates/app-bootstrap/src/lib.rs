@@ -1,5 +1,6 @@
 //! Production composition root for the backend sidecar.
 
+mod authority;
 pub mod config;
 pub mod paths;
 pub mod telemetry;
@@ -16,7 +17,15 @@ use tracing::info;
 pub async fn run() -> anyhow::Result<()> {
     let _telemetry = telemetry::init().context("init telemetry")?;
     let settings = config::Settings::from_env();
-    let app = wiring::build_router(&settings).await?;
+    let authority = authority::retain_for_process()?;
+    let state = wiring::build_state(&settings).await?;
+    if authority {
+        adapter_sqlite::SqliteStore::new(state.db().clone())
+            .recover_after_exclusive_authority(state.process_id())
+            .await
+            .context("reconcile interrupted agent operations")?;
+    }
+    let app = adapter_http::router(app_server::http_services::bundle(state));
     let listener = TcpListener::bind(&settings.bind_addr)
         .await
         .with_context(|| format!("bind {}", settings.bind_addr))?;
