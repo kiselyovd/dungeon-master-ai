@@ -19,6 +19,7 @@ import { SpellsTab } from './wizard/SpellsTab';
 export type CharacterWizardMode = 'initial' | 'edit';
 
 export interface CharacterWizardProps {
+  onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   mode: CharacterWizardMode;
   onClose?: () => void;
   onOpenImageSettings?: () => void;
@@ -68,6 +69,7 @@ export function CharacterWizard({
   onClose,
   onOpenImageSettings,
   hidden,
+  onCommitCharacter,
 }: CharacterWizardProps) {
   const { t } = useTranslation('wizard');
   const activeTab = useStore((s) => s.charCreation.activeTab);
@@ -154,6 +156,7 @@ export function CharacterWizard({
         )}
         {compendium && activeTab === 'review' && (
           <ReviewTab
+            {...(onCommitCharacter ? { onCommitCharacter } : {})}
             compendium={compendium}
             mode={mode}
             {...(onClose !== undefined ? { onClose } : {})}

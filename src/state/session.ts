@@ -17,6 +17,7 @@ export interface CurrentScene {
 }
 
 export interface SessionData {
+  transitionGeneration: number;
   activeCampaignId: string | null;
   activeSessionId: string | null;
   /**
@@ -36,6 +37,7 @@ export interface SessionData {
 }
 
 export interface SessionActions {
+  beginTransition: () => number;
   activate: (campaignId: string, sessionId: string) => void;
   current: () => { campaignId: string; sessionId: string } | null;
   clear: () => void;
@@ -55,6 +57,12 @@ export interface SessionSlice {
 
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set, get) => ({
   session: {
+    transitionGeneration: 0,
+    beginTransition: () => {
+      const generation = get().session.transitionGeneration + 1;
+      set((state) => ({ session: { ...state.session, transitionGeneration: generation } }));
+      return generation;
+    },
     activeCampaignId: null,
     activeSessionId: null,
     loadError: null,
@@ -63,7 +71,12 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
 
     activate: (campaignId, sessionId) =>
       set((s) => ({
-        session: { ...s.session, activeCampaignId: campaignId, activeSessionId: sessionId },
+        session: {
+          ...s.session,
+          activeCampaignId: campaignId,
+          activeSessionId: sessionId,
+          transitionGeneration: s.session.transitionGeneration + 1,
+        },
       })),
 
     current: () => {
@@ -74,7 +87,15 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
 
     clear: () =>
       set((s) => ({
-        session: { ...s.session, activeCampaignId: null, activeSessionId: null },
+        session: {
+          ...s.session,
+          activeCampaignId: null,
+          activeSessionId: null,
+          currentScene: null,
+          mapImageUrl: null,
+          loadError: null,
+          transitionGeneration: s.session.transitionGeneration + 1,
+        },
       })),
 
     setLoadError: (message) =>

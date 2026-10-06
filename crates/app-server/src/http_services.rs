@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use adapter_http::routes::campaigns::{CampaignResponse, CampaignSummaryResponse};
+use adapter_http::routes::campaigns::{
+    CampaignResponse, CampaignStateResponse, CampaignSummaryResponse,
+};
 use adapter_http::services::{
     AgentHttpService, AgentTurnHttpCommand, CampaignHttpService, CharacterAssistHttpService,
     ChatHttpCommand, ChatHttpService, CombatActionCommand as HttpCombatActionCommand,
     CombatHttpService, CombatStartCommand, HttpOutcome, HttpServiceError, LocalControlHttpService,
     LocalControlOperation, LocalEventStream, MediaHttpService, ProviderDiscoveryCommand,
-    RestoreSaveCommand, SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
+    RestoreSaveCommand, SaveCreated, SaveMetadataCommand, SavesHttpService, SettingsHttpService,
+    SrdSection,
 };
 use adapter_sqlite::SqliteStore;
 use app_application::campaigns::{
@@ -139,6 +142,26 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn state(&self, id: Uuid) -> Result<CampaignStateResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::LoadCampaignSession::new(repository)
+            .execute(CampaignId(id))
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
+
+    async fn commit_character(
+        &self,
+        command: app_application::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::CommitCharacter::new(repository)
+            .execute(command)
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
     async fn create_campaign(
         &self,
         command: CreateCampaignCommand,
@@ -224,19 +247,41 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
             HttpServiceError::UnprocessableEntity { code }
         }
         app_application::campaigns::CampaignError::Persistence {
-            code: "snapshot_revision_conflict",
+            code: "snapshot_revision_conflict" | "campaign_revision_conflict",
         } => HttpServiceError::Conflict {
             code: "snapshot_revision_conflict",
         },
         app_application::campaigns::CampaignError::Persistence {
-            code: "snapshot_not_found",
+            code: "snapshot_not_found" | "campaign_not_found",
         } => HttpServiceError::NotFound,
+        app_application::campaigns::CampaignError::Persistence {
+            code:
+                code @ ("character_invalid"
+                | "character_identity_mismatch"
+                | "character_session_mismatch"
+                | "character_causation_mismatch"
+                | "character_too_large"
+                | "snapshot_causation_mismatch"),
+        } => HttpServiceError::UnprocessableEntity { code },
         app_application::campaigns::CampaignError::Persistence { .. } => {
             HttpServiceError::Internal {
                 code: "campaign_operation_failed",
             }
         }
     }
+}
+
+fn campaign_state_response(
+    state: app_application::models::campaign_state::CampaignSessionState,
+) -> Result<CampaignStateResponse, HttpServiceError> {
+    Ok(CampaignStateResponse {
+        schema_version: 1,
+        ruleset_id: "srd-5.2.1".into(),
+        campaign: campaign_response(state.campaign)?,
+        session_id: state.session_id.0,
+        character_id: state.character_id,
+        projection: state.projection,
+    })
 }
 
 fn campaign_response(detail: CampaignDetail) -> Result<CampaignResponse, HttpServiceError> {
@@ -544,7 +589,7 @@ impl SavesHttpService for AppStateSavesHttpService {
         &self,
         session_id: Uuid,
         metadata: SaveMetadataCommand,
-    ) -> Result<Uuid, HttpServiceError> {
+    ) -> Result<SaveCreated, HttpServiceError> {
         let save_id = Uuid::new_v4();
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let snapshot = CreateSnapshot::new(repository)
@@ -562,10 +607,13 @@ impl SavesHttpService for AppStateSavesHttpService {
             })
             .await
             .map_err(campaign_use_case_error)?;
-        Ok(snapshot.save_id)
+        Ok(SaveCreated {
+            id: snapshot.save_id,
+            revision: snapshot.snapshot.revision.0,
+        })
     }
 
-    async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError> {
+    async fn quick(&self, session_id: Uuid) -> Result<SaveCreated, HttpServiceError> {
         let row = sqlx::query("SELECT campaign_id, revision FROM sessions WHERE id = ?1")
             .bind(session_id.to_string())
             .fetch_optional(self.state.db())

@@ -31,7 +31,7 @@ describe('ChatPanel', () => {
       );
     streamAgentTurnMock.mockReset();
     fetchSessionMessagesMock.mockReset();
-    fetchSessionMessagesMock.mockResolvedValue([]);
+    fetchSessionMessagesMock.mockImplementation(async () => useStore.getState().chat.messages);
   });
 
   it('renders empty state with placeholder when no messages', () => {

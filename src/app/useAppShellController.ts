@@ -10,6 +10,7 @@ export function useAppShellController(input: {
   chatPanelWidth: number;
   quickSave: () => Promise<unknown>;
   openSaves: () => void;
+  enabled?: boolean;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('chat');
@@ -41,6 +42,7 @@ export function useAppShellController(input: {
 
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent) => {
+      if (input.enabled === false) return;
       if (event.key === 'F11') {
         event.preventDefault();
         const win = getCurrentWindow();
@@ -66,7 +68,7 @@ export function useAppShellController(input: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [input.openSaves, input.quickSave]);
+  }, [input.openSaves, input.quickSave, input.enabled]);
 
   return {
     settingsOpen,

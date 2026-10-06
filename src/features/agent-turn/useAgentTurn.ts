@@ -15,6 +15,15 @@ export function useAgentTurn(ports: AgentTurnPorts) {
         return;
       }
       const { campaignId, sessionId } = active;
+      const generation = ports.session.generation?.();
+      const isCurrent = () => {
+        const current = ports.session.current();
+        return (
+          current?.campaignId === campaignId &&
+          current.sessionId === sessionId &&
+          (generation === undefined || ports.session.generation?.() === generation)
+        );
+      };
       ports.chat.clearTurnEvents();
       const history = ports.chat.history();
       ports.chat.appendUser(text, images);
@@ -31,13 +40,18 @@ export function useAgentTurn(ports: AgentTurnPorts) {
           ...(images && images.length > 0 ? { images } : {}),
           ...(board ? { board } : {}),
           signal: controller.signal,
-          onEvent: (event) => reduceAgentEvent(event, { campaignId }, reducerState, ports),
+          onEvent: (event) => {
+            if (isCurrent() && !controller.signal.aborted)
+              reduceAgentEvent(event, { campaignId }, reducerState, ports);
+          },
         });
       } catch (error) {
-        ports.chat.setError(ChatError.from(error).toPayload());
+        if (isCurrent()) ports.chat.setError(ChatError.from(error).toPayload());
       } finally {
-        ports.chat.finalize();
-        ports.chat.end();
+        if (isCurrent()) {
+          ports.chat.finalize();
+          ports.chat.end();
+        }
       }
     },
     [ports],

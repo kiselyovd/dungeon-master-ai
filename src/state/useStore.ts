@@ -98,6 +98,13 @@ export const useStore = create<AppState>()(
           completed: state.onboarding.completed,
         },
         pc: {
+          characterId: state.pc.characterId ?? null,
+          backstory: state.pc.backstory ?? '',
+          ideals: state.pc.ideals ?? '',
+          bonds: state.pc.bonds ?? '',
+          flaws: state.pc.flaws ?? '',
+          spells: state.pc.spells ?? { cantrips: [], level1: [] },
+          personalityFlags: state.pc.personalityFlags ?? [],
           heroClass: state.pc.heroClass,
           name: state.pc.name,
           race: state.pc.race,

@@ -71,6 +71,7 @@ export interface NpcPort {
 }
 
 export interface SessionPort {
+  generation?(): number;
   current(): { campaignId: string; sessionId: string } | null;
   currentSceneName(): string | undefined;
   setScene(title: string): void;

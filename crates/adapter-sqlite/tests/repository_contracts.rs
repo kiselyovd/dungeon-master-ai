@@ -127,7 +127,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 1);
+    assert_eq!(migration_count, 2);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -405,6 +405,62 @@ async fn concurrent_combat_writers_allow_exactly_one_revision_commit() {
 }
 
 #[tokio::test]
+async fn distinct_saves_capture_changed_state_and_retry_remains_idempotent() {
+    let store = store().await;
+    let (campaign_id, session_id) = campaign(&store, 1).await;
+    let first = store
+        .create_snapshot(create_snapshot_record(
+            campaign_id,
+            session_id,
+            Revision(1),
+            "fresh-1",
+        ))
+        .await
+        .unwrap();
+    MessageRepository::append(&store, session_id.0, ChatMessage::user_text("A new turn"))
+        .await
+        .unwrap();
+    let mut next =
+        create_snapshot_record(campaign_id, session_id, first.snapshot.revision, "fresh-2");
+    next.character = json!({"name": "Mira", "hp": 4, "inventory": ["rope"]});
+    let second = store.create_snapshot(next.clone()).await.unwrap();
+    let retry = store.create_snapshot(next).await.unwrap();
+    assert_ne!(first.snapshot.id, second.snapshot.id);
+    assert_eq!(second.snapshot.projection.character["hp"], 4);
+    assert_eq!(second.snapshot.projection.messages.len(), 1);
+    assert_eq!(retry.snapshot.id, second.snapshot.id);
+    assert!(second.snapshot.revision.0 > first.snapshot.revision.0);
+}
+
+#[tokio::test]
+async fn save_retry_cannot_return_another_campaigns_snapshot() {
+    let store = store().await;
+    let (campaign_a, session_a) = campaign(&store, 1).await;
+    let (campaign_b, session_b) = campaign(&store, 1).await;
+    store
+        .create_snapshot(create_snapshot_record(
+            campaign_a,
+            session_a,
+            Revision(1),
+            "shared-request",
+        ))
+        .await
+        .unwrap();
+    let result = store
+        .create_snapshot(create_snapshot_record(
+            campaign_b,
+            session_b,
+            Revision(1),
+            "shared-request",
+        ))
+        .await;
+    assert!(
+        result.is_err(),
+        "retry must not expose another campaign's state"
+    );
+}
+
+#[tokio::test]
 async fn campaign_snapshot_is_complete_revision_bound_and_idempotent() {
     let store = store().await;
     let (campaign_id, session_id) = campaign(&store, 4).await;
@@ -420,7 +476,7 @@ async fn campaign_snapshot_is_complete_revision_bound_and_idempotent() {
     let retried = store.create_snapshot(record).await.unwrap();
     assert_eq!(retried.save_id, first.save_id);
     assert_eq!(retried.snapshot.id, first.snapshot.id);
-    assert_eq!(first.snapshot.revision, Revision(4));
+    assert_eq!(first.snapshot.revision, Revision(5));
     assert_eq!(first.snapshot.ruleset_id, "srd-5.2.1");
     assert_eq!(first.snapshot.projection.messages.len(), 1);
     assert_eq!(first.snapshot.projection.character["name"], "Mira");
@@ -451,7 +507,7 @@ async fn restore_rolls_back_every_projection_when_active_pointer_update_fails() 
     .unwrap();
     let save = create_snapshot_record(campaign_id, session_id, Revision(4), "save-request-2");
     let save_id = save.id;
-    store.create_snapshot(save).await.unwrap();
+    let created = store.create_snapshot(save).await.unwrap();
     sqlx::query("DELETE FROM messages WHERE session_id = ?1")
         .bind(session_id.0.to_string())
         .execute(store.pool())
@@ -477,7 +533,7 @@ async fn restore_rolls_back_every_projection_when_active_pointer_update_fails() 
             save_id,
             campaign_id,
             session_id,
-            expected_revision: Revision(4),
+            expected_revision: created.snapshot.revision,
             causation_id: "restore-request-1".into(),
         })
         .await;

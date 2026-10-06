@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod campaign;
+pub mod campaign_state;
 pub mod chat;
 pub mod combat;
 pub mod identity;

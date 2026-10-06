@@ -61,6 +61,7 @@ export function useAgentTurn() {
           }),
       },
       session: {
+        generation: () => useStore.getState().session.transitionGeneration,
         current: () => useStore.getState().session.current(),
         currentSceneName: () => useStore.getState().session.currentScene?.name,
         setScene: (title) =>

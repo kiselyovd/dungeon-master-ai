@@ -1,4 +1,7 @@
 {
+  "back_library": "Campaigns",
+  "load_failed": "The campaign could not be opened. Your previous progress is preserved.",
+  "retry": "Try again",
   "library_eyebrow": "Campaign library",
   "home_title": "Your chronicles",
   "home_subtitle": "Return to an unfinished story or open a new page of adventure.",

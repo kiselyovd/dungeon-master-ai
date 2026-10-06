@@ -32,7 +32,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema } from './charCreationSchema';
 import type { OnboardingData } from './onboarding';
-import type { PcData } from './pc';
+import { PC_DATA_KEYS, type PcData } from './pc';
 import { LocalMistralRsConfigSchema, OpenaiCompatConfigSchema } from './providers';
 import type { CurrentScene, SessionData } from './session';
 import {
@@ -48,9 +48,11 @@ import { strongholdSecretsStore } from './strongholdSecretsStore';
 /** Upper bound on a single encrypted-secrets read during hydration. The argon2
  * vault open is deliberately slow and has been observed to hang on corrupt
  * snapshots; bounding it keeps `getItem` (and the app's hydration gate) from
- * stalling forever, at the cost of treating a too-slow read as "absent" for
- * this load. The secret is re-read lazily on next access. (Audit blocker 1.) */
-const SECRET_READ_TIMEOUT_MS = 3_000;
+ * stalling forever. An unavailable read is unknown, not permission to overwrite
+ * the encrypted value with defaults. Native cold opens can exceed three seconds. */
+const SECRET_READ_TIMEOUT_MS = 15_000;
+const SECRET_READ_UNKNOWN = Symbol('secret_read_unknown');
+const unreadSecrets = new Set<string>();
 
 const LEGACY_SECRETS_FILE = 'secrets.json';
 const SETTINGS_FILE = 'settings.json';
@@ -88,6 +90,27 @@ const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
 
+/** Preserve pre-campaign sheets independently of the active PC. No credentials
+ * or actions are copied, and a failed backup prevents the destructive transition. */
+export async function preserveLegacyCharacter(
+  character: PcData,
+  campaignId: string | null,
+): Promise<void> {
+  const document = Object.fromEntries(
+    Object.entries(character).filter(([key]) => PC_DATA_KEYS.has(key as keyof PcData)),
+  );
+  const entry = { campaignId, character: document };
+  const raw = await settingsStore.get<unknown>('legacy_character_backups');
+  if (raw !== undefined && raw !== null && !Array.isArray(raw))
+    throw new Error('legacy_backup_invalid');
+  const entries: unknown[] = Array.isArray(raw) ? raw : [];
+  const signature = JSON.stringify(entry);
+  if (!entries.some((candidate) => JSON.stringify(candidate) === signature)) {
+    await settingsStore.set('legacy_character_backups', [...entries, entry]);
+    await settingsStore.save();
+  }
+}
+
 /**
  * Pull a secret with one-shot migration from the pre-M5 plaintext
  * secrets.json. Returns `undefined` if neither store has the key.
@@ -110,9 +133,17 @@ async function getSecret(key: string): Promise<unknown> {
  */
 async function getSecretSafe(key: string): Promise<unknown> {
   try {
-    return await withTimeout(getSecret(key), SECRET_READ_TIMEOUT_MS, undefined);
-  } catch (err) {
-    console.error(`[persistStorage] failed to read secret "${key}":`, err);
+    const result = await withTimeout(getSecret(key), SECRET_READ_TIMEOUT_MS, SECRET_READ_UNKNOWN);
+    if (result === SECRET_READ_UNKNOWN) {
+      unreadSecrets.add(key);
+      console.warn('[persistStorage]', { code: 'secret_read_timeout', key });
+      return undefined;
+    }
+    unreadSecrets.delete(key);
+    return result;
+  } catch {
+    unreadSecrets.add(key);
+    console.error('[persistStorage]', { code: 'secret_read_failed', key });
     return undefined;
   }
 }
@@ -238,6 +269,28 @@ const SkillProfSchema = v.object({
 });
 
 const PcSchema = v.object({
+  characterId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
+  backstory: v.optional(v.string()),
+  ideals: v.optional(v.string()),
+  bonds: v.optional(v.string()),
+  flaws: v.optional(v.string()),
+  spells: v.optional(v.object({ cantrips: v.array(v.string()), level1: v.array(v.string()) })),
+  personalityFlags: v.optional(
+    v.array(
+      v.object({
+        slotId: v.picklist([
+          'bg-trait',
+          'bg-bond',
+          'align-trait',
+          'align-quirk',
+          'race-trait',
+          'race-quirk',
+        ]),
+        source: v.picklist(['background', 'alignment', 'race']),
+        flag: v.string(),
+      }),
+    ),
+  ),
   heroClass: v.nullable(v.string()),
   name: v.nullable(v.string()),
   race: v.nullable(v.string()),
@@ -466,11 +519,28 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const settingsWrites: Promise<unknown>[] = [];
     const secretWrites: Promise<unknown>[] = [];
 
-    if (settings.providers !== undefined) {
-      secretWrites.push(secretsStore.set(KEY_PROVIDERS, settings.providers));
+    if (
+      settings.providers !== undefined &&
+      !(
+        unreadSecrets.has(KEY_PROVIDERS) &&
+        Object.values(settings.providers).every((provider) => provider === null)
+      )
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_PROVIDERS, settings.providers).then(() => {
+          unreadSecrets.delete(KEY_PROVIDERS);
+        }),
+      );
     }
-    if (settings.replicateApiKey !== undefined) {
-      secretWrites.push(secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey));
+    if (
+      settings.replicateApiKey !== undefined &&
+      !(unreadSecrets.has(KEY_REPLICATE_API_KEY) && !settings.replicateApiKey)
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey).then(() => {
+          unreadSecrets.delete(KEY_REPLICATE_API_KEY);
+        }),
+      );
     }
 
     if (settings.activeProvider !== undefined) {
@@ -558,10 +628,11 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     // Settings flush first and unconditionally - it must survive a
     // secrets failure. Each group logs its own failures and never throws.
     await flushGroup('settings', settingsWrites, settingsStore);
-    await flushGroup('secrets', secretWrites, secretsStore);
+    if (secretWrites.length) await flushGroup('secrets', secretWrites, secretsStore);
   },
 
   async removeItem(_name): Promise<void> {
+    unreadSecrets.clear();
     await Promise.all([
       secretsStore.delete(KEY_PROVIDERS),
       secretsStore.delete(KEY_REPLICATE_API_KEY),

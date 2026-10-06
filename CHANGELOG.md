@@ -4,6 +4,14 @@ All notable changes to this project are tracked here. The format follows [Keep a
 
 Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk schema may change between them. See `docs/RELEASE.md` for the release pipeline and `docs/RELEASE_CHECKLIST.md` for the per-release manual smoke list.
 
+## Unreleased
+
+- Persist character sheets, biographies and selected spells per campaign before entering play.
+- Continue campaigns through one current-state projection; prevent old hero, inventory and late replies from leaking into another chronicle.
+- Capture distinct saves at fresh revisions while keeping retries idempotent.
+- Preserve legacy local hero backups and failed wizard drafts; add campaign-library navigation and localized retry feedback.
+- Add transactional migration, rollback, HTTP and production-root campaign continuation coverage.
+
 ## [v0.12.0-real-engine] - 2026-06-16 - Make everything real (W1-W4)
 
 The "make everything real" workstream: tool stubs are gone and the combat layer runs on real rules. Full design in the planning dir spec `2026-06-09-dmai-make-everything-real-design.md`.

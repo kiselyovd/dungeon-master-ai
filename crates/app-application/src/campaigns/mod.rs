@@ -2,6 +2,7 @@ mod create;
 mod get;
 mod list;
 mod snapshots;
+mod state;
 
 pub use app_domain::ruleset::{GAME_SCHEMA_VERSION, RULESET_ID};
 pub use create::{CreateCampaign, CreateCampaignCommand};
@@ -10,6 +11,7 @@ pub use list::ListCampaigns;
 pub use snapshots::{
     CreateSnapshot, CreateSnapshotCommand, RestoreSnapshot, RestoreSnapshotCommand,
 };
+pub use state::{CommitCharacter, LoadCampaignSession};
 
 use thiserror::Error;
 

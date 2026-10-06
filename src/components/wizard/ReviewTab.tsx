@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Compendium } from '../../api/srd';
 import { useCharacterAssist } from '../../hooks/useCharacterAssist';
 import type { TestChatTurn } from '../../state/charCreation';
+import { emptyPcData } from '../../state/pc';
 import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
 import { DmConfirmModal } from '../DmConfirmModal';
@@ -22,16 +23,16 @@ interface Warning {
 }
 
 export interface ReviewTabProps {
+  onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   compendium: Compendium;
   mode: CharacterWizardMode;
   onClose?: () => void;
 }
 
-export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
+export function ReviewTab({ compendium, mode, onClose, onCommitCharacter }: ReviewTabProps) {
   const { t } = useTranslation('wizard');
   const draft = useStore((s) => s.charCreation);
   const resetDraft = useStore((s) => s.charCreation.resetDraft);
-  const replaceFromDraft = useStore((s) => s.pc.replaceFromDraft);
   const completeOnboarding = useStore((s) => s.onboarding.complete);
   const { runTestChat, cancel } = useCharacterAssist();
 
@@ -39,6 +40,8 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
   const [userInput, setUserInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   const warnings: Warning[] = [];
   if (!draft.classId) warnings.push({ code: 'no_class', severity: 'block' });
@@ -79,10 +82,11 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       setConfirmOpen(true);
       return;
     }
-    beginConfirmed();
+    void beginConfirmed();
   }
 
-  function beginConfirmed() {
+  async function beginConfirmed() {
+    if (committing) return;
     setConfirmOpen(false);
     const bg = draft.backgroundId
       ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
@@ -127,9 +131,10 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       cha: sheet.abilities.cha.score,
     };
 
-    replaceFromDraft({
+    const character = {
+      ...emptyPcData(),
       heroClass: draft.classId,
-      name: draft.name || 'Hero',
+      name: draft.name.trim() || t('placeholder_hero'),
       race: draft.raceId,
       subclass: draft.subclassId,
       background: draft.backgroundId,
@@ -144,10 +149,36 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       proficiencyBonus: sheet.proficiencyBonus,
       portraitUrl: draft.portraitUrl,
       inventory,
-    });
-    resetDraft();
-    completeOnboarding();
-    onClose?.();
+      savingThrowProfs: Object.fromEntries(
+        Object.entries(sheet.savingThrows).map(([key, value]) => [key, value.proficient]),
+      ),
+      skillProfs: Object.fromEntries(
+        Object.entries(sheet.skills).map(([key, value]) => [key, value.proficient]),
+      ),
+      backstory: draft.backstory,
+      ideals: draft.ideals,
+      bonds: draft.bonds,
+      flaws: draft.flaws,
+      personalityFlags: draft.personalityFlags,
+      spells: draft.spells,
+    };
+    if ((character.portraitUrl?.length ?? 0) > 8 * 1024 * 1024) {
+      setCommitError('portrait_too_large');
+      return;
+    }
+    setCommitting(true);
+    setCommitError(null);
+    try {
+      if (!onCommitCharacter) throw new Error('campaign_required');
+      await onCommitCharacter(character);
+      resetDraft();
+      completeOnboarding();
+      onClose?.();
+    } catch {
+      setCommitError('character_commit_failed');
+    } finally {
+      setCommitting(false);
+    }
   }
 
   return (
@@ -234,8 +265,18 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       )}
 
       <div className="dm-wizard-action-bar">
-        <button type="button" className="dm-wizard-btn-primary" disabled={blocking} onClick={begin}>
-          {mode === 'edit' ? t('replace_character') : t('begin_adventure')}
+        {commitError && <p role="alert">{t(commitError)}</p>}
+        <button
+          type="button"
+          className="dm-wizard-btn-primary"
+          disabled={blocking || committing}
+          onClick={begin}
+        >
+          {committing
+            ? t('character_committing')
+            : mode === 'edit'
+              ? t('replace_character')
+              : t('begin_adventure')}
         </button>
       </div>
 

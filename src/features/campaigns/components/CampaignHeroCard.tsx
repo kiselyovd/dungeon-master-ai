@@ -4,6 +4,7 @@ import { Icons } from '../../../ui/Icons';
 import styles from '../CampaignHome.module.css';
 
 interface CampaignHeroCardProps {
+  disabled?: boolean;
   campaign: CampaignSummary;
   continueLabel: string;
   revisionLabel: string;
@@ -15,6 +16,7 @@ export function CampaignHeroCard({
   continueLabel,
   revisionLabel,
   onContinue,
+  disabled,
 }: CampaignHeroCardProps) {
   return (
     <article className={styles.heroCard}>
@@ -33,6 +35,7 @@ export function CampaignHeroCard({
         <button
           type="button"
           className={styles.primaryAction}
+          disabled={disabled}
           onClick={() => onContinue(campaign.id)}
         >
           <Icons.BookOpen size={16} />

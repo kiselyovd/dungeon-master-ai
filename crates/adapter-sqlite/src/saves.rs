@@ -70,6 +70,11 @@ impl SnapshotRepository for SqliteStore {
         if let Some(existing) =
             snapshot_by_causation(&mut transaction, &record.causation_id).await?
         {
+            if existing.snapshot.campaign_id != record.campaign_id
+                || existing.snapshot.session_id != record.session_id
+            {
+                return Err(repository_error("snapshot_causation_mismatch"));
+            }
             transaction
                 .commit()
                 .await
@@ -85,54 +90,73 @@ impl SnapshotRepository for SqliteStore {
             &record.ruleset_id,
         )
         .await?;
+        let character = crate::campaign_state::snapshot_character(
+            &mut transaction,
+            record.campaign_id,
+            record.character,
+        )
+        .await?;
         let projection = capture_projection(
             &mut transaction,
             record.campaign_id,
             record.session_id,
-            record.character,
+            character,
         )
         .await?;
         let created_at = chrono::Utc::now().to_rfc3339();
-        let snapshot = match snapshot_by_revision(
+        crate::campaign_state::persist_snapshot_character(
             &mut transaction,
             record.campaign_id,
-            record.expected_revision,
+            &projection.character,
+            false,
         )
-        .await?
-        {
-            Some(snapshot) => snapshot,
-            None => {
-                let snapshot = CampaignSnapshot {
-                    id: Uuid::new_v4(),
-                    campaign_id: record.campaign_id,
-                    session_id: record.session_id,
-                    revision: record.expected_revision,
-                    schema_version: record.schema_version,
-                    ruleset_id: record.ruleset_id,
-                    projection,
-                };
-                let projection_json = serde_json::to_string(&snapshot.projection)
-                    .map_err(|_| repository_error("encode_snapshot_projection"))?;
-                sqlx::query(
-                    "INSERT INTO campaign_snapshots \
+        .await?;
+        let snapshot_revision = crate::campaigns::advance_session_revision(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+            record.expected_revision,
+            "snapshot_created",
+            &record.causation_id,
+        )
+        .await?;
+        let snapshot =
+            match snapshot_by_revision(&mut transaction, record.campaign_id, snapshot_revision)
+                .await?
+            {
+                Some(snapshot) => snapshot,
+                None => {
+                    let snapshot = CampaignSnapshot {
+                        id: Uuid::new_v4(),
+                        campaign_id: record.campaign_id,
+                        session_id: record.session_id,
+                        revision: snapshot_revision,
+                        schema_version: record.schema_version,
+                        ruleset_id: record.ruleset_id,
+                        projection,
+                    };
+                    let projection_json = serde_json::to_string(&snapshot.projection)
+                        .map_err(|_| repository_error("encode_snapshot_projection"))?;
+                    sqlx::query(
+                        "INSERT INTO campaign_snapshots \
                      (id, campaign_id, session_id, revision, schema_version, ruleset_id, \
                       projection_json, created_at) \
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                )
-                .bind(snapshot.id.to_string())
-                .bind(record.campaign_id.0.to_string())
-                .bind(record.session_id.0.to_string())
-                .bind(revision_i64(record.expected_revision)?)
-                .bind(i64::from(record.schema_version))
-                .bind(&snapshot.ruleset_id)
-                .bind(projection_json)
-                .bind(&created_at)
-                .execute(&mut *transaction)
-                .await
-                .map_err(|_| repository_error("insert_campaign_snapshot"))?;
-                snapshot
-            }
-        };
+                    )
+                    .bind(snapshot.id.to_string())
+                    .bind(record.campaign_id.0.to_string())
+                    .bind(record.session_id.0.to_string())
+                    .bind(revision_i64(snapshot_revision)?)
+                    .bind(i64::from(record.schema_version))
+                    .bind(&snapshot.ruleset_id)
+                    .bind(projection_json)
+                    .bind(&created_at)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|_| repository_error("insert_campaign_snapshot"))?;
+                    snapshot
+                }
+            };
         sqlx::query(
             "INSERT INTO saves \
              (id, campaign_id, session_id, snapshot_id, revision, title, kind, summary, tag, causation_id, created_at) \
@@ -142,7 +166,7 @@ impl SnapshotRepository for SqliteStore {
         .bind(record.campaign_id.0.to_string())
         .bind(record.session_id.0.to_string())
         .bind(snapshot.id.to_string())
-        .bind(revision_i64(record.expected_revision)?)
+        .bind(revision_i64(snapshot_revision)?)
         .bind(record.title)
         .bind(record.kind)
         .bind(record.summary)
@@ -209,6 +233,13 @@ impl SnapshotRepository for SqliteStore {
             return Err(repository_error("snapshot_identity_mismatch"));
         }
         apply_projection(&mut transaction, &snapshot).await?;
+        crate::campaign_state::persist_snapshot_character(
+            &mut transaction,
+            record.campaign_id,
+            &snapshot.projection.character,
+            true,
+        )
+        .await?;
         let updated = sqlx::query(
             "UPDATE sessions SET active_snapshot_id = ?1 WHERE id = ?2 AND revision = ?3",
         )
@@ -420,7 +451,7 @@ async fn current_revision(
     parse_revision(revision)
 }
 
-async fn capture_projection(
+pub(crate) async fn capture_projection(
     transaction: &mut Transaction<'_, Sqlite>,
     campaign_id: CampaignId,
     session_id: SessionId,

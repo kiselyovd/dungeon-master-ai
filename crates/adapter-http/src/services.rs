@@ -69,6 +69,18 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn state(
+        &self,
+        _id: Uuid,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn commit_character(
+        &self,
+        _command: app_application::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn create_campaign(
         &self,
         command: app_application::campaigns::CreateCampaignCommand,
@@ -141,8 +153,8 @@ pub trait SavesHttpService: Send + Sync {
         &self,
         session_id: Uuid,
         metadata: SaveMetadataCommand,
-    ) -> Result<Uuid, HttpServiceError>;
-    async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError>;
+    ) -> Result<SaveCreated, HttpServiceError>;
+    async fn quick(&self, session_id: Uuid) -> Result<SaveCreated, HttpServiceError>;
     async fn get(&self, save_id: Uuid) -> Result<Value, HttpServiceError>;
     async fn delete(&self, save_id: Uuid) -> Result<bool, HttpServiceError>;
     async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError>;
@@ -151,6 +163,12 @@ pub trait SavesHttpService: Send + Sync {
         save_id: Uuid,
         metadata: SaveMetadataCommand,
     ) -> Result<bool, HttpServiceError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct SaveCreated {
+    pub id: Uuid,
+    pub revision: u64,
 }
 
 #[derive(Debug, Clone)]

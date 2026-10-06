@@ -4,7 +4,7 @@ use adapter_http::services::{
     AgentHttpService, AgentTurnHttpCommand, CampaignHttpService, CharacterAssistHttpService,
     ChatHttpCommand, ChatHttpService, CombatActionCommand, CombatHttpService, CombatStartCommand,
     HttpOutcome, HttpServiceError, HttpServices, LocalControlHttpService, LocalControlOperation,
-    LocalEventStream, MediaHttpService, ProviderDiscoveryCommand, RestoreSaveCommand,
+    LocalEventStream, MediaHttpService, ProviderDiscoveryCommand, RestoreSaveCommand, SaveCreated,
     SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
 };
 use app_application::models::agent::AgentEvent;
@@ -36,12 +36,18 @@ impl SavesHttpService for SavesStub {
         &self,
         session: Uuid,
         metadata: SaveMetadataCommand,
-    ) -> Result<Uuid, HttpServiceError> {
+    ) -> Result<SaveCreated, HttpServiceError> {
         *self.create.lock().await = Some((session, metadata));
-        Ok(Uuid::nil())
+        Ok(SaveCreated {
+            id: Uuid::nil(),
+            revision: 5,
+        })
     }
-    async fn quick(&self, _: Uuid) -> Result<Uuid, HttpServiceError> {
-        Ok(Uuid::nil())
+    async fn quick(&self, _: Uuid) -> Result<SaveCreated, HttpServiceError> {
+        Ok(SaveCreated {
+            id: Uuid::nil(),
+            revision: 5,
+        })
     }
     async fn get(&self, _: Uuid) -> Result<Value, HttpServiceError> {
         Err(HttpServiceError::NotFound)

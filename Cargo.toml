@@ -53,6 +53,17 @@ iota_stronghold = "2"
 debug = "line-tables-only"
 incremental = true
 
+# Keep native vault derivation practical in debug builds without changing its
+# security parameters. Release builds already optimize these cryptographic loops.
+[profile.dev.package.rust-argon2]
+opt-level = 3
+
+[profile.dev.package.blake2b_simd]
+opt-level = 3
+
+[profile.dev.package.scrypt]
+opt-level = 3
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

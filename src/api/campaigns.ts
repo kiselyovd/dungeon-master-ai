@@ -9,6 +9,11 @@ import {
   type CampaignSummary,
   type CreateCampaignInput,
 } from './contracts/campaign';
+import {
+  type CampaignStateResponse,
+  CampaignStateSchema,
+  type CommitCharacterRequest,
+} from './contracts/campaignState';
 import { ChatError } from './errors';
 
 async function request(path: string, init?: RequestInit): Promise<unknown> {
@@ -44,6 +49,43 @@ export async function fetchCampaigns(): Promise<CampaignSummary[]> {
 
 export async function fetchCampaign(campaignId: string): Promise<Campaign> {
   return parse(CampaignSchema, await request(`/campaigns/${encodeURIComponent(campaignId)}`));
+}
+
+export async function fetchCampaignState(
+  campaignId: string,
+  signal?: AbortSignal,
+): Promise<CampaignStateResponse> {
+  return parse(
+    CampaignStateSchema,
+    await request(
+      `/campaigns/${encodeURIComponent(campaignId)}/state`,
+      signal ? { signal } : undefined,
+    ),
+  );
+}
+
+export async function commitCampaignCharacter(
+  campaignId: string,
+  input: CommitCharacterRequest,
+  signal?: AbortSignal,
+): Promise<CampaignStateResponse> {
+  return parse(
+    CampaignStateSchema,
+    await request(`/campaigns/${encodeURIComponent(campaignId)}/character`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      ...(signal ? { signal } : {}),
+      body: JSON.stringify({
+        schema_version: 1,
+        ruleset_id: CAMPAIGN_RULESET_ID,
+        session_id: input.sessionId,
+        character_id: input.characterId,
+        expected_revision: input.expectedRevision,
+        causation_id: input.causationId,
+        character: input.character,
+      }),
+    }),
+  );
 }
 
 export async function createCampaign(input: CreateCampaignInput): Promise<Campaign> {

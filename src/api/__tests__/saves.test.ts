@@ -66,7 +66,7 @@ describe('saves API', () => {
       'fetch',
       vi.fn(async (url: string, init: RequestInit) => {
         calls.push({ url, init });
-        return new Response(JSON.stringify({ id: 'new-1' }), {
+        return new Response(JSON.stringify({ id: 'new-1', revision: 5 }), {
           status: 201,
           headers: new Headers({ 'content-type': 'application/json' }),
         });
@@ -89,6 +89,7 @@ describe('saves API', () => {
       },
     );
     expect(result.id).toBe('new-1');
+    expect(result.revision).toBe(5);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe('http://test.local/sessions/sess1/saves');
     const body = JSON.parse(calls[0]?.init.body as string) as Record<string, unknown>;

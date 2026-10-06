@@ -53,6 +53,7 @@ test('Saves button opens the saves dialog', async ({ page }) => {
 
 test('Ctrl+Shift+S opens the saves dialog', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Saves', exact: true })).toBeVisible();
   await page.keyboard.press('Control+Shift+S');
   await expect(page.getByRole('dialog')).toBeVisible();
 });

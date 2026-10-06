@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RestoredSessionProjection } from '../../features/saves/model/buildRestoredSession';
 import { useStore } from '../useStore';
 
@@ -39,5 +39,49 @@ describe('atomic session restoration', () => {
     expect(state.chat.messages).toEqual(projection.messages);
     expect(state.pc).toMatchObject({ name: 'Restored Hero', hp: 7 });
     expect(state.combat.active).toBe(false);
+  });
+
+  it('clears the previous hero and transient save state when the next campaign is empty', () => {
+    useStore.getState().pc.applyPreset('fighter');
+    useStore.getState().pc.replaceFromDraft({ portraitUrl: 'https://example.test/old.png' });
+    useStore.getState().saves.selectSave('old-save');
+    useStore.getState().toolLog.addPending('old', 'attack', {}, 1);
+    useStore.getState().restoration.apply({
+      campaignId: 'other',
+      sessionId: 'other-session',
+      revision: 1,
+      messages: [],
+      pc: {},
+      scene: null,
+      combat: null,
+      journal: [],
+      npcs: [],
+    });
+    const state = useStore.getState();
+    expect(state.pc.heroClass).toBeNull();
+    expect(state.pc.inventory).toEqual([]);
+    expect(state.pc.portraitUrl).toBeNull();
+    expect(state.pc.skillProfs).toEqual({});
+    expect(state.saves.selectedSaveId).toBeNull();
+    expect(state.toolLog.entries).toEqual([]);
+  });
+
+  it('aborts the old transport before dropping its controller', () => {
+    const controller = new AbortController();
+    const abort = vi.spyOn(controller, 'abort');
+    useStore.setState((state) => ({ chat: { ...state.chat, abortController: controller } }));
+    useStore.getState().restoration.apply({
+      campaignId: 'other',
+      sessionId: 'other-session',
+      revision: 1,
+      messages: [],
+      pc: {},
+      scene: null,
+      combat: null,
+      journal: [],
+      npcs: [],
+    });
+    expect(abort).toHaveBeenCalledOnce();
+    expect(useStore.getState().chat.abortController).toBeNull();
   });
 });

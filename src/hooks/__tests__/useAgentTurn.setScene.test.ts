@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { useStore } from '../../state/useStore';
@@ -43,5 +43,32 @@ describe('useAgentTurn set_scene handler', () => {
       name: 'The Sunless Citadel',
       stepCounter: 0,
     });
+  });
+
+  it('ignores late events and finalization from a campaign that was left', async () => {
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    vi.mocked(streamAgentTurn).mockImplementationOnce(async (opts) => {
+      await pending;
+      opts.onEvent?.({ type: 'text_delta', text: 'Old campaign reply' });
+      opts.onEvent?.({ type: 'agent_done', totalRounds: 1 });
+    });
+    useStore.getState().session.activate('campaign-1', 'session-1');
+    const { result } = renderHook(() => useAgentTurn());
+    let turn: Promise<void> = Promise.resolve();
+    act(() => {
+      turn = result.current.send('old action');
+    });
+    act(() => {
+      useStore.getState().restoration.clear();
+    });
+    await act(async () => {
+      finish();
+      await turn;
+    });
+    expect(useStore.getState().chat.messages).toEqual([]);
+    expect(useStore.getState().chat.lastError).toBeNull();
   });
 });

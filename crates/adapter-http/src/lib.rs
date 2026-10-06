@@ -32,6 +32,14 @@ pub fn router(services: HttpServices) -> Router {
             "/campaigns/{campaign_id}",
             get(routes::campaigns::get_campaign),
         )
+        .route(
+            "/campaigns/{campaign_id}/state",
+            get(routes::campaigns::get_campaign_state),
+        )
+        .route(
+            "/campaigns/{campaign_id}/character",
+            axum::routing::put(routes::campaigns::put_campaign_character),
+        )
         .route("/chat", post(routes::chat::chat))
         .route("/providers", get(routes::settings::get_providers))
         .route("/combat/start", post(routes::combat::post_combat_start))

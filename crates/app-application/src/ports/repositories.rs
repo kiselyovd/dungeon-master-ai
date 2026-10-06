@@ -44,6 +44,18 @@ pub trait CampaignRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait CampaignStateRepository: Send + Sync {
+    async fn load_current(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+    async fn commit_character(
+        &self,
+        command: crate::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+}
+
+#[async_trait]
 pub trait SessionRepository: Send + Sync {
     async fn get(&self, session_id: SessionId) -> Result<Option<CampaignSession>, RepositoryError>;
     async fn latest_for_campaign(

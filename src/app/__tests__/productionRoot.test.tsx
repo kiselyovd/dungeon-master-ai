@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../../i18n';
 import { useStore } from '../../state/useStore';
 import App from '../App';
@@ -42,6 +42,22 @@ beforeEach(async () => {
 });
 
 describe('production application root', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('does not mount state-writing game views before native persistence hydration finishes', async () => {
+    let finish = () => {};
+    vi.spyOn(useStore.persist, 'hasHydrated').mockReturnValue(false);
+    vi.spyOn(useStore.persist, 'onFinishHydration').mockImplementation((callback) => {
+      finish = () => callback(useStore.getState());
+      return () => {};
+    });
+    const loadError = vi.spyOn(useStore.getState().session, 'setLoadError');
+    const { container } = render(<App />);
+    expect(container.querySelector('.dm-chat-panel')).toBeNull();
+    expect(loadError).not.toHaveBeenCalled();
+    await act(async () => finish());
+    expect(await screen.findByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
+  });
   it('renders the Russian campaign home as the real production root', async () => {
     const { container } = render(<App />);
 

@@ -207,6 +207,7 @@ function CampaignTitleBar({
 
 function App() {
   const { t } = useTranslation('common');
+  const { t: tCampaigns } = useTranslation('campaigns');
   const { t: tSettings } = useTranslation('settings');
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
@@ -288,7 +289,13 @@ function App() {
     setCharacterSheetOpen,
     wizardReopen,
     setWizardReopen,
-  } = useAppShellController({ uiLanguage, chatPanelWidth, quickSave, openSaves });
+  } = useAppShellController({
+    uiLanguage,
+    chatPanelWidth,
+    quickSave,
+    openSaves,
+    enabled: hydrated,
+  });
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
@@ -372,7 +379,17 @@ function App() {
           : null,
       });
 
-  if (hydrated && onboardingCompleted && campaignRoute.kind !== 'game-table') {
+  if (!hydrated) {
+    return (
+      <ErrorBoundary level="top">
+        <AppShell>
+          <SplashOverlay />
+        </AppShell>
+      </ErrorBoundary>
+    );
+  }
+
+  if (onboardingCompleted && campaignRoute.kind !== 'game-table') {
     return (
       <ErrorBoundary level="top">
         <ProviderMigrationBanner />
@@ -400,6 +417,12 @@ function App() {
             />
           ) : (
             <CampaignHome
+              errorCode={campaignsFeature.errorCode}
+              onRetry={() => {
+                void (persistedCampaignId
+                  ? campaignsFeature.activate(persistedCampaignId)
+                  : campaignsFeature.refresh());
+              }}
               campaigns={campaignsFeature.campaigns}
               loading={campaignsFeature.loading}
               onContinue={(campaignId) => {
@@ -449,7 +472,7 @@ function App() {
             <div className="dm-titlebar-divider" />
             <div className="dm-titlebar-campaign">
               <Icons.Book size={12} />
-              <span>{t('campaign_default')}</span>
+              <span>{campaignsFeature.active?.title ?? t('campaign_default')}</span>
             </div>
           </div>
 
@@ -458,6 +481,16 @@ function App() {
           </div>
 
           <div className="dm-titlebar-right">
+            <button
+              type="button"
+              className="dm-btn-tb"
+              onClick={campaignsFeature.clear}
+              aria-label={tCampaigns('back_library')}
+              title={tCampaigns('back_library')}
+            >
+              <Icons.Book size={13} />
+              <span>{tCampaigns('back_library')}</span>
+            </button>
             <button
               type="button"
               className="dm-btn-tb"
@@ -645,6 +678,7 @@ function App() {
           {wizardReopen && (
             <CharacterWizard
               mode={pcHeroClass ? 'edit' : 'initial'}
+              onCommitCharacter={campaignsFeature.commitCharacter}
               onClose={() => setWizardReopen(false)}
               onOpenImageSettings={handleOpenImageSettings}
               hidden={settingsOpen}

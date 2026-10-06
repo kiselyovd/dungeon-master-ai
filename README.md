@@ -11,14 +11,12 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
   <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Guided hero creation with class presets and character art" />
 </p>
 
-> **Status: v0.12.1 (real engine).** Real server-rolled combat (initiative,
-> turn-gating, conditions, damage resistance, spell resolution), SRD rules
-> retrieval (RAG), real scene persistence and saves, and video generation. The
-> app completes end to end: onboard by any preset, create or pick a character,
-> chat with the DM, resolve a combat round on the VTT, generate an image, save,
-> and restart with state preserved. Both the local-only path (embedded LLM +
-> image sidecars) and the cloud path (any OpenAI-compatible endpoint, OpenRouter
-> recommended) work.
+> **Status: v0.12.1, experimental.** The rules engine, character wizard, tabletop
+> and campaign persistence are implemented. Complete solo-adventure acceptance
+> and LAN/VPN cooperative play remain active development work. Model and media
+> behavior depends on the configured runtime and hardware; fixture tests do not
+> establish real-model playability. See [campaign continuation and recovery](docs/CAMPAIGN_STATE.md)
+> for current persistence behavior and its verification boundaries.
 
 ## Features
 

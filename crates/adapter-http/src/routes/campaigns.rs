@@ -1,5 +1,8 @@
 use app_application::campaigns::{CreateCampaignCommand, GAME_SCHEMA_VERSION, RULESET_ID};
+use app_application::models::campaign_state::CommitCampaignCharacter;
+use app_application::models::identity::{CampaignId, Revision, SessionId};
 use app_application::models::session::CampaignSeed;
+use app_application::models::snapshot::SnapshotProjection;
 use axum::extract::{Extension, Path};
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -41,6 +44,59 @@ pub struct CampaignSummaryResponse {
     pub last_session_id: Uuid,
     pub revision: u64,
     pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CampaignStateResponse {
+    pub schema_version: u16,
+    pub ruleset_id: String,
+    pub campaign: CampaignResponse,
+    pub session_id: Uuid,
+    pub character_id: Option<Uuid>,
+    pub projection: SnapshotProjection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommitCharacterRequest {
+    pub schema_version: u16,
+    pub ruleset_id: String,
+    pub session_id: Uuid,
+    pub character_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
+    pub character: serde_json::Value,
+}
+
+pub async fn get_campaign_state(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<CampaignStateResponse>, HttpServiceError> {
+    services.campaign.state(id).await.map(Json)
+}
+
+pub async fn put_campaign_character(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<CommitCharacterRequest>,
+) -> Result<Json<CampaignStateResponse>, HttpServiceError> {
+    if body.schema_version != GAME_SCHEMA_VERSION || body.ruleset_id != RULESET_ID {
+        return Err(HttpServiceError::UnprocessableEntity {
+            code: "campaign_contract_unsupported",
+        });
+    }
+    services
+        .campaign
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: CampaignId(id),
+            session_id: SessionId(body.session_id),
+            character_id: body.character_id,
+            expected_revision: Revision(body.expected_revision),
+            causation_id: body.causation_id,
+            character: body.character,
+        })
+        .await
+        .map(Json)
 }
 
 pub fn validate_create_campaign(

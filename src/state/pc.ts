@@ -63,6 +63,13 @@ export interface InventoryItem {
 }
 
 export interface PcData {
+  characterId?: string | null;
+  backstory?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  personalityFlags?: import('./charCreation').PersonalityFlag[];
+  spells?: { cantrips: string[]; level1: string[] };
   heroClass: string | null;
   // Identity (null when no character has been created yet).
   name: string | null;
@@ -102,6 +109,13 @@ export interface PcData {
  * further down the file. Keep this in sync with `PcData` and `EMPTY_PC`.
  */
 export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
+  'characterId',
+  'backstory',
+  'ideals',
+  'bonds',
+  'flaws',
+  'personalityFlags',
+  'spells',
   'heroClass',
   'name',
   'race',
@@ -345,6 +359,13 @@ const EMPTY_ABILITIES: AbilityScores = {
 };
 
 const EMPTY_PC: PcData = {
+  characterId: null,
+  backstory: '',
+  ideals: '',
+  bonds: '',
+  flaws: '',
+  personalityFlags: [],
+  spells: { cantrips: [], level1: [] },
   heroClass: null,
   name: null,
   race: null,
@@ -366,6 +387,18 @@ const EMPTY_PC: PcData = {
   inventory: [],
   portraitUrl: null,
 };
+
+export function emptyPcData(): PcData {
+  return {
+    ...EMPTY_PC,
+    abilities: { ...EMPTY_PC.abilities },
+    savingThrowProfs: {},
+    skillProfs: {},
+    inventory: [],
+    personalityFlags: [],
+    spells: { cantrips: [], level1: [] },
+  };
+}
 
 function isHeroClassId(value: string | null): value is HeroClassId {
   return value === 'fighter' || value === 'wizard' || value === 'rogue' || value === 'cleric';

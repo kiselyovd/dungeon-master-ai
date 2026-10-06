@@ -75,7 +75,7 @@ test('empty VTT uses living-tabletop art and retains product labels', async ({ p
   await page.goto('/');
 
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
-  await expect(page.getByText('Untitled Campaign')).toBeVisible();
+  await expect(page.getByText('Fixture Chronicle', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.dm-vtt-empty-art')).toHaveAttribute('src', /vtt-empty.*\.webp/);
   await expect(page.locator('.dm-vtt-empty[data-art-direction="living-tabletop"]')).toBeVisible();
 });

@@ -53,6 +53,31 @@ test('latest campaign is primary and continue uses its backend identity', async 
       ),
     });
   });
+  await page.route('**/campaigns/*/state', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: 1,
+        ruleset_id: 'srd-5.2.1',
+        campaign: {
+          ...campaign,
+          seed: { kind: 'collaborative', answers: { genre: ['classic_fantasy'] } },
+          created_at: '2026-08-13T03:21:00.000Z',
+        },
+        session_id: campaign.last_session_id,
+        character_id: null,
+        projection: {
+          character: {},
+          messages: [],
+          combat: null,
+          scene: null,
+          journal: [],
+          npcs: [],
+        },
+      }),
+    });
+  });
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: campaign.title })).toBeVisible();

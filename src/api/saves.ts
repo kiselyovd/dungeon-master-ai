@@ -61,6 +61,22 @@ export interface SnapshotContext {
   causationId: string;
 }
 
+export interface SaveCreated {
+  id: string;
+  revision?: number;
+}
+
+function parseSaveCreated(value: unknown): SaveCreated {
+  const row = record(value, 'create save');
+  const result: SaveCreated = { id: stringField(row.id, 'create save.id') };
+  if (row.revision !== undefined) {
+    const revision = numberField(row.revision, 'create save.revision');
+    if (!Number.isSafeInteger(revision) || revision < 1) invalidResponse('create save.revision');
+    result.revision = revision;
+  }
+  return result;
+}
+
 function invalidResponse(label: string): never {
   throw new ChatError('invalid_response', `${label} response is invalid`);
 }
@@ -103,7 +119,7 @@ function parseSaveSummary(value: unknown): SaveSummary {
   };
 }
 
-function parseMessage(value: unknown): SessionMessageWire {
+export function parseMessage(value: unknown): SessionMessageWire {
   const message = record(value, 'message');
   const role = stringField(message.role, 'message.role');
   if (
@@ -167,7 +183,7 @@ export async function createSave(
   sessionId: string,
   body: CreateSaveRequest,
   context: SnapshotContext,
-): Promise<{ id: string }> {
+): Promise<SaveCreated> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves`);
   const resp = await fetch(url, {
     method: 'POST',
@@ -181,14 +197,13 @@ export async function createSave(
     }),
   });
   if (!resp.ok) throw await readError(resp, 'create save');
-  const json = record(await resp.json(), 'create save');
-  return { id: stringField(json.id, 'create save.id') };
+  return parseSaveCreated(await resp.json());
 }
 
 export async function quickSaveSession(
   sessionId: string,
   context: SnapshotContext,
-): Promise<{ id: string }> {
+): Promise<SaveCreated> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves/quick`);
   const resp = await fetch(url, {
     method: 'POST',
@@ -205,8 +220,7 @@ export async function quickSaveSession(
     }),
   });
   if (!resp.ok) throw await readError(resp, 'quick save');
-  const json = record(await resp.json(), 'quick save');
-  return { id: stringField(json.id, 'quick save.id') };
+  return parseSaveCreated(await resp.json());
 }
 
 export async function fetchSaveById(saveId: string): Promise<SaveRow> {
