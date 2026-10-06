@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChatError } from '../../api/errors';
 import {
   createSave as apiCreateSave,
   type CreateSaveRequest,
@@ -11,6 +12,7 @@ import {
   updateSaveById,
 } from '../../api/saves';
 import { PC_DATA_KEYS, type PcData } from '../../state/pc';
+import type { PendingRestore } from '../../state/session';
 import { useStore } from '../../state/useStore';
 import { buildRestoredSession, RestoreValidationError } from './model/buildRestoredSession';
 import { SaveRequests } from './model/saveRequests';
@@ -36,6 +38,17 @@ export interface UseSavesResult {
 let nextOperation = 0;
 
 export function useSaves(): UseSavesResult {
+  const restoreRetry = useMemo(
+    () => ({
+      get current(): PendingRestore | null {
+        return useStore.getState().session.pendingRestore;
+      },
+      set current(value: PendingRestore | null) {
+        useStore.getState().session.setRestoreRetry(value);
+      },
+    }),
+    [],
+  );
   const { t } = useTranslation('saves');
   const saves = useStore((state) => state.saves.list);
   const selectedSaveId = useStore((state) => state.saves.selectedSaveId);
@@ -67,6 +80,10 @@ export function useSaves(): UseSavesResult {
 
   const writeSave = useCallback(
     async (kind: 'quick' | 'manual', body?: CreateSaveRequest) => {
+      if (useStore.getState().session.mutationId) {
+        setLastSaveError(t('campaign_action_pending'));
+        return null;
+      }
       const scope = saveScope();
       if (!scope) {
         setLastSaveError(t('campaign_required'));
@@ -157,6 +174,7 @@ export function useSaves(): UseSavesResult {
         if (!ownsScope(scope)) return { ok: false, error: t('restore_failed') };
         const operationId = `restore-${++nextOperation}`;
         const startedAt = performance.now();
+        let mutationId: string | null = null;
         try {
           const active = currentSession();
           const activeCampaign = useStore.getState().campaigns.active;
@@ -168,28 +186,41 @@ export function useSaves(): UseSavesResult {
           }
           const { campaignId, sessionId } = active;
           const generation = useStore.getState().session.transitionGeneration;
-          const restored = await restoreSave(saveId, {
+          const key = `${campaignId}/${sessionId}`;
+          const previous = restoreRetry.current?.scope === key ? restoreRetry.current : null;
+          if (previous && previous.saveId !== saveId)
+            return { ok: false, error: t('restore_retry_previous') };
+          if (useStore.getState().chat.isStreaming)
+            return { ok: false, error: t('campaign_action_pending') };
+          const request = previous?.request ?? {
             campaignId,
             sessionId,
             expectedRevision: activeCampaign.revision,
             causationId: `restore-${crypto.randomUUID()}`,
-          });
+          };
+          mutationId = request.causationId;
+          if (!useStore.getState().session.beginMutation(mutationId))
+            return { ok: false, error: t('campaign_action_pending') };
+          restoreRetry.current = { scope: key, saveId, request };
+          const restored = await restoreSave(saveId, request);
           const current = useStore.getState().session;
           if (
             current.transitionGeneration !== generation ||
             current.activeCampaignId !== campaignId ||
             current.activeSessionId !== sessionId
           ) {
+            if (restoreRetry.current?.request === request) restoreRetry.current = null;
             return { ok: false, error: t('restore_failed') };
           }
           const projection = buildRestoredSession({
             saveId,
             campaignId,
             sessionId,
-            expectedRevision: activeCampaign.revision,
+            expectedRevision: request.expectedRevision,
             restored,
           });
           applyRestoredSession(projection);
+          restoreRetry.current = null;
           console.debug('[save.restore]', {
             operationId,
             saveId,
@@ -201,6 +232,8 @@ export function useSaves(): UseSavesResult {
           });
           return { ok: true };
         } catch (error) {
+          if (error instanceof ChatError && error.code === 'http_error')
+            restoreRetry.current = null;
           const code = error instanceof RestoreValidationError ? error.code : 'restore_failed';
           console.warn('[save.restore]', {
             operationId,
@@ -210,10 +243,17 @@ export function useSaves(): UseSavesResult {
             transition: 'rejected',
           });
           return { ok: false, error: errorMessage(error) };
+        } finally {
+          if (
+            mutationId &&
+            (restoreRetry.current?.request.causationId !== mutationId || !ownsScope(scope))
+          ) {
+            useStore.getState().session.endMutation(mutationId);
+          }
         }
       });
     },
-    [applyRestoredSession, currentSession, t],
+    [applyRestoredSession, currentSession, t, restoreRetry],
   );
 
   const deleteSave = useCallback(

@@ -38,6 +38,40 @@ beforeEach(() => {
 });
 
 describe('save operation ownership', () => {
+  it('retries a committed restore with a lost response using the exact original request', async () => {
+    vi.mocked(api.restoreSave)
+      .mockRejectedValueOnce(new TypeError('response lost after commit'))
+      .mockResolvedValueOnce({
+        id: 'old-save',
+        campaign_id: 'A',
+        session_id: 'session-A',
+        revision: 1,
+        current_revision: 2,
+        schema_version: 1,
+        ruleset_id: 'srd-5.2.1',
+        projection: {
+          character: { name: 'Recovered' },
+          messages: [],
+          combat: null,
+          scene: null,
+          journal: [],
+          npcs: [],
+        },
+      });
+    const { result, unmount } = renderHook(() => useSaves());
+    await act(async () => {
+      await result.current.rehydrateFromSave('old-save');
+    });
+    unmount();
+    const reopened = renderHook(() => useSaves());
+    await act(async () => {
+      await reopened.result.current.rehydrateFromSave('old-save');
+    });
+    expect(vi.mocked(api.restoreSave).mock.calls[1]).toEqual(
+      vi.mocked(api.restoreSave).mock.calls[0],
+    );
+    expect(useStore.getState().campaigns.active?.revision).toBe(2);
+  });
   it('serializes restore with checkpoint creation and rejects a pre-restore save intent', async () => {
     let finish: (value: api.RestoreSaveResponse) => void = () => {};
     const pending = new Promise<api.RestoreSaveResponse>((resolve) => {

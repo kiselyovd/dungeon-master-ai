@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { AdventureProjection } from '../api/contracts/adventure';
 
 /**
  * Persistent pointer to a backend-owned campaign aggregate and its active
@@ -16,7 +17,16 @@ export interface CurrentScene {
   stepCounter: number;
 }
 
+export interface PendingRestore {
+  scope: string;
+  saveId: string;
+  request: { campaignId: string; sessionId: string; expectedRevision: number; causationId: string };
+}
+
 export interface SessionData {
+  pendingRestore: PendingRestore | null;
+  mutationId: string | null;
+  adventure: AdventureProjection | null;
   transitionGeneration: number;
   activeCampaignId: string | null;
   activeSessionId: string | null;
@@ -37,6 +47,9 @@ export interface SessionData {
 }
 
 export interface SessionActions {
+  setRestoreRetry: (pending: PendingRestore | null) => void;
+  beginMutation: (id: string) => boolean;
+  endMutation: (id: string) => void;
   beginTransition: () => number;
   activate: (campaignId: string, sessionId: string) => void;
   current: () => { campaignId: string; sessionId: string } | null;
@@ -57,6 +70,21 @@ export interface SessionSlice {
 
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set, get) => ({
   session: {
+    pendingRestore: null,
+    setRestoreRetry: (pendingRestore) =>
+      set((state) => ({ session: { ...state.session, pendingRestore } })),
+    mutationId: null,
+    beginMutation: (id) => {
+      const held = get().session.mutationId;
+      if (held && held !== id) return false;
+      set((state) => ({ session: { ...state.session, mutationId: id } }));
+      return true;
+    },
+    endMutation: (id) => {
+      if (get().session.mutationId === id)
+        set((state) => ({ session: { ...state.session, mutationId: null } }));
+    },
+    adventure: null,
     transitionGeneration: 0,
     beginTransition: () => {
       const generation = get().session.transitionGeneration + 1;
@@ -74,6 +102,8 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
         session: {
           ...s.session,
           activeCampaignId: campaignId,
+          mutationId: null,
+          pendingRestore: null,
           activeSessionId: sessionId,
           transitionGeneration: s.session.transitionGeneration + 1,
         },
@@ -90,8 +120,11 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
         session: {
           ...s.session,
           activeCampaignId: null,
+          mutationId: null,
+          pendingRestore: null,
           activeSessionId: null,
           currentScene: null,
+          adventure: null,
           mapImageUrl: null,
           loadError: null,
           transitionGeneration: s.session.transitionGeneration + 1,

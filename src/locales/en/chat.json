@@ -44,5 +44,6 @@
   "action_copy": "Copy",
   "action_retry": "Retry",
   "action_save_journal": "Save to Journal",
-  "retrying": "Retrying..."
+  "retrying": "Retrying...",
+  "campaign_action_pending": "A campaign action is awaiting confirmation. Retry it or reopen the campaign before sending a new turn."
 }

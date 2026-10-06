@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import enAdventure from './locales/en/adventure.json';
 import enAgent from './locales/en/agent.json';
 import enCampaigns from './locales/en/campaigns.json';
 import enCharacter from './locales/en/character.json';
@@ -17,6 +18,7 @@ import enSettings from './locales/en/settings.json';
 import enTools from './locales/en/tools.json';
 import enUpdater from './locales/en/updater.json';
 import enWizard from './locales/en/wizard.json';
+import ruAdventure from './locales/ru/adventure.json';
 import ruAgent from './locales/ru/agent.json';
 import ruCampaigns from './locales/ru/campaigns.json';
 import ruCharacter from './locales/ru/character.json';
@@ -43,6 +45,7 @@ void i18n.use(initReactI18next).init({
   supportedLngs: ['en', 'ru'],
   defaultNS: 'common',
   ns: [
+    'adventure',
     'common',
     'chat',
     'settings',
@@ -63,6 +66,7 @@ void i18n.use(initReactI18next).init({
   ],
   resources: {
     en: {
+      adventure: enAdventure,
       common: enCommon,
       chat: enChat,
       settings: enSettings,
@@ -82,6 +86,7 @@ void i18n.use(initReactI18next).init({
       tools: enTools,
     },
     ru: {
+      adventure: ruAdventure,
       common: ruCommon,
       chat: ruChat,
       settings: ruSettings,

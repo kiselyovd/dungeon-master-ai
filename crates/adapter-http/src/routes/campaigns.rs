@@ -68,6 +68,42 @@ pub struct CommitCharacterRequest {
     pub character: serde_json::Value,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdventureActionRequest {
+    pub schema_version: u16,
+    pub ruleset_id: String,
+    pub session_id: Uuid,
+    pub character_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
+    pub action: app_application::models::adventure::Action,
+}
+
+pub async fn post_adventure_action(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<AdventureActionRequest>,
+) -> Result<Json<CampaignStateResponse>, HttpServiceError> {
+    if body.schema_version != GAME_SCHEMA_VERSION || body.ruleset_id != RULESET_ID {
+        return Err(HttpServiceError::UnprocessableEntity {
+            code: "campaign_contract_unsupported",
+        });
+    }
+    services
+        .campaign
+        .adventure_action(app_application::models::adventure::AdventureCommand {
+            campaign_id: CampaignId(id),
+            session_id: SessionId(body.session_id),
+            character_id: body.character_id,
+            expected_revision: Revision(body.expected_revision),
+            causation_id: body.causation_id,
+            action: body.action,
+        })
+        .await
+        .map(Json)
+}
+
 pub async fn get_campaign_state(
     Extension(services): Extension<HttpServices>,
     Path(id): Path<Uuid>,

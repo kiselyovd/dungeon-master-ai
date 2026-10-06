@@ -59,6 +59,7 @@ export function ChatPanel() {
   const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
   const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
   const isStreaming = useStore((s) => s.chat.isStreaming);
+  const campaignMutation = useStore((s) => s.session.mutationId);
   const lastError = useStore((s) => s.chat.lastError);
   const { refetch: refetchSession } = useSession();
   const sessionLoadError = useStore((s) => s.session.loadError);
@@ -133,7 +134,7 @@ export function ChatPanel() {
     setStaged((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const canSend = !isStreaming && draft.trim().length > 0;
+  const canSend = !isStreaming && !campaignMutation && draft.trim().length > 0;
 
   // Build a retry handler for a finalized assistant bubble identified by its
   // message id. Clicking Retry must:
@@ -388,7 +389,9 @@ export function ChatPanel() {
             className={styles.draft}
             aria-label={t('placeholder')}
           />
-          <div className={styles.hint}>{t('hint_keyboard')}</div>
+          <div className={styles.hint}>
+            {campaignMutation ? t('campaign_action_pending') : t('hint_keyboard')}
+          </div>
         </div>
         <div className={styles.composerActions}>
           {isStreaming ? (

@@ -36,6 +36,12 @@ impl CreateCampaign {
         command: CreateCampaignCommand,
     ) -> Result<CampaignDetail, CampaignError> {
         let title = command.title.trim().to_owned();
+        if matches!(&command.seed, CampaignSeed::Bundled { adventure_id } if adventure_id != app_domain::adventure::BELL_ADVENTURE_ID)
+        {
+            return Err(CampaignError::InvalidInput {
+                code: "adventure_package_unknown",
+            });
+        }
         if title.is_empty() {
             return Err(CampaignError::InvalidInput {
                 code: "title_required",

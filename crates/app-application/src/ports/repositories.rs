@@ -56,6 +56,14 @@ pub trait CampaignStateRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait AdventureRepository: Send + Sync {
+    async fn act(
+        &self,
+        command: crate::models::adventure::AdventureCommand,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+}
+
+#[async_trait]
 pub trait SessionRepository: Send + Sync {
     async fn get(&self, session_id: SessionId) -> Result<Option<CampaignSession>, RepositoryError>;
     async fn latest_for_campaign(

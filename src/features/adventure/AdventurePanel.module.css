@@ -1,0 +1,20 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--color-fg-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.content h2,
+.content h3 {
+  font-family: var(--font-display);
+  color: var(--color-accent);
+}

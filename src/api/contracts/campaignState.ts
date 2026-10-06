@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { AdventureProjectionSchema } from './adventure';
 import { CampaignSchema } from './campaign';
 
 const MessageSchema = v.object({
@@ -24,6 +25,7 @@ export const CampaignStateSchema = v.object({
   session_id: v.pipe(v.string(), v.uuid()),
   character_id: v.nullable(v.pipe(v.string(), v.uuid())),
   projection: v.object({
+    adventure: v.optional(v.nullable(AdventureProjectionSchema)),
     messages: v.array(MessageSchema),
     character: v.record(v.string(), v.unknown()),
     combat: v.nullable(v.unknown()),

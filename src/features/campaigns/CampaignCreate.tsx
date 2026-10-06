@@ -15,20 +15,29 @@ interface CampaignCreateProps {
 
 export function CampaignCreate({ busy, onBack, onCreate }: CampaignCreateProps) {
   const { t } = useTranslation('campaigns');
+  const { t: tAdventure } = useTranslation('adventure');
   const [step, setStep] = useState(1);
   const [source, setSource] = useState<SourceKind>('collaborative');
   const [title, setTitle] = useState('');
   const [premise, setPremise] = useState('');
 
-  const isFutureSource = step === 2 && source !== 'collaborative';
-  const canAdvance = step !== 2 || (title.trim().length > 0 && premise.trim().length > 0);
+  const isFutureSource = step === 2 && source === 'document';
+  const canAdvance =
+    source === 'bundled' || step !== 2 || (title.trim().length > 0 && premise.trim().length > 0);
 
   async function finish() {
-    const seed: CampaignSeed = {
-      kind: 'collaborative',
-      answers: { genre: ['classic_fantasy'] },
-    };
-    await onCreate({ title: title.trim(), premise: premise.trim(), seed });
+    const seed: CampaignSeed =
+      source === 'bundled'
+        ? { kind: 'bundled', adventure_id: 'bell-beneath-water' }
+        : {
+            kind: 'collaborative',
+            answers: { genre: ['classic_fantasy'] },
+          };
+    await onCreate({
+      title: source === 'bundled' ? tAdventure('title') : title.trim(),
+      premise: source === 'bundled' ? tAdventure('premise') : premise.trim(),
+      seed,
+    });
   }
 
   return (
@@ -79,7 +88,7 @@ export function CampaignCreate({ busy, onBack, onCreate }: CampaignCreateProps) 
                   onSelect={() => setSource('bundled')}
                 />
               </div>
-              {source !== 'collaborative' && (
+              {source === 'document' && (
                 <aside className={styles.notice}>{t('source_planned')}</aside>
               )}
             </>
@@ -102,6 +111,15 @@ export function CampaignCreate({ busy, onBack, onCreate }: CampaignCreateProps) 
                 />
               </label>
             </>
+          )}
+
+          {step === 2 && source === 'bundled' && (
+            <div className={styles.handoff}>
+              <Icons.BookOpen size={28} />
+              <h2>{tAdventure('title')}</h2>
+              <p>{tAdventure('premise')}</p>
+              <p>{tAdventure('selection_hint')}</p>
+            </div>
           )}
 
           {isFutureSource && (

@@ -80,11 +80,14 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
       toolLog: { ...state.toolLog, entries: [], isOpen: false },
       session: {
         ...state.session,
+        mutationId: null,
+        pendingRestore: null,
         activeCampaignId: input === null ? null : projection.campaignId,
         activeSessionId: input === null ? null : projection.sessionId,
         transitionGeneration: state.session.transitionGeneration + 1,
         loadError: null,
         currentScene: projection.scene,
+        adventure: projection.adventure ?? null,
         mapImageUrl: null,
       },
       chat: {

@@ -71,6 +71,7 @@ export interface NpcPort {
 }
 
 export interface SessionPort {
+  mutationPending?(): boolean;
   generation?(): number;
   current(): { campaignId: string; sessionId: string } | null;
   currentSceneName(): string | undefined;

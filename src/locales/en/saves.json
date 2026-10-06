@@ -31,5 +31,7 @@
   "default_manual_title": "Manual save",
   "load_error": "Save could not be loaded: {{message}}",
   "load_generic_error": "Failed to load save. Please try again.",
-  "loading_label": "Loading..."
+  "loading_label": "Loading...",
+  "campaign_action_pending": "Finish the current campaign action or retry its confirmation before saving or restoring.",
+  "restore_retry_previous": "Retry the previous save restoration first, or reopen the campaign to reconcile its current state."
 }

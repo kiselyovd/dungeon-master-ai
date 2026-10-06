@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub struct LoadCampaignSession<R>(Arc<R>);
 pub struct CommitCharacter<R>(Arc<R>);
 
-fn failure(error: RepositoryError) -> CampaignError {
+pub(super) fn failure(error: RepositoryError) -> CampaignError {
     let code = match error {
         RepositoryError::NotFound => "campaign_not_found",
         RepositoryError::Conflict { .. } | RepositoryError::RevisionConflict { .. } => {

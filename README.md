@@ -18,6 +18,11 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
 > establish real-model playability. See [campaign continuation and recovery](docs/CAMPAIGN_STATE.md)
 > for current persistence behavior and its verification boundaries.
 
+The bundled [Bell Beneath the Water adventure](docs/AUTHORED_ADVENTURE.md) now
+has executable scene choices, discoveries and persistent authored outcomes.
+Recoverable AI-driven actions, complete mechanics and cooperative sessions remain
+the next development stages.
+
 ## Features
 
 - **Agentic DM loop.** A multi-round agent turns your message into narration plus tool calls: dice rolls, `start_combat` / `apply_damage` / `apply_healing` / token updates, `set_scene`, `remember_npc` / `recall_npc`, `journal_append`, `quick_save`, and `generate_image`. Tool results feed back into the next round.

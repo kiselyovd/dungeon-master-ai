@@ -79,6 +79,7 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | Release checklist | `docs/RELEASE_CHECKLIST.md` | Detailed release verification checklist. |
 | Sidecar guide | `sidecar/README.md` | Python media-sidecar setup and runtime notes. |
 | Campaign state | `docs/CAMPAIGN_STATE.md` | Current-state continuation, character recovery, snapshots, and verification boundaries. |
+| Authored adventure | `docs/AUTHORED_ADVENTURE.md` | Bundled Bell adventure, state transitions, consequence rules and acceptance evidence. |
 
 ## AI Context Files
 

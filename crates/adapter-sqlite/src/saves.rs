@@ -255,6 +255,15 @@ impl SnapshotRepository for SqliteStore {
                 actual: current_revision(&mut transaction, record.session_id).await?,
             });
         }
+        crate::campaigns::advance_session_revision(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+            record.expected_revision,
+            "snapshot_restored",
+            &record.causation_id,
+        )
+        .await?;
         sqlx::query(
             "INSERT INTO snapshot_restores \
              (causation_id, save_id, session_id, snapshot_id, created_at) \
@@ -543,6 +552,7 @@ pub(crate) async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        adventure: crate::adventure::read(transaction, campaign_id).await?,
         messages,
         character,
         combat,
@@ -716,6 +726,16 @@ async fn apply_projection(
     restore_scene(transaction, snapshot).await?;
     restore_journal(transaction, snapshot).await?;
     restore_npcs(transaction, snapshot).await?;
+    crate::adventure::persist(
+        transaction,
+        snapshot.campaign_id,
+        snapshot
+            .projection
+            .adventure
+            .as_ref()
+            .map(|projection| &projection.state),
+    )
+    .await?;
     restore_combat(transaction, snapshot).await
 }
 

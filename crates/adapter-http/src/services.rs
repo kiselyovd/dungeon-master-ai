@@ -69,6 +69,12 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn adventure_action(
+        &self,
+        _command: app_application::models::adventure::AdventureCommand,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn state(
         &self,
         _id: Uuid,

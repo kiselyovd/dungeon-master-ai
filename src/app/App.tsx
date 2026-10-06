@@ -26,6 +26,8 @@ import { ToolInspectorDrawer } from '../components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from '../components/UpdateAvailableModal';
 import { VideoDisabledToast } from '../components/VideoDisabledToast';
 import { VttCanvas } from '../components/VttCanvas';
+import { AdventurePanel } from '../features/adventure/AdventurePanel';
+import { useAdventure } from '../features/adventure/useAdventure';
 import { CampaignCreate } from '../features/campaigns/CampaignCreate';
 import { CampaignHome } from '../features/campaigns/CampaignHome';
 import { resolveAppRoute } from '../features/campaigns/model/route';
@@ -207,6 +209,7 @@ function CampaignTitleBar({
 
 function App() {
   const { t } = useTranslation('common');
+  const { t: tAdventure } = useTranslation('adventure');
   const { t: tCampaigns } = useTranslation('campaigns');
   const { t: tSettings } = useTranslation('settings');
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
@@ -246,6 +249,9 @@ function App() {
   // would flash the Onboarding modal on every launch. (Audit blocker 1.)
   const hydrated = useHydrated();
   const campaignsFeature = useCampaigns();
+  const adventureFeature = useAdventure();
+  const [adventureOpen, setAdventureOpen] = useState(false);
+  const closeAdventure = useCallback(() => setAdventureOpen(false), []);
   const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
   const [campaignCreateOpen, setCampaignCreateOpen] = useState(false);
@@ -481,6 +487,18 @@ function App() {
           </div>
 
           <div className="dm-titlebar-right">
+            {adventureFeature.projection && (
+              <button
+                type="button"
+                className="dm-btn-tb"
+                onClick={() => setAdventureOpen(true)}
+                aria-label={tAdventure('open')}
+                title={tAdventure('open')}
+              >
+                <Icons.BookOpen size={13} />
+                <span>{tAdventure('open')}</span>
+              </button>
+            )}
             <button
               type="button"
               className="dm-btn-tb"
@@ -644,6 +662,18 @@ function App() {
             onClose={() => setInspectorOpen(false)}
           />
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
+          {adventureFeature.projection && (
+            <AdventurePanel
+              open={adventureOpen}
+              onClose={closeAdventure}
+              projection={adventureFeature.projection}
+              pending={adventureFeature.pending}
+              error={adventureFeature.error}
+              retryRequired={adventureFeature.retryRequired}
+              onAction={(action) => void adventureFeature.perform(action)}
+              onRetry={() => void adventureFeature.retry()}
+            />
+          )}
           {hydrated && !onboardingCompleted && (
             <Onboarding
               onExitToWizard={() => setWizardReopen(true)}

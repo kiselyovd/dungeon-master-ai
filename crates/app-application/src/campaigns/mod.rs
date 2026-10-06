@@ -1,8 +1,11 @@
+mod adventure;
+pub mod adventure_context;
 mod create;
 mod get;
 mod list;
 mod snapshots;
 mod state;
+pub use adventure::ActInAdventure;
 
 pub use app_domain::ruleset::{GAME_SCHEMA_VERSION, RULESET_ID};
 pub use create::{CreateCampaign, CreateCampaignCommand};

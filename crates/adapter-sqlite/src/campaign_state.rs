@@ -124,7 +124,7 @@ impl CampaignStateRepository for SqliteStore {
     }
 }
 
-async fn load_in_transaction(
+pub(crate) async fn load_in_transaction(
     tx: &mut Transaction<'_, Sqlite>,
     id: CampaignId,
 ) -> Result<CampaignSessionState, RepositoryError> {

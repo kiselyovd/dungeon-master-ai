@@ -109,6 +109,10 @@ async fn save_round_trip_returns_and_restores_one_complete_revision_projection()
     let restored = restored.json::<Value>().await.unwrap();
     assert_eq!(restored["schema_version"], 1);
     assert_eq!(restored["ruleset_id"], "srd-5.2.1");
+    assert_eq!(
+        restored["current_revision"], 6,
+        "legacy restore also invalidates pending writes"
+    );
     for required in [
         "messages",
         "character",

@@ -6,6 +6,9 @@ Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk 
 
 ## Unreleased
 
+- Add the selectable Bell Beneath the Water adventure with persistent locations, discoveries, rescue reward and distinct authored outcomes.
+- Make save restoration invalidate delayed writes and retain retries across reopening the saves screen; coordinate adventure commands with chat.
+
 - Persist character sheets, biographies and selected spells per campaign before entering play.
 - Continue campaigns through one current-state projection; prevent old hero, inventory and late replies from leaking into another chronicle.
 - Capture distinct saves at fresh revisions while keeping retries idempotent.

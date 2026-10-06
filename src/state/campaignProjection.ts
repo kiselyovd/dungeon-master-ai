@@ -13,6 +13,7 @@ export const RESTORE_MESSAGE_LIMIT = 20;
 const RENDERABLE_ROLES = new Set<string>(['user', 'assistant', 'system']);
 
 export interface RestoredSessionProjection {
+  adventure?: import('../api/contracts/adventure').AdventureProjection | null;
   preserveDraft?: boolean;
   campaign?: Campaign;
   campaignId: string;
@@ -66,7 +67,11 @@ export function buildCampaignState(state: CampaignStateResponse): RestoredSessio
       revision: state.campaign.revision,
       schema_version: 1,
       ruleset_id: 'srd-5.2.1',
-      projection: { ...state.projection, messages: state.projection.messages.map(parseMessage) },
+      projection: {
+        ...state.projection,
+        adventure: state.projection.adventure ?? null,
+        messages: state.projection.messages.map(parseMessage),
+      },
     },
   });
   projection.pc.characterId = state.character_id;
@@ -92,13 +97,32 @@ export function buildRestoredSession(input: {
     throw new RestoreValidationError('restore_identity_mismatch');
   }
   const projection = input.restored.projection;
+  if (
+    input.restored.current_revision !== undefined &&
+    (!Number.isSafeInteger(input.restored.current_revision) ||
+      input.restored.current_revision < input.expectedRevision)
+  ) {
+    throw new RestoreValidationError('restore_identity_mismatch');
+  }
+  if (input.restored.current_state) {
+    const current = input.restored.current_state;
+    if (
+      current.campaign.id !== input.campaignId ||
+      current.session_id !== input.sessionId ||
+      current.campaign.revision < input.expectedRevision
+    ) {
+      throw new RestoreValidationError('restore_identity_mismatch');
+    }
+    return buildCampaignState(current);
+  }
   const renderable = projection.messages
     .slice(-RESTORE_MESSAGE_LIMIT)
     .filter((message) => RENDERABLE_ROLES.has(message.role));
   return {
     campaignId: input.restored.campaign_id,
+    adventure: projection.adventure ?? null,
     sessionId: input.restored.session_id,
-    revision: input.expectedRevision,
+    revision: input.restored.current_revision ?? input.expectedRevision,
     messages: renderable.map((message, index) =>
       restoredMessage(message, `rehydrated-${input.saveId}-${index}`, index),
     ),

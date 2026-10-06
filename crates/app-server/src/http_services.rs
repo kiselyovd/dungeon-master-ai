@@ -142,6 +142,17 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn adventure_action(
+        &self,
+        command: app_application::models::adventure::AdventureCommand,
+    ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::ActInAdventure::new(repository)
+            .execute(command)
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
     async fn state(&self, id: Uuid) -> Result<CampaignStateResponse, HttpServiceError> {
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let state = app_application::campaigns::LoadCampaignSession::new(repository)
@@ -261,7 +272,13 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
                 | "character_session_mismatch"
                 | "character_causation_mismatch"
                 | "character_too_large"
-                | "snapshot_causation_mismatch"),
+                | "snapshot_causation_mismatch"
+                | "adventure_action_unavailable"
+                | "adventure_session_mismatch"
+                | "adventure_character_mismatch"
+                | "adventure_causation_mismatch"
+                | "adventure_combat_active"
+                | "adventure_not_initialized"),
         } => HttpServiceError::UnprocessableEntity { code },
         app_application::campaigns::CampaignError::Persistence { .. } => {
             HttpServiceError::Internal {
@@ -665,7 +682,7 @@ impl SavesHttpService for AppStateSavesHttpService {
 
     async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError> {
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
-        let snapshot = RestoreSnapshot::new(repository)
+        let snapshot = RestoreSnapshot::new(repository.clone())
             .execute(RestoreSnapshotCommand {
                 save_id: command.save_id,
                 campaign_id: CampaignId(command.campaign_id),
@@ -675,7 +692,32 @@ impl SavesHttpService for AppStateSavesHttpService {
             })
             .await
             .map_err(campaign_use_case_error)?;
-        serde_json::to_value(snapshot).map_err(|_| serialization_error())
+        let current = app_application::campaigns::LoadCampaignSession::new(repository.clone())
+            .execute(CampaignId(command.campaign_id))
+            .await;
+        let mut response = serde_json::to_value(snapshot).map_err(|_| serialization_error())?;
+        match current {
+            Ok(current) => {
+                response["current_state"] = serde_json::to_value(campaign_state_response(current)?)
+                    .map_err(|_| serialization_error())?;
+            }
+            Err(app_application::campaigns::CampaignError::Persistence {
+                code: "campaign_not_found",
+            }) => {
+                // Legacy saves predate the campaign-created seed event. Do not
+                // invent a seed or report failure after a committed restoration.
+                let session = app_application::ports::repositories::SessionRepository::get(
+                    repository.as_ref(),
+                    SessionId(command.session_id),
+                )
+                .await
+                .map_err(snapshot_repository_error)?
+                .ok_or(HttpServiceError::NotFound)?;
+                response["current_revision"] = json!(session.revision.0);
+            }
+            Err(error) => return Err(campaign_use_case_error(error)),
+        }
+        Ok(response)
     }
 
     async fn update(

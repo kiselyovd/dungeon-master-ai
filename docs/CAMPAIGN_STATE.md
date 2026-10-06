@@ -42,8 +42,12 @@ original request until it is acknowledged; a newer changed intent first reconcil
 that request and then captures a fresh checkpoint.
 
 Explicit save restore updates current rows and the durable character together.
-The saved snapshot revision and the current session revision are distinct: choosing
-an old save must not make the renderer send an obsolete revision on its next write.
+The saved snapshot revision and the current session revision are distinct.
+Restore allocates a new current revision and invalidates pending pre-restore
+writes. Its HTTP response includes the complete current campaign state; the
+renderer uses that projection and metadata together. Legacy sessions without a
+campaign seed event instead return `current_revision`. An ambiguous lost restore
+response retains its request identity across reopening the saves screen.
 
 The current character changes on character confirmation and checkpoint capture or
 restore. Automatic checkpointing of every exploration/combat action, durable map

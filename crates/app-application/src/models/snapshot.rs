@@ -10,6 +10,8 @@ pub const SNAPSHOT_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotProjection {
+    #[serde(default)]
+    pub adventure: Option<super::adventure::AdventureProjection>,
     pub messages: Vec<ChatMessage>,
     pub character: Value,
     pub combat: Option<Value>,

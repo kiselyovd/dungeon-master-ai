@@ -128,6 +128,24 @@ pub async fn build_context(
     inject_rules: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut ctx = base_prompt.to_string();
+    use app_application::ports::repositories::CampaignStateRepository;
+    match store
+        .load_current(app_application::models::identity::CampaignId(campaign_id))
+        .await
+    {
+        Ok(current) => {
+            if let Some(adventure) = current.projection.adventure {
+                ctx.push_str(
+                    &app_application::campaigns::adventure_context::bell_dm_context(
+                        &adventure.state,
+                    ),
+                );
+            }
+        }
+        // Legacy scene-only sessions have no versioned campaign aggregate.
+        Err(app_application::ports::repositories::RepositoryError::NotFound) => {}
+        Err(error) => return Err(Box::new(error)),
+    }
 
     // RAG: inject top-3 SRD chunks relevant to the player's message, but only on
     // rules-relevant turns - skipping it on narration turns keeps small local

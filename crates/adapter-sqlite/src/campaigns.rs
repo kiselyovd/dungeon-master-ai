@@ -62,6 +62,17 @@ impl CampaignRepository for SqliteStore {
         .await
         .map_err(|_| repository_error("insert_campaign_session"))?;
         insert_event(&mut transaction, &campaign.event).await?;
+        if let CampaignSeed::Bundled { adventure_id } = &campaign.detail.seed {
+            if adventure_id != app_application::models::adventure::BELL_ADVENTURE_ID {
+                return Err(repository_error("adventure_package_unknown"));
+            }
+            crate::adventure::persist(
+                &mut transaction,
+                campaign.detail.id,
+                Some(&app_application::models::adventure::AdventureState::new()),
+            )
+            .await?;
+        }
         transaction
             .commit()
             .await
