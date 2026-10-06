@@ -73,7 +73,10 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
   const isDead = token.hp === 0;
-  const isPcToken = pcName !== null && token.name === pcName;
+  const pcCharacterId = useStore((s) => s.pc.characterId);
+  const isPcToken = pcCharacterId
+    ? token.characterId === pcCharacterId
+    : pcName !== null && token.name === pcName;
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for

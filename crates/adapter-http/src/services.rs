@@ -123,12 +123,15 @@ pub struct CombatActionCommand {
 
 #[async_trait]
 pub trait CombatHttpService: Send + Sync {
-    async fn start(&self, command: CombatStartCommand) -> Result<Uuid, HttpServiceError>;
+    async fn start(
+        &self,
+        command: CombatStartCommand,
+    ) -> Result<CombatProjection, HttpServiceError>;
     async fn action(
         &self,
         command: CombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError>;
-    async fn end(&self, encounter_id: Uuid) -> Result<(), HttpServiceError>;
+    async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, HttpServiceError>;
 }
 
 #[derive(Debug, Clone)]

@@ -3,6 +3,7 @@ import type { AgentTurnPorts } from '../features/agent-turn/model/ports';
 import { useAgentTurn as useFeatureAgentTurn } from '../features/agent-turn/useAgentTurn';
 import { projectionFromToolResult } from '../features/combat/model/combatProjection';
 import { applyAdventureToolOutcome } from '../state/adventureOutcome';
+import { applyCombatOutcome } from '../state/combatOutcome';
 import type { Disposition } from '../state/npc';
 import { useStore } from '../state/useStore';
 
@@ -104,7 +105,7 @@ export function useAgentTurn() {
         boardState: () => useStore.getState().combat,
         acceptToolResult: (_toolName, _args, result) => {
           const projection = projectionFromToolResult(result);
-          if (projection) useStore.getState().combat.replaceProjection(projection);
+          if (projection) applyCombatOutcome(projection);
         },
       },
       now: () => new Date().toISOString(),

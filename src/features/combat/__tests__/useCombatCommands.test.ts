@@ -49,6 +49,14 @@ beforeEach(() => {
 });
 
 describe('useCombatCommands', () => {
+  it('does not send a player keyboard intention for an unowned same-name actor', async () => {
+    useStore.getState().pc.replaceFromDraft({ characterId: 'owned-character', name: 'Hero' });
+    vi.mocked(sendCombatCommand).mockResolvedValue(projection(1, 2));
+    const { result } = renderHook(() => useCombatCommands());
+    await act(async () => result.current.endTurn());
+    await act(async () => result.current.move('hero', 2, 0));
+    expect(sendCombatCommand).not.toHaveBeenCalled();
+  });
   it('retries an unchanged failed intention with its original UUID and revision', async () => {
     vi.mocked(sendCombatCommand)
       .mockRejectedValueOnce(new Error('connection lost'))

@@ -1844,7 +1844,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 2,
         "properties": [
@@ -1868,7 +1868,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 1,
         "properties": [
@@ -1877,7 +1877,10 @@
           "thrown"
         ],
         "mastery": "nick",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1894,7 +1897,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 2,
         "properties": [
@@ -1902,7 +1905,10 @@
           "thrown"
         ],
         "mastery": "vex",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1919,14 +1925,17 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
           "thrown"
         ],
         "mastery": "slow",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 30,
+          "long": 120
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1943,7 +1952,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 4,
         "properties": [],
@@ -1965,7 +1974,8 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "bludgeoning",
+          "versatile_dice": "1d8"
         },
         "weight_lb": 4,
         "properties": [
@@ -1989,7 +1999,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2013,7 +2023,8 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing",
+          "versatile_dice": "1d8"
         },
         "weight_lb": 3,
         "properties": [
@@ -2021,7 +2032,10 @@
           "versatile"
         ],
         "mastery": "sap",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -2038,7 +2052,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2046,7 +2060,10 @@
           "two-handed"
         ],
         "mastery": "vex",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 80,
+          "long": 320
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -2063,7 +2080,7 @@
         },
         "damage": {
           "dice": "1d12",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 7,
         "properties": [
@@ -2088,7 +2105,7 @@
         },
         "damage": {
           "dice": "2d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 6,
         "properties": [
@@ -2113,7 +2130,7 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 2,
         "properties": [],
@@ -2135,7 +2152,8 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "slashing",
+          "versatile_dice": "1d10"
         },
         "weight_lb": 3,
         "properties": [
@@ -2159,7 +2177,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 3,
         "properties": [
@@ -2184,7 +2202,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2209,7 +2227,7 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2218,7 +2236,10 @@
           "two-handed"
         ],
         "mastery": "slow",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 150,
+          "long": 600
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -2271,7 +2292,8 @@
         "weight_lb": 20,
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 93,
-        "srd_section": "Equipment / Armor"
+        "srd_section": "Equipment / Armor",
+        "ac_dex_bonus_cap": 2
       },
       {
         "id": "chain-mail",
@@ -2287,7 +2309,9 @@
         "weight_lb": 55,
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 93,
-        "srd_section": "Equipment / Armor"
+        "srd_section": "Equipment / Armor",
+        "ac_dex_bonus_cap": 0,
+        "str_req": 13
       },
       {
         "id": "shield",

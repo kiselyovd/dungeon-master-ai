@@ -32,6 +32,7 @@ async fn fixture_with_pool(
         .create(
             Uuid::new_v4(),
             CombatProjection {
+                campaign_scope: None,
                 schema_version: COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,
                 revision: 0,

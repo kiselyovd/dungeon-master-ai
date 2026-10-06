@@ -57,7 +57,7 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | `src/main.tsx` | Initializes localization/styles and invokes the production bootstrap. |
 | `src/app/bootstrap.tsx` | Mounts the production React root. |
 | `src/app/App.tsx` | Composes feature controllers, shell, and overlays. |
-| `crates/app-bootstrap/src/main.rs` | Stable `dmai-server` binary entry point. |
+| `crates/app-bootstrap/src/main.rs` | Cargo `app-server` binary entry point; packaged as the native `dmai-server` sidecar. |
 | `crates/app-bootstrap/src/wiring.rs` | Constructs concrete adapters and HTTP services. |
 | `crates/app-application/src/lib.rs` | Public use-case, model, and port surface. |
 | `crates/app-domain/src/lib.rs` | Public surface of the deterministic game-domain crate. |

@@ -8,6 +8,18 @@ const isNumber = (value: unknown): value is number =>
 export function parseCombatProjection(value: unknown): CombatProjectionDto | null {
   if (!isRecord(value) || !isRecord(value.snapshot)) return null;
   const snapshot = value.snapshot;
+  if (value.campaign_scope !== undefined && value.campaign_scope !== null) {
+    const scope = value.campaign_scope;
+    if (
+      !isRecord(scope) ||
+      typeof scope.campaign_id !== 'string' ||
+      typeof scope.session_id !== 'string' ||
+      typeof scope.character_id !== 'string' ||
+      !Number.isSafeInteger(scope.revision) ||
+      (scope.revision as number) < 0
+    )
+      return null;
+  }
   if (
     value.schema_version !== 1 ||
     typeof value.encounter_id !== 'string' ||
@@ -33,6 +45,11 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
   for (const combatant of snapshot.combatants) {
     if (
       !isRecord(combatant) ||
+      !(
+        combatant.character_id === undefined ||
+        combatant.character_id === null ||
+        typeof combatant.character_id === 'string'
+      ) ||
       typeof combatant.id !== 'string' ||
       typeof combatant.name !== 'string' ||
       !isNumber(combatant.max_hp) ||
@@ -68,6 +85,7 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
   const activeId = projection.snapshot.current_combatant;
   return projection.snapshot.combatants.map((combatant) => ({
     id: combatant.id,
+    ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
     name: combatant.name,
     hp: combatant.current_hp,
     maxHp: combatant.max_hp,

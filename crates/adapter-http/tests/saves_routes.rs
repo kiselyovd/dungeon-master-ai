@@ -165,7 +165,7 @@ impl CampaignHttpService for CampaignStub {
 }
 #[async_trait]
 impl CombatHttpService for CombatStub {
-    async fn start(&self, _: CombatStartCommand) -> Result<Uuid, HttpServiceError> {
+    async fn start(&self, _: CombatStartCommand) -> Result<CombatProjection, HttpServiceError> {
         unimplemented!()
     }
     async fn action(
@@ -174,7 +174,7 @@ impl CombatHttpService for CombatStub {
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
         unimplemented!()
     }
-    async fn end(&self, _: Uuid) -> Result<(), HttpServiceError> {
+    async fn end(&self, _: Uuid) -> Result<Option<CombatProjection>, HttpServiceError> {
         unimplemented!()
     }
 }

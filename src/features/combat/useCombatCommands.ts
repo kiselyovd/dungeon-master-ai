@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { applyCombatOutcome } from '../../state/combatOutcome';
 import { useStore } from '../../state/useStore';
 import { type CombatCommand, sendCombatCommand } from './model/commands';
 
@@ -13,6 +14,11 @@ export function useCombatCommands() {
     const state = useStore.getState();
     const combat = state.combat;
     if (!combat.encounterId || combat.revision < 0) return;
+    if (state.pc.characterId) {
+      const owned = combat.tokens.find((token) => token.characterId === state.pc.characterId);
+      const actorId = command.kind === 'attack' ? command.attackerId : command.combatantId;
+      if (!owned || owned.id !== actorId || combat.currentTurnId !== owned.id) return;
+    }
     if (state.session.mutationId || Object.keys(combat.pendingCommands).length > 0) return;
     const scope = {
       campaignId: state.session.activeCampaignId,
@@ -57,7 +63,7 @@ export function useCombatCommands() {
       const projection = await sendCombatCommand(input);
       if (retry.current?.input.commandId === commandId) retry.current = null;
       if (!isCurrent() || projection.encounter_id !== input.encounterId) return;
-      const accepted = useStore.getState().combat.replaceProjection(projection);
+      const accepted = applyCombatOutcome(projection);
       console.debug('[combat.command]', {
         commandId,
         encounterId: combat.encounterId,

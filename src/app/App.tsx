@@ -32,6 +32,7 @@ import { CampaignCreate } from '../features/campaigns/CampaignCreate';
 import { CampaignHome } from '../features/campaigns/CampaignHome';
 import { resolveAppRoute } from '../features/campaigns/model/route';
 import { useCampaigns } from '../features/campaigns/useCampaigns';
+import { isPlayerToken } from '../features/combat/model/selectors';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
@@ -224,11 +225,10 @@ function App() {
   const combatRound = useStore((s) => s.combat.round);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const combatCommands = useCombatCommands();
-  // Resolve the PC token id by matching pc.name to a token name (same logic as
-  // CombatToken's isPcToken). Fall back to null when no match so the ActionBar
-  // stays hidden rather than incorrectly shown on a lookup miss. [W1.6]
   const pcName = useStore((s) => s.pc.name);
-  const pcTokenId = combatTokens.find((t) => pcName !== null && t.name === pcName)?.id ?? null;
+  const pcCharacterId = useStore((s) => s.pc.characterId);
+  const pcTokenId =
+    combatTokens.find((token) => isPlayerToken(token, pcCharacterId, pcName))?.id ?? null;
   // Show the ActionBar only during the player's own turn. When currentTurnId is
   // null or no PC token is found we keep the bar hidden; a lookup miss does not
   // force-show it. [W1.6]

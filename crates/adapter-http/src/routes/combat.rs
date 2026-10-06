@@ -127,23 +127,43 @@ pub async fn post_combat_start(
     Extension(services): Extension<HttpServices>,
     Json(request): Json<StartCombatRequest>,
 ) -> Result<axum::response::Response, HttpServiceError> {
-    let initiative = request.initiative_entries;
-    let encounter_id = services
+    let projection = services
         .combat
         .start(CombatStartCommand {
             campaign_id: request.campaign_id,
             session_id: request.session_id,
-            initiative_entries: initiative.clone(),
+            initiative_entries: request.initiative_entries,
         })
         .await?;
     let event = CombatSseEvent::CombatStarted {
-        encounter_id,
-        initiative,
+        encounter_id: projection.encounter_id,
+        initiative: projection
+            .snapshot
+            .initiative
+            .iter()
+            .filter_map(|entry| {
+                projection
+                    .snapshot
+                    .combatants
+                    .iter()
+                    .find(|actor| actor.id == entry.id)
+                    .map(|actor| InitiativeEntryDto {
+                        id: actor.id.0,
+                        name: actor.name.clone(),
+                        roll: entry.roll,
+                        dex_mod: actor.dex_mod,
+                        hp: actor.current_hp,
+                        max_hp: actor.max_hp,
+                        ac: actor.ac,
+                    })
+            })
+            .collect(),
     };
     Ok(close_sse(
-        Sse::new(stream::once(async move {
-            Ok::<Event, Infallible>(event.to_sse_event())
-        }))
+        Sse::new(stream::iter(vec![
+            Ok::<Event, Infallible>(event.to_sse_event()),
+            Ok(CombatSseEvent::CombatProjection { projection }.to_sse_event()),
+        ]))
         .keep_alive(KeepAlive::default()),
     ))
 }
@@ -179,15 +199,18 @@ pub async fn post_combat_end(
     Extension(services): Extension<HttpServices>,
     Json(request): Json<EndCombatRequest>,
 ) -> Result<axum::response::Response, HttpServiceError> {
-    services.combat.end(request.encounter_id).await?;
+    let projection = services.combat.end(request.encounter_id).await?;
     let event = CombatSseEvent::CombatEnded {
         encounter_id: request.encounter_id,
         reason: "manual_end".into(),
     };
+    let mut events = vec![Ok::<Event, Infallible>(event.to_sse_event())];
+    if let Some(projection) = projection {
+        events.push(Ok(
+            CombatSseEvent::CombatProjection { projection }.to_sse_event()
+        ));
+    }
     Ok(close_sse(
-        Sse::new(stream::once(async move {
-            Ok::<Event, Infallible>(event.to_sse_event())
-        }))
-        .keep_alive(KeepAlive::default()),
+        Sse::new(stream::iter(events)).keep_alive(KeepAlive::default()),
     ))
 }

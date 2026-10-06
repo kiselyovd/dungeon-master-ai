@@ -23,7 +23,7 @@ impl CombatRepository for SqliteStore {
     async fn commit_action(
         &self,
         expected_revision: u64,
-        projection: CombatProjection,
+        mut projection: CombatProjection,
         request_id: &str,
         signature: &str,
     ) -> Result<app_application::models::combat::CombatActionCommit, RepositoryError> {
@@ -44,7 +44,7 @@ impl CombatRepository for SqliteStore {
                 duplicate: true,
             });
         }
-        persist_projection(&mut tx, expected_revision, &projection).await?;
+        persist_projection(&mut tx, expected_revision, &mut projection).await?;
         let raw = serde_json::to_string(&projection)
             .map_err(|_| repository_error("encode_combat_receipt"))?;
         sqlx::query("INSERT INTO combat_action_receipts(encounter_id,request_id,signature,projection_json,created_at) VALUES(?1,?2,?3,?4,?5)")
@@ -65,13 +65,14 @@ impl CombatRepository for SqliteStore {
     async fn create(
         &self,
         session_id: Uuid,
-        projection: CombatProjection,
+        mut projection: CombatProjection,
     ) -> Result<(), RepositoryError> {
         let mut transaction = self
             .pool
-            .begin()
+            .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_combat_create"))?;
+        crate::combat_binding::bind_start(&mut transaction, session_id, &mut projection).await?;
         let projection_json = serde_json::to_string(&projection)
             .map_err(|_| repository_error("encode_combat_projection"))?;
         let initiative_json = serde_json::to_string(&projection.snapshot.initiative)
@@ -157,14 +158,14 @@ impl CombatRepository for SqliteStore {
     async fn compare_and_set(
         &self,
         expected_revision: u64,
-        projection: CombatProjection,
+        mut projection: CombatProjection,
     ) -> Result<(), RepositoryError> {
         let mut transaction = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_combat"))?;
-        persist_projection(&mut transaction, expected_revision, &projection).await?;
+        persist_projection(&mut transaction, expected_revision, &mut projection).await?;
         transaction
             .commit()
             .await
@@ -174,27 +175,36 @@ impl CombatRepository for SqliteStore {
 
     #[tracing::instrument(skip_all, fields(encounter_id = %encounter_id, repository = "combat"))]
     async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError> {
-        let Some(mut projection) = self.get(encounter_id).await? else {
-            return Ok(None);
-        };
-        projection.revision = projection.revision.saturating_add(1);
-        projection.snapshot.active = false;
-        let projection_json = serde_json::to_string(&projection)
-            .map_err(|_| repository_error("encode_combat_projection"))?;
-        let updated = sqlx::query(
-            "UPDATE combat_encounters SET ended_at = ?1, revision = ?2, projection = ?3 \
-             WHERE id = ?4 AND ended_at IS NULL",
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_combat_end"))?;
+        let raw: Option<String> = sqlx::query_scalar(
+            "SELECT projection FROM combat_encounters WHERE id=?1 AND ended_at IS NULL",
         )
-        .bind(chrono::Utc::now().to_rfc3339())
-        .bind(projection.revision as i64)
-        .bind(projection_json)
         .bind(encounter_id.to_string())
-        .execute(&self.pool)
+        .fetch_optional(&mut *tx)
         .await
-        .map_err(|_| repository_error("end_combat"))?;
-        if updated.rows_affected() == 0 {
-            return Ok(None);
-        }
+        .map_err(|_| repository_error("read_combat_end"))?;
+        let Some(raw) = raw else { return Ok(None) };
+        let mut projection: CombatProjection =
+            serde_json::from_str(&raw).map_err(|_| repository_error("decode_combat_end"))?;
+        let previous = projection.revision;
+        projection.revision = previous
+            .checked_add(1)
+            .ok_or_else(|| repository_error("combat_revision_invalid"))?;
+        projection.snapshot.active = false;
+        persist_projection(&mut tx, previous, &mut projection).await?;
+        sqlx::query("UPDATE combat_encounters SET ended_at=?1 WHERE id=?2")
+            .bind(chrono::Utc::now().to_rfc3339())
+            .bind(encounter_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| repository_error("end_combat"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_combat_end"))?;
         Ok(Some(projection))
     }
 }
@@ -202,13 +212,14 @@ impl CombatRepository for SqliteStore {
 async fn persist_projection(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     expected_revision: u64,
-    projection: &CombatProjection,
+    projection: &mut CombatProjection,
 ) -> Result<(), RepositoryError> {
     if expected_revision.checked_add(1) != Some(projection.revision)
         || projection.revision > i64::MAX as u64
     {
         return Err(repository_error("combat_revision_invalid"));
     }
+    crate::combat_binding::sync_hero(transaction, projection).await?;
     let projection_json = serde_json::to_string(&projection)
         .map_err(|_| repository_error("encode_combat_projection"))?;
     let active_turn = projection

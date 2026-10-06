@@ -858,6 +858,17 @@ async fn restore_combat(
         .checked_add(1)
         .filter(|revision| *revision <= i64::MAX as u64)
         .ok_or_else(|| repository_error("combat_revision_invalid"))?;
+    if let Some(scope) = &mut projection.campaign_scope {
+        let current: i64 = sqlx::query_scalar("SELECT revision FROM sessions WHERE id=?1")
+            .bind(snapshot.session_id.0.to_string())
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_restored_combat_campaign_revision"))?;
+        scope.revision = u64::try_from(current)
+            .ok()
+            .and_then(|revision| revision.checked_add(1))
+            .ok_or_else(|| repository_error("combat_campaign_revision_invalid"))?;
+    }
     // Old receipt payloads belong to the superseded timeline. A fresh combat
     // revision prevents their original expected revisions from being reapplied.
     sqlx::query("DELETE FROM combat_action_receipts WHERE encounter_id=?1")

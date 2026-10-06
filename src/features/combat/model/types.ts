@@ -13,6 +13,7 @@ export interface AoeTemplateEntry {
 
 export interface CombatToken {
   id: string;
+  characterId?: string;
   name: string;
   hp: number;
   maxHp: number;
@@ -29,6 +30,12 @@ export interface CombatToken {
 }
 
 export interface CombatProjectionDto {
+  campaign_scope?: {
+    campaign_id: string;
+    session_id: string;
+    character_id: string;
+    revision: number;
+  } | null;
   schema_version: number;
   encounter_id: string;
   revision: number;
@@ -39,6 +46,7 @@ export interface CombatProjectionDto {
     initiative: Array<{ id: string; roll: number; dex_tiebreak: number }>;
     combatants: Array<{
       id: string;
+      character_id?: string | null;
       name: string;
       max_hp: number;
       current_hp: number;

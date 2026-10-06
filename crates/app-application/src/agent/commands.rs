@@ -35,6 +35,8 @@ pub struct ApplyHealingCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct InitiativeEntryCommand {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<CombatParticipantRole>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hp: Option<i32>,
@@ -51,6 +53,12 @@ pub struct InitiativeEntryCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StartCombatCommand {
     pub initiative_entries: Vec<InitiativeEntryCommand>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CombatParticipantRole {
+    Npc,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]

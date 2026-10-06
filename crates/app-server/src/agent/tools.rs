@@ -109,16 +109,17 @@ fn all_tools_core() -> Vec<Tool> {
         },
         Tool {
             name: "start_combat".into(),
-            description: "Begin combat. Pass one initiative entry per combatant (the player plus each enemy). ONLY `name` is required - the engine auto-rolls initiative and fills sensible default stats (HP/AC) for anything you omit. Call this immediately when a fight starts; never ask the player for stats or initiative.".into(),
+            description: "Begin combat with NPC entries only. Set role=npc for every entry. The engine adds the saved player character automatically; never include a player surrogate. Initiative is rolled by the engine when omitted.".into(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "initiative_entries": {
                         "type": "array",
-                        "description": "One entry per combatant. Just the name is enough, e.g. [{\"name\":\"Hero\"},{\"name\":\"Skeleton\"}].",
+                        "description": "NPCs only, e.g. [{\"role\":\"npc\",\"name\":\"Skeleton\"}]. The saved hero is added by the engine.",
                         "items": {
                             "type": "object",
                             "properties": {
+                                "role": {"type":"string","enum":["npc"]},
                                 "name": { "type": "string", "description": "Combatant name (required)." },
                                 "hp": { "type": "integer", "description": "Optional; defaults to a sane value." },
                                 "max_hp": { "type": "integer", "description": "Optional; defaults to hp." },
@@ -126,7 +127,7 @@ fn all_tools_core() -> Vec<Tool> {
                                 "roll": { "type": "integer", "description": "Optional initiative roll; the engine rolls one if omitted." },
                                 "dex_mod": { "type": "integer", "description": "Optional dexterity modifier." }
                             },
-                            "required": ["name"]
+                            "required": ["role","name"]
                         }
                     }
                 },

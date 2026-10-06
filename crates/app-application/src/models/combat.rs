@@ -24,6 +24,8 @@ pub struct CombatSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CombatProjection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_scope: Option<CombatCampaignScope>,
     pub schema_version: u16,
     pub encounter_id: Uuid,
     pub revision: u64,
@@ -31,9 +33,18 @@ pub struct CombatProjection {
     pub events: Vec<ResultEvents>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CombatCampaignScope {
+    pub campaign_id: Uuid,
+    pub session_id: Uuid,
+    pub character_id: Uuid,
+    pub revision: u64,
+}
+
 impl CombatProjection {
     pub fn empty(encounter_id: Uuid, revision: u64) -> Self {
         Self {
+            campaign_scope: None,
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,
             revision,

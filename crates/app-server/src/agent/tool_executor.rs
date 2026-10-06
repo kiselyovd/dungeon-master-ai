@@ -63,6 +63,16 @@ pub async fn execute_tool(
     };
     let tool_name = command.tool_name();
     let args = command.to_args();
+    if matches!(
+        app_application::agent::tool_dispatch::capability(&command),
+        app_application::agent::tool_dispatch::ToolCapability::Combat
+    ) && store
+        .require_session_campaign(session_id, campaign_id)
+        .await
+        .is_err()
+    {
+        return (json!({"error":"combat_campaign_mismatch"}), true);
+    }
 
     // Transitional dispatch: Task 4 moves each typed variant into a use case.
     match tool_name {
@@ -71,7 +81,7 @@ pub async fn execute_tool(
         "apply_damage" => execute_apply_damage(&args, store).await,
         "apply_healing" => execute_apply_healing(&args, store).await,
         "start_combat" => execute_start_combat(&args, store, session_id).await,
-        "end_combat" => execute_end_combat(store).await,
+        "end_combat" => execute_end_combat(store, session_id).await,
         "add_token" => execute_add_token(&args, store).await,
         "update_token" => execute_update_token(&args, store).await,
         "remove_token" => execute_remove_token(&args, store).await,
@@ -287,6 +297,13 @@ async fn execute_start_combat(
     };
 
     let mut rng = SeededRng::new_random();
+    if store.has_durable_hero(session_id).await.unwrap_or(true)
+        && entries_raw
+            .iter()
+            .any(|entry| entry["role"].as_str() != Some("npc"))
+    {
+        return (json!({"error":"combat_participant_role_required"}), true);
+    }
     let d20 = DiceExpr {
         count: 1,
         die: Die::D20,
@@ -324,16 +341,6 @@ async fn execute_start_combat(
     // Sort descending by roll, tiebreak by dex_tiebreak (via InitiativeOrder::build).
     let order = InitiativeOrder::build(domain_entries);
 
-    // Produce the `ordered` array: [{name, roll}, ...] in sorted initiative order.
-    let ordered: Vec<Value> = order
-        .as_slice()
-        .iter()
-        .map(|e| {
-            let name = id_to_name.get(&e.id.0).cloned().unwrap_or_default();
-            json!({ "name": name, "roll": e.roll })
-        })
-        .collect();
-
     let encounter_id = uuid::Uuid::new_v4();
     let combatants = order
         .as_slice()
@@ -355,6 +362,7 @@ async fn execute_start_combat(
         })
         .collect();
     let projection = CombatProjection {
+        campaign_scope: None,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,
@@ -371,6 +379,25 @@ async fn execute_start_combat(
         tracing::warn!(error = %e, "persistence failed in execute_start_combat");
         return (json!({ "error": e.to_string() }), true);
     }
+    let projection = match store.get(encounter_id).await {
+        Ok(Some(projection)) => projection,
+        _ => return (json!({"error":"combat_start_read_failed"}), true),
+    };
+    let ordered: Vec<Value> = projection
+        .snapshot
+        .initiative
+        .iter()
+        .map(|entry| {
+            let name = projection
+                .snapshot
+                .combatants
+                .iter()
+                .find(|actor| actor.id == entry.id)
+                .map(|actor| actor.name.clone())
+                .unwrap_or_default();
+            json!({"name":name,"roll":entry.roll})
+        })
+        .collect();
     (
         json!({
             "encounter_id": encounter_id.to_string(),
@@ -381,8 +408,8 @@ async fn execute_start_combat(
     )
 }
 
-async fn execute_end_combat(store: &SqliteStore) -> (Value, bool) {
-    let encounter_id = match store.active_combat_id().await {
+async fn execute_end_combat(store: &SqliteStore, session_id: uuid::Uuid) -> (Value, bool) {
+    let encounter_id = match store.active_combat_in_session(session_id).await {
         Ok(Some(encounter_id)) => encounter_id,
         Ok(None) => return (json!({ "status": "combat_ended" }), false),
         Err(e) => return (json!({ "error": e.to_string() }), true),
@@ -1606,7 +1633,7 @@ mod start_combat_tests {
         let (_, start_error) = execute_start_combat(&args, &store, session_id).await;
         assert!(!start_error);
 
-        let (ended, end_error) = execute_end_combat(&store).await;
+        let (ended, end_error) = execute_end_combat(&store, session_id).await;
 
         assert!(!end_error, "end_combat must not error: {ended}");
         assert_eq!(ended["status"], "combat_ended");
@@ -1641,6 +1668,7 @@ mod cast_spell_tests {
             .create(
                 uuid::Uuid::new_v4(),
                 CombatProjection {
+                    campaign_scope: None,
                     schema_version: COMBAT_PROJECTION_VERSION,
                     encounter_id,
                     revision: 0,

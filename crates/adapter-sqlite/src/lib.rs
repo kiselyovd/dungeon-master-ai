@@ -3,6 +3,7 @@ pub mod agent_operations;
 pub mod campaign_state;
 pub mod campaigns;
 pub mod combat;
+mod combat_binding;
 pub mod events;
 pub mod journal;
 pub mod messages;

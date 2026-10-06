@@ -387,7 +387,21 @@ struct MoveActionArgs {
 
 #[async_trait]
 impl CombatHttpService for AppStateCombatHttpService {
-    async fn start(&self, command: CombatStartCommand) -> Result<Uuid, HttpServiceError> {
+    async fn start(
+        &self,
+        command: CombatStartCommand,
+    ) -> Result<CombatProjection, HttpServiceError> {
+        SqliteStore::new(self.state.db().clone())
+            .require_session_campaign(command.session_id, command.campaign_id)
+            .await
+            .map_err(|_| HttpServiceError::BadRequest {
+                code: "combat_campaign_mismatch",
+            })?;
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id)
+            .lock_owned()
+            .await;
         let encounter_id = Uuid::new_v4();
         let projection = projection_from_start(encounter_id, &command.initiative_entries);
         let repository = adapter_sqlite::SqliteStore::new(self.state.db().clone());
@@ -397,7 +411,13 @@ impl CombatHttpService for AppStateCombatHttpService {
             .map_err(|_| HttpServiceError::Internal {
                 code: "combat_start_failed",
             })?;
-        Ok(encounter_id)
+        repository
+            .get(encounter_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "combat_start_read_failed",
+            })?
+            .ok_or(HttpServiceError::NotFound)
     }
 
     async fn action(
@@ -482,15 +502,14 @@ impl CombatHttpService for AppStateCombatHttpService {
         Ok(Some(result.projection))
     }
 
-    async fn end(&self, encounter_id: Uuid) -> Result<(), HttpServiceError> {
+    async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, HttpServiceError> {
         let repository = adapter_sqlite::SqliteStore::new(self.state.db().clone());
         repository
             .end(encounter_id)
             .await
             .map_err(|_| HttpServiceError::Internal {
                 code: "combat_end_failed",
-            })?;
-        Ok(())
+            })
     }
 }
 
@@ -528,6 +547,7 @@ fn projection_from_start(
         })
         .collect();
     CombatProjection {
+        campaign_scope: None,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,

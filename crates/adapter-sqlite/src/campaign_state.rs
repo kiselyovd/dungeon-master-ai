@@ -8,9 +8,11 @@ pub(crate) async fn snapshot_character(
     id: CampaignId,
     supplied: Value,
 ) -> Result<Value, RepositoryError> {
-    if supplied
-        .as_object()
-        .is_some_and(|document| document.is_empty())
+    let bound:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM combat_encounters e JOIN sessions s ON s.id=e.session_id WHERE s.campaign_id=?1 AND e.ended_at IS NULL AND json_type(e.projection,'$.campaign_scope')='object')").bind(id.0.to_string()).fetch_one(&mut **tx).await.map_err(|_|repository_error("read_checkpoint_combat_binding"))?;
+    if bound
+        || supplied
+            .as_object()
+            .is_some_and(|document| document.is_empty())
     {
         let current: Option<String> = sqlx::query_scalar(
             "SELECT character_json FROM campaign_characters WHERE campaign_id = ?1",
@@ -85,6 +87,14 @@ impl CampaignStateRepository for SqliteStore {
             return serde_json::from_str(&state).map_err(|_| repository_error("decode_character_retry"));
         }
         let current = load_in_transaction(&mut tx, command.campaign_id).await?;
+        if current
+            .projection
+            .combat
+            .as_ref()
+            .is_some_and(|combat| combat.get("campaign_scope").is_some())
+        {
+            return Err(repository_error("character_in_combat"));
+        }
         if current.session_id != command.session_id {
             return Err(repository_error("character_session_mismatch"));
         }
@@ -175,7 +185,7 @@ pub(crate) async fn load_in_transaction(
     })
 }
 
-async fn persist_character(
+pub(crate) async fn persist_character(
     tx: &mut Transaction<'_, Sqlite>,
     id: CampaignId,
     character_id: Uuid,

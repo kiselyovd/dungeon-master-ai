@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::conditions::Condition;
-use super::types::{CombatantId, Position};
+use super::types::{CharacterId, CombatantId, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBudget {
@@ -73,6 +73,8 @@ impl Default for DeathSaves {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Combatant {
     pub id: CombatantId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub character_id: Option<CharacterId>,
     pub name: String,
     pub max_hp: i32,
     pub current_hp: i32,
@@ -93,6 +95,7 @@ impl Combatant {
     pub fn new(id: CombatantId, name: String, max_hp: i32, current_hp: i32, ac: i32) -> Self {
         Self {
             id,
+            character_id: None,
             name,
             max_hp,
             current_hp,

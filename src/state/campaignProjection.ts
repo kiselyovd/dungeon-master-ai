@@ -2,6 +2,7 @@ import type { Campaign } from '../api/contracts/campaign';
 import type { CampaignStateResponse } from '../api/contracts/campaignState';
 import type { RestoreSaveResponse, SessionMessageWire } from '../api/saves';
 import { parseMessage } from '../api/saves';
+import { parseCombatProjection } from '../features/combat/model/combatProjection';
 import type { ChatMessage, ChatRole, MessagePart } from './chat';
 import type { CombatProjectionDto } from './combat';
 import type { JournalEntry } from './journal';
@@ -174,62 +175,9 @@ function parseScene(value: unknown): CurrentScene {
 }
 
 function parseCombat(value: unknown): CombatProjectionDto {
-  const combat = asRecord(value, 'restore_combat_invalid');
-  const snapshot = asRecord(combat.snapshot, 'restore_combat_snapshot_invalid');
-  if (!Array.isArray(snapshot.initiative) || !Array.isArray(snapshot.combatants)) {
-    throw new RestoreValidationError('restore_combat_invalid');
-  }
-  if (!Array.isArray(combat.events)) throw new RestoreValidationError('restore_combat_invalid');
-  return {
-    schema_version: asNumber(combat.schema_version, 'restore_combat_invalid'),
-    encounter_id: asString(combat.encounter_id, 'restore_combat_invalid'),
-    revision: asNumber(combat.revision, 'restore_combat_invalid'),
-    snapshot: {
-      active: asBoolean(snapshot.active, 'restore_combat_invalid'),
-      round: asNumber(snapshot.round, 'restore_combat_invalid'),
-      current_combatant:
-        snapshot.current_combatant === null
-          ? null
-          : asString(snapshot.current_combatant, 'restore_combat_invalid'),
-      initiative: snapshot.initiative.map((value) => {
-        const entry = asRecord(value, 'restore_combat_invalid');
-        return {
-          id: asString(entry.id, 'restore_combat_invalid'),
-          roll: asNumber(entry.roll, 'restore_combat_invalid'),
-          dex_tiebreak: asNumber(entry.dex_tiebreak, 'restore_combat_invalid'),
-        };
-      }),
-      combatants: snapshot.combatants.map((value) => {
-        const combatant = asRecord(value, 'restore_combat_invalid');
-        const budget = asRecord(combatant.budget, 'restore_combat_invalid');
-        const position = asRecord(combatant.position, 'restore_combat_invalid');
-        return {
-          id: asString(combatant.id, 'restore_combat_invalid'),
-          name: asString(combatant.name, 'restore_combat_invalid'),
-          max_hp: asNumber(combatant.max_hp, 'restore_combat_invalid'),
-          current_hp: asNumber(combatant.current_hp, 'restore_combat_invalid'),
-          temp_hp: asNumber(combatant.temp_hp, 'restore_combat_invalid'),
-          ac: asNumber(combatant.ac, 'restore_combat_invalid'),
-          speed_ft: asNumber(combatant.speed_ft, 'restore_combat_invalid'),
-          initiative_roll: asNumber(combatant.initiative_roll, 'restore_combat_invalid'),
-          dex_mod: asNumber(combatant.dex_mod, 'restore_combat_invalid'),
-          conditions: stringArray(combatant.conditions, 'restore_combat_invalid'),
-          budget: {
-            action: asBoolean(budget.action, 'restore_combat_invalid'),
-            bonus_action: asBoolean(budget.bonus_action, 'restore_combat_invalid'),
-            reaction: asBoolean(budget.reaction, 'restore_combat_invalid'),
-            movement_ft: asNumber(budget.movement_ft, 'restore_combat_invalid'),
-          },
-          is_dead: asBoolean(combatant.is_dead, 'restore_combat_invalid'),
-          position: {
-            x: asNumber(position.x, 'restore_combat_invalid'),
-            y: asNumber(position.y, 'restore_combat_invalid'),
-          },
-        };
-      }),
-    },
-    events: combat.events,
-  };
+  const combat = parseCombatProjection(value);
+  if (!combat) throw new RestoreValidationError('restore_combat_invalid');
+  return combat;
 }
 
 function parseJournal(value: unknown): JournalEntry {
@@ -369,11 +317,6 @@ function asString(value: unknown, code: string): string {
 
 function asNumber(value: unknown, code: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw new RestoreValidationError(code);
-  return value;
-}
-
-function asBoolean(value: unknown, code: string): boolean {
-  if (typeof value !== 'boolean') throw new RestoreValidationError(code);
   return value;
 }
 
