@@ -1,0 +1,28 @@
+# Hero vitality and recovery
+
+The server stores vitality under combatResources.vitality on each canonical
+character sheet. It contains durable character identity, current combat token
+identity, death saves, conditions, death flag and optional natural-recovery clock.
+It is gameplay state, not a client character-creation preference.
+
+Combat writes vitality together with HP/resources in the existing transaction.
+A new encounter creates its own token and restores the character state; a recovery
+deadline is retargeted only after verifying its durable character owner and keeps
+its original clock values. Party/solo snapshots preserve this state with the full
+sheet. Malformed counters, mismatched identity, invalid deadlines and contradictory
+health/death states are rejected.
+
+Initial character commits, guest proposals/enrollment and missing-character save
+fallback remove player-supplied vitality. Once canonical vitality exists, character
+editing preserves HP and resources. Actual HP gain resets saves/recovery and removes
+Unconscious while preserving other conditions. Wait or unchanged HP does not remove
+conditions. Dead heroes require an explicit resurrection/story rule, not ordinary
+rest or healing.
+
+Current verification includes typed application tests, dead-host/stable-guest ended
+combat, serialized recovery deadline, real SQLite reopening, snapshot restoration,
+forged initial/fallback vitality, edit protection, unchanged-HP Wait and rollback
+coverage from the existing group combat suite. Owned recovery intentions/API/UI,
+damage at zero HP, automatic death turns and the native held-zero-HP continuation
+are still outstanding. The observed gameplay dead end is not fixed by persistence
+alone. The scheduler test uses trusted fixture state, not a production aid command.

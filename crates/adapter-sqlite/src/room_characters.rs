@@ -85,6 +85,7 @@ pub(crate) async fn submit(
     {
         return Err(error("room_character_invalid"));
     }
+    app_application::vitality::strip_client_state(&mut command.character);
     command.character["characterId"] = serde_json::json!(command.character_id);
     let mut tx = store
         .pool

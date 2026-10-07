@@ -65,6 +65,13 @@ pub fn resolve_for_state(
 
 pub fn input_for_state(state: &CampaignSessionState) -> Result<RestInput, RepositoryError> {
     let sheet = &state.projection.character;
+    crate::vitality::read(
+        sheet,
+        state
+            .character_id
+            .ok_or_else(|| rejected("rest_identity_mismatch"))?,
+    )
+    .map_err(rejected)?;
     if state.character_id.is_none() || !valid_character_document(sheet) {
         return Err(rejected("rest_character_required"));
     }
@@ -151,7 +158,11 @@ pub fn status_for_state(state: &CampaignSessionState) -> Result<RestStatus, Repo
     })
 }
 
-pub fn apply_rest_to_sheet(sheet: &mut serde_json::Value, outcome: &app_domain::rest::RestOutcome) {
+pub fn apply_rest_to_sheet(
+    sheet: &mut serde_json::Value,
+    outcome: &app_domain::rest::RestOutcome,
+) -> Result<(), &'static str> {
+    crate::vitality::clear_after_healing(sheet, outcome.hp)?;
     sheet["hp"] = serde_json::json!(outcome.hp);
     if !sheet
         .get("combatResources")
@@ -164,4 +175,5 @@ pub fn apply_rest_to_sheet(sheet: &mut serde_json::Value, outcome: &app_domain::
     sheet["combatResources"]["lastLongRestCompletedSeconds"] =
         serde_json::json!(outcome.resources.last_long_rest_completed);
     sheet["combatResources"]["spellSlots"] = serde_json::json!(outcome.resources.spell_slots);
+    Ok(())
 }

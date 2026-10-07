@@ -144,7 +144,8 @@ impl RestRepository for SqliteStore {
         }
         let outcome = app_application::rest::resolve_for_state(&current, command.intent, rng_seed)?;
         let mut sheet = current.projection.character;
-        app_application::rest::apply_rest_to_sheet(&mut sheet, &outcome);
+        app_application::rest::apply_rest_to_sheet(&mut sheet, &outcome)
+            .map_err(repository_error)?;
         crate::campaign_state::persist_character(
             &mut tx,
             command.campaign_id,

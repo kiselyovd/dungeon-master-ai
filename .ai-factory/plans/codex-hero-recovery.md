@@ -55,3 +55,30 @@ Store aid, all affected character state, clock, revision, receipt and room updat
 in one transaction. Public summaries contain mechanical status only. Verify rollback
 at the final receipt/event, wrong-owner/foreign-target rejection and the actual
 native held-zero-HP continuation without loading a save.
+
+
+## Authoritative vitality persistence checkpoint
+
+Added a character-bound server vitality block to existing combatResources JSON.
+Combat synchronization persists death saves, death, conditions and recovery deadline
+with HP and resources. Binding a new encounter preserves the state and retargets
+the actor-bound deadline after validating its durable character parent, without
+rerolling its duration. Snapshots/SQLite reopening retain the block through the
+existing trusted full-sheet path. Player initial commits, proposals/enrollment and
+first-snapshot fallback strip incoming vitality. Existing edits preserve canonical
+HP/resources once vitality is present. Positive HP gain clears saves/deadline and
+unconsciousness; ordinary Wait/Short-0 preserves conditions. Dead heroes cannot be
+healed through this helper. Invalid identities/state/deadlines fail closed.
+
+Independent review reproduced two P2 gaps (snapshot fallback and unchanged-HP
+Wait cleanup); both have RED-to-GREEN regressions and follow-up review closed them.
+Eight application tests, the full 80-test SQLite suite and 48 room regressions pass.
+Workspace Clippy and architecture pass. Full SQLite testing also caught the prior
+0015 migration count assertion; it now verifies 15 plus presence of scoped message
+publication and absence of its broad predecessor. No dependency/migration added.
+
+The deadline test seeds trusted state through a fixture seam; a production owned
+help/wait command does not exist yet. Damage-at-zero, automatic death turns and
+historical contradictory vitality remain unverified. Owned assistance, clocks,
+public summary/UI and native continuation without restore are the next scope;
+the actual gameplay P1 remains open.

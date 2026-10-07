@@ -436,3 +436,117 @@ async fn migration_skips_incomplete_sheets_and_selects_a_complete_older_candidat
         .unwrap();
     assert_eq!(count, 3);
 }
+
+#[tokio::test]
+async fn initial_character_commit_strips_forged_vitality() {
+    let store = store().await;
+    let campaign = campaign(store.clone(), "Owned vitality").await;
+    let mut sheet = hero("Mira");
+    sheet["combatResources"] =
+        json!({"vitality":{"is_dead":false,"natural_recovery":{"ready_at_seconds":0}}});
+    let state = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: Uuid::new_v4(),
+            expected_revision: campaign.revision,
+            causation_id: "initial-forged-vitality".into(),
+            character: sheet,
+        })
+        .await
+        .unwrap();
+    assert!(state.projection.character["combatResources"]
+        .get("vitality")
+        .is_none());
+}
+
+#[tokio::test]
+async fn editing_a_character_preserves_authoritative_zero_hp_and_dead_state() {
+    let store = store().await;
+    let campaign = campaign(store.clone(), "Vitality edit guard").await;
+    let id = Uuid::new_v4();
+    let state = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: id,
+            expected_revision: campaign.revision,
+            causation_id: "guard-initial".into(),
+            character: hero("Mira"),
+        })
+        .await
+        .unwrap();
+    let mut canonical = state.projection.character;
+    let mut actor = app_application::combat::hero::hero_combatant(id, &canonical).unwrap();
+    actor.current_hp = 0;
+    actor.is_dead = true;
+    actor.death_saves.failures = 3;
+    app_application::vitality::store_actor(&mut canonical, &actor).unwrap();
+    sqlx::query("UPDATE campaign_characters SET character_json=?1 WHERE campaign_id=?2")
+        .bind(canonical.to_string())
+        .bind(campaign.id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let mut forged = canonical.clone();
+    forged["hp"] = json!(12);
+    forged["name"] = json!("Mira renamed");
+    forged["combatResources"]["vitality"] = json!({"is_dead":false});
+    let edited = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: id,
+            expected_revision: state.campaign.revision,
+            causation_id: "guard-edit".into(),
+            character: forged,
+        })
+        .await
+        .unwrap();
+    assert_eq!(edited.projection.character["hp"], 0);
+    assert_eq!(edited.projection.character["name"], "Mira renamed");
+    assert!(
+        app_application::vitality::read(&edited.projection.character, id)
+            .unwrap()
+            .unwrap()
+            .is_dead
+    );
+    assert_eq!(
+        edited.projection.character["combatResources"],
+        canonical["combatResources"]
+    );
+}
+
+#[tokio::test]
+async fn initial_snapshot_fallback_cannot_import_client_vitality() {
+    let store = store().await;
+    let campaign = campaign(store.clone(), "Snapshot ingress").await;
+    let mut sheet = hero("Mira");
+    sheet["combatResources"] = json!({"vitality":{"is_dead":false}});
+    store
+        .create_snapshot(CreateSnapshotRecord {
+            id: Uuid::new_v4(),
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: campaign.revision,
+            schema_version: 1,
+            ruleset_id: "srd-5.2.1".into(),
+            title: "Initial".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "exploration".into(),
+            causation_id: "fallback-forged".into(),
+            character: sheet,
+        })
+        .await
+        .unwrap();
+    let current = store.load_current(campaign.id).await.unwrap();
+    assert!(current.projection.character["combatResources"]
+        .get("vitality")
+        .is_none());
+    assert!(app_application::combat::hero::hero_combatant(
+        current.character_id.unwrap(),
+        &current.projection.character
+    )
+    .is_ok());
+}

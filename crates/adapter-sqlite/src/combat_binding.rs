@@ -221,7 +221,7 @@ fn apply_hero_resources(
     sheet: &mut serde_json::Value,
     hero: &app_application::models::combat::Combatant,
 ) -> Result<(), RepositoryError> {
-    sheet["hp"] = serde_json::json!(hero.current_hp);
+    app_application::vitality::store_actor(sheet, hero).map_err(repository_error)?;
     if let Some(casting) = &hero.casting {
         if !sheet
             .get("combatResources")

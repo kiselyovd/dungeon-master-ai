@@ -25,6 +25,7 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
         sheet["ac"].as_i64().ok_or("combat_hero_invalid")? as i32,
     );
     actor.character_id = Some(CharacterId(character_id));
+    crate::vitality::restore_actor(sheet, character_id, &mut actor)?;
     actor.loadout = Some(loadout_from_sheet(sheet)?);
     actor.casting = Some(casting_from_sheet(sheet)?);
     actor.dex_mod = ability_modifier(

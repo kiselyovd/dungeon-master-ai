@@ -6,7 +6,7 @@ use crate::SqliteStore;
 pub(crate) async fn snapshot_character(
     tx: &mut Transaction<'_, Sqlite>,
     id: CampaignId,
-    supplied: Value,
+    mut supplied: Value,
 ) -> Result<Value, RepositoryError> {
     {
         let current: Option<String> = sqlx::query_scalar(
@@ -21,6 +21,7 @@ pub(crate) async fn snapshot_character(
                 .map_err(|_| repository_error("decode_checkpoint_character"));
         }
     }
+    app_application::vitality::strip_client_state(&mut supplied);
     Ok(supplied)
 }
 use app_application::models::campaign_state::{
@@ -115,6 +116,23 @@ impl CampaignStateRepository for SqliteStore {
         )
         .await?;
         let mut document = command.character;
+        app_application::vitality::strip_client_state(&mut document);
+        if current
+            .projection
+            .character
+            .get("combatResources")
+            .and_then(|r| r.get("vitality"))
+            .is_some()
+        {
+            document["hp"] = json!(current.projection.character["hp"]
+                .as_i64()
+                .ok_or_else(|| repository_error("hero_vitality_invalid"))?
+                .min(
+                    document["hpMax"]
+                        .as_i64()
+                        .ok_or_else(|| repository_error("hero_vitality_invalid"))?
+                ));
+        }
         if let Some(resources) = current.projection.character.get("combatResources") {
             document["combatResources"] = resources.clone();
         }

@@ -563,3 +563,146 @@ async fn guest_write_failure_rolls_back_host_guest_clock_encounter_and_receipt()
         0
     );
 }
+
+#[tokio::test]
+async fn ended_combat_vitality_and_recovery_deadline_survive_snapshot_and_real_reopen() {
+    use app_application::vitality;
+    use app_application::{
+        campaigns::{CreateSnapshot, CreateSnapshotCommand},
+        models::snapshot::RestoreSnapshotRecord,
+        ports::repositories::SnapshotRepository,
+    };
+    use app_domain::combat::{conditions::Condition, healing::begin_natural_recovery};
+    use app_domain::rng::SeededRng;
+    let path = std::env::temp_dir().join(format!("dmai-vitality-{}.sqlite", Uuid::new_v4()));
+    let options = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(&path)
+        .create_if_missing(true);
+    let db = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options.clone())
+        .await
+        .unwrap();
+    let (store, party, encounter) = fixture_with_pool(db).await;
+    let host = party.roster.members[0].character_id;
+    let guest = party.roster.members[1].character_id;
+    let mut projection = store.get(encounter).await.unwrap().unwrap();
+    for actor in &mut projection.snapshot.combatants {
+        if let Some(character) = actor.character_id {
+            actor.current_hp = 0;
+            actor.add_condition(Condition::Unconscious);
+            if character.0 == host {
+                actor.is_dead = true;
+                actor.death_saves.failures = 3;
+            } else {
+                actor.death_saves.stabilize();
+            }
+        }
+    }
+    projection.snapshot.active = false;
+    projection.revision = 1;
+    store
+        .commit_action(0, projection.clone(), "ended-vitality", "{}")
+        .await
+        .unwrap();
+    let mut saved_party = store.party(party.campaign_id).await.unwrap().unwrap();
+    let guest_actor = projection
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.character_id.map(|id| id.0) == Some(guest))
+        .unwrap();
+    let elapsed = store
+        .load_current(party.campaign_id)
+        .await
+        .unwrap()
+        .projection
+        .adventuring
+        .unwrap()
+        .elapsed_seconds;
+    let deadline =
+        begin_natural_recovery(guest_actor, elapsed, &mut SeededRng::from_seed(5)).unwrap();
+    let guest_sheet = saved_party.characters.get_mut(&guest).unwrap();
+    vitality::schedule_natural_recovery(guest_sheet, guest, deadline.clone()).unwrap();
+    // Seed the trusted scheduled state; owned recovery commands are the next layer.
+    sqlx::query(
+        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
+    )
+    .bind(guest_sheet.to_string())
+    .bind(party.campaign_id.0.to_string())
+    .bind(guest.to_string())
+    .execute(store.pool())
+    .await
+    .unwrap();
+    let saved = CreateSnapshot::new(store.clone())
+        .execute(CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: party.campaign_id,
+            session_id: party.session_id,
+            expected_revision: saved_party.revision,
+            title: "Vitality".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "exploration".into(),
+            causation_id: "vitality-save".into(),
+            character: saved_party.characters[&host].clone(),
+        })
+        .await
+        .unwrap();
+    let mut healed = saved_party.characters[&guest].clone();
+    vitality::clear_after_healing(&mut healed, 3).unwrap();
+    healed["hp"] = json!(3);
+    sqlx::query(
+        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
+    )
+    .bind(healed.to_string())
+    .bind(party.campaign_id.0.to_string())
+    .bind(guest.to_string())
+    .execute(store.pool())
+    .await
+    .unwrap();
+    let revision = store
+        .load_current(party.campaign_id)
+        .await
+        .unwrap()
+        .campaign
+        .revision;
+    store.pool().close().await;
+    drop(store);
+    let db = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await
+        .unwrap();
+    let reopened = SqliteStore::new(db);
+    reopened
+        .restore_snapshot(RestoreSnapshotRecord {
+            save_id: saved.save_id,
+            campaign_id: party.campaign_id,
+            session_id: party.session_id,
+            expected_revision: revision,
+            causation_id: "vitality-restore".into(),
+        })
+        .await
+        .unwrap();
+    let restored = reopened.party(party.campaign_id).await.unwrap().unwrap();
+    let root = vitality::read(&restored.characters[&host], host)
+        .unwrap()
+        .unwrap();
+    assert!(root.is_dead);
+    assert_eq!(root.death_saves.failures, 3);
+    assert_eq!(restored.characters[&host]["hp"], 0);
+    let state = vitality::read(&restored.characters[&guest], guest)
+        .unwrap()
+        .unwrap();
+    assert!(state.death_saves.stable);
+    assert_eq!(state.natural_recovery, Some(deadline));
+    assert_eq!(restored.characters[&guest]["hp"], 0);
+    assert!(reopened
+        .load_current(party.campaign_id)
+        .await
+        .unwrap()
+        .projection
+        .combat
+        .is_none());
+}

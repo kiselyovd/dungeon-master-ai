@@ -378,6 +378,7 @@ pub(crate) async fn enroll_in_transaction(
             return Err(error("party_character_already_enrolled"));
         }
         let mut sheet = command.character.clone();
+        app_application::vitality::strip_client_state(&mut sheet);
         sheet["characterId"] = serde_json::json!(command.character_id);
         sqlx::query("INSERT INTO party_characters(campaign_id,member_id,character_id,character_json) VALUES(?1,?2,?3,?4)").bind(command.campaign_id.0.to_string()).bind(command.member_id.to_string()).bind(command.character_id.to_string()).bind(sheet.to_string()).execute(&mut **tx).await.map_err(|_|error("party_write_failed"))?;
         crate::campaigns::advance_session_revision(

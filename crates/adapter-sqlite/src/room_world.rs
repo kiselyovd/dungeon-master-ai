@@ -198,7 +198,7 @@ pub(crate) async fn rest(
             rng_seed.wrapping_add(index as u64),
         )?;
         let mut sheet = sheet.clone();
-        app_application::rest::apply_rest_to_sheet(&mut sheet, &outcome);
+        app_application::rest::apply_rest_to_sheet(&mut sheet, &outcome).map_err(error)?;
         crate::party::persist_sheet(&mut tx, room.campaign_id, *id, sheet).await?;
         if *id == owner {
             own_outcome = Some(outcome);

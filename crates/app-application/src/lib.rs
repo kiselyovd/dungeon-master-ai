@@ -8,3 +8,5 @@ pub mod ports;
 pub mod rest;
 pub mod rooms;
 pub mod settings;
+
+pub mod vitality;
