@@ -20,6 +20,7 @@ export type CharacterWizardMode = 'initial' | 'edit';
 
 export interface CharacterWizardProps {
   allowCancel?: boolean;
+  completeSoloOnboarding?: boolean;
   onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   mode: CharacterWizardMode;
   onClose?: () => void;
@@ -72,6 +73,7 @@ export function CharacterWizard({
   hidden,
   onCommitCharacter,
   allowCancel,
+  completeSoloOnboarding = true,
 }: CharacterWizardProps) {
   const { t } = useTranslation('wizard');
   const { t: tc } = useTranslation('common');
@@ -160,6 +162,7 @@ export function CharacterWizard({
         {compendium && activeTab === 'review' && (
           <ReviewTab
             {...(onCommitCharacter ? { onCommitCharacter } : {})}
+            completeSoloOnboarding={completeSoloOnboarding}
             compendium={compendium}
             mode={mode}
             {...(onClose !== undefined ? { onClose } : {})}

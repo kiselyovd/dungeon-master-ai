@@ -35,5 +35,7 @@
   "short_rest": "Short rest",
   "long_rest": "Party long rest",
   "waiting": "Loading shared state…",
-  "human": "Human-controlled heroes; one shared AI DM."
+  "human": "Human-controlled heroes; one shared AI DM.",
+  "first_boot_join": "Join a game",
+  "first_boot_hint": "Joining someone else? Their AI runs the shared Dungeon Master; you can join without setting up a model here."
 }

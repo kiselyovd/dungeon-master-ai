@@ -277,3 +277,30 @@ describe('ReviewTab', () => {
     expect(screen.getByText(/some equipment choices are unresolved/i)).toBeInTheDocument();
   });
 });
+
+it('confirms a room hero without completing local model onboarding or changing providers', async () => {
+  useStore.setState((state) => ({ onboarding: { ...state.onboarding, completed: false } }));
+  const providers = structuredClone(useStore.getState().settings.providers);
+  const draft = useStore.getState().charCreation;
+  draft.setDraftField('classId', 'fighter');
+  draft.setDraftField('raceId', 'human');
+  draft.setDraftField('backgroundId', 'acolyte');
+  draft.setDraftField('abilityMethod', 'standard_array');
+  draft.setDraftField('name', 'Guest hero');
+  const submit = vi.fn(async () => {});
+  const close = vi.fn();
+  render(
+    <ReviewTab
+      compendium={compendium}
+      mode="initial"
+      completeSoloOnboarding={false}
+      onCommitCharacter={submit}
+      onClose={close}
+    />,
+  );
+  await userEvent.click(screen.getByRole('button', { name: /begin/i }));
+  expect(submit).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+  expect(useStore.getState().onboarding.completed).toBe(false);
+  expect(useStore.getState().settings.providers).toEqual(providers);
+});

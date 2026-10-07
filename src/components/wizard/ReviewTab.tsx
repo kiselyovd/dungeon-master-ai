@@ -23,13 +23,20 @@ interface Warning {
 }
 
 export interface ReviewTabProps {
+  completeSoloOnboarding?: boolean;
   onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   compendium: Compendium;
   mode: CharacterWizardMode;
   onClose?: () => void;
 }
 
-export function ReviewTab({ compendium, mode, onClose, onCommitCharacter }: ReviewTabProps) {
+export function ReviewTab({
+  compendium,
+  mode,
+  onClose,
+  onCommitCharacter,
+  completeSoloOnboarding = true,
+}: ReviewTabProps) {
   const { t } = useTranslation('wizard');
   const draft = useStore((s) => s.charCreation);
   const resetDraft = useStore((s) => s.charCreation.resetDraft);
@@ -172,7 +179,7 @@ export function ReviewTab({ compendium, mode, onClose, onCommitCharacter }: Revi
       if (!onCommitCharacter) throw new Error('campaign_required');
       await onCommitCharacter(character);
       resetDraft();
-      completeOnboarding();
+      if (completeSoloOnboarding) completeOnboarding();
       onClose?.();
     } catch {
       setCommitError('character_commit_failed');

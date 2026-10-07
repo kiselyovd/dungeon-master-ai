@@ -550,3 +550,18 @@ local; actual IPC/physical LAN, first-boot guest entry, durable native selection
 stable host restart, and complete solo/co-op session acceptance are still required.
 The App-only patch .artifacts/room-app-owned.patch applies cleanly to the index
 without the inherited App changes; stage that patch separately from owned files.
+
+
+### First-boot guest entry checkpoint
+
+Welcome now offers a localized join entry using existing onboarding controls.
+Entering/leaving co-op does not complete local provider setup. Review found that
+room hero submission through the shared wizard completed solo onboarding; an
+explicit completeSoloOnboarding policy now defaults true for solo and is false
+for room submissions. The real Begin regression confirms room submit/close with
+unchanged providers and onboarding=false. Twenty-nine focused root/wizard tests,
+TypeScript, production build and architecture pass. Three production-preview
+browser stub scenarios pass, including clean guest entry/leave. Full browser
+wizard creation and actual IPC remain pending; follow-up review closed the issue.
+App/Onboarding inherited diffs are excluded via their firstboot-owned patches.
+Native durable selection/recovery and full two-client acceptance remain next.

@@ -140,3 +140,16 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   expect(screen.queryByRole('button', { name: 'Создать своего героя' })).not.toBeInTheDocument();
   expect(useStore.getState().pc.heroClass).toBeNull();
 });
+
+it('lets a first-boot guest join without configuring a provider or completing solo onboarding', async () => {
+  const user = userEvent.setup();
+  useStore.setState((state) => ({ onboarding: { ...state.onboarding, completed: false } }));
+  const before = structuredClone(useStore.getState().settings.providers);
+  render(<App />);
+  await user.click(await screen.findByRole('button', { name: 'Подключиться к игре' }));
+  expect(screen.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  expect(useStore.getState().onboarding.completed).toBe(false);
+  await user.click(screen.getByRole('button', { name: 'Назад к кампаниям' }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(useStore.getState().settings.providers).toEqual(before);
+});

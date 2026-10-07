@@ -29,6 +29,7 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
  */
 
 interface OnboardingProps {
+  onJoinRoom?: () => void;
   /**
    * Optional callback invoked after finalization, with the preset the user
    * completed. App.tsx uses the preset to route the `manual` preset straight
@@ -43,9 +44,10 @@ interface OnboardingProps {
   onExitToWizard?: () => void;
 }
 
-export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
+export function Onboarding({ onComplete, onExitToWizard, onJoinRoom }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
   const { t: tCommon } = useTranslation('common');
+  const { t: tRooms } = useTranslation('rooms');
   const titleId = useId();
 
   const [preset, setPreset] = useState<PresetId>(DEFAULT_PRESET);
@@ -145,6 +147,18 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
         <div className="dm-onboarding-body">
           {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
+          {currentStep === 'welcome' && onJoinRoom && (
+            <section>
+              <p>{tRooms('first_boot_hint')}</p>
+              <button
+                type="button"
+                className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                onClick={onJoinRoom}
+              >
+                {tRooms('first_boot_join')}
+              </button>
+            </section>
+          )}
           {currentStep === 'preset' && (
             <PresetStep
               titleId={titleId}

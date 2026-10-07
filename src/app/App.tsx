@@ -803,6 +803,7 @@ function App() {
           )}
           {hydrated && !onboardingCompleted && (
             <Onboarding
+              onJoinRoom={() => setRoomOpen(true)}
               onExitToWizard={() => setWizardReopen(true)}
               onComplete={(preset) => {
                 // The manual preset configures nothing, so it would land on the

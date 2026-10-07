@@ -8,8 +8,8 @@ const wire = JSON.parse(
 
 import { mockTauri } from './fixtures/tauri-mock';
 
-async function installRoomStub(page: Page, snapshot: RoomUpdate) {
-  await mockTauri(page, { onboarding_completed: true, ui_language: 'ru' });
+async function installRoomStub(page: Page, snapshot: RoomUpdate, completed = true) {
+  await mockTauri(page, { onboarding_completed: completed, ui_language: 'ru' });
   await page.addInitScript((snapshot) => {
     type Internals = {
       invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -139,4 +139,21 @@ test('production room battle renders actual server map and gates the next human 
   });
   await page.getByRole('button', { name: 'Закончить ход' }).click();
   await expect(page.getByRole('button', { name: 'Закончить ход' })).toBeDisabled();
+});
+
+test('a clean guest enters co-op before model onboarding and returns to setup', async ({
+  page,
+}) => {
+  await installRoomStub(page, wire, false);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Подключиться к игре' }).click();
+  await expect(page.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
+  await page.getByLabel('Код комнаты').fill(wire.state.room.room_id);
+  await page.getByLabel('Ваше имя игрока').fill('Tara');
+  await page.getByLabel('Приглашение').fill('fixture-invitation');
+  await page.getByRole('button', { name: 'Подключиться' }).click();
+  await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  await page.getByRole('button', { name: 'Покинуть комнату' }).click();
+  await expect(page.getByRole('button', { name: 'Подключиться к игре' })).toBeVisible();
 });

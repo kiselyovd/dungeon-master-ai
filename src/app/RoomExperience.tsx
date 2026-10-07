@@ -109,6 +109,7 @@ function ConnectedRoom({
         <CharacterWizard
           mode="initial"
           onClose={() => setWizard(false)}
+          completeSoloOnboarding={false}
           allowCancel
           onCommitCharacter={(character) => controller.submitCharacter(character)}
         />
