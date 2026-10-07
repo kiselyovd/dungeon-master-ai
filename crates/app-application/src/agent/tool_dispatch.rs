@@ -19,6 +19,8 @@ pub enum ToolCapability {
 
 pub fn capability(command: &AgentToolCommand) -> ToolCapability {
     match command {
+        AgentToolCommand::CombatAction(_) => ToolCapability::Combat,
+        AgentToolCommand::RestAction(_) => ToolCapability::Campaign,
         AgentToolCommand::RollDice(_) => ToolCapability::Dice,
         AgentToolCommand::ApplyDamage(_)
         | AgentToolCommand::ApplyHealing(_)

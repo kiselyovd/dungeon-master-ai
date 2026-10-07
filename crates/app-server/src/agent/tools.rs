@@ -25,6 +25,7 @@ pub fn all_tools() -> Vec<Tool> {
 /// modality is disabled.
 pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     let mut tools = all_tools_core();
+    tools.extend(hero_intention_tools());
     tools.push(Tool {
         name:"adventure_action".into(),
         description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
@@ -46,6 +47,7 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
 /// calling the right tool and drowning in deliberation. `start_combat` is NOT in
 /// this set: the model needs it available to BEGIN combat.
 const COMBAT_ONLY_TOOLS: &[&str] = &[
+    "combat_action",
     "apply_damage",
     "apply_healing",
     "end_combat",
@@ -54,6 +56,18 @@ const COMBAT_ONLY_TOOLS: &[&str] = &[
     "remove_token",
     "cast_spell",
 ];
+
+fn hero_intention_tools() -> Vec<Tool> {
+    vec![Tool {
+        name:"combat_action".into(),
+        description:"Execute the saved hero's intention through canonical rules. Choose only current targets, prepared supported spells/equipment and walkable map cells. The engine owns actor, rolls, HP, budgets and resources, and automatically executes NPC turns. Narrate the confirmed result; never invent success. End-turn ends the hero turn; retreat requires the marked exit.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"enum":["weapon","spell","move","end_turn","retreat"]},"target":{"type":"string","format":"uuid"},"weapon_id":{"type":"string"},"mode":{"enum":["default","melee","ranged","thrown"]},"two_handed":{"type":"boolean"},"spell_id":{"type":"string"},"targets":{"type":"array","items":{"type":"string","format":"uuid"},"maxItems":32},"slot_level":{"type":"integer","minimum":0,"maximum":9},"x":{"type":"integer"},"y":{"type":"integer"}}}),
+    },Tool {
+        name:"rest_action".into(),
+        description:"Request Short Rest with chosen hit_dice, Long Rest, or wait with minutes for the saved hero. The server validates safety/cooldown, owns time and restores canonical HP/resources. Never grant recovery before confirmation.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"enum":["short","long","wait"]},"hit_dice":{"type":"integer","minimum":0,"maximum":20},"minutes":{"type":"integer","minimum":1,"maximum":1440}}}),
+    }]
+}
 
 /// Select the tools to expose for this turn. Outside combat, the
 /// combat-management tools are withheld so the model sees only the

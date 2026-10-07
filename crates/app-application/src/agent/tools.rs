@@ -46,6 +46,8 @@ pub fn authored_tool_allowed(name: &str) -> bool {
     matches!(
         name,
         "adventure_action"
+            | "combat_action"
+            | "rest_action"
             | "roll_dice"
             | "query_rules"
             | "quick_save"

@@ -17,6 +17,202 @@ use serde_json::json;
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[tokio::test]
+async fn dm_retreat_delivers_terminal_combat_even_though_current_state_omits_it() {
+    use app_application::agent::hero_intentions::{
+        HeroCombatIntent, HeroIntention, HeroIntentionRepository,
+    };
+    let (store, command) = fixture(40, 30).await;
+    store.act(command.clone()).await.unwrap();
+    let intent = HeroIntention {
+        campaign_id: command.campaign_id,
+        session_id: command.session_id,
+        causation_id: "agent:exit".into(),
+        action: HeroCombatIntent::Move { x: 1, y: 3 },
+    };
+    store.combat_as_dm(intent.clone(), 1).await.unwrap();
+    let original_move = intent.clone();
+    let retreat = HeroIntention {
+        causation_id: "agent:retreat".into(),
+        action: HeroCombatIntent::Retreat,
+        ..intent
+    };
+    let result = store.combat_as_dm(retreat.clone(), 2).await.unwrap();
+    assert_eq!(
+        result.projection.combat.as_ref().unwrap()["snapshot"]["active"],
+        false
+    );
+    assert_eq!(
+        result.projection.combat.as_ref().unwrap()["adventure"]["state"]["defense"],
+        "retreated"
+    );
+    assert!(store
+        .load_current(command.campaign_id)
+        .await
+        .unwrap()
+        .projection
+        .combat
+        .is_none());
+    assert_eq!(
+        store.combat_as_dm(retreat.clone(), 999).await.unwrap(),
+        result
+    );
+    assert_eq!(
+        store
+            .combat_as_dm(original_move.clone(), 999)
+            .await
+            .unwrap()
+            .projection
+            .combat
+            .as_ref()
+            .unwrap()["snapshot"]["active"],
+        false,
+        "An earlier move receipt must not resurrect the finished fight"
+    );
+    let mut command = command;
+    for (index, action) in [Action::Move(Location::Archive), Action::StartDefense]
+        .into_iter()
+        .enumerate()
+    {
+        command.action = action;
+        command.causation_id = format!("second-defense-{index}");
+        command.expected_revision = store
+            .load_current(command.campaign_id)
+            .await
+            .unwrap()
+            .campaign
+            .revision;
+        store.act(command.clone()).await.unwrap();
+    }
+    let fresh = store.load_current(command.campaign_id).await.unwrap();
+    assert_eq!(
+        fresh.projection.combat.as_ref().unwrap()["snapshot"]["active"],
+        true
+    );
+    assert_eq!(
+        store.combat_as_dm(retreat, 999).await.unwrap(),
+        fresh,
+        "An old terminal receipt must not close a newer encounter"
+    );
+    let second_exit = HeroIntention {
+        campaign_id: command.campaign_id,
+        session_id: command.session_id,
+        causation_id: "second-exit".into(),
+        action: HeroCombatIntent::Move { x: 1, y: 3 },
+    };
+    store.combat_as_dm(second_exit.clone(), 1).await.unwrap();
+    let second_terminal = store
+        .combat_as_dm(
+            HeroIntention {
+                causation_id: "second-retreat".into(),
+                action: HeroCombatIntent::Retreat,
+                ..second_exit
+            },
+            2,
+        )
+        .await
+        .unwrap();
+    let old_replay = store.combat_as_dm(original_move, 999).await.unwrap();
+    assert_eq!(
+        old_replay, second_terminal,
+        "Replaying fight A after fight B ends must deliver B's final projection"
+    );
+}
+
+#[tokio::test]
+async fn dm_combat_intentions_replay_the_original_receipt_and_return_fresh_state() {
+    use app_application::agent::hero_intentions::{
+        HeroCombatIntent, HeroIntention, HeroIntentionRepository,
+    };
+    let (store, command) = fixture(40, 30).await;
+    store.act(command.clone()).await.unwrap();
+    let intent = HeroIntention {
+        campaign_id: command.campaign_id,
+        session_id: command.session_id,
+        causation_id: "agent:move".into(),
+        action: HeroCombatIntent::Move { x: 3, y: 4 },
+    };
+    let moved = store.combat_as_dm(intent.clone(), 1).await.unwrap();
+    let combat: CombatProjection =
+        serde_json::from_value(moved.projection.combat.clone().unwrap()).unwrap();
+    assert_eq!(
+        combat
+            .snapshot
+            .combatants
+            .iter()
+            .find(|actor| actor.character_id.map(|id| id.0) == Some(command.character_id))
+            .unwrap()
+            .position
+            .y,
+        4
+    );
+    let next = store
+        .combat_as_dm(
+            HeroIntention {
+                causation_id: "agent:turn".into(),
+                action: HeroCombatIntent::EndTurn,
+                ..intent.clone()
+            },
+            2,
+        )
+        .await
+        .unwrap();
+    let retried = store.combat_as_dm(intent.clone(), 999).await.unwrap();
+    assert_eq!(retried, next);
+    assert!(store
+        .combat_as_dm(
+            HeroIntention {
+                action: HeroCombatIntent::Move { x: 4, y: 4 },
+                ..intent
+            },
+            3
+        )
+        .await
+        .is_err());
+    assert_eq!(store.load_current(command.campaign_id).await.unwrap(), next);
+}
+
+#[tokio::test]
+async fn dm_rest_derives_identity_and_revision_and_replays_without_spending_again() {
+    use app_application::agent::hero_intentions::{HeroIntention, HeroIntentionRepository};
+    use app_application::models::rest::RestIntent;
+    let (store, mut command) = fixture(10, 20).await;
+    for action in [Action::Move(Location::Quay), Action::Move(Location::Town)] {
+        command.action = action;
+        command.causation_id = format!("return-{action:?}");
+        command.expected_revision = store
+            .load_current(command.campaign_id)
+            .await
+            .unwrap()
+            .campaign
+            .revision;
+        store.act(command.clone()).await.unwrap();
+    }
+    let intent = HeroIntention {
+        campaign_id: command.campaign_id,
+        session_id: command.session_id,
+        causation_id: "agent:rest".into(),
+        action: RestIntent::Short { hit_dice: 1 },
+    };
+    let rested = store.rest_as_dm(intent.clone(), 1).await.unwrap();
+    assert!(rested.projection.character["hp"].as_i64().unwrap() > 10);
+    assert_eq!(store.rest_as_dm(intent.clone(), 999).await.unwrap(), rested);
+    assert!(store
+        .rest_as_dm(
+            HeroIntention {
+                action: RestIntent::Long,
+                ..intent
+            },
+            1
+        )
+        .await
+        .is_err());
+    assert_eq!(
+        store.load_current(command.campaign_id).await.unwrap(),
+        rested
+    );
+}
+
 async fn fixture(hp: i32, ac: i32) -> (Arc<SqliteStore>, AdventureCommand) {
     let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     pool::migrate(&db).await.unwrap();

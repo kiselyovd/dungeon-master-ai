@@ -205,7 +205,7 @@ impl AgentTurnService {
                 .map_err(|_| AgentTurnError::Persistence)?;
         }
 
-        let context = self
+        let mut context = self
             .context
             .build(AgentContextRequest {
                 campaign_id: request.campaign_id,
@@ -215,11 +215,13 @@ impl AgentTurnService {
             })
             .await
             .map_err(|error| AgentTurnError::Context(error.code))?;
-        let mut system_prompt = append_board(context.system_prompt, request.board.as_deref());
-        if checkpoint.is_some() {
+        let mut system_prompt =
+            append_board(context.system_prompt.clone(), request.board.as_deref());
+        let continuing = checkpoint.is_some();
+        if continuing {
             system_prompt.push_str("\nThis is an interrupted turn continuation. Recorded tool results are already confirmed. Finish the original intention from those results; do not repeat confirmed effects. Provide a coherent reply without replaying an unfinished draft.");
         }
-        let tools = self
+        let mut tools = self
             .config
             .tools
             .for_context(context.combat_active, context.adventure_active);
@@ -509,6 +511,27 @@ impl AgentTurnService {
 
             if !matches!(finish_reason, FinishReason::ToolUse) || tool_calls.is_empty() {
                 break;
+            }
+            {
+                context = self
+                    .context
+                    .build(AgentContextRequest {
+                        campaign_id: request.campaign_id,
+                        player_message: request.player_message.clone(),
+                        base_system_prompt: self.config.system_prompt.clone(),
+                        embedding_model: self.config.embedding_model.clone(),
+                    })
+                    .await
+                    .map_err(|error| AgentTurnError::Context(error.code))?;
+                system_prompt =
+                    append_board(context.system_prompt.clone(), request.board.as_deref());
+                if continuing {
+                    system_prompt.push_str("\nThis is an interrupted turn continuation. Recorded tool results are already confirmed. Finish the original intention from those results; do not repeat confirmed effects.");
+                }
+                tools = self
+                    .config
+                    .tools
+                    .for_context(context.combat_active, context.adventure_active);
             }
         }
 

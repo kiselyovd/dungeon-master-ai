@@ -16,6 +16,21 @@ Execution: inline, authorized by 'Продолжай до конца'; preserve 
 
 ## Authored defensive session
 
+Canonical DM intention checkpoint, 2026-10-07: strict `combat_action` and
+`rest_action`, server-derived actor/revision/seed, scoped immutable existing
+combat/rest receipts, public result delivery and per-round context/catalog
+refresh implemented. Decoder2, real SQLite3 and scripted-provider7 checks pass.
+Independent review's terminal delivery, collaborative catalog and old active
+receipt findings were reproduced/fixed; follow-up closed them. SQLite regression
+covers old Move after A closes, old retreat while B is active, and old Move after
+B closes. Production-browser3 scripted SSE cases confirm scene, rest HP and
+combat closure during narration. Production build and final full gates pass
+(workspace Rust and1042 frontend tests); original32 source hashes unchanged.
+No real model/native AI-led/LAN acceptance claimed. Wider mechanics/recovery and
+party requirements remain open. Live LM Studio inventory sees the installed
+`ternary-bonsai-2-27b` PTQ file and no loaded models; next verify its real runtime
+and tool/narration behavior before provider promotion.
+
 Defense checkpoint collection, 2026-10-07: linked optional encounter, authored
 12x8 map, host pathfinding/line of sight, exit retreat and nonlethal recovery
 implemented. Domain/application/SQLite regressions cover outcomes, round cap,
@@ -39,7 +54,8 @@ Supply current combat positions, budgets, supported choices and rest/time state
 in context, refresh after confirmed tools, and deliver public projections through
 the existing atomic frontend ports. First verify scripted-provider effects,
 replay, rejection without spending, and narration following confirmed outcomes;
-then exercise actual model and native play. This is still pending implementation.
+then exercise actual model and native play. The intention adapter is implemented;
+actual model/native acceptance remains pending.
 
 Add a voluntary Archive defense after locating Tikhon. The server creates a linked encounter and immutable12x8 upper-landing map in the same adventure transaction/revision/receipt. Two custom water-echo hazards use authored profiles and spawn positions; the saved hero keeps its canonical resources. Holding three rounds or dispersing the echoes confirms a rescue window; combat alone grants no rescue reward or ward restoration. Retreat requires reaching the mapped dry exit. Defeat is explicitly nonlethal: Mila/Agata recover the hero to town at1HP after an hour, retaining spent resources and unfinished objectives. Resolve story state, HP/time, combat projection and receipt atomically; snapshots/retries preserve the link and cannot fabricate victory.
 

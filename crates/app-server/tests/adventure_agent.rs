@@ -15,6 +15,17 @@ async fn fixture() -> (
     sqlx::SqlitePool,
     app_application::models::session::CampaignDetail,
 ) {
+    fixture_seed(CampaignSeed::Bundled {
+        adventure_id: "bell-beneath-water".into(),
+    })
+    .await
+}
+async fn fixture_seed(
+    seed: CampaignSeed,
+) -> (
+    sqlx::SqlitePool,
+    app_application::models::session::CampaignDetail,
+) {
     let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     app_server::db::init_db(&pool).await.unwrap();
     let store = Arc::new(SqliteStore::new(pool.clone()));
@@ -22,9 +33,7 @@ async fn fixture() -> (
         .execute(CreateCampaignCommand {
             title: "Bell".into(),
             premise: "Ferry".into(),
-            seed: CampaignSeed::Bundled {
-                adventure_id: "bell-beneath-water".into(),
-            },
+            seed,
         })
         .await
         .unwrap();
@@ -276,4 +285,358 @@ fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
     MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
         reason: FinishReason::Stop,
     }]])
+}
+
+struct CapturingHeroProvider {
+    inner: MockProvider,
+    requests: std::sync::Mutex<Vec<app_llm::ChatRequest>>,
+}
+
+#[tokio::test]
+async fn collaborative_start_combat_refreshes_catalog_for_the_next_canonical_intention() {
+    let (pool, campaign) = fixture_seed(CampaignSeed::Collaborative {
+        answers: Default::default(),
+    })
+    .await;
+    let provider = Arc::new(CapturingHeroProvider {
+        inner: MockProvider::new(hero_tool_round(
+            "start",
+            "start_combat",
+            json!({"initiative_entries":[{"name":"Echo","role":"npc","hp":6,"ac":11,"roll":1}]}),
+        ))
+        .with_followup_rounds(vec![
+            hero_tool_round("turn", "combat_action", json!({"kind":"end_turn"})),
+            vec![ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }],
+        ]),
+        requests: Default::default(),
+    });
+    let orchestrator = AgentOrchestrator::new(
+        provider.clone(),
+        pool,
+        AgentConfig {
+            model: "mock".into(),
+            max_rounds: 4,
+            ..AgentConfig::default()
+        },
+        None,
+        None,
+    );
+    let (tx, mut rx) = tokio::sync::mpsc::channel(128);
+    orchestrator
+        .run(
+            AgentTurnRequest {
+                campaign_id: campaign.id.0,
+                session_id: campaign.last_session_id.0,
+                player_message: "Begin the fight and end my first turn.".into(),
+                history: vec![],
+                images: vec![],
+                board: None,
+            },
+            tx,
+        )
+        .await
+        .unwrap();
+    while let Some(event) = rx.recv().await {
+        if let AgentEvent::ToolCallResult {
+            result, is_error, ..
+        } = event
+        {
+            assert!(!is_error, "{result}");
+        }
+    }
+    let requests = provider.requests.lock().unwrap().clone();
+    assert!(!requests[0]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+    assert!(requests[1]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("\"active\":true"));
+}
+
+#[tokio::test]
+async fn model_retreat_returns_terminal_projection_story_and_rest_status() {
+    use app_application::models::adventure::{Action, AdventureIntent, Location};
+    use app_application::ports::repositories::AdventureRepository;
+    let (pool, campaign) = fixture().await;
+    let store = SqliteStore::new(pool.clone());
+    for (index, action) in [
+        Action::Move(Location::Quay),
+        Action::Move(Location::Archive),
+        Action::LocateTikhon,
+        Action::StartDefense,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        store
+            .act_as_dm(AdventureIntent {
+                campaign_id: campaign.id,
+                session_id: campaign.last_session_id,
+                causation_id: format!("setup-{index}"),
+                action,
+            })
+            .await
+            .unwrap();
+    }
+    let provider = Arc::new(
+        MockProvider::new(hero_tool_round(
+            "exit",
+            "combat_action",
+            json!({"kind":"move","x":1,"y":3}),
+        ))
+        .with_followup_rounds(vec![
+            hero_tool_round("retreat", "combat_action", json!({"kind":"retreat"})),
+            vec![
+                ChatChunk::TextDelta {
+                    text: "You withdraw to the quay; Tikhon still needs rescue.".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ],
+        ]),
+    );
+    let orchestrator = AgentOrchestrator::new(
+        provider,
+        pool,
+        AgentConfig {
+            model: "mock".into(),
+            max_rounds: 4,
+            ..AgentConfig::default()
+        },
+        None,
+        None,
+    );
+    let (tx, mut rx) = tokio::sync::mpsc::channel(128);
+    orchestrator
+        .run(
+            AgentTurnRequest {
+                campaign_id: campaign.id.0,
+                session_id: campaign.last_session_id.0,
+                player_message: "Move to the exit and retreat.".into(),
+                history: vec![],
+                images: vec![],
+                board: None,
+            },
+            tx,
+        )
+        .await
+        .unwrap();
+    let mut terminal = None;
+    while let Some(event) = rx.recv().await {
+        if let AgentEvent::ToolCallResult {
+            result,
+            is_error,
+            id,
+            ..
+        } = event
+        {
+            assert!(!is_error, "{result}");
+            if id == "retreat" {
+                terminal = Some(result);
+            }
+        }
+    }
+    let terminal = terminal.unwrap();
+    assert_eq!(terminal["projection"]["snapshot"]["active"], false);
+    assert_eq!(
+        terminal["projection"]["adventure"]["state"]["defense"],
+        "retreated"
+    );
+    assert_eq!(terminal["rest_status"]["combat_active"], false);
+    assert!(store
+        .load_current(campaign.id)
+        .await
+        .unwrap()
+        .projection
+        .combat
+        .is_none());
+}
+#[async_trait::async_trait]
+impl app_llm::LlmProvider for CapturingHeroProvider {
+    async fn stream_chat(
+        &self,
+        request: app_llm::ChatRequest,
+    ) -> Result<app_llm::ChunkStream, app_llm::LlmError> {
+        self.requests.lock().unwrap().push(request.clone());
+        self.inner.stream_chat(request).await
+    }
+    fn name(&self) -> &'static str {
+        "hero-intention-test"
+    }
+    fn capabilities_for_model(&self, model: &str) -> app_llm::Capabilities {
+        self.inner.capabilities_for_model(model)
+    }
+    fn active_model(&self) -> &str {
+        "mock"
+    }
+}
+fn hero_tool_round(id: &str, name: &str, args: serde_json::Value) -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::ToolCallStart {
+            id: id.into(),
+            name: name.into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: id.into(),
+            args_fragment: args.to_string(),
+        },
+        ChatChunk::ToolCallDone { id: id.into() },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
+    ]
+}
+
+#[tokio::test]
+async fn model_can_start_defense_then_move_with_refreshed_canonical_context() {
+    use app_application::models::adventure::{Action, AdventureIntent, Location};
+    use app_application::ports::repositories::AdventureRepository;
+    let (pool, campaign) = fixture().await;
+    let store = SqliteStore::new(pool.clone());
+    for (index, action) in [
+        Action::Move(Location::Quay),
+        Action::Move(Location::Archive),
+        Action::LocateTikhon,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        store
+            .act_as_dm(AdventureIntent {
+                campaign_id: campaign.id,
+                session_id: campaign.last_session_id,
+                causation_id: format!("setup-{index}"),
+                action,
+            })
+            .await
+            .unwrap();
+    }
+    let provider = Arc::new(CapturingHeroProvider {
+        inner: MockProvider::new(hero_tool_round(
+            "defense",
+            "adventure_action",
+            json!({"action":{"kind":"start_defense"}}),
+        ))
+        .with_followup_rounds(vec![
+            hero_tool_round("move", "combat_action", json!({"kind":"move","x":3,"y":4})),
+            vec![
+                ChatChunk::TextDelta {
+                    text: "You reach the dry landing.".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ],
+        ]),
+        requests: Default::default(),
+    });
+    let orchestrator = AgentOrchestrator::new(
+        provider.clone(),
+        pool,
+        AgentConfig {
+            model: "mock".into(),
+            max_rounds: 4,
+            ..AgentConfig::default()
+        },
+        None,
+        None,
+    );
+    let (tx, mut rx) = tokio::sync::mpsc::channel(128);
+    orchestrator
+        .run(
+            AgentTurnRequest {
+                campaign_id: campaign.id.0,
+                session_id: campaign.last_session_id.0,
+                player_message: "Hold the passage and move to the dry landing.".into(),
+                history: vec![],
+                images: vec![],
+                board: None,
+            },
+            tx,
+        )
+        .await
+        .unwrap();
+    let mut results = Vec::new();
+    while let Some(event) = rx.recv().await {
+        if let AgentEvent::ToolCallResult {
+            result, is_error, ..
+        } = event
+        {
+            assert!(!is_error, "{result}");
+            assert!(!result.to_string().contains("PRIVATE_"));
+            results.push(result);
+        }
+    }
+    assert_eq!(results.len(), 2);
+    let requests = provider.requests.lock().unwrap().clone();
+    assert_eq!(requests.len(), 3);
+    assert!(!requests[0]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+    assert!(requests[1]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("bell_archive_defense"));
+    assert!(requests[2]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("\"y\":4"));
+    let state = store.load_current(campaign.id).await.unwrap();
+    assert_eq!(state.campaign.revision.0, 7);
+}
+
+#[tokio::test]
+async fn model_wait_intention_updates_real_time_and_returns_public_status() {
+    let (pool, campaign) = fixture().await;
+    let events = run(
+        pool.clone(),
+        &campaign,
+        "rest_action",
+        json!({"kind":"wait","minutes":60}),
+    )
+    .await;
+    let result = events
+        .iter()
+        .find_map(|event| {
+            if let AgentEvent::ToolCallResult {
+                result, is_error, ..
+            } = event
+            {
+                assert!(!is_error, "{result}");
+                Some(result)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(result["rest_status"]["elapsed_seconds"], 3600);
+    assert!(!result.to_string().contains("PRIVATE_"));
+    assert_eq!(
+        SqliteStore::new(pool)
+            .load_current(campaign.id)
+            .await
+            .unwrap()
+            .projection
+            .adventuring
+            .unwrap()
+            .elapsed_seconds,
+        3600
+    );
 }

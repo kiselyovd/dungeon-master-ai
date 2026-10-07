@@ -51,7 +51,13 @@ impl<T: ToolCapabilityHandler> ToolCapabilityHandler for CheckpointTools<T> {
         let result = if pending
             && !matches!(
                 name,
-                "adventure_action" | "quick_save" | "roll_dice" | "query_rules" | "recall_npc"
+                "adventure_action"
+                    | "combat_action"
+                    | "rest_action"
+                    | "quick_save"
+                    | "roll_dice"
+                    | "query_rules"
+                    | "recall_npc"
             ) {
             ToolExecution {
                 result: json!({"error":"tool_recovery_requires_fresh_intention"}),

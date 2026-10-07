@@ -79,6 +79,34 @@ it('mirrors the confirmed bound HP and revision without resetting a chat stream'
   expect(controller.signal.aborted).toBe(false);
   expect(useStore.getState().session.transitionGeneration).toBe(generation);
 });
+
+it('a terminal DM combat projection closes the fight and updates its story during narration', () => {
+  const controller = new AbortController();
+  useStore.getState().chat.beginStream(controller);
+  expect(applyCombatOutcome(outcome())).toBe(true);
+  const terminal = outcome();
+  terminal.revision = 2;
+  terminal.campaign_scope.revision = 5;
+  terminal.snapshot.active = false;
+  const adventure = {
+    state: {
+      package_id: 'bell-beneath-water' as const,
+      location: 'quay' as const,
+      facts: ['ferry_route' as const],
+      ending: null,
+      closed: false,
+      history: [],
+      defense: 'retreated' as const,
+      defense_encounter_id: null,
+    },
+    available_actions: [],
+  };
+  expect(applyCombatOutcome({ ...terminal, adventure })).toBe(true);
+  expect(useStore.getState().combat.active).toBe(false);
+  expect(useStore.getState().session.adventure?.state.defense).toBe('retreated');
+  expect(useStore.getState().chat.isStreaming).toBe(true);
+  expect(controller.signal.aborted).toBe(false);
+});
 it('rejects another character and an obsolete campaign revision', () => {
   const wrong = outcome();
   wrong.campaign_scope.character_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';

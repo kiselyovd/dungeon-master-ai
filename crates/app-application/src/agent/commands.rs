@@ -203,6 +203,8 @@ pub struct GenerateVideoCommand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentToolCommand {
+    CombatAction(super::hero_intentions::HeroCombatIntent),
+    RestAction(crate::models::rest::RestIntent),
     AdventureAction(AdventureActionCommand),
     RollDice(RollDiceCommand),
     ApplyDamage(ApplyDamageCommand),
@@ -227,6 +229,8 @@ pub enum AgentToolCommand {
 impl AgentToolCommand {
     pub const fn tool_name(&self) -> &'static str {
         match self {
+            Self::CombatAction(_) => "combat_action",
+            Self::RestAction(_) => "rest_action",
             Self::AdventureAction(_) => "adventure_action",
             Self::RollDice(_) => "roll_dice",
             Self::ApplyDamage(_) => "apply_damage",
@@ -251,6 +255,8 @@ impl AgentToolCommand {
 
     pub fn to_args(&self) -> Value {
         match self {
+            Self::CombatAction(value) => serde_json::to_value(value),
+            Self::RestAction(value) => serde_json::to_value(value),
             Self::AdventureAction(value) => serde_json::to_value(value),
             Self::RollDice(value) => serde_json::to_value(value),
             Self::ApplyDamage(value) => serde_json::to_value(value),

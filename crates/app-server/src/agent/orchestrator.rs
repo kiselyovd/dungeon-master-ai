@@ -228,9 +228,30 @@ struct LegacyContextAdapter {
 #[async_trait]
 impl AgentContextPort for LegacyContextAdapter {
     async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
-        let combat_active = is_combat_active(&self.store).await;
+        use app_application::ports::repositories::CampaignStateRepository;
+        let current = self
+            .store
+            .load_current(app_application::models::identity::CampaignId(
+                request.campaign_id,
+            ))
+            .await;
+        let combat_active = match &current {
+            Ok(state) => state
+                .projection
+                .combat
+                .as_ref()
+                .is_some_and(|combat| combat["snapshot"]["active"].as_bool() == Some(true)),
+            Err(app_application::ports::repositories::RepositoryError::NotFound) => {
+                is_combat_active(&self.store).await
+            }
+            Err(_) => {
+                return Err(AgentContextError {
+                    code: "campaign_context_failed",
+                })
+            }
+        };
         let inject_rules = needs_rules_context(&request.player_message, combat_active);
-        let system_prompt = build_context(
+        let mut system_prompt = build_context(
             &self.store,
             request.campaign_id,
             &request.player_message,
@@ -243,15 +264,23 @@ impl AgentContextPort for LegacyContextAdapter {
         .map_err(|_| AgentContextError {
             code: "campaign_context_failed",
         })?;
-        use app_application::ports::repositories::CampaignStateRepository;
-        let adventure_active = match self
-            .store
-            .load_current(app_application::models::identity::CampaignId(
-                request.campaign_id,
-            ))
-            .await
-        {
-            Ok(state) => state.projection.adventure.is_some(),
+        let adventure_active = match current {
+            Ok(state) => {
+                if state.character_id.is_some() {
+                    let mut status =
+                        app_application::rest::status_for_state(&state).map_err(|_| {
+                            AgentContextError {
+                                code: "hero_context_failed",
+                            }
+                        })?;
+                    status.combat_active =
+                        state.projection.combat.as_ref().is_some_and(|combat| {
+                            combat["snapshot"]["active"].as_bool() == Some(true)
+                        });
+                    system_prompt.push_str(&format!("\nCANONICAL HERO MECHANICS: {}\nUse combat_action for the bound hero's intentions and rest_action for rest/time. Choose only supported spell choices and available weapons/targets shown here. After a tool result, that result supersedes the previous state. Raw damage/healing/token mutations cannot replace canonical intentions. All rolls and resource changes belong to the engine.",serde_json::json!({"combat":state.projection.combat,"rest_status":status})));
+                }
+                state.projection.adventure.is_some()
+            }
             Err(app_application::ports::repositories::RepositoryError::NotFound) => false,
             Err(_) => {
                 return Err(AgentContextError {
@@ -282,6 +311,71 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
         request: ToolDispatchRequest,
     ) -> Result<ToolExecution, ToolDispatchError> {
         let tool_name = request.command.tool_name().to_string();
+        {
+            use app_application::agent::commands::AgentToolCommand;
+            use app_application::agent::hero_intentions::{HeroIntention, HeroIntentionRepository};
+            let campaign_id = app_application::models::identity::CampaignId(request.campaign_id);
+            let session_id = app_application::models::identity::SessionId(request.session_id);
+            let causation_id = format!("agent:{}:{}", request.request_id, request.tool_call_id);
+            let seed = Uuid::new_v4().as_u128() as u64;
+            let outcome = match &request.command {
+                AgentToolCommand::CombatAction(action) => Some(
+                    self.store
+                        .combat_as_dm(
+                            HeroIntention {
+                                campaign_id,
+                                session_id,
+                                causation_id,
+                                action: action.clone(),
+                            },
+                            seed,
+                        )
+                        .await,
+                ),
+                AgentToolCommand::RestAction(action) => Some(
+                    self.store
+                        .rest_as_dm(
+                            HeroIntention {
+                                campaign_id,
+                                session_id,
+                                causation_id,
+                                action: *action,
+                            },
+                            seed,
+                        )
+                        .await,
+                ),
+                _ => None,
+            };
+            if let Some(outcome) = outcome {
+                return Ok(match outcome {
+                    Ok(state) => {
+                        let mut status =
+                            app_application::rest::status_for_state(&state).map_err(|_| {
+                                ToolDispatchError {
+                                    code: "hero_status_failed",
+                                }
+                            })?;
+                        status.combat_active =
+                            state.projection.combat.as_ref().is_some_and(|combat| {
+                                combat["snapshot"]["active"].as_bool() == Some(true)
+                            });
+                        ToolExecution {
+                            result: serde_json::json!({"schema_version":1,"ruleset_id":"srd-5.2.1","campaign_id":state.campaign.id.0,"session_id":state.session_id.0,"character_id":state.character_id,"revision":state.campaign.revision.0,"adventure":state.projection.adventure,"inventory":state.projection.character["inventory"],"projection":state.projection.combat,"rest_status":status}),
+                            is_error: false,
+                            handled_by: "engine".into(),
+                            media: vec![],
+                        }
+                    }
+                    Err(error) => ToolExecution {
+                        result: serde_json::json!({"error":match error{app_application::ports::repositories::RepositoryError::Operation{code,..}=>code,_=>"hero_intention_failed"}}),
+                        is_error: true,
+                        handled_by: "engine".into(),
+                        media: vec![],
+                    },
+                });
+            }
+        }
         if let app_application::agent::commands::AgentToolCommand::AdventureAction(command) =
             &request.command
         {

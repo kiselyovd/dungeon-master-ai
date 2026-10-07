@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
+import * as v from 'valibot';
+import { RestStatusSchema } from '../api/contracts/rest';
 import type { AgentTurnPorts } from '../features/agent-turn/model/ports';
 import { useAgentTurn as useFeatureAgentTurn } from '../features/agent-turn/useAgentTurn';
 import { projectionFromToolResult } from '../features/combat/model/combatProjection';
 import { applyAdventureToolOutcome } from '../state/adventureOutcome';
 import { applyCombatOutcome } from '../state/combatOutcome';
 import type { Disposition } from '../state/npc';
+import { applyRestOutcome } from '../state/restOutcome';
 import { useStore } from '../state/useStore';
 
 /** Application composition adapter; feature logic only receives narrow ports. */
@@ -106,6 +109,10 @@ export function useAgentTurn() {
         acceptToolResult: (_toolName, _args, result) => {
           const projection = projectionFromToolResult(result);
           if (projection) applyCombatOutcome(projection);
+          if (typeof result === 'object' && result !== null && 'rest_status' in result) {
+            const parsed = v.safeParse(RestStatusSchema, result.rest_status);
+            if (parsed.success) applyRestOutcome(parsed.output);
+          }
         },
       },
       now: () => new Date().toISOString(),
