@@ -158,32 +158,40 @@ impl AgentContextPort for RoomAgentPorts {
             });
         }
         let mut prompt = request.base_system_prompt;
-        prompt.push_str("\nThis is a shared campaign. Act only for the initiating member's accepted hero. Other heroes are public summaries, not controllable actors. Use only confirmed engine intentions, do not assign damage/resources in prose. Do not reveal private context or hidden NPC knowledge as player facts.");
-        let mut own = state.own_character.clone().ok_or(AgentContextError {
-            code: "room_agent_denied",
-        })?;
-        if let Some(document) = own.as_object_mut() {
-            document.remove("portraitUrl");
-            for key in [
-                "backstory",
-                "personality",
-                "ideals",
-                "bonds",
-                "flaws",
-                "notes",
-            ] {
-                if let Some(serde_json::Value::String(text)) = document.get_mut(key) {
-                    *text = text.chars().take(4096).collect();
+        prompt.push_str("\nYou are the Dungeon Master of this shared campaign, never a player character. Lead narration, portray NPCs and adjudicate scenes and combat. Every hero is controlled exclusively by its human player. Resolve only the initiating player's declared hero intention; do not choose a hero's decisions, dialogue, movement, attacks or rest on their behalf. Ask the player when their intention is ambiguous. The deterministic engine owns dice, damage, resources and NPC combat turns. Describe consequences only after confirmed tool results. Accepted hero biographies and hidden canon are DM knowledge, not automatically public discoveries; reveal them only when the adventure establishes discovery. Other heroes are not controllable through the initiating player's tools.");
+        let mut dm_party = self
+            .rooms
+            .rooms
+            .room_dm_party(self.subject.lease())
+            .await
+            .map_err(|_| AgentContextError {
+                code: "room_agent_denied",
+            })?;
+        for character in dm_party.characters.values_mut() {
+            if let Some(document) = character.as_object_mut() {
+                document.remove("portraitUrl");
+                for key in [
+                    "backstory",
+                    "personality",
+                    "ideals",
+                    "bonds",
+                    "flaws",
+                    "notes",
+                ] {
+                    if let Some(serde_json::Value::String(text)) = document.get_mut(key) {
+                        *text = text.chars().take(4096).collect();
+                    }
                 }
             }
         }
-        prompt.push_str(&serde_json::to_string(&serde_json::json!({"own_character":own,"party":state.actors,"combat":state.combat,"scene":state.scene,"clock":state.clock})).map_err(|_|AgentContextError {code:"room_agent_context_invalid"})?);
+        prompt.push_str(&serde_json::to_string(&serde_json::json!({"initiating_player_member_id":self.subject.lease().member_id(),"dm_party":dm_party,"combat":state.combat,"scene":state.scene,"clock":state.clock})).map_err(|_|AgentContextError {code:"room_agent_context_invalid"})?);
         if let Some(adventure) = &state.adventure {
             prompt.push_str(&crate::campaigns::adventure_context::bell_dm_context(
                 &adventure.state,
             ));
         }
         Ok(AgentContext {
+            reasoning_is_private: true,
             adventure_active: state.adventure.is_some(),
             system_prompt: prompt,
             combat_active: state.combat.is_some(),

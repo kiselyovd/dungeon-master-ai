@@ -32,7 +32,9 @@ impl app_application::ports::llm::LlmProvider for Provider {
     {
         use app_application::models::chat::{ChatChunk, FinishReason};
         let text = serde_json::to_string(&request).unwrap();
-        assert!(!text.contains("HOST_PRIVATE_STORY"));
+        assert!(text.contains("HOST_PRIVATE_STORY"));
+        assert!(text.contains("You are the Dungeon Master"));
+        assert!(text.contains("Every hero is controlled exclusively by its human player"));
         assert!(!text.contains("HOST_PRIVATE_SOLO_CHAT"));
         assert!(request.tools.iter().all(|tool| matches!(
             tool.name.as_str(),
@@ -83,7 +85,18 @@ impl app_application::ports::llm::LlmProvider for Provider {
 }
 fn engine(
     ports: Arc<RoomAgentPorts>,
-    provider: Arc<Provider>,
+    provider: Arc<dyn app_application::ports::llm::LlmProvider>,
+) -> Arc<app_application::agent::turn::AgentTurnService> {
+    engine_with_sink(
+        ports,
+        provider,
+        Arc::new(app_application::ports::events::NoopApplicationEventSink),
+    )
+}
+fn engine_with_sink(
+    ports: Arc<RoomAgentPorts>,
+    provider: Arc<dyn app_application::ports::llm::LlmProvider>,
+    sink: Arc<dyn app_application::ports::events::ApplicationEventSink>,
 ) -> Arc<app_application::agent::turn::AgentTurnService> {
     use app_application::agent::{
         tool_dispatch::NoopRuntimeCoordinator,
@@ -100,7 +113,7 @@ fn engine(
         ports.clone(),
         ports,
         Arc::new(NoopRuntimeCoordinator),
-        Arc::new(app_application::ports::events::NoopApplicationEventSink),
+        sink,
         Arc::new(NeverCancelled),
         AgentTurnConfig {
             model: "fixture".into(),
@@ -117,7 +130,7 @@ fn engine(
 }
 
 #[tokio::test]
-async fn room_agent_context_and_tools_use_the_verified_guest_without_private_host_history() {
+async fn room_dm_knows_the_party_and_resolves_only_the_verified_players_intentions() {
     let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
     pool::migrate(&db).await.unwrap();
     let store = Arc::new(SqliteStore::new(db));
@@ -227,7 +240,19 @@ async fn room_agent_context_and_tools_use_the_verified_guest_without_private_hos
         .await
         .unwrap();
     assert!(context.system_prompt.contains("GUEST_PRIVATE_STORY"));
-    assert!(!context.system_prompt.contains("HOST_PRIVATE_STORY"));
+    assert!(context.system_prompt.contains("HOST_PRIVATE_STORY"));
+    assert!(context.system_prompt.contains("You are the Dungeon Master"));
+    assert!(!context
+        .system_prompt
+        .contains("Act only for the initiating member"));
+    let player_subject = rooms
+        .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
+        .await
+        .unwrap();
+    let player_view = rooms.initial_updates(&player_subject, None).await.unwrap();
+    assert!(!serde_json::to_string(&player_view)
+        .unwrap()
+        .contains("HOST_PRIVATE_STORY"));
     assert!(!context.system_prompt.contains("HOST_PRIVATE_SOLO_CHAT"));
     let request = ToolDispatchRequest {
         request_id: turn_id.to_string(),
@@ -513,4 +538,147 @@ async fn room_agent_context_and_tools_use_the_verified_guest_without_private_hos
         })
         .await
         .is_err());
+}
+
+#[derive(Default)]
+struct CapturedEvents(std::sync::Mutex<Vec<app_application::ports::events::ApplicationEvent>>);
+#[async_trait::async_trait]
+impl app_application::ports::events::ApplicationEventSink for CapturedEvents {
+    async fn publish(
+        &self,
+        event: app_application::ports::events::ApplicationEvent,
+    ) -> Result<(), app_application::ports::events::EventSinkError> {
+        self.0.lock().unwrap().push(event);
+        Ok(())
+    }
+}
+struct ThinkingProvider;
+#[async_trait::async_trait]
+impl app_application::ports::llm::LlmProvider for ThinkingProvider {
+    async fn stream_chat(
+        &self,
+        request: app_application::models::chat::ChatRequest,
+    ) -> Result<app_application::ports::llm::ChunkStream, app_application::ports::llm::LlmError>
+    {
+        use app_application::models::chat::{ChatChunk, FinishReason};
+        assert!(serde_json::to_string(&request)
+            .unwrap()
+            .contains("DM_SECRET_BACKSTORY"));
+        Ok(futures::stream::iter(vec![
+            Ok(ChatChunk::ThinkingDelta {
+                text: "DM_SECRET_BACKSTORY".into(),
+            }),
+            Ok(ChatChunk::TextDelta {
+                text: "Перед вами дорога. Что вы делаете?".into(),
+            }),
+            Ok(ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }),
+        ])
+        .boxed())
+    }
+    fn name(&self) -> &'static str {
+        "fixture"
+    }
+    fn active_model(&self) -> &str {
+        "fixture"
+    }
+    fn capabilities_for_model(&self, _: &str) -> app_application::models::chat::Capabilities {
+        Default::default()
+    }
+}
+#[tokio::test]
+async fn collaborative_dm_reasoning_never_becomes_player_visible() {
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let store = Arc::new(SqliteStore::new(db));
+    let campaign = CreateCampaign::new(store.clone())
+        .execute(CreateCampaignCommand {
+            title: "Collaborative DM".into(),
+            premise: "Road".into(),
+            seed: CampaignSeed::Collaborative {
+                answers: Default::default(),
+            },
+        })
+        .await
+        .unwrap();
+    let sheet = json!({"name":"Mira","heroClass":"fighter","level":1,"hp":12,"hpMax":12,"ac":14,"abilities":{"str":15,"dex":14,"con":13,"int":12,"wis":10,"cha":8},"inventory":[],"backstory":"DM_SECRET_BACKSTORY"});
+    let current = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: Uuid::new_v4(),
+            expected_revision: campaign.revision,
+            causation_id: "hero".into(),
+            character: sheet,
+        })
+        .await
+        .unwrap();
+    let rooms = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(SystemRoomClock),
+    ));
+    let created = rooms
+        .create_local_room(CreateLocalRoom {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: current.campaign.revision,
+            causation_id: "room".into(),
+        })
+        .await
+        .unwrap();
+    let subject = rooms
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let ports = Arc::new(RoomAgentPorts::new(rooms, subject, Uuid::new_v4()));
+    let context = ports
+        .build(AgentContextRequest {
+            campaign_id: campaign.id.0,
+            player_message: "Осматриваюсь".into(),
+            base_system_prompt: "DM".into(),
+            embedding_model: "unused".into(),
+        })
+        .await
+        .unwrap();
+    assert!(!context.adventure_active);
+    let command = ports.command("Осматриваюсь".into()).await.unwrap();
+    let sink = Arc::new(CapturedEvents::default());
+    let events = engine_with_sink(ports.clone(), Arc::new(ThinkingProvider), sink.clone())
+        .execute(command)
+        .collect::<Vec<_>>()
+        .await;
+    assert!(events.iter().all(Result::is_ok), "{events:?}");
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            Ok(app_application::models::agent::AgentEvent::ReasoningText { .. })
+        )),
+        "{events:?}"
+    );
+    for event in sink.0.lock().unwrap().iter() {
+        if let app_application::ports::events::ApplicationEvent::Agent { event, .. } = event {
+            assert!(!matches!(
+                event,
+                app_application::models::agent::AgentEvent::ReasoningText { .. }
+            ));
+            assert!(!serde_json::to_string(event)
+                .unwrap()
+                .contains("DM_SECRET_BACKSTORY"));
+        }
+    }
+    for event in events {
+        assert!(!serde_json::to_string(&event.unwrap())
+            .unwrap()
+            .contains("DM_SECRET_BACKSTORY"));
+    }
+    assert!(!serde_json::to_string(&ports.checkpoint().await.unwrap())
+        .unwrap()
+        .contains("DM_SECRET_BACKSTORY"));
 }

@@ -203,3 +203,22 @@ pub(crate) async fn prepare(
         .map_err(|_| error("room_agent_commit_failed"))?;
     Ok(prepared)
 }
+
+pub(crate) async fn dm_party(
+    store: &crate::SqliteStore,
+    lease: &RoomLease,
+) -> Result<app_application::models::party::PartyState, RepositoryError> {
+    let mut tx = store
+        .pool
+        .begin()
+        .await
+        .map_err(|_| error("room_agent_begin_failed"))?;
+    guard(&mut tx, lease).await?;
+    let party = crate::party::load(&mut tx, lease.campaign_id())
+        .await?
+        .ok_or_else(|| error("room_access_denied"))?;
+    tx.commit()
+        .await
+        .map_err(|_| error("room_agent_commit_failed"))?;
+    Ok(party)
+}

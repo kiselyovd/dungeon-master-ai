@@ -12,6 +12,8 @@ pub struct AgentContextRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentContext {
+    /// Trusted DM knowledge must not be published through provider reasoning.
+    pub reasoning_is_private: bool,
     pub adventure_active: bool,
     pub system_prompt: String,
     pub combat_active: bool,

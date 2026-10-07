@@ -300,7 +300,7 @@ impl AgentTurnService {
                     self.ensure_not_cancelled()?;
                     match chunk.map_err(|_| AgentTurnError::Provider)? {
                         ChatChunk::ThinkingDelta { text } => {
-                            if !context.adventure_active {
+                            if !context.reasoning_is_private {
                                 self.push_delta(
                                     request.session_id,
                                     &mut sequence,

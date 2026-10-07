@@ -86,6 +86,11 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    /// Trusted Dungeon Master context only; never return this through a player endpoint.
+    async fn room_dm_party(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
     async fn append_room_agent_message(
         &self,
         lease: &crate::models::room::RoomLease,

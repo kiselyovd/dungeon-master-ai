@@ -289,6 +289,7 @@ impl AgentContextPort for LegacyContextAdapter {
             }
         };
         Ok(AgentContext {
+            reasoning_is_private: adventure_active,
             adventure_active,
             system_prompt,
             combat_active,

@@ -94,6 +94,7 @@ struct FakeContext;
 impl AgentContextPort for FakeContext {
     async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
         Ok(AgentContext {
+            reasoning_is_private: false,
             adventure_active: false,
             system_prompt: request.base_system_prompt,
             combat_active: false,

@@ -233,9 +233,15 @@ complete session acceptance remain pending.
 
 ## Scoped agent ports and recovery
 
-RoomAgentPorts builds provider context from the initiating member's own accepted
-sheet, public party summaries and authorized state. The command history uses only
-shared room messages; pre-room solo chat and another hero's private biography are
+RoomAgentPorts serves the shared Dungeon Master, not an AI-controlled hero.
+The DM narrates, portrays NPCs and adjudicates the humans' declared intentions.
+Every hero's decisions and dialogue belong to its human player. The DM sees the
+accepted party sheets/biographies through a trusted transactional context port,
+including hidden authored canon, but never treats that knowledge as automatically
+public discovery. Player HTTP snapshots retain owner-only private sheets and public
+party summaries; the DM context is not a player endpoint.
+
+The command history uses only shared room messages; pre-room solo chat remains
 excluded. Client history, board state, images and actor IDs cannot enter this path.
 The tool catalog and dispatcher permit only adventure_action, combat_action and
 rest_action, which delegate to the same authenticated deterministic room use cases.
@@ -249,8 +255,16 @@ a fresh combat intention still requires a valid encounter. Saved timeline resets
 invalidate prior tool preparations and transcripts before any replay.
 
 Integration coverage uses real SQLite and the production agent engine with a
-fixture provider: context privacy, forbidden tools, terminal replay without model
+fixture provider: DM role/party knowledge, player snapshot privacy, forbidden tools, terminal replay without model
 calls, committed adventure/terminal-retreat recovery, snapshot timeline reset and
 revocation. These are engine ports, not the production room runner or HTTP agent
 endpoint. Durable scheduling/serialization, cancellation, native wiring and actual
 multi-device session acceptance remain pending.
+
+
+Trusted DM context explicitly marks provider reasoning private independently of
+adventure type. ThinkingDelta is not sent as ReasoningText to the requesting
+player, event sink or saved transcript. A real collaborative-room engine test
+injects a secret biography into a provider thinking chunk and verifies all three
+output boundaries. Ordinary narrated text remains model output; narrative quality
+and appropriate secret discovery still require model acceptance, not this wire gate.

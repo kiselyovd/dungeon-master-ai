@@ -97,6 +97,8 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 
 ## Agent Rules
 
+- The AI is the shared Dungeon Master: narration, NPC portrayal and scene/combat adjudication. Every player hero is human-controlled; never implement an autonomous AI hero or let the DM choose a hero's decisions or dialogue. Keep trusted DM knowledge (accepted party biographies and hidden canon), player-visible information and mechanical actor authority separate. Never publish private DM reasoning to player streams, including collaborative campaigns.
+
 - Preserve inward dependency direction. Domain rules belong in `app-domain`; use cases and ports belong in `app-application`; HTTP, SQLite, LLM, media, and secrets remain isolated adapters; concrete backend wiring belongs in `app-bootstrap`; native process ownership belongs in `src-tauri`; heavy inference belongs in `sidecar`.
 - Keep React as a presentation adapter. Combat mechanics are server-authoritative, features do not import sibling internals, API modules do not import Zustand/components, and app modules own composition only.
 - Keep secrets in Stronghold-backed flows. Never place provider tokens in source, fixtures, logs, Zustand persistence, screenshots, or generated documentation.

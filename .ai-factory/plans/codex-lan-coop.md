@@ -205,3 +205,44 @@ reported no remaining actionable issue in scope. Original 32 source hashes remai
 unchanged. Production room runner/gateway, cancellation/serialization, native and
 public LAN, remaining solo mechanics/model quality and full session acceptance
 remain active; broad milestones and the overall goal remain incomplete.
+
+
+Role correction from the user: the AI is one shared Dungeon Master for narration,
+NPC portrayal and scene/combat adjudication; all heroes are human-controlled.
+Earlier wording "act for the initiating hero" described a misleading role and is
+superseded. Initiator scoping constrains mechanical hero intentions, not the DM's
+identity or world knowledge. The trusted DM context now contains all accepted
+party biographies plus hidden canon; player endpoints remain owner-filtered.
+The prompt forbids choosing a hero's decisions, dialogue or actions on its behalf.
+Real-engine coverage checks DM role, both accepted biographies, exclusion of old
+solo history and non-disclosure of another biography through guest RoomState.
+For future changes, keep DM knowledge, player-visible information and mechanical
+actor authority as three separate contracts; do not implement an autonomous hero.
+
+
+DM correction review found a reasoning disclosure P1 in collaborative rooms.
+A real engine fixture reproduced RED: a ThinkingDelta containing a private
+biography became ReasoningText. An explicit reasoning_is_private context policy
+now suppresses it independently of adventure type; room contexts always enable
+this policy. The regression is GREEN for stream, application event sink and saved
+transcript, while role/party-knowledge and previous recovery cases remain GREEN.
+Final full gates/review closure are being collected. AGENTS.md now records the
+human-hero/shared-DM contract to prevent the role error recurring.
+
+
+Shared-DM runner acceptance remains pending. Compose one campaign-wide DM lane,
+not a provider/agent per hero. Each human request supplies its own declared action;
+actor authority comes from authentication, while trusted DM context covers the
+whole party/world. Persist turn ownership and delivery, resume only the requesting
+member's request, and keep context/reasoning outside player APIs. Verify two human
+clients making decisions, one DM narrating/NPC responses, deterministic combat,
+disconnect recovery and host restart. No autonomous player characters are part of
+solo or co-op acceptance.
+
+
+DM-role checkpoint: final full gates passed (workspace Rust, architecture/static,
+Clippy and 1042 frontend tests). Both real-engine room regressions pass. Independent
+review closed the collaborative reasoning P1 after RED/GREEN and found no further
+actionable issue in this correction. All original 32 source hashes are unchanged.
+This verifies the role/context/output boundaries; live model narration quality and
+complete solo/co-op session acceptance remain unproven and active.

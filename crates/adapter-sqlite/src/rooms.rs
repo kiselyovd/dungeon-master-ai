@@ -104,6 +104,12 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn room_dm_party(
+        &self,
+        lease: &RoomLease,
+    ) -> Result<app_application::models::party::PartyState, RepositoryError> {
+        crate::room_agent::dm_party(self, lease).await
+    }
     async fn append_room_agent_message(
         &self,
         lease: &RoomLease,
