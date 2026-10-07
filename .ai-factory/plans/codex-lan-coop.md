@@ -676,3 +676,26 @@ Clippy/architecture pass. Independent review found no actionable issue. Five cur
 Next: rebuild the isolated host/guest executables with this fix, complete native
 join/approval/ownership checks, shared DM and peaceful/defense/restart acceptance.
 Physical-device LAN remains distinct and unverified.
+
+
+### Actual two-native-client acceptance checkpoint
+
+Two isolated debug Tauri/WebView/backend profiles now verify enrollment, private
+hero isolation, host-only rejection, guest recovery after uncertain join, a shared
+host fixture-DM stream, peaceful remembered_river completion, owner-only gold/replay,
+real SSE parity, snapshot reset, VTT render in both WebViews, six human combat turns,
+wrong-owner rejection, movement replay and held defense. Full native/backend close
+and relaunch for host and guest retain room/member/port/roster. See
+[local acceptance](../../docs/COOP_ACCEPTANCE.md) and .artifacts/two-native proof JSON.
+
+This is local two-client debug acceptance, not physical LAN or real-model quality.
+The initial join timeout after remote commit needs diagnosis. Held defense left
+one guest at zero HP: stabilize/recovery/death saves remain a required audit. Full
+wizard/pointer/dialog play, persisted model startup, busy-port abandon and archive
+management remain open. Native apps, child backends, Vite and provider are stopped.
+Independent read-only evidence review confirms bounded native behavior, with
+assertion limits documented in COOP_ACCEPTANCE.md. P1: downed guest after held
+has no supported out-of-combat recovery, and blocks group Long Rest. Next priority:
+implement authoritative stabilization/healing/recovery with owned intentions and
+verify continuing the same session without a snapshot workaround. The full
+playability goal stays active.
