@@ -3,6 +3,7 @@
 mod authority;
 pub mod config;
 pub mod paths;
+pub mod room_listener;
 pub mod telemetry;
 pub mod wiring;
 
@@ -30,6 +31,7 @@ pub async fn run() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("bind {}", settings.bind_addr))?;
     let addr: SocketAddr = listener.local_addr().context("local_addr")?;
+    config::verify_local_listener(addr)?;
 
     println!(
         "APP_SERVER_LISTENING port={} host={}",

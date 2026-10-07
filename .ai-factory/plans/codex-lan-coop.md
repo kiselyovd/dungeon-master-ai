@@ -293,3 +293,27 @@ in encrypted native storage, not persisted Zustand. Disconnect/reconnect feedbac
 must preserve the user's human intention and prevent duplicate effects. Verify the
 real production root, lint/build, browser/native host/guest and two-client session
 paths before claiming the UI or LAN milestone complete.
+
+
+Native transport progress: application-owned listener lifecycle port and backend
+implementation now support one scoped room socket in the existing backend child.
+Other valid active room IDs and all desktop admin routes return404; identical start
+is idempotent and wrong-room stop is rejected. Privileged main listener is checked
+for IPv4/IPv6 loopback before serving/readiness. Independent review found accepted
+partial-body connections survived parent serve-task abort; a raw TCP regression
+reproduced RED. Per-connection cancelable I/O now wakes/fails read/write/flush on
+stop or sender drop, and the partial-body test is GREEN. Review closed the P2 and
+reported no further actionable issue. Six bootstrap tests pass; consolidated gates
+are being collected. Protected owner/Tauri commands, credentials/outbox, client,
+UI and physical LAN remain pending; native user-flow milestone stays incomplete.
+
+
+Native transport checkpoint collection: complete consolidated gates passed
+(workspace Rust, architecture/static/Clippy and 1042 frontend tests). Six bootstrap
+cases include actual TCP auth, other-live-room/admin404 isolation, repeated start,
+wrong-room stop, loopback-only privileged listener and accepted partial-body socket
+shutdown. Independent review's P2 was reproduced RED and fixed via per-connection
+cancelable I/O; follow-up closed it without further actionable findings. Native
+owner/Tauri invocation, client credential/outbox, host/join UI and full physical
+LAN/model/session acceptance remain active and incomplete. No public listener is
+automatically enabled by the current production bootstrap.

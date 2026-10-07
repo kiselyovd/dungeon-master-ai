@@ -579,3 +579,23 @@ async fn dm_turn(
         .insert(header::CONNECTION, HeaderValue::from_static("close"));
     Ok(response)
 }
+
+/// An enabled public listener exposes exactly the room the native host opened.
+pub fn router_for_room(
+    service: Arc<RoomService>,
+    dm: Arc<dyn crate::services::RoomDmHttpService>,
+    room_id: Uuid,
+) -> Router {
+    router_with_dm(service, dm).layer(middleware::from_fn(
+        move |request: axum::extract::Request, next: Next| async move {
+            let mut parts = request.uri().path().split('/');
+            let matches_room = parts.next() == Some("")
+                && parts.next() == Some("rooms")
+                && parts.next().and_then(|id| Uuid::parse_str(id).ok()) == Some(room_id);
+            if !matches_room {
+                return axum::response::IntoResponse::into_response(StatusCode::NOT_FOUND);
+            }
+            next.run(request).await
+        },
+    ))
+}

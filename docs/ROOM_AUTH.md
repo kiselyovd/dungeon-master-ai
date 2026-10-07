@@ -305,3 +305,27 @@ Coverage includes real HTTP/SSE, two-player contention, disconnect/explicit resu
 bootstrap reconciliation, restore, revocation/backpressure, frozen input, completion
 and sequence guards, repaired receipts and temporary/persistent lock contention.
 These backend checks do not prove native host/join UI or a physical LAN session.
+
+
+## Native-controlled room transport boundary
+
+The application-owned RoomListenerControl port now has a backend composition
+implementation. RoomTcpListener opens one room-scoped player listener inside the
+existing backend child; it does not spawn another process or start a listener at
+boot. Repeating the same room/bind spec returns the existing address; a different
+active spec is rejected. A listener accepts only its selected room UUID, including
+when the requester has otherwise valid credentials for another active campaign.
+Local administration routes remain absent. The privileged desktop listener rejects
+non-loopback IPv4/IPv6 addresses before serving or publishing readiness.
+
+The host use case closes/revokes its room before stopping transport. Stop signals
+every accepted socket's I/O and then graceful server shutdown with a two-second
+bound. Cancelable I/O covers incomplete request bodies and stalled reads/writes;
+abort of the accept loop alone cannot own Axum's separately spawned connections.
+A raw-TCP regression receives 100-continue for a partial POST, closes/stops the room
+and confirms the old socket reaches EOF/reset in bounded time. Scope/auth/admin,
+repeated start, wrong-room stop and refusal of new connections are also verified.
+
+Protected owner commands, Tauri invocation, native credential/outbox storage,
+host/join UI and physical-device LAN acceptance remain to be connected and tested.
+The port implementation and loopback tests do not prove those user flows.
