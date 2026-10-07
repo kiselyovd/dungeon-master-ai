@@ -5,6 +5,7 @@ import {
   loadPendingRoomAction,
   loadRoom,
   recoverGuestRoom,
+  recoverHostRoom,
   sendRoomAction,
 } from './rooms';
 
@@ -88,4 +89,27 @@ it('restores native guest selection without exposing credentials or requiring re
     command === 'recover_guest_room' ? null : undefined,
   );
   expect(await recoverGuestRoom()).toBeNull();
+});
+
+it('recovers the selected host without renderer credentials and rejects a guest identity', async () => {
+  const member = wire.state.room.members.find((member) => member.role === 'host');
+  if (!member) throw new Error('host required');
+  const view = {
+    room: wire.state.room,
+    member_id: member.member_id,
+    address: '127.0.0.1:4123',
+    invitation: 'fixture invitation',
+  };
+  mocked.invoke.mockResolvedValueOnce(view);
+  expect(await recoverHostRoom()).toMatchObject({ kind: 'host', member_id: member.member_id });
+  expect(mocked.invoke).toHaveBeenCalledWith('recover_host_room', {});
+  mocked.invoke.mockResolvedValueOnce(null);
+  expect(await recoverHostRoom()).toBeNull();
+  mocked.invoke.mockResolvedValueOnce({
+    ...view,
+    member_id: wire.state.room.members.find((member) => member.role === 'player')?.member_id,
+  });
+  await expect(recoverHostRoom()).rejects.toMatchObject({ code: 'native_room_response_invalid' });
+  mocked.invoke.mockResolvedValueOnce({ ...view, capability: 'must never enter renderer' });
+  await expect(recoverHostRoom()).rejects.toMatchObject({ code: 'native_room_response_invalid' });
 });

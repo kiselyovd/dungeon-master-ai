@@ -494,3 +494,19 @@ selection exists; it does not report a closure that never occurred.
 Service-recreation regressions and static checks cover this backend foundation.
 Native saved-host recover/abandon, actual process restart and WebView proof remain
 outstanding; the current UI cannot yet select a saved host after restart.
+
+
+## Explicit saved-host recovery
+
+POST /native/rooms/recover is restricted to the private owner router. It reads the
+saved original request and invokes the existing immutable host-start path; no
+renderer IDs, capability or new creation nonce are accepted. recover_host_room
+stores the validated active host grant in native memory and returns its public
+room/member/address/invitation view. The host-card recovery button uses a strict
+schema and explicit retry. An absent selection returns null.
+
+A locally isolated debug Tauri app was closed and relaunched with its existing
+SQLite/Stronghold state. Real WebView IPC and the actual recovery button preserved
+room/member/port/own hero; the renderer response contained no capability. This
+establishes single-host native restart, not physical LAN or full co-op gameplay.
+Explicit abandon when the saved port remains unavailable is still outstanding.

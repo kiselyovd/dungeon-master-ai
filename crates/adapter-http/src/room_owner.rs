@@ -18,6 +18,7 @@ pub fn router(
     protect(
         Router::new()
             .route("/native/rooms/host", post(start))
+            .route("/native/rooms/recover", post(recover))
             .route("/native/rooms/{room_id}", delete(stop))
             .layer(DefaultBodyLimit::max(4096))
             .layer(Extension(service)),
@@ -82,6 +83,11 @@ async fn start(
         });
     }
     service.start(request).await.map(Json)
+}
+async fn recover(
+    Extension(service): Extension<Arc<dyn NativeRoomHostHttpService>>,
+) -> Result<Json<Option<NativeHostRoomGrant>>, HttpServiceError> {
+    service.recover().await.map(Json)
 }
 async fn stop(
     Extension(service): Extension<Arc<dyn NativeRoomHostHttpService>>,

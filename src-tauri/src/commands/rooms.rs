@@ -139,6 +139,49 @@ pub async fn host_room(
         .await
 }
 #[tauri::command]
+pub async fn recover_host_room(app: AppHandle) -> Result<Option<NativeHostRoomView>, String> {
+    let state = app.state::<NativeRoomState>();
+    let _lifecycle = state.lifecycle.lock().await;
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .post(format!("http://127.0.0.1:{port}/native/rooms/recover"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|_| "native_host_request_failed")?;
+    if !response.status().is_success() {
+        return Err(host_error(response).await);
+    }
+    let grant = response
+        .json::<Option<NativeHostRoomGrant>>()
+        .await
+        .map_err(|_| "native_host_response_invalid")?;
+    let Some(grant) = grant else {
+        return Ok(None);
+    };
+    if grant.room.room_id.is_nil()
+        || !grant.room.active
+        || grant.address.port() == 0
+        || !grant.room.members.iter().any(|member| {
+            member.member_id == grant.member_id
+                && member.active
+                && member.role == app_application::models::party::PartyRole::Host
+        })
+        || app_application::rooms::RoomSecret::from_input(grant.capability.clone()).is_err()
+    {
+        return Err("native_host_response_invalid".into());
+    }
+    let view = public_view(&grant);
+    *state
+        .host
+        .lock()
+        .map_err(|_| "native_room_state_unavailable")? = Some(grant);
+    state
+        .generation
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    Ok(Some(view))
+}
+#[tauri::command]
 pub async fn stop_host_room(app: AppHandle, room_id: Uuid) -> Result<(), String> {
     let state = app.state::<NativeRoomState>();
     state

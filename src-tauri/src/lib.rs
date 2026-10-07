@@ -5,8 +5,9 @@ mod processes;
 
 use commands::backend::{backend_port, BackendState};
 use commands::rooms::{
-    cancel_room_stream, host_room, join_room, postpone_guest_room, recover_guest_room, resume_room,
-    room_operation, saved_guest_rooms, stop_host_room, stream_room, NativeRoomState,
+    cancel_room_stream, host_room, join_room, postpone_guest_room, recover_guest_room,
+    recover_host_room, resume_room, room_operation, saved_guest_rooms, stop_host_room, stream_room,
+    NativeRoomState,
 };
 use processes::control::ControlServer;
 use processes::RuntimeProcesses;
@@ -65,6 +66,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             backend_port,
             host_room,
+            recover_host_room,
             stop_host_room,
             join_room,
             resume_room,

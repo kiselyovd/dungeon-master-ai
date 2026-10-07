@@ -7,12 +7,14 @@ import { RoomExperience } from '../RoomExperience';
 
 const mocks = vi.hoisted(() => ({
   host: vi.fn(),
+  recoverHost: vi.fn(),
   current: vi.fn(),
   saved: vi.fn(),
   postpone: vi.fn(),
   resume: vi.fn(),
 }));
 vi.mock('../../api/rooms', () => ({
+  recoverHostRoom: mocks.recoverHost,
   recoverGuestRoom: vi.fn(async () => null),
   savedGuestRooms: mocks.saved,
   postponeGuestRoom: mocks.postpone,
@@ -42,6 +44,7 @@ const campaign = {
 };
 beforeEach(() => {
   mocks.host.mockReset();
+  mocks.recoverHost.mockReset();
   mocks.saved.mockResolvedValue([]);
   mocks.postpone.mockResolvedValue(undefined);
   mocks.current.mockReset();
@@ -114,4 +117,23 @@ it('explicitly postpones a pending join and restores its preserved archived hand
   await user.click(saved);
   await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
   expect(mocks.resume).toHaveBeenCalledWith(choice);
+});
+
+it('recovers an existing host selection without creating a replacement room', async () => {
+  mocks.recoverHost.mockRejectedValueOnce(new Error('port busy')).mockResolvedValueOnce({
+    kind: 'host',
+    room: wire.state.room,
+    member_id: wire.state.room.members.find((member) => member.role === 'host')?.member_id,
+    address: '127.0.0.1:4123',
+    invitation: 'fixture',
+  });
+  const user = userEvent.setup();
+  render(<RoomExperience campaigns={[]} onBack={() => {}} />);
+  await user.click(screen.getByRole('button', { name: 'Recover hosted room' }));
+  await screen.findByRole('alert');
+  await user.click(screen.getByRole('button', { name: 'Recover hosted room' }));
+  await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  expect(mocks.recoverHost).toHaveBeenCalledTimes(2);
+  expect(mocks.host).not.toHaveBeenCalled();
+  expect(mocks.current).not.toHaveBeenCalled();
 });

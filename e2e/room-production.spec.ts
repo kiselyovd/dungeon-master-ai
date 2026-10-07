@@ -19,6 +19,14 @@ async function installRoomStub(page: Page, snapshot: RoomUpdate, completed = tru
       const original = value.invoke.bind(value);
       const streams = new Map<string, () => void>();
       value.invoke = async (command, args = {}) => {
+        if (command === 'recover_host_room')
+          return {
+            room: snapshot.state.room,
+            member_id: snapshot.state.room.members.find((member) => member.role === 'host')
+              ?.member_id,
+            address: '127.0.0.1:4123',
+            invitation: 'fixture',
+          };
         if (command === 'saved_guest_rooms') return [];
         if (command === 'postpone_guest_room') return;
         if (command === 'join_room' || command === 'recover_guest_room') {
@@ -170,4 +178,14 @@ test('guest restores its native selection without entering invitation again', as
   await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
   await expect(page.getByText('Tara', { exact: true })).toBeVisible();
+});
+
+test('host recovers a saved room from the production screen without creation input', async ({
+  page,
+}) => {
+  await installRoomStub(page, wire);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить комнату', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
 });

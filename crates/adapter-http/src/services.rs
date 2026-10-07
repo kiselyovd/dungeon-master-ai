@@ -321,6 +321,9 @@ pub trait RoomDmHttpService: Send + Sync {
 
 #[async_trait]
 pub trait NativeRoomHostHttpService: Send + Sync {
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_host::NativeHostRoomGrant>, HttpServiceError>;
     async fn start(
         &self,
         request: app_application::models::room_host::NativeHostRoomRequest,

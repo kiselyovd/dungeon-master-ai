@@ -109,6 +109,21 @@ export async function recoverGuestRoom(): Promise<RoomConnection | null> {
     return invalid();
   return { kind: 'guest', ...view };
 }
+export async function recoverHostRoom(): Promise<RoomConnection | null> {
+  const raw = await native('recover_host_room', {});
+  if (raw === null) return null;
+  const parsed = v.safeParse(hostView, raw);
+  if (!parsed.success) return invalid();
+  const view = parsed.output;
+  if (
+    !view.room.active ||
+    !view.room.members.some(
+      (member) => member.member_id === view.member_id && member.active && member.role === 'host',
+    )
+  )
+    return invalid();
+  return { kind: 'host', ...view };
+}
 export async function stopHostRoom(roomId: string): Promise<void> {
   await native('stop_host_room', { roomId });
 }

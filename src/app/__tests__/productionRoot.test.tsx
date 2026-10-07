@@ -35,6 +35,7 @@ vi.mock('../../api/rooms', async () => {
   const { default: wire } = await import('../../api/__fixtures__/roomUpdate.json');
   const member = wire.state.room.members.find((member) => member.role === 'player');
   return {
+    recoverHostRoom: vi.fn(async () => null),
     recoverGuestRoom: vi.fn(async () => null),
     savedGuestRooms: vi.fn(async () => []),
     postponeGuestRoom: vi.fn(async () => {}),

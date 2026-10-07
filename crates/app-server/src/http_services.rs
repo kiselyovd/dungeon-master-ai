@@ -1851,6 +1851,27 @@ impl AppStateNativeRoomHostService {
 }
 #[async_trait]
 impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHostService {
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_host::NativeHostRoomGrant>, HttpServiceError>
+    {
+        let saved = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        let Some(saved) = saved else {
+            return Ok(None);
+        };
+        let request = serde_json::from_str(&saved).map_err(|_| HttpServiceError::Internal {
+            code: "native_host_record_invalid",
+        })?;
+        self.start(request).await.map(Some)
+    }
+
     async fn start(
         &self,
         request: app_application::models::room_host::NativeHostRoomRequest,

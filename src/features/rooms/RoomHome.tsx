@@ -8,6 +8,7 @@ import { Modal } from '../../ui/Modal';
 import styles from './Room.module.css';
 
 interface Props {
+  onRecoverHost?: () => void;
   onPostpone?: () => void;
   saved?: GuestRecoveryChoice[];
   onSaved?: (choice: GuestRecoveryChoice) => void;
@@ -27,6 +28,7 @@ export function RoomHome({
   onHost,
   onJoin,
   onRecover,
+  onRecoverHost,
   onPostpone,
   saved,
   onSaved,
@@ -100,6 +102,11 @@ export function RoomHome({
           >
             <h2>{t('host')}</h2>
             <p className={styles.meta}>{t('host_hint')}</p>
+            {onRecoverHost && (
+              <Button disabled={busy} onClick={onRecoverHost}>
+                {t('recover_host')}
+              </Button>
+            )}
             <Field label={t('campaign')}>
               {(props) => (
                 <select

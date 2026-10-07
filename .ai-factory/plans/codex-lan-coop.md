@@ -607,3 +607,30 @@ Clippy pass. The regressions recreate service/state, not a real backend process.
 Next: protected recover/abandon of the saved host selection, Tauri IPC/UI wiring,
 real process restart and two-client acceptance. Existing generic shared-message
 publication during a detached durable room still needs a privacy audit.
+
+
+### Saved-host recovery through native UI (verified locally)
+
+The protected owner recover endpoint reads the canonical saved host request and
+reuses its original room/port. Registered recover_host_room holds native lifecycle
+coordination, validates active host membership and keeps capability in Rust.
+The strict frontend decoder and existing host-card button support explicit retry
+without creating a replacement room or requiring creation inputs.
+
+Backend service-recovery regression and 16 API/root/controller tests pass.
+TypeScript, build, workspace all-target/all-feature Clippy and architecture pass.
+Five production-preview browser scenarios pass using native stubs. Independent
+read-only review found no actionable issue in this increment.
+
+Real debug Tauri WebView verification uses a separate coopqa identifier, database,
+WebView profile and encrypted Stronghold vault. The real backend creates and
+recovers a room through IPC/API; full application close terminated both native
+app and child backend. After a new application/backend launch, exact room/member,
+nonzero address and human hero are preserved. The actual recovery button mounts
+the room UI; renderer response excludes capability. Sanitized proof files:
+.artifacts/coop-native-profile/host-proof.json and restart-proof.json. Screenshot
+restarted-room.png hides invitation. App processes were closed afterward.
+This is a single-host localhost/debug-WebView check, not two-device LAN acceptance
+or packaged production runtime proof. Busy-port abandon, guest archive management,
+shared-publication privacy during detached rooms and the complete two-client/solo
+session remain required. Vite test server is stopped after this checkpoint.

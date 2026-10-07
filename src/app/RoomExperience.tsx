@@ -10,6 +10,7 @@ import {
   postponeGuestRoom,
   type RoomConnection,
   recoverGuestRoom,
+  recoverHostRoom,
   resumeGuestRoom,
   savedGuestRooms,
   stopHostRoom,
@@ -164,6 +165,18 @@ export function RoomExperience({ campaigns, onBack }: Props) {
         setError(false);
         void resumeGuestRoom(choice)
           .then(setConnection)
+          .catch(() => setError(true))
+          .finally(() => setBusy(false));
+      }}
+      onRecoverHost={() => {
+        if (busy) return;
+        setBusy(true);
+        setError(false);
+        void recoverHostRoom()
+          .then((recovered) => {
+            if (recovered) setConnection(recovered);
+            else setError(true);
+          })
           .catch(() => setError(true))
           .finally(() => setBusy(false));
       }}

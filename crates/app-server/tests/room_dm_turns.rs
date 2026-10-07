@@ -2085,7 +2085,7 @@ async fn native_host_recreation_retains_identity_port_and_retries_busy_binding()
             .unwrap()
             .active
     );
-    let resumed = recovered.start(request).await.unwrap();
+    let resumed = recovered.recover().await.unwrap().unwrap();
     assert_eq!(resumed.room.room_id, grant.room.room_id);
     assert_eq!(resumed.member_id, grant.member_id);
     assert_eq!(resumed.capability, grant.capability);
