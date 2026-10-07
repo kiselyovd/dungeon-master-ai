@@ -20,3 +20,10 @@ describe('SseStreamDecoder', () => {
     expect(decoder.finish()).toEqual([]);
   });
 });
+
+it('bounds incomplete native room frames without changing the default decoder', () => {
+  const decoder = new SseStreamDecoder(10);
+  expect(() => decoder.push(new TextEncoder().encode('data: oversized'))).toThrow(
+    'sse_frame_too_large',
+  );
+});

@@ -451,3 +451,23 @@ WebView/two-device acceptance remain open.
   Full gates passed, including workspace Rust and 155 files/1042 frontend tests.
   The frontend stream adapter, production room screen and actual WebView/two-device
   session are still pending. No new production dependency.
+
+
+### React room stream adapter (in verification)
+
+- Added isolated native Channel consumer with room/stream scope checks, bounded
+  frame buffering, abort/cancel cleanup and stable recovery errors. Private
+  reasoning is excluded. EOF/legacy done/DM error cannot masquerade as completion.
+- Added strict room/update/proposal/public actor schemas and cursor/scope checks.
+  Combat/scene/private own-sheet contents remain inward projections for their
+  feature adapters to decode; no Zustand/local campaign mutation occurs here.
+- Independent review caught the initial wrong campaign timestamp schema. The
+  hand-written fixture was replaced by opt-in export from the real Rust native
+  HTTP/SSE regression (DMAI_ROOM_WIRE_FIXTURE); room-specific epoch-ms fields now
+  match the actual serialized model. Real fixture passes Channel and decoder.
+- Fourteen focused tests, TypeScript and architecture pass. Production build
+  passed again after the timestamp correction. The initial full gates failed only
+  Rust/JSON formatting; the exporter newline and formatting were corrected.
+  Full gates then passed, including workspace Rust and 157 files/1054 frontend tests.
+  Follow-up review closed the wire mismatch. Production UI/controller integration
+  and browser/WebView/physical-device acceptance remain pending.

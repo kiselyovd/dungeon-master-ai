@@ -1667,13 +1667,27 @@ async fn native_stream_forwards_shared_dm_and_updates_with_private_credentials()
     request.operation = NativeRoomOperation::Subscribe { after: None };
     let mut subscription = service.stream(request.clone()).await.unwrap();
     let mut bytes = Vec::new();
-    while !String::from_utf8_lossy(&bytes).contains("event: room_update") {
+    while !bytes.windows(2).any(|pair| pair == b"\n\n") {
         let chunk = tokio::time::timeout(std::time::Duration::from_secs(3), subscription.next())
             .await
             .unwrap()
             .unwrap()
             .unwrap();
         bytes.extend(chunk);
+    }
+    if let Some(path) = std::env::var_os("DMAI_ROOM_WIRE_FIXTURE") {
+        let raw = String::from_utf8(bytes.clone()).unwrap();
+        let data = raw
+            .lines()
+            .find_map(|line| line.strip_prefix("data: "))
+            .unwrap();
+        let wire: serde_json::Value = serde_json::from_str(data).unwrap();
+        assert!(wire["state"]["campaign"]["created_at_epoch_ms"].is_number());
+        std::fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(&wire).unwrap()),
+        )
+        .unwrap();
     }
     drop(subscription);
     let host = f
