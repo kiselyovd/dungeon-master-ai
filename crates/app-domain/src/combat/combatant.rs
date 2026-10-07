@@ -53,9 +53,9 @@ impl DeathSaves {
     }
 
     pub fn record_success(&mut self) -> bool {
-        self.successes += 1;
+        self.successes = self.successes.saturating_add(1).min(3);
         if self.successes >= 3 {
-            self.stable = true;
+            self.stabilize();
             true
         } else {
             false
@@ -63,8 +63,13 @@ impl DeathSaves {
     }
 
     pub fn record_failure(&mut self) -> bool {
-        self.failures += 1;
+        self.failures = self.failures.saturating_add(1).min(3);
         self.failures >= 3
+    }
+    pub fn stabilize(&mut self) {
+        self.successes = 0;
+        self.failures = 0;
+        self.stable = true;
     }
 }
 

@@ -699,3 +699,8 @@ has no supported out-of-combat recovery, and blocks group Long Rest. Next priori
 implement authoritative stabilization/healing/recovery with owned intentions and
 verify continuing the same session without a snapshot workaround. The full
 playability goal stays active.
+
+
+Recovery continuation uses codex-hero-recovery.md. The pure SRD rule foundation is
+implemented and domain-tested; durable vitality, owned assistance/time progression,
+UI and actual held-zero-HP continuation remain required before closing the P1.
