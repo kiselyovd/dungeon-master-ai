@@ -94,6 +94,21 @@ export async function joinRoom(request: JoinRoomRequest): Promise<RoomConnection
     return invalid();
   return { kind: 'guest', ...view };
 }
+export async function recoverGuestRoom(): Promise<RoomConnection | null> {
+  const raw = await native('recover_guest_room', {});
+  if (raw === null) return null;
+  const parsed = v.safeParse(guestView, raw);
+  if (!parsed.success) return invalid();
+  const view = parsed.output;
+  if (
+    !view.room.active ||
+    !view.room.members.some(
+      (member) => member.member_id === view.member_id && member.active && member.role === 'player',
+    )
+  )
+    return invalid();
+  return { kind: 'guest', ...view };
+}
 export async function stopHostRoom(roomId: string): Promise<void> {
   await native('stop_host_room', { roomId });
 }
@@ -150,4 +165,41 @@ export async function sendRoomAction(roomId: string, action: RoomAction): Promis
           ? combatReceipt
           : worldReceipt;
   if (!v.safeParse(schema, body).success) return invalid();
+}
+
+const recoveryChoiceSchema = v.strictObject({
+  room_id: uuid,
+  join_id: uuid,
+  address: v.string(),
+  display_name: v.string(),
+});
+export type GuestRecoveryChoice = v.InferOutput<typeof recoveryChoiceSchema>;
+export async function savedGuestRooms() {
+  const parsed = v.safeParse(
+    v.pipe(v.array(recoveryChoiceSchema), v.maxLength(64)),
+    await native('saved_guest_rooms', {}),
+  );
+  if (!parsed.success) return invalid();
+  return parsed.output;
+}
+export async function postponeGuestRoom() {
+  await native('postpone_guest_room', {});
+}
+export async function resumeGuestRoom(choice: GuestRecoveryChoice): Promise<RoomConnection> {
+  const parsed = v.safeParse(
+    guestView,
+    await native('resume_room', { request: { room_id: choice.room_id, join_id: choice.join_id } }),
+  );
+  if (!parsed.success) return invalid();
+  const view = parsed.output;
+  if (
+    view.room.room_id !== choice.room_id ||
+    view.join_id !== choice.join_id ||
+    !view.room.active ||
+    !view.room.members.some(
+      (member) => member.member_id === view.member_id && member.active && member.role === 'player',
+    )
+  )
+    return invalid();
+  return { kind: 'guest', ...view };
 }

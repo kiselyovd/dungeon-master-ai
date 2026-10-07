@@ -460,3 +460,22 @@ consistent SQLite transaction: restore cancellation remains observable even when
 its event no longer fits the recent history window. A new marker aborts the old
 DM stream and invalidates its later callbacks; ordinary full snapshots do not.
 The controller is not yet mounted in the production room screen.
+
+
+## Native guest selection recovery
+
+The protected owner API supports recovery without renderer-held credentials or
+invitation. Separate confirmed and pending selectors reference encrypted
+canonical join records. Pending is recorded before dispatch and cannot be
+replaced by another join while its remote result is uncertain. Known access
+refusal releases pending only; a previously confirmed selection is preserved.
+
+Explicit postpone writes a deduplicated archive entry before deleting pending.
+It retains the canonical private proof and membership for later exact resume.
+The UI asks for confirmation and lists public room/join IDs, address and display
+name; capabilities, invitations and proofs never enter these IPC responses.
+Archive capacity is 64; deletion/management is still outstanding.
+
+Current focused HTTP/Stronghold tests prove reopen, revocation, rejected alternate
+join, post-commit local save failure and unreachable pending selection. Production
+preview smoke uses native stubs; it does not prove actual Tauri IPC or LAN play.

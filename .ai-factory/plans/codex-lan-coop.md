@@ -565,3 +565,26 @@ browser stub scenarios pass, including clean guest entry/leave. Full browser
 wizard creation and actual IPC remain pending; follow-up review closed the issue.
 App/Onboarding inherited diffs are excluded via their firstboot-owned patches.
 Native durable selection/recovery and full two-client acceptance remain next.
+
+
+### Native guest selection recovery checkpoint (verified locally)
+
+Confirmed and pending guest selectors live in the existing encrypted secrets
+port. Pending selection is persisted before remote dispatch; explicit recovery
+replays the same stored proof or refreshes the saved membership. Another join
+cannot overwrite an uncertain result. Definitive refusal clears only pending;
+the previous confirmed connection remains recoverable.
+
+Explicitly postponing an unreachable pending join archives its public handle
+before releasing selection, without deleting the canonical private proof. A
+confirmation explains that the host may already have created the participant.
+Saved choices expose room/join UUID, address and display name only; selecting one
+uses the original resume operation. Archive writes are deduplicated and retry safe.
+The archive currently holds 64 entries; explicit removal/management remains TODO.
+
+Independent follow-up review closed the selection-overwrite and unreachable-host
+findings. Three real HTTP/Stronghold regressions, 14 frontend tests, TypeScript,
+production build, architecture and workspace all-target/all-feature Clippy pass.
+Four production-preview browser scenarios pass using native stubs and Rust wire
+fixtures. Actual WebView IPC, stable host restart, archive management and full
+solo/co-op session acceptance remain open. No new production dependencies.

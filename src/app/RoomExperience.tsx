@@ -1,12 +1,17 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchCampaignState } from '../api/campaigns';
 import type { CampaignSummary } from '../api/contracts/campaign';
 import {
+  type GuestRecoveryChoice,
   type HostRoomRequest,
   hostRoom,
   type JoinRoomRequest,
   joinRoom,
+  postponeGuestRoom,
   type RoomConnection,
+  recoverGuestRoom,
+  resumeGuestRoom,
+  savedGuestRooms,
   stopHostRoom,
 } from '../api/rooms';
 import { CharacterWizard } from '../components/CharacterWizard';
@@ -118,9 +123,21 @@ function ConnectedRoom({
   );
 }
 export function RoomExperience({ campaigns, onBack }: Props) {
+  const [saved, setSaved] = useState<GuestRecoveryChoice[]>([]);
   const [connection, setConnection] = useState<RoomConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void savedGuestRooms()
+      .then((choices) => {
+        if (active) setSaved(choices);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const hostAttempt = useRef<{ signature: string; request: HostRoomRequest } | null>(null);
   const joinAttempt = useRef<{ signature: string; request: JoinRoomRequest } | null>(null);
   if (connection) return <ConnectedRoom connection={connection} onBack={onBack} />;
@@ -130,6 +147,38 @@ export function RoomExperience({ campaigns, onBack }: Props) {
       busy={busy}
       error={error}
       onBack={onBack}
+      saved={saved}
+      onPostpone={() => {
+        if (busy) return;
+        setBusy(true);
+        setError(false);
+        void postponeGuestRoom()
+          .then(() => savedGuestRooms())
+          .then(setSaved)
+          .catch(() => setError(true))
+          .finally(() => setBusy(false));
+      }}
+      onSaved={(choice) => {
+        if (busy) return;
+        setBusy(true);
+        setError(false);
+        void resumeGuestRoom(choice)
+          .then(setConnection)
+          .catch(() => setError(true))
+          .finally(() => setBusy(false));
+      }}
+      onRecover={() => {
+        if (busy) return;
+        setBusy(true);
+        setError(false);
+        void recoverGuestRoom()
+          .then((recovered) => {
+            if (recovered) setConnection(recovered);
+            else setError(true);
+          })
+          .catch(() => setError(true))
+          .finally(() => setBusy(false));
+      }}
       onHost={(campaign, bind) => {
         if (busy) return;
         setBusy(true);

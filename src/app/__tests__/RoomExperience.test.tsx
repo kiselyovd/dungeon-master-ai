@@ -5,8 +5,18 @@ import '../../i18n';
 import wire from '../../api/__fixtures__/roomUpdate.json';
 import { RoomExperience } from '../RoomExperience';
 
-const mocks = vi.hoisted(() => ({ host: vi.fn(), current: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  host: vi.fn(),
+  current: vi.fn(),
+  saved: vi.fn(),
+  postpone: vi.fn(),
+  resume: vi.fn(),
+}));
 vi.mock('../../api/rooms', () => ({
+  recoverGuestRoom: vi.fn(async () => null),
+  savedGuestRooms: mocks.saved,
+  postponeGuestRoom: mocks.postpone,
+  resumeGuestRoom: mocks.resume,
   hostRoom: mocks.host,
   joinRoom: vi.fn(),
   stopHostRoom: vi.fn(async () => {}),
@@ -32,6 +42,8 @@ const campaign = {
 };
 beforeEach(() => {
   mocks.host.mockReset();
+  mocks.saved.mockResolvedValue([]);
+  mocks.postpone.mockResolvedValue(undefined);
   mocks.current.mockReset();
   mocks.current.mockResolvedValue({
     session_id: campaign.last_session_id,
@@ -76,4 +88,30 @@ it('retains creation UUID after an unknown delivery failure', async () => {
   await user.click(screen.getByRole('button', { name: 'Create a room' }));
   await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
   expect(mocks.host.mock.calls[0]?.[0]).toEqual(mocks.host.mock.calls[1]?.[0]);
+});
+
+it('explicitly postpones a pending join and restores its preserved archived handle', async () => {
+  const choice = {
+    room_id: wire.state.room.room_id,
+    join_id: '77777777-7777-4777-8777-777777777777',
+    address: '127.0.0.1:4123',
+    display_name: 'Saved player',
+  };
+  mocks.saved.mockResolvedValueOnce([]).mockResolvedValue([choice]);
+  mocks.resume.mockResolvedValue({
+    kind: 'guest',
+    room: wire.state.room,
+    member_id: wire.state.room.members.find((member) => member.role === 'player')?.member_id,
+    address: choice.address,
+    join_id: choice.join_id,
+  });
+  const user = userEvent.setup();
+  render(<RoomExperience campaigns={[]} onBack={() => {}} />);
+  await user.click(screen.getByRole('button', { name: 'Postpone the pending connection' }));
+  expect(mocks.postpone).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Keep it for later and try another room' }));
+  const saved = await screen.findByRole('button', { name: 'Saved player · 127.0.0.1:4123' });
+  await user.click(saved);
+  await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  expect(mocks.resume).toHaveBeenCalledWith(choice);
 });

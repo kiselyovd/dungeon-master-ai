@@ -19,13 +19,18 @@ async function installRoomStub(page: Page, snapshot: RoomUpdate, completed = tru
       const original = value.invoke.bind(value);
       const streams = new Map<string, () => void>();
       value.invoke = async (command, args = {}) => {
-        if (command === 'join_room') {
+        if (command === 'saved_guest_rooms') return [];
+        if (command === 'postpone_guest_room') return;
+        if (command === 'join_room' || command === 'recover_guest_room') {
           const request = args.request as { join_id: string };
           const member = snapshot.state.room.members.find((member) => member.role === 'player');
           return {
             room: snapshot.state.room,
             member_id: member?.member_id,
-            join_id: request.join_id,
+            join_id:
+              command === 'recover_guest_room'
+                ? '77777777-7777-4777-8777-777777777777'
+                : request.join_id,
             address: '127.0.0.1:4123',
           };
         }
@@ -156,4 +161,13 @@ test('a clean guest enters co-op before model onboarding and returns to setup', 
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
   await page.getByRole('button', { name: 'Покинуть комнату' }).click();
   await expect(page.getByRole('button', { name: 'Подключиться к игре' })).toBeVisible();
+});
+
+test('guest restores its native selection without entering invitation again', async ({ page }) => {
+  await installRoomStub(page, wire);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+  await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  await expect(page.getByText('Tara', { exact: true })).toBeVisible();
 });

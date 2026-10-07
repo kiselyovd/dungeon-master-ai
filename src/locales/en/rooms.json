@@ -37,5 +37,10 @@
   "waiting": "Loading shared state…",
   "human": "Human-controlled heroes; one shared AI DM.",
   "first_boot_join": "Join a game",
-  "first_boot_hint": "Joining someone else? Their AI runs the shared Dungeon Master; you can join without setting up a model here."
+  "first_boot_hint": "Joining someone else? Their AI runs the shared Dungeon Master; you can join without setting up a model here.",
+  "recover_connection": "Restore guest connection",
+  "postpone": "Postpone the pending connection",
+  "postpone_confirm": "Keep it for later and try another room",
+  "postpone_hint": "The organizer may already have created your participant. The original attempt stays saved on this device so you can return to it later.",
+  "saved_connections": "Saved connection attempts"
 }

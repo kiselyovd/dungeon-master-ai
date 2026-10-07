@@ -33,3 +33,12 @@ pub struct StoredNativeGuestJoin {
     pub resume_proof: String,
     pub connection: Option<NativeGuestConnection>,
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeGuestRecoveryChoice {
+    pub room_id: Uuid,
+    pub join_id: Uuid,
+    pub address: SocketAddr,
+    pub display_name: String,
+}

@@ -1394,15 +1394,23 @@ async fn native_guest_recovers_a_committed_remote_join_when_final_local_save_fai
         .is_err());
     let before = f.rooms.current_room(&host).await.unwrap();
     assert_eq!(before.members.len(), 3);
+    let mut replacement = join.clone();
+    replacement.join_id = Uuid::new_v4();
+    replacement.display_name = "Changed name".into();
+    assert!(matches!(
+        app_server::native_room_client::service(local.clone())
+            .unwrap()
+            .join(replacement)
+            .await,
+        Err(adapter_http::services::HttpServiceError::Conflict {
+            code: "native_guest_selection_pending"
+        })
+    ));
     let recovered = app_server::native_room_client::service(local.clone())
         .unwrap()
-        .resume(
-            app_application::models::room_client::NativeGuestResumeRequest {
-                room_id: join.room_id,
-                join_id: join.join_id,
-            },
-        )
+        .recover()
         .await
+        .unwrap()
         .unwrap();
     let after = f.rooms.current_room(&host).await.unwrap();
     assert_eq!(after.members.len(), 3);
@@ -1464,24 +1472,20 @@ async fn native_guest_resumes_after_stronghold_reopening_and_rejects_revocation(
         .unwrap(),
     ));
     let service = app_server::native_room_client::service(reopened.clone()).unwrap();
-    let request = app_application::models::room_client::NativeGuestResumeRequest {
-        room_id: join.room_id,
-        join_id: join.join_id,
-    };
-    let recovered = service
-        .resume(
-            app_application::models::room_client::NativeGuestResumeRequest {
-                room_id: request.room_id,
-                join_id: request.join_id,
-            },
-        )
-        .await
-        .unwrap();
+    let recovered = service.recover().await.unwrap().unwrap();
     assert_eq!(first.member_id, recovered.member_id);
     assert_eq!(first.capability, recovered.capability);
+    let mut rejected = join.clone();
+    rejected.join_id = Uuid::new_v4();
+    rejected.invitation = RoomSecret::generate().expose().into();
+    assert!(service.join(rejected).await.is_err());
+    let still_selected = service.recover().await.unwrap().unwrap();
+    assert_eq!(still_selected.member_id, first.member_id);
+    assert_eq!(still_selected.join_id, first.join_id);
+
     assert_eq!(f.rooms.current_room(&host).await.unwrap().members.len(), 3);
     f.rooms.revoke(&host, recovered.member_id).await.unwrap();
-    assert!(service.resume(request).await.is_err());
+    assert!(service.recover().await.is_err());
     drop(service);
     drop(reopened);
     server.abort();
@@ -1922,5 +1926,62 @@ async fn native_stream_restore_releases_superseded_pending_and_allows_new_turn()
         .contains("event: agent_done"));
     assert!(service.execute(read).await.unwrap().body.is_none());
     assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_guest_can_postpone_unreachable_attempt_without_erasing_recovery_record() {
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f.rooms.rotate_invitation(&host).await.unwrap();
+    let unreachable = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let old_address = unreachable.local_addr().unwrap();
+    drop(unreachable);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let service = app_server::native_room_client::service(local.clone()).unwrap();
+    let first = app_application::models::room_client::NativeGuestJoinRequest {
+        address: old_address,
+        room_id: f.host.room.room_id,
+        join_id: Uuid::new_v4(),
+        display_name: "Saved attempt".into(),
+        invitation: invitation.expose().into(),
+    };
+    assert!(service.join(first.clone()).await.is_err());
+    let mut next = first.clone();
+    next.address = address;
+    next.join_id = Uuid::new_v4();
+    assert!(matches!(
+        service.join(next.clone()).await,
+        Err(adapter_http::services::HttpServiceError::Conflict {
+            code: "native_guest_selection_pending"
+        })
+    ));
+    service.postpone().await.unwrap();
+    let saved = service.saved().await.unwrap();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].join_id, first.join_id);
+    assert_eq!(saved[0].address, old_address);
+    assert!(local
+        .secrets_repo()
+        .get(&format!("native:guest-join:{}", first.join_id))
+        .await
+        .unwrap()
+        .is_some());
+    let connected = service.join(next).await.unwrap();
+    assert_eq!(connected.address, address);
+    assert_eq!(
+        service.recover().await.unwrap().unwrap().member_id,
+        connected.member_id
+    );
     server.abort();
 }

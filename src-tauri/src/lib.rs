@@ -5,8 +5,8 @@ mod processes;
 
 use commands::backend::{backend_port, BackendState};
 use commands::rooms::{
-    cancel_room_stream, host_room, join_room, resume_room, room_operation, stop_host_room,
-    stream_room, NativeRoomState,
+    cancel_room_stream, host_room, join_room, postpone_guest_room, recover_guest_room, resume_room,
+    room_operation, saved_guest_rooms, stop_host_room, stream_room, NativeRoomState,
 };
 use processes::control::ControlServer;
 use processes::RuntimeProcesses;
@@ -68,6 +68,9 @@ pub fn run() {
             stop_host_room,
             join_room,
             resume_room,
+            recover_guest_room,
+            saved_guest_rooms,
+            postpone_guest_room,
             room_operation,
             stream_room,
             cancel_room_stream

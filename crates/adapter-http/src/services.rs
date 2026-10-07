@@ -330,6 +330,17 @@ pub trait NativeRoomHostHttpService: Send + Sync {
 
 #[async_trait]
 pub trait NativeRoomClientHttpService: Send + Sync {
+    async fn saved(
+        &self,
+    ) -> Result<
+        Vec<app_application::models::room_client::NativeGuestRecoveryChoice>,
+        HttpServiceError,
+    >;
+    async fn postpone(&self) -> Result<(), HttpServiceError>;
+
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_client::NativeGuestConnection>, HttpServiceError>;
     async fn join(
         &self,
         request: app_application::models::room_client::NativeGuestJoinRequest,

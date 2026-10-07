@@ -41,6 +41,59 @@ struct ClientService {
     lane: Mutex<()>,
 }
 impl ClientService {
+    async fn check_pending(
+        &self,
+        request: &NativeGuestJoinRequest,
+    ) -> Result<(), HttpServiceError> {
+        if let Some(raw) = self
+            .state
+            .secrets_repo()
+            .get("native:guest-pending-selection")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })?
+        {
+            let pointer: NativeGuestResumeRequest =
+                serde_json::from_str(&raw).map_err(|_| HttpServiceError::Internal {
+                    code: "native_guest_store_invalid",
+                })?;
+            if pointer.room_id != request.room_id || pointer.join_id != request.join_id {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_guest_selection_pending",
+                });
+            }
+        }
+        Ok(())
+    }
+    async fn select(
+        &self,
+        request: &NativeGuestJoinRequest,
+        pending: bool,
+    ) -> Result<(), HttpServiceError> {
+        if pending {
+            self.check_pending(request).await?;
+        }
+        let pointer = serde_json::to_string(&NativeGuestResumeRequest {
+            room_id: request.room_id,
+            join_id: request.join_id,
+        })
+        .map_err(|_| invalid())?;
+        self.state
+            .secrets_repo()
+            .set(
+                if pending {
+                    "native:guest-pending-selection"
+                } else {
+                    "native:guest-selection"
+                },
+                &pointer,
+            )
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })
+    }
     async fn load(&self, join: Uuid) -> Result<Option<StoredNativeGuestJoin>, HttpServiceError> {
         self.state
             .secrets_repo()
@@ -68,14 +121,57 @@ impl ClientService {
                 code: "native_guest_store_failed",
             })
     }
+    async fn complete_selected(
+        &self,
+        record: &mut StoredNativeGuestJoin,
+    ) -> Result<NativeGuestConnection, HttpServiceError> {
+        match self.complete(record).await {
+            Ok(connection) => {
+                self.select(&record.request, false).await?;
+                self.state
+                    .secrets_repo()
+                    .delete("native:guest-pending-selection")
+                    .await
+                    .map_err(|_| HttpServiceError::Internal {
+                        code: "native_guest_store_failed",
+                    })?;
+                Ok(connection)
+            }
+            Err(error) => {
+                if matches!(
+                    error,
+                    HttpServiceError::Conflict {
+                        code: "native_guest_access_rejected"
+                    }
+                ) {
+                    self.state
+                        .secrets_repo()
+                        .delete("native:guest-pending-selection")
+                        .await
+                        .map_err(|_| HttpServiceError::Internal {
+                            code: "native_guest_store_failed",
+                        })?;
+                }
+                Err(error)
+            }
+        }
+    }
     async fn decode<T: DeserializeOwned>(
         &self,
         response: reqwest::Response,
     ) -> Result<T, HttpServiceError> {
         if !response.status().is_success() {
-            return Err(HttpServiceError::Conflict {
-                code: "native_guest_access_rejected",
-            });
+            return Err(
+                if response.status().is_client_error()
+                    && !matches!(response.status().as_u16(), 408 | 429)
+                {
+                    HttpServiceError::Conflict {
+                        code: "native_guest_access_rejected",
+                    }
+                } else {
+                    failed()
+                },
+            );
         }
         let mut chunks = response.bytes_stream();
         let mut bytes = Vec::new();
@@ -178,6 +274,141 @@ impl ClientService {
 }
 #[async_trait::async_trait]
 impl NativeRoomClientHttpService for ClientService {
+    async fn saved(&self) -> Result<Vec<NativeGuestRecoveryChoice>, HttpServiceError> {
+        let _lane = self.lane.lock().await;
+        let raw = self
+            .state
+            .secrets_repo()
+            .get("native:guest-archived-selections")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })?;
+        let pointers: Vec<NativeGuestResumeRequest> = raw
+            .map(|raw| {
+                serde_json::from_str(&raw).map_err(|_| HttpServiceError::Internal {
+                    code: "native_guest_store_invalid",
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let mut choices = Vec::new();
+        for pointer in pointers {
+            let record = self
+                .load(pointer.join_id)
+                .await?
+                .ok_or(HttpServiceError::NotFound)?;
+            if record.request.room_id != pointer.room_id {
+                return Err(invalid());
+            }
+            choices.push(NativeGuestRecoveryChoice {
+                room_id: pointer.room_id,
+                join_id: pointer.join_id,
+                address: record.request.address,
+                display_name: record.request.display_name,
+            });
+        }
+        Ok(choices)
+    }
+    async fn postpone(&self) -> Result<(), HttpServiceError> {
+        let _lane = self.lane.lock().await;
+        let secrets = self.state.secrets_repo();
+        let Some(raw) = secrets
+            .get("native:guest-pending-selection")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })?
+        else {
+            return Ok(());
+        };
+        let pointer: NativeGuestResumeRequest =
+            serde_json::from_str(&raw).map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_invalid",
+            })?;
+        let archive = secrets
+            .get("native:guest-archived-selections")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })?;
+        let mut pointers: Vec<NativeGuestResumeRequest> = archive
+            .map(|raw| {
+                serde_json::from_str(&raw).map_err(|_| HttpServiceError::Internal {
+                    code: "native_guest_store_invalid",
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
+        if !pointers
+            .iter()
+            .any(|saved| saved.room_id == pointer.room_id && saved.join_id == pointer.join_id)
+        {
+            if pointers.len() >= 64 {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_guest_archive_full",
+                });
+            }
+            pointers.push(pointer);
+            secrets
+                .set(
+                    "native:guest-archived-selections",
+                    &serde_json::to_string(&pointers).map_err(|_| invalid())?,
+                )
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_guest_store_failed",
+                })?;
+        }
+        secrets
+            .delete("native:guest-pending-selection")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })
+    }
+
+    async fn recover(&self) -> Result<Option<NativeGuestConnection>, HttpServiceError> {
+        let _lane = self.lane.lock().await;
+        let pending = self
+            .state
+            .secrets_repo()
+            .get("native:guest-pending-selection")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_failed",
+            })?;
+        let confirmed = if pending.is_none() {
+            self.state
+                .secrets_repo()
+                .get("native:guest-selection")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_guest_store_failed",
+                })?
+        } else {
+            None
+        };
+        let Some(raw) = pending.or(confirmed) else {
+            return Ok(None);
+        };
+        let pointer: NativeGuestResumeRequest =
+            serde_json::from_str(&raw).map_err(|_| HttpServiceError::Internal {
+                code: "native_guest_store_invalid",
+            })?;
+        if pointer.room_id.is_nil() || pointer.join_id.is_nil() {
+            return Err(invalid());
+        }
+        let mut record = self
+            .load(pointer.join_id)
+            .await?
+            .ok_or(HttpServiceError::NotFound)?;
+        if record.request.room_id != pointer.room_id {
+            return Err(invalid());
+        }
+        self.complete_selected(&mut record).await.map(Some)
+    }
+
     async fn join(
         &self,
         request: NativeGuestJoinRequest,
@@ -193,6 +424,7 @@ impl NativeRoomClientHttpService for ClientService {
         {
             return Err(invalid());
         }
+        self.check_pending(&request).await?;
         let mut record = if let Some(record) = self.load(request.join_id).await? {
             if record.request != request {
                 return Err(HttpServiceError::Conflict {
@@ -209,7 +441,8 @@ impl NativeRoomClientHttpService for ClientService {
             self.save(&record).await?;
             record
         };
-        self.complete(&mut record).await
+        self.select(&record.request, true).await?;
+        self.complete_selected(&mut record).await
     }
     async fn resume(
         &self,
@@ -228,6 +461,7 @@ impl NativeRoomClientHttpService for ClientService {
                 code: "native_guest_request_mismatch",
             });
         }
-        self.complete(&mut record).await
+        self.select(&record.request, true).await?;
+        self.complete_selected(&mut record).await
     }
 }

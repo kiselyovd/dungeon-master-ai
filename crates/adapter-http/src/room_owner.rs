@@ -99,6 +99,12 @@ pub fn client_router(
         Router::new()
             .route("/native/room-client/join", post(join_guest))
             .route("/native/room-client/resume", post(resume_guest))
+            .route("/native/room-client/recover", post(recover_guest))
+            .route(
+                "/native/room-client/saved",
+                axum::routing::get(saved_guests),
+            )
+            .route("/native/room-client/postpone", post(postpone_guest))
             .layer(DefaultBodyLimit::max(4096))
             .layer(Extension(service)),
         token,
@@ -115,6 +121,30 @@ async fn resume_guest(
     Json(request): Json<app_application::models::room_client::NativeGuestResumeRequest>,
 ) -> Result<Json<app_application::models::room_client::NativeGuestConnection>, HttpServiceError> {
     service.resume(request).await.map(Json)
+}
+
+async fn recover_guest(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomClientHttpService>>,
+) -> Result<
+    Json<Option<app_application::models::room_client::NativeGuestConnection>>,
+    HttpServiceError,
+> {
+    service.recover().await.map(Json)
+}
+
+async fn saved_guests(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomClientHttpService>>,
+) -> Result<
+    Json<Vec<app_application::models::room_client::NativeGuestRecoveryChoice>>,
+    HttpServiceError,
+> {
+    service.saved().await.map(Json)
+}
+async fn postpone_guest(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomClientHttpService>>,
+) -> Result<StatusCode, HttpServiceError> {
+    service.postpone().await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub fn transport_router(

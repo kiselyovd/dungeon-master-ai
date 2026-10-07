@@ -253,6 +253,90 @@ pub async fn resume_room(
     Ok(view)
 }
 
+#[tauri::command]
+pub async fn saved_guest_rooms(
+    app: AppHandle,
+) -> Result<Vec<app_application::models::room_client::NativeGuestRecoveryChoice>, String> {
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .get(format!("http://127.0.0.1:{port}/native/room-client/saved"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|_| "native_guest_request_failed")?;
+    if !response.status().is_success() {
+        return Err("native_guest_request_rejected".into());
+    }
+    response
+        .json()
+        .await
+        .map_err(|_| "native_guest_response_invalid".into())
+}
+#[tauri::command]
+pub async fn postpone_guest_room(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<NativeRoomState>();
+    let _lifecycle = state.lifecycle.lock().await;
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .post(format!(
+            "http://127.0.0.1:{port}/native/room-client/postpone"
+        ))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|_| "native_guest_request_failed")?;
+    if !response.status().is_success() {
+        return Err("native_guest_request_rejected".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn recover_guest_room(app: AppHandle) -> Result<Option<NativeGuestRoomView>, String> {
+    let state = app.state::<NativeRoomState>();
+    let _lifecycle = state.lifecycle.lock().await;
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .post(format!(
+            "http://127.0.0.1:{port}/native/room-client/recover"
+        ))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|_| "native_guest_request_failed")?;
+    if !response.status().is_success() {
+        return Err("native_guest_request_rejected".into());
+    }
+    let connection = response
+        .json::<Option<app_application::models::room_client::NativeGuestConnection>>()
+        .await
+        .map_err(|_| "native_guest_response_invalid")?;
+    let Some(connection) = connection else {
+        return Ok(None);
+    };
+    if !connection.room.active
+        || connection.room.room_id.is_nil()
+        || connection.join_id.is_nil()
+        || !connection.room.members.iter().any(|member| {
+            member.member_id == connection.member_id
+                && member.active
+                && member.role == app_application::models::party::PartyRole::Player
+        })
+        || app_application::rooms::RoomSecret::from_input(connection.capability.clone()).is_err()
+    {
+        return Err("native_guest_response_invalid".into());
+    }
+    let view = guest_view(&connection);
+    *state
+        .guest
+        .lock()
+        .map_err(|_| "native_room_state_unavailable")? = Some(connection);
+    state
+        .generation
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    Ok(Some(view))
+}
+
 impl NativeRoomState {
     fn transport_request(
         &self,

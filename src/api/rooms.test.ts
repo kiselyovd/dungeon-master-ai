@@ -1,6 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import wire from './__fixtures__/roomUpdate.json';
-import { joinRoom, loadPendingRoomAction, loadRoom, sendRoomAction } from './rooms';
+import {
+  joinRoom,
+  loadPendingRoomAction,
+  loadRoom,
+  recoverGuestRoom,
+  sendRoomAction,
+} from './rooms';
 
 const mocked = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocked.invoke }));
@@ -62,4 +68,24 @@ it('accepts canonical native address/UUID serialization and excludes credentials
     command === 'join_room' ? { ...view, capability: 'forbidden' } : undefined,
   );
   await expect(joinRoom(request)).rejects.toMatchObject({ code: 'native_room_response_invalid' });
+});
+
+it('restores native guest selection without exposing credentials or requiring renderer IDs', async () => {
+  const member = wire.state.room.members.find((member) => member.role === 'player');
+  if (!member) throw new Error('guest required');
+  const view = {
+    room: wire.state.room,
+    member_id: member.member_id,
+    join_id: crypto.randomUUID(),
+    address: '127.0.0.1:4123',
+  };
+  mocked.invoke.mockImplementation(async (command) =>
+    command === 'recover_guest_room' ? view : undefined,
+  );
+  expect((await recoverGuestRoom())?.member_id).toBe(member.member_id);
+  expect(mocked.invoke).toHaveBeenCalledWith('recover_guest_room', {});
+  mocked.invoke.mockImplementation(async (command) =>
+    command === 'recover_guest_room' ? null : undefined,
+  );
+  expect(await recoverGuestRoom()).toBeNull();
 });

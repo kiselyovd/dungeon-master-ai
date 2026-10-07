@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CampaignSummary } from '../../api/contracts/campaign';
+import type { GuestRecoveryChoice } from '../../api/rooms';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
+import { Modal } from '../../ui/Modal';
 import styles from './Room.module.css';
 
 interface Props {
+  onPostpone?: () => void;
+  saved?: GuestRecoveryChoice[];
+  onSaved?: (choice: GuestRecoveryChoice) => void;
+  onRecover?: () => void;
   campaigns: CampaignSummary[];
   busy: boolean;
   error: boolean;
@@ -13,8 +19,20 @@ interface Props {
   onHost: (campaign: CampaignSummary, bind: string) => void;
   onJoin: (address: string, room: string, name: string, invitation: string) => void;
 }
-export function RoomHome({ campaigns, busy, error, onBack, onHost, onJoin }: Props) {
+export function RoomHome({
+  campaigns,
+  busy,
+  error,
+  onBack,
+  onHost,
+  onJoin,
+  onRecover,
+  onPostpone,
+  saved,
+  onSaved,
+}: Props) {
   const { t } = useTranslation('rooms');
+  const [postponeOpen, setPostponeOpen] = useState(false);
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? '');
   const [bind, setBind] = useState('0.0.0.0:4123');
   const [address, setAddress] = useState('');
@@ -29,11 +47,49 @@ export function RoomHome({ campaigns, busy, error, onBack, onHost, onJoin }: Pro
         <header>
           <h1>{t('title')}</h1>
           <p>{t('human')}</p>
+          {onRecover && (
+            <Button disabled={busy} onClick={onRecover}>
+              {t('recover_connection')}
+            </Button>
+          )}
           <Button onClick={onBack} disabled={busy}>
             {t('back')}
           </Button>
         </header>
         {error && <p role="alert">{t('error')}</p>}
+        {onPostpone && (
+          <Button disabled={busy} onClick={() => setPostponeOpen(true)}>
+            {t('postpone')}
+          </Button>
+        )}
+        {saved && saved.length > 0 && (
+          <section className={styles.card}>
+            <h2>{t('saved_connections')}</h2>
+            {saved.map((choice) => (
+              <Button key={choice.join_id} disabled={busy} onClick={() => onSaved?.(choice)}>
+                {choice.display_name} · {choice.address}
+              </Button>
+            ))}
+          </section>
+        )}
+        <Modal
+          open={postponeOpen}
+          title={t('postpone')}
+          onClose={() => setPostponeOpen(false)}
+          footer={
+            <Button
+              onClick={() => {
+                setPostponeOpen(false);
+                onPostpone?.();
+              }}
+            >
+              {t('postpone_confirm')}
+            </Button>
+          }
+        >
+          <p>{t('postpone_hint')}</p>
+        </Modal>
+
         <div className={styles.columns}>
           <form
             className={styles.card}
