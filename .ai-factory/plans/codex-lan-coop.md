@@ -35,9 +35,29 @@ without explicit approval. Inline execution with independent final review.
 Current work: first two items implemented locally. Room capability core, SQLite
 metadata/receipts and secrets-port persistence are implemented, including saved
 party invitations, private-proof replay and revocation. Six focused integration
-tests pass. HTTP identity injection, network/UI and multi-hero combat acceptance
-remain pending; the third item therefore stays open. See docs/ROOM_AUTH.md.
+tests pass. A separate HTTP router now verifies member identity and host-only room
+management, returns own-sheet/public-actor projections, and excludes desktop
+administration routes. Actual loopback HTTP acceptance passes. Production
+composition, gameplay identity injection, network/UI and multi-hero combat
+acceptance remain pending; the third item therefore stays open. See docs/ROOM_AUTH.md.
 The separate reqwest approval remains pending.
+
+## HTTP implementation sequence
+
+Compose a dedicated room router separately from the local desktop router. First
+verify join, fresh member authentication and host-only invitation/revoke/close
+with actual HTTP requests; do not add room creation to the public router. Pass
+capabilities in Authorization and member identity in a dedicated header, never
+URLs. Bound JSON bodies, reject unknown command fields, and disable caching of
+capability responses. The router has no settings/provider/save/local-runtime
+routes. Keep it unbound to public interfaces until scoped party/game commands
+and shared-state projections are implemented and tested.
+
+Then add own-sheet/shared-party projection, host approval of submitted heroes,
+atomic room-lease checks on gameplay mutations, and event/reconnect handling.
+Only after these guards pass should bootstrap compose the LAN listener and native
+host/join controls. This sequence implements the existing room/party plan; it
+does not replace the pending complete gameplay and two-device requirements.
 
 Room-core checkpoint: independent follow-up review closed all three findings
 (saved-member invitations, preflight before secret writes, cross-instance join
@@ -46,3 +66,11 @@ frontend tests passed. The initial consolidated run failed the INFO-dependent
 telemetry test because RUST_LOG was omitted; the complete workspace Rust suite
 then passed with explicit RUST_LOG=info. All 32 original baseline hashes remain
 unchanged. No HTTP/LAN/native acceptance or complete goal success is claimed.
+
+HTTP foundation checkpoint: actual loopback requests passed entry, private-proof
+replay, UUID/capability spoof rejection, host-only management, private biography
+isolation in both directions, JSON/header/body guards, revocation and closure.
+Seven room integration tests and the full consolidated gate passed with explicit
+RUST_LOG=info (workspace Rust plus 1042 frontend tests). Independent read-only
+review found no actionable issue in the router and own-party projection. The
+production listener remains unmodified; native/LAN/gameplay acceptance is pending.

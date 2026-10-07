@@ -76,6 +76,234 @@ fn secret(value: &RoomSecret) -> RoomSecret {
 }
 
 #[tokio::test]
+async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_routes() {
+    let (store, mut command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let state = store.load_current(command.campaign_id).await.unwrap();
+    let mut host_sheet = state.projection.character;
+    host_sheet["backstory"] = json!("host-private-backstory");
+    let state = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: command.campaign_id,
+            session_id: command.session_id,
+            character_id: state.character_id.unwrap(),
+            expected_revision: state.campaign.revision,
+            causation_id: "host-private-fixture".into(),
+            character: host_sheet,
+        })
+        .await
+        .unwrap();
+    command.expected_revision = state.campaign.revision;
+    let service = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    ));
+    let created = service.create_local_room(command).await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(service);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let client = reqwest::Client::new();
+    let url = format!("http://{address}/rooms/{}", created.grant.room.room_id);
+    let missing = client.get(&url).send().await.unwrap();
+    assert_eq!(missing.status(), 401);
+    let host = client
+        .get(&url)
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(host.status(), 200);
+    assert_eq!(host.headers()["cache-control"], "no-store");
+    let host_json: serde_json::Value = host.json().await.unwrap();
+    assert!(host_json.get("invitation").is_none());
+    let proof = RoomSecret::generate();
+    let join_id = Uuid::new_v4();
+    let payload = json!({"join_id":join_id,"display_name":"Guest","invitation":created.invitation.expose(),"resume_proof":proof.expose()});
+    let joined = client
+        .post(format!("{url}/join"))
+        .json(&payload)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(joined.status(), 200);
+    assert_eq!(joined.headers()["cache-control"], "no-store");
+    let joined: serde_json::Value = joined.json().await.unwrap();
+    let member = joined["member_id"].as_str().unwrap();
+    let capability = joined["capability"].as_str().unwrap();
+    let replay = client
+        .post(format!("{url}/join"))
+        .json(&payload)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), 200);
+    let replay: serde_json::Value = replay.json().await.unwrap();
+    assert!(replay["capability"].as_str().unwrap() == capability);
+    let stolen_replay = client.post(format!("{url}/join")).json(&json!({"join_id":join_id,"display_name":"Guest","invitation":created.invitation.expose(),"resume_proof":RoomSecret::generate().expose()})).send().await.unwrap();
+    assert_eq!(stolen_replay.status(), 401);
+    let pending = client
+        .get(format!("{url}/party"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(pending.status(), 200);
+    assert!(pending.json::<serde_json::Value>().await.unwrap().is_null());
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let host_character = &party.characters[&party.roster.members[0].character_id];
+    let mut character = host_character.clone();
+    let character_id = Uuid::new_v4();
+    character["characterId"] = json!(character_id);
+    character["name"] = json!("Guest hero");
+    character["backstory"] = json!("guest-private-backstory");
+    store
+        .enroll_party_character(EnrollPartyCharacter {
+            campaign_id: party.campaign_id,
+            session_id: party.session_id,
+            expected_revision: party.revision,
+            causation_id: "http-party-acceptance".into(),
+            verified_host_member_id: party.roster.host_member_id,
+            member_id: Uuid::parse_str(member).unwrap(),
+            character_id,
+            character,
+        })
+        .await
+        .unwrap();
+    let own = client
+        .get(format!("{url}/party"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(own.status(), 200);
+    let own = own.text().await.unwrap();
+    assert!(own.contains("guest-private-backstory"));
+    assert!(!own.contains("host-private-backstory"));
+    let host_view = client
+        .get(format!("{url}/party"))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(host_view.status(), 200);
+    assert!(!host_view
+        .text()
+        .await
+        .unwrap()
+        .contains("guest-private-backstory"));
+    let oversized = client
+        .post(format!("{url}/join"))
+        .header("content-type", "application/json")
+        .body(" ".repeat(8193))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(oversized.status(), 413);
+    let duplicate_identity = client
+        .get(&url)
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(duplicate_identity.status(), 401);
+    let spoof = client
+        .get(&url)
+        .bearer_auth(capability)
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(spoof.status(), 401);
+    let invitation = client
+        .post(format!("{url}/invitation"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(invitation.status(), 401);
+    let host_invitation = client
+        .post(format!("{url}/invitation"))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(host_invitation.status(), 200);
+    for path in [
+        "/settings/v2",
+        "/providers",
+        "/campaigns",
+        "/hf/token",
+        "/saves",
+        "/rooms",
+    ] {
+        assert_eq!(
+            client
+                .get(format!("http://{address}{path}"))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            404
+        );
+    }
+    let tampered = client.post(format!("{url}/join")).json(&json!({"join_id":join_id,"display_name":"Guest","invitation":created.invitation.expose(),"resume_proof":proof.expose(),"role":"Host"})).send().await.unwrap();
+    assert_eq!(tampered.status(), 422);
+    let revoked = client
+        .delete(format!("{url}/members/{member}"))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(revoked.status(), 204);
+    let guest = client
+        .get(&url)
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(guest.status(), 401);
+    let closed = client
+        .delete(&url)
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(closed.status(), 204);
+    let old_host = client
+        .get(&url)
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(old_host.status(), 401);
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test]
 async fn concurrent_service_instances_replay_the_same_private_join_binding() {
     let (store, command) =
         fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
@@ -354,6 +582,9 @@ async fn expiration_revocation_and_room_closure_reject_old_credentials() {
         .unwrap();
     assert!(service.rotate_invitation(&guest).await.is_err());
     service.revoke(&host, joined.member_id).await.unwrap();
+    assert!(service.current_room(&guest).await.is_err());
+    assert!(service.own_party(&guest).await.is_err());
+    assert!(service.current_room(&host).await.is_err());
     assert!(service
         .authenticate(joined.room.room_id, joined.member_id, &joined.capability)
         .await

@@ -1,6 +1,6 @@
 use crate::{
     models::{
-        party::{InitializeParty, PartyRole},
+        party::{InitializeParty, PartyRole, PartyView},
         room::*,
     },
     ports::{
@@ -306,6 +306,62 @@ impl RoomService {
                 role: member.role,
             },
         })
+    }
+    pub async fn current_room(&self, subject: &RoomSubject) -> Result<PublicRoom, RoomError> {
+        let _lane = ROOM_MUTATION.lock().await;
+        self.authorized_room(subject)
+            .await
+            .map(|room| room.public_view())
+    }
+    pub async fn own_party(&self, subject: &RoomSubject) -> Result<Option<PartyView>, RoomError> {
+        let _lane = ROOM_MUTATION.lock().await;
+        let room = self.authorized_room(subject).await?;
+        let party = self
+            .parties
+            .party(room.campaign_id)
+            .await
+            .map_err(|_| RoomError::Repository)?
+            .ok_or(RoomError::Repository)?;
+        if party.session_id != room.session_id {
+            return Err(RoomError::Denied);
+        }
+        let Some(member) = party
+            .roster
+            .members
+            .iter()
+            .find(|member| member.member_id == subject.lease.member_id)
+        else {
+            return Ok(None);
+        };
+        if member.role != subject.lease.role {
+            return Err(RoomError::Denied);
+        }
+        party
+            .view_for(member.member_id)
+            .map(Some)
+            .map_err(|_| RoomError::Repository)
+    }
+    async fn authorized_room(&self, subject: &RoomSubject) -> Result<RoomRecord, RoomError> {
+        let room = self
+            .rooms
+            .room(subject.lease.room_id)
+            .await
+            .map_err(|_| RoomError::Repository)?
+            .ok_or(RoomError::Denied)?;
+        if !room.valid()
+            || !room.active
+            || room.epoch != subject.lease.epoch
+            || room.campaign_id != subject.lease.campaign_id
+            || room.session_id != subject.lease.session_id
+            || !room.members.iter().any(|member| {
+                member.active
+                    && member.member_id == subject.lease.member_id
+                    && member.role == subject.lease.role
+            })
+        {
+            return Err(RoomError::Denied);
+        }
+        Ok(room)
     }
     pub async fn join(&self, command: JoinRoom) -> Result<RoomGrant, RoomError> {
         let _lane = ROOM_MUTATION.lock().await;
