@@ -77,7 +77,11 @@ impl OpenAICompatProvider {
 
     fn build_options(req: &ChatRequest) -> ChatOptions {
         // Start with reasoning options if present, then layer in max_tokens/temperature.
-        let mut options = build_chat_options(req.reasoning).unwrap_or_default();
+        // The shared pump consumes cumulative tool arguments and stable IDs.
+        // Without capture, genai emits raw deltas and fallback IDs on continuations.
+        let mut options = build_chat_options(req.reasoning)
+            .unwrap_or_default()
+            .with_capture_tool_calls(true);
         if let Some(max) = req.max_tokens {
             options = options.with_max_tokens(max);
         }
@@ -93,7 +97,10 @@ impl LlmProvider for OpenAICompatProvider {
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
         let model = req.model.clone();
         let options = Self::build_options(&req);
-        let g_req = convert_messages(req.messages, req.tools);
+        let mut g_req = convert_messages(req.messages, req.tools);
+        if let Some(system) = req.system_prompt {
+            g_req = g_req.with_system(system);
+        }
 
         let stream_response = self
             .client

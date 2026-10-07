@@ -222,6 +222,7 @@ pub(crate) async fn pump_genai_stream(
 ) {
     let leaked_stream_id = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut args_seen: HashMap<String, String> = HashMap::new();
+    let mut call_order: Vec<String> = Vec::new();
     let mut content_mode = ContentMode::Undecided;
     let mut pending = String::new();
     let mut tool_text = String::new();
@@ -277,6 +278,9 @@ pub(crate) async fn pump_genai_stream(
                 };
                 let prev_args = args_seen.get(&call_id).cloned().unwrap_or_default();
 
+                if !args_seen.contains_key(&call_id) {
+                    call_order.push(call_id.clone());
+                }
                 if !args_seen.contains_key(&call_id)
                     && tx
                         .send(Ok(ChatChunk::ToolCallStart {
@@ -362,7 +366,7 @@ pub(crate) async fn pump_genai_stream(
                     }
                 }
                 let had_tool_calls = !args_seen.is_empty() || synthesized;
-                for id in std::mem::take(&mut args_seen).into_keys() {
+                for id in call_order {
                     if tx.send(Ok(ChatChunk::ToolCallDone { id })).await.is_err() {
                         return;
                     }

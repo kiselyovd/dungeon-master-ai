@@ -16,6 +16,19 @@ Execution: inline, authorized by 'Продолжай до конца'; preserve 
 
 ## Authored defensive session
 
+Real-model continuation,2026-10-07: installed Bonsai PTQ failed under LM Studio's
+stock runtime; checksum-verified isolated Prism CUDA runtime loaded it and passed
+a native tool-call/confirmed Russian narration probe. Real application turns
+reproduced missing cumulative tool capture and omitted system context in the
+OpenAI-compatible adapter. Wire RED→GREEN fixes restore both; shared completion
+now preserves observed tool order. With context restored, first five real steps
+advanced one chosen action each. Full semantic/session acceptance remains open:
+raw identifiers and misreading completed intentions still appeared. Context
+clarification awaits rerun. Genai's same-frame multiple-tool gap remains open;
+pure wire prototype passes three tests, production integration awaits explicit
+reqwest approval under AGENTS. No provider promotion or full native/co-op claim.
+Details and runtime provenance: docs/BONSAI_EVALUATION.md.
+
 Canonical DM intention checkpoint, 2026-10-07: strict `combat_action` and
 `rest_action`, server-derived actor/revision/seed, scoped immutable existing
 combat/rest receipts, public result delivery and per-round context/catalog
