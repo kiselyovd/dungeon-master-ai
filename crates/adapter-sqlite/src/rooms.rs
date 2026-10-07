@@ -104,6 +104,14 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn room_updates(
+        &self,
+        lease: &RoomLease,
+        after: Option<u64>,
+        force_snapshot: bool,
+    ) -> Result<Option<app_application::models::room_state::RoomUpdate>, RepositoryError> {
+        crate::room_state::updates(self, lease, after, force_snapshot).await
+    }
     async fn room_combat(
         &self,
         lease: &RoomLease,

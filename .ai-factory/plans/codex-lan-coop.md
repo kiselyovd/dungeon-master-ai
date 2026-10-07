@@ -129,3 +129,25 @@ RED and both restore regressions passed GREEN; follow-up review closed it.
 Late-state rollback and terminal/historical replay regressions also passed.
 All 32 original baseline hashes remain unchanged. No new production dependency,
 public listener, native multiplayer UI or complete goal acceptance is claimed.
+
+Shared-state delivery progress: typed owner-filtered snapshots and durable
+transactional changes now support state, paged updates and authenticated SSE.
+Real two-peer streams, revocation EOF, 300-change ordered catch-up, rollback/replay,
+real SQLite/Stronghold reopening and timeline-reset/privacy restoration pass.
+System/tool drafts and pre-room solo chat are excluded; snapshot visibility
+metadata preserves the distinction. Review-found reconnect replay was reproduced
+RED and fixed by one transactional initial read; follow-up reports no remaining
+actionable correction. Four delivery and twelve authorization tests pass. Full
+gate collection remains in progress. Native receiver/outbox, public LAN, scoped
+adventure/rest/AI and physical-device acceptance remain pending; broad boxes stay
+open until their full interfaces and acceptance are verified.
+
+Delivery checkpoint collection: four shared-state/delivery cases and twelve room
+authorization cases passed; the complete consolidated gate passed (workspace
+Rust, architecture/static/Clippy and 1042 frontend tests). Independent review's
+SSE reconnect replay P2 was reproduced RED and fixed with one transactional
+initial snapshot/delta read; follow-up closed the finding. Real host/guest SSE,
+revocation, 300-record pagination, restore privacy/reset, failed commit/replay and
+real SQLite/Stronghold reopening are verified. All 32 original source hashes remain
+unchanged. Native browser/Tauri integration, image delivery, public LAN, scoped
+adventure/rest/AI and whole-goal session acceptance still remain pending.

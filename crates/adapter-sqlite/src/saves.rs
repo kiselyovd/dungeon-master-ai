@@ -474,13 +474,18 @@ pub(crate) async fn capture_projection(
     character: Value,
 ) -> Result<SnapshotProjection, RepositoryError> {
     let message_rows = sqlx::query(
-        "SELECT role, parts, tool_calls, tool_call_id, is_error FROM messages \
+        "SELECT m.role, m.parts, m.tool_calls, m.tool_call_id, m.is_error, EXISTS(SELECT 1 FROM shared_messages sm WHERE sm.message_id=m.id AND sm.session_id=m.session_id) AS is_shared FROM messages m \
          WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
     )
     .bind(session_id.0.to_string())
     .fetch_all(&mut **transaction)
     .await
     .map_err(|_| repository_error("snapshot_messages"))?;
+    let shared_message_indices = message_rows
+        .iter()
+        .enumerate()
+        .filter_map(|(index, row)| (row.get::<i64, _>("is_shared") != 0).then_some(index))
+        .collect();
     let messages = message_rows
         .into_iter()
         .map(|row| {
@@ -566,6 +571,7 @@ pub(crate) async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        shared_message_indices,
         party: crate::party::capture_snapshot(transaction, campaign_id, &character).await?,
         adventuring: crate::rest::read_clock(transaction, session_id).await?,
         adventure: crate::adventure::read(transaction, campaign_id).await?,
@@ -720,12 +726,18 @@ async fn apply_projection(
     )
     .await?;
     let session_id = snapshot.session_id.0.to_string();
+    sqlx::query("INSERT INTO room_restore_guard(session_id) VALUES(?1)")
+        .bind(&session_id)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("guard_restore_messages"))?;
     sqlx::query("DELETE FROM messages WHERE session_id = ?1")
         .bind(&session_id)
         .execute(&mut **transaction)
         .await
         .map_err(|_| repository_error("clear_snapshot_messages"))?;
     for (index, message) in snapshot.projection.messages.iter().enumerate() {
+        let restored_message_id = Uuid::new_v4().to_string();
         let (role, parts, tool_calls, tool_call_id, is_error) =
             crate::messages::encode_message(message);
         sqlx::query(
@@ -733,7 +745,7 @@ async fn apply_projection(
              (id, session_id, role, parts, tool_calls, tool_call_id, is_error, created_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )
-        .bind(Uuid::new_v4().to_string())
+        .bind(&restored_message_id)
         .bind(&session_id)
         .bind(role)
         .bind(parts)
@@ -744,6 +756,14 @@ async fn apply_projection(
         .execute(&mut **transaction)
         .await
         .map_err(|_| repository_error("restore_snapshot_message"))?;
+        if snapshot.projection.shared_message_indices.contains(&index) {
+            sqlx::query("INSERT INTO shared_messages(message_id,session_id) VALUES(?1,?2)")
+                .bind(restored_message_id)
+                .bind(&session_id)
+                .execute(&mut **transaction)
+                .await
+                .map_err(|_| repository_error("restore_message_visibility"))?;
+        }
     }
     restore_scene(transaction, snapshot).await?;
     restore_journal(transaction, snapshot).await?;
@@ -758,7 +778,13 @@ async fn apply_projection(
             .map(|projection| &projection.state),
     )
     .await?;
-    restore_combat(transaction, snapshot).await
+    restore_combat(transaction, snapshot).await?;
+    sqlx::query("DELETE FROM room_restore_guard WHERE session_id=?1")
+        .bind(session_id)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("clear_restore_message_guard"))?;
+    Ok(())
 }
 
 async fn restore_scene(

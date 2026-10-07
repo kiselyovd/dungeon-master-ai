@@ -15,6 +15,7 @@ pub mod pool;
 pub mod rest;
 mod room_characters;
 mod room_combat;
+mod room_state;
 pub mod rooms;
 pub mod saves;
 pub mod scenes;

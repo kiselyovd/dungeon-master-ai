@@ -86,6 +86,12 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn room_updates(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        after: Option<u64>,
+        force_snapshot: bool,
+    ) -> Result<Option<crate::models::room_state::RoomUpdate>, RepositoryError>;
     async fn room_combat(
         &self,
         lease: &crate::models::room::RoomLease,

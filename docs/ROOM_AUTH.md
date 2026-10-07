@@ -63,6 +63,9 @@ router. It is not merged into or publicly bound by production bootstrap yet.
 | POST | `/rooms/{room_id}/character-proposals/{proposal_id}/approve` | Host |
 | GET | `/rooms/{room_id}/combat/{encounter_id}` | Accepted active member |
 | POST | `/rooms/{room_id}/combat/{encounter_id}/actions` | Accepted member; own actor |
+| GET | `/rooms/{room_id}/state` | Active member; owner-filtered snapshot |
+| GET | `/rooms/{room_id}/updates?after={cursor}` | Active member; durable changes |
+| GET | `/rooms/{room_id}/events` | Active member; authenticated SSE |
 
 Member requests use `Authorization: Bearer ...` and `x-room-member-id`. Duplicate
 credential/identity headers are rejected. Join JSON contains `join_id`,
@@ -147,3 +150,44 @@ late/terminal replay, post-combat enrollment, a guest cleric's healing/slot rece
 forced receipt failure rollback, direct stale-lease checks and both restoration
 supersession scenarios. Production LAN/native composition and shared event delivery
 remain pending.
+
+## Shared state and reconnect
+
+Migration 0011 adds a transactional room-change cursor. State invalidations cover
+room/proposal/world changes and agent activity; combat receipt payloads copy only
+public result events and encounter/revision identifiers. Credentials, signatures,
+private profiles and raw tool/system messages are excluded from that journal.
+Failed transactions publish no changes; receipt replay publishes no duplicate.
+
+The update envelope contains `cursor`, `head`, `reset`, ordered `events` and a
+current `state`. Delta pages contain at most 128 changes. The current snapshot may
+already be at `head` while the delivery cursor advances through earlier pages;
+clients must not roll state back while catching up on public events. Initial or
+reset snapshots include recent changes, with a bounded message history of 100
+text messages and a 16,384-character limit per message (`truncated` is explicit).
+Image attachments and live thinking/tool drafts are not part of this text feed.
+
+SSE uses `room_update` events with the delivery cursor as event ID and accepts
+`Last-Event-ID` in a header. Its initial snapshot/cursor/delta are read atomically.
+Reconnecting at the current cursor returns a fresh snapshot with empty events;
+it does not repeat already delivered rolls or messages. Polls recheck the lease
+every 250 ms and end the connection after revocation, closure or epoch change.
+The client must authenticate again when reopening the stream.
+
+The public state includes campaign/scene/adventure, clock, known journal/NPC data,
+public actors, shared narration, current combat and agent activity. Only the owner
+receives their full sheet/pending draft; the host sees other pending proposals as
+mechanical summaries. Other heroes' combat profiles remain redacted.
+
+Only user/final-assistant messages created while a room is active are marked for
+sharing. Pre-room solo chat, system prompts, tool results and tool-call drafts are
+excluded. Snapshot shared_message_indices preserve that visibility; restoration
+suppresses automatic publication of historical messages. A timeline-reset cursor
+discards obsolete changes and provides the restored state. Legacy snapshots
+without visibility metadata retain conservative private-message behavior.
+
+Verification includes real simultaneous host/guest SSE, revocation EOF, ordered
+300-change catch-up, public/solo snapshot restoration, failed commit/replay and
+actual SQLite/Stronghold reopening. This is backend delivery evidence; native
+client integration, public LAN composition, image delivery and physical-device
+acceptance remain pending.

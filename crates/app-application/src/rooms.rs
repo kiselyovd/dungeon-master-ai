@@ -13,6 +13,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 mod characters;
 mod combat;
+mod state;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum RoomError {

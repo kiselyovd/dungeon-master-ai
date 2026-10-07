@@ -6,7 +6,7 @@ use app_application::{
     rooms::{JoinRoom, RoomError, RoomSecret, RoomService, RoomSubject},
 };
 use axum::{
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::Response,
@@ -23,6 +23,9 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}", get(current_room).delete(close_room))
         .route("/rooms/{room_id}/join", post(join_room))
         .route("/rooms/{room_id}/party", get(own_party))
+        .route("/rooms/{room_id}/state", get(room_state))
+        .route("/rooms/{room_id}/updates", get(room_updates))
+        .route("/rooms/{room_id}/events", get(room_events))
         .route("/rooms/{room_id}/combat/{encounter_id}", get(room_combat))
         .route(
             "/rooms/{room_id}/combat/{encounter_id}/actions",
@@ -327,4 +330,120 @@ async fn act_combat(
         .await
         .map(Json)
         .map_err(room_error)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UpdateQuery {
+    after: Option<u64>,
+}
+async fn room_state(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<app_application::models::room_state::RoomUpdate>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .updates(&subject, None)
+        .await
+        .map_err(room_error)?
+        .map(Json)
+        .ok_or(HttpServiceError::Internal {
+            code: "room_unavailable",
+        })
+}
+async fn room_updates(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Query(query): Query<UpdateQuery>,
+) -> Result<axum::response::Response, HttpServiceError> {
+    use axum::response::IntoResponse;
+    let subject = subject(&service, room_id, &headers).await?;
+    Ok(
+        match service
+            .updates(&subject, query.after)
+            .await
+            .map_err(room_error)?
+        {
+            Some(update) => Json(update).into_response(),
+            None => StatusCode::NO_CONTENT.into_response(),
+        },
+    )
+}
+
+async fn room_events(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<axum::response::Response, HttpServiceError> {
+    use axum::response::{
+        sse::{Event, KeepAlive},
+        IntoResponse, Sse,
+    };
+    let subject = subject(&service, room_id, &headers).await?;
+    let after = if headers.contains_key("last-event-id") {
+        Some(
+            single_header(&headers, "last-event-id")?
+                .parse::<u64>()
+                .map_err(|_| HttpServiceError::BadRequest {
+                    code: "room_cursor_invalid",
+                })?,
+        )
+    } else {
+        None
+    };
+    let initial = service
+        .initial_updates(&subject, after)
+        .await
+        .map_err(room_error)?;
+    let cursor = initial.cursor;
+    let head = initial.head;
+    let stream = futures::stream::unfold(
+        (Some(initial), service, subject, cursor, head),
+        |(initial, service, subject, mut cursor, mut head)| async move {
+            if let Some(update) = initial {
+                let event = Event::default()
+                    .event("room_update")
+                    .id(update.cursor.to_string())
+                    .json_data(&update)
+                    .ok()?;
+                return Some((
+                    Ok::<Event, std::convert::Infallible>(event),
+                    (None, service, subject, cursor, head),
+                ));
+            }
+            loop {
+                if cursor == head {
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                }
+                match service.updates(&subject, Some(cursor)).await {
+                    Ok(Some(update)) => {
+                        cursor = update.cursor;
+                        head = update.head;
+                        let event = Event::default()
+                            .event("room_update")
+                            .id(cursor.to_string())
+                            .json_data(&update)
+                            .ok()?;
+                        return Some((
+                            Ok::<Event, std::convert::Infallible>(event),
+                            (None, service, subject, cursor, head),
+                        ));
+                    }
+                    Ok(None) => {
+                        head = cursor;
+                    }
+                    Err(_) => return None,
+                }
+            }
+        },
+    );
+    Ok(Sse::new(stream)
+        .keep_alive(
+            KeepAlive::new()
+                .interval(std::time::Duration::from_secs(1))
+                .text("room"),
+        )
+        .into_response())
 }

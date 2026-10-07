@@ -10,6 +10,8 @@ pub const SNAPSHOT_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotProjection {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_message_indices: Vec<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub party: Option<super::party::PartySnapshot>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -26,9 +28,24 @@ pub struct SnapshotProjection {
 
 impl SnapshotProjection {
     pub fn is_complete(&self) -> bool {
-        self.party
-            .as_ref()
-            .is_none_or(|party| party.validate(&self.character).is_ok())
+        self.shared_message_indices
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            == self.shared_message_indices.len()
+            && self.shared_message_indices.iter().all(|index| {
+                self.messages.get(*index).is_some_and(|message| {
+                    matches!(
+                        message,
+                        ChatMessage::User { .. } | ChatMessage::Assistant { .. }
+                    )
+                })
+            })
+            && self
+                .party
+                .as_ref()
+                .is_none_or(|party| party.validate(&self.character).is_ok())
             && self
                 .adventuring
                 .as_ref()
