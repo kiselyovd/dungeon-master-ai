@@ -47,6 +47,7 @@ pub struct RoomChange {
 pub struct RoomUpdate {
     pub cursor: u64,
     pub head: u64,
+    pub timeline_reset_cursor: u64,
     pub reset: bool,
     pub events: Vec<RoomChange>,
     pub state: RoomState,

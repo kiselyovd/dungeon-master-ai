@@ -198,6 +198,7 @@ pub(crate) async fn updates(
     Ok(Some(RoomUpdate {
         cursor,
         head,
+        timeline_reset_cursor: reset_cursor,
         reset,
         events,
         state,

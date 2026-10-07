@@ -181,6 +181,29 @@ async fn restoration_resets_delivery_without_publishing_old_solo_chat() {
         .unwrap()
         .unwrap();
     assert!(private.reset);
+    assert!(private.timeline_reset_cursor > restored.timeline_reset_cursor);
+    for index in 0..140 {
+        store
+            .append(
+                session.0,
+                app_application::models::chat::ChatMessage::Assistant {
+                    content: format!("AFTER_RESTORE_{index}"),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let delayed = service
+        .updates(&host, Some(before.cursor))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(delayed.reset);
+    assert_eq!(delayed.timeline_reset_cursor, private.timeline_reset_cursor);
+    assert!(delayed
+        .events
+        .iter()
+        .all(|event| event.kind != "timeline_reset"));
     assert!(private.state.messages.is_empty());
     assert!(!serde_json::to_string(&private)
         .unwrap()

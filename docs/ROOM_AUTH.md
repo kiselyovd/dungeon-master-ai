@@ -450,3 +450,13 @@ disconnect -> conflict -> original pending -> resume, and real snapshot restore
 splitting, private reasoning and invalid frames. These are transport tests;
 frontend consumption, actual Tauri WebView invocation and physical LAN gameplay
 remain pending.
+
+
+The React room controller receives narrow ports through app composition and keeps
+its state ephemeral. It discards responses from prior room generations and guards
+snapshot head/revision. Native pending requests, rather than a new frontend nonce,
+are reused on recovery. RoomUpdate includes `timeline_reset_cursor` from its
+consistent SQLite transaction: restore cancellation remains observable even when
+its event no longer fits the recent history window. A new marker aborts the old
+DM stream and invalidates its later callbacks; ordinary full snapshots do not.
+The controller is not yet mounted in the production room screen.

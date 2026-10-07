@@ -81,6 +81,7 @@ export const RoomUpdateSchema = v.pipe(
   v.strictObject({
     cursor: integer,
     head: integer,
+    timeline_reset_cursor: integer,
     reset: v.boolean(),
     events: v.array(v.strictObject({ sequence: integer, kind: v.string(), payload: v.unknown() })),
     state: RoomStateSchema,
@@ -88,6 +89,7 @@ export const RoomUpdateSchema = v.pipe(
   v.check(
     (update) =>
       update.cursor <= update.head &&
+      update.timeline_reset_cursor <= update.head &&
       update.events.every(
         (event, index) =>
           event.sequence <= update.cursor &&

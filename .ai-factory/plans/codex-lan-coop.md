@@ -471,3 +471,25 @@ WebView/two-device acceptance remain open.
   Full gates then passed, including workspace Rust and 157 files/1054 frontend tests.
   Follow-up review closed the wire mismatch. Production UI/controller integration
   and browser/WebView/physical-device acceptance remain pending.
+
+
+### Room controller and native action adapter (focused verification)
+
+- Added closed typed native host/join/state/pending/action API adapters and
+  receipt/public-view validation. Native remains the owner of identities and
+  destinations. Socket/UUID canonical serialization does not reject valid joins.
+- Added an ephemeral RoomController and React hook with application-owned port
+  composition. Room transitions abort old streams and discard late private state;
+  newer snapshots cannot be replaced by older responses. Mutations retry native
+  canonical pending input; DM resume preserves its turn UUID and player message.
+- Review found late pre-restore narration. RoomUpdate now carries an explicit
+  timeline_reset_cursor from the same SQLite transaction as head/state. Controller
+  invalidates/aborts DM and ignores late callback/finally/refresh across that
+  boundary; a normal full snapshot preserves the current DM. The marker survives
+  clipping the reset event out of the retained 128 records.
+- Twenty focused frontend tests and the real restore/clipping Rust regression
+  passed; regenerated actual Rust wire fixture, TypeScript, architecture and
+  workspace compilation passed. Independent follow-up review closed the finding.
+  No production dependencies or local solo-state mutations were added.
+- Production room screen/root integration and browser/WebView verification remain
+  pending; focused checks do not establish a playable UI or two-device session.
