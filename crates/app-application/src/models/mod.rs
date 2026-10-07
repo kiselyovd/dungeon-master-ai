@@ -21,3 +21,5 @@ pub mod snapshot;
 pub mod room_host;
 
 pub mod room_client;
+
+pub mod room_transport;

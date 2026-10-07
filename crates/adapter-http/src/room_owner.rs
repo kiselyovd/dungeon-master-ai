@@ -116,3 +116,25 @@ async fn resume_guest(
 ) -> Result<Json<app_application::models::room_client::NativeGuestConnection>, HttpServiceError> {
     service.resume(request).await.map(Json)
 }
+
+pub fn transport_router(
+    service: Arc<dyn crate::services::NativeRoomTransportHttpService>,
+    token: String,
+) -> Result<Router, HttpServiceError> {
+    protect(
+        Router::new()
+            .route("/native/room-client/execute", post(execute_room))
+            .layer(DefaultBodyLimit::max(9 * 1024 * 1024))
+            .layer(Extension(service)),
+        token,
+    )
+}
+async fn execute_room(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomTransportHttpService>>,
+    Json(request): Json<app_application::models::room_transport::NativeRoomTransportRequest>,
+) -> Result<
+    Json<app_application::models::room_transport::NativeRoomTransportResult>,
+    HttpServiceError,
+> {
+    service.execute(request).await.map(Json)
+}

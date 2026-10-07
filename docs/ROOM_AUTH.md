@@ -392,3 +392,31 @@ This checkpoint does not prove a WebView invocation or a playable guest screen.
 Native action brokering, encrypted outbox, state/event subscription, room selection
 recovery, stable host restart and physical-device LAN acceptance remain pending.
 No production dependencies were added.
+
+
+## Native room operation broker
+
+`room_operation` IPC accepts a room UUID and a closed operation enum, including
+state/update reads, private party/proposal reads, character submission/approval,
+adventure, rest and combat. Native state supplies address, member and capability;
+renderer input cannot supply an arbitrary URL, HTTP method, header or identity.
+The protected loopback `/native/room-client/execute` route dispatches these finite
+operations. Host wildcard addresses map to loopback. Selection generation guards
+reject late responses after native lifecycle changes. Known remote and local
+owner rejection statuses remain available to the presentation adapter.
+
+Mutations persist exact semantic input before remote delivery in the existing
+secrets adapter. A single pending mutation per room/member prevents overwriting
+an uncertain result. `pending_action` exposes only the semantic operation for
+explicit retry. Retry keeps the same participant/nonce/input and permits refreshed
+native credentials or a rebound address. Reads remain available during recovery.
+Confirmed 4xx rejection (except 408/429) releases the pending slot before body
+read, including plain-text/oversized error bodies. Confirmed valid success also
+releases it; unavailable host, 5xx, timeout, rate limit or malformed success retain
+it. No redirect following, bounded timeout and 16 MiB response limit apply.
+
+Real HTTP regressions cover unavailable host, service recreation, exact retry,
+server duplicate receipt, guest own sheet, host-only rejection and plain-text
+413 cleanup. Native tests cover wildcard mapping, cached identity and strict
+unknown-field rejection. This does not yet cover DM streaming, subscriptions,
+production UI, real WebView calls or the complete two-device session.

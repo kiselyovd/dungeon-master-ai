@@ -340,6 +340,14 @@ pub trait NativeRoomClientHttpService: Send + Sync {
     ) -> Result<app_application::models::room_client::NativeGuestConnection, HttpServiceError>;
 }
 
+#[async_trait::async_trait]
+pub trait NativeRoomTransportHttpService: Send + Sync {
+    async fn execute(
+        &self,
+        request: app_application::models::room_transport::NativeRoomTransportRequest,
+    ) -> Result<app_application::models::room_transport::NativeRoomTransportResult, HttpServiceError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

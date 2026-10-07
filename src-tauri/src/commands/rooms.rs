@@ -12,6 +12,7 @@ pub struct NativeRoomState {
     host: Mutex<Option<NativeHostRoomGrant>>,
     guest: Mutex<Option<app_application::models::room_client::NativeGuestConnection>>,
     lifecycle: tokio::sync::Mutex<()>,
+    generation: std::sync::atomic::AtomicU64,
 }
 #[derive(serde::Serialize)]
 pub struct NativeHostRoomView {
@@ -57,6 +58,8 @@ impl NativeRoomState {
             .host
             .lock()
             .map_err(|_| "native_room_state_unavailable")? = Some(grant);
+        self.generation
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(view)
     }
     async fn apply_stop<F>(&self, operation: F) -> Result<(), String>
@@ -69,6 +72,8 @@ impl NativeRoomState {
             .host
             .lock()
             .map_err(|_| "native_room_state_unavailable")? = None;
+        self.generation
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(())
     }
 }
@@ -182,6 +187,9 @@ pub async fn join_room(
         .guest
         .lock()
         .map_err(|_| "native_room_state_unavailable")? = Some(connection);
+    state
+        .generation
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     Ok(view)
 }
 #[tauri::command]
@@ -217,7 +225,108 @@ pub async fn resume_room(
         .guest
         .lock()
         .map_err(|_| "native_room_state_unavailable")? = Some(connection);
+    state
+        .generation
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     Ok(view)
+}
+
+impl NativeRoomState {
+    fn transport_request(
+        &self,
+        room_id: Uuid,
+        operation: app_application::models::room_transport::NativeRoomOperation,
+    ) -> Result<app_application::models::room_transport::NativeRoomTransportRequest, String> {
+        use app_application::models::room_transport::NativeRoomTransportRequest;
+        if let Some(host) = self
+            .host
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?
+            .as_ref()
+            .filter(|host| host.room.room_id == room_id)
+        {
+            let mut address = host.address;
+            if address.ip().is_unspecified() {
+                address.set_ip(if address.is_ipv4() {
+                    std::net::Ipv4Addr::LOCALHOST.into()
+                } else {
+                    std::net::Ipv6Addr::LOCALHOST.into()
+                });
+            }
+            return Ok(NativeRoomTransportRequest {
+                address,
+                room_id,
+                member_id: host.member_id,
+                capability: host.capability.clone(),
+                operation,
+            });
+        }
+        let guest = self
+            .guest
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?;
+        let guest = guest
+            .as_ref()
+            .filter(|guest| guest.room.room_id == room_id)
+            .ok_or("native_room_not_connected")?;
+        Ok(NativeRoomTransportRequest {
+            address: guest.address,
+            room_id,
+            member_id: guest.member_id,
+            capability: guest.capability.clone(),
+            operation,
+        })
+    }
+}
+#[tauri::command]
+pub async fn room_operation(
+    app: AppHandle,
+    room_id: Uuid,
+    operation: app_application::models::room_transport::NativeRoomOperation,
+) -> Result<app_application::models::room_transport::NativeRoomTransportResult, String> {
+    use std::sync::atomic::Ordering;
+    let state = app.state::<NativeRoomState>();
+    let (request, generation) = {
+        let _lifecycle = state.lifecycle.lock().await;
+        (
+            state.transport_request(room_id, operation)?,
+            state.generation.load(Ordering::SeqCst),
+        )
+    };
+    let (port, token) = owner_connection(&app)?;
+    let mut response = client()?
+        .post(format!(
+            "http://127.0.0.1:{port}/native/room-client/execute"
+        ))
+        .bearer_auth(token)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|_| "native_room_request_failed")?;
+    let owner_status = response.status();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "native_room_response_invalid")?
+    {
+        if bytes.len() + chunk.len() > 17 * 1024 * 1024 {
+            return Err("native_room_response_invalid".into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let result = if owner_status.is_success() {
+        serde_json::from_slice(&bytes).map_err(|_| "native_room_response_invalid")?
+    } else {
+        app_application::models::room_transport::NativeRoomTransportResult {
+            status: owner_status.as_u16(),
+            body: Some(serde_json::from_slice(&bytes).map_err(|_| "native_room_response_invalid")?),
+        }
+    };
+    if state.generation.load(Ordering::SeqCst) != generation {
+        return Err("native_room_selection_changed".into());
+    }
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -261,6 +370,42 @@ mod tests {
         assert!(view.get("invitation").is_none());
         assert!(!view.to_string().contains(&connection.capability));
         assert_eq!(view["join_id"], serde_json::json!(connection.join_id));
+    }
+    #[test]
+    fn native_transport_uses_cached_identity_and_loopback_for_wildcard_host() {
+        let state = NativeRoomState::default();
+        let mut host = grant(Uuid::new_v4());
+        host.address = "0.0.0.0:4141".parse().unwrap();
+        let room = host.room.room_id;
+        let member = host.member_id;
+        *state.host.lock().unwrap() = Some(host);
+        let request = state
+            .transport_request(
+                room,
+                app_application::models::room_transport::NativeRoomOperation::State {},
+            )
+            .unwrap();
+        assert_eq!(
+            request.address,
+            "127.0.0.1:4141".parse::<SocketAddr>().unwrap()
+        );
+        assert_eq!(request.member_id, member);
+        assert!(state
+            .transport_request(
+                Uuid::new_v4(),
+                app_application::models::room_transport::NativeRoomOperation::State {}
+            )
+            .is_err());
+        for value in [
+            serde_json::json!({"kind":"state","address":"127.0.0.1:1"}),
+            serde_json::json!({"kind":"state","member_id":Uuid::new_v4()}),
+            serde_json::json!({"kind":"arbitrary","path":"/settings"}),
+        ] {
+            assert!(serde_json::from_value::<
+                app_application::models::room_transport::NativeRoomOperation,
+            >(value)
+            .is_err());
+        }
     }
     fn grant(room: Uuid) -> NativeHostRoomGrant {
         NativeHostRoomGrant {

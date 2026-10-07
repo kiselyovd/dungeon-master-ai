@@ -152,10 +152,14 @@ pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow:
     ));
     let client = app_server::native_room_client::service(state.clone())
         .map_err(|_| anyhow::anyhow!("native guest service configuration invalid"))?;
+    let transport = app_server::native_room_transport::service(state.clone())
+        .map_err(|_| anyhow::anyhow!("native room transport configuration invalid"))?;
     let service = app_server::http_services::native_room_host_http_service(state, rooms, listener);
     let host = adapter_http::room_owner::router(service, token.clone())
         .map_err(|_| anyhow::anyhow!("native room owner configuration invalid"))?;
-    let guest = adapter_http::room_owner::client_router(client, token)
+    let guest = adapter_http::room_owner::client_router(client, token.clone())
         .map_err(|_| anyhow::anyhow!("native guest owner configuration invalid"))?;
-    Ok(host.merge(guest))
+    let broker = adapter_http::room_owner::transport_router(transport, token)
+        .map_err(|_| anyhow::anyhow!("native transport owner configuration invalid"))?;
+    Ok(host.merge(guest).merge(broker))
 }

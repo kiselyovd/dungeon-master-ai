@@ -1486,3 +1486,130 @@ async fn native_guest_resumes_after_stronghold_reopening_and_rejects_revocation(
     server.abort();
     std::fs::remove_file(vault_path).unwrap();
 }
+
+#[tokio::test]
+async fn native_transport_scopes_private_state_and_recovers_exact_pending_action() {
+    use app_application::models::room_transport::*;
+    let f = fixture().await;
+    let reserved = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = reserved.local_addr().unwrap();
+    drop(reserved);
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let service = app_server::native_room_transport::service(local.clone()).unwrap();
+    let revision = f
+        .store
+        .load_current(f.campaign)
+        .await
+        .unwrap()
+        .campaign
+        .revision
+        .0;
+    let request = NativeRoomTransportRequest {
+        address,
+        room_id: f.host.room.room_id,
+        member_id: f.host.member_id,
+        capability: f.host.capability.expose().into(),
+        operation: NativeRoomOperation::Rest {
+            request_id: "transport-wait".into(),
+            expected_revision: revision,
+            intent: app_application::models::rest::RestIntent::Wait { minutes: 1 },
+        },
+    };
+    assert!(service.execute(request.clone()).await.is_err());
+    let mut read = request.clone();
+    read.operation = NativeRoomOperation::PendingAction {};
+    let pending = service.execute(read.clone()).await.unwrap().body.unwrap();
+    assert_eq!(pending["request_id"], "transport-wait");
+    assert!(!pending.to_string().contains(f.host.capability.expose()));
+    let mut changed = request.clone();
+    changed.operation = NativeRoomOperation::Rest {
+        request_id: "another-wait".into(),
+        expected_revision: revision,
+        intent: app_application::models::rest::RestIntent::Wait { minutes: 1 },
+    };
+    assert!(matches!(
+        service.execute(changed).await,
+        Err(adapter_http::services::HttpServiceError::Conflict {
+            code: "native_room_action_pending"
+        })
+    ));
+    // Recreate the client service as a native backend would after interruption.
+    let service = app_server::native_room_transport::service(local).unwrap();
+    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let result = service.execute(request.clone()).await.unwrap();
+    assert_eq!(result.status, 200, "{:?}", result.body);
+    assert!(service.execute(read).await.unwrap().body.is_none());
+    let replay = service.execute(request).await.unwrap();
+    assert_eq!(replay.status, 200);
+    assert_eq!(replay.body.unwrap()["duplicate"], true);
+    let guest = NativeRoomTransportRequest {
+        address,
+        room_id: f.guest.room.room_id,
+        member_id: f.guest.member_id,
+        capability: f.guest.capability.expose().into(),
+        operation: NativeRoomOperation::Party {},
+    };
+    let own = service.execute(guest.clone()).await.unwrap();
+    assert_eq!(own.status, 200);
+    let own = own.body.unwrap();
+    assert_eq!(own["own_character"]["name"], "Tara");
+    assert!(own.get("characters").is_none());
+    // Host-only operations retain the remote rejection status for the renderer.
+    let mut rejected = guest;
+    rejected.operation = NativeRoomOperation::PendingProposals {};
+    assert_eq!(service.execute(rejected).await.unwrap().status, 401);
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_transport_plain_text_rejection_releases_pending_mutation() {
+    use app_application::models::room_transport::*;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = axum::Router::new().route(
+        "/rooms/{room}/rest",
+        axum::routing::post(|| async {
+            (
+                axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+                "plain rejection, never expose this raw text",
+            )
+        }),
+    );
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let service = app_server::native_room_transport::service(local).unwrap();
+    let mut request = NativeRoomTransportRequest {
+        address,
+        room_id: Uuid::new_v4(),
+        member_id: Uuid::new_v4(),
+        capability: RoomSecret::generate().expose().into(),
+        operation: NativeRoomOperation::Rest {
+            request_id: "rejected".into(),
+            expected_revision: 0,
+            intent: app_application::models::rest::RestIntent::Wait { minutes: 1 },
+        },
+    };
+    let result = service.execute(request.clone()).await.unwrap();
+    assert_eq!(result.status, 413);
+    assert_eq!(result.body.unwrap()["code"], "native_room_remote_rejected");
+    request.operation = NativeRoomOperation::PendingAction {};
+    assert!(service
+        .execute(request.clone())
+        .await
+        .unwrap()
+        .body
+        .is_none());
+    request.operation = NativeRoomOperation::Rest {
+        request_id: "corrected".into(),
+        expected_revision: 0,
+        intent: app_application::models::rest::RestIntent::Wait { minutes: 2 },
+    };
+    assert_eq!(service.execute(request).await.unwrap().status, 413);
+    server.abort();
+}

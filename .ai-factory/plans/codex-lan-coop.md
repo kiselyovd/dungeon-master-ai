@@ -403,3 +403,33 @@ approval and shared play screen. One shared AI DM handles narration/NPCs; each
 human controls their own accepted hero. Verify the real production root, lint,
 production build and browser/native smoke. Full party-session/restart and physical
 LAN evidence remain separate acceptance gates.
+
+
+### Native operation broker (local verification)
+
+Closed native IPC operations now resolve cached room/member/capability in Rust;
+renderer input cannot choose destination, headers or identity. Protected loopback
+broker maps only known room state/party/proposal/rest/adventure/combat endpoints.
+Host wildcard binding becomes a loopback destination for its local client. Native
+selection generations reject late results. Remote and owner error status remains
+available to distinguish pending mutation, denial and stale revision.
+
+Canonical mutations are saved in the configured secrets store before remote send.
+One unknown pending mutation per participant prevents replacement by another;
+PendingAction returns only its operation for explicit retry. Definitive acceptance
+or rejection releases the slot; network/5xx/timeout/rate-limit uncertainty retains
+it. Retry uses the same semantic operation with current native credentials and
+address. Reads remain available during recovery. No automatic solo fallback.
+
+Workspace compilation passed offline. Real HTTP integration passed unavailable
+host -> service recreation -> exact retry -> duplicate receipt, guest private
+party and host-only rejection. Four native mapping/lifecycle/secrecy tests and all 19 room DM/native integration
+cases passed. Independent review found a plain-text 413 outbox issue; cleanup now
+occurs before reading definitive rejection bodies and the regression passed.
+Strict read-variant DTO tests also caught and fixed unknown-field acceptance.
+Architecture and workspace all-target/all-feature Clippy passed. The first
+architecture invocation lacked Cargo in PATH; the explicit toolchain rerun passed.
+Final focused regressions passed after the test assertions were strengthened.
+Full consolidated gates passed for this slice, including workspace Rust and
+155 frontend files/1042 tests. DM streaming/subscriptions, UI and actual
+WebView/two-device acceptance remain open.
