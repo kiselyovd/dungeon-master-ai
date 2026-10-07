@@ -7,34 +7,110 @@ use app_application::ports::repositories::RepositoryError;
 use sqlx::{Row, Sqlite, Transaction};
 use uuid::Uuid;
 
+type Sheets = std::collections::BTreeMap<Uuid, serde_json::Value>;
+async fn sheets(
+    tx: &mut Transaction<'_, Sqlite>,
+    campaign: CampaignId,
+    session: Uuid,
+) -> Result<(Uuid, Sheets), RepositoryError> {
+    // Raw rows avoid capture_projection -> recover_loadouts recursion.
+    let root=sqlx::query("SELECT cc.character_id,cc.character_json FROM campaign_characters cc JOIN sessions s ON s.campaign_id=cc.campaign_id WHERE cc.campaign_id=?1 AND s.id=?2 AND s.id=(SELECT latest.id FROM sessions latest WHERE latest.campaign_id=?1 ORDER BY CAST(latest.created_at AS INTEGER) DESC,latest.id DESC LIMIT 1)")
+        .bind(campaign.0.to_string()).bind(session.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_combat_party"))?.ok_or_else(||repository_error("combat_hero_missing"))?;
+    let root_id = Uuid::parse_str(&root.get::<String, _>("character_id"))
+        .map_err(|_| repository_error("combat_hero_identity_mismatch"))?;
+    let mut result = Sheets::new();
+    let mut rows = vec![root];
+    rows.extend(sqlx::query("SELECT character_id,character_json FROM party_characters WHERE campaign_id=?1 ORDER BY rowid").bind(campaign.0.to_string()).fetch_all(&mut **tx).await.map_err(|_|repository_error("read_combat_party"))?);
+    for row in rows {
+        let id = Uuid::parse_str(&row.get::<String, _>("character_id"))
+            .map_err(|_| repository_error("combat_hero_identity_mismatch"))?;
+        let mut sheet: serde_json::Value =
+            serde_json::from_str(&row.get::<String, _>("character_json"))
+                .map_err(|_| repository_error("decode_combat_party"))?;
+        if id.is_nil()
+            || !app_application::models::campaign_state::valid_character_document(&sheet)
+            || !app_application::models::campaign_state::within_character_budget(&sheet)
+        {
+            return Err(repository_error("combat_hero_invalid"));
+        }
+        sheet["characterId"] = serde_json::json!(id);
+        if result.insert(id, sheet).is_some() {
+            return Err(repository_error("combat_hero_identity_mismatch"));
+        }
+    }
+    if result.len() > app_application::models::party::MAX_PARTY_MEMBERS {
+        return Err(repository_error("combat_party_invalid"));
+    }
+    Ok((root_id, result))
+}
+fn verify_bindings(projection: &CombatProjection, sheets: &Sheets) -> Result<(), RepositoryError> {
+    let bound = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter_map(|actor| actor.character_id.map(|id| id.0))
+        .collect::<Vec<_>>();
+    let identities = bound
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    if bound.len() != sheets.len() || identities != sheets.keys().copied().collect() {
+        return Err(repository_error("combat_hero_identity_mismatch"));
+    }
+    Ok(())
+}
+async fn persist_sheet(
+    tx: &mut Transaction<'_, Sqlite>,
+    campaign: CampaignId,
+    root: Uuid,
+    id: Uuid,
+    sheet: serde_json::Value,
+) -> Result<(), RepositoryError> {
+    if id == root {
+        return crate::campaign_state::persist_character(tx, campaign, id, sheet).await;
+    }
+    let updated = sqlx::query(
+        "UPDATE party_characters SET character_json=?3 WHERE campaign_id=?1 AND character_id=?2",
+    )
+    .bind(campaign.0.to_string())
+    .bind(id.to_string())
+    .bind(sheet.to_string())
+    .execute(&mut **tx)
+    .await
+    .map_err(|_| repository_error("write_combat_party"))?;
+    if updated.rows_affected() != 1 {
+        return Err(repository_error("combat_hero_identity_mismatch"));
+    }
+    Ok(())
+}
 pub(crate) async fn recover_loadouts(
     tx: &mut Transaction<'_, Sqlite>,
     projection: &mut CombatProjection,
 ) -> Result<(), RepositoryError> {
-    let Some(scope) = &projection.campaign_scope else {
+    let Some(scope) = projection.campaign_scope.clone() else {
         return Ok(());
     };
-    if projection.snapshot.combatants.iter().all(|actor| {
-        actor.loadout.is_some() && (actor.character_id.is_none() || actor.casting.is_some())
-    }) {
-        return Ok(());
+    let (root, sheets) = sheets(tx, CampaignId(scope.campaign_id), scope.session_id).await?;
+    if root != scope.character_id {
+        return Err(repository_error("combat_hero_identity_mismatch"));
     }
-    let raw: Option<String> = sqlx::query_scalar("SELECT cc.character_json FROM campaign_characters cc JOIN sessions s ON s.campaign_id=cc.campaign_id WHERE cc.campaign_id=?1 AND cc.character_id=?2 AND s.id=?3")
-        .bind(scope.campaign_id.to_string()).bind(scope.character_id.to_string()).bind(scope.session_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_legacy_combat_sheet"))?;
-    let sheet = serde_json::from_str(&raw.ok_or_else(|| repository_error("combat_hero_missing"))?)
-        .map_err(|_| repository_error("decode_legacy_combat_sheet"))?;
-    app_application::combat::hero::recover_bound_loadouts(scope.character_id, &sheet, projection)
-        .map_err(repository_error)
+    verify_bindings(projection, &sheets)?;
+    app_application::combat::hero::recover_party_loadouts(
+        &sheets
+            .iter()
+            .map(|(id, sheet)| (*id, sheet))
+            .collect::<Vec<_>>(),
+        projection,
+    )
+    .map_err(repository_error)
 }
-
 pub(crate) async fn bind_start(
     tx: &mut Transaction<'_, Sqlite>,
     session_id: Uuid,
     projection: &mut CombatProjection,
     advance_revision: bool,
 ) -> Result<(), RepositoryError> {
-    let campaign:Option<String>=sqlx::query_scalar("SELECT s.campaign_id FROM sessions s JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id WHERE s.id=?1")
-        .bind(session_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_combat_hero_campaign"))?;
+    let campaign:Option<String>=sqlx::query_scalar("SELECT s.campaign_id FROM sessions s JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id WHERE s.id=?1").bind(session_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_combat_hero_campaign"))?;
     let Some(campaign) = campaign else {
         return Ok(());
     };
@@ -55,31 +131,39 @@ pub(crate) async fn bind_start(
     if active {
         return Err(repository_error("combat_already_active"));
     }
-    let character_id = current
-        .character_id
-        .ok_or_else(|| repository_error("combat_hero_missing"))?;
-    app_application::combat::hero::bind_hero(
-        character_id,
-        &current.projection.character,
+    let (root, mut sheets) = sheets(tx, campaign_id, session_id).await?;
+    let mut ordered = vec![(root, &sheets[&root])];
+    ordered.extend(
+        sheets
+            .iter()
+            .filter(|(id, _)| **id != root)
+            .map(|(id, sheet)| (*id, sheet)),
+    );
+    app_application::combat::hero::bind_party(
+        &ordered,
         projection,
         Uuid::new_v4().as_u128() as u64,
     )
     .map_err(repository_error)?;
-    let hero = projection
+    for hero in projection
         .snapshot
         .combatants
         .iter()
-        .find(|actor| actor.character_id.is_some_and(|id| id.0 == character_id))
-        .ok_or_else(|| repository_error("combat_hero_missing"))?;
-    let mut sheet = current.projection.character.clone();
-    apply_hero_resources(&mut sheet, hero)?;
-    crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
+        .filter(|actor| actor.character_id.is_some())
+    {
+        let id = hero.character_id.unwrap().0;
+        let mut sheet = sheets
+            .remove(&id)
+            .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
+        apply_hero_resources(&mut sheet, hero)?;
+        persist_sheet(tx, campaign_id, root, id, sheet).await?;
+    }
     projection.campaign_scope = Some(if advance_revision {
         advance(
             tx,
             campaign_id,
             session_id,
-            character_id,
+            root,
             &format!("combat:{}:start", projection.encounter_id),
         )
         .await?
@@ -87,67 +171,69 @@ pub(crate) async fn bind_start(
         CombatCampaignScope {
             campaign_id: campaign_id.0,
             session_id,
-            character_id,
+            character_id: root,
             revision: current.campaign.revision.0,
         }
     });
     Ok(())
 }
-
 pub(crate) async fn sync_hero(
     tx: &mut Transaction<'_, Sqlite>,
     projection: &mut CombatProjection,
 ) -> Result<(), RepositoryError> {
-    let heroes = projection
+    if !projection
         .snapshot
         .combatants
         .iter()
-        .filter(|actor| actor.character_id.is_some())
-        .collect::<Vec<_>>();
-    if heroes.is_empty() {
+        .any(|actor| actor.character_id.is_some())
+    {
         if projection.campaign_scope.is_some() {
             return Err(repository_error("combat_hero_binding_missing"));
         }
         return Ok(());
     }
-    if heroes.len() != 1 {
-        return Err(repository_error("combat_multiple_hero_bindings"));
-    }
-    let hero = heroes[0];
-    let character_id = hero
-        .character_id
-        .ok_or_else(|| repository_error("combat_hero_missing"))?
-        .0;
-    let row=sqlx::query("SELECT ce.session_id,ce.round,s.campaign_id,cc.character_json FROM combat_encounters ce JOIN sessions s ON s.id=ce.session_id JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id AND cc.character_id=?2 WHERE ce.id=?1")
-        .bind(projection.encounter_id.to_string()).bind(character_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_bound_combat_sheet"))?.ok_or_else(||repository_error("combat_hero_identity_mismatch"))?;
-    let session_id = Uuid::parse_str(&row.get::<String, _>("session_id"))
+    let row=sqlx::query("SELECT ce.session_id,ce.round,s.campaign_id FROM combat_encounters ce JOIN sessions s ON s.id=ce.session_id WHERE ce.id=?1").bind(projection.encounter_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_bound_combat_sheet"))?.ok_or_else(||repository_error("combat_hero_identity_mismatch"))?;
+    let session = Uuid::parse_str(&row.get::<String, _>("session_id"))
         .map_err(|_| repository_error("combat_session_invalid"))?;
-    let campaign_id = CampaignId(
+    let campaign = CampaignId(
         Uuid::parse_str(&row.get::<String, _>("campaign_id"))
             .map_err(|_| repository_error("combat_campaign_invalid"))?,
     );
-    let mut sheet: serde_json::Value =
-        serde_json::from_str(&row.get::<String, _>("character_json"))
-            .map_err(|_| repository_error("decode_bound_combat_sheet"))?;
-    if hero.current_hp < 0
-        || hero.current_hp > hero.max_hp
-        || sheet["hpMax"].as_i64() != Some(hero.max_hp as i64)
+    let (root, mut sheets) = sheets(tx, campaign, session).await?;
+    verify_bindings(projection, &sheets)?;
+    for hero in projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter(|actor| actor.character_id.is_some())
     {
-        return Err(repository_error("combat_hero_stats_changed"));
+        let id = hero.character_id.unwrap().0;
+        let mut sheet = sheets
+            .remove(&id)
+            .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
+        if hero.current_hp < 0
+            || hero.current_hp > hero.max_hp
+            || sheet["hpMax"].as_i64() != Some(hero.max_hp as i64)
+        {
+            return Err(repository_error("combat_hero_stats_changed"));
+        }
+        apply_hero_resources(&mut sheet, hero)?;
+        persist_sheet(tx, campaign, root, id, sheet).await?;
     }
-    apply_hero_resources(&mut sheet, hero)?;
     let previous_round = u32::try_from(row.get::<i64, _>("round"))
         .map_err(|_| repository_error("combat_round_invalid"))?;
-    let elapsed =
-        app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot);
-    crate::rest::advance_clock(tx, SessionId(session_id), elapsed).await?;
-    crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
+    crate::rest::advance_clock(
+        tx,
+        SessionId(session),
+        app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot),
+    )
+    .await?;
     projection.campaign_scope = Some(
         advance(
             tx,
-            campaign_id,
-            session_id,
-            character_id,
+            campaign,
+            session,
+            root,
             &format!("combat:{}:{}", projection.encounter_id, projection.revision),
         )
         .await?,

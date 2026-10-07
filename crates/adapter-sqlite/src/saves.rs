@@ -867,12 +867,17 @@ async fn restore_combat(
         serde_json::from_value(value.clone())
             .map_err(|_| repository_error("decode_snapshot_combat_projection"))?;
     if let Some(scope) = &projection.campaign_scope {
-        app_application::combat::hero::recover_bound_loadouts(
-            scope.character_id,
-            &snapshot.projection.character,
-            &mut projection,
-        )
-        .map_err(repository_error)?;
+        let mut sheets = vec![(scope.character_id, &snapshot.projection.character)];
+        if let Some(party) = &snapshot.projection.party {
+            sheets.extend(
+                party
+                    .members
+                    .iter()
+                    .map(|member| (member.character_id, &member.character)),
+            );
+        }
+        app_application::combat::hero::recover_party_loadouts(&sheets, &mut projection)
+            .map_err(repository_error)?;
     }
     let previous: Option<i64> =
         sqlx::query_scalar("SELECT revision FROM combat_encounters WHERE id=?1")

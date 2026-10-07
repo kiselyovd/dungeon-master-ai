@@ -44,21 +44,60 @@ pub fn bind_hero(
     projection: &mut crate::models::combat::CombatProjection,
     seed: u64,
 ) -> Result<(), &'static str> {
+    bind_party(&[(character_id, sheet)], projection, seed)
+}
+
+pub fn bind_party(
+    sheets: &[(Uuid, &Value)],
+    projection: &mut crate::models::combat::CombatProjection,
+    seed: u64,
+) -> Result<(), &'static str> {
     use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
     use app_domain::{
         dice::{roll_one, Die},
         rng::SeededRng,
     };
-    let mut hero = hero_combatant(character_id, sheet)?;
-    if projection.authored.is_some() {
-        hero.position = Position { x: 3, y: 3 };
+    let ids = sheets
+        .iter()
+        .map(|(id, _)| *id)
+        .collect::<std::collections::BTreeSet<_>>();
+    if sheets.is_empty()
+        || sheets.len() > app_domain::party::MAX_PARTY_MEMBERS
+        || ids.len() != sheets.len()
+    {
+        return Err("combat_party_invalid");
     }
-    hero.initiative_roll = roll_one(Die::D20, &mut SeededRng::from_seed(seed)) + hero.dex_mod;
+    let mut heroes = Vec::new();
+    for (index, (character_id, sheet)) in sheets.iter().enumerate() {
+        let mut hero = hero_combatant(*character_id, sheet)?;
+        hero.position = if projection.authored.is_some() {
+            [
+                Position { x: 3, y: 3 },
+                Position { x: 3, y: 2 },
+                Position { x: 3, y: 4 },
+                Position { x: 2, y: 3 },
+            ][index]
+        } else {
+            [
+                Position { x: 8, y: 8 },
+                Position { x: 7, y: 8 },
+                Position { x: 8, y: 7 },
+                Position { x: 7, y: 7 },
+            ][index]
+        };
+        hero.initiative_roll = roll_one(
+            Die::D20,
+            &mut SeededRng::from_seed(seed.wrapping_add(index as u64)),
+        ) + hero.dex_mod;
+        heroes.push(hero);
+    }
     let mut npcs = projection
         .snapshot
         .combatants
         .iter()
-        .filter(|actor| actor.id.0 != character_id)
+        .filter(|actor| {
+            !ids.contains(&actor.id.0) && actor.character_id.is_none_or(|id| !ids.contains(&id.0))
+        })
         .cloned()
         .collect::<Vec<_>>();
     for (index, npc) in npcs.iter_mut().enumerate() {
@@ -88,7 +127,7 @@ pub fn bind_hero(
             npc.dex_mod = entry.dex_tiebreak;
         }
     }
-    npcs.insert(0, hero);
+    npcs.splice(0..0, heroes);
     let order = InitiativeOrder::build(
         npcs.iter()
             .map(|actor| InitiativeEntry {
@@ -140,11 +179,42 @@ pub fn recover_bound_loadouts(
     sheet: &Value,
     projection: &mut crate::models::combat::CombatProjection,
 ) -> Result<(), &'static str> {
+    recover_party_loadouts(&[(character_id, sheet)], projection)
+}
+
+pub fn recover_party_loadouts(
+    sheets: &[(Uuid, &Value)],
+    projection: &mut crate::models::combat::CombatProjection,
+) -> Result<(), &'static str> {
+    let bound = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter_map(|actor| actor.character_id.map(|id| id.0))
+        .collect::<Vec<_>>();
+    let expected = sheets
+        .iter()
+        .map(|(id, _)| *id)
+        .collect::<std::collections::BTreeSet<_>>();
+    if expected.len() != sheets.len()
+        || bound.len() != sheets.len()
+        || bound
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            != expected
+    {
+        return Err("combat_hero_identity_mismatch");
+    }
+    let sheets = sheets
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeMap<_, _>>();
     for actor in &mut projection.snapshot.combatants {
         if let Some(owner) = actor.character_id {
-            if owner.0 != character_id {
-                return Err("combat_hero_identity_mismatch");
-            }
+            let sheet = sheets
+                .get(&owner.0)
+                .ok_or("combat_hero_identity_mismatch")?;
             if actor.casting.is_none() {
                 actor.casting = Some(casting_from_sheet(sheet)?);
             }
@@ -153,9 +223,9 @@ pub fn recover_bound_loadouts(
             continue;
         }
         actor.loadout = Some(if let Some(owner) = actor.character_id {
-            if owner.0 != character_id {
-                return Err("combat_hero_identity_mismatch");
-            }
+            let sheet = sheets
+                .get(&owner.0)
+                .ok_or("combat_hero_identity_mismatch")?;
             loadout_from_sheet(sheet)?
         } else {
             app_domain::combat::loadout::CombatLoadout {

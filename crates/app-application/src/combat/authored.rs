@@ -126,24 +126,29 @@ pub fn finalize(projection: &mut CombatProjection, retreat: bool) -> Option<Defe
 }
 
 pub fn recover_defeated_hero(projection: &mut CombatProjection) -> Result<(), &'static str> {
-    let hero = projection
+    let heroes = projection
         .snapshot
         .combatants
         .iter_mut()
-        .find(|actor| actor.character_id.is_some())
-        .ok_or("authored_hero_missing")?;
-    if hero.is_dead {
+        .filter(|actor| actor.character_id.is_some())
+        .collect::<Vec<_>>();
+    if heroes.is_empty() {
+        return Err("authored_hero_missing");
+    }
+    if heroes.iter().any(|hero| hero.is_dead) {
         return Err("authored_hero_dead");
     }
-    if hero.current_hp == 0 {
-        hero.apply_healing(1);
-        let mut events = ResultEvents::default();
-        events.healing.push(HealingApplication {
-            target: hero.id,
-            amount: 1,
-            new_hp: hero.current_hp,
-        });
-        projection.events.push(events);
+    for hero in heroes {
+        if hero.current_hp == 0 {
+            hero.apply_healing(1);
+            let mut events = ResultEvents::default();
+            events.healing.push(HealingApplication {
+                target: hero.id,
+                amount: 1,
+                new_hp: hero.current_hp,
+            });
+            projection.events.push(events);
+        }
     }
     Ok(())
 }

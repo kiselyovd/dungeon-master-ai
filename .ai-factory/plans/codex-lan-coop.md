@@ -89,3 +89,23 @@ focused changed-content assertion passed after the full Rust run. Independent
 review found no actionable issue. Original 32 source hashes remain unchanged.
 The next step removes the verified single-hero restriction in combat persistence;
 production LAN/native/gameplay and whole-goal acceptance remain pending.
+
+Party combat progress: accepted heroes now bind together with unique tokens and
+tiles. Persistence checks the exact accepted identity set and writes all host/guest
+HP/resources with one clock/revision/receipt transaction. NPC turns yield to each
+player, including a four-player same-name scenario. Legacy profile restoration
+uses all snapshot sheets, and authored defeat rescue applies to every hero.
+Six focused SQLite group cases plus solo weapon/spell/hero regressions and two
+application group cases pass. Independent review/full consolidated collection is
+in progress. Room command ownership, shared client delivery and LAN/native
+acceptance remain pending; no complete co-op session is claimed. See
+docs/PARTY_COMBAT.md for the scope and stable host-anchor compatibility contract.
+
+Party combat checkpoint collection: full consolidated gates passed (workspace
+Rust, architecture/static/Clippy and 1042 frontend tests). Six SQLite group cases
+and two application group cases passed, alongside unchanged solo regressions.
+Independent read-only review found no actionable backend issue. The single-token
+and single-hero authored recovery failures were reproduced RED before repair.
+All 32 original source hashes remain unchanged. Local checkpoint only; the next
+step is authenticated own-actor room commands with lease checks at commit, then
+shared delivery/reconnect and native/LAN acceptance. Whole-goal work stays active.
