@@ -142,6 +142,33 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn rest_status(
+        &self,
+        id: Uuid,
+    ) -> Result<app_application::models::rest::RestStatus, HttpServiceError> {
+        app_application::rest::RestCampaign::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .status(CampaignId(id))
+        .await
+        .map_err(rest_error)
+    }
+    async fn rest(
+        &self,
+        command: app_application::models::rest::RestCommand,
+    ) -> Result<app_application::models::rest::RestResult, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        app_application::rest::RestCampaign::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .execute(command)
+        .await
+        .map_err(rest_error)
+    }
     async fn adventure_action(
         &self,
         command: app_application::models::adventure::AdventureCommand,
@@ -295,6 +322,39 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
                 code: "campaign_operation_failed",
             }
         }
+    }
+}
+
+fn rest_error(error: app_application::ports::repositories::RepositoryError) -> HttpServiceError {
+    use app_application::ports::repositories::RepositoryError;
+    match error {
+        RepositoryError::NotFound => HttpServiceError::NotFound,
+        RepositoryError::Conflict { .. } | RepositoryError::RevisionConflict { .. } => {
+            HttpServiceError::Conflict {
+                code: "campaign_revision_conflict",
+            }
+        }
+        RepositoryError::Operation {
+            code: "rest_causation_mismatch",
+            ..
+        } => HttpServiceError::Conflict {
+            code: "rest_causation_mismatch",
+        },
+        RepositoryError::Operation {
+            code:
+                code @ ("rest_intention_invalid"
+                | "rest_character_required"
+                | "rest_character_invalid"
+                | "rest_resources_invalid"
+                | "rest_identity_mismatch"
+                | "rest_unsafe"
+                | "rest_character_downed"
+                | "rest_too_soon"),
+            ..
+        } => HttpServiceError::UnprocessableEntity { code },
+        _ => HttpServiceError::Internal {
+            code: "rest_operation_failed",
+        },
     }
 }
 

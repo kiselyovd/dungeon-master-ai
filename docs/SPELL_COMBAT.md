@@ -10,8 +10,10 @@ Application mapping validates each selection against its class and spell level
 in the existing catalog. The domain owns attack bonuses, save DCs, ranges,
 effects and slot consumption. Initial combat effects cover Fire Bolt, Eldritch
 Blast, Sacred Flame, Cure Wounds, Healing Word and Magic Missile. Current slot
-initialization covers first-level slots; higher slots and Pact Magic recharge
-remain explicit follow-up work.
+initialization originally covered first-level slots. The subsequent
+[rest/resource vertical](REST_RESOURCES.md) adds full, half-caster and Pact slot
+tables plus Short/Long recharge. The six prepared effects remain the initial
+implemented spell subset.
 
 Rules were checked against the official
 [SRD5.2.1](https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf):

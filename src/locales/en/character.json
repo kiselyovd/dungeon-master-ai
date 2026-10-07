@@ -2,37 +2,31 @@
   "title": "Character Sheet",
   "close_aria": "Close character sheet",
   "fab_aria": "Open character sheet for {{name}}",
-
   "section_combat": "Combat",
   "section_saving_throws": "Saving Throws",
   "section_abilities": "Ability Scores",
   "section_skills": "Skills",
   "section_inventory": "Inventory",
-
   "experience_label": "Experience",
   "experience_value": "{{xp}} / {{next}}",
-
   "stat_hp": "Hit Points",
   "stat_ac": "Armor Class",
   "stat_initiative": "Initiative",
   "stat_speed": "Speed",
   "stat_speed_value": "{{ft}} ft",
   "stat_proficiency": "Proficiency",
-
   "ability_str": "STR",
   "ability_dex": "DEX",
   "ability_con": "CON",
   "ability_int": "INT",
   "ability_wis": "WIS",
   "ability_cha": "CHA",
-
   "save_str": "Strength",
   "save_dex": "Dexterity",
   "save_con": "Constitution",
   "save_int": "Intelligence",
   "save_wis": "Wisdom",
   "save_cha": "Charisma",
-
   "skill_acrobatics": "Acrobatics",
   "skill_athletics": "Athletics",
   "skill_arcana": "Arcana",
@@ -45,20 +39,16 @@
   "skill_persuasion": "Persuasion",
   "skill_stealth": "Stealth",
   "skill_survival": "Survival",
-
   "meta_race_class_level": "{{race}} - {{className}} - Lvl {{level}}",
   "meta_race_subclass_level": "{{race}} - {{className}} ({{subclass}}) - Lvl {{level}}",
   "meta_background_alignment": "{{background}} background - {{alignment}}",
-
   "class_fighter": "Fighter",
   "class_wizard": "Wizard",
   "class_rogue": "Rogue",
   "class_cleric": "Cleric",
-
   "empty_title": "No character yet",
   "empty_desc": "Run the onboarding wizard to create your hero.",
   "empty_action": "Go to onboarding",
-
   "create_new_character": "Create new character",
   "catalog": {
     "species": {
@@ -92,5 +82,35 @@
       "sage": "Sage",
       "soldier": "Soldier"
     }
+  },
+  "rest_title": "Rest",
+  "rest_close": "Close",
+  "rest_retry": "Retry the same rest",
+  "rest_confirm": "Confirm",
+  "rest_loading": "Loading resources…",
+  "rest_hp": "HP: {{hp}} / {{max}}",
+  "rest_hit_dice": "Hit dice: {{remaining}}d{{die}} remaining",
+  "rest_elapsed": "Adventure time: {{hours}}h {{minutes}}m",
+  "rest_slots": "Level {{level}} slots: {{remaining}} / {{maximum}}",
+  "rest_kind": "Activity",
+  "rest_short": "Short rest · 1 hour",
+  "rest_long": "Long rest · 8 hours",
+  "rest_wait": "Wait",
+  "rest_dice_select": "Hit dice to spend",
+  "rest_wait_select": "Time to wait",
+  "rest_wait_hours": "{{hours}} hours",
+  "rest_cooldown": "Another long rest can start in {{hours}} hours.",
+  "rest_unsafe": "Return to a safe location before resting.",
+  "rest_combat": "Finish combat before resting.",
+  "rest_downed": "A character at 0 HP needs help before resting.",
+  "rest_completed": "Rest completed. Resources and time saved.",
+  "rest_pending": "The result is unconfirmed. Retry the same request to recover it safely.",
+  "rest_errors": {
+    "generic": "Could not confirm the rest. Try again.",
+    "rest_too_soon": "It is too soon for another long rest.",
+    "rest_unsafe": "This location is unsafe for rest.",
+    "rest_character_downed": "A character at 0 HP cannot start a rest.",
+    "campaign_revision_conflict": "The campaign changed. Resource information has been refreshed.",
+    "rest_result_obsolete": "The campaign advanced. Current resources have been refreshed."
   }
 }

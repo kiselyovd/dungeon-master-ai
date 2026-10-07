@@ -56,6 +56,19 @@ pub trait CampaignStateRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait RestRepository: Send + Sync {
+    async fn status(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<crate::models::rest::RestStatus, RepositoryError>;
+    async fn rest(
+        &self,
+        command: crate::models::rest::RestCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::rest::RestResult, RepositoryError>;
+}
+
+#[async_trait]
 pub trait AdventureRepository: Send + Sync {
     async fn act_as_dm(
         &self,

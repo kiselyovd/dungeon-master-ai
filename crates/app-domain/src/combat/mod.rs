@@ -8,6 +8,7 @@ pub mod healing;
 pub mod initiative;
 pub mod loadout;
 pub mod magic;
+pub const ROUND_SECONDS: u64 = 6;
 pub mod resolver;
 pub mod result_events;
 pub mod saving_throw;

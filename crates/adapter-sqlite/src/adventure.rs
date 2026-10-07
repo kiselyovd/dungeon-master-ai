@@ -179,6 +179,12 @@ impl AdventureRepository for SqliteStore {
             .await?;
         }
         persist(&mut tx, command.campaign_id, Some(&outcome.state)).await?;
+        crate::rest::advance_clock(
+            &mut tx,
+            command.session_id,
+            command.action.elapsed_seconds(),
+        )
+        .await?;
         crate::campaigns::advance_session_revision(
             &mut tx,
             command.campaign_id,

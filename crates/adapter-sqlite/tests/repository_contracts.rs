@@ -128,7 +128,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 6);
+    assert_eq!(migration_count, 7);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -143,6 +143,8 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         "campaign_snapshots",
         "campaign_adventures",
         "adventure_operations",
+        "adventuring_states",
+        "rest_operations",
         "agent_turn_operations",
         "agent_turn_events",
         "agent_turn_messages",

@@ -37,6 +37,10 @@ pub fn router(services: HttpServices) -> Router {
             get(routes::campaigns::get_campaign_state),
         )
         .route(
+            "/campaigns/{campaign_id}/rest",
+            get(routes::campaigns::get_rest_status).post(routes::campaigns::post_rest),
+        )
+        .route(
             "/campaigns/{campaign_id}/character",
             axum::routing::put(routes::campaigns::put_campaign_character),
         )

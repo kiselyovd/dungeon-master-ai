@@ -80,6 +80,48 @@ pub struct AdventureActionRequest {
     pub action: app_application::models::adventure::Action,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RestRequest {
+    pub schema_version: u16,
+    pub ruleset_id: String,
+    pub session_id: Uuid,
+    pub character_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
+    pub intent: app_application::models::rest::RestIntent,
+}
+
+pub async fn get_rest_status(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<app_application::models::rest::RestStatus>, HttpServiceError> {
+    services.campaign.rest_status(id).await.map(Json)
+}
+pub async fn post_rest(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<RestRequest>,
+) -> Result<Json<app_application::models::rest::RestResult>, HttpServiceError> {
+    if body.schema_version != GAME_SCHEMA_VERSION || body.ruleset_id != RULESET_ID {
+        return Err(HttpServiceError::UnprocessableEntity {
+            code: "campaign_contract_unsupported",
+        });
+    }
+    services
+        .campaign
+        .rest(app_application::models::rest::RestCommand {
+            campaign_id: CampaignId(id),
+            session_id: SessionId(body.session_id),
+            character_id: body.character_id,
+            expected_revision: Revision(body.expected_revision),
+            causation_id: body.causation_id,
+            intent: body.intent,
+        })
+        .await
+        .map(Json)
+}
+
 pub async fn post_adventure_action(
     Extension(services): Extension<HttpServices>,
     Path(id): Path<Uuid>,

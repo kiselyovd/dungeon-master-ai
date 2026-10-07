@@ -32,12 +32,14 @@ import {
   skillMod,
 } from '../state/pc';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui';
 import type { IconName } from '../ui/Icons';
 import { Icons } from '../ui/Icons';
 
 interface CharacterSheetProps {
   open: boolean;
   onClose: () => void;
+  onRest?: (() => void) | undefined;
 }
 
 type AbilityKey = keyof AbilityScores;
@@ -89,7 +91,7 @@ function inventoryIcon(slug: string | undefined): IconComponent {
   return Icons.Tag as IconComponent;
 }
 
-export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
+export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
   const { t } = useTranslation('character');
   const pc = useStore((s) => s.pc);
   const resetOnboarding = useStore((s) => s.onboarding.reset);
@@ -230,6 +232,7 @@ export function CharacterSheet({ open, onClose }: CharacterSheetProps) {
       <div className="dm-char dm-vignette" onClick={(e) => e.stopPropagation()}>
         <div className="dm-modal-header">
           <h2 className="dm-display dm-modal-title">{t('title')}</h2>
+          {onRest && <Button onClick={onRest}>{t('rest_title')}</Button>}
           <button
             type="button"
             className="dm-btn-icon"

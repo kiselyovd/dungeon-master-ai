@@ -110,7 +110,7 @@ pub(crate) async fn sync_hero(
         .character_id
         .ok_or_else(|| repository_error("combat_hero_missing"))?
         .0;
-    let row=sqlx::query("SELECT ce.session_id,s.campaign_id,cc.character_json FROM combat_encounters ce JOIN sessions s ON s.id=ce.session_id JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id AND cc.character_id=?2 WHERE ce.id=?1")
+    let row=sqlx::query("SELECT ce.session_id,ce.round,s.campaign_id,cc.character_json FROM combat_encounters ce JOIN sessions s ON s.id=ce.session_id JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id AND cc.character_id=?2 WHERE ce.id=?1")
         .bind(projection.encounter_id.to_string()).bind(character_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_bound_combat_sheet"))?.ok_or_else(||repository_error("combat_hero_identity_mismatch"))?;
     let session_id = Uuid::parse_str(&row.get::<String, _>("session_id"))
         .map_err(|_| repository_error("combat_session_invalid"))?;
@@ -128,6 +128,11 @@ pub(crate) async fn sync_hero(
         return Err(repository_error("combat_hero_stats_changed"));
     }
     apply_hero_resources(&mut sheet, hero)?;
+    let previous_round = u32::try_from(row.get::<i64, _>("round"))
+        .map_err(|_| repository_error("combat_round_invalid"))?;
+    let elapsed =
+        app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot);
+    crate::rest::advance_clock(tx, SessionId(session_id), elapsed).await?;
     crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
     projection.campaign_scope = Some(
         advance(

@@ -21,3 +21,13 @@ export function canCast(actor: CombatToken): boolean {
     ) ?? false
   );
 }
+
+export function preferredSpellSlot(actor: CombatToken, spell: SpellChoiceDto | undefined): number {
+  if (!spell || spell.level === 0) return 0;
+  return (
+    Object.entries(actor.casting?.slots ?? {})
+      .filter(([level, stock]) => Number(level) >= spell.level && stock.remaining > 0)
+      .map(([level]) => Number(level))
+      .sort((a, b) => a - b)[0] ?? spell.level
+  );
+}

@@ -9,6 +9,7 @@ pub mod journal;
 pub mod messages;
 pub mod npcs;
 pub mod pool;
+pub mod rest;
 pub mod saves;
 pub mod scenes;
 pub mod sessions;

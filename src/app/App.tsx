@@ -37,12 +37,14 @@ import { canCast } from '../features/combat/model/spellAvailability';
 import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
+import { RestDialog } from '../features/rest/RestDialog';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
 import { useUpdater } from '../hooks/useUpdater';
 import type { PreflightInput, PreflightStatus } from '../lib/preflight';
 // useSession is mounted inside ChatPanel so the retry-bar can call refetch.
 import { isPreflightDismissed, runPreflight } from '../lib/preflight';
+import { loadRestOutbox } from '../state/restOutbox';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
@@ -230,6 +232,7 @@ function App() {
   const combatCommands = useCombatCommands();
   const [weaponAttackScope, setWeaponAttackScope] = useState<string | null>(null);
   const [spellCastScope, setSpellCastScope] = useState<string | null>(null);
+  const [restScope, setRestScope] = useState<string | null>(null);
   const combatEncounterId = useStore((s) => s.combat.encounterId);
   const sessionGeneration = useStore((s) => s.session.transitionGeneration);
   const pcName = useStore((s) => s.pc.name);
@@ -262,6 +265,11 @@ function App() {
   const [adventureOpen, setAdventureOpen] = useState(false);
   const closeAdventure = useCallback(() => setAdventureOpen(false), []);
   const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
+  const currentRestScope = `${persistedCampaignId}:${pcCharacterId}:${sessionGeneration}`;
+  useEffect(() => {
+    if (persistedCampaignId && pcCharacterId && loadRestOutbox(persistedCampaignId))
+      setRestScope(currentRestScope);
+  }, [persistedCampaignId, pcCharacterId, currentRestScope]);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
   const [campaignCreateOpen, setCampaignCreateOpen] = useState(false);
   const [campaignNeedsHero, setCampaignNeedsHero] = useState<string | null>(null);
@@ -705,7 +713,21 @@ function App() {
             isOpen={inspectorOpen}
             onClose={() => setInspectorOpen(false)}
           />
-          <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
+          <CharacterSheet
+            open={characterSheetOpen}
+            onClose={() => setCharacterSheetOpen(false)}
+            onRest={
+              pcCharacterId
+                ? () => {
+                    setCharacterSheetOpen(false);
+                    setRestScope(currentRestScope);
+                  }
+                : undefined
+            }
+          />
+          {restScope === currentRestScope && pcCharacterId && (
+            <RestDialog key={currentRestScope} onClose={() => setRestScope(null)} />
+          )}
           {adventureFeature.projection && (
             <AdventurePanel
               open={adventureOpen}

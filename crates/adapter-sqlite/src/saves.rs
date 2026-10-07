@@ -559,6 +559,7 @@ pub(crate) async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        adventuring: crate::rest::read_clock(transaction, session_id).await?,
         adventure: crate::adventure::read(transaction, campaign_id).await?,
         messages,
         character,
@@ -704,6 +705,12 @@ async fn apply_projection(
     transaction: &mut Transaction<'_, Sqlite>,
     snapshot: &CampaignSnapshot,
 ) -> Result<(), RepositoryError> {
+    crate::rest::restore_clock(
+        transaction,
+        snapshot.session_id,
+        snapshot.projection.adventuring.as_ref(),
+    )
+    .await?;
     let session_id = snapshot.session_id.0.to_string();
     sqlx::query("DELETE FROM messages WHERE session_id = ?1")
         .bind(&session_id)

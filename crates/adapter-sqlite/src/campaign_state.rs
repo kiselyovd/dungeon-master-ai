@@ -115,6 +115,9 @@ impl CampaignStateRepository for SqliteStore {
         )
         .await?;
         let mut document = command.character;
+        if let Some(resources) = current.projection.character.get("combatResources") {
+            document["combatResources"] = resources.clone();
+        }
         document["characterId"] = json!(command.character_id);
         persist_character(&mut tx, command.campaign_id, command.character_id, document).await?;
         let state = load_in_transaction(&mut tx, command.campaign_id).await?;

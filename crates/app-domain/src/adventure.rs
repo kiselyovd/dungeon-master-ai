@@ -71,6 +71,17 @@ pub enum Action {
     Finish,
 }
 
+impl Action {
+    /// Authored scene time; retries reuse the receipt instead of advancing it.
+    pub fn elapsed_seconds(self) -> u64 {
+        match self {
+            Self::Finish => 0,
+            Self::ConsultLeon | Self::RepairClapper => 600,
+            _ => 300,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdventureState {

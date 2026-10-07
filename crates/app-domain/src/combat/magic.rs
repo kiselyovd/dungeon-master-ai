@@ -106,28 +106,62 @@ pub fn cantrip_scale(level: u8) -> u8 {
     1 + u8::from(level >= 5) + u8::from(level >= 11) + u8::from(level >= 17)
 }
 
-/// First-level slots for the initial prepared-spell catalog. Higher slot levels
-/// and class recharge features are added with their explicit rules, not inferred.
+/// Compatibility helper for the first slot level.
 pub fn first_level_slots(class: &str, level: u8) -> u8 {
-    match class {
-        "bard" | "cleric" | "druid" | "sorcerer" | "wizard" => match level {
-            0 => 0,
-            1 => 2,
-            2 => 3,
-            _ => 4,
-        },
-        "paladin" | "ranger" => match level {
-            0 => 0,
-            1 | 2 => 2,
-            3 | 4 => 3,
-            _ => 4,
-        },
-        "warlock" => match level {
-            0 => 0,
-            1 => 1,
-            2 => 2,
-            _ => 0,
-        }, // later Pact slots are higher-level
-        _ => 0,
+    slot_capacity(class, level).get(&1).copied().unwrap_or(0)
+}
+
+pub fn slot_capacity(class: &str, level: u8) -> BTreeMap<u8, u8> {
+    if !(1..=20).contains(&level) {
+        return BTreeMap::new();
     }
+    if class == "warlock" {
+        let slot_level = match level {
+            1..=2 => 1,
+            3..=4 => 2,
+            5..=6 => 3,
+            7..=8 => 4,
+            _ => 5,
+        };
+        let count = match level {
+            1 => 1,
+            2..=10 => 2,
+            11..=16 => 3,
+            _ => 4,
+        };
+        return BTreeMap::from([(slot_level, count)]);
+    }
+    let effective = match class {
+        "bard" | "cleric" | "druid" | "sorcerer" | "wizard" => level,
+        "paladin" | "ranger" => level.div_ceil(2),
+        _ => return BTreeMap::new(),
+    };
+    const FULL: [[u8; 9]; 20] = [
+        [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        [4, 3, 3, 3, 2, 1, 1, 1, 1],
+        [4, 3, 3, 3, 3, 1, 1, 1, 1],
+        [4, 3, 3, 3, 3, 2, 1, 1, 1],
+        [4, 3, 3, 3, 3, 2, 2, 1, 1],
+    ];
+    FULL[usize::from(effective - 1)]
+        .iter()
+        .enumerate()
+        .filter(|(_, count)| **count > 0)
+        .map(|(index, count)| ((index + 1) as u8, *count))
+        .collect()
 }

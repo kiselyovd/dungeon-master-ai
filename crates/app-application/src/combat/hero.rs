@@ -223,7 +223,7 @@ fn loadout_from_sheet(
 pub fn casting_from_sheet(
     sheet: &Value,
 ) -> Result<app_domain::combat::magic::CastingProfile, &'static str> {
-    use app_domain::combat::magic::{first_level_slots, CastingProfile, SpellSlots};
+    use app_domain::combat::magic::{slot_capacity, CastingProfile, SpellSlots};
     let class = sheet["heroClass"].as_str().ok_or("combat_hero_invalid")?;
     let level = sheet["level"]
         .as_u64()
@@ -263,22 +263,20 @@ pub fn casting_from_sheet(
             }
         }
     }
-    let maximum = first_level_slots(class, level);
-    let remaining = match sheet
-        .get("combatResources")
-        .and_then(|r| r.get("spellSlots"))
-        .and_then(|s| s.get("1"))
-    {
-        Some(value) => u8::try_from(value.as_u64().ok_or("combat_spell_slots_invalid")?)
-            .map_err(|_| "combat_spell_slots_invalid")?
-            .min(maximum),
-        None => maximum,
-    };
-    let slots = if maximum > 0 {
-        std::collections::BTreeMap::from([(1, SpellSlots { maximum, remaining })])
-    } else {
-        Default::default()
-    };
+    let mut slots = std::collections::BTreeMap::new();
+    for (slot, maximum) in slot_capacity(class, level) {
+        let remaining = match sheet
+            .get("combatResources")
+            .and_then(|r| r.get("spellSlots"))
+            .and_then(|s| s.get(slot.to_string()))
+        {
+            Some(value) => u8::try_from(value.as_u64().ok_or("combat_spell_slots_invalid")?)
+                .map_err(|_| "combat_spell_slots_invalid")?
+                .min(maximum),
+            None => maximum,
+        };
+        slots.insert(slot, SpellSlots { maximum, remaining });
+    }
     let proficiency = 2 + i32::from((level - 1) / 4);
     Ok(CastingProfile {
         choices: app_domain::combat::magic::spell_choices(&prepared),

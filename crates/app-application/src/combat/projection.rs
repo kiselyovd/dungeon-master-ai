@@ -6,6 +6,16 @@ use app_domain::combat::types::CombatantId;
 
 use crate::models::combat::{CombatProjection, CombatSnapshot};
 
+pub fn elapsed_seconds(previous_round: u32, snapshot: &CombatSnapshot) -> u64 {
+    if snapshot.round > previous_round {
+        u64::from(snapshot.round - previous_round) * app_domain::combat::ROUND_SECONDS
+    } else if !snapshot.active {
+        app_domain::combat::ROUND_SECONDS
+    } else {
+        0
+    }
+}
+
 pub fn resolver_state(
     snapshot: &CombatSnapshot,
 ) -> Option<(HashMap<CombatantId, Combatant>, InitiativeOrder)> {

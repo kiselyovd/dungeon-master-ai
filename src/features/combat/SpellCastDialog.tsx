@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Modal } from '../../ui';
 import { Select } from '../../ui/Select';
-import { spellAvailable } from './model/spellAvailability';
+import { preferredSpellSlot, spellAvailable } from './model/spellAvailability';
 import type { CombatToken, SpellChoiceDto } from './model/types';
 
 interface Props {
@@ -16,7 +16,7 @@ export function SpellCastDialog({ actor, targets, onClose, onCast }: Props) {
   const choices = actor.casting?.choices ?? [];
   const first = choices.find((choice) => choice.supported);
   const [spellId, setSpellId] = useState(first?.id ?? '');
-  const [slot, setSlot] = useState(first?.level ?? 0);
+  const [slot, setSlot] = useState(preferredSpellSlot(actor, first));
   const rule = choices.find((choice) => choice.id === spellId);
   const eligible = (rule: SpellChoiceDto | undefined) =>
     targets.filter((target) =>
@@ -74,7 +74,7 @@ export function SpellCastDialog({ actor, targets, onClose, onCast }: Props) {
             onChange={(value) => {
               const next = choices.find((choice) => choice.id === value);
               setSpellId(value);
-              setSlot(next?.level ?? 0);
+              setSlot(preferredSpellSlot(actor, next));
               setTargetId(eligible(next)[0]?.id ?? '');
             }}
           />

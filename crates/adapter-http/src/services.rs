@@ -69,6 +69,18 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn rest_status(
+        &self,
+        _id: Uuid,
+    ) -> Result<app_application::models::rest::RestStatus, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn rest(
+        &self,
+        _command: app_application::models::rest::RestCommand,
+    ) -> Result<app_application::models::rest::RestResult, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn adventure_action(
         &self,
         _command: app_application::models::adventure::AdventureCommand,
