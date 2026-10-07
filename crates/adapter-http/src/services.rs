@@ -342,6 +342,14 @@ pub trait NativeRoomClientHttpService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait NativeRoomTransportHttpService: Send + Sync {
+    async fn stream(
+        &self,
+        request: app_application::models::room_transport::NativeRoomTransportRequest,
+    ) -> Result<
+        futures::stream::BoxStream<'static, Result<Vec<u8>, HttpServiceError>>,
+        HttpServiceError,
+    >;
+
     async fn execute(
         &self,
         request: app_application::models::room_transport::NativeRoomTransportRequest,

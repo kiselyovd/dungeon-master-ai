@@ -433,3 +433,21 @@ Final focused regressions passed after the test assertions were strengthened.
 Full consolidated gates passed for this slice, including workspace Rust and
 155 frontend files/1042 tests. DM streaming/subscriptions, UI and actual
 WebView/two-device acceptance remain open.
+
+
+### Native stream bridge (in verification)
+
+- Added protected Subscribe/DmTurn stream broker and native channel/cancel IPC.
+  Credentials remain native; room/stream IDs and selection generations scope data.
+- Normalize SSE/UTF-8 with bounded frames and remove private reasoning events.
+  Closed consumer stops upstream; interrupted DM retains canonical pending input.
+- Independent review identified pending loss on interrupted409, then permanent
+  pending after restored timeline. Known bounded error-code parsing now preserves
+  running/interrupted requests and releases superseded/mismatch; unknown409 stays
+  recoverable. The three actual HTTP regressions pass, including real restore.
+- Parser tests pass (2); all five native tests pass, including early abort,
+  duplicate stream ID, cancellation-handle cleanup and bounded cancel records.
+  Independent follow-up review closed both pending lifecycle findings.
+  Full gates passed, including workspace Rust and 155 files/1042 frontend tests.
+  The frontend stream adapter, production room screen and actual WebView/two-device
+  session are still pending. No new production dependency.

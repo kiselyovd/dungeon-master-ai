@@ -13,6 +13,8 @@ pub struct NativeRoomState {
     guest: Mutex<Option<app_application::models::room_client::NativeGuestConnection>>,
     lifecycle: tokio::sync::Mutex<()>,
     generation: std::sync::atomic::AtomicU64,
+    streams: Mutex<std::collections::HashMap<Uuid, tokio::sync::watch::Sender<bool>>>,
+    cancelled_streams: Mutex<std::collections::VecDeque<Uuid>>,
 }
 #[derive(serde::Serialize)]
 pub struct NativeHostRoomView {
@@ -329,6 +331,181 @@ pub async fn room_operation(
     Ok(result)
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct NativeRoomStreamChunk {
+    room_id: Uuid,
+    stream_id: Uuid,
+    bytes: Vec<u8>,
+}
+struct StreamRegistration<'a> {
+    state: &'a NativeRoomState,
+    stream_id: Uuid,
+}
+impl Drop for StreamRegistration<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut streams) = self.state.streams.lock() {
+            streams.remove(&self.stream_id);
+        }
+    }
+}
+impl NativeRoomState {
+    fn cancel_stream(&self, stream_id: Uuid) -> Result<(), String> {
+        let streams = self
+            .streams
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?;
+        if let Some(stream) = streams.get(&stream_id) {
+            let _ = stream.send(true);
+        } else {
+            let mut cancelled = self
+                .cancelled_streams
+                .lock()
+                .map_err(|_| "native_room_state_unavailable")?;
+            if cancelled.len() >= 256 {
+                cancelled.pop_front();
+            }
+            cancelled.push_back(stream_id);
+        }
+        Ok(())
+    }
+    fn register_stream(
+        &self,
+        stream_id: Uuid,
+    ) -> Result<tokio::sync::watch::Receiver<bool>, String> {
+        let mut streams = self
+            .streams
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?;
+        let mut cancelled_ids = self
+            .cancelled_streams
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?;
+        if let Some(index) = cancelled_ids.iter().position(|id| *id == stream_id) {
+            cancelled_ids.remove(index);
+            return Err("native_room_stream_cancelled".into());
+        }
+        if streams.contains_key(&stream_id) {
+            return Err("native_room_stream_exists".into());
+        }
+        let (cancel, cancelled) = tokio::sync::watch::channel(false);
+        streams.insert(stream_id, cancel);
+        Ok(cancelled)
+    }
+}
+#[tauri::command]
+pub fn cancel_room_stream(app: AppHandle, stream_id: Uuid) -> Result<(), String> {
+    app.state::<NativeRoomState>().cancel_stream(stream_id)
+}
+#[tauri::command]
+pub async fn stream_room(
+    app: AppHandle,
+    room_id: Uuid,
+    stream_id: Uuid,
+    operation: app_application::models::room_transport::NativeRoomOperation,
+    on_chunk: tauri::ipc::Channel<NativeRoomStreamChunk>,
+) -> Result<(), String> {
+    use app_application::models::room_transport::NativeRoomOperation;
+    use std::sync::atomic::Ordering;
+    if stream_id.is_nil()
+        || !matches!(
+            operation,
+            NativeRoomOperation::Subscribe { .. } | NativeRoomOperation::DmTurn { .. }
+        )
+    {
+        return Err("native_room_stream_invalid".into());
+    }
+    let state = app.state::<NativeRoomState>();
+    let (request, generation) = {
+        let _lifecycle = state.lifecycle.lock().await;
+        (
+            state.transport_request(room_id, operation)?,
+            state.generation.load(Ordering::SeqCst),
+        )
+    };
+    let mut cancelled = state.register_stream(stream_id)?;
+    let _registration = StreamRegistration {
+        state: &state,
+        stream_id,
+    };
+    let (port, token) = owner_connection(&app)?;
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|_| "native_http_unavailable")?;
+    let send = client
+        .post(format!("http://127.0.0.1:{port}/native/room-client/stream"))
+        .bearer_auth(token)
+        .json(&request)
+        .send();
+    let mut response = tokio::select! {
+        _ = cancelled.changed() => return Err("native_room_stream_cancelled".into()),
+        response = tokio::time::timeout(Duration::from_secs(30), send) => response
+            .map_err(|_| "native_room_stream_failed")?.map_err(|_| "native_room_stream_failed")?,
+    };
+    if !response.status().is_success() {
+        let status = response.status().as_u16();
+        if status == 409 {
+            let mut bytes = Vec::new();
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|_| "native_room_stream_failed")?
+            {
+                if bytes.len() + chunk.len() > 4096 {
+                    return Err("native_room_state_conflict".into());
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            let value: serde_json::Value =
+                serde_json::from_slice(&bytes).map_err(|_| "native_room_state_conflict")?;
+            let code = match value
+                .pointer("/error/code")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("native_room_turn_superseded") => "native_room_turn_superseded",
+                Some("native_room_turn_running") => "native_room_turn_running",
+                Some("native_room_turn_interrupted") => "native_room_turn_interrupted",
+                _ => "native_room_state_conflict",
+            };
+            return Err(code.into());
+        }
+        return Err(match status {
+            401 | 403 => "native_room_access_denied",
+            409 => "native_room_state_conflict",
+            429 => "native_room_rate_limited",
+            _ => "native_room_stream_failed",
+        }
+        .into());
+    }
+    let mut check = tokio::time::interval(Duration::from_millis(250));
+    loop {
+        let chunk = tokio::select! {
+            _ = cancelled.changed() => return Err("native_room_stream_cancelled".into()),
+            _ = check.tick() => {
+                if state.generation.load(Ordering::SeqCst) != generation { return Err("native_room_selection_changed".into()); }
+                continue;
+            },
+            chunk = response.chunk() => chunk.map_err(|_| "native_room_stream_failed")?,
+        };
+        let Some(chunk) = chunk else {
+            return Ok(());
+        };
+        if state.generation.load(Ordering::SeqCst) != generation {
+            return Err("native_room_selection_changed".into());
+        }
+        for bytes in chunk.chunks(32 * 1024) {
+            on_chunk
+                .send(NativeRoomStreamChunk {
+                    room_id,
+                    stream_id,
+                    bytes: bytes.to_vec(),
+                })
+                .map_err(|_| "native_room_stream_consumer_closed")?;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,6 +583,35 @@ mod tests {
             >(value)
             .is_err());
         }
+    }
+    #[test]
+    fn stream_abort_before_registration_and_duplicate_open_are_safe() {
+        let state = NativeRoomState::default();
+        let early = Uuid::new_v4();
+        state.cancel_stream(early).unwrap();
+        assert_eq!(
+            state.register_stream(early).unwrap_err(),
+            "native_room_stream_cancelled"
+        );
+        assert!(state.streams.lock().unwrap().is_empty());
+        let active = Uuid::new_v4();
+        let receiver = state.register_stream(active).unwrap();
+        assert_eq!(
+            state.register_stream(active).unwrap_err(),
+            "native_room_stream_exists"
+        );
+        state.cancel_stream(active).unwrap();
+        assert!(*receiver.borrow());
+        let registration = StreamRegistration {
+            state: &state,
+            stream_id: active,
+        };
+        drop(registration);
+        assert!(state.streams.lock().unwrap().is_empty());
+        for _ in 0..300 {
+            state.cancel_stream(Uuid::new_v4()).unwrap();
+        }
+        assert_eq!(state.cancelled_streams.lock().unwrap().len(), 256);
     }
     fn grant(room: Uuid) -> NativeHostRoomGrant {
         NativeHostRoomGrant {

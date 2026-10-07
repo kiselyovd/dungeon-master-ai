@@ -7,6 +7,8 @@ use futures::StreamExt;
 use serde_json::{json, Value};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
+mod stream;
+static OUTBOX_LANE: Mutex<()> = Mutex::const_new(());
 
 fn invalid() -> HttpServiceError {
     HttpServiceError::BadRequest {
@@ -31,16 +33,11 @@ pub fn service(
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|_| failed())?;
-    Ok(Arc::new(Transport {
-        state,
-        client,
-        lane: Mutex::new(()),
-    }))
+    Ok(Arc::new(Transport { state, client }))
 }
 struct Transport {
     state: AppState,
     client: reqwest::Client,
-    lane: Mutex<()>,
 }
 struct WireOperation {
     path: String,
@@ -49,7 +46,7 @@ struct WireOperation {
 fn wire(operation: &NativeRoomOperation) -> Result<WireOperation, HttpServiceError> {
     use NativeRoomOperation::*;
     let (path, body) = match operation {
-        PendingAction {} => return Err(invalid()),
+        PendingAction {} | Subscribe { .. } | DmTurn { .. } => return Err(invalid()),
         State {} => ("state".into(), None),
         Updates { after } => (format!("updates?after={after}"), None),
         Party {} => ("party".into(), None),
@@ -138,6 +135,15 @@ fn valid_nonce(nonce: &str) -> bool {
 }
 #[async_trait]
 impl NativeRoomTransportHttpService for Transport {
+    async fn stream(
+        &self,
+        request: NativeRoomTransportRequest,
+    ) -> Result<
+        futures::stream::BoxStream<'static, Result<Vec<u8>, HttpServiceError>>,
+        HttpServiceError,
+    > {
+        stream::open(self.state.clone(), request).await
+    }
     async fn execute(
         &self,
         request: NativeRoomTransportRequest,
@@ -152,7 +158,7 @@ impl NativeRoomTransportHttpService for Transport {
             return Err(invalid());
         }
         if matches!(request.operation, NativeRoomOperation::PendingAction {}) {
-            let _lane = self.lane.lock().await;
+            let _lane = OUTBOX_LANE.lock().await;
             let slot = format!(
                 "native:room-outbox:{}:{}",
                 request.room_id, request.member_id
@@ -179,7 +185,7 @@ impl NativeRoomTransportHttpService for Transport {
         }
         // One pending mutation per participant. Reads can still refresh state while
         // an unknown mutation remains pending, but a new mutation cannot replace it.
-        let _lane = self.lane.lock().await;
+        let _lane = OUTBOX_LANE.lock().await;
         let secrets = self.state.secrets_repo();
         let slot = format!(
             "native:room-outbox:{}:{}",

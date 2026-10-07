@@ -8,6 +8,14 @@ use uuid::Uuid;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NativeRoomOperation {
     State {},
+    Subscribe {
+        after: Option<u64>,
+    },
+    DmTurn {
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+    },
     PendingAction {},
     Updates {
         after: u64,

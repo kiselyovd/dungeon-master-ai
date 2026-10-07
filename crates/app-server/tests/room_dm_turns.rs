@@ -176,6 +176,7 @@ struct Provider {
     calls: AtomicUsize,
     hold: bool,
     started: Notify,
+    release: Notify,
 }
 #[async_trait::async_trait]
 impl LlmProvider for Provider {
@@ -188,7 +189,7 @@ impl LlmProvider for Provider {
         self.calls.fetch_add(1, Ordering::SeqCst);
         self.started.notify_one();
         if self.hold {
-            std::future::pending::<()>().await;
+            self.release.notified().await;
         }
         Ok(futures::stream::iter(vec![
             Ok(ChatChunk::TextDelta {
@@ -1611,5 +1612,301 @@ async fn native_transport_plain_text_rejection_releases_pending_mutation() {
         intent: app_application::models::rest::RestIntent::Wait { minutes: 2 },
     };
     assert_eq!(service.execute(request).await.unwrap().status, 413);
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_stream_forwards_shared_dm_and_updates_with_private_credentials() {
+    use app_application::models::room_transport::*;
+    let f = fixture().await;
+    let provider = Arc::new(Provider::default());
+    let host_state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let dm = app_server::http_services::room_dm_http_service(host_state, f.rooms.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router_with_dm(f.rooms.clone(), dm);
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let local_db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&local_db).await.unwrap();
+    let local =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), local_db);
+    let service = app_server::native_room_transport::service(local).unwrap();
+    let mut request = NativeRoomTransportRequest {
+        address,
+        room_id: f.guest.room.room_id,
+        member_id: f.guest.member_id,
+        capability: f.guest.capability.expose().into(),
+        operation: NativeRoomOperation::DmTurn {
+            request_id: Uuid::new_v4(),
+            player_message: "Осматриваюсь".into(),
+            resume: false,
+        },
+    };
+    let mut stream = service.stream(request.clone()).await.unwrap();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(3), stream.next())
+        .await
+        .unwrap()
+    {
+        bytes.extend(chunk.unwrap());
+    }
+    let text = String::from_utf8(bytes).unwrap();
+    assert!(text.contains("event: agent_done"));
+    assert!(text.contains("Перед вами дорога"));
+    assert!(!text.contains("reasoning_text"));
+    assert!(!text.contains(f.guest.capability.expose()));
+    request.operation = NativeRoomOperation::PendingAction {};
+    assert!(service
+        .execute(request.clone())
+        .await
+        .unwrap()
+        .body
+        .is_none());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    request.operation = NativeRoomOperation::Subscribe { after: None };
+    let mut subscription = service.stream(request.clone()).await.unwrap();
+    let mut bytes = Vec::new();
+    while !String::from_utf8_lossy(&bytes).contains("event: room_update") {
+        let chunk = tokio::time::timeout(std::time::Duration::from_secs(3), subscription.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        bytes.extend(chunk);
+    }
+    drop(subscription);
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    f.rooms.revoke(&host, f.guest.member_id).await.unwrap();
+    assert!(matches!(
+        service.stream(request).await,
+        Err(adapter_http::services::HttpServiceError::Unauthorized { .. })
+    ));
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_stream_disconnect_preserves_pending_through_conflict_then_resumes() {
+    use app_application::models::room_transport::*;
+    let f = fixture().await;
+    let provider = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let host_state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let dm = app_server::http_services::room_dm_http_service(host_state, f.rooms.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router_with_dm(f.rooms.clone(), dm);
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let service = app_server::native_room_transport::service(local.clone()).unwrap();
+    let turn = Uuid::new_v4();
+    let mut request = NativeRoomTransportRequest {
+        address,
+        room_id: f.guest.room.room_id,
+        member_id: f.guest.member_id,
+        capability: f.guest.capability.expose().into(),
+        operation: NativeRoomOperation::DmTurn {
+            request_id: turn,
+            player_message: "Жду продолжения".into(),
+            resume: false,
+        },
+    };
+    let stream = service.stream(request.clone()).await.unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        provider.started.notified(),
+    )
+    .await
+    .unwrap();
+    drop(stream);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let status: Option<String> =
+                sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+                    .bind(turn.to_string())
+                    .fetch_optional(f.store.pool())
+                    .await
+                    .unwrap();
+            if status.as_deref() == Some("interrupted") {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(
+        service.stream(request.clone()).await,
+        Err(adapter_http::services::HttpServiceError::Conflict { .. })
+    ));
+    let mut read = request.clone();
+    read.operation = NativeRoomOperation::PendingAction {};
+    let pending = service.execute(read.clone()).await.unwrap().body.unwrap();
+    assert_eq!(pending["request_id"], serde_json::json!(turn));
+    assert_eq!(pending["player_message"], "Жду продолжения");
+    request.operation = NativeRoomOperation::DmTurn {
+        request_id: turn,
+        player_message: "Жду продолжения".into(),
+        resume: true,
+    };
+    let mut resumed = service.stream(request).await.unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        provider.started.notified(),
+    )
+    .await
+    .unwrap();
+    provider.release.notify_one();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(3), resumed.next())
+        .await
+        .unwrap()
+    {
+        bytes.extend(chunk.unwrap());
+    }
+    assert!(String::from_utf8(bytes)
+        .unwrap()
+        .contains("event: agent_done"));
+    assert!(service.execute(read).await.unwrap().body.is_none());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_stream_restore_releases_superseded_pending_and_allows_new_turn() {
+    use app_application::models::room_transport::*;
+    use app_application::{
+        campaigns::{CreateSnapshot, CreateSnapshotCommand},
+        models::snapshot::RestoreSnapshotRecord,
+        ports::repositories::SnapshotRepository,
+    };
+    let f = fixture().await;
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    let saved = CreateSnapshot::new(f.store.clone())
+        .execute(CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: current.campaign.revision,
+            title: "Before native DM".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "".into(),
+            causation_id: "save-native".into(),
+            character: current.projection.character,
+        })
+        .await
+        .unwrap();
+    let provider = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let host_state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let dm = app_server::http_services::room_dm_http_service(host_state, f.rooms.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router_with_dm(f.rooms.clone(), dm);
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let service = app_server::native_room_transport::service(local.clone()).unwrap();
+    let turn = Uuid::new_v4();
+    let mut request = NativeRoomTransportRequest {
+        address,
+        room_id: f.guest.room.room_id,
+        member_id: f.guest.member_id,
+        capability: f.guest.capability.expose().into(),
+        operation: NativeRoomOperation::DmTurn {
+            request_id: turn,
+            player_message: "Жду продолжения".into(),
+            resume: false,
+        },
+    };
+    let stream = service.stream(request.clone()).await.unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        provider.started.notified(),
+    )
+    .await
+    .unwrap();
+    drop(stream);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let status: Option<String> =
+                sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+                    .bind(turn.to_string())
+                    .fetch_optional(f.store.pool())
+                    .await
+                    .unwrap();
+            if status.as_deref() == Some("interrupted") {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    f.store
+        .restore_snapshot(RestoreSnapshotRecord {
+            save_id: saved.save_id,
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: current.campaign.revision,
+            causation_id: "restore-native".into(),
+        })
+        .await
+        .unwrap();
+    request.operation = NativeRoomOperation::DmTurn {
+        request_id: turn,
+        player_message: "Жду продолжения".into(),
+        resume: true,
+    };
+    assert!(matches!(
+        service.stream(request.clone()).await,
+        Err(adapter_http::services::HttpServiceError::Conflict {
+            code: "native_room_turn_superseded"
+        })
+    ));
+    let mut read = request.clone();
+    read.operation = NativeRoomOperation::PendingAction {};
+    assert!(service.execute(read.clone()).await.unwrap().body.is_none());
+    request.operation = NativeRoomOperation::DmTurn {
+        request_id: Uuid::new_v4(),
+        player_message: "Новый ход после восстановления".into(),
+        resume: false,
+    };
+    let mut resumed = service.stream(request).await.unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        provider.started.notified(),
+    )
+    .await
+    .unwrap();
+    provider.release.notify_one();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(3), resumed.next())
+        .await
+        .unwrap()
+    {
+        bytes.extend(chunk.unwrap());
+    }
+    assert!(String::from_utf8(bytes)
+        .unwrap()
+        .contains("event: agent_done"));
+    assert!(service.execute(read).await.unwrap().body.is_none());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
     server.abort();
 }

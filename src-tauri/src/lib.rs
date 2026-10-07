@@ -5,7 +5,8 @@ mod processes;
 
 use commands::backend::{backend_port, BackendState};
 use commands::rooms::{
-    host_room, join_room, resume_room, room_operation, stop_host_room, NativeRoomState,
+    cancel_room_stream, host_room, join_room, resume_room, room_operation, stop_host_room,
+    stream_room, NativeRoomState,
 };
 use processes::control::ControlServer;
 use processes::RuntimeProcesses;
@@ -67,7 +68,9 @@ pub fn run() {
             stop_host_room,
             join_room,
             resume_room,
-            room_operation
+            room_operation,
+            stream_room,
+            cancel_room_stream
         ])
         .run(tauri::generate_context!())
         .expect("error while running the Tauri application");

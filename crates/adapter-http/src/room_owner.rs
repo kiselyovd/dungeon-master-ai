@@ -124,6 +124,7 @@ pub fn transport_router(
     protect(
         Router::new()
             .route("/native/room-client/execute", post(execute_room))
+            .route("/native/room-client/stream", post(stream_room))
             .layer(DefaultBodyLimit::max(9 * 1024 * 1024))
             .layer(Extension(service)),
         token,
@@ -137,4 +138,24 @@ async fn execute_room(
     HttpServiceError,
 > {
     service.execute(request).await.map(Json)
+}
+
+async fn stream_room(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomTransportHttpService>>,
+    Json(request): Json<app_application::models::room_transport::NativeRoomTransportRequest>,
+) -> Result<axum::response::Response, HttpServiceError> {
+    use axum::response::IntoResponse;
+    use futures::TryStreamExt;
+    let stream = service
+        .stream(request)
+        .await?
+        .map_err(|_| std::io::Error::other("native_room_stream_interrupted"));
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
+        axum::body::Body::from_stream(stream),
+    )
+        .into_response())
 }

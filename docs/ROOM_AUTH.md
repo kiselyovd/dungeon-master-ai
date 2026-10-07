@@ -420,3 +420,33 @@ server duplicate receipt, guest own sheet, host-only rejection and plain-text
 413 cleanup. Native tests cover wildcard mapping, cached identity and strict
 unknown-field rejection. This does not yet cover DM streaming, subscriptions,
 production UI, real WebView calls or the complete two-device session.
+
+
+## Native shared streams
+
+The same protected native broker exposes `/native/room-client/stream` for the
+closed `subscribe` and `dm_turn` operations. Subscribe uses the authenticated
+public room SSE route and its Last-Event-ID cursor. DM input contains only turn
+UUID, player message and explicit resume flag; provider/history/actor remain host
+owned. Native keeps the capability outside renderer IPC, forwards bounded channel
+chunks tagged with room/stream UUID, and rejects stale selection generations.
+`cancel_room_stream` cancels the connection; bounded early-cancel records cover
+abort racing ahead of IPC registration. Duplicate stream IDs cannot replace an
+existing cancellation handle, and registration is removed on completion/error.
+
+The backend normalizes split UTF-8 and SSE framing with a 16 MiB frame limit,
+filters private reasoning events, preserves known event IDs and bounds idle and
+DM total runtime. Consumer disconnect cancels upstream reads. DM input persists
+before delivery; active-key coordination prevents concurrent duplicate dispatch.
+A valid `agent_done` clears the pending mutation. Disconnect or an interrupted
+stream retains it for explicit resume. Known running/interrupted 409 codes retain
+pending; superseded/request-mismatch codes after restore release it. Error-code
+reading is restricted to known values, 4096 bytes and three seconds; ambiguous
+409 responses preserve recovery rather than discard it.
+
+Three actual HTTP regressions cover shared narration/updates/revocation,
+disconnect -> conflict -> original pending -> resume, and real snapshot restore
+-> obsolete pending release -> successful new turn. Two parser tests cover byte
+splitting, private reasoning and invalid frames. These are transport tests;
+frontend consumption, actual Tauri WebView invocation and physical LAN gameplay
+remain pending.
