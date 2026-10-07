@@ -102,7 +102,7 @@
   "rest_cooldown": "Another long rest can start in {{hours}} hours.",
   "rest_unsafe": "Return to a safe location before resting.",
   "rest_combat": "Finish combat before resting.",
-  "rest_downed": "A character at 0 HP needs help before resting.",
+  "rest_downed": "Regain at least 1 HP before resting.",
   "rest_completed": "Rest completed. Resources and time saved.",
   "rest_pending": "The result is unconfirmed. Retry the same request to recover it safely.",
   "rest_errors": {
@@ -112,5 +112,25 @@
     "rest_character_downed": "A character at 0 HP cannot start a rest.",
     "campaign_revision_conflict": "The campaign changed. Resource information has been refreshed.",
     "rest_result_obsolete": "The campaign advanced. Current resources have been refreshed."
+  },
+  "solo_recovery": {
+    "title": "Hero recovery",
+    "status": {
+      "dying": "Dying",
+      "stable": "Stable, unconscious",
+      "dead": "Dead"
+    },
+    "saves": "Death saves: {{successes}} successes, {{failures}} failures",
+    "stable_hint": "You remain unconscious at 0 HP. Natural recovery restores 1 HP after 1-4 game hours.",
+    "remaining": "Recovery in {{minutes}} game minutes",
+    "action": {
+      "wait": "Wait for recovery",
+      "death_save": "Make a death saving throw"
+    },
+    "unsafe": "Natural recovery requires a safe place.",
+    "wait_hint": "Advance game time until your hero naturally regains 1 HP?",
+    "roll": "Death saving throw: {{roll}}",
+    "retry": "Retry the same request",
+    "error": "Recovery could not be confirmed. Retry the request or refresh the state."
   }
 }

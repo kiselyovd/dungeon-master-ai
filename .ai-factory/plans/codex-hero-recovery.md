@@ -230,3 +230,30 @@ identity/self-aid, active-room exclusion, restore invalidation and nonce isolati
 The fixture deliberately seeds canonical zero-HP vitality; it does not prove a
 complete native solo battle/recovery session. Frontend controls, native acceptance
 and broad model/physical-LAN/session requirements remain outstanding.
+
+
+## Solo recovery UI checkpoint
+
+The existing Rest dialog exposes the owner's mechanical status, counters and a
+server-offered death save or stable-recovery Wait. Ordinary rest choices are hidden
+at zero HP. Wait explicitly confirms advancing game time and closes on changed
+revision/action availability. Recorded death-save dice are visible. EN/RU catalogs
+and existing Modal/Button/Field/Select conventions are reused.
+
+A strict solo wire schema checks hero/status/action/receipt associations. Recovery
+uses a separate durable renderer outbox; uncertain replies (including408/429) retain
+the original nonce/intention. Exact retry survives reload. Late status/action replies
+cannot overwrite a newer revision or different campaign/generation. Rest/recovery
+share the existing mutation guard; either pending request blocks new actions/close.
+
+Real Rust HTTP fixtures cover stable Wait->HP1->Long Rest and one dying-owner save.
+Production-root browser cases use those payloads with native/HTTP stubs: ordinary
+recovery/rest, committed-but-lost reply->reload->same-nonce retry->rest, and visible
+recorded death die. Three browser cases pass; all165Vitest files/1091tests pass,
+TypeScript/build, changed-Rust Clippy and architecture pass. Screenshots were
+inspected. Independent read-only review found no actionable frontend issue.
+
+These prove frontend behavior and actual Rust wire shapes, not a native solo battle
+or model narration. The next acceptance must drive the real Tauri/server solo path
+from combat to recovery/rest without snapshot rollback. Full model, session UX and
+physical LAN requirements remain open; no publication or goal-completion claim.

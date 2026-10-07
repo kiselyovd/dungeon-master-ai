@@ -1,6 +1,11 @@
 import type { RestStatus } from '../api/contracts/rest';
 import { useStore } from './useStore';
-export function applyRestOutcome(status: RestStatus): boolean {
+export function applyRestOutcome(
+  status: Pick<
+    RestStatus,
+    'campaign_id' | 'session_id' | 'character_id' | 'revision' | 'hp' | 'max_hp'
+  >,
+): boolean {
   const current = useStore.getState();
   const campaign = current.campaigns.active;
   if (

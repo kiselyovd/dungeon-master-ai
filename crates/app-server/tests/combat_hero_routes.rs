@@ -161,6 +161,13 @@ async fn solo_recovery_http_rejects_roll_injection_and_cannot_bypass_a_live_room
     let status: serde_json::Value = status.json().await.unwrap();
     assert_eq!(status["hp"], 0);
     assert_eq!(status["recovery"]["status"], "stable");
+    let wire_before = if std::env::var("DMAI_SOLO_RECOVERY_WIRE_FIXTURE").is_ok() {
+        Some(
+            json!({"status":status,"rest":client.get(server.url(&format!("/campaigns/{}/rest",campaign.id.0))).send().await.unwrap().json::<serde_json::Value>().await.unwrap(),"state":client.get(server.url(&format!("/campaigns/{}/state",campaign.id.0))).send().await.unwrap().json::<serde_json::Value>().await.unwrap()}),
+        )
+    } else {
+        None
+    };
     let body = json!({"schema_version":GAME_SCHEMA_VERSION,"ruleset_id":RULESET_ID,"session_id":campaign.last_session_id.0,"character_id":id,"expected_revision":state.campaign.revision.0,"causation_id":"solo-ui-recovery","intent":{"kind":"wait","target_character_id":id}});
     for field in ["rng_seed", "roll"] {
         let mut forged = body.clone();
@@ -206,6 +213,24 @@ async fn solo_recovery_http_rejects_roll_injection_and_cannot_bypass_a_live_room
         .unwrap();
     assert_eq!(retry["receipt"]["duplicate"], true);
     assert_eq!(retry["status"], result["status"]);
+    if let (Ok(path), Some(before)) = (
+        std::env::var("DMAI_SOLO_RECOVERY_WIRE_FIXTURE"),
+        wire_before,
+    ) {
+        let after = json!({"result":result,"rest":client.get(server.url(&format!("/campaigns/{}/rest",campaign.id.0))).send().await.unwrap().json::<serde_json::Value>().await.unwrap(),"state":client.get(server.url(&format!("/campaigns/{}/state",campaign.id.0))).send().await.unwrap().json::<serde_json::Value>().await.unwrap()});
+        let rested=client.post(server.url(&format!("/campaigns/{}/rest",campaign.id.0))).json(&json!({"schema_version":GAME_SCHEMA_VERSION,"ruleset_id":RULESET_ID,"session_id":campaign.last_session_id.0,"character_id":id,"expected_revision":result["status"]["revision"],"causation_id":"solo-after-recovery-rest","intent":{"kind":"long"}})).send().await.unwrap();
+        assert!(rested.status().is_success());
+        let rested: serde_json::Value = rested.json().await.unwrap();
+        let after_rest = json!({"result":rested,"recovery":client.get(&url).send().await.unwrap().json::<serde_json::Value>().await.unwrap(),"state":client.get(server.url(&format!("/campaigns/{}/state",campaign.id.0))).send().await.unwrap().json::<serde_json::Value>().await.unwrap()});
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(
+                &json!({"before":before,"after":after,"afterRest":after_rest}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
     let current = store.load_current(campaign.id).await.unwrap();
     let rooms = RoomService::new(
         store.clone(),
@@ -238,4 +263,82 @@ async fn solo_recovery_http_rejects_roll_injection_and_cannot_bypass_a_live_room
         client.get(&url).send().await.unwrap().status().as_u16(),
         409
     );
+}
+
+#[tokio::test]
+async fn solo_death_save_http_records_a_roll_without_renderer_dice() {
+    use app_application::campaigns::{GAME_SCHEMA_VERSION, RULESET_ID};
+    let server = TestServer::start().await;
+    let store = Arc::new(SqliteStore::new(server.state.db().clone()));
+    let campaign = campaign(store.clone(), "Solo death save").await;
+    let id = hero(&store, &campaign).await;
+    let mut state = store.load_current(campaign.id).await.unwrap();
+    let mut actor = app_application::recovery::actor(&state.projection.character, id).unwrap();
+    actor.current_hp = 0;
+    app_application::vitality::store_actor(&mut state.projection.character, &actor).unwrap();
+    sqlx::query("UPDATE campaign_characters SET character_json=?1 WHERE campaign_id=?2")
+        .bind(state.projection.character.to_string())
+        .bind(campaign.id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let client = reqwest::Client::new();
+    let url = server.url(&format!("/campaigns/{}/recovery", campaign.id.0));
+    let before_status = client
+        .get(&url)
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    let before_rest = client
+        .get(server.url(&format!("/campaigns/{}/rest", campaign.id.0)))
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    let before_state = client
+        .get(server.url(&format!("/campaigns/{}/state", campaign.id.0)))
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    let body = json!({"schema_version":GAME_SCHEMA_VERSION,"ruleset_id":RULESET_ID,"session_id":campaign.last_session_id.0,"character_id":id,"expected_revision":state.campaign.revision.0,"causation_id":"solo-death-save-ui","intent":{"kind":"death_save"}});
+    let response = client.post(&url).json(&body).send().await.unwrap();
+    assert!(response.status().is_success());
+    let result = response.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(
+        result["receipt"]["death_saves"].as_array().unwrap().len(),
+        1
+    );
+    assert_eq!(result["status"]["elapsed_seconds"], 6);
+    let retry = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    assert_eq!(
+        retry["receipt"]["death_saves"],
+        result["receipt"]["death_saves"]
+    );
+    if let Ok(path) = std::env::var("DMAI_SOLO_DEATH_SAVE_WIRE_FIXTURE") {
+        let after_rest = client
+            .get(server.url(&format!("/campaigns/{}/rest", campaign.id.0)))
+            .send()
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap();
+        std::fs::write(path,serde_json::to_string_pretty(&json!({"before":{"state":before_state,"status":before_status,"rest":before_rest},"after":{"result":result,"rest":after_rest}})).unwrap()).unwrap();
+    }
 }

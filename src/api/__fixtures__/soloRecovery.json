@@ -1,0 +1,338 @@
+{
+  "after": {
+    "rest": {
+      "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "combat_active": false,
+      "elapsed_seconds": 14400,
+      "hit_dice_remaining": 1,
+      "hit_die": 10,
+      "hp": 1,
+      "long_rest_ready_in_seconds": 0,
+      "max_hp": 12,
+      "revision": 3,
+      "safe": true,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+      "slots": {}
+    },
+    "result": {
+      "receipt": {
+        "death_saves": [],
+        "duplicate": false,
+        "medicine": null,
+        "ready_at_seconds": null,
+        "receipt_revision": 3,
+        "recovered": true,
+        "stabilized": false,
+        "target_character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7"
+      },
+      "status": {
+        "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+        "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+        "combat_active": false,
+        "elapsed_seconds": 14400,
+        "hp": 1,
+        "max_hp": 12,
+        "recovery": {
+          "actions": [],
+          "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+          "failures": 0,
+          "ready_at_seconds": null,
+          "status": "healthy",
+          "successes": 0
+        },
+        "revision": 3,
+        "safe": true,
+        "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+      }
+    },
+    "state": {
+      "campaign": {
+        "created_at": "2026-10-07T23:43:32.629Z",
+        "id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+        "last_session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+        "premise": "Bridge",
+        "revision": 3,
+        "ruleset_id": "srd-5.2.1",
+        "schema_version": 1,
+        "seed": {
+          "answers": {
+            "world": ["Bridge"]
+          },
+          "kind": "collaborative"
+        },
+        "title": "Solo recovery",
+        "updated_at": "2026-10-07T23:43:32.656Z"
+      },
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "projection": {
+        "adventure": null,
+        "adventuring": {
+          "elapsed_seconds": 14400
+        },
+        "character": {
+          "abilities": {
+            "cha": 8,
+            "con": 14,
+            "dex": 14,
+            "int": 10,
+            "str": 16,
+            "wis": 12
+          },
+          "ac": 16,
+          "characterId": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+          "combatResources": {
+            "vitality": {
+              "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+              "combatant_id": "88708904-e42f-4bba-823c-70f66b6bb220",
+              "conditions": [],
+              "death_saves": {
+                "failures": 0,
+                "stable": false,
+                "successes": 0
+              },
+              "is_dead": false,
+              "natural_recovery": null
+            }
+          },
+          "heroClass": "fighter",
+          "hp": 1,
+          "hpMax": 12,
+          "inventory": [],
+          "level": 1,
+          "name": "Mira"
+        },
+        "combat": null,
+        "journal": [],
+        "messages": [],
+        "npcs": [],
+        "scene": null
+      },
+      "ruleset_id": "srd-5.2.1",
+      "schema_version": 1,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+    }
+  },
+  "afterRest": {
+    "recovery": {
+      "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "combat_active": false,
+      "elapsed_seconds": 43200,
+      "hp": 12,
+      "max_hp": 12,
+      "recovery": {
+        "actions": [],
+        "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "healthy",
+        "successes": 0
+      },
+      "revision": 4,
+      "safe": true,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+    },
+    "result": {
+      "outcome": {
+        "duration_minutes": 480,
+        "elapsed_seconds": 43200,
+        "hp": 12,
+        "resources": {
+          "hit_dice_remaining": 1,
+          "last_long_rest_completed": 43200,
+          "spell_slots": {}
+        },
+        "rolls": []
+      },
+      "status": {
+        "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+        "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+        "combat_active": false,
+        "elapsed_seconds": 43200,
+        "hit_dice_remaining": 1,
+        "hit_die": 10,
+        "hp": 12,
+        "long_rest_ready_in_seconds": 57600,
+        "max_hp": 12,
+        "revision": 4,
+        "safe": true,
+        "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+        "slots": {}
+      }
+    },
+    "state": {
+      "campaign": {
+        "created_at": "2026-10-07T23:43:32.629Z",
+        "id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+        "last_session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+        "premise": "Bridge",
+        "revision": 4,
+        "ruleset_id": "srd-5.2.1",
+        "schema_version": 1,
+        "seed": {
+          "answers": {
+            "world": ["Bridge"]
+          },
+          "kind": "collaborative"
+        },
+        "title": "Solo recovery",
+        "updated_at": "2026-10-07T23:43:32.663Z"
+      },
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "projection": {
+        "adventure": null,
+        "adventuring": {
+          "elapsed_seconds": 43200
+        },
+        "character": {
+          "abilities": {
+            "cha": 8,
+            "con": 14,
+            "dex": 14,
+            "int": 10,
+            "str": 16,
+            "wis": 12
+          },
+          "ac": 16,
+          "characterId": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+          "combatResources": {
+            "hitDiceRemaining": 1,
+            "lastLongRestCompletedSeconds": 43200,
+            "spellSlots": {},
+            "vitality": {
+              "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+              "combatant_id": "88708904-e42f-4bba-823c-70f66b6bb220",
+              "conditions": [],
+              "death_saves": {
+                "failures": 0,
+                "stable": false,
+                "successes": 0
+              },
+              "is_dead": false,
+              "natural_recovery": null
+            }
+          },
+          "heroClass": "fighter",
+          "hp": 12,
+          "hpMax": 12,
+          "inventory": [],
+          "level": 1,
+          "name": "Mira"
+        },
+        "combat": null,
+        "journal": [],
+        "messages": [],
+        "npcs": [],
+        "scene": null
+      },
+      "ruleset_id": "srd-5.2.1",
+      "schema_version": 1,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+    }
+  },
+  "before": {
+    "rest": {
+      "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "combat_active": false,
+      "elapsed_seconds": 0,
+      "hit_dice_remaining": 1,
+      "hit_die": 10,
+      "hp": 0,
+      "long_rest_ready_in_seconds": 0,
+      "max_hp": 12,
+      "revision": 2,
+      "safe": true,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+      "slots": {}
+    },
+    "state": {
+      "campaign": {
+        "created_at": "2026-10-07T23:43:32.629Z",
+        "id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+        "last_session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7",
+        "premise": "Bridge",
+        "revision": 2,
+        "ruleset_id": "srd-5.2.1",
+        "schema_version": 1,
+        "seed": {
+          "answers": {
+            "world": ["Bridge"]
+          },
+          "kind": "collaborative"
+        },
+        "title": "Solo recovery",
+        "updated_at": "2026-10-07T23:43:32.632Z"
+      },
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "projection": {
+        "adventure": null,
+        "character": {
+          "abilities": {
+            "cha": 8,
+            "con": 14,
+            "dex": 14,
+            "int": 10,
+            "str": 16,
+            "wis": 12
+          },
+          "ac": 16,
+          "characterId": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+          "combatResources": {
+            "vitality": {
+              "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+              "combatant_id": "88708904-e42f-4bba-823c-70f66b6bb220",
+              "conditions": ["unconscious"],
+              "death_saves": {
+                "failures": 0,
+                "stable": true,
+                "successes": 0
+              },
+              "is_dead": false,
+              "natural_recovery": null
+            }
+          },
+          "heroClass": "fighter",
+          "hp": 0,
+          "hpMax": 12,
+          "inventory": [],
+          "level": 1,
+          "name": "Mira"
+        },
+        "combat": null,
+        "journal": [],
+        "messages": [],
+        "npcs": [],
+        "scene": null
+      },
+      "ruleset_id": "srd-5.2.1",
+      "schema_version": 1,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+    },
+    "status": {
+      "campaign_id": "df3588f3-2d5a-4ca9-9781-d5bec93b6df6",
+      "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+      "combat_active": false,
+      "elapsed_seconds": 0,
+      "hp": 0,
+      "max_hp": 12,
+      "recovery": {
+        "actions": [
+          {
+            "kind": "wait",
+            "target_character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7"
+          }
+        ],
+        "character_id": "676355ea-252d-4b44-ab69-c896a1cf15e7",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "stable",
+        "successes": 0
+      },
+      "revision": 2,
+      "safe": true,
+      "session_id": "94c1ab46-4f2f-4ea1-8fff-03c0da2980b7"
+    }
+  }
+}
