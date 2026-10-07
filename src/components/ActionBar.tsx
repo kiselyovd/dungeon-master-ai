@@ -10,6 +10,7 @@ interface Props {
   movementFt?: number;
   speedFt?: number;
   pending?: boolean;
+  castAvailable?: boolean | undefined;
   onAttack?: (() => void) | undefined;
   onCast?: (() => void) | undefined;
   onMove?: (() => void) | undefined;
@@ -61,6 +62,7 @@ export function ActionBar({
   onEndTurn,
   onIntent,
   pending = false,
+  castAvailable,
 }: Props) {
   const { t } = useTranslation('combat');
 
@@ -105,11 +107,11 @@ export function ActionBar({
     {
       key: 'cast',
       label: t('cast'),
-      title: actionTitle ?? t('cast'),
+      title: castAvailable === undefined ? (actionTitle ?? t('cast')) : t('cast'),
       icon: <Icons.Wand size={20} />,
       kind: 'magic',
       kbd: 'C',
-      disabled: actionDisabled,
+      disabled: pending || (castAvailable === undefined ? actionUsed : !castAvailable),
       onClick: actionHandler(onCast, 'intent_cast'),
     },
     {

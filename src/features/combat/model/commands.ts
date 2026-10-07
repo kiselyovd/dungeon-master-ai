@@ -5,6 +5,7 @@ import { parseCombatProjection } from './combatProjection';
 import type { CombatProjectionDto } from './types';
 
 export type CombatCommand =
+  | { kind: 'spell'; combatantId: string; spellId: string; targetIds: string[]; slotLevel: number }
   | {
       kind: 'attack';
       attackerId: string;
@@ -22,6 +23,13 @@ export type CombatCommand =
 
 function commandArgs(command: CombatCommand): Record<string, unknown> {
   switch (command.kind) {
+    case 'spell':
+      return {
+        caster_id: command.combatantId,
+        spell_id: command.spellId,
+        target_ids: command.targetIds,
+        slot_level: command.slotLevel,
+      };
     case 'attack':
       return {
         attacker_id: command.attackerId,

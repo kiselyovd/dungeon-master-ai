@@ -1,5 +1,23 @@
 export type AoeShape = 'cone' | 'sphere' | 'line' | 'cube';
 
+export interface SpellChoiceDto {
+  id: string;
+  level: number;
+  range_ft: number;
+  bonus_action: boolean;
+  healing: boolean;
+  supported: boolean;
+}
+export interface CastingProfileDto {
+  level: number;
+  ability_modifier: number;
+  attack_bonus: number;
+  save_dc: number;
+  prepared: string[];
+  choices: SpellChoiceDto[];
+  slots: Record<string, { maximum: number; remaining: number }>;
+}
+
 export interface WeaponAttackProfileDto {
   weapon_id: string;
   attack_bonus: number;
@@ -38,6 +56,8 @@ export interface CombatToken {
   id: string;
   characterId?: string;
   loadout?: CombatLoadoutDto;
+  casting?: CastingProfileDto;
+  spellSlotUsed?: boolean;
   name: string;
   hp: number;
   maxHp: number;
@@ -72,6 +92,7 @@ export interface CombatProjectionDto {
       id: string;
       character_id?: string | null;
       loadout?: CombatLoadoutDto | null;
+      casting?: CastingProfileDto | null;
       name: string;
       max_hp: number;
       current_hp: number;
@@ -82,6 +103,7 @@ export interface CombatProjectionDto {
       dex_mod: number;
       conditions: string[];
       budget: {
+        spell_slot_used?: boolean;
         action: boolean;
         bonus_action: boolean;
         reaction: boolean;

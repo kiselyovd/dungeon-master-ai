@@ -123,6 +123,17 @@ impl ResolveCombatAction {
         let mut resolver =
             CombatResolver::new(combatants, order, SeededRng::from_seed(command.rng_seed));
         let action = match command.action {
+            CombatActionCommand::Spell {
+                caster,
+                spell_id,
+                targets,
+                slot_level,
+            } => CombatAction::Spell {
+                caster,
+                spell_id,
+                targets,
+                slot_level,
+            },
             CombatActionCommand::WeaponAttack {
                 attacker,
                 target,

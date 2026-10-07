@@ -26,6 +26,7 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
     );
     actor.character_id = Some(CharacterId(character_id));
     actor.loadout = Some(loadout_from_sheet(sheet)?);
+    actor.casting = Some(casting_from_sheet(sheet)?);
     actor.dex_mod = ability_modifier(
         sheet["abilities"]["dex"]
             .as_i64()
@@ -125,6 +126,14 @@ pub fn recover_bound_loadouts(
     projection: &mut crate::models::combat::CombatProjection,
 ) -> Result<(), &'static str> {
     for actor in &mut projection.snapshot.combatants {
+        if let Some(owner) = actor.character_id {
+            if owner.0 != character_id {
+                return Err("combat_hero_identity_mismatch");
+            }
+            if actor.casting.is_none() {
+                actor.casting = Some(casting_from_sheet(sheet)?);
+            }
+        }
         if actor.loadout.is_some() {
             continue;
         }
@@ -209,4 +218,75 @@ fn loadout_from_sheet(
         }
     }
     Ok(loadout)
+}
+
+pub fn casting_from_sheet(
+    sheet: &Value,
+) -> Result<app_domain::combat::magic::CastingProfile, &'static str> {
+    use app_domain::combat::magic::{first_level_slots, CastingProfile, SpellSlots};
+    let class = sheet["heroClass"].as_str().ok_or("combat_hero_invalid")?;
+    let level = sheet["level"]
+        .as_u64()
+        .filter(|level| (1..=20).contains(level))
+        .ok_or("combat_hero_invalid")? as u8;
+    let ability = match class {
+        "wizard" => "int",
+        "cleric" | "druid" | "ranger" => "wis",
+        "bard" | "sorcerer" | "warlock" | "paladin" => "cha",
+        _ => "int",
+    };
+    let modifier = ability_modifier(
+        sheet["abilities"][ability]
+            .as_i64()
+            .ok_or("combat_hero_invalid")? as i32,
+    );
+    let catalog = app_domain::compendium::compendium();
+    let mut prepared = Vec::new();
+    if let Some(spells) = sheet.get("spells") {
+        for (key, spell_level) in [("cantrips", 0), ("level1", 1)] {
+            for id in spells
+                .get(key)
+                .and_then(Value::as_array)
+                .ok_or("combat_spells_invalid")?
+            {
+                let id = id.as_str().ok_or("combat_spells_invalid")?;
+                if !catalog.spells.iter().any(|spell| {
+                    spell.id == id
+                        && spell.level == spell_level
+                        && spell.classes.iter().any(|owner| owner == class)
+                }) {
+                    return Err("combat_spells_invalid");
+                }
+                if !prepared.iter().any(|known| known == id) {
+                    prepared.push(id.to_string());
+                }
+            }
+        }
+    }
+    let maximum = first_level_slots(class, level);
+    let remaining = match sheet
+        .get("combatResources")
+        .and_then(|r| r.get("spellSlots"))
+        .and_then(|s| s.get("1"))
+    {
+        Some(value) => u8::try_from(value.as_u64().ok_or("combat_spell_slots_invalid")?)
+            .map_err(|_| "combat_spell_slots_invalid")?
+            .min(maximum),
+        None => maximum,
+    };
+    let slots = if maximum > 0 {
+        std::collections::BTreeMap::from([(1, SpellSlots { maximum, remaining })])
+    } else {
+        Default::default()
+    };
+    let proficiency = 2 + i32::from((level - 1) / 4);
+    Ok(CastingProfile {
+        choices: app_domain::combat::magic::spell_choices(&prepared),
+        level,
+        ability_modifier: modifier,
+        attack_bonus: modifier + proficiency,
+        save_dc: 8 + modifier + proficiency,
+        prepared,
+        slots,
+    })
 }

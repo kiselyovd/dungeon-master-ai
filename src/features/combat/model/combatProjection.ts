@@ -46,6 +46,11 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
     if (
       !isRecord(combatant) ||
       !(
+        combatant.casting === undefined ||
+        combatant.casting === null ||
+        validCasting(combatant.casting)
+      ) ||
+      !(
         combatant.loadout === undefined ||
         combatant.loadout === null ||
         validLoadout(combatant.loadout)
@@ -68,6 +73,10 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
       !combatant.conditions.every((condition) => typeof condition === 'string') ||
       !isRecord(combatant.budget) ||
       typeof combatant.budget.action !== 'boolean' ||
+      !(
+        combatant.budget.spell_slot_used === undefined ||
+        typeof combatant.budget.spell_slot_used === 'boolean'
+      ) ||
       typeof combatant.budget.bonus_action !== 'boolean' ||
       typeof combatant.budget.reaction !== 'boolean' ||
       !isNumber(combatant.budget.movement_ft) ||
@@ -92,6 +101,8 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
     id: combatant.id,
     ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
     ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
+    ...(combatant.casting ? { casting: combatant.casting } : {}),
+    spellSlotUsed: combatant.budget.spell_slot_used ?? false,
     name: combatant.name,
     hp: combatant.current_hp,
     maxHp: combatant.max_hp,
@@ -145,5 +156,38 @@ function validLoadout(value: unknown): boolean {
         (key) => typeof attack[key] === 'boolean',
       ) &&
       (attack.versatile_damage === null || dice(attack.versatile_damage)),
+  );
+}
+
+function validCasting(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !['level', 'ability_modifier', 'attack_bonus', 'save_dc'].every((key) =>
+      Number.isSafeInteger(value[key]),
+    ) ||
+    !Array.isArray(value.prepared) ||
+    !value.prepared.every((id) => typeof id === 'string') ||
+    !Array.isArray(value.choices) ||
+    !isRecord(value.slots)
+  )
+    return false;
+  return (
+    value.choices.every(
+      (choice) =>
+        isRecord(choice) &&
+        typeof choice.id === 'string' &&
+        Number.isSafeInteger(choice.level) &&
+        Number.isSafeInteger(choice.range_ft) &&
+        ['bonus_action', 'healing', 'supported'].every((key) => typeof choice[key] === 'boolean'),
+    ) &&
+    Object.entries(value.slots).every(
+      ([level, slots]) =>
+        /^[1-9]$/.test(level) &&
+        isRecord(slots) &&
+        Number.isSafeInteger(slots.maximum) &&
+        Number.isSafeInteger(slots.remaining) &&
+        (slots.remaining as number) >= 0 &&
+        (slots.remaining as number) <= (slots.maximum as number),
+    )
   );
 }

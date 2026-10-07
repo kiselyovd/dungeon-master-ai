@@ -99,6 +99,15 @@ export function useCombatCommands() {
     const combatantId = useStore.getState().combat.currentTurnId;
     if (combatantId) return execute({ kind: 'cast', combatantId });
   }, [execute]);
+  const spell = useCallback(
+    (spellId: string, targetIds: string[], slotLevel: number) => {
+      const combatantId = useStore.getState().combat.currentTurnId;
+      return combatantId
+        ? execute({ kind: 'spell', combatantId, spellId, targetIds, slotLevel })
+        : Promise.resolve(false);
+    },
+    [execute],
+  );
   const attack = useCallback(
     (targetId: string, attackModifier: number, damageDice: string, damageType: string) => {
       const attackerId = useStore.getState().combat.currentTurnId;
@@ -140,5 +149,5 @@ export function useCombatCommands() {
     [execute],
   );
 
-  return { pending, move, endTurn, cast, attack, weaponAttack };
+  return { pending, move, endTurn, cast, spell, attack, weaponAttack };
 }

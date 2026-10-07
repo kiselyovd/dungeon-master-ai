@@ -33,6 +33,8 @@ import { CampaignHome } from '../features/campaigns/CampaignHome';
 import { resolveAppRoute } from '../features/campaigns/model/route';
 import { useCampaigns } from '../features/campaigns/useCampaigns';
 import { isPlayerToken } from '../features/combat/model/selectors';
+import { canCast } from '../features/combat/model/spellAvailability';
+import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
 import { useSaves } from '../features/saves/useSaves';
@@ -227,6 +229,7 @@ function App() {
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const combatCommands = useCombatCommands();
   const [weaponAttackScope, setWeaponAttackScope] = useState<string | null>(null);
+  const [spellCastScope, setSpellCastScope] = useState<string | null>(null);
   const combatEncounterId = useStore((s) => s.combat.encounterId);
   const sessionGeneration = useStore((s) => s.session.transitionGeneration);
   const pcName = useStore((s) => s.pc.name);
@@ -609,7 +612,12 @@ function App() {
                     ? () => setWeaponAttackScope(currentAttackScope)
                     : undefined
                 }
-                onCast={() => void combatCommands.cast()}
+                castAvailable={ownedCombatToken?.casting ? canCast(ownedCombatToken) : undefined}
+                onCast={
+                  ownedCombatToken?.casting
+                    ? () => setSpellCastScope(currentAttackScope)
+                    : () => void combatCommands.cast()
+                }
                 onEndTurn={() => void combatCommands.endTurn()}
                 onIntent={(text) => {
                   void sendAgentTurn(text);
@@ -628,6 +636,17 @@ function App() {
                   )}
                   onClose={() => setWeaponAttackScope(null)}
                   onAttack={combatCommands.weaponAttack}
+                />
+              )}
+            {spellCastScope === currentAttackScope &&
+              showActionBar &&
+              ownedCombatToken?.casting && (
+                <SpellCastDialog
+                  key={currentAttackScope}
+                  actor={ownedCombatToken}
+                  targets={combatTokens}
+                  onClose={() => setSpellCastScope(null)}
+                  onCast={combatCommands.spell}
                 />
               )}
             <CharFab

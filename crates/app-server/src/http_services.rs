@@ -392,6 +392,15 @@ struct WeaponActionArgs {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SpellActionArgs {
+    caster_id: Uuid,
+    spell_id: String,
+    target_ids: Vec<Uuid>,
+    slot_level: u8,
+}
+
+#[derive(Debug, Deserialize)]
 struct MoveActionArgs {
     combatant_id: Uuid,
     x: i32,
@@ -431,6 +440,19 @@ impl CombatHttpService for AppStateCombatHttpService {
         command: HttpCombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
         let action = match command.action_type.as_str() {
+            "spell" => {
+                let args: SpellActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_spell_intention_invalid",
+                    }
+                })?;
+                CombatActionCommand::Spell {
+                    caster: CombatantId(args.caster_id),
+                    spell_id: args.spell_id,
+                    targets: args.target_ids.into_iter().map(CombatantId).collect(),
+                    slot_level: args.slot_level,
+                }
+            }
             "weapon_attack" => {
                 let args: WeaponActionArgs =
                     serde_json::from_value(command.args).map_err(|_| {

@@ -4,6 +4,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CombatActionCommand {
+    Spell {
+        caster: CombatantId,
+        spell_id: String,
+        targets: Vec<CombatantId>,
+        slot_level: u8,
+    },
     WeaponAttack {
         attacker: CombatantId,
         target: CombatantId,

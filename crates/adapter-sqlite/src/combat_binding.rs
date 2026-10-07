@@ -14,12 +14,9 @@ pub(crate) async fn recover_loadouts(
     let Some(scope) = &projection.campaign_scope else {
         return Ok(());
     };
-    if projection
-        .snapshot
-        .combatants
-        .iter()
-        .all(|actor| actor.loadout.is_some())
-    {
+    if projection.snapshot.combatants.iter().all(|actor| {
+        actor.loadout.is_some() && (actor.character_id.is_none() || actor.casting.is_some())
+    }) {
         return Ok(());
     }
     let raw: Option<String> = sqlx::query_scalar("SELECT cc.character_json FROM campaign_characters cc JOIN sessions s ON s.campaign_id=cc.campaign_id WHERE cc.campaign_id=?1 AND cc.character_id=?2 AND s.id=?3")
@@ -150,6 +147,22 @@ fn apply_hero_resources(
     hero: &app_application::models::combat::Combatant,
 ) -> Result<(), RepositoryError> {
     sheet["hp"] = serde_json::json!(hero.current_hp);
+    if let Some(casting) = &hero.casting {
+        if !sheet
+            .get("combatResources")
+            .is_some_and(serde_json::Value::is_object)
+        {
+            sheet["combatResources"] = serde_json::json!({});
+        }
+        sheet["combatResources"]["spellSlots"] = serde_json::to_value(
+            casting
+                .slots
+                .iter()
+                .map(|(level, slots)| (level.to_string(), slots.remaining))
+                .collect::<std::collections::BTreeMap<_, _>>(),
+        )
+        .map_err(|_| repository_error("encode_spell_slots"))?;
+    }
     if let Some(loadout) = &hero.loadout {
         if !sheet
             .get("combatResources")

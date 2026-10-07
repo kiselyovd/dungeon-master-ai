@@ -7,6 +7,8 @@ use super::types::{CharacterId, CombatantId, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBudget {
+    #[serde(default)]
+    pub spell_slot_used: bool,
     pub action: bool,
     pub bonus_action: bool,
     pub reaction: bool,
@@ -16,6 +18,7 @@ pub struct ActionBudget {
 impl ActionBudget {
     pub fn fresh(speed_ft: i32) -> Self {
         Self {
+            spell_slot_used: false,
             action: true,
             bonus_action: true,
             reaction: true,
@@ -24,6 +27,7 @@ impl ActionBudget {
     }
 
     pub fn refresh_for_new_turn(&mut self, speed_ft: i32) {
+        self.spell_slot_used = false;
         self.action = true;
         self.bonus_action = true;
         // Reaction refreshes at start of turn (RAW).
@@ -77,6 +81,8 @@ pub struct Combatant {
     pub character_id: Option<CharacterId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub loadout: Option<super::loadout::CombatLoadout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub casting: Option<super::magic::CastingProfile>,
     pub name: String,
     pub max_hp: i32,
     pub current_hp: i32,
@@ -99,6 +105,7 @@ impl Combatant {
             id,
             character_id: None,
             loadout: None,
+            casting: None,
             name,
             max_hp,
             current_hp,

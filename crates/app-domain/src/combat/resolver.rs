@@ -13,8 +13,15 @@ use super::types::{ActionKind, CombatantId, DamageType, Position};
 use crate::dice::{roll_expr_detailed, DiceExpr};
 use crate::rng::SeededRng;
 
+#[path = "spell_resolution.rs"]
+mod spells;
+
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ValidationError {
+    #[error("spell is unavailable or unprepared")]
+    SpellUnavailable,
+    #[error("spell slot is unavailable or already used this turn")]
+    SpellSlotUnavailable,
     #[error("combat encounter is empty or invalid")]
     InvalidEncounter,
     #[error("actor cannot act while unconscious or defeated")]
@@ -44,6 +51,12 @@ pub enum ValidationError {
 }
 
 pub enum CombatAction {
+    Spell {
+        caster: CombatantId,
+        spell_id: String,
+        targets: Vec<CombatantId>,
+        slot_level: u8,
+    },
     NpcTurn {
         combatant: CombatantId,
     },
@@ -99,6 +112,12 @@ impl CombatResolver {
             return Err(ValidationError::InvalidEncounter);
         }
         match action {
+            CombatAction::Spell {
+                caster,
+                spell_id,
+                targets,
+                slot_level,
+            } => self.resolve_spell(caster, &spell_id, targets, slot_level),
             CombatAction::NpcTurn { combatant } => self.resolve_npc_turn(combatant),
             CombatAction::WeaponAttack {
                 attacker,
@@ -387,6 +406,9 @@ impl CombatResolver {
     fn resolve_cast(&mut self, combatant: CombatantId) -> Result<ResultEvents, ValidationError> {
         self.require_current(combatant)?;
         self.require_conscious(combatant)?;
+        if self.combatants[&combatant].character_id.is_some() {
+            return Err(ValidationError::SpellUnavailable);
+        }
         let actor = self
             .combatants
             .get_mut(&combatant)
