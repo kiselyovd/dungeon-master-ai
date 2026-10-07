@@ -362,6 +362,8 @@ async fn execute_start_combat(
         })
         .collect();
     let projection = CombatProjection {
+        authored: None,
+        adventure: None,
         campaign_scope: None,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
@@ -1664,6 +1666,8 @@ mod cast_spell_tests {
             .create(
                 uuid::Uuid::new_v4(),
                 CombatProjection {
+                    authored: None,
+                    adventure: None,
                     campaign_scope: None,
                     schema_version: COMBAT_PROJECTION_VERSION,
                     encounter_id,

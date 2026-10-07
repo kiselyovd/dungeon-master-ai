@@ -125,5 +125,14 @@
     "sleep": "Sleep",
     "thunderwave": "Thunderwave",
     "shatter": "Shatter"
+  },
+  "retreat": "Retreat",
+  "retreat_exit_required": "Reach the mapped dry exit first.",
+  "authored": {
+    "water_echo_1": "Water echo 1",
+    "water_echo_2": "Water echo 2",
+    "map_label": "Upper archive passage",
+    "exit": "Exit",
+    "dispersed": "Dispersed"
   }
 }

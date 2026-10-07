@@ -17,6 +17,8 @@ interface Props {
   onDash?: (() => void) | undefined;
   onDodge?: (() => void) | undefined;
   onDisengage?: (() => void) | undefined;
+  onRetreat?: (() => void) | undefined;
+  retreatAvailable?: boolean | undefined;
   onUseObject?: (() => void) | undefined;
   onEndTurn?: (() => void) | undefined;
   /**
@@ -58,6 +60,8 @@ export function ActionBar({
   onDash,
   onDodge,
   onDisengage,
+  onRetreat,
+  retreatAvailable,
   onUseObject,
   onEndTurn,
   onIntent,
@@ -145,12 +149,15 @@ export function ActionBar({
     },
     {
       key: 'disengage',
-      label: t('disengage'),
-      title: actionTitle ?? t('disengage'),
+      label: t(onRetreat ? 'retreat' : 'disengage'),
+      title:
+        onRetreat && !retreatAvailable
+          ? t('retreat_exit_required')
+          : (actionTitle ?? t(onRetreat ? 'retreat' : 'disengage')),
       icon: <Icons.ArrowReverse size={20} />,
       kbd: 'X',
-      disabled: actionDisabled,
-      onClick: actionHandler(onDisengage, 'intent_disengage'),
+      disabled: actionDisabled || Boolean(onRetreat && !retreatAvailable),
+      onClick: actionHandler(onRetreat ?? onDisengage, 'intent_disengage'),
     },
     {
       key: 'use_object',

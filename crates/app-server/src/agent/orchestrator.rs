@@ -297,7 +297,7 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                 .await;
             return Ok(match outcome {
                 Ok(state) => ToolExecution {
-                    result: serde_json::json!({"schema_version":1,"ruleset_id":"srd-5.2.1","campaign_id":state.campaign.id.0,"session_id":state.session_id.0,"character_id":state.character_id,"revision":state.campaign.revision.0,"adventure":state.projection.adventure,"inventory":state.projection.character["inventory"]}),
+                    result: serde_json::json!({"schema_version":1,"ruleset_id":"srd-5.2.1","campaign_id":state.campaign.id.0,"session_id":state.session_id.0,"character_id":state.character_id,"revision":state.campaign.revision.0,"adventure":state.projection.adventure,"inventory":state.projection.character["inventory"],"projection":state.projection.combat}),
                     is_error: false,
                     handled_by: "engine".into(),
                     media: vec![],

@@ -47,7 +47,8 @@
     "restore_ward": "Repair the inscription and sound the memorial bell",
     "seal_sluice": "Seal the lower sluice and close the crossing",
     "publish_ledger": "Present the recovered ledger to the town council",
-    "finish": "Record the outcome of this session"
+    "finish": "Record the outcome of this session",
+    "start_defense": "Hold the passage for Tikhon"
   },
   "facts": {
     "ferry_route": "Mila's route and rope provide a safe starting point.",
@@ -64,7 +65,14 @@
     "echo_acknowledged": "Savely's rescue has been acknowledged; the echo is not a general oracle.",
     "ward_restored": "The repaired memorial bell restores the ward.",
     "lower_sluice_sealed": "The lower sluice is sealed. The ward remains damaged and quay access is lost.",
-    "reward_granted": "Ten gold pieces for the verified rescue have been added once to your inventory."
+    "reward_granted": "Ten gold pieces for the verified rescue have been added once to your inventory.",
+    "defense_held": "The echoes were held back: the rescue route is open."
   },
-  "retry": "Retry last action"
+  "retry": "Retry last action",
+  "defense": {
+    "active": "Defend the upper passage: hold three rounds or disperse the echoes. Reach the mapped exit to retreat. Combat alone does not repair the ward.",
+    "held": "The passage is held. Tikhon can now be escorted; the ward still needs repair.",
+    "retreated": "You retreated to the quay along the dry route. Tikhon remains in the upper archive room; the rescue can continue.",
+    "defeated": "Mila and Agata found you and brought you to town an hour later. You have 1 HP; spent resources remain spent. The adventure continues."
+  }
 }

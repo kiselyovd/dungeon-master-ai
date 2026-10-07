@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TOKEN_ART } from '../assets/livingTabletop';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
@@ -64,6 +65,10 @@ function conditionColor(condition: string): string {
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
 export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }: Props) {
+  const { t } = useTranslation('combat');
+  const displayName = token.displayNameKey
+    ? t(token.displayNameKey, { defaultValue: token.name })
+    : token.name;
   const pcName = useStore((s) => s.pc.name);
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
@@ -280,7 +285,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
             backgroundPosition: 'center',
           }}
         >
-          {portraitSrc === null && token.name.charAt(0).toUpperCase()}
+          {portraitSrc === null && displayName.charAt(0).toUpperCase()}
 
           {isDead && (
             <div

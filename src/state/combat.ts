@@ -20,6 +20,7 @@ export const DEFAULT_SPEED_FT = 30;
 export interface CombatSlice {
   combat: {
     active: boolean;
+    authored: CombatProjectionDto['authored'];
     encounterId: string | null;
     revision: number;
     tokens: CombatToken[];
@@ -45,6 +46,7 @@ export interface CombatSlice {
 export function emptyCombatProjectionState() {
   return {
     active: false,
+    authored: null,
     encounterId: null,
     revision: -1,
     tokens: [] as CombatToken[],
@@ -64,6 +66,7 @@ export function combatProjectionState(projection: CombatProjectionDto) {
   const active = tokens.find((token) => token.id === projection.snapshot.current_combatant);
   return {
     active: projection.snapshot.active,
+    authored: projection.authored ?? null,
     encounterId: projection.encounter_id,
     revision: projection.revision,
     tokens,
@@ -95,6 +98,7 @@ export function legacyCombatProjectionState(snapshot: SnapshotCombat) {
     movementRemaining: DEFAULT_SPEED_FT,
   }));
   return {
+    authored: null,
     active: snapshot.active,
     encounterId: snapshot.encounter_id,
     revision: 0,

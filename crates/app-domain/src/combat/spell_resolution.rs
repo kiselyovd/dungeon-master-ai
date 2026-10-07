@@ -55,6 +55,9 @@ impl CombatResolver {
                 .combatants
                 .get(target)
                 .ok_or(ValidationError::TargetNotFound)?;
+            if !self.clear_line(actor.position, victim.position) {
+                return Err(ValidationError::Obstructed);
+            }
             if victim.is_dead
                 || (!matches!(rule.effect, SpellEffect::Heal(_))
                     && (victim.current_hp <= 0

@@ -25,12 +25,28 @@ pub struct CombatSnapshot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CombatProjection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authored: Option<AuthoredEncounter>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adventure: Option<crate::models::adventure::AdventureProjection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign_scope: Option<CombatCampaignScope>,
     pub schema_version: u16,
     pub encounter_id: Uuid,
     pub revision: u64,
     pub snapshot: CombatSnapshot,
     pub events: Vec<ResultEvents>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthoredEncounterKind {
+    BellArchiveDefense,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthoredEncounter {
+    pub kind: AuthoredEncounterKind,
+    pub map: app_domain::combat::geometry::BattleMap,
+    pub outcome: Option<app_domain::adventure::DefenseOutcome>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +60,8 @@ pub struct CombatCampaignScope {
 impl CombatProjection {
     pub fn empty(encounter_id: Uuid, revision: u64) -> Self {
         Self {
+            authored: None,
+            adventure: None,
             campaign_scope: None,
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,

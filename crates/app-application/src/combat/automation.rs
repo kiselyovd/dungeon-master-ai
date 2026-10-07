@@ -8,6 +8,14 @@ pub fn settle_npcs(
     engine: &mut CombatResolver,
     events: &mut Vec<ResultEvents>,
 ) -> Result<(), &'static str> {
+    settle_npcs_until(engine, events, None)
+}
+
+pub fn settle_npcs_until(
+    engine: &mut CombatResolver,
+    events: &mut Vec<ResultEvents>,
+    stop_round: Option<u32>,
+) -> Result<(), &'static str> {
     if !engine
         .combatants
         .values()
@@ -16,6 +24,9 @@ pub fn settle_npcs(
         return Ok(());
     }
     for _ in 0..=engine.order.len() {
+        if stop_round.is_some_and(|round| engine.order.round() >= round) {
+            return Ok(());
+        }
         let heroes = engine
             .combatants
             .values()

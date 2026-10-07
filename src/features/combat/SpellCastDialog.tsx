@@ -88,7 +88,7 @@ export function SpellCastDialog({ actor, targets, onClose, onCast }: Props) {
             disabled={busy}
             options={eligible(rule).map((target) => ({
               value: target.id,
-              label: `${target.name} (${target.hp}/${target.maxHp})`,
+              label: `${target.displayNameKey ? t(target.displayNameKey, { defaultValue: target.name }) : target.name} (${target.hp}/${target.maxHp})`,
             }))}
             onChange={setTargetId}
           />

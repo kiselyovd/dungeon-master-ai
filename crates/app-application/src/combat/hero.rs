@@ -50,6 +50,9 @@ pub fn bind_hero(
         rng::SeededRng,
     };
     let mut hero = hero_combatant(character_id, sheet)?;
+    if projection.authored.is_some() {
+        hero.position = Position { x: 3, y: 3 };
+    }
     hero.initiative_roll = roll_one(Die::D20, &mut SeededRng::from_seed(seed)) + hero.dex_mod;
     let mut npcs = projection
         .snapshot
@@ -60,19 +63,21 @@ pub fn bind_hero(
         .collect::<Vec<_>>();
     for (index, npc) in npcs.iter_mut().enumerate() {
         npc.character_id = None;
-        npc.loadout = Some(app_domain::combat::loadout::CombatLoadout {
-            default_weapon: "unarmed".into(),
-            attacks: vec![app_domain::combat::loadout::WeaponAttackProfile::unarmed(
-                0, 2,
-            )],
-            quantities: Default::default(),
-            arrows: 0,
-            shield: false,
-        });
-        npc.position = Position {
-            x: 9 + index as i32,
-            y: 8,
-        };
+        if projection.authored.is_none() {
+            npc.loadout = Some(app_domain::combat::loadout::CombatLoadout {
+                default_weapon: "unarmed".into(),
+                attacks: vec![app_domain::combat::loadout::WeaponAttackProfile::unarmed(
+                    0, 2,
+                )],
+                quantities: Default::default(),
+                arrows: 0,
+                shield: false,
+            });
+            npc.position = Position {
+                x: 9 + index as i32,
+                y: 8,
+            };
+        }
         if let Some(entry) = projection
             .snapshot
             .initiative
@@ -105,8 +110,17 @@ pub fn bind_hero(
         order,
         SeededRng::from_seed(seed),
     );
+    if let Some(authored) = &projection.authored {
+        engine
+            .set_map(authored.map.clone())
+            .map_err(|_| "authored_map_invalid")?;
+    }
     let mut events = Vec::new();
-    super::automation::settle_npcs(&mut engine, &mut events)?;
+    super::automation::settle_npcs_until(
+        &mut engine,
+        &mut events,
+        projection.authored.as_ref().map(|_| 4),
+    )?;
     super::projection::replace_resolved_state(
         projection,
         engine.combatants,
@@ -116,6 +130,7 @@ pub fn bind_hero(
     projection.revision = 0;
     projection.events = events;
     super::automation::finish_if_resolved(projection);
+    super::authored::finalize(projection, false);
     Ok(())
 }
 

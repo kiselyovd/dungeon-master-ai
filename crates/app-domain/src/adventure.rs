@@ -35,6 +35,7 @@ pub enum Fact {
     WardRestored,
     LowerSluiceSealed,
     RewardGranted,
+    DefenseHeld,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +54,7 @@ pub enum Ending {
     deny_unknown_fields
 )]
 pub enum Action {
+    StartDefense,
     Move(Location),
     InspectQuay,
     TalkAgata,
@@ -75,7 +77,7 @@ impl Action {
     /// Authored scene time; retries reuse the receipt instead of advancing it.
     pub fn elapsed_seconds(self) -> u64 {
         match self {
-            Self::Finish => 0,
+            Self::Finish | Self::StartDefense => 0,
             Self::ConsultLeon | Self::RepairClapper => 600,
             _ => 300,
         }
@@ -85,12 +87,25 @@ impl Action {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdventureState {
+    #[serde(default)]
+    pub defense: Option<DefenseOutcome>,
+    #[serde(default)]
+    pub defense_encounter_id: Option<uuid::Uuid>,
     pub package_id: String,
     pub location: Location,
     pub facts: BTreeSet<Fact>,
     pub ending: Option<Ending>,
     pub closed: bool,
     pub history: Vec<Action>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DefenseOutcome {
+    Active,
+    Held,
+    Retreated,
+    Defeated,
 }
 
 pub struct Transition {
@@ -111,6 +126,8 @@ impl Default for AdventureState {
 impl AdventureState {
     pub fn new() -> Self {
         Self {
+            defense: None,
+            defense_encounter_id: None,
             package_id: BELL_ADVENTURE_ID.into(),
             location: Location::Town,
             facts: BTreeSet::from([Fact::FerryRoute]),
@@ -124,7 +141,10 @@ impl AdventureState {
         use Action::*;
         use Fact::*;
         use Location::*;
-        if self.closed || self.package_id != BELL_ADVENTURE_ID {
+        if self.closed
+            || self.package_id != BELL_ADVENTURE_ID
+            || self.defense == Some(DefenseOutcome::Active)
+        {
             return vec![];
         }
         let neighbors: &[Location] = match self.location {
@@ -161,6 +181,10 @@ impl AdventureState {
                 );
             }
             Archive => {
+                offer(
+                    StartDefense,
+                    has(TikhonLocated) && !has(TikhonRescued) && !has(DefenseHeld),
+                );
                 offer(LocateTikhon, !has(TikhonLocated));
                 offer(RescueTikhon, has(TikhonLocated) && !has(TikhonRescued));
                 offer(RecoverRoster, has(TikhonLocated) && !has(RosterAvailable));
@@ -192,6 +216,10 @@ impl AdventureState {
         let mut gold_reward = 0;
         state.ending = None;
         match action {
+            StartDefense => {
+                state.defense = Some(DefenseOutcome::Active);
+                state.defense_encounter_id = None;
+            }
             Move(location) => state.location = location,
             InspectQuay => {
                 state.facts.insert(WardDamaged);
@@ -253,5 +281,29 @@ impl AdventureState {
             state.history.remove(0);
         }
         Ok(Transition { state, gold_reward })
+    }
+
+    pub fn resolve_defense(
+        &self,
+        id: uuid::Uuid,
+        outcome: DefenseOutcome,
+    ) -> Result<Self, AdventureError> {
+        if self.defense != Some(DefenseOutcome::Active)
+            || self.defense_encounter_id != Some(id)
+            || outcome == DefenseOutcome::Active
+        {
+            return Err(AdventureError);
+        }
+        let mut state = self.clone();
+        state.defense = Some(outcome);
+        match outcome {
+            DefenseOutcome::Held => {
+                state.facts.insert(Fact::DefenseHeld);
+            }
+            DefenseOutcome::Retreated => state.location = Location::Quay,
+            DefenseOutcome::Defeated => state.location = Location::Town,
+            DefenseOutcome::Active => return Err(AdventureError),
+        }
+        Ok(state)
     }
 }

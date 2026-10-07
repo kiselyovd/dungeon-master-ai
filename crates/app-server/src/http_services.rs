@@ -311,6 +311,7 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
                 | "character_too_large"
                 | "snapshot_causation_mismatch"
                 | "adventure_action_unavailable"
+                | "adventure_character_downed"
                 | "adventure_session_mismatch"
                 | "adventure_character_mismatch"
                 | "adventure_causation_mismatch"
@@ -500,6 +501,16 @@ impl CombatHttpService for AppStateCombatHttpService {
         command: HttpCombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
         let action = match command.action_type.as_str() {
+            "retreat" => {
+                let args: ActorActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_action_invalid",
+                    }
+                })?;
+                CombatActionCommand::Retreat {
+                    combatant: CombatantId(args.combatant_id),
+                }
+            }
             "spell" => {
                 let args: SpellActionArgs = serde_json::from_value(command.args).map_err(|_| {
                     HttpServiceError::BadRequest {
@@ -610,8 +621,16 @@ impl CombatHttpService for AppStateCombatHttpService {
         repository
             .end(encounter_id)
             .await
-            .map_err(|_| HttpServiceError::Internal {
-                code: "combat_end_failed",
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "authored_exit_required",
+                    ..
+                } => HttpServiceError::UnprocessableEntity {
+                    code: "authored_exit_required",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "combat_end_failed",
+                },
             })
     }
 }
@@ -650,6 +669,8 @@ fn projection_from_start(
         })
         .collect();
     CombatProjection {
+        authored: None,
+        adventure: None,
         campaign_scope: None,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,

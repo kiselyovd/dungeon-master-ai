@@ -122,7 +122,14 @@ impl ResolveCombatAction {
             resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
         let mut resolver =
             CombatResolver::new(combatants, order, SeededRng::from_seed(command.rng_seed));
+        if let Some(authored) = &projection.authored {
+            resolver
+                .set_map(authored.map.clone())
+                .map_err(|_| ResolveCombatError::InvalidState)?;
+        }
+        let retreat = matches!(&command.action, CombatActionCommand::Retreat { .. });
         let action = match command.action {
+            CombatActionCommand::Retreat { combatant } => CombatAction::Retreat { combatant },
             CombatActionCommand::Spell {
                 caster,
                 spell_id,
@@ -166,8 +173,12 @@ impl ResolveCombatAction {
         };
         let first = resolver.resolve(action)?;
         let mut events = vec![first];
-        super::automation::settle_npcs(&mut resolver, &mut events)
-            .map_err(|_| ResolveCombatError::InvalidState)?;
+        super::automation::settle_npcs_until(
+            &mut resolver,
+            &mut events,
+            projection.authored.as_ref().map(|_| 4),
+        )
+        .map_err(|_| ResolveCombatError::InvalidState)?;
         replace_resolved_state(
             &mut projection,
             resolver.combatants,
@@ -176,6 +187,7 @@ impl ResolveCombatAction {
         );
         projection.events = events;
         super::automation::finish_if_resolved(&mut projection);
+        super::authored::finalize(&mut projection, retreat);
 
         let committed = self
             .repository

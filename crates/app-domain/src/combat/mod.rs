@@ -4,6 +4,7 @@ pub mod attack;
 pub mod combatant;
 pub mod conditions;
 pub mod damage;
+pub mod geometry;
 pub mod healing;
 pub mod initiative;
 pub mod loadout;

@@ -19,7 +19,7 @@ export type CombatCommand =
     }
   | { kind: 'cast'; combatantId: string }
   | { kind: 'move'; combatantId: string; x: number; y: number }
-  | { kind: 'end_turn'; combatantId: string };
+  | { kind: 'end_turn' | 'retreat'; combatantId: string };
 
 function commandArgs(command: CombatCommand): Record<string, unknown> {
   switch (command.kind) {
@@ -40,6 +40,7 @@ function commandArgs(command: CombatCommand): Record<string, unknown> {
       };
     case 'cast':
     case 'end_turn':
+    case 'retreat':
       return { combatant_id: command.combatantId };
     case 'move':
       return { combatant_id: command.combatantId, x: command.x, y: command.y };

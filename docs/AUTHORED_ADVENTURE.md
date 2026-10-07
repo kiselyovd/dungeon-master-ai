@@ -85,6 +85,8 @@ configuration. Evidence is in `.artifacts/bell-adventure/native-proof.json`,
 `native-restart-proof.json` and their screenshots. No renderer-store injection
 was used. Test applications, servers and previews were stopped afterward.
 
-Real-model turns, defensive encounter, authored map geometry and two-device
-LAN/VPN acceptance remain separate requirements. Installed Bonsai weights and
+The optional [archive defense](BELL_DEFENSE.md) now has persistent map geometry
+and a complete real-backend browser route. Native AI-led defensive play,
+real-model turns and two-device LAN/VPN acceptance remain separate requirements.
+Installed Bonsai weights and
 LM Studio runtimes were inventoried; no model was loaded or promoted.

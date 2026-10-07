@@ -76,6 +76,8 @@ impl Default for DeathSaves {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Combatant {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name_key: Option<String>,
     pub id: CombatantId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub character_id: Option<CharacterId>,
@@ -102,6 +104,7 @@ pub struct Combatant {
 impl Combatant {
     pub fn new(id: CombatantId, name: String, max_hp: i32, current_hp: i32, ac: i32) -> Self {
         Self {
+            display_name_key: None,
             id,
             character_id: None,
             loadout: None,

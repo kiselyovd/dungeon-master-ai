@@ -65,61 +65,15 @@ impl CombatRepository for SqliteStore {
     async fn create(
         &self,
         session_id: Uuid,
-        mut projection: CombatProjection,
+        projection: CombatProjection,
     ) -> Result<CombatProjection, RepositoryError> {
         let mut transaction = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_combat_create"))?;
-        crate::combat_binding::bind_start(&mut transaction, session_id, &mut projection).await?;
-        let projection_json = serde_json::to_string(&projection)
-            .map_err(|_| repository_error("encode_combat_projection"))?;
-        let initiative_json = serde_json::to_string(&projection.snapshot.initiative)
-            .map_err(|_| repository_error("encode_combat_initiative"))?;
-        let active_turn = projection
-            .snapshot
-            .current_combatant
-            .map(|id| id.0.to_string());
-        sqlx::query(
-            "INSERT INTO combat_encounters \
-             (id, session_id, round, active_turn, started_at, initiative, revision, projection, ended_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        )
-        .bind(projection.encounter_id.to_string())
-        .bind(session_id.to_string())
-        .bind(projection.snapshot.round as i64)
-        .bind(active_turn)
-        .bind(chrono::Utc::now().to_rfc3339())
-        .bind(initiative_json)
-        .bind(projection.revision as i64)
-        .bind(projection_json)
-        .bind(if projection.snapshot.active{None}else{Some(chrono::Utc::now().to_rfc3339())})
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| repository_error("create_combat"))?;
-        for combatant in &projection.snapshot.combatants {
-            let conditions = serde_json::to_string(&combatant.conditions)
-                .map_err(|_| repository_error("encode_combat_conditions"))?;
-            sqlx::query(
-                "INSERT INTO combat_tokens \
-                 (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, is_dead) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            )
-            .bind(combatant.id.0.to_string())
-            .bind(projection.encounter_id.to_string())
-            .bind(&combatant.name)
-            .bind(combatant.current_hp)
-            .bind(combatant.max_hp)
-            .bind(combatant.ac)
-            .bind(combatant.position.x)
-            .bind(combatant.position.y)
-            .bind(conditions)
-            .bind(i64::from(combatant.is_dead))
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| repository_error("create_combat_token"))?;
-        }
+        let projection =
+            create_in_transaction(&mut transaction, session_id, projection, true).await?;
         transaction
             .commit()
             .await
@@ -204,6 +158,8 @@ impl CombatRepository for SqliteStore {
         let Some(raw) = raw else { return Ok(None) };
         let mut projection: CombatProjection =
             serde_json::from_str(&raw).map_err(|_| repository_error("decode_combat_end"))?;
+        app_application::combat::authored::prepare_end(&mut projection)
+            .map_err(repository_error)?;
         let previous = projection.revision;
         projection.revision = previous
             .checked_add(1)
@@ -233,6 +189,18 @@ async fn persist_projection(
     {
         return Err(repository_error("combat_revision_invalid"));
     }
+    let session: String =
+        sqlx::query_scalar("SELECT session_id FROM combat_encounters WHERE id=?1")
+            .bind(projection.encounter_id.to_string())
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_combat_session"))?;
+    crate::authored_combat::resolve(
+        transaction,
+        Uuid::parse_str(&session).map_err(|_| repository_error("combat_session_invalid"))?,
+        projection,
+    )
+    .await?;
     crate::combat_binding::sync_hero(transaction, projection).await?;
     let projection_json = serde_json::to_string(&projection)
         .map_err(|_| repository_error("encode_combat_projection"))?;
@@ -306,4 +274,63 @@ fn decode_receipt(
     }
     serde_json::from_str(&row.get::<String, _>("projection_json"))
         .map_err(|_| repository_error("decode_combat_receipt"))
+}
+
+pub(crate) async fn create_in_transaction(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    session_id: Uuid,
+    mut projection: CombatProjection,
+    advance_revision: bool,
+) -> Result<CombatProjection, RepositoryError> {
+    crate::combat_binding::bind_start(transaction, session_id, &mut projection, advance_revision)
+        .await?;
+    crate::authored_combat::resolve(transaction, session_id, &mut projection).await?;
+    let projection_json = serde_json::to_string(&projection)
+        .map_err(|_| repository_error("encode_combat_projection"))?;
+    let initiative_json = serde_json::to_string(&projection.snapshot.initiative)
+        .map_err(|_| repository_error("encode_combat_initiative"))?;
+    let active_turn = projection
+        .snapshot
+        .current_combatant
+        .map(|id| id.0.to_string());
+    sqlx::query(
+            "INSERT INTO combat_encounters \
+             (id, session_id, round, active_turn, started_at, initiative, revision, projection, ended_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        )
+        .bind(projection.encounter_id.to_string())
+        .bind(session_id.to_string())
+        .bind(projection.snapshot.round as i64)
+        .bind(active_turn)
+        .bind(chrono::Utc::now().to_rfc3339())
+        .bind(initiative_json)
+        .bind(projection.revision as i64)
+        .bind(projection_json)
+        .bind(if projection.snapshot.active{None}else{Some(chrono::Utc::now().to_rfc3339())})
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("create_combat"))?;
+    for combatant in &projection.snapshot.combatants {
+        let conditions = serde_json::to_string(&combatant.conditions)
+            .map_err(|_| repository_error("encode_combat_conditions"))?;
+        sqlx::query(
+                "INSERT INTO combat_tokens \
+                 (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, is_dead) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            )
+            .bind(combatant.id.0.to_string())
+            .bind(projection.encounter_id.to_string())
+            .bind(&combatant.name)
+            .bind(combatant.current_hp)
+            .bind(combatant.max_hp)
+            .bind(combatant.ac)
+            .bind(combatant.position.x)
+            .bind(combatant.position.y)
+            .bind(conditions)
+            .bind(i64::from(combatant.is_dead))
+            .execute(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("create_combat_token"))?;
+    }
+    Ok(projection)
 }

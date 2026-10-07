@@ -69,6 +69,8 @@ async fn fixture_with_pool(
         .create(
             character.session_id.0,
             CombatProjection {
+                authored: None,
+                adventure: None,
                 campaign_scope: None,
                 schema_version: COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,

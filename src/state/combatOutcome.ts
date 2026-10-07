@@ -43,6 +43,9 @@ export function applyCombatOutcome(value: unknown): boolean {
       speedFt: hero.speed_ft,
     },
     campaigns: { ...current.campaigns, active: { ...campaign, revision: scope.revision } },
+    ...(projection.adventure
+      ? { session: { ...current.session, adventure: projection.adventure } }
+      : {}),
   }));
   return true;
 }

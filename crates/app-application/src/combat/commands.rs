@@ -4,6 +4,9 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CombatActionCommand {
+    Retreat {
+        combatant: CombatantId,
+    },
     Spell {
         caster: CombatantId,
         spell_id: String,

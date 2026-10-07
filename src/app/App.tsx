@@ -230,6 +230,7 @@ function App() {
   const combatRound = useStore((s) => s.combat.round);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const combatCommands = useCombatCommands();
+  const combatAuthored = useStore((s) => s.combat.authored);
   const [weaponAttackScope, setWeaponAttackScope] = useState<string | null>(null);
   const [spellCastScope, setSpellCastScope] = useState<string | null>(null);
   const [restScope, setRestScope] = useState<string | null>(null);
@@ -627,6 +628,14 @@ function App() {
                     : () => void combatCommands.cast()
                 }
                 onEndTurn={() => void combatCommands.endTurn()}
+                onRetreat={combatAuthored ? () => void combatCommands.retreat() : undefined}
+                retreatAvailable={Boolean(
+                  combatAuthored &&
+                    ownedCombatToken &&
+                    combatAuthored.map.exits.some(
+                      (exit) => exit.x === ownedCombatToken.x && exit.y === ownedCombatToken.y,
+                    ),
+                )}
                 onIntent={(text) => {
                   void sendAgentTurn(text);
                 }}

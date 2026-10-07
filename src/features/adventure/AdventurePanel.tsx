@@ -44,6 +44,7 @@ export function AdventurePanel({
           <p>{t(`scenes.${state.location}`)}</p>
         </section>
         {state.ending && <p role="status">{t(`ending.${state.ending}`)}</p>}
+        {state.defense && <p role="status">{t(`defense.${state.defense}`)}</p>}
         {pending && <p role="status">{t('pending')}</p>}
         {error && <p role="alert">{t('error')}</p>}
         {retryRequired && (

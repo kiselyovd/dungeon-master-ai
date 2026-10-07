@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { KEY_ART } from '../assets/livingTabletop';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
+import { AuthoredMap } from './AuthoredMap';
 import { CombatOverlay } from './CombatOverlay';
 
 extend({ Container, Graphics });
@@ -45,12 +46,16 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
   const { t } = useTranslation('combat');
 
   const combatActive = useStore((s) => s.combat.active);
-  const tokens = useStore((s) => s.combat.tokens);
+  const storedTokens = useStore((s) => s.combat.tokens);
+  const authored = useStore((s) => s.combat.authored);
+  const adventureMap = useStore((s) => s.session.adventure?.map);
+  const arena = combatActive ? authored?.map : adventureMap;
+  const tokens = !combatActive && authored ? [] : storedTokens;
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
   const combatRevision = useStore((s) => s.combat.revision);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
-  const hasMap = mapImageUrl !== null;
+  const hasMap = mapImageUrl !== null || Boolean(arena);
   const [showGrid, setShowGrid] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showSceneImage, setShowSceneImage] = useState(true);
@@ -148,12 +153,20 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
   const width = Math.max(MIN_CANVAS_PX, containerSize.width);
   const height = Math.max(MIN_CANVAS_PX, containerSize.height);
 
-  const effectiveWidthCells = deriveCells(width, cellSize, widthCells);
-  const effectiveHeightCells = deriveCells(height, cellSize, heightCells);
+  const effectiveWidthCells = arena?.width ?? deriveCells(width, cellSize, widthCells);
+  const effectiveHeightCells = arena?.height ?? deriveCells(height, cellSize, heightCells);
+  const gridWidth = arena ? arena.width * cellSize : width;
+  const gridHeight = arena ? arena.height * cellSize : height;
+  const arenaKey = arena ? `${arena.width}:${arena.height}` : null;
+  useEffect(() => {
+    if (!arenaKey) return;
+    setZoom(1);
+    setPan({ x: (width - gridWidth) / 2, y: (height - gridHeight) / 2 });
+  }, [arenaKey, width, height, gridWidth, gridHeight]);
 
   // The scene image is shown only when one exists AND its layer is enabled.
   // drawGrid paints the dark backdrop whenever the image is not visible.
-  const showMapImage = hasMap && showSceneImage;
+  const showMapImage = mapImageUrl !== null && showSceneImage && !arena;
 
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
@@ -161,7 +174,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
       // With a visible map image behind the canvas we paint nothing opaque so
       // the scene art shows through; only the grid lines (drawn below) overlay
       // it. When no image is visible we fill the dark backdrop ourselves.
-      if (!showMapImage) {
+      if (!showMapImage && !arena) {
         g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
       }
       if (!showGrid) return;
@@ -170,23 +183,34 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
       // unstroked strip when width is not a clean multiple of cellSize).
       for (let x = 0; x <= effectiveWidthCells; x += 1) {
         const px = x * cellSize;
-        if (px > width) break;
-        g.moveTo(px, 0).lineTo(px, height);
+        if (px > gridWidth) break;
+        g.moveTo(px, 0).lineTo(px, gridHeight);
       }
-      if (effectiveWidthCells * cellSize < width) {
-        g.moveTo(width, 0).lineTo(width, height);
+      if (effectiveWidthCells * cellSize < gridWidth) {
+        g.moveTo(gridWidth, 0).lineTo(gridWidth, gridHeight);
       }
       for (let y = 0; y <= effectiveHeightCells; y += 1) {
         const py = y * cellSize;
-        if (py > height) break;
-        g.moveTo(0, py).lineTo(width, py);
+        if (py > gridHeight) break;
+        g.moveTo(0, py).lineTo(gridWidth, py);
       }
-      if (effectiveHeightCells * cellSize < height) {
-        g.moveTo(0, height).lineTo(width, height);
+      if (effectiveHeightCells * cellSize < gridHeight) {
+        g.moveTo(0, gridHeight).lineTo(gridWidth, gridHeight);
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
-    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid, showMapImage],
+    [
+      effectiveWidthCells,
+      effectiveHeightCells,
+      cellSize,
+      width,
+      height,
+      gridWidth,
+      gridHeight,
+      arena,
+      showGrid,
+      showMapImage,
+    ],
   );
 
   const onMeasureClick = useCallback(
@@ -263,8 +287,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
 
   const fitToView = useCallback(() => {
     setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, []);
+    setPan(arena ? { x: (width - gridWidth) / 2, y: (height - gridHeight) / 2 } : { x: 0, y: 0 });
+  }, [arena, width, height, gridWidth, gridHeight]);
 
   const onWheel = useCallback(
     (e: ReactWheelEvent<HTMLDivElement>) => {
@@ -340,6 +364,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
         style={{ cursor: isPanning ? 'grabbing' : measureMode ? 'crosshair' : 'grab' }}
       >
         <div className="dm-vtt-world" style={worldStyle}>
+          {arena && <AuthoredMap map={arena} cellSize={cellSize} />}
           {showMapImage && (
             <img
               src={mapImageUrl ?? undefined}

@@ -46,6 +46,8 @@ async fn fixture() -> (Arc<SqliteStore>, CommitCampaignCharacter, Uuid) {
     );
     let same_name = Combatant::new(npc, "Mira".into(), 8, 8, 12);
     let projection = CombatProjection {
+        authored: None,
+        adventure: None,
         campaign_scope: None,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id: id,

@@ -31,6 +31,7 @@ pub(crate) async fn bind_start(
     tx: &mut Transaction<'_, Sqlite>,
     session_id: Uuid,
     projection: &mut CombatProjection,
+    advance_revision: bool,
 ) -> Result<(), RepositoryError> {
     let campaign:Option<String>=sqlx::query_scalar("SELECT s.campaign_id FROM sessions s JOIN campaign_characters cc ON cc.campaign_id=s.campaign_id WHERE s.id=?1")
         .bind(session_id.to_string()).fetch_optional(&mut **tx).await.map_err(|_|repository_error("read_combat_hero_campaign"))?;
@@ -73,7 +74,7 @@ pub(crate) async fn bind_start(
     let mut sheet = current.projection.character.clone();
     apply_hero_resources(&mut sheet, hero)?;
     crate::campaign_state::persist_character(tx, campaign_id, character_id, sheet).await?;
-    projection.campaign_scope = Some(
+    projection.campaign_scope = Some(if advance_revision {
         advance(
             tx,
             campaign_id,
@@ -81,8 +82,15 @@ pub(crate) async fn bind_start(
             character_id,
             &format!("combat:{}:start", projection.encounter_id),
         )
-        .await?,
-    );
+        .await?
+    } else {
+        CombatCampaignScope {
+            campaign_id: campaign_id.0,
+            session_id,
+            character_id,
+            revision: current.campaign.revision.0,
+        }
+    });
     Ok(())
 }
 

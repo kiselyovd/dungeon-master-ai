@@ -1,3 +1,4 @@
+pub mod authored;
 pub mod automation;
 pub mod commands;
 pub mod hero;

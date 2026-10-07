@@ -732,6 +732,10 @@ fn combat_fixture() -> (Arc<FakeCombatRepository>, CombatantId, CombatantId, Uui
     let repository = Arc::new(FakeCombatRepository {
         receipts: Mutex::new(std::collections::HashMap::new()),
         projection: Mutex::new(CombatProjection {
+            authored: None,
+
+            adventure: None,
+
             campaign_scope: None,
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,

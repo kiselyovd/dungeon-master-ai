@@ -1,3 +1,6 @@
+import * as v from 'valibot';
+import { AdventureProjectionSchema } from '../../../api/contracts/adventure';
+import { BattleMapSchema } from '../../../api/contracts/battleMap';
 import type { CombatProjectionDto, CombatToken } from './types';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -8,6 +11,25 @@ const isNumber = (value: unknown): value is number =>
 export function parseCombatProjection(value: unknown): CombatProjectionDto | null {
   if (!isRecord(value) || !isRecord(value.snapshot)) return null;
   const snapshot = value.snapshot;
+  if (value.authored !== undefined && value.authored !== null) {
+    const authored = value.authored;
+    if (
+      !isRecord(authored) ||
+      authored.kind !== 'bell_archive_defense' ||
+      !v.safeParse(BattleMapSchema, authored.map).success ||
+      !(
+        authored.outcome === null ||
+        ['active', 'held', 'retreated', 'defeated'].includes(String(authored.outcome))
+      )
+    )
+      return null;
+  }
+  if (
+    value.adventure !== undefined &&
+    value.adventure !== null &&
+    !v.safeParse(AdventureProjectionSchema, value.adventure).success
+  )
+    return null;
   if (value.campaign_scope !== undefined && value.campaign_scope !== null) {
     const scope = value.campaign_scope;
     if (
@@ -45,6 +67,11 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
   for (const combatant of snapshot.combatants) {
     if (
       !isRecord(combatant) ||
+      !(
+        combatant.display_name_key === undefined ||
+        combatant.display_name_key === null ||
+        typeof combatant.display_name_key === 'string'
+      ) ||
       !(
         combatant.casting === undefined ||
         combatant.casting === null ||
@@ -99,6 +126,7 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
   const activeId = projection.snapshot.current_combatant;
   return projection.snapshot.combatants.map((combatant) => ({
     id: combatant.id,
+    ...(combatant.display_name_key ? { displayNameKey: combatant.display_name_key } : {}),
     ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
     ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
     ...(combatant.casting ? { casting: combatant.casting } : {}),

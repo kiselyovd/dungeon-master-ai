@@ -7,6 +7,7 @@ use app_application::ports::repositories::{AdventureRepository, RepositoryError}
 use async_trait::async_trait;
 use serde_json::json;
 use sqlx::{Row, Sqlite, Transaction};
+use uuid::Uuid;
 
 fn rejected(code: &'static str) -> RepositoryError {
     RepositoryError::Operation {
@@ -156,14 +157,20 @@ impl AdventureRepository for SqliteStore {
         if current.projection.combat.is_some() {
             return Err(rejected("adventure_combat_active"));
         }
+        if current.projection.character["hp"].as_i64().unwrap_or(0) <= 0 {
+            return Err(rejected("adventure_character_downed"));
+        }
         let adventure = current
             .projection
             .adventure
             .ok_or_else(|| rejected("adventure_not_initialized"))?;
-        let outcome = adventure
+        let mut outcome = adventure
             .state
             .apply(command.action)
             .map_err(|_| rejected("adventure_action_unavailable"))?;
+        if command.action == app_application::models::adventure::Action::StartDefense {
+            outcome.state.defense_encounter_id = Some(Uuid::new_v4());
+        }
         if outcome.gold_reward > 0 {
             let mut character = current.projection.character;
             let items = character["inventory"]
@@ -194,6 +201,19 @@ impl AdventureRepository for SqliteStore {
             &command.causation_id,
         )
         .await?;
+        if command.action == app_application::models::adventure::Action::StartDefense {
+            let encounter = outcome
+                .state
+                .defense_encounter_id
+                .ok_or_else(|| repository_error("authored_encounter_missing"))?;
+            crate::combat::create_in_transaction(
+                &mut tx,
+                command.session_id.0,
+                app_application::combat::authored::bell_defense(encounter),
+                false,
+            )
+            .await?;
+        }
         let state =
             crate::campaign_state::load_in_transaction(&mut tx, command.campaign_id).await?;
         sqlx::query("INSERT INTO adventure_operations(campaign_id,causation_id,request_json,state_json) VALUES(?1,?2,?3,?4)")

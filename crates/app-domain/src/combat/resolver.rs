@@ -18,6 +18,10 @@ mod spells;
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ValidationError {
+    #[error("the path or line of sight is blocked")]
+    Obstructed,
+    #[error("retreat requires reaching the mapped exit")]
+    ExitRequired,
     #[error("spell is unavailable or unprepared")]
     SpellUnavailable,
     #[error("spell slot is unavailable or already used this turn")]
@@ -51,6 +55,9 @@ pub enum ValidationError {
 }
 
 pub enum CombatAction {
+    Retreat {
+        combatant: CombatantId,
+    },
     Spell {
         caster: CombatantId,
         spell_id: String,
@@ -90,6 +97,7 @@ pub struct CombatResolver {
     pub combatants: HashMap<CombatantId, Combatant>,
     pub order: InitiativeOrder,
     rng: SeededRng,
+    map: Option<super::geometry::BattleMap>,
 }
 
 impl CombatResolver {
@@ -102,7 +110,31 @@ impl CombatResolver {
             combatants,
             order,
             rng,
+            map: None,
         }
+    }
+
+    pub fn set_map(&mut self, map: super::geometry::BattleMap) -> Result<(), ValidationError> {
+        if !map.valid()
+            || self
+                .combatants
+                .values()
+                .any(|actor| !map.walkable(actor.position))
+        {
+            return Err(ValidationError::InvalidEncounter);
+        }
+        self.map = Some(map);
+        Ok(())
+    }
+    fn clear_line(&self, from: Position, to: Position) -> bool {
+        self.map.as_ref().is_none_or(|map| map.clear_line(from, to))
+    }
+    fn occupied(&self, actor: CombatantId) -> std::collections::HashSet<Position> {
+        self.combatants
+            .values()
+            .filter(|other| other.id != actor && other.current_hp > 0 && !other.is_dead)
+            .map(|other| other.position)
+            .collect()
     }
 
     /// Phase 1 (Validate) + Phase 2 (Resolve) in one call.
@@ -112,6 +144,25 @@ impl CombatResolver {
             return Err(ValidationError::InvalidEncounter);
         }
         match action {
+            CombatAction::Retreat { combatant } => {
+                self.require_current(combatant)?;
+                self.require_conscious(combatant)?;
+                let actor = self
+                    .combatants
+                    .get_mut(&combatant)
+                    .ok_or(ValidationError::CombatantNotFound)?;
+                if actor.character_id.is_none()
+                    || !self
+                        .map
+                        .as_ref()
+                        .is_some_and(|map| map.exits.contains(&actor.position))
+                {
+                    return Err(ValidationError::ExitRequired);
+                }
+                consume_action(&mut actor.budget, ActionKind::Action)
+                    .map_err(|error| ValidationError::ActionEconomy(error.to_string()))?;
+                Ok(ResultEvents::default())
+            }
             CombatAction::Spell {
                 caster,
                 spell_id,
@@ -211,27 +262,42 @@ impl CombatResolver {
                 loop {
                     let actor = &self.combatants[&id];
                     let destination = self.combatants[&target].position;
-                    if actor.position.distance_ft(destination) <= 5 || actor.budget.movement_ft < 5
+                    if actor.position.distance_ft(destination) <= 5
+                        && self.clear_line(actor.position, destination)
+                        || actor.budget.movement_ft < 5
                     {
                         break;
                     }
                     let current = actor.position;
-                    let next = (-1..=1)
-                        .flat_map(|x| (-1..=1).map(move |y| (x, y)))
-                        .filter(|(x, y)| *x != 0 || *y != 0)
-                        .map(|(x, y)| Position {
-                            x: current.x.saturating_add(x),
-                            y: current.y.saturating_add(y),
-                        })
-                        .filter(|next| {
-                            next.distance_ft(destination) < current.distance_ft(destination)
-                                && !self.combatants.values().any(|other| {
-                                    other.id != id
-                                        && other.current_hp > 0
-                                        && other.position == *next
-                                })
-                        })
-                        .min_by_key(|next| (next.distance_ft(destination), next.x, next.y));
+                    let next = if let Some(map) = &self.map {
+                        let occupied = self.occupied(id);
+                        map.neighbors(destination)
+                            .into_iter()
+                            .filter(|goal| map.clear_line(*goal, destination))
+                            .filter_map(|goal| {
+                                map.path(current, goal, &occupied).map(|path| (goal, path))
+                            })
+                            .filter(|(_, path)| !path.is_empty())
+                            .min_by_key(|(goal, path)| (path.len(), goal.x, goal.y))
+                            .and_then(|(_, path)| path.first().copied())
+                    } else {
+                        (-1..=1)
+                            .flat_map(|x| (-1..=1).map(move |y| (x, y)))
+                            .filter(|(x, y)| *x != 0 || *y != 0)
+                            .map(|(x, y)| Position {
+                                x: current.x.saturating_add(x),
+                                y: current.y.saturating_add(y),
+                            })
+                            .filter(|next| {
+                                next.distance_ft(destination) < current.distance_ft(destination)
+                                    && !self.combatants.values().any(|other| {
+                                        other.id != id
+                                            && other.current_hp > 0
+                                            && other.position == *next
+                                    })
+                            })
+                            .min_by_key(|next| (next.distance_ft(destination), next.x, next.y))
+                    };
                     let Some(next) = next else { break };
                     events.append(self.resolve_move(id, next)?);
                 }
@@ -240,6 +306,10 @@ impl CombatResolver {
                     .distance_ft(self.combatants[&target].position)
                     <= 5
                     && self.combatants[&id].budget.action
+                    && self.clear_line(
+                        self.combatants[&id].position,
+                        self.combatants[&target].position,
+                    )
                 {
                     events.append(self.resolve_weapon_attack(
                         id,
@@ -278,6 +348,9 @@ impl CombatResolver {
             .combatants
             .get(&target)
             .ok_or(ValidationError::TargetNotFound)?;
+        if !self.clear_line(actor.position, victim.position) {
+            return Err(ValidationError::Obstructed);
+        }
         if victim.current_hp <= 0
             || victim.is_dead
             || (actor.character_id.is_some() && victim.character_id.is_some())
@@ -425,12 +498,28 @@ impl CombatResolver {
     ) -> Result<ResultEvents, ValidationError> {
         self.require_current(combatant)?;
         self.require_conscious(combatant)?;
+        let occupied = self.occupied(combatant);
+        let from = self
+            .combatants
+            .get(&combatant)
+            .ok_or(ValidationError::CombatantNotFound)?
+            .position;
+        if occupied.contains(&to) {
+            return Err(ValidationError::Obstructed);
+        }
+        let feet_used = if let Some(map) = &self.map {
+            map.path(from, to, &occupied)
+                .ok_or(ValidationError::Obstructed)?
+                .len() as i32
+                * 5
+        } else {
+            from.distance_ft(to)
+        };
         let actor = self
             .combatants
             .get_mut(&combatant)
             .ok_or(ValidationError::CombatantNotFound)?;
         let from = actor.position;
-        let feet_used = from.distance_ft(to);
         consume_movement_ft(&mut actor.budget, feet_used)
             .map_err(|error| ValidationError::ActionEconomy(error.to_string()))?;
         actor.position = to;

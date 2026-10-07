@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { ChatError } from '../errors';
+import { BattleMapSchema } from './battleMap';
 
 const LocationSchema = v.picklist(['town', 'quay', 'shrine', 'warehouse', 'archive', 'belfry']);
 export const AdventureActionSchema = v.variant('kind', [
@@ -7,6 +8,7 @@ export const AdventureActionSchema = v.variant('kind', [
   v.object({
     kind: v.picklist([
       'inspect_quay',
+      'start_defense',
       'talk_agata',
       'consult_leon',
       'negotiate_clapper',
@@ -25,8 +27,11 @@ export const AdventureActionSchema = v.variant('kind', [
   }),
 ]);
 export const AdventureProjectionSchema = v.object({
+  map: v.optional(v.nullable(BattleMapSchema)),
   state: v.object({
     package_id: v.literal('bell-beneath-water'),
+    defense: v.optional(v.nullable(v.picklist(['active', 'held', 'retreated', 'defeated']))),
+    defense_encounter_id: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
     location: LocationSchema,
     facts: v.array(
       v.picklist([
@@ -45,6 +50,7 @@ export const AdventureProjectionSchema = v.object({
         'ward_restored',
         'lower_sluice_sealed',
         'reward_granted',
+        'defense_held',
       ]),
     ),
     ending: v.nullable(v.picklist(['remembered_river', 'closed_crossing', 'unfinished_debt'])),
@@ -57,6 +63,7 @@ export type AdventureAction = v.InferOutput<typeof AdventureActionSchema>;
 export type AdventureProjection = v.InferOutput<typeof AdventureProjectionSchema>;
 
 export const AdventureToolOutcomeSchema = v.object({
+  projection: v.optional(v.nullable(v.unknown())),
   schema_version: v.literal(1),
   ruleset_id: v.literal('srd-5.2.1'),
   campaign_id: v.pipe(v.string(), v.uuid()),

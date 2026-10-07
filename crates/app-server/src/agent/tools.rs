@@ -28,7 +28,7 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     tools.push(Tool {
         name:"adventure_action".into(),
         description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
-        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["move","inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}}}}),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["move","inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}}}}),
     });
     if availability.image {
         tools.push(generate_map_tool());
@@ -467,5 +467,26 @@ mod tests {
     fn all_tools_includes_apply_healing() {
         let tools = all_tools();
         assert!(tools.iter().any(|t| t.name == "apply_healing"));
+    }
+
+    #[test]
+    fn adventure_schema_allows_the_authored_defense_intention() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        let tool = tools
+            .iter()
+            .find(|tool| tool.name == "adventure_action")
+            .unwrap();
+        let action =
+            serde_json::to_value(app_application::models::adventure::Action::StartDefense).unwrap();
+        let kinds = tool.parameters["properties"]["action"]["properties"]["kind"]["enum"]
+            .as_array()
+            .unwrap();
+        assert!(
+            kinds.contains(&action["kind"]),
+            "A legal defense must be expressible through the model's advertised schema"
+        );
     }
 }

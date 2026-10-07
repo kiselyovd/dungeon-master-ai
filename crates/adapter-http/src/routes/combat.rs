@@ -46,7 +46,7 @@ pub enum CombatSseEvent {
         reason: String,
     },
     CombatProjection {
-        projection: CombatProjection,
+        projection: Box<CombatProjection>,
     },
 }
 
@@ -162,7 +162,10 @@ pub async fn post_combat_start(
     Ok(close_sse(
         Sse::new(stream::iter(vec![
             Ok::<Event, Infallible>(event.to_sse_event()),
-            Ok(CombatSseEvent::CombatProjection { projection }.to_sse_event()),
+            Ok(CombatSseEvent::CombatProjection {
+                projection: Box::new(projection),
+            }
+            .to_sse_event()),
         ]))
         .keep_alive(KeepAlive::default()),
     ))
@@ -185,7 +188,9 @@ pub async fn post_combat_action(
         .await?;
     let stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> = match projection {
         Some(projection) => {
-            let event = CombatSseEvent::CombatProjection { projection };
+            let event = CombatSseEvent::CombatProjection {
+                projection: Box::new(projection),
+            };
             Box::pin(stream::once(async move {
                 Ok::<Event, Infallible>(event.to_sse_event())
             }))
@@ -206,9 +211,10 @@ pub async fn post_combat_end(
     };
     let mut events = vec![Ok::<Event, Infallible>(event.to_sse_event())];
     if let Some(projection) = projection {
-        events.push(Ok(
-            CombatSseEvent::CombatProjection { projection }.to_sse_event()
-        ));
+        events.push(Ok(CombatSseEvent::CombatProjection {
+            projection: Box::new(projection),
+        }
+        .to_sse_event()));
     }
     Ok(close_sse(
         Sse::new(stream::iter(events)).keep_alive(KeepAlive::default()),

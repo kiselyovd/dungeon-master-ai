@@ -1,5 +1,8 @@
 export type AoeShape = 'cone' | 'sphere' | 'line' | 'cube';
 
+import type { AdventureProjection } from '../../../api/contracts/adventure';
+import type { BattleMap } from '../../../api/contracts/battleMap';
+
 export interface SpellChoiceDto {
   id: string;
   level: number;
@@ -53,6 +56,7 @@ export interface AoeTemplateEntry {
 }
 
 export interface CombatToken {
+  displayNameKey?: string;
   id: string;
   characterId?: string;
   loadout?: CombatLoadoutDto;
@@ -74,6 +78,12 @@ export interface CombatToken {
 }
 
 export interface CombatProjectionDto {
+  authored?: {
+    kind: 'bell_archive_defense';
+    map: BattleMap;
+    outcome: 'active' | 'held' | 'retreated' | 'defeated' | null;
+  } | null;
+  adventure?: AdventureProjection | null;
   campaign_scope?: {
     campaign_id: string;
     session_id: string;
@@ -90,6 +100,7 @@ export interface CombatProjectionDto {
     initiative: Array<{ id: string; roll: number; dex_tiebreak: number }>;
     combatants: Array<{
       id: string;
+      display_name_key?: string | null;
       character_id?: string | null;
       loadout?: CombatLoadoutDto | null;
       casting?: CastingProfileDto | null;

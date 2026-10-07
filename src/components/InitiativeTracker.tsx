@@ -49,7 +49,9 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
                 className={`dm-init-card${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`}
                 onClick={() => onSelect?.(tok.id)}
                 aria-label={t('token_aria', {
-                  name: tok.name,
+                  name: tok.displayNameKey
+                    ? t(tok.displayNameKey, { defaultValue: tok.name })
+                    : tok.name,
                   hp: tok.hp,
                   maxHp: tok.maxHp,
                   ac: tok.ac,
@@ -57,7 +59,11 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
               >
                 <div className="dm-init-init">{index + 1}</div>
                 <div className="dm-init-body">
-                  <div className={`dm-init-name${isDead ? ' is-dead' : ''}`}>{tok.name}</div>
+                  <div className={`dm-init-name${isDead ? ' is-dead' : ''}`}>
+                    {tok.displayNameKey
+                      ? t(tok.displayNameKey, { defaultValue: tok.name })
+                      : tok.name}
+                  </div>
                   <div className="dm-init-meta">
                     <span className="dm-init-ac" title={t('ac_label')}>
                       <Icons.Shield size={10} />

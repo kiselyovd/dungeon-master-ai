@@ -14,6 +14,37 @@ Execution: inline, authorized by 'Продолжай до конца'; preserve 
 - [ ] Full gates, production build/browser/native complete peaceful and defensive solo sessions, restart/recovery, documentation and scoped checkpoints.
 - [ ] Continue party ownership and LAN/VPN room/event/reconnect/two-client acceptance; no narrowing of the original objective.
 
+## Authored defensive session
+
+Defense checkpoint collection, 2026-10-07: linked optional encounter, authored
+12x8 map, host pathfinding/line of sight, exit retreat and nonlethal recovery
+implemented. Domain/application/SQLite regressions cover outcomes, round cap,
+receipt replay, rollback and active snapshot restoration. Production-preview
+browser against real isolated HTTP/SQLite completed defense, rescue, sealed
+ending and reload with one reward and spent slots. Catalog regression reproduced
+missing start_defense and passed after correction. Independent read-only reviews
+closed the round-cap issue and found no remaining actionable issues in this
+scope. Final full gates passed (workspace Rust and 1041 frontend tests), production
+build passed; original 32 baseline hashes remain unchanged. Owned backend stopped.
+Native AI-directed play, wider spells/class features, AI combat/rest intentions,
+real-model/Bonsai and LAN/VPN acceptance remain pending; broad tasks stay open.
+
+Next AI interface: expose strict intention-only `combat_action` and `rest_action`
+tools. Derive campaign, session, character, encounter, actor, revision and dice
+seed on the server. The model selects an available weapon/spell/target, a map
+destination, end-turn/retreat, or Short/Long/Wait; it cannot supply HP, damage,
+resource balances or a replacement map. Reuse the application resolver and
+transactional repositories, with operation/call-scoped immutable receipt IDs.
+Supply current combat positions, budgets, supported choices and rest/time state
+in context, refresh after confirmed tools, and deliver public projections through
+the existing atomic frontend ports. First verify scripted-provider effects,
+replay, rejection without spending, and narration following confirmed outcomes;
+then exercise actual model and native play. This is still pending implementation.
+
+Add a voluntary Archive defense after locating Tikhon. The server creates a linked encounter and immutable12x8 upper-landing map in the same adventure transaction/revision/receipt. Two custom water-echo hazards use authored profiles and spawn positions; the saved hero keeps its canonical resources. Holding three rounds or dispersing the echoes confirms a rescue window; combat alone grants no rescue reward or ward restoration. Retreat requires reaching the mapped dry exit. Defeat is explicitly nonlethal: Mila/Agata recover the hero to town at1HP after an hour, retaining spent resources and unfinished objectives. Resolve story state, HP/time, combat projection and receipt atomically; snapshots/retries preserve the link and cannot fabricate victory.
+
+Geometry is host-authoritative: bounded walkable cells, walls, occupied destinations, path costs, NPC pathfinding and line-of-sight checks. UI brief: draw the server map inside the existing VTT using existing grid/palette controls, label the dry exit and objective in EN/RU, add the existing-style retreat control only for a linked encounter. Reuse current action/weapon/spell panels and tokens; no new visual tokens or production dependencies. Verify domain outcomes/path rejection, real SQL compound creation/closure/rollback/replay/restore, then full peaceful and defensive browser/native sessions. AI intention delivery/context must carry the confirmed combat/story state; generic mutations cannot substitute authored outcomes. Full spell/class/model/recovery/party requirements remain active.
+
 ## Spell and rest execution
 
 Rest/resource continuation: move the shared adventure clock into a session-owned `AdventuringState`, captured/restored with snapshots. Keep remaining Hit Point Dice and the last completed Long Rest in the canonical hero resources. Short Rest takes60 minutes, spends explicitly chosen class hit dice with Constitution (minimum1HP per die), and restores Pact slots. Long Rest takes480 minutes, requires16 hours since the previous completion before starting, restores HP/hit dice/slots, and never replenishes ammunition. Waiting is an explicit bounded time intention, not a client-supplied clock value. Host checks current session/character/revision, active combat and authored-location safety; the Bell's town is the safe rest location. Persist clock, sheet, revision and immutable outcome receipt atomically, replay without rerolls, and invalidate rest receipts on timeline restoration. Extend slot capacities to the class tables so higher-slot casting and Pact recharge operate on real resources.

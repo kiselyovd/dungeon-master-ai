@@ -55,6 +55,8 @@ async fn spell_resources_commit_replay_and_restore_with_the_hero() {
                 schema_version: COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,
                 revision: 0,
+                authored: None,
+                adventure: None,
                 campaign_scope: None,
                 snapshot: CombatSnapshot {
                     active: true,

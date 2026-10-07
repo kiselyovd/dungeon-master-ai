@@ -99,6 +99,10 @@ export function useCombatCommands() {
     const combatantId = useStore.getState().combat.currentTurnId;
     if (combatantId) return execute({ kind: 'cast', combatantId });
   }, [execute]);
+  const retreat = useCallback(() => {
+    const combatantId = useStore.getState().combat.currentTurnId;
+    return combatantId ? execute({ kind: 'retreat', combatantId }) : Promise.resolve(false);
+  }, [execute]);
   const spell = useCallback(
     (spellId: string, targetIds: string[], slotLevel: number) => {
       const combatantId = useStore.getState().combat.currentTurnId;
@@ -149,5 +153,5 @@ export function useCombatCommands() {
     [execute],
   );
 
-  return { pending, move, endTurn, cast, spell, attack, weaponAttack };
+  return { pending, move, endTurn, retreat, cast, spell, attack, weaponAttack };
 }
