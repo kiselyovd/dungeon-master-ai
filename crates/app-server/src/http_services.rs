@@ -1605,3 +1605,84 @@ fn runtime_wire_status(status: &RuntimeStatus) -> Value {
 pub fn local_control_http_service(state: AppState) -> Arc<dyn LocalControlHttpService> {
     Arc::new(AppStateLocalControlHttpService::new(state))
 }
+
+/// Compatibility factory; concrete host state is supplied by app-bootstrap.
+pub fn room_dm_http_service(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+) -> Arc<dyn adapter_http::services::RoomDmHttpService> {
+    Arc::new(AppStateRoomDmHttpService { state, rooms })
+}
+struct AppStateRoomDmHttpService {
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+}
+#[async_trait]
+impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
+    async fn turn(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        use app_application::{
+            agent::{tools::AgentToolCatalog, turn::AgentTurnConfig},
+            rooms::{agent::RoomAgentPorts, dm_turns::RoomDmRunner},
+        };
+        let config = self.state.agent_config();
+        let lane = self.state.campaign_lane(subject.lease().campaign_id().0);
+        let tools = AgentToolCatalog {
+            exploration: crate::agent::tools::tools_for_phase(config.tool_availability, false),
+            combat: crate::agent::tools::tools_for_phase(config.tool_availability, true),
+        };
+        let system_prompt = crate::agent::context_builder::compose_system_prompt(
+            &config.system_prompt,
+            config.tool_availability,
+        );
+        RoomDmRunner::new(
+            Arc::new(RoomAgentPorts::new(self.rooms.clone(), subject, request_id)),
+            self.state.provider(),
+            AgentTurnConfig {
+                model: config.model,
+                system_prompt,
+                temperature: config.temperature,
+                max_rounds: config.max_rounds,
+                embedding_model: config.embedding_model,
+                reasoning_enabled: config.reasoning_enabled,
+                reasoning_budget: config.reasoning_budget,
+                tool_availability: config.tool_availability,
+                tools,
+            },
+            lane,
+            self.state.process_id(),
+        )
+        .execute(player_message, resume)
+        .await
+        .map_err(|error| match error {
+            app_application::ports::repositories::RepositoryError::Operation {
+                code: "room_access_denied",
+                ..
+            } => HttpServiceError::Unauthorized {
+                code: "room_access_denied",
+            },
+            app_application::ports::repositories::RepositoryError::Operation {
+                code:
+                    code @ ("agent_request_mismatch"
+                    | "agent_turn_running"
+                    | "agent_turn_interrupted"
+                    | "agent_turn_superseded"),
+                ..
+            } => HttpServiceError::Conflict { code },
+            app_application::ports::repositories::RepositoryError::Operation {
+                code: "room_dm_request_invalid",
+                ..
+            } => HttpServiceError::BadRequest {
+                code: "room_dm_request_invalid",
+            },
+            _ => HttpServiceError::Internal {
+                code: "room_dm_unavailable",
+            },
+        })
+    }
+}

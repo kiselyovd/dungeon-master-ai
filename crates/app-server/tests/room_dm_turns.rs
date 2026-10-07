@@ -1,0 +1,1096 @@
+use adapter_secrets::InMemorySecretsStore;
+use adapter_sqlite::{pool, SqliteStore};
+use app_application::{
+    agent::{
+        operations::{AgentOperation, AgentOperationRepository, OperationClaim},
+        tools::{AgentToolCatalog, ToolAvailability},
+        turn::AgentTurnConfig,
+    },
+    campaigns::{CreateCampaign, CreateCampaignCommand},
+    models::{
+        agent::AgentEvent,
+        campaign_state::CommitCampaignCharacter,
+        chat::{Capabilities, ChatChunk, ChatMessage, ChatRequest, FinishReason},
+        identity::{CampaignId, SessionId},
+        room::CreateLocalRoom,
+        room_character::{ApproveRoomCharacter, SubmitRoomCharacter},
+        session::CampaignSeed,
+    },
+    ports::{
+        llm::{ChunkStream, LlmError, LlmProvider},
+        repositories::{
+            CampaignStateRepository, MessageRepository, PartyRepository, RoomRepository,
+        },
+    },
+    rooms::{
+        agent::RoomAgentPorts, dm_turns::RoomDmRunner, JoinRoom, RoomGrant, RoomSecret,
+        RoomService, SystemRoomClock,
+    },
+};
+use futures::StreamExt;
+use serde_json::json;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
+use tokio::sync::{Mutex, Notify};
+use uuid::Uuid;
+struct Fixture {
+    store: Arc<SqliteStore>,
+    rooms: Arc<RoomService>,
+    host: RoomGrant,
+    guest: RoomGrant,
+    campaign: CampaignId,
+    session: SessionId,
+}
+impl Fixture {
+    async fn ports(&self, member: &RoomGrant, turn: Uuid) -> Arc<RoomAgentPorts> {
+        Arc::new(RoomAgentPorts::new(
+            self.rooms.clone(),
+            self.rooms
+                .authenticate(member.room.room_id, member.member_id, &member.capability)
+                .await
+                .unwrap(),
+            turn,
+        ))
+    }
+}
+async fn fixture() -> Fixture {
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let store = Arc::new(SqliteStore::new(db));
+    let campaign = CreateCampaign::new(store.clone())
+        .execute(CreateCampaignCommand {
+            title: "DM lane".into(),
+            premise: "Road".into(),
+            seed: CampaignSeed::Collaborative {
+                answers: Default::default(),
+            },
+        })
+        .await
+        .unwrap();
+    let sheet = json!({"name":"Mira","heroClass":"fighter","level":1,"hp":12,"hpMax":12,"ac":14,"abilities":{"str":15,"dex":14,"con":13,"int":12,"wis":10,"cha":8},"inventory":[]});
+    let current = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: Uuid::new_v4(),
+            expected_revision: campaign.revision,
+            causation_id: "hero".into(),
+            character: sheet.clone(),
+        })
+        .await
+        .unwrap();
+    let rooms = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(SystemRoomClock),
+    ));
+    let created = rooms
+        .create_local_room(CreateLocalRoom {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: current.campaign.revision,
+            causation_id: "room".into(),
+        })
+        .await
+        .unwrap();
+    let guest = rooms
+        .join(JoinRoom {
+            room_id: created.grant.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Guest".into(),
+            invitation: RoomSecret::from_input(created.invitation.expose().into()).unwrap(),
+            resume_proof: RoomSecret::generate(),
+        })
+        .await
+        .unwrap();
+    let guest_subject = rooms
+        .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
+        .await
+        .unwrap();
+    let host_subject = rooms
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let character = Uuid::new_v4();
+    let proposal = Uuid::new_v4();
+    let mut sheet = sheet;
+    sheet["characterId"] = json!(character);
+    sheet["name"] = json!("Tara");
+    rooms
+        .submit_character(
+            &guest_subject,
+            SubmitRoomCharacter {
+                proposal_id: proposal,
+                character_id: character,
+                character: sheet,
+            },
+        )
+        .await
+        .unwrap();
+    rooms
+        .approve_character(
+            &host_subject,
+            ApproveRoomCharacter {
+                proposal_id: proposal,
+                expected_revision: store.party(campaign.id).await.unwrap().unwrap().revision,
+                causation_id: "accept".into(),
+            },
+        )
+        .await
+        .unwrap();
+    Fixture {
+        store,
+        rooms,
+        host: created.grant,
+        guest,
+        campaign: campaign.id,
+        session: campaign.last_session_id,
+    }
+}
+fn config() -> AgentTurnConfig {
+    let available = ToolAvailability::default();
+    AgentTurnConfig {
+        model: "fixture".into(),
+        system_prompt: "DM".into(),
+        temperature: 0.0,
+        max_rounds: 4,
+        embedding_model: "unused".into(),
+        reasoning_enabled: false,
+        reasoning_budget: app_application::models::chat::ReasoningSpec::Low,
+        tool_availability: available,
+        tools: AgentToolCatalog {
+            exploration: app_server::agent::tools::tools_for_phase(available, false),
+            combat: app_server::agent::tools::tools_for_phase(available, true),
+        },
+    }
+}
+#[derive(Default)]
+struct Provider {
+    calls: AtomicUsize,
+    hold: bool,
+    started: Notify,
+}
+#[async_trait::async_trait]
+impl LlmProvider for Provider {
+    async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError> {
+        assert!(request
+            .system_prompt
+            .as_ref()
+            .unwrap()
+            .contains("You are the Dungeon Master"));
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.started.notify_one();
+        if self.hold {
+            std::future::pending::<()>().await;
+        }
+        Ok(futures::stream::iter(vec![
+            Ok(ChatChunk::TextDelta {
+                text: "Перед вами дорога. Что вы делаете?".into(),
+            }),
+            Ok(ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }),
+        ])
+        .boxed())
+    }
+    fn name(&self) -> &'static str {
+        "fixture"
+    }
+    fn active_model(&self) -> &str {
+        "fixture"
+    }
+    fn capabilities_for_model(&self, _: &str) -> Capabilities {
+        Default::default()
+    }
+}
+async fn collect(mut stream: futures::stream::BoxStream<'static, AgentEvent>) -> Vec<AgentEvent> {
+    let mut events = vec![];
+    while let Some(event) = tokio::time::timeout(std::time::Duration::from_secs(3), stream.next())
+        .await
+        .unwrap()
+    {
+        events.push(event);
+    }
+    events
+}
+fn runner(
+    ports: Arc<RoomAgentPorts>,
+    provider: Arc<Provider>,
+    lane: Arc<Mutex<()>>,
+    owner: Uuid,
+) -> RoomDmRunner {
+    RoomDmRunner::new(ports, provider, config(), lane, owner)
+}
+async fn operation(ports: &RoomAgentPorts, text: &str) -> AgentOperation {
+    let command = ports.command(text.into()).await.unwrap();
+    AgentOperation {
+        request_id: Uuid::parse_str(&command.request_id).unwrap(),
+        request: command.request,
+        model: Some("fixture".into()),
+    }
+}
+#[tokio::test]
+async fn completed_turn_replays_only_for_its_owner_without_model_or_message_duplication() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let provider = Arc::new(Provider::default());
+    let lane = Arc::new(Mutex::new(()));
+    let owner = Uuid::new_v4();
+    let first = collect(
+        runner(ports.clone(), provider.clone(), lane.clone(), owner)
+            .execute("Осматриваюсь".into(), false)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(first.last(), Some(AgentEvent::AgentDone { .. })));
+    let messages = f.store.list(f.session.0).await.unwrap();
+    let reconnect = f.ports(&f.guest, turn).await;
+    let replay = collect(
+        runner(
+            reconnect.clone(),
+            provider.clone(),
+            lane.clone(),
+            Uuid::new_v4(),
+        )
+        .execute("Осматриваюсь".into(), false)
+        .await
+        .unwrap(),
+    )
+    .await;
+    assert_eq!(first, replay);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(messages, f.store.list(f.session.0).await.unwrap());
+    assert!(runner(reconnect, provider.clone(), lane.clone(), owner)
+        .execute("Другой ход".into(), false)
+        .await
+        .is_err());
+    let host = f.ports(&f.host, turn).await;
+    assert!(f
+        .store
+        .room_dm_request(
+            f.rooms
+                .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+                .await
+                .unwrap()
+                .lease(),
+            turn
+        )
+        .await
+        .unwrap()
+        .is_none());
+    collect(
+        runner(host, provider.clone(), lane, owner)
+            .execute("Слушаю".into(), false)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+}
+#[tokio::test]
+async fn two_members_cannot_run_a_dm_concurrently_and_disconnect_requires_explicit_resume() {
+    let f = fixture().await;
+    let owner = Uuid::new_v4();
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let waiting = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let lane = Arc::new(Mutex::new(()));
+    let stream = runner(ports.clone(), waiting.clone(), lane.clone(), owner)
+        .execute("Жду ответа".into(), false)
+        .await
+        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        waiting.started.notified(),
+    )
+    .await
+    .unwrap();
+    let host = f.ports(&f.host, Uuid::new_v4()).await;
+    let ready = Arc::new(Provider::default());
+    // Independent in-memory lane still cannot bypass the durable campaign claim.
+    assert!(
+        runner(host.clone(), ready.clone(), Arc::new(Mutex::new(())), owner)
+            .execute("Мой ход".into(), false)
+            .await
+            .is_err()
+    );
+    let subject = f
+        .rooms
+        .authenticate(f.guest.room.room_id, f.guest.member_id, &f.guest.capability)
+        .await
+        .unwrap();
+    assert!(
+        f.rooms
+            .initial_updates(&subject, None)
+            .await
+            .unwrap()
+            .state
+            .agent_busy
+    );
+    drop(stream);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let status: String =
+                sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+                    .bind(turn.to_string())
+                    .fetch_one(f.store.pool())
+                    .await
+                    .unwrap();
+            if status == "interrupted" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(runner(ports.clone(), ready.clone(), lane.clone(), owner)
+        .execute("Жду ответа".into(), false)
+        .await
+        .is_err());
+    assert!(runner(host, ready.clone(), Arc::new(Mutex::new(())), owner)
+        .execute("Мой ход".into(), false)
+        .await
+        .is_err());
+    let resumed = collect(
+        runner(ports.clone(), ready.clone(), lane, owner)
+            .execute("Жду ответа".into(), true)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(resumed.last(), Some(AgentEvent::AgentDone { .. })));
+    assert_eq!(ports.checkpoint().await.unwrap().len(), 2);
+    assert!(
+        !f.rooms
+            .initial_updates(&subject, None)
+            .await
+            .unwrap()
+            .state
+            .agent_busy
+    );
+}
+#[tokio::test]
+async fn restart_needs_exclusive_authority_and_cannot_steal_another_members_turn() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let input = operation(&ports, "Осматриваюсь").await;
+    let old_owner = Uuid::new_v4();
+    let new_owner = Uuid::new_v4();
+    assert!(matches!(
+        ports.claim(input.clone(), old_owner).await.unwrap(),
+        OperationClaim::Started
+    ));
+    assert!(matches!(
+        ports.resume(input.clone(), new_owner).await.unwrap(),
+        OperationClaim::Running
+    ));
+    let host = f.ports(&f.host, turn).await;
+    assert!(host
+        .resume(operation(&host, "Забираю чужой ход").await, new_owner)
+        .await
+        .is_err());
+    // Test simulates the bootstrap call after the sole-process authority lock.
+    assert_eq!(
+        f.store
+            .recover_after_exclusive_authority(new_owner)
+            .await
+            .unwrap(),
+        1
+    );
+    assert!(runner(
+        ports.clone(),
+        Arc::new(Provider::default()),
+        Arc::new(Mutex::new(())),
+        new_owner
+    )
+    .execute("Изменённый запрос".into(), true)
+    .await
+    .is_err());
+    let provider = Arc::new(Provider::default());
+    let result = collect(
+        runner(ports, provider.clone(), Arc::new(Mutex::new(())), new_owner)
+            .execute("Осматриваюсь".into(), true)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(result.last(), Some(AgentEvent::AgentDone { .. })));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+#[tokio::test]
+async fn delivery_sequence_owner_and_completion_are_transactionally_guarded() {
+    let f = fixture().await;
+    let ports = f.ports(&f.guest, Uuid::new_v4()).await;
+    let input = operation(&ports, "Слушаю").await;
+    let owner = Uuid::new_v4();
+    ports.claim(input.clone(), owner).await.unwrap();
+    assert!(ports
+        .append_event(
+            input.request_id,
+            Uuid::new_v4(),
+            0,
+            AgentEvent::AgentDone { total_rounds: 1 }
+        )
+        .await
+        .is_err());
+    assert!(ports
+        .append_event(
+            input.request_id,
+            owner,
+            1,
+            AgentEvent::AgentDone { total_rounds: 1 }
+        )
+        .await
+        .is_err());
+    assert!(ports
+        .append_event(
+            input.request_id,
+            owner,
+            0,
+            AgentEvent::ReasoningText {
+                text: "secret".into()
+            }
+        )
+        .await
+        .is_err());
+    assert!(ports.finish(input.request_id, owner, true).await.is_err());
+    ports
+        .append_event(
+            input.request_id,
+            owner,
+            0,
+            AgentEvent::TextDelta {
+                text: "Ответ".into(),
+            },
+        )
+        .await
+        .unwrap();
+    ports
+        .append(f.session.0, ChatMessage::user_text("Слушаю"))
+        .await
+        .unwrap();
+    ports
+        .append(
+            f.session.0,
+            ChatMessage::Assistant {
+                content: "Ответ".into(),
+            },
+        )
+        .await
+        .unwrap();
+    ports
+        .append_event(
+            input.request_id,
+            owner,
+            1,
+            AgentEvent::AgentDone { total_rounds: 1 },
+        )
+        .await
+        .unwrap();
+    ports.finish(input.request_id, owner, true).await.unwrap();
+    assert!(ports
+        .append_event(
+            input.request_id,
+            owner,
+            2,
+            AgentEvent::TextDelta {
+                text: "late".into()
+            }
+        )
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn snapshot_restore_invalidates_even_a_claim_without_a_transcript() {
+    use app_application::{
+        campaigns::{CreateSnapshot, CreateSnapshotCommand},
+        models::snapshot::RestoreSnapshotRecord,
+        ports::repositories::SnapshotRepository,
+    };
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let input = operation(&ports, "Слушаю").await;
+    ports.claim(input, Uuid::new_v4()).await.unwrap();
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    let saved = CreateSnapshot::new(f.store.clone())
+        .execute(CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: current.campaign.revision,
+            title: "Before DM".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "".into(),
+            causation_id: "save".into(),
+            character: current.projection.character,
+        })
+        .await
+        .unwrap();
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    f.store
+        .restore_snapshot(RestoreSnapshotRecord {
+            save_id: saved.save_id,
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: current.campaign.revision,
+            causation_id: "restore".into(),
+        })
+        .await
+        .unwrap();
+    assert!(ports.checkpoint().await.is_err());
+    assert!(ports.command("Слушаю".into()).await.is_err());
+    let provider = Arc::new(Provider::default());
+    collect(
+        runner(
+            f.ports(&f.host, Uuid::new_v4()).await,
+            provider,
+            Arc::new(Mutex::new(())),
+            Uuid::new_v4(),
+        )
+        .execute("Начинаем заново".into(), false)
+        .await
+        .unwrap(),
+    )
+    .await;
+}
+#[tokio::test]
+async fn revocation_cancels_waiting_model_and_releases_the_shared_dm_lane() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let waiting = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let lane = Arc::new(Mutex::new(()));
+    let stream = runner(ports.clone(), waiting.clone(), lane.clone(), Uuid::new_v4())
+        .execute("Жду".into(), false)
+        .await
+        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        waiting.started.notified(),
+    )
+    .await
+    .unwrap();
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    f.rooms.revoke(&host, f.guest.member_id).await.unwrap();
+    assert!(collect(stream).await.is_empty());
+    assert!(runner(
+        ports,
+        Arc::new(Provider::default()),
+        lane.clone(),
+        Uuid::new_v4()
+    )
+    .execute("Жду".into(), true)
+    .await
+    .is_err());
+    let status: String = sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+        .bind(turn.to_string())
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert_eq!(status, "superseded");
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            if lane.try_lock().is_ok() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    collect(
+        runner(
+            f.ports(&f.host, Uuid::new_v4()).await,
+            Arc::new(Provider::default()),
+            lane,
+            Uuid::new_v4(),
+        )
+        .execute("Продолжаем".into(), false)
+        .await
+        .unwrap(),
+    )
+    .await;
+}
+#[tokio::test]
+async fn resume_repairs_confirmed_tool_delivery_and_uses_the_original_request_history() {
+    use app_application::{
+        agent::{
+            commands::AgentToolCommand,
+            tool_dispatch::{ToolDispatchRequest, ToolDispatcher},
+        },
+        models::{
+            chat::{ToolCall, ToolResult},
+            rest::RestIntent,
+        },
+    };
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let input = operation(&ports, "Долгий отдых").await;
+    let owner = Uuid::new_v4();
+    ports.claim(input.clone(), owner).await.unwrap();
+    ports
+        .append(f.session.0, ChatMessage::user_text("Долгий отдых"))
+        .await
+        .unwrap();
+    ports
+        .append(
+            f.session.0,
+            ChatMessage::AssistantWithToolCalls {
+                content: None,
+                tool_calls: vec![ToolCall {
+                    id: "rest-intent".into(),
+                    name: "rest_action".into(),
+                    args: json!({"kind":"long"}),
+                }],
+            },
+        )
+        .await
+        .unwrap();
+    let result = ports
+        .execute(ToolDispatchRequest {
+            request_id: turn.to_string(),
+            tool_call_id: "rest-intent".into(),
+            campaign_id: f.campaign.0,
+            session_id: f.session.0,
+            command: AgentToolCommand::RestAction(RestIntent::Long),
+        })
+        .await
+        .unwrap();
+    assert!(result.is_error);
+    ports
+        .append(
+            f.session.0,
+            ChatMessage::ToolResult(ToolResult {
+                tool_call_id: "rest-intent".into(),
+                content: serde_json::to_string(&result.result).unwrap(),
+                is_error: result.is_error,
+            }),
+        )
+        .await
+        .unwrap();
+    ports.finish(turn, owner, false).await.unwrap();
+    f.store
+        .append(
+            f.session.0,
+            ChatMessage::user_text("Позднее сообщение другого игрока"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        ports.command("Долгий отдых".into()).await.unwrap().request,
+        input.request
+    );
+    let provider = Arc::new(Provider::default());
+    let events = collect(
+        runner(ports, provider.clone(), Arc::new(Mutex::new(())), owner)
+            .execute("Долгий отдых".into(), true)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, AgentEvent::ToolCallResult { .. }))
+            .count(),
+        1
+    );
+    assert!(events.iter().any(|event|matches!(event,AgentEvent::ToolCallResult {id,is_error:true,..} if id==&format!("{turn}:rest-intent"))));
+    assert!(matches!(events.last(), Some(AgentEvent::AgentDone { .. })));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn real_room_http_uses_host_provider_and_rejects_forged_authority() {
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::WARN)
+        .with_test_writer()
+        .try_init();
+    let f = fixture().await;
+    let provider = Arc::new(Provider::default());
+    let state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let mut configured = state.agent_config();
+    configured.model = "fixture".into();
+    state.set_agent_config(configured);
+    let dm = app_server::http_services::room_dm_http_service(state, f.rooms.clone());
+    let router = adapter_http::rooms::router_with_dm(f.rooms.clone(), dm);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let client = reqwest::Client::new();
+    let url = format!("http://{address}/rooms/{}/dm/turn", f.guest.room.room_id);
+    let turn = Uuid::new_v4();
+    let input = json!({"request_id":turn,"player_message":"Осматриваюсь"});
+    assert_eq!(
+        client
+            .post(&url)
+            .json(&input)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    for key in [
+        "campaign_id",
+        "session_id",
+        "actor_id",
+        "model",
+        "history",
+        "board",
+    ] {
+        let mut forged = input.clone();
+        forged[key] = json!("forged");
+        assert_eq!(
+            client
+                .post(&url)
+                .bearer_auth(f.guest.capability.expose())
+                .header("x-room-member-id", f.guest.member_id.to_string())
+                .json(&forged)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            422
+        );
+    }
+    let request = || {
+        client
+            .post(&url)
+            .bearer_auth(f.guest.capability.expose())
+            .header("x-room-member-id", f.guest.member_id.to_string())
+            .json(&input)
+    };
+    let first = request().send().await.unwrap();
+    assert_eq!(first.status(), 200);
+    assert_eq!(first.headers()["cache-control"], "no-store");
+    let first = first.text().await.unwrap();
+    assert!(first.contains("event: agent_done"), "SSE body: {first}");
+    assert!(first.contains("Перед вами дорога"));
+    assert!(!first.contains("reasoning_text"));
+    let replay = request().send().await.unwrap();
+    assert_eq!(replay.status(), 200);
+    assert_eq!(first, replay.text().await.unwrap());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        client
+            .post(format!("http://{address}/api/settings"))
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        404
+    );
+    server.abort();
+}
+
+struct IncompleteProvider {
+    tool: bool,
+    whitespace: bool,
+}
+#[async_trait::async_trait]
+impl LlmProvider for IncompleteProvider {
+    async fn stream_chat(&self, _: ChatRequest) -> Result<ChunkStream, LlmError> {
+        let chunks = if self.tool {
+            vec![
+                ChatChunk::ToolCallStart {
+                    id: "limit-rest".into(),
+                    name: "rest_action".into(),
+                },
+                ChatChunk::ToolCallArgsDelta {
+                    id: "limit-rest".into(),
+                    args_fragment: json!({"kind":"long"}).to_string(),
+                },
+                ChatChunk::ToolCallDone {
+                    id: "limit-rest".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::ToolUse,
+                },
+            ]
+        } else if self.whitespace {
+            vec![
+                ChatChunk::TextDelta {
+                    text: " \n ".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ]
+        } else {
+            vec![ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }]
+        };
+        Ok(futures::stream::iter(chunks.into_iter().map(Ok)).boxed())
+    }
+    fn name(&self) -> &'static str {
+        "fixture"
+    }
+    fn active_model(&self) -> &str {
+        "fixture"
+    }
+    fn capabilities_for_model(&self, _: &str) -> Capabilities {
+        Capabilities {
+            tool_calls: true,
+            ..Default::default()
+        }
+    }
+}
+#[tokio::test]
+async fn round_limit_and_empty_final_reply_interrupt_instead_of_sticking_running() {
+    for (tool, whitespace) in [(true, false), (false, false), (false, true)] {
+        let f = fixture().await;
+        let turn = Uuid::new_v4();
+        let ports = f.ports(&f.guest, turn).await;
+        let owner = Uuid::new_v4();
+        let lane = Arc::new(Mutex::new(()));
+        let mut limited = config();
+        limited.max_rounds = 1;
+        let events = collect(
+            RoomDmRunner::new(
+                ports.clone(),
+                Arc::new(IncompleteProvider { tool, whitespace }),
+                limited,
+                lane.clone(),
+                owner,
+            )
+            .execute("Действую".into(), false)
+            .await
+            .unwrap(),
+        )
+        .await;
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, AgentEvent::AgentDone { .. })));
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+                .bind(turn.to_string())
+                .fetch_one(f.store.pool())
+                .await
+                .unwrap();
+        assert_eq!(status, "interrupted");
+        let resumed = collect(
+            runner(ports, Arc::new(Provider::default()), lane, owner)
+                .execute("Действую".into(), true)
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert!(matches!(resumed.last(), Some(AgentEvent::AgentDone { .. })));
+    }
+}
+#[tokio::test]
+async fn completed_replay_with_backpressure_stops_when_member_is_revoked() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let input = operation(&ports, "Слушаю").await;
+    let owner = Uuid::new_v4();
+    ports.claim(input, owner).await.unwrap();
+    ports
+        .append(f.session.0, ChatMessage::user_text("Слушаю"))
+        .await
+        .unwrap();
+    ports
+        .append(
+            f.session.0,
+            ChatMessage::Assistant {
+                content: "Ответ".into(),
+            },
+        )
+        .await
+        .unwrap();
+    for sequence in 0..100 {
+        ports
+            .append_event(
+                turn,
+                owner,
+                sequence,
+                AgentEvent::TextDelta {
+                    text: format!("fragment{sequence}"),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    ports
+        .append_event(turn, owner, 100, AgentEvent::AgentDone { total_rounds: 1 })
+        .await
+        .unwrap();
+    ports.finish(turn, owner, true).await.unwrap();
+    let replay = runner(
+        ports,
+        Arc::new(Provider::default()),
+        Arc::new(Mutex::new(())),
+        owner,
+    )
+    .execute("Слушаю".into(), false)
+    .await
+    .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    f.rooms.revoke(&host, f.guest.member_id).await.unwrap();
+    assert!(collect(replay).await.is_empty());
+}
+
+#[tokio::test]
+async fn resume_ignores_a_historical_blank_terminal_assistant() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let owner = Uuid::new_v4();
+    let input = operation(&ports, "Осматриваюсь").await;
+    ports.claim(input, owner).await.unwrap();
+    ports
+        .append(f.session.0, ChatMessage::user_text("Осматриваюсь"))
+        .await
+        .unwrap();
+    ports
+        .append(
+            f.session.0,
+            ChatMessage::Assistant {
+                content: " \n ".into(),
+            },
+        )
+        .await
+        .unwrap();
+    ports.finish(turn, owner, false).await.unwrap();
+    let provider = Arc::new(Provider::default());
+    let events = collect(
+        runner(ports, provider.clone(), Arc::new(Mutex::new(())), owner)
+            .execute("Осматриваюсь".into(), true)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(events.last(), Some(AgentEvent::AgentDone { .. })));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn temporary_sqlite_lock_retries_validation_without_unverified_delivery() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let owner = Uuid::new_v4();
+    let provider = Arc::new(Provider::default());
+    collect(
+        runner(
+            ports.clone(),
+            provider.clone(),
+            Arc::new(Mutex::new(())),
+            owner,
+        )
+        .execute("Слушаю".into(), false)
+        .await
+        .unwrap(),
+    )
+    .await;
+    let replay = runner(ports, provider.clone(), Arc::new(Mutex::new(())), owner)
+        .execute("Слушаю".into(), false)
+        .await
+        .unwrap();
+    let mut blocker = f.store.pool().begin_with("BEGIN IMMEDIATE").await.unwrap();
+    sqlx::query("UPDATE room_dm_turns SET process_owner=process_owner WHERE turn_id=?1")
+        .bind(turn.to_string())
+        .execute(&mut *blocker)
+        .await
+        .unwrap();
+    let waiting = tokio::spawn(collect(replay));
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    assert!(
+        !waiting.is_finished(),
+        "No event may be delivered while verification is locked"
+    );
+    blocker.commit().await.unwrap();
+    let events = waiting.await.unwrap();
+    assert!(matches!(events.last(), Some(AgentEvent::AgentDone { .. })));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn persistent_sqlite_lock_exhausts_bounded_retry_without_delivering_events() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let owner = Uuid::new_v4();
+    let provider = Arc::new(Provider::default());
+    collect(
+        runner(
+            ports.clone(),
+            provider.clone(),
+            Arc::new(Mutex::new(())),
+            owner,
+        )
+        .execute("Слушаю".into(), false)
+        .await
+        .unwrap(),
+    )
+    .await;
+    let replay = runner(
+        ports.clone(),
+        provider.clone(),
+        Arc::new(Mutex::new(())),
+        owner,
+    )
+    .execute("Слушаю".into(), false)
+    .await
+    .unwrap();
+    let mut blocker = f.store.pool().begin_with("BEGIN IMMEDIATE").await.unwrap();
+    sqlx::query("UPDATE room_dm_turns SET process_owner=process_owner WHERE turn_id=?1")
+        .bind(turn.to_string())
+        .execute(&mut *blocker)
+        .await
+        .unwrap();
+    let events = tokio::time::timeout(std::time::Duration::from_secs(2), collect(replay))
+        .await
+        .unwrap();
+    assert!(events.is_empty());
+    blocker.rollback().await.unwrap();
+    let recovered = collect(
+        runner(ports, provider.clone(), Arc::new(Mutex::new(())), owner)
+            .execute("Слушаю".into(), false)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(
+        recovered.last(),
+        Some(AgentEvent::AgentDone { .. })
+    ));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}

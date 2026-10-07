@@ -25,10 +25,46 @@ impl RoomAgentPorts {
         Vec<crate::models::campaign::StoredMessage>,
         crate::ports::repositories::RepositoryError,
     > {
-        self.rooms
-            .rooms
-            .room_agent_checkpoint(self.subject.lease(), self.turn_id)
-            .await
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            self.checkpoint_with_retries(),
+        )
+        .await
+        .unwrap_or(Err(
+            crate::ports::repositories::RepositoryError::Operation {
+                operation: "room_agent",
+                code: "room_agent_busy",
+            },
+        ))
+    }
+    async fn checkpoint_with_retries(
+        &self,
+    ) -> Result<
+        Vec<crate::models::campaign::StoredMessage>,
+        crate::ports::repositories::RepositoryError,
+    > {
+        let mut attempts = 0_u64;
+        loop {
+            match self
+                .rooms
+                .rooms
+                .room_agent_checkpoint(self.subject.lease(), self.turn_id)
+                .await
+            {
+                Err(crate::ports::repositories::RepositoryError::Operation {
+                    code: "room_agent_busy",
+                    ..
+                }) if attempts < 6 => {
+                    attempts += 1;
+                    tracing::debug!(
+                        attempt = attempts,
+                        "retrying locked room checkpoint in a fresh transaction"
+                    );
+                    tokio::time::sleep(std::time::Duration::from_millis(10 * attempts)).await;
+                }
+                result => return result,
+            }
+        }
     }
     pub async fn command(
         &self,
@@ -38,6 +74,21 @@ impl RoomAgentPorts {
         if player_message.trim().is_empty() || player_message.len() > 16384 || self.turn_id.is_nil()
         {
             return Err(super::RoomError::InvalidInput);
+        }
+        if let Some(saved) = self
+            .rooms
+            .rooms
+            .room_dm_request(self.subject.lease(), self.turn_id)
+            .await
+            .map_err(super::characters::repository_error)?
+        {
+            if saved.request.player_message != player_message {
+                return Err(super::RoomError::Conflict);
+            }
+            return Ok(crate::agent::turn::AgentTurnCommand {
+                request_id: self.turn_id.to_string(),
+                request: saved.request,
+            });
         }
         let saved = self
             .checkpoint()

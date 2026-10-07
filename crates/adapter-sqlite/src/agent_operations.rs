@@ -401,8 +401,17 @@ impl SqliteStore {
         &self,
         owner: Uuid,
     ) -> Result<u64, RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("recover_agent_operations"))?;
+        let room_result=sqlx::query("UPDATE room_dm_turns SET status='interrupted' WHERE status='running' AND process_owner!=?1").bind(owner.to_string()).execute(&mut *tx).await.map_err(|_|repository_error("recover_room_dm_turns"))?;
         let result=sqlx::query("UPDATE agent_turn_operations SET status='interrupted',updated_at=?2 WHERE status='running' AND owner_id!=?1")
-            .bind(owner.to_string()).bind(chrono::Utc::now().to_rfc3339()).execute(&self.pool).await.map_err(|_|repository_error("recover_agent_operations"))?;
-        Ok(result.rows_affected())
+            .bind(owner.to_string()).bind(chrono::Utc::now().to_rfc3339()).execute(&mut *tx).await.map_err(|_|repository_error("recover_agent_operations"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("recover_agent_operations"))?;
+        Ok(result.rows_affected() + room_result.rows_affected())
     }
 }

@@ -175,7 +175,11 @@ impl AgentTurnService {
         self.ensure_not_cancelled()?;
         let request = command.request;
         let user_message = user_message(&request);
-        let checkpoint = checkpoint.filter(|messages| !messages.is_empty());
+        let checkpoint = checkpoint.map(|mut messages| {
+            // A whitespace draft is not a completed DM answer, including older checkpoints.
+            while matches!(messages.last(),Some(ChatMessage::Assistant {content}) if content.trim().is_empty()) {messages.pop();}
+            messages
+        }).filter(|messages| !messages.is_empty());
         if let Some(ChatMessage::Assistant { content }) =
             checkpoint.as_ref().and_then(|saved| saved.last())
         {
@@ -379,12 +383,12 @@ impl AgentTurnService {
                     .await?;
 
                 let assistant_message = if tool_calls.is_empty() {
-                    (!round_text.is_empty()).then(|| ChatMessage::Assistant {
+                    (!round_text.trim().is_empty()).then(|| ChatMessage::Assistant {
                         content: round_text.clone(),
                     })
                 } else {
                     Some(ChatMessage::AssistantWithToolCalls {
-                        content: (!round_text.is_empty()).then_some(round_text.clone()),
+                        content: (!round_text.trim().is_empty()).then_some(round_text.clone()),
                         tool_calls: tool_calls.clone(),
                     })
                 };

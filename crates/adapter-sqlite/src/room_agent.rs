@@ -12,7 +12,7 @@ fn error(code: &'static str) -> RepositoryError {
     }
 }
 
-async fn guard(
+pub(crate) async fn guard(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     lease: &RoomLease,
 ) -> Result<(), RepositoryError> {
@@ -32,24 +32,24 @@ async fn guard(
     }
     Ok(())
 }
-async fn timeline(
+pub(crate) async fn timeline(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     lease: &RoomLease,
     turn: Uuid,
 ) -> Result<i64, RepositoryError> {
-    let reset:i64=sqlx::query_scalar("SELECT COALESCE(MAX(sequence),0) FROM room_changes WHERE room_id=?1 AND kind='timeline_reset'").bind(lease.room_id().to_string()).fetch_one(&mut **tx).await.map_err(|_|error("room_agent_read_failed"))?;
-    let original:Option<i64>=sqlx::query_scalar("SELECT MIN(reset_cursor) FROM (SELECT reset_cursor FROM room_agent_messages WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 UNION ALL SELECT reset_cursor FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3)").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).fetch_one(&mut **tx).await.map_err(|_|error("room_agent_read_failed"))?;
+    let reset:i64=sqlx::query_scalar("SELECT COALESCE(MAX(sequence),0) FROM room_changes WHERE room_id=?1 AND kind='timeline_reset'").bind(lease.room_id().to_string()).fetch_one(&mut **tx).await.map_err(read_error)?;
+    let original:Option<i64>=sqlx::query_scalar("SELECT MIN(reset_cursor) FROM (SELECT reset_cursor FROM room_agent_messages WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 UNION ALL SELECT reset_cursor FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 UNION ALL SELECT reset_cursor FROM room_dm_turns WHERE room_id=?1 AND member_id=?2 AND turn_id=?3)").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).fetch_one(&mut **tx).await.map_err(read_error)?;
     if original.is_some_and(|value| value != reset) {
         return Err(error("room_world_conflict"));
     }
     Ok(reset)
 }
-async fn checkpoint(
+pub(crate) async fn checkpoint(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     lease: &RoomLease,
     turn: Uuid,
 ) -> Result<Vec<app_application::models::campaign::StoredMessage>, RepositoryError> {
-    let rows=sqlx::query("SELECT sequence,message_id,message_json FROM room_agent_messages WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 ORDER BY sequence").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).fetch_all(&mut **tx).await.map_err(|_|error("room_agent_read_failed"))?;
+    let rows=sqlx::query("SELECT sequence,message_id,message_json FROM room_agent_messages WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 ORDER BY sequence").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).fetch_all(&mut **tx).await.map_err(read_error)?;
     rows.into_iter()
         .map(|row| {
             Ok(app_application::models::campaign::StoredMessage {
@@ -174,7 +174,7 @@ pub(crate) async fn prepare(
         return Err(error("room_access_denied"));
     }
     timeline(&mut tx, lease, turn_id).await?;
-    if let Some(row)=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut *tx).await.map_err(|_|error("room_agent_read_failed"))? {
+    if let Some(row)=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut *tx).await.map_err(read_error)? {
         if row.get::<String,_>("command_json")!=request {return Err(error("room_world_conflict"));}
         let prepared=serde_json::from_str(&row.get::<String,_>("prepared_json")).map_err(|_|error("room_agent_read_failed"))?;
         tx.commit().await.map_err(|_|error("room_agent_commit_failed"))?;return Ok(prepared);
@@ -221,4 +221,24 @@ pub(crate) async fn dm_party(
         .await
         .map_err(|_| error("room_agent_commit_failed"))?;
     Ok(party)
+}
+
+fn read_error(error: sqlx::Error) -> RepositoryError {
+    let code = error
+        .as_database_error()
+        .and_then(|error| error.code())
+        .map(|code| code.to_string());
+    if code
+        .as_deref()
+        .and_then(|code| code.parse::<u32>().ok())
+        .is_some_and(|code| matches!(code & 0xff, 5 | 6))
+    {
+        tracing::debug!(
+            database_code = code,
+            "room agent SQLite read temporarily locked"
+        );
+        return self::error("room_agent_busy");
+    }
+    tracing::warn!(database_code = code, "room agent SQLite read failed");
+    self::error("room_agent_read_failed")
 }

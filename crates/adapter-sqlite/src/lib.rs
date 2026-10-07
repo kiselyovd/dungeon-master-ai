@@ -41,3 +41,5 @@ impl SqliteStore {
         &self.pool
     }
 }
+
+mod room_dm_turns;

@@ -126,3 +126,13 @@ async fn invalidate_srd_cache(
     }
     Ok(())
 }
+
+/// Dedicated player router. The native process owner decides when/where to bind it.
+/// Never merge it with the privileged local desktop API on a public interface.
+pub fn build_room_router(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+) -> Router {
+    let dm = app_server::http_services::room_dm_http_service(state, rooms.clone());
+    adapter_http::rooms::router_with_dm(rooms, dm)
+}

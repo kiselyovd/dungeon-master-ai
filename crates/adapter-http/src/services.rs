@@ -308,6 +308,17 @@ pub struct HttpServices {
     pub local_control: Arc<dyn LocalControlHttpService>,
 }
 
+#[async_trait]
+pub trait RoomDmHttpService: Send + Sync {
+    async fn turn(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

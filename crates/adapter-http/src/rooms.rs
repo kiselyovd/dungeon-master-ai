@@ -516,3 +516,66 @@ async fn rest_action(
         .map(Json)
         .map_err(room_error)
 }
+
+/// Optional shared-DM transport, composed with the same authenticated room service.
+/// Provider/settings authority is exclusively supplied by the host composition.
+pub fn router_with_dm(
+    service: Arc<RoomService>,
+    dm: Arc<dyn crate::services::RoomDmHttpService>,
+) -> Router {
+    router(service.clone()).merge(
+        Router::new()
+            .route("/rooms/{room_id}/dm/turn", post(dm_turn))
+            .layer(axum::Extension(dm))
+            .layer(DefaultBodyLimit::max(32 * 1024))
+            .layer(middleware::from_fn(no_store))
+            .with_state(service),
+    )
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DmTurnRequest {
+    request_id: Uuid,
+    player_message: String,
+    #[serde(default)]
+    resume: bool,
+}
+async fn dm_turn(
+    State(service): State<Arc<RoomService>>,
+    axum::Extension(dm): axum::Extension<Arc<dyn crate::services::RoomDmHttpService>>,
+    Path(room): Path<Uuid>,
+    headers: HeaderMap,
+    Json(input): Json<DmTurnRequest>,
+) -> Result<Response, HttpServiceError> {
+    use axum::response::{
+        sse::{KeepAlive, Sse},
+        IntoResponse,
+    };
+    use futures::StreamExt;
+    let verified = subject(&service, room, &headers).await?;
+    if input.request_id.is_nil()
+        || input.player_message.trim().is_empty()
+        || input.player_message.len() > 16384
+    {
+        return Err(HttpServiceError::BadRequest {
+            code: "room_dm_request_invalid",
+        });
+    }
+    let events = dm
+        .turn(
+            verified,
+            input.request_id,
+            input.player_message,
+            input.resume,
+        )
+        .await?;
+    let stream = events
+        .map(|event| Ok::<_, std::convert::Infallible>(crate::sse::agent_event_to_sse(event)));
+    let mut response = Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response();
+    response
+        .headers_mut()
+        .insert(header::CONNECTION, HeaderValue::from_static("close"));
+    Ok(response)
+}

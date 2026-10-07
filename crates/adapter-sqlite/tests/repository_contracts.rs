@@ -132,7 +132,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 13);
+    assert_eq!(migration_count, 14);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -153,6 +153,8 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         "shared_messages",
         "room_restore_guard",
         "room_world_receipts",
+        "room_dm_turns",
+        "room_dm_events",
         "room_agent_tools",
         "room_agent_messages",
         "campaigns",

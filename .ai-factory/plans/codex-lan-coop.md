@@ -246,3 +246,50 @@ review closed the collaborative reasoning P1 after RED/GREEN and found no furthe
 actionable issue in this correction. All original 32 source hashes are unchanged.
 This verifies the role/context/output boundaries; live model narration quality and
 complete solo/co-op session acceptance remain unproven and active.
+
+
+Shared-DM runner progress: one campaign lane plus migration 0014 durable scoped
+ownership/events now execute the real agent engine and an intention-only room HTTP
+SSE endpoint. Bootstrap supplies host provider/configuration and a separate player
+router; native listener activation remains pending. Canonical retry/resume preserves
+original input/history/model; exclusive-authority startup recovery also reconciles
+room runs. Reset/epoch invalidation, owner/sequence/final-response guards, confirmed
+delivery repair and private consumption-time validation are implemented.
+
+Independent review reproduced a sticky-running completion P1 and revoked completed
+replay P2. Round-limit/empty replies now interrupt; whitespace persistence/replay is
+normalized, including historical checkpoints. Delivery validates lease/timeline at
+consumption even under backpressure. Repeated parallel tests then exposed SQLite
+LOCKED (code6) causing valid HTTP EOF. A distinct busy code and six bounded fresh-tx
+read retries now handle this without unverified output. Controlled temporary and
+persistent lock tests cover recovery/fail-closed behavior. Final gates and review
+closure are being collected. Native listener/receiver/outbox/host/join UI, physical
+LAN and whole-goal solo/co-op/model acceptance remain active and incomplete.
+
+
+Shared-DM runner checkpoint collection: final clean consolidated gates passed
+(workspace Rust, architecture/static/Clippy and 1042 frontend tests), with 13 runner
+and 2 role/recovery cases. Independent review closed sticky completion/whitespace,
+revoked completed replay and temporary SQLite read-lock findings after reproduced
+RED/GREEN checks. Bounded validation also has a one-second overall deadline so
+unlock-notify waits cannot stall a stream indefinitely. Five repeated concurrency
+runs passed after retry handling; controlled temporary/persistent lock cases pass.
+A Windows oversized-upload transport abort in the unrelated health test passed
+focused recheck and the final full gate. Original 32 source hashes are preserved.
+Native/public LAN activation, host/join UI and full solo/co-op acceptance remain
+incomplete; the overall goal remains active.
+
+Compact UI/native design brief for the next stage: reuse existing campaign cards,
+buttons, overlays, status feedback, typography and CSS tokens. Host opens a room
+from an existing committed campaign/hero and gets a one-use invitation. Guest joins
+with address/invitation, proposes their own hero, and waits for host acceptance.
+Accepted peers share the scene, public party summaries and one DM's narration;
+private hero cards remain owner-only. Guests cannot select the host's provider or
+edit server-authoritative mechanics. Room lifecycle is owned by the existing native
+backend process; never expose the privileged local router on the public listener.
+Use typed room transport/session projections and fresh authoritative snapshots,
+not local solo fallbacks. Connection credentials and pending-turn recovery belong
+in encrypted native storage, not persisted Zustand. Disconnect/reconnect feedback
+must preserve the user's human intention and prevent duplicate effects. Verify the
+real production root, lint/build, browser/native host/guest and two-client session
+paths before claiming the UI or LAN milestone complete.

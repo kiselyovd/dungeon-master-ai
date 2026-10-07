@@ -104,6 +104,42 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn room_dm_request(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+    ) -> Result<Option<app_application::agent::operations::AgentOperation>, RepositoryError> {
+        crate::room_dm_turns::request(self, lease, turn).await
+    }
+    async fn claim_room_dm_turn(
+        &self,
+        lease: &RoomLease,
+        input: app_application::agent::operations::AgentOperation,
+        owner: Uuid,
+        resume: bool,
+    ) -> Result<app_application::agent::operations::OperationClaim, RepositoryError> {
+        crate::room_dm_turns::claim(self, lease, input, owner, resume).await
+    }
+    async fn append_room_dm_event(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        sequence: u64,
+        event: app_application::models::agent::AgentEvent,
+    ) -> Result<(), RepositoryError> {
+        crate::room_dm_turns::append_event(self, lease, turn, owner, sequence, event).await
+    }
+    async fn finish_room_dm_turn(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        complete: bool,
+    ) -> Result<(), RepositoryError> {
+        crate::room_dm_turns::finish(self, lease, turn, owner, complete).await
+    }
+
     async fn room_dm_party(
         &self,
         lease: &RoomLease,

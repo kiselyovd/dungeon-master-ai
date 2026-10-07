@@ -268,3 +268,40 @@ player, event sink or saved transcript. A real collaborative-room engine test
 injects a secret biography into a provider thinking chunk and verifies all three
 output boundaries. Ordinary narrated text remains model output; narrative quality
 and appropriate secret discovery still require model acceptance, not this wire gate.
+
+
+## Shared Dungeon Master execution and delivery
+
+The separately composed room router can expose POST `/rooms/{room_id}/dm/turn`.
+Its strict body contains `request_id`, `player_message` (nonblank, at most 16,384
+UTF-8 bytes) and optional `resume`. Campaign/session/actor/model/history/board and
+media overrides are rejected. The host AppState supplies provider, configuration,
+process owner and the same campaign lane used by local operations. The bootstrap
+`build_room_router` helper composes this player API separately from privileged
+local administration; native listener activation/public LAN remains pending.
+
+Migration 0014 stores room/member/turn ownership, canonical original request/model,
+room epoch, timeline cursor, status and ordered owner-only event delivery. A unique
+pending-turn index covers the whole campaign. Interrupted turns require explicit
+resume by their owner. Restart reconciliation runs only after the existing
+OS-backed exclusive authority lock; a different process UUID cannot take a live
+turn. Restore and epoch invalidation supersede old runs, including a claim whose
+first transcript message never committed. Confirmed tool deliveries are repaired
+from checkpoints without another effect. Completed replay preserves original
+history/model and never calls the provider again.
+
+AgentDone reaches the player only after a nonblank final Assistant and durable
+completion. Tool-round limits, empty or whitespace-only replies become interrupted
+and remain resumable. Historical blank terminal Assistant entries are ignored
+for recovery. The owner stream checks authorization/timeline at consumption,
+including buffered completed replay, and while idle. Disconnect, revoke, close or
+restore cancel further unvalidated delivery; already sent bytes are not retractable.
+
+SQLite BUSY/LOCKED read codes are distinguished from denied access. Checkpoint
+validation retries at most six times in fresh transactions with 10-60ms delays and a one-second overall validation deadline,
+without exposing an event before validation succeeds. Persistent failure closes
+the stream; a later completed replay can recover without another model call.
+Coverage includes real HTTP/SSE, two-player contention, disconnect/explicit resume,
+bootstrap reconciliation, restore, revocation/backpressure, frozen input, completion
+and sequence guards, repaired receipts and temporary/persistent lock contention.
+These backend checks do not prove native host/join UI or a physical LAN session.

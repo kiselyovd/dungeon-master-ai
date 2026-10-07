@@ -86,6 +86,34 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn room_dm_request(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+    ) -> Result<Option<crate::agent::operations::AgentOperation>, RepositoryError>;
+    async fn claim_room_dm_turn(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        input: crate::agent::operations::AgentOperation,
+        owner: Uuid,
+        resume: bool,
+    ) -> Result<crate::agent::operations::OperationClaim, RepositoryError>;
+    async fn append_room_dm_event(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        sequence: u64,
+        event: crate::models::agent::AgentEvent,
+    ) -> Result<(), RepositoryError>;
+    async fn finish_room_dm_turn(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        complete: bool,
+    ) -> Result<(), RepositoryError>;
+
     /// Trusted Dungeon Master context only; never return this through a player endpoint.
     async fn room_dm_party(
         &self,

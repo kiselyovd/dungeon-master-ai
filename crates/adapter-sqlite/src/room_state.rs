@@ -119,7 +119,7 @@ async fn state(
             truncated,
         });
     }
-    let agent_busy:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM agent_turn_operations WHERE session_id=?1 AND status='running')").bind(room.session_id.0.to_string()).fetch_one(&mut **tx).await.map_err(|_|error("room_state_read_failed"))?;
+    let agent_busy:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM agent_turn_operations WHERE session_id=?1 AND status='running') OR EXISTS(SELECT 1 FROM room_dm_turns d JOIN coop_rooms r ON r.room_id=d.room_id WHERE r.session_id=?1 AND d.status IN('running','interrupted') AND r.active=1)").bind(room.session_id.0.to_string()).fetch_one(&mut **tx).await.map_err(|_|error("room_state_read_failed"))?;
     Ok(RoomState {
         campaign: current.campaign.clone(),
         room: room.public_view(),
