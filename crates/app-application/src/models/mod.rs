@@ -9,6 +9,7 @@ pub mod local_models;
 pub mod party;
 pub mod rest;
 pub mod room;
+pub mod room_agent;
 pub mod room_character;
 pub mod room_combat;
 pub mod room_state;

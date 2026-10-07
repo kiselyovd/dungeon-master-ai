@@ -229,3 +229,28 @@ long rest, guest hit-die isolation, group recharge/time/cooldown, final-receipt
 rollback, stale leases, legacy combat and exact-budget guest documents for rest
 and combat creation. Scoped AI intentions, native/public LAN composition and
 complete session acceptance remain pending.
+
+
+## Scoped agent ports and recovery
+
+RoomAgentPorts builds provider context from the initiating member's own accepted
+sheet, public party summaries and authorized state. The command history uses only
+shared room messages; pre-room solo chat and another hero's private biography are
+excluded. Client history, board state, images and actor IDs cannot enter this path.
+The tool catalog and dispatcher permit only adventure_action, combat_action and
+rest_action, which delegate to the same authenticated deterministic room use cases.
+
+Migration 0013 persists each room/member/turn/tool intention with exact arguments,
+server-generated nonce and original revision/encounter. The private transcript
+supports recovery through AgentTurnService. A pending tool whose effect committed
+before its result was appended reuses its receipt. All three intentions remain in
+both phase catalogs so a terminal combat receipt stays reachable after combat ends;
+a fresh combat intention still requires a valid encounter. Saved timeline resets
+invalidate prior tool preparations and transcripts before any replay.
+
+Integration coverage uses real SQLite and the production agent engine with a
+fixture provider: context privacy, forbidden tools, terminal replay without model
+calls, committed adventure/terminal-retreat recovery, snapshot timeline reset and
+revocation. These are engine ports, not the production room runner or HTTP agent
+endpoint. Durable scheduling/serialization, cancellation, native wiring and actual
+multi-device session acceptance remain pending.

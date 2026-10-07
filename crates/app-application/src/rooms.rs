@@ -11,6 +11,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+pub mod agent;
 mod characters;
 mod combat;
 mod state;

@@ -104,6 +104,30 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn append_room_agent_message(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+        message: app_application::models::chat::ChatMessage,
+    ) -> Result<app_application::models::campaign::StoredMessage, RepositoryError> {
+        crate::room_agent::append(self, lease, turn, message).await
+    }
+    async fn room_agent_checkpoint(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+    ) -> Result<Vec<app_application::models::campaign::StoredMessage>, RepositoryError> {
+        crate::room_agent::load_checkpoint(self, lease, turn).await
+    }
+    async fn prepare_room_agent_tool(
+        &self,
+        lease: &RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: app_application::agent::commands::AgentToolCommand,
+    ) -> Result<app_application::models::room_agent::PreparedRoomTool, RepositoryError> {
+        crate::room_agent::prepare(self, lease, turn_id, tool_id, command).await
+    }
     async fn act_room_adventure(
         &self,
         lease: &RoomLease,

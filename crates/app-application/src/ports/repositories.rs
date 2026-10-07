@@ -86,6 +86,24 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn append_room_agent_message(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        message: crate::models::chat::ChatMessage,
+    ) -> Result<crate::models::campaign::StoredMessage, RepositoryError>;
+    async fn room_agent_checkpoint(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+    ) -> Result<Vec<crate::models::campaign::StoredMessage>, RepositoryError>;
+    async fn prepare_room_agent_tool(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::AgentToolCommand,
+    ) -> Result<crate::models::room_agent::PreparedRoomTool, RepositoryError>;
     async fn act_room_adventure(
         &self,
         lease: &crate::models::room::RoomLease,

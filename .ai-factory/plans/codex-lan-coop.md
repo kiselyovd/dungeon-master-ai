@@ -174,3 +174,34 @@ combat now shares the validated party write and rolls back safely. Original 32
 source hashes remain unchanged. Scoped AI, native/public LAN, image delivery,
 remaining solo mechanics/model quality and complete-session acceptance remain
 active work; no whole-goal completion is claimed.
+
+
+Scoped-agent progress: owner-filtered provider context, shared-only history, three
+intention tools, durable exact-argument tool preparations and private checkpoints
+are implemented in migration 0013. Real AgentTurnService/SQLite integration covers
+terminal replay, committed intention recovery and snapshot-reset invalidation.
+Independent review found terminal combat receipt recovery blocked by phase catalog;
+the catalog now preserves all three guarded intentions in both phases. A pending
+terminal retreat regression passes. RED confirmation and final consolidated gates
+are being collected. Runner/gateway, durable turn serialization/cancellation and
+native/public LAN remain pending; no broad milestone is marked complete.
+
+
+Scoped-agent independent review: terminal combat recovery P2 is closed. The real
+pending-retreat test reproduces RED without the catalog fix
+(tool_not_available_in_authored_adventure) and GREEN with it. A separate committed
+adventure intention replays without another effect. Restored snapshots invalidate
+old private checkpoints/preparations. Review found no additional actionable issue
+in this bounded ports scope; production runner/HTTP gateway remain explicitly
+outside acceptance. Final gate collection continues.
+
+
+Scoped-agent checkpoint collection: final consolidated gates passed against the
+fixed catalog (workspace Rust, architecture/static/Clippy and 1042 frontend tests).
+The real engine/SQLite recovery test passes, including terminal retreat, pending
+adventure, final replay, reset and revocation. Repository/migration tests pass.
+Independent review closed the terminal combat P2 after RED/GREEN confirmation and
+reported no remaining actionable issue in scope. Original 32 source hashes remain
+unchanged. Production room runner/gateway, cancellation/serialization, native and
+public LAN, remaining solo mechanics/model quality and full session acceptance
+remain active; broad milestones and the overall goal remain incomplete.
