@@ -840,3 +840,76 @@ async fn combat_stabilization_schedules_once_and_replays_without_rebasing_the_de
         36
     );
 }
+
+#[tokio::test]
+async fn damage_at_zero_clears_the_saved_recovery_timer_and_death_commits_atomically() {
+    let (store, party, encounter) = fixture().await;
+    let mut projection = store.get(encounter).await.unwrap().unwrap();
+    let index = projection
+        .snapshot
+        .combatants
+        .iter()
+        .position(|a| a.character_id.is_some())
+        .unwrap();
+    let id = projection.snapshot.combatants[index]
+        .character_id
+        .unwrap()
+        .0;
+    let actor = &mut projection.snapshot.combatants[index];
+    actor.current_hp = 0;
+    actor.death_saves.stabilize();
+    projection.revision = 1;
+    let mut projection = store
+        .commit_action(0, projection, "stable-fixture", "{}")
+        .await
+        .unwrap()
+        .projection;
+    let stable = store.party(party.campaign_id).await.unwrap().unwrap();
+    assert!(app_application::vitality::read(&stable.characters[&id], id)
+        .unwrap()
+        .unwrap()
+        .natural_recovery
+        .is_some());
+    projection.snapshot.combatants[index].apply_raw_damage_with_critical(1, true);
+    projection.revision = 2;
+    let mut projection = store
+        .commit_action(1, projection, "critical-on-stable", "{}")
+        .await
+        .unwrap()
+        .projection;
+    let dying = store.party(party.campaign_id).await.unwrap().unwrap();
+    let vitality = app_application::vitality::read(&dying.characters[&id], id)
+        .unwrap()
+        .unwrap();
+    assert!(!vitality.death_saves.stable);
+    assert_eq!(vitality.death_saves.failures, 2);
+    assert!(vitality.natural_recovery.is_none());
+    projection.snapshot.combatants[index].apply_raw_damage(1);
+    projection.revision = 3;
+    sqlx::query("CREATE TRIGGER fail_death_write BEFORE INSERT ON combat_action_receipts BEGIN SELECT RAISE(ABORT,'test'); END").execute(store.pool()).await.unwrap();
+    assert!(store
+        .commit_action(2, projection.clone(), "third-failure", "{}")
+        .await
+        .is_err());
+    assert_eq!(
+        store.party(party.campaign_id).await.unwrap().unwrap(),
+        dying
+    );
+    assert_eq!(store.get(encounter).await.unwrap().unwrap().revision, 2);
+    sqlx::query("DROP TRIGGER fail_death_write")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    store
+        .commit_action(2, projection, "third-failure", "{}")
+        .await
+        .unwrap();
+    let dead = store.party(party.campaign_id).await.unwrap().unwrap();
+    let vitality = app_application::vitality::read(&dead.characters[&id], id)
+        .unwrap()
+        .unwrap();
+    assert!(vitality.is_dead);
+    assert_eq!(vitality.death_saves.failures, 3);
+    assert!(vitality.natural_recovery.is_none());
+    assert_eq!(dead.characters[&id]["hp"], 0);
+}

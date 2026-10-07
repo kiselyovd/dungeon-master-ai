@@ -6,7 +6,7 @@ use super::action_economy::{consume_action, consume_movement_ft};
 use super::attack::{roll_attack_detailed, AttackOutcome};
 use super::combatant::Combatant;
 use super::conditions::AttackModifier;
-use super::damage::{apply_damage_to_combatant, DamageResistance};
+use super::damage::{apply_damage_with_critical, DamageResistance};
 use super::initiative::InitiativeOrder;
 use super::result_events::{DamageApplication, DiceRoll, MovementEvent, ResultEvents};
 use super::types::{ActionKind, CombatantId, DamageType, Position};
@@ -415,8 +415,8 @@ impl CombatResolver {
         if !self.clear_line(actor.position, victim.position) {
             return Err(ValidationError::Obstructed);
         }
-        if victim.current_hp <= 0
-            || victim.is_dead
+        if victim.is_dead
+            || (victim.current_hp <= 0 && victim.character_id.is_none())
             || (actor.character_id.is_some() && victim.character_id.is_some())
         {
             return Err(ValidationError::InvalidTarget);
@@ -627,7 +627,10 @@ impl CombatResolver {
         if !self.combatants.contains_key(&target_id) {
             return Err(ValidationError::TargetNotFound);
         }
-        if self.combatants[&target_id].current_hp <= 0 || self.combatants[&target_id].is_dead {
+        if self.combatants[&target_id].is_dead
+            || (self.combatants[&target_id].current_hp <= 0
+                && self.combatants[&target_id].character_id.is_none())
+        {
             return Err(ValidationError::InvalidTarget);
         }
         {
@@ -642,7 +645,19 @@ impl CombatResolver {
         // --- Phase 2: Resolve ---
         let target_ac = self.combatants[&target_id].ac;
         let rolled = roll_attack_detailed(attack_modifier, target_ac, advantage, &mut self.rng);
-        let attack_outcome = rolled.outcome;
+        let attack_outcome = match rolled.outcome {
+            AttackOutcome::Hit { natural, total }
+                if self.combatants[&target_id]
+                    .has_condition(super::conditions::Condition::Unconscious)
+                    && self.combatants[&attacker_id]
+                        .position
+                        .distance_ft(self.combatants[&target_id].position)
+                        <= 5 =>
+            {
+                AttackOutcome::CriticalHit { natural, total }
+            }
+            outcome => outcome,
+        };
 
         let mut events = ResultEvents::default();
 
@@ -670,7 +685,8 @@ impl CombatResolver {
                 });
                 let target = self.combatants.get_mut(&target_id).unwrap();
                 let resist = DamageResistance::default();
-                let effective = apply_damage_to_combatant(target, raw_damage, damage_type, &resist);
+                let effective =
+                    apply_damage_with_critical(target, raw_damage, damage_type, &resist, true);
                 events.damage.push(DamageApplication {
                     target: target_id,
                     raw_amount: raw_damage,
@@ -679,7 +695,10 @@ impl CombatResolver {
                     new_hp: target.current_hp,
                     was_critical: true,
                 });
-                if target.is_at_zero_hp() {
+                if target.is_at_zero_hp() && target.character_id.is_none() {
+                    target.is_dead = true;
+                }
+                if target.is_dead {
                     events.deaths.push(target_id);
                 }
             }
@@ -708,7 +727,8 @@ impl CombatResolver {
                 let raw_damage = dmg_detail.total.max(0);
                 let target = self.combatants.get_mut(&target_id).unwrap();
                 let resist = DamageResistance::default();
-                let effective = apply_damage_to_combatant(target, raw_damage, damage_type, &resist);
+                let effective =
+                    apply_damage_with_critical(target, raw_damage, damage_type, &resist, false);
                 events.damage.push(DamageApplication {
                     target: target_id,
                     raw_amount: raw_damage,
@@ -717,7 +737,10 @@ impl CombatResolver {
                     new_hp: target.current_hp,
                     was_critical: false,
                 });
-                if target.is_at_zero_hp() {
+                if target.is_at_zero_hp() && target.character_id.is_none() {
+                    target.is_dead = true;
+                }
+                if target.is_dead {
                     events.deaths.push(target_id);
                 }
             }

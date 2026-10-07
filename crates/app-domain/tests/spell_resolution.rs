@@ -152,7 +152,7 @@ fn magic_missile_hits_without_attack_and_supports_distributed_darts() {
     assert_eq!(events.rolls.len(), 1);
     assert_eq!(events.rolls[0].detail.rolls.len(), 1);
     assert_eq!(
-        events.damage[0].raw_amount,
+        events.damage.iter().map(|d| d.raw_amount).sum::<i32>(),
         events.rolls[0].detail.total * 3
     );
 }
@@ -345,4 +345,76 @@ fn an_unconscious_target_automatically_fails_a_dexterity_spell_save() {
         .unwrap();
     assert_eq!(events.damage.len(), 1);
     assert!(events.rolls[0].detail.rolls.is_empty());
+}
+
+#[test]
+fn hostile_save_spell_damages_a_stable_hero_without_a_false_death_event() {
+    use app_domain::combat::conditions::Condition;
+    let (mut engine, caster, target) = fixture();
+    engine.combatants.get_mut(&caster).unwrap().character_id = None;
+    let victim = engine.combatants.get_mut(&target).unwrap();
+    victim.character_id = Some(CharacterId(Uuid::new_v4()));
+    victim.current_hp = 0;
+    victim.death_saves.stabilize();
+    victim.add_condition(Condition::Unconscious);
+    let events = engine
+        .resolve(CombatAction::Spell {
+            caster,
+            spell_id: "sacred-flame".into(),
+            targets: vec![target],
+            slot_level: 0,
+        })
+        .unwrap();
+    assert_eq!(events.damage.len(), 1);
+    assert!(events.deaths.is_empty());
+    let victim = &engine.combatants[&target];
+    assert!(!victim.death_saves.stable);
+    assert_eq!(victim.death_saves.failures, 1);
+    assert!(!victim.is_dead);
+}
+
+#[test]
+fn each_magic_missile_dart_causes_a_separate_failure_at_zero_hp() {
+    use app_domain::combat::conditions::Condition;
+    let (mut engine, caster, target) = fixture();
+    engine.combatants.get_mut(&caster).unwrap().character_id = None;
+    let victim = engine.combatants.get_mut(&target).unwrap();
+    victim.character_id = Some(CharacterId(Uuid::new_v4()));
+    victim.current_hp = 0;
+    victim.death_saves.stabilize();
+    victim.add_condition(Condition::Unconscious);
+    let events = engine
+        .resolve(CombatAction::Spell {
+            caster,
+            spell_id: "magic-missile".into(),
+            targets: vec![target],
+            slot_level: 1,
+        })
+        .unwrap();
+    assert_eq!(events.damage.len(), 3);
+    assert_eq!(events.deaths, vec![target]);
+    assert_eq!(engine.combatants[&target].death_saves.failures, 3);
+    assert!(engine.combatants[&target].is_dead);
+}
+
+#[test]
+fn missile_darts_do_not_combine_into_false_massive_damage() {
+    let (mut engine, caster, target) = fixture();
+    engine.combatants.get_mut(&caster).unwrap().character_id = None;
+    let victim = engine.combatants.get_mut(&target).unwrap();
+    victim.character_id = Some(CharacterId(Uuid::new_v4()));
+    victim.max_hp = 7;
+    victim.current_hp = 1;
+    let events = engine
+        .resolve(CombatAction::Spell {
+            caster,
+            spell_id: "magic-missile".into(),
+            targets: vec![target],
+            slot_level: 1,
+        })
+        .unwrap();
+    assert_eq!(events.damage.len(), 3);
+    assert!(events.deaths.is_empty());
+    assert_eq!(engine.combatants[&target].death_saves.failures, 2);
+    assert!(!engine.combatants[&target].is_dead);
 }

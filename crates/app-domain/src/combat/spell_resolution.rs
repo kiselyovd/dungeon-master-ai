@@ -60,7 +60,7 @@ impl CombatResolver {
             }
             if victim.is_dead
                 || (!matches!(rule.effect, SpellEffect::Heal(_))
-                    && (victim.current_hp <= 0
+                    && (victim.current_hp <= 0 && victim.character_id.is_none()
                         || victim.character_id.is_some() && actor.character_id.is_some()))
             {
                 return Err(ValidationError::InvalidTarget);
@@ -124,19 +124,11 @@ impl CombatResolver {
                     },
                     &mut self.rng,
                 );
-                let mut damage = std::collections::BTreeMap::new();
+                // Each dart is a separate damage instance; combining them changes
+                // massive damage and failures suffered at zero HP.
                 for index in 0..count {
                     let target = targets[if targets.len() == 1 { 0 } else { index }];
-                    *damage.entry(target.0).or_insert(0) += detail.total;
-                }
-                for (target, amount) in damage {
-                    self.spell_damage(
-                        CombatantId(target),
-                        amount,
-                        DamageType::Force,
-                        false,
-                        &mut events,
-                    );
+                    self.spell_damage(target, detail.total, DamageType::Force, false, &mut events);
                 }
                 events.rolls.push(DiceRoll {
                     purpose: spell_id.into(),
@@ -298,11 +290,15 @@ impl CombatResolver {
         events: &mut ResultEvents,
     ) {
         let victim = self.combatants.get_mut(&target).unwrap();
-        let effective = apply_damage_to_combatant(
+        if victim.is_dead {
+            return;
+        }
+        let effective = apply_damage_with_critical(
             victim,
             amount.max(0),
             damage_type,
             &DamageResistance::default(),
+            critical,
         );
         events.damage.push(DamageApplication {
             target,
@@ -314,6 +310,12 @@ impl CombatResolver {
         });
         if victim.current_hp == 0 {
             victim.add_condition(Condition::Unconscious);
+            if victim.character_id.is_none() {
+                victim.is_dead = true;
+            }
+        }
+        if victim.is_dead && !events.deaths.contains(&target) {
+            events.deaths.push(target);
         }
     }
 }

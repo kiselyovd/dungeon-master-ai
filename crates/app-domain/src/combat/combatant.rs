@@ -132,11 +132,32 @@ impl Combatant {
 
     /// Apply damage after resistances have been computed. Returns effective HP change.
     pub fn apply_raw_damage(&mut self, amount: i32) -> i32 {
+        self.apply_raw_damage_with_critical(amount, false)
+    }
+
+    pub fn apply_raw_damage_with_critical(&mut self, amount: i32, critical: bool) -> i32 {
         let amount = amount.max(0);
-        let bleed_through = (amount - self.temp_hp).max(0);
-        self.temp_hp = (self.temp_hp - amount).max(0);
-        let actual = bleed_through.min(self.current_hp);
-        self.current_hp = (self.current_hp - bleed_through).max(0);
+        if amount == 0 || self.is_dead {
+            return 0;
+        }
+        let hp_before = self.current_hp;
+        let bleed_through = amount.saturating_sub(self.temp_hp).max(0);
+        self.temp_hp = self.temp_hp.saturating_sub(amount).max(0);
+        let actual = bleed_through.min(hp_before);
+        self.current_hp = hp_before.saturating_sub(bleed_through).max(0);
+        if hp_before == 0 {
+            self.death_saves.stable = false;
+            for _ in 0..if critical { 2 } else { 1 } {
+                self.is_dead |= self.death_saves.record_failure();
+            }
+            self.is_dead |= amount >= self.max_hp;
+        } else if self.current_hp == 0 {
+            self.death_saves = DeathSaves::default();
+            self.is_dead = bleed_through.saturating_sub(hp_before) >= self.max_hp;
+        }
+        if self.current_hp == 0 {
+            self.add_condition(Condition::Unconscious);
+        }
         actual
     }
 

@@ -180,3 +180,29 @@ party-storage cases, nine authored-defense cases, eight action-receipt cases,
 five bound-hero cases and server room/hero-route regressions pass. Clippy for all
 changed Rust crates (all targets/features) and the architecture guard pass. Native
 screenshots from the prior recovery checkpoint do not prove this new turn logic.
+
+
+## Damage and mortality checkpoint
+
+Positive damage at zero HP removes stability and adds one death-save failure;
+critical damage adds two. Temporary HP does not make damage at zero into healing
+or prevent the failure. Immunity/zero damage causes no change. At zero, damage at
+least equal to maximum HP causes death. From positive HP, massive damage uses the
+remainder after temporary/current HP. Ordinary downing adds Unconscious without
+claiming a death event. Nearby hits on unconscious targets are critical.
+
+Weapon/spell resolution accepts hostile damage against downed human targets while
+preserving the existing restriction on human-on-human attacks. NPC automation still
+targets conscious opponents, never chooses a human hero's action. NPC zero-HP damage
+resolution marks the NPC dead. True death events now match the dead flag. Persisting
+lost stability removes the old natural-recovery deadline; failed final receipts
+roll back HP, counters, timer and death together.
+
+Behavioral RED tests reproduced absent failure/stability/massive-death transitions.
+Domain, application and SQLite suites pass, including critical/save-spell paths and
+the saved deadline/death rollback regression. No new UI/runtime proof is claimed.
+Solo recovery transport and complete native/model/physical-LAN acceptance remain open.
+
+Magic Missile now keeps each dart as a separate damage instance while sharing the
+damage die. It cannot manufacture massive damage by summing separate darts; each
+hit at zero causes its own failure. Multi-hit spell output records a death once.
