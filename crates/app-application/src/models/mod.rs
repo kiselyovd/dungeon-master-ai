@@ -8,6 +8,7 @@ pub mod identity;
 pub mod local_models;
 pub mod party;
 pub mod rest;
+pub mod room;
 pub mod session;
 pub mod settings;
 pub mod snapshot;

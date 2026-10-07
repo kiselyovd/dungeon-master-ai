@@ -85,6 +85,49 @@ pub trait PartyRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait RoomRepository: Send + Sync {
+    async fn room(
+        &self,
+        room_id: Uuid,
+    ) -> Result<Option<crate::models::room::RoomRecord>, RepositoryError>;
+    async fn find_creation(
+        &self,
+        campaign_id: CampaignId,
+        id: &str,
+        signature: &str,
+    ) -> Result<Option<crate::models::room::RoomRecord>, RepositoryError>;
+    async fn create_room(
+        &self,
+        room: crate::models::room::RoomRecord,
+        id: &str,
+        signature: &str,
+    ) -> Result<crate::models::room::RoomRecord, RepositoryError>;
+    async fn find_join(
+        &self,
+        room_id: Uuid,
+        join_id: Uuid,
+    ) -> Result<Option<crate::models::room::RoomJoinRecord>, RepositoryError>;
+    async fn commit_join(
+        &self,
+        command: crate::models::room::CommitRoomJoin,
+    ) -> Result<crate::models::room::RoomJoinRecord, RepositoryError>;
+    async fn close_room(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<(), RepositoryError>;
+    async fn revoke_member(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        member_id: Uuid,
+    ) -> Result<(), RepositoryError>;
+    async fn rotate_invitation(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        invitation: crate::models::room::RoomInvitation,
+    ) -> Result<(), RepositoryError>;
+}
+
+#[async_trait]
 pub trait AdventureRepository: Send + Sync {
     async fn act_as_dm(
         &self,

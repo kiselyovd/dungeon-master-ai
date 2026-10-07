@@ -1,5 +1,5 @@
 use super::identity::{CampaignId, Revision, SessionId};
-pub use app_domain::party::{PartyError, PartyMember, PartyRole, PartyRoster};
+pub use app_domain::party::{PartyError, PartyMember, PartyRole, PartyRoster, MAX_PARTY_MEMBERS};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;

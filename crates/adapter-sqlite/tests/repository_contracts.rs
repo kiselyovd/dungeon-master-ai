@@ -132,7 +132,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 8);
+    assert_eq!(migration_count, 9);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -144,6 +144,9 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         "campaign_parties",
         "party_characters",
         "party_operation_receipts",
+        "coop_rooms",
+        "room_creation_receipts",
+        "room_join_receipts",
         "campaigns",
         "sessions",
         "campaign_events",

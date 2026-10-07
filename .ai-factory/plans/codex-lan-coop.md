@@ -32,6 +32,17 @@ without explicit approval. Inline execution with independent final review.
 - [ ] Finish remaining solo mechanics/narrative/real-model/native requirements and
   independent whole-scope review before declaring the complete goal achieved.
 
-Current work: first two items implemented locally; focused/full gates pass and
-independent review closed the snapshot guard finding. No room authentication, network/UI or multi-hero
-combat acceptance is claimed yet. The separate reqwest approval remains pending.
+Current work: first two items implemented locally. Room capability core, SQLite
+metadata/receipts and secrets-port persistence are implemented, including saved
+party invitations, private-proof replay and revocation. Six focused integration
+tests pass. HTTP identity injection, network/UI and multi-hero combat acceptance
+remain pending; the third item therefore stays open. See docs/ROOM_AUTH.md.
+The separate reqwest approval remains pending.
+
+Room-core checkpoint: independent follow-up review closed all three findings
+(saved-member invitations, preflight before secret writes, cross-instance join
+coordination). Architecture, format, Biome, typecheck, em-dash, Clippy and 1042
+frontend tests passed. The initial consolidated run failed the INFO-dependent
+telemetry test because RUST_LOG was omitted; the complete workspace Rust suite
+then passed with explicit RUST_LOG=info. All 32 original baseline hashes remain
+unchanged. No HTTP/LAN/native acceptance or complete goal success is claimed.

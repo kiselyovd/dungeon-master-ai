@@ -6,4 +6,5 @@ pub mod combat;
 pub mod models;
 pub mod ports;
 pub mod rest;
+pub mod rooms;
 pub mod settings;

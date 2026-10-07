@@ -13,6 +13,7 @@ pub mod npcs;
 pub mod party;
 pub mod pool;
 pub mod rest;
+pub mod rooms;
 pub mod saves;
 pub mod scenes;
 pub mod sessions;
