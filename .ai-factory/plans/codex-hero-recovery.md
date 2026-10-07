@@ -136,3 +136,18 @@ Browser uses native stubs with real engine snapshots. The actual two-Tauri held
 zero-HP continuation through these buttons is next; that P1 is not yet closed.
 Solo recovery transport, active-combat death turns and full-game/model/LAN acceptance
 remain outstanding. No new production dependencies or publication.
+
+
+## Actual native co-op continuation
+
+Both rebuilt isolated Tauri profiles run the real server/native/UI recovery path.
+A deliberately injured pre-fight host (HP1/12) reaches HP0 through actual held
+defense; guest UI aid rolls Medicine14, host waits/confirms in town to HP1, then
+host group-rest UI restores both to HP12. No restore follows that selected battle
+start; DB timestamps and reset-cursor checks confirm it. An earlier separate test
+legitimately died after failed aid/saves and is retained as death-branch evidence.
+See COOP_ACCEPTANCE.md and .artifacts/two-native recovery proof files/screenshots.
+The concrete co-op continuation P1 is locally verified and independently reviewed: revisions135-140 link held, aid, movement, recovery and rest without any intervening restore. Both persisted heroes are HP12; the specific co-op P1 is closed.
+Solo transport, active-combat death turns, damage-at-zero, real-model narration,
+remaining session UX and physical LAN acceptance still require work. Test processes
+are stopped; no release/publication or complete-goal claim.

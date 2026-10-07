@@ -704,3 +704,18 @@ playability goal stays active.
 Recovery continuation uses codex-hero-recovery.md. The pure SRD rule foundation is
 implemented and domain-tested; durable vitality, owned assistance/time progression,
 UI and actual held-zero-HP continuation remain required before closing the P1.
+
+
+### Co-op held-zero-HP P1 closure (local native acceptance)
+
+Rebuilt c6871be native host/guest apps complete the observed dead-end path through
+actual aid/wait-confirmation/group-rest controls. A deliberately injured pre-fight
+host reaches HP0 through actual held defense; the guest rolls Medicine14, passive
+waiting restoresHP1, group rest restoresbothHP12. No restore follows that selected
+battle. Independent SQLite review confirms revisions135-140 and event/timestamp
+continuity; screenshots and persisted records agree. An earlier failed aid/death
+branch remains documented. All test processes are stopped.
+
+The specific co-op P1 is closed locally. Complete solo, active-combat death saves,
+damage-at-zero, real-model quality, physical LAN and remaining UX/lifecycle work
+stay open. See COOP_ACCEPTANCE.md and codex-hero-recovery.md for bounded evidence.
