@@ -104,6 +104,22 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn room_combat(
+        &self,
+        lease: &RoomLease,
+        encounter: Uuid,
+    ) -> Result<app_application::models::combat::CombatProjection, RepositoryError> {
+        crate::room_combat::read(self, lease, encounter).await
+    }
+    async fn act_room_combat(
+        &self,
+        lease: &RoomLease,
+        encounter: Uuid,
+        command: app_application::models::room_combat::RoomCombatCommand,
+        rng_seed: u64,
+    ) -> Result<app_application::models::room_combat::RoomCombatResult, RepositoryError> {
+        crate::room_combat::act(self, lease, encounter, command, rng_seed).await
+    }
     async fn submit_character_proposal(
         &self,
         lease: &RoomLease,

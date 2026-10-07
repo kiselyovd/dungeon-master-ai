@@ -61,6 +61,8 @@ router. It is not merged into or publicly bound by production bootstrap yet.
 | GET | `/rooms/{room_id}/character-proposals` | Host; pending public summaries |
 | GET | `/rooms/{room_id}/character-proposals/own` | Member; own latest private draft |
 | POST | `/rooms/{room_id}/character-proposals/{proposal_id}/approve` | Host |
+| GET | `/rooms/{room_id}/combat/{encounter_id}` | Accepted active member |
+| POST | `/rooms/{room_id}/combat/{encounter_id}/actions` | Accepted member; own actor |
 
 Member requests use `Authorization: Bearer ...` and `x-room-member-id`. Duplicate
 credential/identity headers are rejected. Join JSON contains `join_id`,
@@ -109,3 +111,39 @@ Coverage includes a real HTTP submission/approval/replay path, a biography large
 than the ordinary room JSON limit, forced failure at the final approval receipt
 with complete rollback, stale lease/revocation rejection, and real database/vault
 reopening followed by acceptance of the recovered private draft.
+
+## Authenticated combat intentions
+
+Combat JSON contains `request_id`, `expected_revision` and an intention tagged
+with `kind`: `end_turn`, `retreat`, `move`, `weapon` or `spell`. It accepts no acting
+token, character/campaign/member identity, damage, attack modifier or RNG seed.
+The existing HeroCombatIntent schema rejects unknown fields. The server derives
+the actor from the authenticated member's accepted party binding.
+
+The room repository verifies current room epoch, membership, party/session and
+encounter scope inside the same BEGIN IMMEDIATE transaction that resolves and
+commits the action. The mechanics use the same pure prepare_action function as
+solo play. NPC turns, every party sheet, clock, revision and receipt commit as one
+operation. Invalid ownership, wrong turn, revoked leases and foreign encounters
+cannot produce an effect. Room and member UUIDs namespace client request IDs, so
+two players can safely use the same nonce. Changed arguments conflict.
+
+Responses separate the latest authoritative `projection` from immutable
+`receipt_revision` and `receipt_events`. An exact retry retains its original rolls
+without rolling the state back to an earlier turn or reopening a finished battle.
+Renderers should apply current projection revisions and deliver receipt events
+once per immutable request. Other heroes' loadout/casting profiles are removed
+from both read and action responses; the caller retains its own profiles.
+
+Genuinely finished encounters remain readable/replayable by their original
+accepted participants after another hero joins. Superseded encounters closed by
+snapshot restoration are rejected with a state conflict, including restore to no
+combat or to a different encounter. Their stale active JSON is never returned as
+a live battle. Newly accepted heroes cannot read or act in an old encounter they
+did not participate in.
+
+Focused coverage adds actual two-peer HTTP turns, actor injection, nonce isolation,
+late/terminal replay, post-combat enrollment, a guest cleric's healing/slot receipt,
+forced receipt failure rollback, direct stale-lease checks and both restoration
+supersession scenarios. Production LAN/native composition and shared event delivery
+remain pending.

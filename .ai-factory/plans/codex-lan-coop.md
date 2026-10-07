@@ -109,3 +109,23 @@ and single-hero authored recovery failures were reproduced RED before repair.
 All 32 original source hashes remain unchanged. Local checkpoint only; the next
 step is authenticated own-actor room commands with lease checks at commit, then
 shared delivery/reconnect and native/LAN acceptance. Whole-goal work stays active.
+
+Room combat progress: authenticated own-actor intentions now use a transaction
+that rechecks lease/party/session/encounter and namespaces receipts by room/member.
+Responses redact other player profiles and separate current state from original
+receipt events. Two-peer actual HTTP tests cover wrong turns, actor injection,
+nonce isolation and late/terminal replay. Guest healing consumes its slot once;
+forced receipt failure rolls back all effects. Revoked leases and foreign scope
+are rejected. Review reproduced a superseded-encounter read after restore; both
+restore-none and restore-A-over-B are now rejected while restored A remains usable.
+Twelve room cases pass and independent follow-up closed the finding. Full gate
+collection is in progress. Next implement shared room state/events and scoped
+adventure/rest/AI commands, then reconnect/native/LAN acceptance.
+
+Authenticated combat checkpoint collection: all 12 room integration cases and
+the full consolidated gate passed (workspace Rust, architecture/static/Clippy,
+1042 frontend tests). Independent review's superseded-battle P2 was reproduced
+RED and both restore regressions passed GREEN; follow-up review closed it.
+Late-state rollback and terminal/historical replay regressions also passed.
+All 32 original baseline hashes remain unchanged. No new production dependency,
+public listener, native multiplayer UI or complete goal acceptance is claimed.

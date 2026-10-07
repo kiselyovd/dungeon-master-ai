@@ -12,9 +12,12 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 mod characters;
+mod combat;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum RoomError {
+    #[error("room_action_rejected")]
+    ActionRejected,
     #[error("room_state_conflict")]
     Conflict,
     #[error("room_access_denied")]

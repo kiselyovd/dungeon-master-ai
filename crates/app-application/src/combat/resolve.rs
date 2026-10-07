@@ -78,7 +78,7 @@ impl ResolveCombatAction {
             .get(command.encounter_id)
             .await
             .map_err(|_| ResolveCombatError::Persistence)?;
-        let mut projection = match current {
+        let projection = match current {
             Some(projection) => projection,
             None => {
                 if let Some(projection) = self
@@ -115,79 +115,7 @@ impl ResolveCombatAction {
             });
         }
 
-        if !projection.snapshot.active {
-            return Err(ResolveCombatError::InvalidState);
-        }
-        let (combatants, order) =
-            resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
-        let mut resolver =
-            CombatResolver::new(combatants, order, SeededRng::from_seed(command.rng_seed));
-        if let Some(authored) = &projection.authored {
-            resolver
-                .set_map(authored.map.clone())
-                .map_err(|_| ResolveCombatError::InvalidState)?;
-        }
-        let retreat = matches!(&command.action, CombatActionCommand::Retreat { .. });
-        let action = match command.action {
-            CombatActionCommand::Retreat { combatant } => CombatAction::Retreat { combatant },
-            CombatActionCommand::Spell {
-                caster,
-                spell_id,
-                targets,
-                slot_level,
-            } => CombatAction::Spell {
-                caster,
-                spell_id,
-                targets,
-                slot_level,
-            },
-            CombatActionCommand::WeaponAttack {
-                attacker,
-                target,
-                weapon_id,
-                mode,
-                two_handed,
-            } => CombatAction::WeaponAttack {
-                attacker,
-                target,
-                weapon_id,
-                mode,
-                two_handed,
-            },
-            CombatActionCommand::Attack {
-                attacker,
-                target,
-                attack_modifier,
-                damage_expr,
-                damage_type,
-            } => CombatAction::Attack {
-                attacker,
-                target,
-                attack_modifier,
-                damage_expr,
-                damage_type,
-            },
-            CombatActionCommand::Cast { combatant } => CombatAction::Cast { combatant },
-            CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
-            CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
-        };
-        let first = resolver.resolve(action)?;
-        let mut events = vec![first];
-        super::automation::settle_npcs_until(
-            &mut resolver,
-            &mut events,
-            projection.authored.as_ref().map(|_| 4),
-        )
-        .map_err(|_| ResolveCombatError::InvalidState)?;
-        replace_resolved_state(
-            &mut projection,
-            resolver.combatants,
-            resolver.order,
-            Default::default(),
-        );
-        projection.events = events;
-        super::automation::finish_if_resolved(&mut projection);
-        super::authored::finalize(&mut projection, retreat);
+        let projection = prepare_action(projection, command.action, command.rng_seed)?;
 
         let committed = self
             .repository
@@ -209,6 +137,88 @@ impl ResolveCombatAction {
             duplicate: committed.duplicate,
         })
     }
+}
+
+/// Pure mechanics shared by solo and transaction-scoped authenticated rooms.
+pub fn prepare_action(
+    mut projection: CombatProjection,
+    action: CombatActionCommand,
+    rng_seed: u64,
+) -> Result<CombatProjection, ResolveCombatError> {
+    if !projection.snapshot.active {
+        return Err(ResolveCombatError::InvalidState);
+    }
+    let (combatants, order) =
+        resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
+    let mut resolver = CombatResolver::new(combatants, order, SeededRng::from_seed(rng_seed));
+    if let Some(authored) = &projection.authored {
+        resolver
+            .set_map(authored.map.clone())
+            .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    let retreat = matches!(&action, CombatActionCommand::Retreat { .. });
+    let action = match action {
+        CombatActionCommand::Retreat { combatant } => CombatAction::Retreat { combatant },
+        CombatActionCommand::Spell {
+            caster,
+            spell_id,
+            targets,
+            slot_level,
+        } => CombatAction::Spell {
+            caster,
+            spell_id,
+            targets,
+            slot_level,
+        },
+        CombatActionCommand::WeaponAttack {
+            attacker,
+            target,
+            weapon_id,
+            mode,
+            two_handed,
+        } => CombatAction::WeaponAttack {
+            attacker,
+            target,
+            weapon_id,
+            mode,
+            two_handed,
+        },
+        CombatActionCommand::Attack {
+            attacker,
+            target,
+            attack_modifier,
+            damage_expr,
+            damage_type,
+        } => CombatAction::Attack {
+            attacker,
+            target,
+            attack_modifier,
+            damage_expr,
+            damage_type,
+        },
+        CombatActionCommand::Cast { combatant } => CombatAction::Cast { combatant },
+        CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
+        CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
+    };
+    let first = resolver.resolve(action)?;
+    let mut events = vec![first];
+    super::automation::settle_npcs_until(
+        &mut resolver,
+        &mut events,
+        projection.authored.as_ref().map(|_| 4),
+    )
+    .map_err(|_| ResolveCombatError::InvalidState)?;
+    replace_resolved_state(
+        &mut projection,
+        resolver.combatants,
+        resolver.order,
+        Default::default(),
+    );
+    projection.events = events;
+    super::automation::finish_if_resolved(&mut projection);
+    super::authored::finalize(&mut projection, retreat);
+
+    Ok(projection)
 }
 
 fn repository_error(error: RepositoryError) -> ResolveCombatError {

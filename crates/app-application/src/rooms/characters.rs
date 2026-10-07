@@ -4,8 +4,20 @@ use crate::{
     ports::repositories::RepositoryError,
 };
 
-fn repository_error(error: RepositoryError) -> RoomError {
+pub(super) fn repository_error(error: RepositoryError) -> RoomError {
     match error {
+        RepositoryError::Operation {
+            code: "room_action_rejected",
+            ..
+        } => RoomError::ActionRejected,
+        RepositoryError::Operation {
+            code: "room_action_invalid",
+            ..
+        } => RoomError::InvalidInput,
+        RepositoryError::Operation {
+            code: "room_combat_conflict" | "combat_request_mismatch",
+            ..
+        } => RoomError::Conflict,
         RepositoryError::Conflict { .. }
         | RepositoryError::RevisionConflict { .. }
         | RepositoryError::NotFound => RoomError::Conflict,

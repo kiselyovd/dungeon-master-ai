@@ -120,6 +120,413 @@ async fn guest_proposal(
     )
 }
 
+async fn group_fight(
+    store: &SqliteStore,
+    service: &RoomService,
+    created: &app_application::rooms::CreatedRoom,
+) -> (
+    app_application::rooms::RoomGrant,
+    app_application::rooms::RoomSubject,
+    app_application::rooms::RoomSubject,
+    Uuid,
+    app_application::models::combat::CombatProjection,
+) {
+    let (grant, guest, mut submission) = guest_proposal(store, service, created).await;
+    submission.character["heroClass"] = json!("cleric");
+    submission.character["abilities"]["wis"] = json!(16);
+    submission.character["spells"] =
+        json!({"cantrips":["sacred-flame"],"level1":["cure-wounds","healing-word"]});
+    service
+        .submit_character(&guest, submission.clone())
+        .await
+        .unwrap();
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    service
+        .approve_character(
+            &host,
+            ApproveRoomCharacter {
+                proposal_id: submission.proposal_id,
+                expected_revision: party.revision,
+                causation_id: "group-fight".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let encounter = Uuid::new_v4();
+    let npc = app_domain::combat::types::CombatantId::new();
+    let projection = app_application::ports::repositories::CombatRepository::create(
+        store,
+        party.session_id.0,
+        app_application::models::combat::CombatProjection {
+            authored: None,
+            adventure: None,
+            campaign_scope: None,
+            schema_version: app_application::models::combat::COMBAT_PROJECTION_VERSION,
+            encounter_id: encounter,
+            revision: 0,
+            snapshot: app_application::models::combat::CombatSnapshot {
+                active: true,
+                round: 1,
+                current_combatant: Some(npc),
+                initiative: vec![app_domain::combat::initiative::InitiativeEntry {
+                    id: npc,
+                    roll: -99,
+                    dex_tiebreak: 0,
+                }],
+                combatants: vec![app_domain::combat::combatant::Combatant::new(
+                    npc,
+                    "Foe".into(),
+                    100,
+                    100,
+                    10,
+                )],
+            },
+            events: vec![],
+        },
+    )
+    .await
+    .unwrap();
+    (grant, guest, host, encounter, projection)
+}
+
+#[tokio::test]
+async fn room_spell_rolls_resources_and_all_party_effects_commit_or_rollback_together() {
+    use app_application::{
+        agent::hero_intentions::HeroCombatIntent, models::room_combat::RoomCombatCommand,
+        ports::repositories::CombatRepository,
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, guest, host, encounter, mut projection) =
+        group_fight(&store, &service, &created).await;
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let guest_id = party
+        .roster
+        .members
+        .iter()
+        .find(|member| member.member_id == grant.member_id)
+        .unwrap()
+        .character_id;
+    let root_id = party.roster.members[0].character_id;
+    let root = projection
+        .snapshot
+        .combatants
+        .iter_mut()
+        .find(|actor| actor.character_id.is_some_and(|id| id.0 == root_id))
+        .unwrap();
+    root.apply_raw_damage(3);
+    let root_token = root.id;
+    projection.revision = 1;
+    store.compare_and_set(0, projection.clone()).await.unwrap();
+    let current = projection.snapshot.current_combatant.unwrap();
+    if projection
+        .snapshot
+        .combatants
+        .iter()
+        .find(|actor| actor.id == current)
+        .unwrap()
+        .character_id
+        .unwrap()
+        .0
+        != guest_id
+    {
+        projection = service
+            .act_combat(
+                &host,
+                encounter,
+                RoomCombatCommand {
+                    request_id: "yield-to-cleric".into(),
+                    expected_revision: 1,
+                    action: HeroCombatIntent::EndTurn,
+                },
+            )
+            .await
+            .unwrap()
+            .projection;
+    }
+    let before = store.party(party.campaign_id).await.unwrap().unwrap();
+    let intent = RoomCombatCommand {
+        request_id: "guest-heal".into(),
+        expected_revision: projection.revision,
+        action: HeroCombatIntent::Spell {
+            spell_id: "cure-wounds".into(),
+            targets: vec![root_token.0],
+            slot_level: 1,
+        },
+    };
+    sqlx::raw_sql("CREATE TRIGGER fail_room_receipt BEFORE INSERT ON combat_action_receipts BEGIN SELECT RAISE(ABORT,'synthetic_room_receipt_failure'); END;").execute(store.pool()).await.unwrap();
+    assert!(service
+        .act_combat(&guest, encounter, intent.clone())
+        .await
+        .is_err());
+    assert!(store.party(party.campaign_id).await.unwrap().unwrap() == before);
+    assert_eq!(
+        store.get(encounter).await.unwrap().unwrap().revision,
+        projection.revision
+    );
+    sqlx::raw_sql("DROP TRIGGER fail_room_receipt;")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let first = service
+        .act_combat(&guest, encounter, intent.clone())
+        .await
+        .unwrap();
+    let after = store.party(party.campaign_id).await.unwrap().unwrap();
+    assert_eq!(after.characters[&root_id]["hp"], 12);
+    assert_eq!(
+        after.characters[&guest_id]["combatResources"]["spellSlots"]["1"],
+        1
+    );
+    let replay = service.act_combat(&guest, encounter, intent).await.unwrap();
+    assert!(replay.duplicate);
+    assert_eq!(replay.receipt_revision, first.receipt_revision);
+    assert!(
+        serde_json::to_value(replay.receipt_events).unwrap()
+            == serde_json::to_value(first.receipt_events).unwrap()
+    );
+    assert!(store.party(party.campaign_id).await.unwrap().unwrap() == after);
+}
+
+#[tokio::test]
+async fn revoked_leases_and_foreign_encounters_cannot_read_or_commit_room_combat() {
+    use app_application::{
+        agent::hero_intentions::HeroCombatIntent, models::room_combat::RoomCombatCommand,
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, guest, host, encounter, _) = group_fight(&store, &service, &created).await;
+    let other = CreateCampaign::new(store.clone())
+        .execute(CreateCampaignCommand {
+            title: "Other".into(),
+            premise: "Private other room".into(),
+            seed: CampaignSeed::Bundled {
+                adventure_id: "bell-beneath-water".into(),
+            },
+        })
+        .await
+        .unwrap();
+    let foreign = Uuid::new_v4();
+    let npc = app_domain::combat::types::CombatantId::new();
+    app_application::ports::repositories::CombatRepository::create(
+        &*store,
+        other.last_session_id.0,
+        app_application::models::combat::CombatProjection {
+            authored: None,
+            adventure: None,
+            campaign_scope: None,
+            schema_version: app_application::models::combat::COMBAT_PROJECTION_VERSION,
+            encounter_id: foreign,
+            revision: 0,
+            snapshot: app_application::models::combat::CombatSnapshot {
+                active: true,
+                round: 1,
+                current_combatant: Some(npc),
+                initiative: vec![app_domain::combat::initiative::InitiativeEntry {
+                    id: npc,
+                    roll: 10,
+                    dex_tiebreak: 0,
+                }],
+                combatants: vec![app_domain::combat::combatant::Combatant::new(
+                    npc,
+                    "Private foe".into(),
+                    10,
+                    10,
+                    10,
+                )],
+            },
+            events: vec![],
+        },
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        service.room_combat(&guest, foreign).await,
+        Err(app_application::rooms::RoomError::Denied)
+    ));
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    service.revoke(&host, grant.member_id).await.unwrap();
+    let stale = store
+        .act_room_combat(
+            host.lease(),
+            encounter,
+            RoomCombatCommand {
+                request_id: "stale-role".into(),
+                expected_revision: 0,
+                action: HeroCombatIntent::EndTurn,
+            },
+            42,
+        )
+        .await;
+    assert!(matches!(
+        stale,
+        Err(
+            app_application::ports::repositories::RepositoryError::Operation {
+                code: "room_access_denied",
+                ..
+            }
+        )
+    ));
+    assert!(service.room_combat(&guest, encounter).await.is_err());
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == before);
+    let receipts: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM combat_action_receipts")
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(receipts, 0);
+}
+
+#[tokio::test]
+async fn restoring_no_combat_or_another_encounter_never_exposes_the_superseded_live_battle() {
+    use app_application::{
+        agent::hero_intentions::HeroCombatIntent,
+        campaigns::{CreateSnapshot, CreateSnapshotCommand},
+        models::{room_combat::RoomCombatCommand, snapshot::RestoreSnapshotRecord},
+        ports::repositories::{CombatRepository, SnapshotRepository},
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (_, guest, _, a, initial) = group_fight(&store, &service, &created).await;
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let saved_a = CreateSnapshot::new(store.clone())
+        .execute(CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: party.campaign_id,
+            session_id: party.session_id,
+            expected_revision: party.revision,
+            title: "A".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "".into(),
+            causation_id: "save-a".into(),
+            character: party.characters[&party.roster.members[0].character_id].clone(),
+        })
+        .await
+        .unwrap();
+    store.end(a).await.unwrap();
+    let idle = store.party(party.campaign_id).await.unwrap().unwrap();
+    let saved_idle = CreateSnapshot::new(store.clone())
+        .execute(CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: party.campaign_id,
+            session_id: party.session_id,
+            expected_revision: idle.revision,
+            title: "Idle".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "".into(),
+            causation_id: "save-idle".into(),
+            character: idle.characters[&idle.roster.members[0].character_id].clone(),
+        })
+        .await
+        .unwrap();
+    let mut projection = initial;
+    let b = Uuid::new_v4();
+    let npc = app_domain::combat::types::CombatantId::new();
+    projection.encounter_id = b;
+    projection.campaign_scope = None;
+    projection.events.clear();
+    projection
+        .snapshot
+        .combatants
+        .retain(|actor| actor.character_id.is_none());
+    projection.snapshot.combatants[0].id = npc;
+    projection.snapshot.current_combatant = Some(npc);
+    projection.snapshot.initiative = vec![app_domain::combat::initiative::InitiativeEntry {
+        id: npc,
+        roll: -99,
+        dex_tiebreak: 0,
+    }];
+    store.create(party.session_id.0, projection).await.unwrap();
+    for (save_id, causation) in [
+        (saved_idle.save_id, "restore-idle"),
+        (saved_a.save_id, "restore-a"),
+    ] {
+        let current = store.party(party.campaign_id).await.unwrap().unwrap();
+        store
+            .restore_snapshot(RestoreSnapshotRecord {
+                save_id,
+                campaign_id: party.campaign_id,
+                session_id: party.session_id,
+                expected_revision: current.revision,
+                causation_id: causation.into(),
+            })
+            .await
+            .unwrap();
+        assert!(matches!(
+            service.room_combat(&guest, b).await,
+            Err(app_application::rooms::RoomError::Conflict)
+        ));
+        assert!(matches!(
+            service
+                .act_combat(
+                    &guest,
+                    b,
+                    RoomCombatCommand {
+                        request_id: format!("old-{causation}"),
+                        expected_revision: 0,
+                        action: HeroCombatIntent::EndTurn
+                    }
+                )
+                .await,
+            Err(app_application::rooms::RoomError::Conflict)
+        ));
+    }
+    assert!(
+        service
+            .room_combat(&guest, a)
+            .await
+            .unwrap()
+            .snapshot
+            .active
+    );
+}
+
 #[tokio::test]
 async fn approval_failure_rolls_back_hero_revision_status_and_both_receipts() {
     let (store, command) =
@@ -468,6 +875,206 @@ async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_rout
         accepted_party.roster.members[1].member_id,
         Uuid::parse_str(member).unwrap()
     );
+    let encounter = Uuid::new_v4();
+    let npc = app_domain::combat::types::CombatantId::new();
+    let fight = app_application::ports::repositories::CombatRepository::create(
+        &*store,
+        party.session_id.0,
+        app_application::models::combat::CombatProjection {
+            authored: None,
+            adventure: None,
+            campaign_scope: None,
+            schema_version: app_application::models::combat::COMBAT_PROJECTION_VERSION,
+            encounter_id: encounter,
+            revision: 0,
+            snapshot: app_application::models::combat::CombatSnapshot {
+                active: true,
+                round: 1,
+                current_combatant: Some(npc),
+                initiative: vec![app_domain::combat::initiative::InitiativeEntry {
+                    id: npc,
+                    roll: -99,
+                    dex_tiebreak: 0,
+                }],
+                combatants: vec![app_domain::combat::combatant::Combatant::new(
+                    npc,
+                    "Foe".into(),
+                    100,
+                    100,
+                    10,
+                )],
+            },
+            events: vec![],
+        },
+    )
+    .await
+    .unwrap();
+    let combat_url = format!("{url}/combat/{encounter}");
+    let guest_combat = client
+        .get(&combat_url)
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(guest_combat.status(), 200);
+    let guest_combat: serde_json::Value = guest_combat.json().await.unwrap();
+    for actor in guest_combat["snapshot"]["combatants"].as_array().unwrap() {
+        if actor["character_id"] == json!(character_id) {
+            assert!(actor["loadout"].is_object());
+        } else if actor["character_id"].is_string() {
+            assert!(actor["loadout"].is_null());
+            assert!(actor["casting"].is_null());
+        }
+    }
+    let current = fight.snapshot.current_combatant.unwrap();
+    let current_character = fight
+        .snapshot
+        .combatants
+        .iter()
+        .find(|actor| actor.id == current)
+        .unwrap()
+        .character_id
+        .unwrap()
+        .0;
+    let host_member = created.grant.member_id.to_string();
+    let (first_cap, first_member, second_cap, second_member) = if current_character == character_id
+    {
+        (
+            capability,
+            member,
+            created.grant.capability.expose(),
+            created.grant.member_id.to_string(),
+        )
+    } else {
+        (
+            created.grant.capability.expose(),
+            host_member.as_str(),
+            capability,
+            member.to_string(),
+        )
+    };
+    let wrong_turn = client
+        .post(format!("{combat_url}/actions"))
+        .bearer_auth(second_cap)
+        .header("x-room-member-id", &second_member)
+        .json(
+            &json!({"request_id":"wrong-turn","expected_revision":0,"action":{"kind":"end_turn"}}),
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(wrong_turn.status(), 422);
+    let forged=client.post(format!("{combat_url}/actions")).bearer_auth(second_cap).header("x-room-member-id",&second_member).json(&json!({"request_id":"forged","expected_revision":0,"action":{"kind":"end_turn","combatant":current.0}})).send().await.unwrap();
+    assert_eq!(forged.status(), 422);
+    let intent = json!({"request_id":"same-client-nonce","expected_revision":0,"action":{"kind":"end_turn"}});
+    for duplicate in [false, true] {
+        let applied = client
+            .post(format!("{combat_url}/actions"))
+            .bearer_auth(first_cap)
+            .header("x-room-member-id", first_member)
+            .json(&intent)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(applied.status(), 200);
+        let applied: serde_json::Value = applied.json().await.unwrap();
+        assert_eq!(applied["duplicate"], duplicate);
+        assert_eq!(applied["projection"]["revision"], 1);
+    }
+    let changed=client.post(format!("{combat_url}/actions")).bearer_auth(first_cap).header("x-room-member-id",first_member).json(&json!({"request_id":"same-client-nonce","expected_revision":1,"action":{"kind":"end_turn"}})).send().await.unwrap();
+    assert_eq!(changed.status(), 409);
+    let second=client.post(format!("{combat_url}/actions")).bearer_auth(second_cap).header("x-room-member-id",&second_member).json(&json!({"request_id":"same-client-nonce","expected_revision":1,"action":{"kind":"end_turn"}})).send().await.unwrap();
+    assert_eq!(second.status(), 200);
+    let second: serde_json::Value = second.json().await.unwrap();
+    assert_eq!(second["projection"]["revision"], 2);
+    let late = client
+        .post(format!("{combat_url}/actions"))
+        .bearer_auth(first_cap)
+        .header("x-room-member-id", first_member)
+        .json(&intent)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(late.status(), 200);
+    let late: serde_json::Value = late.json().await.unwrap();
+    assert_eq!(late["projection"]["revision"], 2);
+    assert_eq!(late["receipt_revision"], 1);
+    let mut finished =
+        app_application::ports::repositories::CombatRepository::get(&*store, encounter)
+            .await
+            .unwrap()
+            .unwrap();
+    for actor in &mut finished.snapshot.combatants {
+        if actor.character_id.is_none() {
+            actor.apply_raw_damage(actor.max_hp);
+        }
+    }
+    finished.snapshot.active = false;
+    finished.snapshot.current_combatant = None;
+    finished.revision = 3;
+    app_application::ports::repositories::CombatRepository::compare_and_set(&*store, 2, finished)
+        .await
+        .unwrap();
+    let terminal = client
+        .post(format!("{combat_url}/actions"))
+        .bearer_auth(first_cap)
+        .header("x-room-member-id", first_member)
+        .json(&intent)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(terminal.status(), 200);
+    let terminal: serde_json::Value = terminal.json().await.unwrap();
+    assert_eq!(terminal["projection"]["revision"], 3);
+    assert_eq!(terminal["projection"]["snapshot"]["active"], false);
+    assert_eq!(terminal["receipt_revision"], 1);
+    let fresh_invite = client
+        .post(format!("{url}/invitation"))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    let third=client.post(format!("{url}/join")).json(&json!({"join_id":Uuid::new_v4(),"display_name":"Third","invitation":fresh_invite["invitation"],"resume_proof":RoomSecret::generate().expose()})).send().await.unwrap();
+    assert_eq!(third.status(), 200);
+    let third: serde_json::Value = third.json().await.unwrap();
+    let third_member = third["member_id"].as_str().unwrap();
+    let third_cap = third["capability"].as_str().unwrap();
+    let third_character = Uuid::new_v4();
+    let third_proposal = Uuid::new_v4();
+    let mut third_sheet = submission["character"].clone();
+    third_sheet["characterId"] = json!(third_character);
+    third_sheet["backstory"] = json!("third-private-story");
+    let third_submission=client.post(format!("{url}/character-proposals")).bearer_auth(third_cap).header("x-room-member-id",third_member).json(&json!({"proposal_id":third_proposal,"character_id":third_character,"character":third_sheet})).send().await.unwrap();
+    assert_eq!(third_submission.status(), 200);
+    let before_third = store.party(party.campaign_id).await.unwrap().unwrap();
+    let third_approval=client.post(format!("{url}/character-proposals/{third_proposal}/approve")).bearer_auth(created.grant.capability.expose()).header("x-room-member-id",created.grant.member_id.to_string()).json(&json!({"expected_revision":before_third.revision.0,"causation_id":"accept-third-after-combat"})).send().await.unwrap();
+    assert_eq!(third_approval.status(), 200);
+    let historical = client
+        .post(format!("{combat_url}/actions"))
+        .bearer_auth(first_cap)
+        .header("x-room-member-id", first_member)
+        .json(&intent)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(historical.status(), 200);
+    let historical: serde_json::Value = historical.json().await.unwrap();
+    assert_eq!(historical["projection"]["snapshot"]["active"], false);
+    assert_eq!(historical["receipt_revision"], 1);
+    let not_in_old_encounter = client
+        .get(&combat_url)
+        .bearer_auth(third_cap)
+        .header("x-room-member-id", third_member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(not_in_old_encounter.status(), 401);
     let own = client
         .get(format!("{url}/party"))
         .bearer_auth(capability)

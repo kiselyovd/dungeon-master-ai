@@ -10,6 +10,7 @@ pub mod party;
 pub mod rest;
 pub mod room;
 pub mod room_character;
+pub mod room_combat;
 pub mod session;
 pub mod settings;
 pub mod snapshot;

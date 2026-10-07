@@ -23,6 +23,11 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}", get(current_room).delete(close_room))
         .route("/rooms/{room_id}/join", post(join_room))
         .route("/rooms/{room_id}/party", get(own_party))
+        .route("/rooms/{room_id}/combat/{encounter_id}", get(room_combat))
+        .route(
+            "/rooms/{room_id}/combat/{encounter_id}/actions",
+            post(act_combat),
+        )
         .route(
             "/rooms/{room_id}/character-proposals",
             get(pending_proposals)
@@ -56,6 +61,9 @@ async fn no_store(request: axum::extract::Request, next: Next) -> Response {
 }
 fn room_error(error: RoomError) -> HttpServiceError {
     match error {
+        RoomError::ActionRejected => HttpServiceError::UnprocessableEntity {
+            code: "room_action_rejected",
+        },
         RoomError::Conflict => HttpServiceError::Conflict {
             code: "room_state_conflict",
         },
@@ -273,6 +281,47 @@ async fn approve_character(
                 proposal_id,
                 expected_revision: Revision(request.expected_revision),
                 causation_id: request.causation_id,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CombatRequest {
+    request_id: String,
+    expected_revision: u64,
+    action: app_application::agent::hero_intentions::HeroCombatIntent,
+}
+async fn room_combat(
+    State(service): State<Arc<RoomService>>,
+    Path((room_id, encounter)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+) -> Result<Json<app_application::models::combat::CombatProjection>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .room_combat(&subject, encounter)
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn act_combat(
+    State(service): State<Arc<RoomService>>,
+    Path((room_id, encounter)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+    Json(request): Json<CombatRequest>,
+) -> Result<Json<app_application::models::room_combat::RoomCombatResult>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .act_combat(
+            &subject,
+            encounter,
+            app_application::models::room_combat::RoomCombatCommand {
+                request_id: request.request_id,
+                expected_revision: request.expected_revision,
+                action: request.action,
             },
         )
         .await

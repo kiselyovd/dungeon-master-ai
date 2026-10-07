@@ -86,6 +86,18 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn room_combat(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        encounter: Uuid,
+    ) -> Result<crate::models::combat::CombatProjection, RepositoryError>;
+    async fn act_room_combat(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        encounter: Uuid,
+        command: crate::models::room_combat::RoomCombatCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_combat::RoomCombatResult, RepositoryError>;
     async fn submit_character_proposal(
         &self,
         lease: &crate::models::room::RoomLease,

@@ -179,7 +179,7 @@ impl CombatRepository for SqliteStore {
     }
 }
 
-async fn persist_projection(
+pub(crate) async fn persist_projection(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     expected_revision: u64,
     projection: &mut CombatProjection,
