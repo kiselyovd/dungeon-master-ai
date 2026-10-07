@@ -16,6 +16,41 @@ fn error(code: &'static str) -> RepositoryError {
     }
 }
 
+pub(crate) async fn persist_sheet(
+    tx: &mut Transaction<'_, Sqlite>,
+    campaign: CampaignId,
+    character: Uuid,
+    sheet: Value,
+) -> Result<(), RepositoryError> {
+    if !app_application::models::campaign_state::valid_character_document(&sheet)
+        || !app_application::models::campaign_state::within_character_budget(&sheet)
+    {
+        return Err(error("party_character_invalid"));
+    }
+    let root: Option<String> =
+        sqlx::query_scalar("SELECT character_id FROM campaign_characters WHERE campaign_id=?1")
+            .bind(campaign.0.to_string())
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|_| error("party_read_failed"))?;
+    if root.as_deref() == Some(character.to_string().as_str()) {
+        return crate::campaign_state::persist_character(tx, campaign, character, sheet).await;
+    }
+    let updated = sqlx::query(
+        "UPDATE party_characters SET character_json=?3 WHERE campaign_id=?1 AND character_id=?2",
+    )
+    .bind(campaign.0.to_string())
+    .bind(character.to_string())
+    .bind(sheet.to_string())
+    .execute(&mut **tx)
+    .await
+    .map_err(|_| error("party_write_failed"))?;
+    if updated.rows_affected() != 1 {
+        return Err(error("party_binding_rejected"));
+    }
+    Ok(())
+}
+
 pub(crate) async fn load(
     tx: &mut Transaction<'_, Sqlite>,
     campaign_id: CampaignId,

@@ -26,6 +26,8 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}/state", get(room_state))
         .route("/rooms/{room_id}/updates", get(room_updates))
         .route("/rooms/{room_id}/events", get(room_events))
+        .route("/rooms/{room_id}/adventure/actions", post(adventure_action))
+        .route("/rooms/{room_id}/rest", get(rest_status).post(rest_action))
         .route("/rooms/{room_id}/combat/{encounter_id}", get(room_combat))
         .route(
             "/rooms/{room_id}/combat/{encounter_id}/actions",
@@ -446,4 +448,71 @@ async fn room_events(
                 .text("room"),
         )
         .into_response())
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdventureRequest {
+    request_id: String,
+    expected_revision: u64,
+    action: app_application::models::adventure::Action,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RestRequest {
+    request_id: String,
+    expected_revision: u64,
+    intent: app_application::models::rest::RestIntent,
+}
+async fn adventure_action(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<AdventureRequest>,
+) -> Result<Json<app_application::models::room_world::RoomWorldReceipt>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .adventure(
+            &subject,
+            app_application::models::room_world::RoomAdventureCommand {
+                request_id: request.request_id,
+                expected_revision: Revision(request.expected_revision),
+                action: request.action,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn rest_status(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<app_application::models::rest::RestStatus>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .rest_status(&subject)
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn rest_action(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<RestRequest>,
+) -> Result<Json<app_application::models::room_world::RoomWorldReceipt>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .rest(
+            &subject,
+            app_application::models::room_world::RoomRestCommand {
+                request_id: request.request_id,
+                expected_revision: Revision(request.expected_revision),
+                intent: request.intent,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
 }

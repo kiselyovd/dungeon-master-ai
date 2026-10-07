@@ -528,6 +528,413 @@ async fn restoring_no_combat_or_another_encounter_never_exposes_the_superseded_l
 }
 
 #[tokio::test]
+async fn party_long_rest_updates_all_heroes_once_and_receipt_failure_rolls_back_every_effect() {
+    use app_application::{
+        models::{rest::RestIntent, room_world::RoomRestCommand},
+        ports::repositories::CombatRepository,
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, guest, host, encounter, mut projection) =
+        group_fight(&store, &service, &created).await;
+    for actor in &mut projection.snapshot.combatants {
+        if actor.character_id.is_some() {
+            actor.apply_raw_damage(4);
+            if let Some(slots) = actor.casting.as_mut().unwrap().slots.get_mut(&1) {
+                slots.remaining = 0;
+            }
+        }
+    }
+    projection.revision = 1;
+    store.compare_and_set(0, projection).await.unwrap();
+    store.end(encounter).await.unwrap();
+    let before_short = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let guest_id = before_short
+        .roster
+        .members
+        .iter()
+        .find(|member| member.member_id == grant.member_id)
+        .unwrap()
+        .character_id;
+    service
+        .rest(
+            &guest,
+            RoomRestCommand {
+                request_id: "guest-hit-die".into(),
+                expected_revision: before_short.revision,
+                intent: RestIntent::Short { hit_dice: 1 },
+            },
+        )
+        .await
+        .unwrap();
+    let after_short = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let root = before_short.roster.members[0].character_id;
+    assert!(after_short.characters[&root] == before_short.characters[&root]);
+    assert_eq!(
+        after_short.characters[&guest_id]["combatResources"]["hitDiceRemaining"],
+        0
+    );
+    assert_eq!(
+        after_short.characters[&guest_id]["combatResources"]["spellSlots"]["1"],
+        0
+    );
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let before_seconds = service.rest_status(&host).await.unwrap().elapsed_seconds;
+    let cursor = service.updates(&host, None).await.unwrap().unwrap().cursor;
+    let command = RoomRestCommand {
+        request_id: "long-rest".into(),
+        expected_revision: before.revision,
+        intent: RestIntent::Long,
+    };
+    assert!(matches!(
+        service.rest(&guest, command.clone()).await,
+        Err(app_application::rooms::RoomError::Denied)
+    ));
+    sqlx::raw_sql("CREATE TRIGGER fail_world_receipt BEFORE INSERT ON room_world_receipts BEGIN SELECT RAISE(ABORT,'synthetic_world_failure'); END;").execute(store.pool()).await.unwrap();
+    assert!(service.rest(&host, command.clone()).await.is_err());
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == before);
+    assert!(service
+        .updates(&host, Some(cursor))
+        .await
+        .unwrap()
+        .is_none());
+    sqlx::raw_sql("DROP TRIGGER fail_world_receipt;")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let first = service.rest(&host, command.clone()).await.unwrap();
+    assert_eq!(
+        first.rest_outcome.as_ref().unwrap().elapsed_seconds,
+        before_seconds + 8 * 3600
+    );
+    let after = store.party(before.campaign_id).await.unwrap().unwrap();
+    assert_eq!(after.revision.0, before.revision.0 + 1);
+    for sheet in after.characters.values() {
+        assert_eq!(sheet["hp"], 12);
+    }
+    let guest_id = after
+        .roster
+        .members
+        .iter()
+        .find(|member| member.member_id == grant.member_id)
+        .unwrap()
+        .character_id;
+    assert_eq!(
+        after.characters[&guest_id]["combatResources"]["spellSlots"]["1"],
+        2
+    );
+    assert!(service.rest(&host, command).await.unwrap().duplicate);
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == after);
+    let repeat = RoomRestCommand {
+        request_id: "too-soon".into(),
+        expected_revision: after.revision,
+        intent: RestIntent::Long,
+    };
+    assert!(matches!(
+        service.rest(&host, repeat).await,
+        Err(app_application::rooms::RoomError::ActionRejected)
+    ));
+    let status = service.rest_status(&guest).await.unwrap();
+    assert_eq!(status.character_id, guest_id);
+    assert_eq!(status.elapsed_seconds, before_seconds + 8 * 3600);
+}
+
+#[tokio::test]
+async fn guest_reward_failure_rolls_back_shared_flags_inventory_clock_and_changes() {
+    use app_application::{
+        models::{
+            adventure::{Action, Location},
+            room_world::RoomAdventureCommand,
+        },
+        ports::repositories::CombatRepository,
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (_, guest, host, encounter, _) = group_fight(&store, &service, &created).await;
+    store.end(encounter).await.unwrap();
+    for (index, action) in [
+        Action::Move(Location::Quay),
+        Action::Move(Location::Archive),
+        Action::LocateTikhon,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let current = store
+            .party(created.grant.room.campaign_id)
+            .await
+            .unwrap()
+            .unwrap();
+        service
+            .adventure(
+                &guest,
+                RoomAdventureCommand {
+                    request_id: format!("prepare-{index}"),
+                    expected_revision: current.revision,
+                    action,
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let frame = service.updates(&host, None).await.unwrap().unwrap();
+    let rescue = RoomAdventureCommand {
+        request_id: "rescue".into(),
+        expected_revision: before.revision,
+        action: Action::RescueTikhon,
+    };
+    sqlx::raw_sql("CREATE TRIGGER fail_reward_receipt BEFORE INSERT ON room_world_receipts BEGIN SELECT RAISE(ABORT,'synthetic_reward_failure'); END;").execute(store.pool()).await.unwrap();
+    assert!(service.adventure(&guest, rescue.clone()).await.is_err());
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == before);
+    assert!(service
+        .updates(&host, Some(frame.cursor))
+        .await
+        .unwrap()
+        .is_none());
+    sqlx::raw_sql("DROP TRIGGER fail_reward_receipt;")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    service.adventure(&guest, rescue.clone()).await.unwrap();
+    let after = store.party(before.campaign_id).await.unwrap().unwrap();
+    let status = service.rest_status(&guest).await.unwrap();
+    assert_eq!(
+        after.characters[&status.character_id]["inventory"][0]["count"],
+        10
+    );
+    assert!(service.adventure(&guest, rescue).await.unwrap().duplicate);
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == after);
+    let stale = guest.lease().clone();
+    service
+        .revoke(&host, guest.lease().member_id())
+        .await
+        .unwrap();
+    assert!(store
+        .act_room_adventure(
+            &stale,
+            RoomAdventureCommand {
+                request_id: "stale".into(),
+                expected_revision: after.revision,
+                action: Action::RecoverLedger
+            }
+        )
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn a_legacy_active_encounter_blocks_room_rest_status_and_world_changes() {
+    use app_application::models::{
+        adventure::{Action, Location},
+        rest::RestIntent,
+        room_world::{RoomAdventureCommand, RoomRestCommand},
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    sqlx::query("INSERT INTO combat_encounters(id,session_id,initiative,started_at,projection) VALUES(?1,?2,'[]','legacy',NULL)").bind(Uuid::new_v4().to_string()).bind(before.session_id.0.to_string()).execute(store.pool()).await.unwrap();
+    assert!(service.rest_status(&host).await.unwrap().combat_active);
+    for (index, intent) in [
+        RestIntent::Short { hit_dice: 0 },
+        RestIntent::Long,
+        RestIntent::Wait { minutes: 60 },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert!(matches!(
+            service
+                .rest(
+                    &host,
+                    RoomRestCommand {
+                        request_id: format!("legacy-rest-{index}"),
+                        expected_revision: before.revision,
+                        intent
+                    }
+                )
+                .await,
+            Err(app_application::rooms::RoomError::ActionRejected)
+        ));
+    }
+    assert!(matches!(
+        service
+            .adventure(
+                &host,
+                RoomAdventureCommand {
+                    request_id: "legacy-travel".into(),
+                    expected_revision: before.revision,
+                    action: Action::Move(Location::Quay)
+                }
+            )
+            .await,
+        Err(app_application::rooms::RoomError::ActionRejected)
+    ));
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == before);
+}
+
+#[tokio::test]
+async fn a_near_budget_guest_sheet_cannot_be_corrupted_by_derived_rest_resources() {
+    use app_application::models::{
+        campaign_state::{within_character_budget, MAX_CHARACTER_METADATA_BYTES},
+        rest::RestIntent,
+        room_world::RoomRestCommand,
+    };
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (_, guest, mut proposal) = guest_proposal(&store, &service, &created).await;
+    proposal.character["backstory"] = json!("");
+    let base = serde_json::to_vec(&proposal.character).unwrap().len();
+    proposal.character["backstory"] = json!("A".repeat(MAX_CHARACTER_METADATA_BYTES - base));
+    assert!(within_character_budget(&proposal.character));
+    service
+        .submit_character(&guest, proposal.clone())
+        .await
+        .unwrap();
+    let current = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    service
+        .approve_character(
+            &host,
+            ApproveRoomCharacter {
+                proposal_id: proposal.proposal_id,
+                expected_revision: current.revision,
+                causation_id: "accept-near-budget".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let before = store.party(current.campaign_id).await.unwrap().unwrap();
+    let frame = service.updates(&host, None).await.unwrap().unwrap();
+    assert!(service
+        .rest(
+            &guest,
+            RoomRestCommand {
+                request_id: "oversize-rest".into(),
+                expected_revision: before.revision,
+                intent: RestIntent::Short { hit_dice: 0 }
+            }
+        )
+        .await
+        .is_err());
+    assert!(store.party(current.campaign_id).await.unwrap().unwrap() == before);
+    assert!(service
+        .updates(&host, Some(frame.cursor))
+        .await
+        .unwrap()
+        .is_none());
+    let npc = app_domain::combat::types::CombatantId::new();
+    let projection = app_application::models::combat::CombatProjection {
+        authored: None,
+        adventure: None,
+        campaign_scope: None,
+        schema_version: app_application::models::combat::COMBAT_PROJECTION_VERSION,
+        encounter_id: Uuid::new_v4(),
+        revision: 0,
+        snapshot: app_application::models::combat::CombatSnapshot {
+            active: true,
+            round: 1,
+            current_combatant: Some(npc),
+            initiative: vec![app_domain::combat::initiative::InitiativeEntry {
+                id: npc,
+                roll: -99,
+                dex_tiebreak: 0,
+            }],
+            combatants: vec![app_domain::combat::combatant::Combatant::new(
+                npc,
+                "Foe".into(),
+                100,
+                100,
+                10,
+            )],
+        },
+        events: vec![],
+    };
+    assert!(
+        app_application::ports::repositories::CombatRepository::create(
+            &*store,
+            before.session_id.0,
+            projection
+        )
+        .await
+        .is_err()
+    );
+    assert!(store.party(current.campaign_id).await.unwrap().unwrap() == before);
+    assert!(service
+        .updates(&host, Some(frame.cursor))
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
 async fn approval_failure_rolls_back_hero_revision_status_and_both_receipts() {
     let (store, command) =
         fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
@@ -875,6 +1282,90 @@ async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_rout
         accepted_party.roster.members[1].member_id,
         Uuid::parse_str(member).unwrap()
     );
+    let mut latest = accepted_party.clone();
+    let mut rescue_request = None;
+    for (index, action) in [
+        app_application::models::adventure::Action::Move(
+            app_application::models::adventure::Location::Quay,
+        ),
+        app_application::models::adventure::Action::Move(
+            app_application::models::adventure::Location::Archive,
+        ),
+        app_application::models::adventure::Action::LocateTikhon,
+        app_application::models::adventure::Action::RescueTikhon,
+        app_application::models::adventure::Action::Move(
+            app_application::models::adventure::Location::Quay,
+        ),
+        app_application::models::adventure::Action::Move(
+            app_application::models::adventure::Location::Town,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let request = json!({"request_id":format!("guest-adventure-{index}"),"expected_revision":latest.revision.0,"action":action});
+        if index == 3 {
+            rescue_request = Some(request.clone());
+        }
+        let applied = client
+            .post(format!("{url}/adventure/actions"))
+            .bearer_auth(capability)
+            .header("x-room-member-id", member)
+            .json(&request)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(applied.status(), 200);
+        assert!(!applied
+            .text()
+            .await
+            .unwrap()
+            .contains("host-private-backstory"));
+        latest = store.party(party.campaign_id).await.unwrap().unwrap();
+    }
+    assert!(
+        latest.characters[&party.roster.members[0].character_id]["inventory"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        latest.characters[&character_id]["inventory"][0]["count"],
+        10
+    );
+    let rescue_retry = client
+        .post(format!("{url}/adventure/actions"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&rescue_request.unwrap())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(rescue_retry.status(), 200);
+    assert!(store.party(party.campaign_id).await.unwrap().unwrap() == latest);
+    let short = json!({"request_id":"guest-short-rest","expected_revision":latest.revision.0,"intent":{"kind":"short","hit_dice":0}});
+    let rested = client
+        .post(format!("{url}/rest"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&short)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(rested.status(), 200);
+    let after_short = store.party(party.campaign_id).await.unwrap().unwrap();
+    let replay = client
+        .post(format!("{url}/rest"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&short)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), 200);
+    assert!(store.party(party.campaign_id).await.unwrap().unwrap() == after_short);
+    let guest_long=client.post(format!("{url}/rest")).bearer_auth(capability).header("x-room-member-id",member).json(&json!({"request_id":"guest-long","expected_revision":after_short.revision.0,"intent":{"kind":"long"}})).send().await.unwrap();
+    assert_eq!(guest_long.status(), 401);
     let encounter = Uuid::new_v4();
     let npc = app_domain::combat::types::CombatantId::new();
     let fight = app_application::ports::repositories::CombatRepository::create(

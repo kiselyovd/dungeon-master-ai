@@ -12,6 +12,7 @@ pub mod room;
 pub mod room_character;
 pub mod room_combat;
 pub mod room_state;
+pub mod room_world;
 pub mod session;
 pub mod settings;
 pub mod snapshot;

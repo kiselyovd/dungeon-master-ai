@@ -151,3 +151,26 @@ revocation, 300-record pagination, restore privacy/reset, failed commit/replay a
 real SQLite/Stronghold reopening are verified. All 32 original source hashes remain
 unchanged. Native browser/Tauri integration, image delivery, public LAN, scoped
 adventure/rest/AI and whole-goal session acceptance still remain pending.
+
+World-command progress: authenticated adventure intentions now reuse the solo
+transactional rules and apply rewards to the verified initiator; the party shares
+facts/location/time. Own short rest consumes only own hit dice; host long rest
+updates all heroes from one clock and commits one revision. Host-only waiting and
+personal rest status are implemented. Owner/kind/nonce receipts are additive in
+migration 0012 and publish only public rolls/metadata. Review-found legacy combat
+and final-sheet budget issues were reproduced RED and fixed; the same validated
+write now protects combat creation/sync. Sixteen room cases and four delivery cases
+pass, including actual HTTP, reward/rest rollback, stale lease, cooldown and
+near-budget documents. Follow-up review reports no remaining actionable issue.
+Full gate collection is in progress. Scoped AI, native receiver/host/join UI,
+public LAN and full solo/co-op acceptance stay pending.
+
+World-command checkpoint collection: full consolidated gates passed (workspace
+Rust, architecture/static/Clippy and 1042 frontend tests), with sixteen room and
+four delivery cases. Solo adventure/defense/rest/snapshot regressions passed.
+Independent review's legacy combat and sheet-budget P2s were reproduced RED,
+fixed and closed. A linked combat-create budget regression also reproduced RED;
+combat now shares the validated party write and rolls back safely. Original 32
+source hashes remain unchanged. Scoped AI, native/public LAN, image delivery,
+remaining solo mechanics/model quality and complete-session acceptance remain
+active work; no whole-goal completion is claimed.

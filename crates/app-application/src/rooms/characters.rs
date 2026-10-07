@@ -7,6 +7,24 @@ use crate::{
 pub(super) fn repository_error(error: RepositoryError) -> RoomError {
     match error {
         RepositoryError::Operation {
+            code:
+                "adventure_action_unavailable"
+                | "adventure_combat_active"
+                | "adventure_character_downed"
+                | "rest_unsafe"
+                | "rest_character_downed"
+                | "rest_too_soon",
+            ..
+        } => RoomError::ActionRejected,
+        RepositoryError::Operation {
+            code: "adventure_causation_mismatch" | "room_world_conflict",
+            ..
+        } => RoomError::Conflict,
+        RepositoryError::Operation {
+            code: "rest_intention_invalid",
+            ..
+        } => RoomError::InvalidInput,
+        RepositoryError::Operation {
             code: "room_action_rejected",
             ..
         } => RoomError::ActionRejected,

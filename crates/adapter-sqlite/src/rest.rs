@@ -9,7 +9,7 @@ use app_application::{
 use async_trait::async_trait;
 use sqlx::{Row, Sqlite, Transaction};
 
-async fn active_combat(
+pub(crate) async fn active_combat(
     tx: &mut Transaction<'_, Sqlite>,
     session: SessionId,
 ) -> Result<bool, RepositoryError> {
@@ -40,7 +40,7 @@ pub(crate) async fn read_clock(
         })
         .transpose()
 }
-async fn write_clock(
+pub(crate) async fn write_clock(
     tx: &mut Transaction<'_, Sqlite>,
     session: SessionId,
     seconds: u64,

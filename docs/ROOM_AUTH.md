@@ -66,6 +66,9 @@ router. It is not merged into or publicly bound by production bootstrap yet.
 | GET | `/rooms/{room_id}/state` | Active member; owner-filtered snapshot |
 | GET | `/rooms/{room_id}/updates?after={cursor}` | Active member; durable changes |
 | GET | `/rooms/{room_id}/events` | Active member; authenticated SSE |
+| POST | `/rooms/{room_id}/adventure/actions` | Accepted member; own initiator |
+| GET | `/rooms/{room_id}/rest` | Accepted member; personal status |
+| POST | `/rooms/{room_id}/rest` | Own short rest; host long rest/wait |
 
 Member requests use `Authorization: Bearer ...` and `x-room-member-id`. Duplicate
 credential/identity headers are rejected. Join JSON contains `join_id`,
@@ -191,3 +194,38 @@ Verification includes real simultaneous host/guest SSE, revocation EOF, ordered
 actual SQLite/Stronghold reopening. This is backend delivery evidence; native
 client integration, public LAN composition, image delivery and physical-device
 acceptance remain pending.
+
+## Adventure and rest
+
+World JSON contains `request_id`, `expected_revision` and the existing typed
+`action` or `intent`. It carries no acting character/member, campaign/session,
+reward, healing amount or RNG seed. The repository rechecks the room lease and
+accepted owner in the same transaction as the authored action/resources/clock.
+Migration 0012 namespaces immutable receipts by room, member, operation and nonce;
+changed arguments conflict. The response is a receipt, not a replacement private
+campaign snapshot. Clients obtain current state through the shared-state feed.
+
+Adventure actions reuse the solo authored rules. The party shares its location,
+facts, encounter and clock; the hero who rescues Tikhon receives the single authored
+reward in their own inventory. Another peer cannot redirect it to a supplied
+character ID. Defense creation binds every accepted hero through the group path.
+
+Short rest spends only the initiating hero's chosen hit dice and updates their
+resources while advancing the common hour once. Other heroes' sheets remain
+unchanged. The host controls long rest and explicit waiting as decisions about
+shared time. Long rest resolves every accepted hero from the same starting clock,
+then updates all sheets, advances time once and commits one revision/receipt.
+An ineligible hero or failed write rolls back the whole operation. The personal
+status endpoint derives cooldown/resources for the requesting owner.
+
+All world changes reject an active encounter, including legacy rows whose
+projection is absent. Final sheet structure/size is validated before writes;
+resource additions that exceed the existing document budget fail without
+truncating biographies or corrupting readable party state. Combat persistence
+uses the same validated write helper.
+
+Coverage includes actual guest rescue/reward/replay and short-rest HTTP, host-only
+long rest, guest hit-die isolation, group recharge/time/cooldown, final-receipt
+rollback, stale leases, legacy combat and exact-budget guest documents for rest
+and combat creation. Scoped AI intentions, native/public LAN composition and
+complete session acceptance remain pending.

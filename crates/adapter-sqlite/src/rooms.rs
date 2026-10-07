@@ -104,6 +104,27 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn act_room_adventure(
+        &self,
+        lease: &RoomLease,
+        command: app_application::models::room_world::RoomAdventureCommand,
+    ) -> Result<app_application::models::room_world::RoomWorldReceipt, RepositoryError> {
+        crate::room_world::adventure(self, lease, command).await
+    }
+    async fn room_rest_status(
+        &self,
+        lease: &RoomLease,
+    ) -> Result<app_application::models::rest::RestStatus, RepositoryError> {
+        crate::room_world::status(self, lease).await
+    }
+    async fn rest_room(
+        &self,
+        lease: &RoomLease,
+        command: app_application::models::room_world::RoomRestCommand,
+        rng_seed: u64,
+    ) -> Result<app_application::models::room_world::RoomWorldReceipt, RepositoryError> {
+        crate::room_world::rest(self, lease, command, rng_seed).await
+    }
     async fn room_updates(
         &self,
         lease: &RoomLease,

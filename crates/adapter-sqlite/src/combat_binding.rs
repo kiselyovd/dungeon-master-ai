@@ -59,30 +59,6 @@ fn verify_bindings(projection: &CombatProjection, sheets: &Sheets) -> Result<(),
     }
     Ok(())
 }
-async fn persist_sheet(
-    tx: &mut Transaction<'_, Sqlite>,
-    campaign: CampaignId,
-    root: Uuid,
-    id: Uuid,
-    sheet: serde_json::Value,
-) -> Result<(), RepositoryError> {
-    if id == root {
-        return crate::campaign_state::persist_character(tx, campaign, id, sheet).await;
-    }
-    let updated = sqlx::query(
-        "UPDATE party_characters SET character_json=?3 WHERE campaign_id=?1 AND character_id=?2",
-    )
-    .bind(campaign.0.to_string())
-    .bind(id.to_string())
-    .bind(sheet.to_string())
-    .execute(&mut **tx)
-    .await
-    .map_err(|_| repository_error("write_combat_party"))?;
-    if updated.rows_affected() != 1 {
-        return Err(repository_error("combat_hero_identity_mismatch"));
-    }
-    Ok(())
-}
 pub(crate) async fn recover_loadouts(
     tx: &mut Transaction<'_, Sqlite>,
     projection: &mut CombatProjection,
@@ -156,7 +132,7 @@ pub(crate) async fn bind_start(
             .remove(&id)
             .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
         apply_hero_resources(&mut sheet, hero)?;
-        persist_sheet(tx, campaign_id, root, id, sheet).await?;
+        crate::party::persist_sheet(tx, campaign_id, id, sheet).await?;
     }
     projection.campaign_scope = Some(if advance_revision {
         advance(
@@ -218,7 +194,7 @@ pub(crate) async fn sync_hero(
             return Err(repository_error("combat_hero_stats_changed"));
         }
         apply_hero_resources(&mut sheet, hero)?;
-        persist_sheet(tx, campaign, root, id, sheet).await?;
+        crate::party::persist_sheet(tx, campaign, id, sheet).await?;
     }
     let previous_round = u32::try_from(row.get::<i64, _>("round"))
         .map_err(|_| repository_error("combat_round_invalid"))?;

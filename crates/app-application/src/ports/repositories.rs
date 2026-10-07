@@ -86,6 +86,21 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn act_room_adventure(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_world::RoomAdventureCommand,
+    ) -> Result<crate::models::room_world::RoomWorldReceipt, RepositoryError>;
+    async fn room_rest_status(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<crate::models::rest::RestStatus, RepositoryError>;
+    async fn rest_room(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_world::RoomRestCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_world::RoomWorldReceipt, RepositoryError>;
     async fn room_updates(
         &self,
         lease: &crate::models::room::RoomLease,

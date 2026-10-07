@@ -14,6 +14,7 @@ use uuid::Uuid;
 mod characters;
 mod combat;
 mod state;
+mod world;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum RoomError {
