@@ -12,7 +12,7 @@ three successes stabilize/reset counts, three failures kill; stable/dead heroes
 must not roll. Healing removes unconsciousness and resets saves.
 
 - [x] Correct existing pure death-save logic and add stabilization/natural recovery.
-- [ ] Persist authoritative vitality/recovery deadlines with solo/party sheets;
+- [x] Persist authoritative vitality/recovery deadlines with solo/party sheets;
   capture/restore/reopen, validate initial drafts and prevent renderer resource
   injection. Preserve death saves and conditions when combat ends or starts again.
 - [ ] Add owned help/healing/recovery intentions, transaction/receipt/timeline/clock
@@ -20,7 +20,7 @@ must not roll. Healing removes unconsciousness and resets saves.
   dead heroes must not become living through rest or natural recovery.
 - [ ] Add existing-control EN/RU UI for helping a downed party member and waiting
   for confirmed recovery. Solo handles its authored rescue and death-save state.
-- [ ] Reproduce actual held-zero-HP path and continue the same session through
+- [x] Reproduce actual held-zero-HP path and continue the same session through
   stabilization, elapsed recovery and normal rest without a snapshot workaround;
   verify two clients/reconnect and independent review before closing the P1.
 
@@ -151,3 +151,32 @@ The concrete co-op continuation P1 is locally verified and independently reviewe
 Solo transport, active-combat death turns, damage-at-zero, real-model narration,
 remaining session UX and physical LAN acceptance still require work. Test processes
 are stopped; no release/publication or complete-goal claim.
+
+
+## Combat turn recovery checkpoint
+
+Mandatory death saves now run at the start of a dying human hero's turn, once per
+turn transition. Stable/dead heroes and zero-HP NPCs are skipped. Natural20 restores
+one HP and returns the refreshed turn to its human owner; the engine chooses no
+hero action. A hero downed during movement does not immediately roll mid-turn.
+Encounter opening uses the same transition. Authored round4/all-down boundaries
+stop before further rolls. Authored defeat rescues living downed survivors only;
+a hero already dead remains dead and cannot block the whole group's transaction.
+
+Independent review found missing natural-recovery scheduling after in-combat
+stabilization. Combat sheet synchronization now creates the authoritative 1d4-hour
+deadline once, at the committing transition's shared campaign clock (existing
+six-second round granularity), preserving it through later combat and its ending.
+Exact receipt replay does not reroll or rebase. Failed final receipt insertion
+rolls back saves, sheets, deadline and clock together. Existing real-file reopening
+and snapshot restoration now verify the scheduled timer without manual seeding.
+
+Focused domain/application/storage checks pass; combat damage at zero, solo
+recovery transport/UI and full native session/model/physical-LAN acceptance remain
+open. This checkpoint changes mechanics/storage; no new UI or production dependency.
+
+Validation for the combat-turn checkpoint: full domain/application suites, eight
+party-storage cases, nine authored-defense cases, eight action-receipt cases,
+five bound-hero cases and server room/hero-route regressions pass. Clippy for all
+changed Rust crates (all targets/features) and the architecture guard pass. Native
+screenshots from the prior recovery checkpoint do not prove this new turn logic.

@@ -135,11 +135,8 @@ pub fn recover_defeated_hero(projection: &mut CombatProjection) -> Result<(), &'
     if heroes.is_empty() {
         return Err("authored_hero_missing");
     }
-    if heroes.iter().any(|hero| hero.is_dead) {
-        return Err("authored_hero_dead");
-    }
     for hero in heroes {
-        if hero.current_hp == 0 {
+        if hero.current_hp == 0 && !hero.is_dead {
             hero.apply_healing(1);
             let mut events = ResultEvents::default();
             events.healing.push(HealingApplication {

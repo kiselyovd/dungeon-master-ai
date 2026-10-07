@@ -121,6 +121,10 @@ pub(crate) async fn bind_start(
         Uuid::new_v4().as_u128() as u64,
     )
     .map_err(repository_error)?;
+    let now = crate::rest::read_clock(tx, SessionId(session_id))
+        .await?
+        .unwrap_or_default()
+        .elapsed_seconds;
     for hero in projection
         .snapshot
         .combatants
@@ -131,7 +135,7 @@ pub(crate) async fn bind_start(
         let mut sheet = sheets
             .remove(&id)
             .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
-        apply_hero_resources(&mut sheet, hero)?;
+        apply_hero_resources(&mut sheet, hero, now)?;
         crate::party::persist_sheet(tx, campaign_id, id, sheet).await?;
     }
     projection.campaign_scope = Some(if advance_revision {
@@ -166,6 +170,10 @@ pub(crate) async fn sync_opening_heroes(
         return Err(repository_error("combat_hero_identity_mismatch"));
     }
     verify_bindings(projection, &sheets)?;
+    let now = crate::rest::read_clock(tx, SessionId(scope.session_id))
+        .await?
+        .unwrap_or_default()
+        .elapsed_seconds;
     for actor in &projection.snapshot.combatants {
         let Some(id) = actor.character_id else {
             continue;
@@ -176,7 +184,7 @@ pub(crate) async fn sync_opening_heroes(
         if sheet["hpMax"].as_i64() != Some(i64::from(actor.max_hp)) {
             return Err(repository_error("combat_hero_stats_changed"));
         }
-        apply_hero_resources(&mut sheet, actor)?;
+        apply_hero_resources(&mut sheet, actor, now)?;
         crate::party::persist_sheet(tx, campaign, id.0, sheet).await?;
     }
     Ok(())
@@ -205,6 +213,18 @@ pub(crate) async fn sync_hero(
     );
     let (root, mut sheets) = sheets(tx, campaign, session).await?;
     verify_bindings(projection, &sheets)?;
+    let previous_round = u32::try_from(row.get::<i64, _>("round"))
+        .map_err(|_| repository_error("combat_round_invalid"))?;
+    crate::rest::advance_combat_clock(
+        tx,
+        SessionId(session),
+        app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot),
+    )
+    .await?;
+    let now = crate::rest::read_clock(tx, SessionId(session))
+        .await?
+        .unwrap_or_default()
+        .elapsed_seconds;
     for hero in projection
         .snapshot
         .combatants
@@ -221,17 +241,9 @@ pub(crate) async fn sync_hero(
         {
             return Err(repository_error("combat_hero_stats_changed"));
         }
-        apply_hero_resources(&mut sheet, hero)?;
+        apply_hero_resources(&mut sheet, hero, now)?;
         crate::party::persist_sheet(tx, campaign, id, sheet).await?;
     }
-    let previous_round = u32::try_from(row.get::<i64, _>("round"))
-        .map_err(|_| repository_error("combat_round_invalid"))?;
-    crate::rest::advance_combat_clock(
-        tx,
-        SessionId(session),
-        app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot),
-    )
-    .await?;
     projection.campaign_scope = Some(
         advance(
             tx,
@@ -248,8 +260,27 @@ pub(crate) async fn sync_hero(
 fn apply_hero_resources(
     sheet: &mut serde_json::Value,
     hero: &app_application::models::combat::Combatant,
+    now: u64,
 ) -> Result<(), RepositoryError> {
     app_application::vitality::store_actor(sheet, hero).map_err(repository_error)?;
+    let id = hero
+        .character_id
+        .ok_or_else(|| repository_error("combat_hero_binding_missing"))?
+        .0;
+    let vitality = app_application::vitality::read(sheet, id)
+        .map_err(repository_error)?
+        .ok_or_else(|| repository_error("hero_vitality_invalid"))?;
+    if hero.current_hp == 0
+        && hero.death_saves.stable
+        && !hero.is_dead
+        && vitality.natural_recovery.is_none()
+    {
+        let deadline = app_application::recovery::RecoveryEngine::random()
+            .natural_deadline(hero, now)
+            .map_err(repository_error)?;
+        app_application::vitality::schedule_natural_recovery(sheet, id, deadline)
+            .map_err(repository_error)?;
+    }
     if let Some(casting) = &hero.casting {
         if !sheet
             .get("combatResources")

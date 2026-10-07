@@ -156,6 +156,10 @@ pub fn prepare_action(
             .set_map(authored.map.clone())
             .map_err(|_| ResolveCombatError::InvalidState)?;
     }
+    resolver.set_turn_boundary(
+        projection.authored.as_ref().map(|_| 4),
+        projection.authored.is_some(),
+    );
     let retreat = matches!(&action, CombatActionCommand::Retreat { .. });
     let action = match action {
         CombatActionCommand::Retreat { combatant } => CombatAction::Retreat { combatant },

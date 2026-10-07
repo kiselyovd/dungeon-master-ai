@@ -54,3 +54,44 @@ fn recovery_rejects_a_snapshot_missing_an_accepted_party_actor() {
         .retain(|actor| actor.character_id.is_none_or(|id| id.0 != sheets[1].0));
     assert!(recover_party_loadouts(&references, &mut projection).is_err());
 }
+
+#[test]
+fn authored_defeat_rescues_survivors_without_reviving_a_dead_hero() {
+    let sheets = sheets();
+    let references = sheets
+        .iter()
+        .map(|(id, sheet)| (*id, sheet))
+        .collect::<Vec<_>>();
+    let mut projection = authored::bell_defense(Uuid::new_v4());
+    bind_party(&references, &mut projection, 42).unwrap();
+    let mut dead = None;
+    for actor in &mut projection.snapshot.combatants {
+        if actor.character_id.is_some() {
+            actor.current_hp = 0;
+            actor.add_condition(app_domain::combat::conditions::Condition::Unconscious);
+            if dead.is_none() {
+                actor.is_dead = true;
+                actor.death_saves.failures = 3;
+                dead = Some(actor.id);
+            }
+        }
+    }
+    assert_eq!(
+        authored::finalize(&mut projection, false),
+        Some(app_domain::adventure::DefenseOutcome::Defeated)
+    );
+    authored::recover_defeated_hero(&mut projection).unwrap();
+    for actor in projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter(|a| a.character_id.is_some())
+    {
+        if Some(actor.id) == dead {
+            assert!(actor.is_dead);
+            assert_eq!(actor.current_hp, 0);
+        } else {
+            assert_eq!(actor.current_hp, 1);
+        }
+    }
+}

@@ -572,8 +572,7 @@ async fn ended_combat_vitality_and_recovery_deadline_survive_snapshot_and_real_r
         models::snapshot::RestoreSnapshotRecord,
         ports::repositories::SnapshotRepository,
     };
-    use app_domain::combat::{conditions::Condition, healing::begin_natural_recovery};
-    use app_domain::rng::SeededRng;
+    use app_domain::combat::conditions::Condition;
     let path = std::env::temp_dir().join(format!("dmai-vitality-{}.sqlite", Uuid::new_v4()));
     let options = sqlx::sqlite::SqliteConnectOptions::new()
         .filename(&path)
@@ -605,35 +604,13 @@ async fn ended_combat_vitality_and_recovery_deadline_survive_snapshot_and_real_r
         .commit_action(0, projection.clone(), "ended-vitality", "{}")
         .await
         .unwrap();
-    let mut saved_party = store.party(party.campaign_id).await.unwrap().unwrap();
-    let guest_actor = projection
-        .snapshot
-        .combatants
-        .iter()
-        .find(|a| a.character_id.map(|id| id.0) == Some(guest))
+    let saved_party = store.party(party.campaign_id).await.unwrap().unwrap();
+    let deadline = vitality::read(&saved_party.characters[&guest], guest)
+        .unwrap()
+        .unwrap()
+        .natural_recovery
         .unwrap();
-    let elapsed = store
-        .load_current(party.campaign_id)
-        .await
-        .unwrap()
-        .projection
-        .adventuring
-        .unwrap()
-        .elapsed_seconds;
-    let deadline =
-        begin_natural_recovery(guest_actor, elapsed, &mut SeededRng::from_seed(5)).unwrap();
-    let guest_sheet = saved_party.characters.get_mut(&guest).unwrap();
-    vitality::schedule_natural_recovery(guest_sheet, guest, deadline.clone()).unwrap();
-    // Seed the trusted scheduled state; owned recovery commands are the next layer.
-    sqlx::query(
-        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
-    )
-    .bind(guest_sheet.to_string())
-    .bind(party.campaign_id.0.to_string())
-    .bind(guest.to_string())
-    .execute(store.pool())
-    .await
-    .unwrap();
+    assert_eq!(deadline.started_at_seconds, 6);
     let saved = CreateSnapshot::new(store.clone())
         .execute(CreateSnapshotCommand {
             id: Uuid::new_v4(),
@@ -705,4 +682,161 @@ async fn ended_combat_vitality_and_recovery_deadline_survive_snapshot_and_real_r
         .projection
         .combat
         .is_none());
+}
+
+#[tokio::test]
+async fn combat_stabilization_schedules_once_and_replays_without_rebasing_the_deadline() {
+    use app_application::combat::{
+        commands::{CombatActionCommand, ResolveCombatCommand},
+        resolve::ResolveCombatAction,
+    };
+    use app_domain::{
+        combat::conditions::Condition,
+        dice::{roll_one, Die},
+        rng::SeededRng,
+    };
+    let (store, party, encounter) = fixture().await;
+    let mut projection = store.get(encounter).await.unwrap().unwrap();
+    let heroes: Vec<_> = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter(|a| a.character_id.is_some())
+        .map(|a| a.id)
+        .collect();
+    let (first, dying) = (heroes[0], heroes[1]);
+    let id = projection
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.id == dying)
+        .unwrap()
+        .character_id
+        .unwrap()
+        .0;
+    let actor = projection
+        .snapshot
+        .combatants
+        .iter_mut()
+        .find(|a| a.id == dying)
+        .unwrap();
+    actor.current_hp = 0;
+    actor.add_condition(Condition::Unconscious);
+    actor.death_saves.successes = 2;
+    let npc = projection
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.character_id.is_none())
+        .unwrap()
+        .id;
+    projection.snapshot.initiative = [first, dying, npc]
+        .into_iter()
+        .enumerate()
+        .map(|(n, id)| InitiativeEntry {
+            id,
+            roll: 30 - n as i32,
+            dex_tiebreak: 0,
+        })
+        .collect();
+    projection.snapshot.current_combatant = Some(first);
+    projection.revision = 1;
+    store
+        .commit_action(0, projection, "setup-dying", "{}")
+        .await
+        .unwrap();
+    let before = store.party(party.campaign_id).await.unwrap().unwrap();
+    let before_projection = store.get(encounter).await.unwrap().unwrap();
+    let seed = (0..10000)
+        .find(|s| roll_one(Die::D20, &mut SeededRng::from_seed(*s)) == 10)
+        .unwrap();
+    let command = ResolveCombatCommand {
+        request_id: "stabilize-turn".into(),
+        encounter_id: encounter,
+        expected_revision: 1,
+        rng_seed: seed,
+        action: CombatActionCommand::EndTurn { combatant: first },
+    };
+    // A failed final receipt must undo the mandatory roll, deadline and clock together.
+    sqlx::query("CREATE TRIGGER fail_death_receipt BEFORE INSERT ON combat_action_receipts BEGIN SELECT RAISE(ABORT,'test'); END").execute(store.pool()).await.unwrap();
+    assert!(ResolveCombatAction::new(store.clone())
+        .execute(command.clone())
+        .await
+        .is_err());
+    assert_eq!(
+        store.party(party.campaign_id).await.unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        serde_json::to_value(store.get(encounter).await.unwrap().unwrap()).unwrap(),
+        serde_json::to_value(before_projection).unwrap()
+    );
+    sqlx::query("DROP TRIGGER fail_death_receipt")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let result = ResolveCombatAction::new(store.clone())
+        .execute(command.clone())
+        .await
+        .unwrap();
+    let saves: Vec<_> = result
+        .projection
+        .events
+        .iter()
+        .flat_map(|e| &e.death_saves)
+        .collect();
+    assert_eq!(saves.len(), 1);
+    assert!(saves[0].stable);
+    let saved = store.party(party.campaign_id).await.unwrap().unwrap();
+    let vitality = app_application::vitality::read(&saved.characters[&id], id)
+        .unwrap()
+        .unwrap();
+    let deadline = vitality.natural_recovery.unwrap();
+    assert_eq!(deadline.started_at_seconds, 6);
+    assert!([3600, 7200, 10800, 14400]
+        .contains(&(deadline.ready_at_seconds - deadline.started_at_seconds)));
+    let mut replay = command;
+    replay.rng_seed = seed + 1;
+    let duplicate = ResolveCombatAction::new(Arc::new(SqliteStore::new(store.pool().clone())))
+        .execute(replay)
+        .await
+        .unwrap();
+    assert!(duplicate.duplicate);
+    assert_eq!(
+        serde_json::to_value(&duplicate.projection).unwrap(),
+        serde_json::to_value(&result.projection).unwrap()
+    );
+    assert_eq!(
+        store.party(party.campaign_id).await.unwrap().unwrap(),
+        saved
+    );
+    // Additional combat rounds and combat ending preserve the original timer.
+    let mut later = result.projection;
+    later.revision += 1;
+    later.snapshot.round += 5;
+    later.snapshot.active = false;
+    later.snapshot.current_combatant = None;
+    store
+        .commit_action(2, later, "finish-after-stable", "{}")
+        .await
+        .unwrap();
+    let ended = store.party(party.campaign_id).await.unwrap().unwrap();
+    let final_state = app_application::vitality::read(&ended.characters[&id], id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(final_state.natural_recovery.unwrap()).unwrap(),
+        serde_json::to_value(deadline).unwrap()
+    );
+    assert_eq!(
+        store
+            .load_current(party.campaign_id)
+            .await
+            .unwrap()
+            .projection
+            .adventuring
+            .unwrap()
+            .elapsed_seconds,
+        36
+    );
 }

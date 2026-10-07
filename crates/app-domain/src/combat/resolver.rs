@@ -98,6 +98,8 @@ pub struct CombatResolver {
     pub order: InitiativeOrder,
     rng: SeededRng,
     map: Option<super::geometry::BattleMap>,
+    stop_round: Option<u32>,
+    rescue_downed_party: bool,
 }
 
 impl CombatResolver {
@@ -111,9 +113,71 @@ impl CombatResolver {
             order,
             rng,
             map: None,
+            stop_round: None,
+            rescue_downed_party: false,
         }
     }
 
+    /// Authored encounter boundaries apply before another turn begins.
+    pub fn set_turn_boundary(&mut self, stop_round: Option<u32>, rescue_downed_party: bool) {
+        self.stop_round = stop_round;
+        self.rescue_downed_party = rescue_downed_party;
+    }
+    pub fn begin_current_turn(&mut self) -> Result<ResultEvents, ValidationError> {
+        let mut events = ResultEvents::default();
+        for _ in 0..self.order.len() {
+            if self
+                .stop_round
+                .is_some_and(|limit| self.order.round() >= limit)
+            {
+                return Ok(events);
+            }
+            if self.rescue_downed_party
+                && !self
+                    .combatants
+                    .values()
+                    .any(|a| a.character_id.is_some() && a.current_hp > 0 && !a.is_dead)
+            {
+                return Ok(events);
+            }
+            let id = self.order.current().id;
+            let actor = self
+                .combatants
+                .get_mut(&id)
+                .ok_or(ValidationError::CombatantNotFound)?;
+            if actor.character_id.is_some() {
+                if let Some(result) = super::healing::resolve_death_save(actor, &mut self.rng) {
+                    if result.roll == 20 {
+                        events
+                            .healing
+                            .push(super::result_events::HealingApplication {
+                                target: id,
+                                amount: 1,
+                                new_hp: 1,
+                            });
+                        events
+                            .conditions_removed
+                            .push(super::result_events::ConditionChange {
+                                target: id,
+                                condition: "unconscious".into(),
+                                duration_rounds: None,
+                                source: None,
+                            });
+                    }
+                    if result.dead {
+                        events.deaths.push(id);
+                    }
+                    events.death_saves.push(result);
+                }
+            }
+            if actor.current_hp > 0 && !actor.is_dead {
+                actor.budget.refresh_for_new_turn(actor.speed_ft);
+                return Ok(events);
+            }
+            self.order.advance();
+        }
+        Ok(events)
+    }
     pub fn set_map(&mut self, map: super::geometry::BattleMap) -> Result<(), ValidationError> {
         if !map.valid()
             || self
@@ -539,24 +603,7 @@ impl CombatResolver {
     ) -> Result<ResultEvents, ValidationError> {
         self.require_current(combatant)?;
         self.order.advance();
-        for _ in 0..self.order.len() {
-            let next = self.order.current().id;
-            if self
-                .combatants
-                .get(&next)
-                .is_some_and(|actor| actor.current_hp > 0 && !actor.is_dead)
-            {
-                break;
-            }
-            self.order.advance();
-        }
-        let next = self.order.current().id;
-        let actor = self
-            .combatants
-            .get_mut(&next)
-            .ok_or(ValidationError::CombatantNotFound)?;
-        actor.budget.refresh_for_new_turn(actor.speed_ft);
-        Ok(ResultEvents::default())
+        self.begin_current_turn()
     }
 
     fn resolve_attack(

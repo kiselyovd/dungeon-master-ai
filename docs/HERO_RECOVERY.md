@@ -65,3 +65,26 @@ on revision/restore or lost availability; pending/disconnected controls are bloc
 EN/RU labels reuse the existing design system. Focused HTTP/broker and production
 browser tests pass. Browser evidence uses native stubs and real Rust snapshots;
 actual Tauri continuation after held defense at zero HP remains pending.
+
+
+## Combat turn recovery checkpoint
+
+Mandatory death saves now run at the start of a dying human hero's turn, once per
+turn transition. Stable/dead heroes and zero-HP NPCs are skipped. Natural20 restores
+one HP and returns the refreshed turn to its human owner; the engine chooses no
+hero action. A hero downed during movement does not immediately roll mid-turn.
+Encounter opening uses the same transition. Authored round4/all-down boundaries
+stop before further rolls. Authored defeat rescues living downed survivors only;
+a hero already dead remains dead and cannot block the whole group's transaction.
+
+Independent review found missing natural-recovery scheduling after in-combat
+stabilization. Combat sheet synchronization now creates the authoritative 1d4-hour
+deadline once, at the committing transition's shared campaign clock (existing
+six-second round granularity), preserving it through later combat and its ending.
+Exact receipt replay does not reroll or rebase. Failed final receipt insertion
+rolls back saves, sheets, deadline and clock together. Existing real-file reopening
+and snapshot restoration now verify the scheduled timer without manual seeding.
+
+Focused domain/application/storage checks pass; combat damage at zero, solo
+recovery transport/UI and full native session/model/physical-LAN acceptance remain
+open. This checkpoint changes mechanics/storage; no new UI or production dependency.

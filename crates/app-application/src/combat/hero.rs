@@ -155,7 +155,13 @@ pub fn bind_party(
             .set_map(authored.map.clone())
             .map_err(|_| "authored_map_invalid")?;
     }
-    let mut events = Vec::new();
+    engine.set_turn_boundary(
+        projection.authored.as_ref().map(|_| 4),
+        projection.authored.is_some(),
+    );
+    let mut events = vec![engine
+        .begin_current_turn()
+        .map_err(|_| "combat_state_invalid")?];
     super::automation::settle_npcs_until(
         &mut engine,
         &mut events,
