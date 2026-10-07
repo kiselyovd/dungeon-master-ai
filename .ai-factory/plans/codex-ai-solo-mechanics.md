@@ -16,6 +16,21 @@ Execution: inline, authorized by 'Продолжай до конца'; preserve 
 
 ## Authored defensive session
 
+Schema/model follow-up,2026-10-07: adventure_action oneOf now requires location
+only for move; unit actions reject it. Real malformed seal intent reproduced
+the old schema/decoder mismatch RED; schema regressions GREEN. Real Bonsai
+completed ten requests/86.961s through HTTP/SQLite with zero tool errors,
+Tikhon rescued, closed_crossing, exactly one ten-gold reward and confirmed quick
+save. Independent schema review found no actionable issue; full gates pass
+(workspace Rust and1042 frontend tests). Narrative review still finds roster
+mistranslation and extra coins in prose; persisted inventory is correct. Keep
+full model/native/defensive/co-op boxes open. Explicit reqwest approval is still
+pending; no dependency added. Both isolated evaluation processes stopped.
+
+Proposed AGENTS rule for repeated schema drift: validate published tool schemas
+against typed commands and captured real-provider payloads; MockProvider-only
+checks do not prove the outgoing wire schema or context.
+
 Real-model continuation,2026-10-07: installed Bonsai PTQ failed under LM Studio's
 stock runtime; checksum-verified isolated Prism CUDA runtime loaded it and passed
 a native tool-call/confirmed Russian narration probe. Real application turns

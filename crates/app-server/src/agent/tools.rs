@@ -29,7 +29,10 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     tools.push(Tool {
         name:"adventure_action".into(),
         description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
-        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["move","inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}}}}),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"oneOf":[
+            {"type":"object","additionalProperties":false,"required":["kind","location"],"properties":{"kind":{"type":"string","const":"move"},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}},
+            {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]}}}
+        ]}}}),
     });
     if availability.image {
         tools.push(generate_map_tool());
@@ -357,6 +360,76 @@ fn generate_video_tool() -> Tool {
 mod tests {
     use super::*;
 
+    fn matches_schema(schema: &serde_json::Value, value: &serde_json::Value) -> bool {
+        if let Some(branches) = schema["oneOf"].as_array() {
+            return branches
+                .iter()
+                .filter(|branch| matches_schema(branch, value))
+                .count()
+                == 1;
+        }
+        if let Some(expected) = schema.get("const") {
+            if value != expected {
+                return false;
+            }
+        }
+        if let Some(values) = schema["enum"].as_array() {
+            if !values.contains(value) {
+                return false;
+            }
+        }
+        if schema["type"] == "string" && !value.is_string() {
+            return false;
+        }
+        if schema["type"] == "object" {
+            let Some(object) = value.as_object() else {
+                return false;
+            };
+            if schema["required"].as_array().is_some_and(|fields| {
+                fields
+                    .iter()
+                    .any(|field| !object.contains_key(field.as_str().unwrap()))
+            }) {
+                return false;
+            }
+            let properties = schema["properties"].as_object().unwrap();
+            for (key, value) in object {
+                match properties.get(key) {
+                    Some(child) if !matches_schema(child, value) => return false,
+                    None if schema["additionalProperties"] == false => return false,
+                    _ => {}
+                }
+            }
+        }
+        true
+    }
+
+    #[test]
+    fn adventure_schema_rejects_location_for_unit_actions_and_requires_it_for_move() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        let schema = &tools
+            .iter()
+            .find(|tool| tool.name == "adventure_action")
+            .unwrap()
+            .parameters;
+        assert!(matches_schema(
+            schema,
+            &json!({"action":{"kind":"seal_sluice"}})
+        ));
+        assert!(!matches_schema(
+            schema,
+            &json!({"action":{"kind":"seal_sluice","location":"belfry"}})
+        ));
+        assert!(!matches_schema(schema, &json!({"action":{"kind":"move"}})));
+        assert!(matches_schema(
+            schema,
+            &json!({"action":{"kind":"move","location":"quay"}})
+        ));
+    }
+
     #[test]
     fn all_tools_default_includes_image_tools() {
         let tools = all_tools();
@@ -495,11 +568,8 @@ mod tests {
             .unwrap();
         let action =
             serde_json::to_value(app_application::models::adventure::Action::StartDefense).unwrap();
-        let kinds = tool.parameters["properties"]["action"]["properties"]["kind"]["enum"]
-            .as_array()
-            .unwrap();
         assert!(
-            kinds.contains(&action["kind"]),
+            matches_schema(&tool.parameters, &json!({"action":action})),
             "A legal defense must be expressible through the model's advertised schema"
         );
     }

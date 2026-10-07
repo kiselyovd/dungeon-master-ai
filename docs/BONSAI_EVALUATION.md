@@ -48,7 +48,20 @@ one chosen action each. A later malformed intent was rejected before the model
 corrected it. Narration still sometimes printed API identifiers or interpreted
 completed actions as unavailable future actions. The authored context now
 clarifies that confirmed outcomes must be narrated as completed and identifiers
-are not player-facing prose. This clarification still needs a real-model rerun.
+are not player-facing prose.
+
+The next real-model rerun completed ten player requests in 86.961 seconds with
+zero tool errors: locate and rescue Tikhon, seal the sluice, return to town and
+finish with `closed_crossing`. Inventory contains exactly one ten-gold rescue
+reward. The final turn also made a confirmed quick save. A discriminated tool
+schema now requires location for movement and forbids it for unit actions;
+the former schema permitted the malformed seal request that failed decoding.
+Wire/schema regressions and the actual runtime confirmed this correction.
+
+This proves the mechanical peaceful route through real inference/HTTP/SQLite.
+Narrative acceptance remains open: the model called the memorial roster a
+genealogy and invented extra coins in final prose, although the stored inventory
+remained correct. Do not treat that route as full native or narrative acceptance.
 
 Prepared world state, identity, HP and rewards remain engine-owned. A successful
 load or tool probe is not proof of a complete playable session. Next acceptance
