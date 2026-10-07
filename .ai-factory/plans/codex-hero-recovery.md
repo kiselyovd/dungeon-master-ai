@@ -82,3 +82,31 @@ help/wait command does not exist yet. Damage-at-zero, automatic death turns and
 historical contradictory vitality remain unverified. Owned assistance, clocks,
 public summary/UI and native continuation without restore are the next scope;
 the actual gameplay P1 remains open.
+
+
+## Owned recovery command checkpoint
+
+Application recovery policy owns Medicine proficiency/Wisdom, poisoned disadvantage,
+mandatory out-of-combat death saves and natural recovery; SQLite owns transactions.
+Accepted active party members can aid an active downed ally. Stable owners can choose
+passive waiting in a safe location, and dying owners can request their prescribed
+saving throw. No client roll/seed is accepted by RecoveryIntent. Typed receipts
+label death saves by durable character UUID. Migration 0016 preserves exact requests,
+results and restore cursor; committed retries reuse dice/time/results and restored
+timelines reject obsolete receipts. Final receipt/event failure rolls back all effects.
+
+Ordinary non-combat clock progression resolves unattended dying characters and due
+stable recovery. Snapshot restoration deliberately restores time without resolving
+new outcomes. Combat owns its projection/time: opening and closing use a clock path
+that suppresses out-of-combat recovery. Final opening rescue state is synchronized
+before the encounter row is inserted. Review found this opening-boundary gap and the
+regression now verifies canonical rescued HP1, exact hour and no extra death events.
+Inactive guest records are excluded from recovery ticking and cannot be aid targets.
+
+Tests verify aid -> stable wait -> HP1 -> group Long Rest without snapshot rollback,
+committed-roll replay, final-receipt rollback, foreign targets, restored-timeline
+conflict, passive own save, revoked participant exclusion, poison/proficiency and
+strict death-save input. Independent follow-up review found no actionable issue.
+Current checks pass: 80 SQLite tests, 38 room/update regressions, three pure recovery tests, workspace Clippy and architecture. HTTP/native/frontend wiring
+and real held-zero-HP continuation are next. Combat-turn death saves, damage-at-zero,
+solo endpoint and broad gameplay/model/LAN requirements still remain open.

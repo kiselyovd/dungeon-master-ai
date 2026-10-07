@@ -16,13 +16,13 @@ fn error(code: &'static str) -> RepositoryError {
         code,
     }
 }
-fn nonce(id: &str) -> Result<(), RepositoryError> {
+pub(crate) fn nonce(id: &str) -> Result<(), RepositoryError> {
     if id.trim().is_empty() || id.len() > 64 || id.chars().any(char::is_control) {
         return Err(error("room_action_invalid"));
     }
     Ok(())
 }
-async fn context(
+pub(crate) async fn context(
     tx: &mut Transaction<'_, Sqlite>,
     lease: &RoomLease,
 ) -> Result<(RoomRecord, PartyState, Uuid, CampaignSessionState), RepositoryError> {

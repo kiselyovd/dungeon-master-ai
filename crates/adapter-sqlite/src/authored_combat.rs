@@ -46,7 +46,7 @@ pub(crate) async fn resolve(
         if outcome == DefenseOutcome::Defeated {
             app_application::combat::authored::recover_defeated_hero(projection)
                 .map_err(repository_error)?;
-            crate::rest::advance_clock(tx, SessionId(session_id), 3600).await?;
+            crate::rest::advance_combat_clock(tx, SessionId(session_id), 3600).await?;
         }
         adventure::persist(tx, id, Some(&resolved)).await?;
         projection.adventure = Some(AdventureProjection::from(resolved));

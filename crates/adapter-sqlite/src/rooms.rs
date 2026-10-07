@@ -177,6 +177,14 @@ impl RoomRepository for crate::SqliteStore {
     ) -> Result<app_application::models::room_world::RoomWorldReceipt, RepositoryError> {
         crate::room_world::adventure(self, lease, command).await
     }
+    async fn recover_room_hero(
+        &self,
+        lease: &RoomLease,
+        command: app_application::models::room_recovery::RoomRecoveryCommand,
+        rng_seed: u64,
+    ) -> Result<app_application::models::room_recovery::RoomRecoveryReceipt, RepositoryError> {
+        crate::room_recovery::recover(self, lease, command, rng_seed).await
+    }
     async fn room_rest_status(
         &self,
         lease: &RoomLease,

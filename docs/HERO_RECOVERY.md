@@ -26,3 +26,25 @@ coverage from the existing group combat suite. Owned recovery intentions/API/UI,
 damage at zero HP, automatic death turns and the native held-zero-HP continuation
 are still outstanding. The observed gameplay dead end is not fixed by persistence
 alone. The scheduler test uses trusted fixture state, not a production aid command.
+
+
+## Owned recovery use case
+
+RecoveryIntent accepts Aid(target character UUID), Wait(target UUID) or an empty
+DeathSave action. It accepts no dice outcome or RNG seed. Verified active membership
+selects the helper, approved party ownership selects the target, and expected revision
+protects the current world. A conscious helper uses committed Wisdom/Medicine; poison
+imposes disadvantage. Stable owners can passively wait safely. Dying owners can make
+their required save. The receipt records actual rolls, identity, status and deadline.
+
+Migration 0016 adds scoped recovery receipts and a public mechanical update in the
+same transaction as HP/vitality, clock and campaign revision. Exact committed retry
+reuses the result; a restore reset invalidates the prior receipt. Failed final writes
+roll back all state. Normal non-combat time handles natural recovery and bounded
+mandatory saves. Restore does not roll new outcomes; combat timing uses its own path.
+Revoked/absent guest records cannot be aid targets and are not ticked as active heroes.
+
+The owned use case is verified through actual repositories/services, including a
+zero-HP continuation to rest without loading a save. It is not yet exposed through
+HTTP/native/frontend controls. Active-combat death turns, damage-at-zero and native
+held-defense continuation remain separate pending acceptance.

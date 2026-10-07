@@ -153,6 +153,34 @@ pub(crate) async fn bind_start(
     });
     Ok(())
 }
+pub(crate) async fn sync_opening_heroes(
+    tx: &mut Transaction<'_, Sqlite>,
+    projection: &CombatProjection,
+) -> Result<(), RepositoryError> {
+    let Some(scope) = &projection.campaign_scope else {
+        return Ok(());
+    };
+    let campaign = CampaignId(scope.campaign_id);
+    let (root, mut sheets) = sheets(tx, campaign, scope.session_id).await?;
+    if root != scope.character_id {
+        return Err(repository_error("combat_hero_identity_mismatch"));
+    }
+    verify_bindings(projection, &sheets)?;
+    for actor in &projection.snapshot.combatants {
+        let Some(id) = actor.character_id else {
+            continue;
+        };
+        let mut sheet = sheets
+            .remove(&id.0)
+            .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
+        if sheet["hpMax"].as_i64() != Some(i64::from(actor.max_hp)) {
+            return Err(repository_error("combat_hero_stats_changed"));
+        }
+        apply_hero_resources(&mut sheet, actor)?;
+        crate::party::persist_sheet(tx, campaign, id.0, sheet).await?;
+    }
+    Ok(())
+}
 pub(crate) async fn sync_hero(
     tx: &mut Transaction<'_, Sqlite>,
     projection: &mut CombatProjection,
@@ -198,7 +226,7 @@ pub(crate) async fn sync_hero(
     }
     let previous_round = u32::try_from(row.get::<i64, _>("round"))
         .map_err(|_| repository_error("combat_round_invalid"))?;
-    crate::rest::advance_clock(
+    crate::rest::advance_combat_clock(
         tx,
         SessionId(session),
         app_application::combat::projection::elapsed_seconds(previous_round, &projection.snapshot),

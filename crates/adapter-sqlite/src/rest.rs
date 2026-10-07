@@ -40,7 +40,7 @@ pub(crate) async fn read_clock(
         })
         .transpose()
 }
-pub(crate) async fn write_clock(
+async fn persist_clock(
     tx: &mut Transaction<'_, Sqlite>,
     session: SessionId,
     seconds: u64,
@@ -49,6 +49,54 @@ pub(crate) async fn write_clock(
         i64::try_from(seconds).map_err(|_| repository_error("adventuring_clock_invalid"))?;
     sqlx::query("INSERT INTO adventuring_states(session_id,elapsed_seconds) VALUES(?1,?2) ON CONFLICT(session_id) DO UPDATE SET elapsed_seconds=excluded.elapsed_seconds").bind(session.0.to_string()).bind(seconds).execute(&mut **tx).await.map_err(|_|repository_error("write_adventuring_clock"))?;
     Ok(())
+}
+pub(crate) async fn write_clock(
+    tx: &mut Transaction<'_, Sqlite>,
+    session: SessionId,
+    seconds: u64,
+) -> Result<(), RepositoryError> {
+    write_clock_with_rng(
+        tx,
+        session,
+        seconds,
+        &mut app_application::recovery::RecoveryEngine::random(),
+    )
+    .await?;
+    Ok(())
+}
+pub(crate) async fn write_clock_with_rng(
+    tx: &mut Transaction<'_, Sqlite>,
+    session: SessionId,
+    seconds: u64,
+    rng: &mut app_application::recovery::RecoveryEngine,
+) -> Result<Vec<app_application::models::room_recovery::RecoveryDeathSave>, RepositoryError> {
+    let previous = read_clock(tx, session)
+        .await?
+        .unwrap_or_default()
+        .elapsed_seconds;
+    persist_clock(tx, session, seconds).await?;
+    crate::recovery_clock::passage(tx, session, previous, seconds, rng).await
+}
+/// Combat owns vitality until its final projection is synchronized, including opening.
+pub(crate) async fn advance_combat_clock(
+    tx: &mut Transaction<'_, Sqlite>,
+    session: SessionId,
+    seconds: u64,
+) -> Result<(), RepositoryError> {
+    if seconds == 0 {
+        return Ok(());
+    }
+    let now = read_clock(tx, session)
+        .await?
+        .unwrap_or_default()
+        .elapsed_seconds;
+    persist_clock(
+        tx,
+        session,
+        now.checked_add(seconds)
+            .ok_or_else(|| repository_error("adventuring_clock_invalid"))?,
+    )
+    .await
 }
 pub(crate) async fn advance_clock(
     tx: &mut Transaction<'_, Sqlite>,
@@ -82,7 +130,7 @@ pub(crate) async fn restore_clock(
         .await
         .map_err(|_| repository_error("clear_rest_receipts"))?;
     if let Some(state) = state {
-        write_clock(tx, session, state.elapsed_seconds).await?;
+        persist_clock(tx, session, state.elapsed_seconds).await?;
     } else {
         sqlx::query("DELETE FROM adventuring_states WHERE session_id=?1")
             .bind(session.0.to_string())

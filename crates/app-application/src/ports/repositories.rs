@@ -142,6 +142,12 @@ pub trait RoomRepository: Send + Sync {
         lease: &crate::models::room::RoomLease,
         command: crate::models::room_world::RoomAdventureCommand,
     ) -> Result<crate::models::room_world::RoomWorldReceipt, RepositoryError>;
+    async fn recover_room_hero(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_recovery::RoomRecoveryCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_recovery::RoomRecoveryReceipt, RepositoryError>;
     async fn room_rest_status(
         &self,
         lease: &crate::models::room::RoomLease,

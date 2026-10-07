@@ -13,7 +13,11 @@ pub(super) fn repository_error(error: RepositoryError) -> RoomError {
                 | "adventure_character_downed"
                 | "rest_unsafe"
                 | "rest_character_downed"
-                | "rest_too_soon",
+                | "rest_too_soon"
+                | "hero_aid_invalid"
+                | "hero_recovery_not_needed"
+                | "hero_recovery_not_scheduled"
+                | "recovery_in_combat",
             ..
         } => RoomError::ActionRejected,
         RepositoryError::Operation {

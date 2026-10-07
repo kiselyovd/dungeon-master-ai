@@ -2241,3 +2241,441 @@ async fn native_host_recovery_replaces_expired_or_consumed_invites_and_preserves
     );
     service.stop(second.room.room_id).await.unwrap();
 }
+
+async fn recovery_fixture() -> (
+    Fixture,
+    Uuid,
+    app_application::rooms::RoomSubject,
+    app_application::rooms::RoomSubject,
+) {
+    let f = fixture().await;
+    let party = f.store.party(f.campaign).await.unwrap().unwrap();
+    let guest_id = party
+        .roster
+        .members
+        .iter()
+        .find(|m| m.member_id == f.guest.member_id)
+        .unwrap()
+        .character_id;
+    let mut sheet = party.characters[&guest_id].clone();
+    let mut actor = app_application::recovery::actor(&sheet, guest_id).unwrap();
+    actor.current_hp = 0;
+    app_application::vitality::store_actor(&mut sheet, &actor).unwrap();
+    sqlx::query(
+        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
+    )
+    .bind(sheet.to_string())
+    .bind(f.campaign.0.to_string())
+    .bind(guest_id.to_string())
+    .execute(f.store.pool())
+    .await
+    .unwrap();
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let guest = f
+        .rooms
+        .authenticate(f.guest.room.room_id, f.guest.member_id, &f.guest.capability)
+        .await
+        .unwrap();
+    (f, guest_id, host, guest)
+}
+fn recovery_roll_seed(face: i32) -> u64 {
+    (0..10000)
+        .find(|seed| {
+            app_domain::dice::roll_one(
+                app_domain::dice::Die::D20,
+                &mut app_domain::rng::SeededRng::from_seed(*seed),
+            ) == face
+        })
+        .unwrap()
+}
+#[tokio::test]
+async fn room_aid_and_passive_recovery_continue_to_group_rest_without_snapshot_restore() {
+    use app_application::models::room_recovery::{RecoveryIntent, RoomRecoveryCommand};
+    let (f, id, host, guest) = recovery_fixture().await;
+    let before = f.store.load_current(f.campaign).await.unwrap();
+    let command = RoomRecoveryCommand {
+        request_id: "aid-once".into(),
+        expected_revision: before.campaign.revision,
+        intent: RecoveryIntent::Aid {
+            target_character_id: id,
+        },
+    };
+    let aided = f
+        .store
+        .recover_room_hero(host.lease(), command.clone(), recovery_roll_seed(15))
+        .await
+        .unwrap();
+    assert!(aided.stabilized);
+    assert!(!aided.recovered);
+    assert_eq!(aided.medicine.as_ref().unwrap().total, 15);
+    let deadline = aided.ready_at_seconds.unwrap();
+    assert!((3606..=14406).contains(&deadline));
+    let repeated = f
+        .store
+        .recover_room_hero(host.lease(), command, recovery_roll_seed(1))
+        .await
+        .unwrap();
+    assert!(repeated.duplicate);
+    assert_eq!(repeated.medicine, aided.medicine);
+    assert_eq!(repeated.ready_at_seconds, aided.ready_at_seconds);
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    assert_eq!(current.projection.adventuring.unwrap().elapsed_seconds, 6);
+    let waited = f
+        .store
+        .recover_room_hero(
+            guest.lease(),
+            RoomRecoveryCommand {
+                request_id: "wait-own".into(),
+                expected_revision: current.campaign.revision,
+                intent: RecoveryIntent::Wait {
+                    target_character_id: id,
+                },
+            },
+            123,
+        )
+        .await
+        .unwrap();
+    assert!(waited.recovered);
+    assert!(!waited.stabilized);
+    assert!(waited.ready_at_seconds.is_none());
+    let state = f.store.party(f.campaign).await.unwrap().unwrap();
+    assert_eq!(state.characters[&id]["hp"], 1);
+    f.rooms
+        .rest(
+            &host,
+            app_application::models::room_world::RoomRestCommand {
+                request_id: "after-recovery-long".into(),
+                expected_revision: state.revision,
+                intent: app_application::models::rest::RestIntent::Long,
+            },
+        )
+        .await
+        .unwrap();
+    let state = f.store.party(f.campaign).await.unwrap().unwrap();
+    assert!(state.characters.values().all(|s| s["hp"] == 12));
+}
+#[tokio::test]
+async fn own_death_save_is_server_rolled_and_replays_the_committed_result() {
+    use app_application::models::room_recovery::{RecoveryIntent, RoomRecoveryCommand};
+    let (f, id, _, guest) = recovery_fixture().await;
+    let before = f.store.load_current(f.campaign).await.unwrap();
+    let command = RoomRecoveryCommand {
+        request_id: "death-save-once".into(),
+        expected_revision: before.campaign.revision,
+        intent: RecoveryIntent::DeathSave {},
+    };
+    let result = f
+        .store
+        .recover_room_hero(guest.lease(), command.clone(), recovery_roll_seed(20))
+        .await
+        .unwrap();
+    assert!(result.recovered);
+    assert_eq!(result.target_character_id, id);
+    assert_eq!(result.death_saves.len(), 1);
+    assert_eq!(result.death_saves[0].result.roll, 20);
+    let repeated = f
+        .store
+        .recover_room_hero(guest.lease(), command, recovery_roll_seed(1))
+        .await
+        .unwrap();
+    assert!(repeated.duplicate);
+    assert_eq!(repeated.death_saves[0].result.roll, 20);
+    assert_eq!(
+        f.store.party(f.campaign).await.unwrap().unwrap().characters[&id]["hp"],
+        1
+    );
+}
+#[tokio::test]
+async fn aid_failure_at_receipt_rolls_back_clock_sheets_and_public_events() {
+    use app_application::models::room_recovery::{RecoveryIntent, RoomRecoveryCommand};
+    let (f, id, host, _) = recovery_fixture().await;
+    let before = f.store.load_current(f.campaign).await.unwrap();
+    let party = f.store.party(f.campaign).await.unwrap().unwrap();
+    let update = f.rooms.initial_updates(&host, None).await.unwrap();
+    sqlx::raw_sql("CREATE TRIGGER fail_recovery BEFORE INSERT ON room_recovery_receipts BEGIN SELECT RAISE(ABORT,'fixture_receipt_failed'); END;").execute(f.store.pool()).await.unwrap();
+    let command = RoomRecoveryCommand {
+        request_id: "failed-aid".into(),
+        expected_revision: before.campaign.revision,
+        intent: RecoveryIntent::Aid {
+            target_character_id: id,
+        },
+    };
+    assert!(f
+        .store
+        .recover_room_hero(host.lease(), command.clone(), recovery_roll_seed(15))
+        .await
+        .is_err());
+    assert_eq!(f.store.party(f.campaign).await.unwrap().unwrap(), party);
+    assert_eq!(f.store.load_current(f.campaign).await.unwrap(), before);
+    assert!(f
+        .rooms
+        .updates(&host, Some(update.cursor))
+        .await
+        .unwrap()
+        .is_none());
+    sqlx::raw_sql("DROP TRIGGER fail_recovery")
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    assert!(
+        f.store
+            .recover_room_hero(host.lease(), command, recovery_roll_seed(15))
+            .await
+            .unwrap()
+            .stabilized
+    );
+}
+#[tokio::test]
+async fn restored_timeline_rejects_a_previous_aid_receipt_and_foreign_targets() {
+    use app_application::{
+        models::{
+            room_recovery::{RecoveryIntent, RoomRecoveryCommand},
+            snapshot::{CreateSnapshotRecord, RestoreSnapshotRecord},
+        },
+        ports::repositories::SnapshotRepository,
+    };
+    let (f, id, host, _) = recovery_fixture().await;
+    let before = f.store.load_current(f.campaign).await.unwrap();
+    let save = f
+        .store
+        .create_snapshot(CreateSnapshotRecord {
+            id: Uuid::new_v4(),
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: before.campaign.revision,
+            schema_version: 1,
+            ruleset_id: "srd-5.2.1".into(),
+            title: "Recovery".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "exploration".into(),
+            causation_id: "before-aid".into(),
+            character: before.projection.character,
+        })
+        .await
+        .unwrap();
+    let current = f.store.load_current(f.campaign).await.unwrap();
+    let foreign = RoomRecoveryCommand {
+        request_id: "foreign-aid".into(),
+        expected_revision: current.campaign.revision,
+        intent: RecoveryIntent::Aid {
+            target_character_id: Uuid::new_v4(),
+        },
+    };
+    assert!(f
+        .store
+        .recover_room_hero(host.lease(), foreign, recovery_roll_seed(15))
+        .await
+        .is_err());
+    let command = RoomRecoveryCommand {
+        request_id: "obsolete-aid".into(),
+        expected_revision: current.campaign.revision,
+        intent: RecoveryIntent::Aid {
+            target_character_id: id,
+        },
+    };
+    f.store
+        .recover_room_hero(host.lease(), command.clone(), recovery_roll_seed(15))
+        .await
+        .unwrap();
+    let latest = f.store.load_current(f.campaign).await.unwrap();
+    f.store
+        .restore_snapshot(RestoreSnapshotRecord {
+            save_id: save.save_id,
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: latest.campaign.revision,
+            causation_id: "restore-aid".into(),
+        })
+        .await
+        .unwrap();
+    assert!(f
+        .store
+        .recover_room_hero(host.lease(), command, recovery_roll_seed(15))
+        .await
+        .is_err());
+    let state = f.store.party(f.campaign).await.unwrap().unwrap();
+    assert!(
+        !app_application::vitality::read(&state.characters[&id], id)
+            .unwrap()
+            .unwrap()
+            .death_saves
+            .stable
+    );
+}
+
+#[tokio::test]
+async fn opening_authored_defeat_uses_combat_clock_and_synchronizes_rescue_without_death_rolls() {
+    use app_application::{
+        models::{
+            adventure::{Action, AdventureCommand, DefenseOutcome, Location},
+            combat::CombatProjection,
+        },
+        ports::repositories::{AdventureRepository, CombatRepository},
+    };
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let store = Arc::new(SqliteStore::new(db));
+    let campaign = CreateCampaign::new(store.clone())
+        .execute(CreateCampaignCommand {
+            title: "Opening defeat".into(),
+            premise: "Archive".into(),
+            seed: CampaignSeed::Bundled {
+                adventure_id: "bell-beneath-water".into(),
+            },
+        })
+        .await
+        .unwrap();
+    let id = Uuid::new_v4();
+    store.commit_character(CommitCampaignCharacter {campaign_id:campaign.id,session_id:campaign.last_session_id,character_id:id,expected_revision:campaign.revision,causation_id:"opening-hero".into(),character:json!({"name":"Mira","heroClass":"fighter","level":1,"hp":1,"hpMax":12,"ac":14,"abilities":{"str":15,"dex":14,"con":13,"int":12,"wis":10,"cha":8},"inventory":[]})}).await.unwrap();
+    for (n, action) in [
+        Action::Move(Location::Quay),
+        Action::Move(Location::Archive),
+        Action::LocateTikhon,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let state = store.load_current(campaign.id).await.unwrap();
+        store
+            .act(AdventureCommand {
+                campaign_id: campaign.id,
+                session_id: campaign.last_session_id,
+                character_id: id,
+                expected_revision: state.campaign.revision,
+                causation_id: format!("opening-path-{n}"),
+                action,
+            })
+            .await
+            .unwrap();
+    }
+    let state = store.load_current(campaign.id).await.unwrap();
+    let rooms = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(SystemRoomClock),
+    );
+    rooms
+        .create_local_room(CreateLocalRoom {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: state.campaign.revision,
+            causation_id: "opening-room".into(),
+        })
+        .await
+        .unwrap();
+    let state = store.load_current(campaign.id).await.unwrap();
+    let before_clock = state
+        .projection
+        .adventuring
+        .as_ref()
+        .unwrap()
+        .elapsed_seconds;
+    let mut sheet = state.projection.character;
+    let mut actor = app_application::recovery::actor(&sheet, id).unwrap();
+    actor.current_hp = 0;
+    app_application::vitality::store_actor(&mut sheet, &actor).unwrap();
+    sqlx::query("UPDATE campaign_characters SET character_json=?1 WHERE campaign_id=?2")
+        .bind(sheet.to_string())
+        .bind(campaign.id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    // Reproduce the persisted downed state produced by opening NPC automation.
+    let encounter = Uuid::new_v4();
+    let mut adventure = state.projection.adventure.unwrap().state;
+    adventure.defense = Some(DefenseOutcome::Active);
+    adventure.defense_encounter_id = Some(encounter);
+    sqlx::query("UPDATE campaign_adventures SET state_json=?1 WHERE campaign_id=?2")
+        .bind(serde_json::to_string(&adventure).unwrap())
+        .bind(campaign.id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let returned: CombatProjection = store
+        .create(
+            campaign.last_session_id.0,
+            app_application::combat::authored::bell_defense(encounter),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        returned.authored.as_ref().unwrap().outcome,
+        Some(DefenseOutcome::Defeated)
+    );
+    assert!(!returned.snapshot.active);
+    let current = store.load_current(campaign.id).await.unwrap();
+    let hero = returned
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.character_id.map(|c| c.0) == Some(id))
+        .unwrap();
+    assert_eq!(hero.current_hp, 1);
+    assert_eq!(current.projection.character["hp"], 1);
+    let vitality = app_application::vitality::read(&current.projection.character, id)
+        .unwrap()
+        .unwrap();
+    assert!(!vitality.is_dead);
+    assert!(!vitality.death_saves.stable);
+    assert!(vitality.natural_recovery.is_none());
+    assert_eq!(
+        current.projection.adventuring.unwrap().elapsed_seconds,
+        before_clock + 3600
+    );
+    let rolls:i64=sqlx::query_scalar("SELECT COUNT(*) FROM room_changes WHERE json_extract(payload_json,'$.operation')='death_saves'").fetch_one(store.pool()).await.unwrap();
+    assert_eq!(rolls, 0);
+}
+
+#[tokio::test]
+async fn revoked_hero_is_not_an_aid_target_and_does_not_roll_during_room_wait() {
+    use app_application::models::{
+        rest::RestIntent,
+        room_recovery::{RecoveryIntent, RoomRecoveryCommand},
+        room_world::RoomRestCommand,
+    };
+    let (f, id, host, _) = recovery_fixture().await;
+    f.rooms.revoke(&host, f.guest.member_id).await.unwrap();
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let before = f.store.party(f.campaign).await.unwrap().unwrap();
+    let sheet = before.characters[&id].clone();
+    assert!(f
+        .store
+        .recover_room_hero(
+            host.lease(),
+            RoomRecoveryCommand {
+                request_id: "revoked-aid".into(),
+                expected_revision: before.revision,
+                intent: RecoveryIntent::Aid {
+                    target_character_id: id
+                }
+            },
+            recovery_roll_seed(15)
+        )
+        .await
+        .is_err());
+    f.rooms
+        .rest(
+            &host,
+            RoomRestCommand {
+                request_id: "wait-without-revoked-hero".into(),
+                expected_revision: before.revision,
+                intent: RestIntent::Wait { minutes: 60 },
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        f.store.party(f.campaign).await.unwrap().unwrap().characters[&id],
+        sheet
+    );
+}

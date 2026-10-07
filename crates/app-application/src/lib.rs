@@ -10,3 +10,5 @@ pub mod rooms;
 pub mod settings;
 
 pub mod vitality;
+
+pub mod recovery;

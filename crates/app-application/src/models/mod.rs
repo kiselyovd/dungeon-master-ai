@@ -23,3 +23,5 @@ pub mod room_host;
 pub mod room_client;
 
 pub mod room_transport;
+
+pub mod room_recovery;

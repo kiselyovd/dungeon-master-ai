@@ -4,6 +4,25 @@ fn valid_nonce(id: &str) -> bool {
     !id.trim().is_empty() && id.len() <= 64 && !id.chars().any(char::is_control)
 }
 impl RoomService {
+    pub async fn recover_hero(
+        &self,
+        subject: &RoomSubject,
+        command: crate::models::room_recovery::RoomRecoveryCommand,
+    ) -> Result<crate::models::room_recovery::RoomRecoveryReceipt, RoomError> {
+        let _lane = ROOM_MUTATION.lock().await;
+        self.authorized_room(subject).await?;
+        if !valid_nonce(&command.request_id) {
+            return Err(RoomError::InvalidInput);
+        }
+        self.rooms
+            .recover_room_hero(
+                &subject.lease,
+                command,
+                uuid::Uuid::new_v4().as_u128() as u64,
+            )
+            .await
+            .map_err(repository_error)
+    }
     pub async fn adventure(
         &self,
         subject: &RoomSubject,

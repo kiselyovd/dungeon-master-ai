@@ -285,6 +285,7 @@ pub(crate) async fn create_in_transaction(
     crate::combat_binding::bind_start(transaction, session_id, &mut projection, advance_revision)
         .await?;
     crate::authored_combat::resolve(transaction, session_id, &mut projection).await?;
+    crate::combat_binding::sync_opening_heroes(transaction, &projection).await?;
     let projection_json = serde_json::to_string(&projection)
         .map_err(|_| repository_error("encode_combat_projection"))?;
     let initiative_json = serde_json::to_string(&projection.snapshot.initiative)
