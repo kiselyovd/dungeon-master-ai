@@ -385,3 +385,16 @@ pub trait SrdRepository: Send + Sync {
     async fn search(&self, query: &str, limit: usize)
         -> Result<Vec<SrdReference>, RepositoryError>;
 }
+
+#[async_trait]
+pub trait SoloRecoveryRepository: Send + Sync {
+    async fn recovery_status(
+        &self,
+        id: CampaignId,
+    ) -> Result<crate::models::solo_recovery::SoloRecoveryStatus, RepositoryError>;
+    async fn recover_solo(
+        &self,
+        command: crate::models::solo_recovery::SoloRecoveryCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::solo_recovery::SoloRecoveryResult, RepositoryError>;
+}

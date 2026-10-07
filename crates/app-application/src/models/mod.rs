@@ -25,3 +25,5 @@ pub mod room_client;
 pub mod room_transport;
 
 pub mod room_recovery;
+
+pub mod solo_recovery;

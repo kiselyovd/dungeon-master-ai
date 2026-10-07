@@ -69,6 +69,18 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn recovery_status(
+        &self,
+        _id: Uuid,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryStatus, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn recover_solo(
+        &self,
+        _command: app_application::models::solo_recovery::SoloRecoveryCommand,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryResult, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn rest_status(
         &self,
         _id: Uuid,

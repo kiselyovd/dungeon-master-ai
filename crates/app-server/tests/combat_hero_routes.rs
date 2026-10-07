@@ -130,3 +130,112 @@ async fn model_start_uses_an_explicit_npc_contract_without_a_second_hero() {
     );
     assert_eq!(outcome["projection"], serde_json::to_value(stored).unwrap());
 }
+
+#[tokio::test]
+async fn solo_recovery_http_rejects_roll_injection_and_cannot_bypass_a_live_room() {
+    use adapter_secrets::InMemorySecretsStore;
+    use app_application::{
+        campaigns::{GAME_SCHEMA_VERSION, RULESET_ID},
+        models::room::CreateLocalRoom,
+        rooms::{RoomService, SystemRoomClock},
+    };
+    let server = TestServer::start().await;
+    let store = Arc::new(SqliteStore::new(server.state.db().clone()));
+    let campaign = campaign(store.clone(), "Solo recovery").await;
+    let id = hero(&store, &campaign).await;
+    let mut state = store.load_current(campaign.id).await.unwrap();
+    let mut actor = app_application::recovery::actor(&state.projection.character, id).unwrap();
+    actor.current_hp = 0;
+    actor.death_saves.stabilize();
+    app_application::vitality::store_actor(&mut state.projection.character, &actor).unwrap();
+    sqlx::query("UPDATE campaign_characters SET character_json=?1 WHERE campaign_id=?2")
+        .bind(state.projection.character.to_string())
+        .bind(campaign.id.0.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let url = server.url(&format!("/campaigns/{}/recovery", campaign.id.0));
+    let client = reqwest::Client::new();
+    let status = client.get(&url).send().await.unwrap();
+    assert!(status.status().is_success());
+    let status: serde_json::Value = status.json().await.unwrap();
+    assert_eq!(status["hp"], 0);
+    assert_eq!(status["recovery"]["status"], "stable");
+    let body = json!({"schema_version":GAME_SCHEMA_VERSION,"ruleset_id":RULESET_ID,"session_id":campaign.last_session_id.0,"character_id":id,"expected_revision":state.campaign.revision.0,"causation_id":"solo-ui-recovery","intent":{"kind":"wait","target_character_id":id}});
+    for field in ["rng_seed", "roll"] {
+        let mut forged = body.clone();
+        forged[field] = json!(20);
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&forged)
+                .send()
+                .await
+                .unwrap()
+                .status()
+                .as_u16(),
+            422
+        );
+    }
+    let mut forged = body.clone();
+    forged["intent"] = json!({"kind":"death_save","roll":20});
+    assert_eq!(
+        client
+            .post(&url)
+            .json(&forged)
+            .send()
+            .await
+            .unwrap()
+            .status()
+            .as_u16(),
+        422
+    );
+    let response = client.post(&url).json(&body).send().await.unwrap();
+    assert!(response.status().is_success());
+    let result: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(result["status"]["hp"], 1);
+    assert_eq!(result["receipt"]["recovered"], true);
+    let retry: serde_json::Value = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(retry["receipt"]["duplicate"], true);
+    assert_eq!(retry["status"], result["status"]);
+    let current = store.load_current(campaign.id).await.unwrap();
+    let rooms = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(SystemRoomClock),
+    );
+    rooms
+        .create_local_room(CreateLocalRoom {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: current.campaign.revision,
+            causation_id: "room-after-recovery".into(),
+        })
+        .await
+        .unwrap();
+    // Even an old exact receipt must not let the local actor bypass room authority.
+    assert_eq!(
+        client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+            .status()
+            .as_u16(),
+        409
+    );
+    assert_eq!(
+        client.get(&url).send().await.unwrap().status().as_u16(),
+        409
+    );
+}

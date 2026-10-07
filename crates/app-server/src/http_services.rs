@@ -142,6 +142,33 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn recovery_status(
+        &self,
+        id: Uuid,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryStatus, HttpServiceError> {
+        app_application::solo_recovery::RecoverSolo::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .status(CampaignId(id))
+        .await
+        .map_err(recovery_error)
+    }
+    async fn recover_solo(
+        &self,
+        command: app_application::models::solo_recovery::SoloRecoveryCommand,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryResult, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        app_application::solo_recovery::RecoverSolo::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .execute(command)
+        .await
+        .map_err(recovery_error)
+    }
     async fn rest_status(
         &self,
         id: Uuid,
@@ -323,6 +350,28 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
                 code: "campaign_operation_failed",
             }
         }
+    }
+}
+
+fn recovery_error(
+    error: app_application::ports::repositories::RepositoryError,
+) -> HttpServiceError {
+    use app_application::ports::repositories::RepositoryError;
+    match error {
+        RepositoryError::Operation {
+            code: code @ ("recovery_requires_room" | "recovery_in_combat"),
+            ..
+        } => HttpServiceError::Conflict { code },
+        RepositoryError::Operation {
+            code:
+                code @ ("hero_recovery_not_needed"
+                | "hero_aid_invalid"
+                | "room_action_invalid"
+                | "hero_vitality_invalid"
+                | "hero_vitality_identity_mismatch"),
+            ..
+        } => HttpServiceError::UnprocessableEntity { code },
+        other => rest_error(other),
     }
 }
 

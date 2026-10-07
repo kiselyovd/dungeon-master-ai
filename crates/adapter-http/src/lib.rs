@@ -39,6 +39,10 @@ pub fn router(services: HttpServices) -> Router {
             get(routes::campaigns::get_campaign_state),
         )
         .route(
+            "/campaigns/{campaign_id}/recovery",
+            get(routes::campaigns::get_recovery_status).post(routes::campaigns::post_recovery),
+        )
+        .route(
             "/campaigns/{campaign_id}/rest",
             get(routes::campaigns::get_rest_status).post(routes::campaigns::post_rest),
         )

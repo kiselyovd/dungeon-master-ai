@@ -129,6 +129,11 @@ pub(crate) async fn restore_clock(
         .execute(&mut **tx)
         .await
         .map_err(|_| repository_error("clear_rest_receipts"))?;
+    sqlx::query("DELETE FROM solo_recovery_receipts WHERE session_id=?1")
+        .bind(session.0.to_string())
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| repository_error("clear_solo_recovery_receipts"))?;
     if let Some(state) = state {
         persist_clock(tx, session, state.elapsed_seconds).await?;
     } else {

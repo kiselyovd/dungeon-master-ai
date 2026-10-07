@@ -206,3 +206,27 @@ Solo recovery transport and complete native/model/physical-LAN acceptance remain
 Magic Missile now keeps each dart as a separate damage instance while sharing the
 damage die. It cannot manufacture massive damage by summing separate darts; each
 hit at zero causes its own failure. Multi-hit spell output records a death once.
+
+
+## Solo recovery backend checkpoint
+
+A solo owner can request a mandatory death save or wait for their own stable
+recovery in a safe location. The application accepts no supplied dice/seed;
+self-aid/foreign targets, dead heroes and active combat are rejected. Status offers
+only eligible actions. An active co-op room rejects both status and mutation before
+receipt replay, keeping room authority intact.
+
+GET/POST /campaigns/{id}/recovery uses the private campaign router and existing
+campaign execution lane. Strict DTOs reject extra roll fields. Migration0017 stores
+solo receipts separately from rest operations; independent review found that a
+simple key prefix could collide with valid rest nonces, so separate tables remove
+that intersection. Snapshot restore clears both operation types atomically. Identity,
+revision, HP/vitality, clock and receipt remain in one transaction. Exact retries
+preserve the original outcome even when the execution seed changes.
+
+Storage/HTTP evidence includes stable zero HP -> own wait -> HP1 -> Long Rest,
+one-save/6-second timing, replay, receipt-failure rollback, forged fields, foreign
+identity/self-aid, active-room exclusion, restore invalidation and nonce isolation.
+The fixture deliberately seeds canonical zero-HP vitality; it does not prove a
+complete native solo battle/recovery session. Frontend controls, native acceptance
+and broad model/physical-LAN/session requirements remain outstanding.

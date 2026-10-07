@@ -39,7 +39,7 @@ pub struct RoomRecoveryReceipt {
     pub ready_at_seconds: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryStatus {
     Healthy,
@@ -47,7 +47,7 @@ pub enum RecoveryStatus {
     Stable,
     Dead,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublicHeroRecovery {
     pub character_id: Uuid,
     pub status: RecoveryStatus,

@@ -92,6 +92,49 @@ pub struct RestRequest {
     pub intent: app_application::models::rest::RestIntent,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SoloRecoveryRequest {
+    pub schema_version: u16,
+    pub ruleset_id: String,
+    pub session_id: Uuid,
+    pub character_id: Uuid,
+    pub expected_revision: u64,
+    pub causation_id: String,
+    pub intent: app_application::models::room_recovery::RecoveryIntent,
+}
+pub async fn get_recovery_status(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<app_application::models::solo_recovery::SoloRecoveryStatus>, HttpServiceError> {
+    services.campaign.recovery_status(id).await.map(Json)
+}
+pub async fn post_recovery(
+    Extension(services): Extension<HttpServices>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<SoloRecoveryRequest>,
+) -> Result<Json<app_application::models::solo_recovery::SoloRecoveryResult>, HttpServiceError> {
+    if body.schema_version != GAME_SCHEMA_VERSION || body.ruleset_id != RULESET_ID {
+        return Err(HttpServiceError::UnprocessableEntity {
+            code: "campaign_contract_unsupported",
+        });
+    }
+    services
+        .campaign
+        .recover_solo(
+            app_application::models::solo_recovery::SoloRecoveryCommand {
+                campaign_id: CampaignId(id),
+                session_id: SessionId(body.session_id),
+                character_id: body.character_id,
+                expected_revision: Revision(body.expected_revision),
+                causation_id: body.causation_id,
+                intent: body.intent,
+            },
+        )
+        .await
+        .map(Json)
+}
+
 pub async fn get_rest_status(
     Extension(services): Extension<HttpServices>,
     Path(id): Path<Uuid>,
