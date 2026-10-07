@@ -16,6 +16,19 @@ Execution: inline, authorized by 'Продолжай до конца'; preserve 
 
 ## Authored defensive session
 
+Co-op foundation continuation: domain party identity/ownership, separate guest
+storage and owner-scoped views implemented; migration0008 and atomic enrollment
+receipts preserve the existing solo host sheet. Snapshots capture/restore guest
+sheets while requiring unchanged ownership/roster. Domain3, snapshot1 and SQL7
+checks pass, including real pool close/reopen, rollback after second guest failure
+and malformed duplicate snapshots. Independent review closed the duplicate-entry
+guard issue; historical migration fixtures/count updated. Final full gates passed
+(workspace Rust and1042 frontend tests). No HTTP/LAN authentication, multi-hero combat/UI or native two-peer
+acceptance claimed. Remaining sequence: .ai-factory/plans/codex-lan-coop.md;
+storage notes: docs/PARTY_STATE.md. Reqwest approval still pending; no dependency
+added. Proposed AGENTS rule: each embedded migration change must update both
+manual historical-schema fixtures and migration/schema assertions.
+
 Schema/model follow-up,2026-10-07: adventure_action oneOf now requires location
 only for move; unit actions reject it. Real malformed seal intent reproduced
 the old schema/decoder mismatch RED; schema regressions GREEN. Real Bonsai

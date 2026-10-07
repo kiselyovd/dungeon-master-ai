@@ -69,6 +69,22 @@ pub trait RestRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait PartyRepository: Send + Sync {
+    async fn initialize_party(
+        &self,
+        command: crate::models::party::InitializeParty,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
+    async fn party(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<Option<crate::models::party::PartyState>, RepositoryError>;
+    async fn enroll_party_character(
+        &self,
+        command: crate::models::party::EnrollPartyCharacter,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
+}
+
+#[async_trait]
 pub trait AdventureRepository: Send + Sync {
     async fn act_as_dm(
         &self,

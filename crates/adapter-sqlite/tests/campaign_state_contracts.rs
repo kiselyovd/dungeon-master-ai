@@ -213,6 +213,10 @@ async fn migration_backfills_the_explicitly_restored_hero_without_rewriting_hist
         .execute(store.pool())
         .await
         .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0008_party_roster.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
     sqlx::raw_sql(include_str!("../migrations/0007_adventuring_resources.sql"))
         .execute(store.pool())
         .await
@@ -301,6 +305,10 @@ async fn migration_skips_incomplete_sheets_and_selects_a_complete_older_candidat
         .await
         .unwrap();
     sqlx::raw_sql(include_str!("../migrations/0003_campaign_adventures.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0008_party_roster.sql"))
         .execute(store.pool())
         .await
         .unwrap();

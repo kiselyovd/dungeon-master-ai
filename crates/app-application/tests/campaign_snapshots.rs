@@ -76,6 +76,7 @@ fn snapshot(campaign_id: CampaignId, session_id: SessionId) -> CampaignSnapshot 
         schema_version: SNAPSHOT_SCHEMA_VERSION,
         ruleset_id: "srd-5.2.1".into(),
         projection: SnapshotProjection {
+            party: None,
             adventuring: None,
             adventure: None,
             messages: vec![],

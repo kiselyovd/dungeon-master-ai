@@ -233,6 +233,13 @@ impl SnapshotRepository for SqliteStore {
             return Err(repository_error("snapshot_identity_mismatch"));
         }
         apply_projection(&mut transaction, &snapshot).await?;
+        crate::party::restore_snapshot(
+            &mut transaction,
+            record.campaign_id,
+            snapshot.projection.party.as_ref(),
+            &snapshot.projection.character,
+        )
+        .await?;
         crate::campaign_state::persist_snapshot_character(
             &mut transaction,
             record.campaign_id,
@@ -559,6 +566,7 @@ pub(crate) async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        party: crate::party::capture_snapshot(transaction, campaign_id, &character).await?,
         adventuring: crate::rest::read_clock(transaction, session_id).await?,
         adventure: crate::adventure::read(transaction, campaign_id).await?,
         messages,
