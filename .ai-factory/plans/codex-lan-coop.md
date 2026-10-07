@@ -493,3 +493,60 @@ WebView/two-device acceptance remain open.
   No production dependencies or local solo-state mutations were added.
 - Production room screen/root integration and browser/WebView verification remain
   pending; focused checks do not establish a playable UI or two-device session.
+
+
+### Production room UI (in verification)
+
+Compact brief: retain the existing desktop shell, shared Button/Field, typography,
+colors and spacing tokens. Add a library/table co-op entry, host existing saved
+campaign, guest address/room/invitation form, public human party, own hero proposal,
+host approval and a single shared AI DM chat. Room state remains ephemeral and
+isolated from solo. No new visual token/dependency. Combat/map compose existing
+features in the next slice.
+
+The real App now opens RoomExperience/RoomHome/RoomPlay with EN/RU catalogs.
+Initial controls cover shared chat, own hero, proposals, adventure and rests.
+Production-root tests and locally served production-build browser smoke pass
+with a native stub and the real Rust wire fixture (Tara/Mira human heroes).
+Native IPC/actual two-device gameplay are not established by these checks.
+
+Independent review found four lifecycle issues: hero confirmation changed UUIDs,
+definitive host failure reused closed nonce, solo return exposed old state, and
+solo hotkeys remained enabled. Fixes retain native proposal IDs/body (with sorted
+semantic comparison), expose whitelisted definitive native host errors and reset
+only those attempts, wait for local campaign reactivation before exit, and disable
+solo shortcuts in room mode. Co-op wizard can cancel to reach recovery controls.
+Fifteen focused tests, build, architecture, native compilation and current preview
+browser smoke pass. Follow-up review is pending.
+
+UI changes are not committed yet. App.tsx has inherited dirty changes; its exact
+pre-UI contents are saved as .artifacts/App-before-coop.tsx. Stage only the own diff
+from that baseline into the index, alongside owned files; do not stage inherited
+App changes. Original D checkout remains preserved. First-boot guest entry,
+native selection/host restart, combat/map/initiative, richer own-sheet and physical
+LAN/two-client session acceptance remain required.
+
+
+### Room VTT/combat UI checkpoint (verified locally)
+
+Reused VttCanvas, CombatOverlay/CombatToken, InitiativeTracker and existing
+weapon/spell dialogs. Room presentation supplies map/tokens/own UUID/portrait,
+excludes local solo map/image/AOE, and limits drag and actions to the owned active
+hero. Server intentions carry encounter/revision/nonce rather than client damage.
+Dialog scope includes restore marker. No shared-store projection is overwritten.
+
+Independent review found stale drag on permission loss and modal unmount during
+pending. Fixes cancel unconfirmed drag on permission/identity/position/revision
+change, retain modal choice while pending, disable confirmation, and close it on
+new combat/turn/timeline. Regression tests pass. The old combined run failed only
+uninitialized token i18n; the test now loads the real catalog and the current
+combined suite passes 11 files/72 tests. Production build, architecture and two
+production-preview browser stub scenarios pass. The battle fixture comes from
+the actual Rust room-agent/defense projection; source regression passes. Screenshot
+review caught and fixed clipped initiative and untranslated Your turn.
+
+UI lifecycle follow-up closed the four earlier findings. All UI changes remain
+local; actual IPC/physical LAN, first-boot guest entry, durable native selection/
+stable host restart, and complete solo/co-op session acceptance are still required.
+The App-only patch .artifacts/room-app-owned.patch applies cleanly to the index
+without the inherited App changes; stage that patch separately from owned files.

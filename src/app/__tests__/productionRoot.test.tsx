@@ -31,6 +31,26 @@ vi.mock('../../api/campaigns', () => ({
   createCampaign: vi.fn(),
 }));
 
+vi.mock('../../api/rooms', async () => {
+  const { default: wire } = await import('../../api/__fixtures__/roomUpdate.json');
+  const member = wire.state.room.members.find((member) => member.role === 'player');
+  return {
+    hostRoom: vi.fn(),
+    stopHostRoom: vi.fn(async () => {}),
+    joinRoom: vi.fn(async () => ({
+      kind: 'guest',
+      room: wire.state.room,
+      member_id: member?.member_id,
+      address: '127.0.0.1:4123',
+      join_id: '55555555-5555-4555-8555-555555555555',
+    })),
+    loadRoom: vi.fn(async () => wire),
+    loadPendingRoomAction: vi.fn(async () => null),
+    sendRoomAction: vi.fn(async () => {}),
+  };
+});
+vi.mock('../../api/roomStream', () => ({ streamRoom: vi.fn(() => new Promise<void>(() => {})) }));
+
 beforeEach(async () => {
   vi.clearAllMocks();
   useStore.setState(useStore.getInitialState());
@@ -99,4 +119,24 @@ describe('production application root', () => {
     expect(await screen.findByRole('heading', { name: 'Your chronicles' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'New campaign' })).toBeVisible();
   });
+});
+
+it('opens co-op through the real root and displays the human-owned guest hero', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(await screen.findByRole('button', { name: 'Совместная игра' }));
+  expect(screen.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  await user.type(screen.getByLabelText('Адрес и порт организатора'), '127.0.0.1:4123');
+  await user.type(screen.getByLabelText('Код комнаты'), '11111111-1111-4111-8111-111111111111');
+  await user.type(screen.getByLabelText('Ваше имя игрока'), 'Tara');
+  await user.type(screen.getByLabelText('Приглашение'), 'fixture-invitation');
+  await user.click(screen.getByRole('button', { name: 'Подключиться' }));
+  expect(await screen.findByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Герои игроков' })).toBeVisible();
+  expect(screen.getAllByText('Tara', { exact: false }).length).toBeGreaterThan(0);
+  expect(screen.getByLabelText('Что делает ваш герой?')).toBeEnabled();
+  await user.keyboard('{Control>}{Shift>}S{/Shift}{/Control}');
+  expect(useStore.getState().saves.isOpen).toBe(false);
+  expect(screen.queryByRole('button', { name: 'Создать своего героя' })).not.toBeInTheDocument();
+  expect(useStore.getState().pc.heroClass).toBeNull();
 });

@@ -134,5 +134,8 @@
     "map_label": "Upper archive passage",
     "exit": "Exit",
     "dispersed": "Dispersed"
-  }
+  },
+  "invalid_projection": "The combat snapshot is invalid. Reconnect to refresh it.",
+  "retreat_room": "Retreat",
+  "your_turn": "Your turn"
 }

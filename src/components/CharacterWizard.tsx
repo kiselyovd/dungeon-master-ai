@@ -19,6 +19,7 @@ import { SpellsTab } from './wizard/SpellsTab';
 export type CharacterWizardMode = 'initial' | 'edit';
 
 export interface CharacterWizardProps {
+  allowCancel?: boolean;
   onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   mode: CharacterWizardMode;
   onClose?: () => void;
@@ -70,8 +71,10 @@ export function CharacterWizard({
   onOpenImageSettings,
   hidden,
   onCommitCharacter,
+  allowCancel,
 }: CharacterWizardProps) {
   const { t } = useTranslation('wizard');
+  const { t: tc } = useTranslation('common');
   const activeTab = useStore((s) => s.charCreation.activeTab);
   const setActiveTab = useStore((s) => s.charCreation.setActiveTab);
   const draft = useStore((s) => s.charCreation);
@@ -164,6 +167,15 @@ export function CharacterWizard({
         )}
       </main>
       <footer className="dm-wizard-footer">
+        {allowCancel && onClose && (
+          <button
+            type="button"
+            className="dm-wizard-nav-btn dm-wizard-nav-btn--back"
+            onClick={onClose}
+          >
+            {tc('cancel')}
+          </button>
+        )}
         <fieldset className="dm-wizard-footer-nav" aria-label={t('nav_footer_label')}>
           <button
             type="button"

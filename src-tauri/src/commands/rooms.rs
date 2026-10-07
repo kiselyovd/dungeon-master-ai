@@ -48,6 +48,26 @@ fn client() -> Result<reqwest::Client, String> {
         .build()
         .map_err(|_| "native_http_unavailable".into())
 }
+async fn host_error(mut response: reqwest::Response) -> String {
+    let mut bytes = Vec::new();
+    while let Ok(Some(chunk)) = response.chunk().await {
+        if bytes.len() + chunk.len() > 4096 {
+            return "native_host_request_rejected".into();
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    match value
+        .pointer("/error/code")
+        .and_then(serde_json::Value::as_str)
+    {
+        Some("native_room_bind_failed") => "native_room_bind_failed",
+        Some("native_room_create_failed") => "native_room_create_failed",
+        Some("native_host_request_superseded") => "native_host_request_superseded",
+        _ => "native_host_request_rejected",
+    }
+    .into()
+}
 impl NativeRoomState {
     async fn apply_host<F>(&self, operation: F) -> Result<NativeHostRoomView, String>
     where
@@ -96,7 +116,7 @@ pub async fn host_room(
                 .await
                 .map_err(|_| "native_host_request_failed")?;
             if !response.status().is_success() {
-                return Err("native_host_request_rejected".into());
+                return Err(host_error(response).await);
             }
             let grant = response
                 .json::<NativeHostRoomGrant>()

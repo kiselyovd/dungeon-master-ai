@@ -15,6 +15,7 @@ import enCommon from './locales/en/common.json';
 import enErrors from './locales/en/errors.json';
 import enLocalMode from './locales/en/local_mode.json';
 import enOnboarding from './locales/en/onboarding.json';
+import enRooms from './locales/en/rooms.json';
 import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
 import enWizard from './locales/en/wizard.json';
@@ -23,6 +24,7 @@ declare module 'react-i18next' {
   interface CustomTypeOptions {
     defaultNS: 'common';
     resources: {
+      rooms: typeof enRooms;
       common: typeof enCommon;
       chat: typeof enChat;
       settings: typeof enSettings;

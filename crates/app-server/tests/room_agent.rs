@@ -431,6 +431,14 @@ async fn room_dm_knows_the_party_and_resolves_only_the_verified_players_intentio
         .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
         .await
         .unwrap();
+    if let Some(path) = std::env::var_os("DMAI_ROOM_COMBAT_WIRE_FIXTURE") {
+        let update = rooms.initial_updates(&combat_subject, None).await.unwrap();
+        std::fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(&update).unwrap()),
+        )
+        .unwrap();
+    }
     let combat_id = Uuid::new_v4();
     let combat_ports = Arc::new(RoomAgentPorts::new(
         rooms.clone(),

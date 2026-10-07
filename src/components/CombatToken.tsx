@@ -12,7 +12,15 @@ import { useStore } from '../state/useStore';
 
 const CLASS_TOKEN: Partial<Record<string, string>> = TOKEN_ART;
 
+export interface PlayerTokenPresentation {
+  characterId: string | null;
+  heroClass: string | null;
+  portraitUrl: string | null;
+}
+
 interface Props {
+  playerPresentation?: PlayerTokenPresentation;
+  revision?: number;
   token: TokenData;
   cellSize: number;
   /** Viewport scale; screen-px drag deltas divide by this to reach world px. */
@@ -64,24 +72,35 @@ function conditionColor(condition: string): string {
  * flight. Without `onMove`, no handlers attach and the token stays static
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
-export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }: Props) {
+export function CombatToken({
+  token,
+  cellSize,
+  zoom = 1,
+  onMove,
+  currentTurnId,
+  playerPresentation,
+  revision,
+}: Props) {
   const { t } = useTranslation('combat');
   const displayName = token.displayNameKey
     ? t(token.displayNameKey, { defaultValue: token.name })
     : token.name;
   const pcName = useStore((s) => s.pc.name);
-  const pcHeroClass = useStore((s) => s.pc.heroClass);
-  const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
+  const storedHeroClass = useStore((s) => s.pc.heroClass);
+  const pcHeroClass = playerPresentation ? playerPresentation.heroClass : storedHeroClass;
+  const storedPortrait = useStore((s) => s.pc.portraitUrl);
+  const pcPortraitUrl = playerPresentation ? playerPresentation.portraitUrl : storedPortrait;
   const originLeft = token.x * cellSize;
   const originTop = token.y * cellSize;
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
   const isDead = token.hp === 0;
-  const pcCharacterId = useStore((s) => s.pc.characterId);
+  const storedCharacterId = useStore((s) => s.pc.characterId);
+  const pcCharacterId = playerPresentation ? playerPresentation.characterId : storedCharacterId;
   const isPcToken = pcCharacterId
     ? token.characterId === pcCharacterId
-    : pcName !== null && token.name === pcName;
+    : !playerPresentation && pcName !== null && token.name === pcName;
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for
@@ -198,6 +217,37 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   const currentTop = isDragging && liveTop !== null ? liveTop : originTop;
   // A token is draggable only when it is the active PC token on its turn and alive.
   const draggable = onMove !== undefined && isPcToken && token.id === currentTurnId && !isDead;
+  useEffect(() => {
+    if (!draggable) cancelDrag();
+  }, [draggable, cancelDrag]);
+  const dragAuthority = useRef({
+    id: token.id,
+    x: token.x,
+    y: token.y,
+    turn: currentTurnId,
+    character: pcCharacterId,
+    revision,
+  });
+  useEffect(() => {
+    const old = dragAuthority.current;
+    if (
+      old.id !== token.id ||
+      old.x !== token.x ||
+      old.y !== token.y ||
+      old.turn !== currentTurnId ||
+      old.character !== pcCharacterId ||
+      old.revision !== revision
+    )
+      cancelDrag();
+    dragAuthority.current = {
+      id: token.id,
+      x: token.x,
+      y: token.y,
+      turn: currentTurnId,
+      character: pcCharacterId,
+      revision,
+    };
+  }, [token.id, token.x, token.y, currentTurnId, pcCharacterId, revision, cancelDrag]);
 
   return (
     <>
@@ -418,7 +468,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
               textShadow: '0 1px 4px rgba(0,0,0,0.7)',
             }}
           >
-            Your turn
+            {t('your_turn')}
           </div>
         )}
       </div>

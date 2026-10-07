@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import type { AoeTemplateEntry, CombatToken } from '../state/combat';
 import { useStore } from '../state/useStore';
 import { AoeTemplate } from './AoeTemplate';
-import { CombatToken as CombatTokenComponent } from './CombatToken';
+import { CombatToken as CombatTokenComponent, type PlayerTokenPresentation } from './CombatToken';
 
 interface Props {
+  playerPresentation?: PlayerTokenPresentation;
+  movableTokenId?: string | null;
   active: boolean;
   tokens: CombatToken[];
   cellSize: number;
@@ -32,6 +34,8 @@ interface Props {
 export function CombatOverlay({
   active,
   tokens,
+  playerPresentation,
+  movableTokenId,
   cellSize,
   zoom = 1,
   widthCells,
@@ -87,10 +91,14 @@ export function CombatOverlay({
         <CombatTokenComponent
           key={token.id}
           token={token}
+          {...(revision !== undefined ? { revision } : {})}
           cellSize={cellSize}
           zoom={zoom}
           currentTurnId={currentTurnId}
-          {...(onMoveToken ? { onMove: onMoveToken } : {})}
+          {...(playerPresentation ? { playerPresentation } : {})}
+          {...(onMoveToken && (movableTokenId === undefined || movableTokenId === token.id)
+            ? { onMove: onMoveToken }
+            : {})}
         />
       ))}
       {aoeTemplates.map((tmpl) => (

@@ -1,0 +1,69 @@
+.root {
+  grid-column: 1 / -1;
+  grid-row: 2 / 4;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-6);
+  color: var(--color-fg-primary);
+  background: var(--color-bg-base);
+}
+.content {
+  max-width: calc(var(--chat-width) * 2 + var(--space-8) * 4);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-6);
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+.card {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.card h2 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
+  color: var(--color-fg-primary);
+  font: inherit;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: var(--space-3);
+  background: var(--color-bg-overlay);
+  border-radius: var(--radius-sm);
+}
+.meta {
+  color: var(--color-fg-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}

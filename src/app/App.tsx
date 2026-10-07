@@ -50,6 +50,8 @@ import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import { AppOverlays } from './AppOverlays';
 import { AppShell } from './AppShell';
+import { RoomExperience } from './RoomExperience';
+import { exitRoomToLocalCampaign } from './roomExit';
 import { useAgentTurn } from './useAgentTurn';
 import { useAppShellController } from './useAppShellController';
 
@@ -132,6 +134,8 @@ interface CampaignTitleBarProps {
   campaignTitle?: string;
   onLanguageChange: (language: 'en' | 'ru') => void;
   onOpenSettings: () => void;
+  onOpenRoom?: () => void;
+  hideSettings?: boolean;
 }
 
 function CampaignTitleBar({
@@ -139,6 +143,8 @@ function CampaignTitleBar({
   campaignTitle,
   onLanguageChange,
   onOpenSettings,
+  onOpenRoom,
+  hideSettings,
 }: CampaignTitleBarProps) {
   const { t } = useTranslation('common');
   const { t: tCampaigns } = useTranslation('campaigns');
@@ -167,15 +173,22 @@ function CampaignTitleBar({
           onChange={onLanguageChange}
           ariaLabel={t('language')}
         />
-        <button
-          type="button"
-          className="dm-btn-tb dm-btn-tb-icon"
-          onClick={onOpenSettings}
-          aria-label={t('settings')}
-          title={t('settings')}
-        >
-          <Icons.Settings size={14} />
-        </button>
+        {onOpenRoom && (
+          <button type="button" className="dm-btn-tb" onClick={onOpenRoom}>
+            {tCampaigns('coop')}
+          </button>
+        )}
+        {!hideSettings && (
+          <button
+            type="button"
+            className="dm-btn-tb dm-btn-tb-icon"
+            onClick={onOpenSettings}
+            aria-label={t('settings')}
+            title={t('settings')}
+          >
+            <Icons.Settings size={14} />
+          </button>
+        )}
         <div className="dm-window-controls">
           <button
             type="button"
@@ -214,6 +227,7 @@ function CampaignTitleBar({
 }
 
 function App() {
+  const [roomOpen, setRoomOpen] = useState(false);
   const { t } = useTranslation('common');
   const { t: tAdventure } = useTranslation('adventure');
   const { t: tCampaigns } = useTranslation('campaigns');
@@ -318,7 +332,7 @@ function App() {
     chatPanelWidth,
     quickSave,
     openSaves,
-    enabled: hydrated,
+    enabled: hydrated && !roomOpen,
   });
 
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
@@ -413,6 +427,30 @@ function App() {
     );
   }
 
+  if (roomOpen) {
+    return (
+      <ErrorBoundary level="top">
+        <AppShell>
+          <CampaignTitleBar
+            language={uiLanguage}
+            campaignTitle={tCampaigns('coop')}
+            onLanguageChange={setUiLanguage}
+            onOpenSettings={() => {}}
+            hideSettings
+          />
+          <RoomExperience
+            campaigns={campaignsFeature.campaigns}
+            onBack={() =>
+              exitRoomToLocalCampaign(persistedCampaignId, campaignsFeature.activate, () =>
+                setRoomOpen(false),
+              )
+            }
+          />
+        </AppShell>
+      </ErrorBoundary>
+    );
+  }
+
   if (onboardingCompleted && campaignRoute.kind !== 'game-table') {
     return (
       <ErrorBoundary level="top">
@@ -425,6 +463,10 @@ function App() {
               : {})}
             onLanguageChange={setUiLanguage}
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenRoom={() => {
+              useStore.getState().chat.abort();
+              setRoomOpen(true);
+            }}
           />
           {campaignRoute.kind === 'campaign-create' ? (
             <CampaignCreate
@@ -505,6 +547,16 @@ function App() {
           </div>
 
           <div className="dm-titlebar-right">
+            <button
+              type="button"
+              className="dm-btn-tb"
+              onClick={() => {
+                useStore.getState().chat.abort();
+                setRoomOpen(true);
+              }}
+            >
+              {tCampaigns('coop')}
+            </button>
             {adventureFeature.projection && (
               <button
                 type="button"

@@ -5,6 +5,7 @@ import { Select } from '../../ui/Select';
 import type { CombatToken } from './model/types';
 
 interface Props {
+  disabled?: boolean;
   actor: CombatToken;
   targets: CombatToken[];
   onClose: () => void;
@@ -15,7 +16,7 @@ interface Props {
     twoHanded: boolean,
   ) => Promise<boolean>;
 }
-export function WeaponAttackDialog({ actor, targets, onClose, onAttack }: Props) {
+export function WeaponAttackDialog({ actor, targets, onClose, onAttack, disabled = false }: Props) {
   const { t } = useTranslation('combat');
   const loadout = actor.loadout;
   const [weapon, setWeapon] = useState(loadout?.default_weapon ?? 'unarmed');
@@ -26,6 +27,7 @@ export function WeaponAttackDialog({ actor, targets, onClose, onAttack }: Props)
   const [error, setError] = useState(false);
   const profile = loadout?.attacks.find((attack) => attack.weapon_id === weapon);
   const available =
+    !disabled &&
     profile &&
     (weapon === 'unarmed' || (loadout?.quantities[weapon] ?? 0) > 0) &&
     (!profile.ammunition || (loadout?.arrows ?? 0) > 0) &&

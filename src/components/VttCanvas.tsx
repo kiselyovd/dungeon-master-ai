@@ -9,15 +9,28 @@ import type {
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { BattleMap } from '../api/contracts/battleMap';
 import { KEY_ART } from '../assets/livingTabletop';
+import type { CombatToken } from '../features/combat/model/types';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { AuthoredMap } from './AuthoredMap';
 import { CombatOverlay } from './CombatOverlay';
+import type { PlayerTokenPresentation } from './CombatToken';
+export interface VttPresentation {
+  active: boolean;
+  tokens: CombatToken[];
+  map: BattleMap | null;
+  currentTurnId: string | null;
+  revision: number;
+  player: PlayerTokenPresentation;
+  movableTokenId: string | null;
+}
 
 extend({ Container, Graphics });
 
 interface Props {
+  presentation?: VttPresentation;
   /** Optional override; when omitted the count is derived from the container width. */
   widthCells?: number;
   /** Optional override; when omitted the count is derived from the container height. */
@@ -42,19 +55,30 @@ function deriveCells(containerPx: number, cellSize: number, override: number | u
   return Math.max(1, Math.floor(containerPx / cellSize));
 }
 
-export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken }: Props) {
+export function VttCanvas({
+  widthCells,
+  heightCells,
+  cellSize = 30,
+  onMoveToken,
+  presentation,
+}: Props) {
   const { t } = useTranslation('combat');
 
-  const combatActive = useStore((s) => s.combat.active);
+  const storedActive = useStore((s) => s.combat.active);
   const storedTokens = useStore((s) => s.combat.tokens);
   const authored = useStore((s) => s.combat.authored);
   const adventureMap = useStore((s) => s.session.adventure?.map);
-  const arena = combatActive ? authored?.map : adventureMap;
-  const tokens = !combatActive && authored ? [] : storedTokens;
-  const currentTurnId = useStore((s) => s.combat.currentTurnId);
-  const combatRevision = useStore((s) => s.combat.revision);
-  const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
-  const mapImageUrl = useStore((s) => s.session.mapImageUrl);
+  const storedTurn = useStore((s) => s.combat.currentTurnId);
+  const storedRevision = useStore((s) => s.combat.revision);
+  const storedAoe = useStore((s) => s.combat.aoeTemplates);
+  const storedImage = useStore((s) => s.session.mapImageUrl);
+  const combatActive = presentation ? presentation.active : storedActive;
+  const arena = presentation ? presentation.map : combatActive ? authored?.map : adventureMap;
+  const tokens = presentation ? presentation.tokens : !combatActive && authored ? [] : storedTokens;
+  const currentTurnId = presentation ? presentation.currentTurnId : storedTurn;
+  const combatRevision = presentation ? presentation.revision : storedRevision;
+  const aoeTemplates = presentation ? [] : storedAoe;
+  const mapImageUrl = presentation ? null : storedImage;
   const hasMap = mapImageUrl !== null || Boolean(arena);
   const [showGrid, setShowGrid] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -392,6 +416,12 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
           </Application>
           {showTokens && (
             <CombatOverlay
+              {...(presentation
+                ? {
+                    playerPresentation: presentation.player,
+                    movableTokenId: presentation.movableTokenId,
+                  }
+                : {})}
               active={combatActive}
               tokens={tokens}
               cellSize={cellSize}

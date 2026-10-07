@@ -9,6 +9,7 @@ export interface RoomPorts {
   stream(options: RoomStreamOptions): Promise<void>;
 }
 export interface RoomView {
+  timelineReset: number;
   connection: RoomConnection | null;
   state: RoomState | null;
   cursor: number | null;
@@ -18,8 +19,20 @@ export interface RoomView {
   pending: PendingRoomAction | null;
   dmText: string;
 }
+function characterSignature(character: Record<string, unknown>) {
+  const draft = { ...character };
+  delete draft.characterId;
+  return JSON.stringify(draft, (_key, value: unknown) =>
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(
+          Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
+        )
+      : value,
+  );
+}
 function empty(): RoomView {
   return {
+    timelineReset: 0,
     connection: null,
     state: null,
     cursor: null,
@@ -96,6 +109,7 @@ export class RoomController {
     this.head = update.head;
     this.patch({
       state: update.state,
+      timelineReset: this.timelineReset,
       cursor: Math.max(this.view.cursor ?? 0, update.cursor),
       ...(changedTimeline ? { dmText: '', errorCode: 'room_timeline_restored' } : {}),
       ...(interruptedDm ? { busy: false } : {}),
@@ -176,6 +190,32 @@ export class RoomController {
     } finally {
       if (this.current(generation)) this.patch({ busy: false });
     }
+  }
+  async submitCharacter(character: Record<string, unknown>) {
+    if (this.view.status === 'disconnected') await this.reconnect();
+    if (this.view.status !== 'connected') throw new Error('character_commit_failed');
+    const pending = this.view.pending;
+    let action: Extract<RoomAction, { kind: 'submit_character' }>;
+    if (pending) {
+      if (pending.kind !== 'submit_character') throw new Error('native_room_action_pending');
+      const original = { ...pending.character };
+      delete original.characterId;
+      const draft = { ...character };
+      delete draft.characterId;
+      if (characterSignature(original) !== characterSignature(draft))
+        throw new Error('native_room_action_pending');
+      action = pending;
+    } else {
+      const characterId = crypto.randomUUID();
+      action = {
+        kind: 'submit_character',
+        proposal_id: crypto.randomUUID(),
+        character_id: characterId,
+        character: { ...character, characterId },
+      };
+    }
+    await this.perform(action);
+    if (this.view.errorCode || this.view.pending) throw new Error('character_commit_failed');
   }
   async sendDm(text: string) {
     if (!text.trim() || !this.view.state?.own_character) return;

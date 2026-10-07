@@ -1,3 +1,4 @@
+import '../../i18n';
 import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatToken as TokenData } from '../../state/combat';
@@ -307,4 +308,34 @@ describe('CombatToken', () => {
       expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
     });
   });
+});
+
+it('discards an unconfirmed drag when room permission disappears', () => {
+  const token = { ...baseToken, characterId: 'own-character', isActive: true };
+  const player = { characterId: 'own-character', heroClass: 'fighter', portraitUrl: null };
+  const move = vi.fn();
+  const { getByTestId, rerender, container } = render(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      playerPresentation={player}
+      currentTurnId={token.id}
+      onMove={move}
+    />,
+  );
+  const element = getByTestId(`combat-token-${token.id}`);
+  fireEvent.pointerDown(element, { pointerId: 1, button: 0, clientX: 60, clientY: 90 });
+  fireEvent.pointerMove(element, { pointerId: 1, clientX: 120, clientY: 90 });
+  rerender(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      playerPresentation={player}
+      currentTurnId={token.id}
+    />,
+  );
+  fireEvent.pointerUp(element, { pointerId: 1, clientX: 120, clientY: 90 });
+  expect(container.querySelector('[data-ghost]')).toBeNull();
+  expect(element.style.left).toBe('60px');
+  expect(move).not.toHaveBeenCalled();
 });

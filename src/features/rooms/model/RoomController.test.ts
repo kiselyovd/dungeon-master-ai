@@ -155,3 +155,35 @@ it('aborts old DM callbacks on a real timeline reset but preserves normal snapsh
   controller.leave();
   void sending;
 });
+
+it('repeats an unchanged wizard proposal with original UUIDs after a lost result', async () => {
+  const transport = ports();
+  const character = { name: 'Iris', heroClass: 'fighter', level: 1 };
+  let saved: Parameters<RoomPorts['act']>[1] | null = null;
+  transport.act = vi.fn(async (_room, action) => {
+    if (!saved) {
+      saved = action;
+      throw { code: 'native_room_transport_failed' };
+    }
+    saved = null;
+  });
+  transport.pending = vi.fn(async () =>
+    saved?.kind === 'submit_character'
+      ? {
+          ...saved,
+          character: Object.fromEntries(
+            Object.entries(saved.character).sort(([a], [b]) => a.localeCompare(b)),
+          ),
+        }
+      : null,
+  );
+  const controller = new RoomController(transport);
+  await controller.activate(connection());
+  await expect(controller.submitCharacter(character)).rejects.toThrow('character_commit_failed');
+  await controller.submitCharacter({ ...character });
+  const calls = vi.mocked(transport.act).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(calls[1]?.[1]).toEqual(calls[0]?.[1]);
+  expect(controller.getSnapshot().pending).toBeNull();
+  controller.leave();
+});

@@ -6,12 +6,13 @@ import { preferredSpellSlot, spellAvailable } from './model/spellAvailability';
 import type { CombatToken, SpellChoiceDto } from './model/types';
 
 interface Props {
+  disabled?: boolean;
   actor: CombatToken;
   targets: CombatToken[];
   onClose: () => void;
   onCast: (spellId: string, targetIds: string[], slotLevel: number) => Promise<boolean>;
 }
-export function SpellCastDialog({ actor, targets, onClose, onCast }: Props) {
+export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = false }: Props) {
   const { t } = useTranslation('combat');
   const choices = actor.casting?.choices ?? [];
   const first = choices.find((choice) => choice.supported);
@@ -28,7 +29,8 @@ export function SpellCastDialog({ actor, targets, onClose, onCast }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const available = Boolean(
-    rule &&
+    !disabled &&
+      rule &&
       spellAvailable(actor, rule, slot) &&
       eligible(rule).some((target) => target.id === targetId),
   );

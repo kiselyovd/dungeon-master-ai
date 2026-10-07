@@ -13,6 +13,7 @@ import enLocalLlm from './locales/en/local_llm.json';
 import enLocalMode from './locales/en/local_mode.json';
 import enNpc from './locales/en/npc.json';
 import enOnboarding from './locales/en/onboarding.json';
+import enRooms from './locales/en/rooms.json';
 import enSaves from './locales/en/saves.json';
 import enSettings from './locales/en/settings.json';
 import enTools from './locales/en/tools.json';
@@ -31,6 +32,7 @@ import ruLocalLlm from './locales/ru/local_llm.json';
 import ruLocalMode from './locales/ru/local_mode.json';
 import ruNpc from './locales/ru/npc.json';
 import ruOnboarding from './locales/ru/onboarding.json';
+import ruRooms from './locales/ru/rooms.json';
 import ruSaves from './locales/ru/saves.json';
 import ruSettings from './locales/ru/settings.json';
 import ruTools from './locales/ru/tools.json';
@@ -45,6 +47,7 @@ void i18n.use(initReactI18next).init({
   supportedLngs: ['en', 'ru'],
   defaultNS: 'common',
   ns: [
+    'rooms',
     'adventure',
     'common',
     'chat',
@@ -66,6 +69,7 @@ void i18n.use(initReactI18next).init({
   ],
   resources: {
     en: {
+      rooms: enRooms,
       adventure: enAdventure,
       common: enCommon,
       chat: enChat,
@@ -86,6 +90,7 @@ void i18n.use(initReactI18next).init({
       tools: enTools,
     },
     ru: {
+      rooms: ruRooms,
       adventure: ruAdventure,
       common: ruCommon,
       chat: ruChat,
