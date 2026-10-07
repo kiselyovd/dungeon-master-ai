@@ -53,8 +53,9 @@ capability responses. The router has no settings/provider/save/local-runtime
 routes. Keep it unbound to public interfaces until scoped party/game commands
 and shared-state projections are implemented and tested.
 
-Then add own-sheet/shared-party projection, host approval of submitted heroes,
-atomic room-lease checks on gameplay mutations, and event/reconnect handling.
+Own-sheet/shared-party projection and host approval of submitted heroes are now
+implemented and verified through actual loopback HTTP. Next add atomic room-lease
+checks on gameplay mutations and event/reconnect handling.
 Only after these guards pass should bootstrap compose the LAN listener and native
 host/join controls. This sequence implements the existing room/party plan; it
 does not replace the pending complete gameplay and two-device requirements.
@@ -74,3 +75,17 @@ Seven room integration tests and the full consolidated gate passed with explicit
 RUST_LOG=info (workspace Rust plus 1042 frontend tests). Independent read-only
 review found no actionable issue in the router and own-party projection. The
 production listener remains unmodified; native/LAN/gameplay acceptance is pending.
+
+Character acceptance checkpoint: migration 0010, private durable proposals and
+host-only summary/approval routes now implement the actual guest HTTP flow.
+Acceptance rechecks room authority and target activity inside the same transaction
+as party enrollment, revision, status and receipts. Forced final-receipt failure
+rolled back every effect. Changed proposal content conflicts; superseded drafts
+and revoked members cannot be accepted. Real SQLite/Stronghold reopening retained
+the draft and allowed host acceptance afterward. Nine room tests, seven party
+storage tests, ten repository contracts and the full consolidated gate passed
+(workspace Rust, architecture/static/Clippy and 1042 frontend tests). An additional
+focused changed-content assertion passed after the full Rust run. Independent
+review found no actionable issue. Original 32 source hashes remain unchanged.
+The next step removes the verified single-hero restriction in combat persistence;
+production LAN/native/gameplay and whole-goal acceptance remain pending.

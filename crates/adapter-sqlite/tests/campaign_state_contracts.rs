@@ -225,6 +225,12 @@ async fn migration_backfills_the_explicitly_restored_hero_without_rewriting_hist
         .execute(store.pool())
         .await
         .unwrap();
+    sqlx::raw_sql(include_str!(
+        "../migrations/0010_room_character_proposals.sql"
+    ))
+    .execute(store.pool())
+    .await
+    .unwrap();
     assert_eq!(
         store
             .load_current(campaign.id)
@@ -324,6 +330,12 @@ async fn migration_skips_incomplete_sheets_and_selects_a_complete_older_candidat
         .execute(store.pool())
         .await
         .unwrap();
+    sqlx::raw_sql(include_str!(
+        "../migrations/0010_room_character_proposals.sql"
+    ))
+    .execute(store.pool())
+    .await
+    .unwrap();
     assert_eq!(
         store.load_current(a.id).await.unwrap().projection.character["name"],
         "Complete Mira"

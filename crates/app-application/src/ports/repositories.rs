@@ -86,6 +86,24 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn submit_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_character::SubmitRoomCharacter,
+    ) -> Result<crate::models::room_character::ProposalSummary, RepositoryError>;
+    async fn own_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<Option<crate::models::room_character::OwnCharacterProposal>, RepositoryError>;
+    async fn pending_character_proposals(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<Vec<crate::models::room_character::ProposalSummary>, RepositoryError>;
+    async fn approve_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_character::ApproveRoomCharacter,
+    ) -> Result<crate::models::room_character::CharacterApproval, RepositoryError>;
     async fn room(
         &self,
         room_id: Uuid,

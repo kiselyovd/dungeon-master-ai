@@ -2,6 +2,7 @@
 use crate::services::HttpServiceError;
 use app_application::{
     models::room::PublicRoom,
+    models::{identity::Revision, room_character::*},
     rooms::{JoinRoom, RoomError, RoomSecret, RoomService, RoomSubject},
 };
 use axum::{
@@ -22,6 +23,24 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}", get(current_room).delete(close_room))
         .route("/rooms/{room_id}/join", post(join_room))
         .route("/rooms/{room_id}/party", get(own_party))
+        .route(
+            "/rooms/{room_id}/character-proposals",
+            get(pending_proposals)
+                .post(submit_character)
+                .layer(DefaultBodyLimit::max(
+                    app_application::models::campaign_state::MAX_PORTRAIT_URL_BYTES
+                        + app_application::models::campaign_state::MAX_CHARACTER_METADATA_BYTES
+                        + 64 * 1024,
+                )),
+        )
+        .route(
+            "/rooms/{room_id}/character-proposals/own",
+            get(own_proposal),
+        )
+        .route(
+            "/rooms/{room_id}/character-proposals/{proposal_id}/approve",
+            post(approve_character),
+        )
         .route("/rooms/{room_id}/invitation", post(invite))
         .route("/rooms/{room_id}/members/{member_id}", delete(revoke))
         .layer(DefaultBodyLimit::max(8 * 1024))
@@ -37,6 +56,9 @@ async fn no_store(request: axum::extract::Request, next: Next) -> Response {
 }
 fn room_error(error: RoomError) -> HttpServiceError {
     match error {
+        RoomError::Conflict => HttpServiceError::Conflict {
+            code: "room_state_conflict",
+        },
         RoomError::Denied => HttpServiceError::Unauthorized {
             code: "room_access_denied",
         },
@@ -178,4 +200,82 @@ async fn close_room(
     let subject = subject(&service, room_id, &headers).await?;
     service.close(&subject).await.map_err(room_error)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CharacterRequest {
+    proposal_id: Uuid,
+    character_id: Uuid,
+    character: serde_json::Value,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApprovalRequest {
+    expected_revision: u64,
+    causation_id: String,
+}
+async fn submit_character(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<CharacterRequest>,
+) -> Result<Json<ProposalSummary>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .submit_character(
+            &subject,
+            SubmitRoomCharacter {
+                proposal_id: request.proposal_id,
+                character_id: request.character_id,
+                character: request.character,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn pending_proposals(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ProposalSummary>>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .pending_proposals(&subject)
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn own_proposal(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<Option<OwnCharacterProposal>>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .own_proposal(&subject)
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+async fn approve_character(
+    State(service): State<Arc<RoomService>>,
+    Path((room_id, proposal_id)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+    Json(request): Json<ApprovalRequest>,
+) -> Result<Json<CharacterApproval>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .approve_character(
+            &subject,
+            ApproveRoomCharacter {
+                proposal_id,
+                expected_revision: Revision(request.expected_revision),
+                causation_id: request.causation_id,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
 }

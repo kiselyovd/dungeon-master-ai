@@ -6,6 +6,7 @@ use app_application::{
         campaign_state::CommitCampaignCharacter,
         party::{EnrollPartyCharacter, InitializeParty},
         room::CreateLocalRoom,
+        room_character::{ApproveRoomCharacter, ProposalStatus, SubmitRoomCharacter},
         session::CampaignSeed,
     },
     ports::repositories::{CampaignStateRepository, PartyRepository, RoomRepository},
@@ -73,6 +74,218 @@ async fn fixture(db: sqlx::SqlitePool) -> (Arc<SqliteStore>, CreateLocalRoom) {
 }
 fn secret(value: &RoomSecret) -> RoomSecret {
     RoomSecret::from_input(value.expose().into()).unwrap()
+}
+
+async fn guest_proposal(
+    store: &SqliteStore,
+    service: &RoomService,
+    created: &app_application::rooms::CreatedRoom,
+) -> (
+    app_application::rooms::RoomGrant,
+    app_application::rooms::RoomSubject,
+    SubmitRoomCharacter,
+) {
+    let grant = service
+        .join(JoinRoom {
+            room_id: created.grant.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Guest".into(),
+            invitation: secret(&created.invitation),
+            resume_proof: RoomSecret::generate(),
+        })
+        .await
+        .unwrap();
+    let subject = service
+        .authenticate(grant.room.room_id, grant.member_id, &grant.capability)
+        .await
+        .unwrap();
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let character_id = Uuid::new_v4();
+    let mut character = party.characters[&party.roster.members[0].character_id].clone();
+    character["characterId"] = json!(character_id);
+    character["name"] = json!("Guest hero");
+    character["backstory"] = json!("private-proposal-story");
+    (
+        grant,
+        subject,
+        SubmitRoomCharacter {
+            proposal_id: Uuid::new_v4(),
+            character_id,
+            character,
+        },
+    )
+}
+
+#[tokio::test]
+async fn approval_failure_rolls_back_hero_revision_status_and_both_receipts() {
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (_, guest, submission) = guest_proposal(&store, &service, &created).await;
+    service
+        .submit_character(&guest, submission.clone())
+        .await
+        .unwrap();
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let approval = ApproveRoomCharacter {
+        proposal_id: submission.proposal_id,
+        expected_revision: before.revision,
+        causation_id: "approve-once".into(),
+    };
+    sqlx::raw_sql("CREATE TRIGGER reject_approval_receipt BEFORE INSERT ON room_character_approvals BEGIN SELECT RAISE(ABORT,'synthetic_approval_failure'); END;").execute(store.pool()).await.unwrap();
+    assert!(service
+        .approve_character(&host, approval.clone())
+        .await
+        .is_err());
+    let after = store.party(before.campaign_id).await.unwrap().unwrap();
+    assert!(before == after);
+    assert_eq!(
+        service
+            .own_proposal(&guest)
+            .await
+            .unwrap()
+            .unwrap()
+            .summary
+            .status,
+        ProposalStatus::Pending
+    );
+    let receipts:i64=sqlx::query_scalar("SELECT (SELECT COUNT(*) FROM room_character_approvals)+(SELECT COUNT(*) FROM party_operation_receipts WHERE causation_id LIKE 'room-approve:%')").fetch_one(store.pool()).await.unwrap();
+    assert_eq!(receipts, 0);
+    sqlx::raw_sql("DROP TRIGGER reject_approval_receipt;")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let accepted = service
+        .approve_character(&host, approval.clone())
+        .await
+        .unwrap();
+    assert_eq!(accepted.revision.0, before.revision.0 + 1);
+    assert_eq!(
+        service.approve_character(&host, approval).await.unwrap(),
+        accepted
+    );
+    assert_eq!(
+        store
+            .party(before.campaign_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .roster
+            .members
+            .len(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn superseded_proposals_and_revoked_members_cannot_be_approved() {
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, guest, submission) = guest_proposal(&store, &service, &created).await;
+    service
+        .submit_character(&guest, submission.clone())
+        .await
+        .unwrap();
+    let mut changed = submission.clone();
+    changed.character["name"] = json!("Changed under old UUID");
+    assert!(matches!(
+        service.submit_character(&guest, changed).await,
+        Err(app_application::rooms::RoomError::Conflict)
+    ));
+    let mut replacement = submission.clone();
+    replacement.proposal_id = Uuid::new_v4();
+    replacement.character["name"] = json!("Revised hero");
+    service
+        .submit_character(&guest, replacement.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        service
+            .own_proposal(&guest)
+            .await
+            .unwrap()
+            .unwrap()
+            .summary
+            .proposal_id,
+        replacement.proposal_id
+    );
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let before = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut approval = ApproveRoomCharacter {
+        proposal_id: submission.proposal_id,
+        expected_revision: before.revision,
+        causation_id: "approve-superseded".into(),
+    };
+    assert!(service
+        .approve_character(&host, approval.clone())
+        .await
+        .is_err());
+    approval.proposal_id = replacement.proposal_id;
+    approval.causation_id = "approve-revoked".into();
+    service.revoke(&host, grant.member_id).await.unwrap();
+    assert!(store
+        .approve_character_proposal(host.lease(), approval.clone())
+        .await
+        .is_err());
+    let fresh_host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    assert!(service
+        .approve_character(&fresh_host, approval)
+        .await
+        .is_err());
+    assert!(service.own_proposal(&guest).await.is_err());
+    assert!(service
+        .pending_proposals(&fresh_host)
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(store.party(before.campaign_id).await.unwrap().unwrap() == before);
 }
 
 #[tokio::test]
@@ -166,20 +379,95 @@ async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_rout
     let character_id = Uuid::new_v4();
     character["characterId"] = json!(character_id);
     character["name"] = json!("Guest hero");
-    character["backstory"] = json!("guest-private-backstory");
-    store
-        .enroll_party_character(EnrollPartyCharacter {
-            campaign_id: party.campaign_id,
-            session_id: party.session_id,
-            expected_revision: party.revision,
-            causation_id: "http-party-acceptance".into(),
-            verified_host_member_id: party.roster.host_member_id,
-            member_id: Uuid::parse_str(member).unwrap(),
-            character_id,
-            character,
-        })
+    character["backstory"] = json!(format!("guest-private-backstory{}", "A".repeat(9 * 1024)));
+    let proposal_id = Uuid::new_v4();
+    let submission =
+        json!({"proposal_id":proposal_id,"character_id":character_id,"character":character});
+    let submitted = client
+        .post(format!("{url}/character-proposals"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&submission)
+        .send()
         .await
         .unwrap();
+    assert_eq!(submitted.status(), 200);
+    let submitted = submitted.text().await.unwrap();
+    assert!(!submitted.contains("guest-private-backstory"));
+    let replay = client
+        .post(format!("{url}/character-proposals"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&submission)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), 200);
+    let private_draft = client
+        .get(format!("{url}/character-proposals/own"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(private_draft.status(), 200);
+    assert!(private_draft
+        .text()
+        .await
+        .unwrap()
+        .contains("guest-private-backstory"));
+    let guest_list = client
+        .get(format!("{url}/character-proposals"))
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(guest_list.status(), 401);
+    let host_list = client
+        .get(format!("{url}/character-proposals"))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(host_list.status(), 200);
+    let host_list = host_list.text().await.unwrap();
+    assert!(host_list.contains("Guest hero"));
+    assert!(!host_list.contains("guest-private-backstory"));
+    let approval =
+        json!({"expected_revision":party.revision.0,"causation_id":"http-party-acceptance"});
+    let approval_url = format!("{url}/character-proposals/{proposal_id}/approve");
+    let guest_approval = client
+        .post(&approval_url)
+        .bearer_auth(capability)
+        .header("x-room-member-id", member)
+        .json(&approval)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(guest_approval.status(), 401);
+    for _ in 0..2 {
+        let accepted = client
+            .post(&approval_url)
+            .bearer_auth(created.grant.capability.expose())
+            .header("x-room-member-id", created.grant.member_id.to_string())
+            .json(&approval)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(accepted.status(), 200);
+        let accepted: serde_json::Value = accepted.json().await.unwrap();
+        assert_eq!(accepted["revision"], party.revision.0 + 1);
+    }
+    let changed_approval = client.post(&approval_url).bearer_auth(created.grant.capability.expose()).header("x-room-member-id", created.grant.member_id.to_string()).json(&json!({"expected_revision":party.revision.0 + 1,"causation_id":"http-party-acceptance"})).send().await.unwrap();
+    assert_eq!(changed_approval.status(), 409);
+    let accepted_party = store.party(party.campaign_id).await.unwrap().unwrap();
+    assert_eq!(accepted_party.roster.members.len(), 2);
+    assert_eq!(
+        accepted_party.roster.members[1].member_id,
+        Uuid::parse_str(member).unwrap()
+    );
     let own = client
         .get(format!("{url}/party"))
         .bearer_auth(capability)
@@ -642,6 +930,28 @@ async fn credentials_survive_actual_sqlite_and_stronghold_reopening() {
         })
         .await
         .unwrap();
+    let guest = service
+        .authenticate(joined.room.room_id, joined.member_id, &joined.capability)
+        .await
+        .unwrap();
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let character_id = Uuid::new_v4();
+    let mut character = party.characters[&party.roster.members[0].character_id].clone();
+    character["characterId"] = json!(character_id);
+    character["backstory"] = json!("durable-private-proposal");
+    let draft = SubmitRoomCharacter {
+        proposal_id: Uuid::new_v4(),
+        character_id,
+        character,
+    };
+    service
+        .submit_character(&guest, draft.clone())
+        .await
+        .unwrap();
     drop(service);
     drop(vault);
     store.pool().close().await;
@@ -656,6 +966,36 @@ async fn credentials_survive_actual_sqlite_and_stronghold_reopening() {
         StrongholdSecretsStore::open(vault_path, b"test-vault-passphrase".to_vec()).unwrap(),
     );
     let reopened = RoomService::new(store.clone(), store.clone(), vault, clock);
+    let guest = reopened
+        .authenticate(joined.room.room_id, joined.member_id, &joined.capability)
+        .await
+        .unwrap();
+    let recovered = reopened.own_proposal(&guest).await.unwrap().unwrap();
+    assert_eq!(recovered.summary.proposal_id, draft.proposal_id);
+    assert_eq!(recovered.summary.status, ProposalStatus::Pending);
+    assert!(recovered.character == draft.character);
+    let host = reopened
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let approval = ApproveRoomCharacter {
+        proposal_id: draft.proposal_id,
+        expected_revision: party.revision,
+        causation_id: "approve-after-reopen".into(),
+    };
+    let approved = reopened
+        .approve_character(&host, approval.clone())
+        .await
+        .unwrap();
+    assert_eq!(approved.proposal.status, ProposalStatus::Accepted);
+    assert_eq!(
+        reopened.approve_character(&host, approval).await.unwrap(),
+        approved
+    );
     assert!(reopened
         .authenticate(joined.room.room_id, joined.member_id, &joined.capability)
         .await

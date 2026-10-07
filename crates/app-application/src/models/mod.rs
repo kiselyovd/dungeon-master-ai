@@ -9,6 +9,7 @@ pub mod local_models;
 pub mod party;
 pub mod rest;
 pub mod room;
+pub mod room_character;
 pub mod session;
 pub mod settings;
 pub mod snapshot;

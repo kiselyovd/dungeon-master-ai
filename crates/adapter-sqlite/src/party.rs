@@ -16,7 +16,7 @@ fn error(code: &'static str) -> RepositoryError {
     }
 }
 
-async fn load(
+pub(crate) async fn load(
     tx: &mut Transaction<'_, Sqlite>,
     campaign_id: CampaignId,
 ) -> Result<Option<PartyState>, RepositoryError> {
@@ -288,82 +288,76 @@ impl PartyRepository for crate::SqliteStore {
         &self,
         command: EnrollPartyCharacter,
     ) -> Result<PartyState, RepositoryError> {
-        use app_application::models::campaign_state::{
-            valid_character_document, within_character_budget,
-        };
-        if !valid_causation(&command.causation_id)
-            || !valid_character_document(&command.character)
-            || !within_character_budget(&command.character)
-        {
-            return Err(error("party_character_invalid"));
-        }
-        let request =
-            serde_json::to_string(&command).map_err(|_| error("party_command_invalid"))?;
         let mut tx = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| error("party_begin_failed"))?;
-        let mut current = load(&mut tx, command.campaign_id)
-            .await?
-            .ok_or_else(|| error("party_missing"))?;
-        if current.session_id != command.session_id {
-            return Err(error("party_session_mismatch"));
-        }
-        if command.verified_host_member_id != current.roster.host_member_id {
-            return Err(error("party_host_required"));
-        }
-        if !is_replay(
-            &mut tx,
-            command.campaign_id,
-            &command.causation_id,
-            &request,
-        )
-        .await?
-        {
-            if current.revision != command.expected_revision {
-                return Err(RepositoryError::Conflict {
-                    expected: command.expected_revision,
-                    actual: current.revision,
-                });
-            }
-            let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM combat_encounters WHERE session_id=?1 AND ended_at IS NULL)").bind(command.session_id.0.to_string()).fetch_one(&mut *tx).await.map_err(|_|error("party_read_failed"))?;
-            if active {
-                return Err(error("party_combat_active"));
-            }
-            current
-                .roster
-                .join(command.member_id, command.character_id)
-                .map_err(|_| error("party_binding_rejected"))?;
-            if current.characters.contains_key(&command.character_id) {
-                return Err(error("party_character_already_enrolled"));
-            }
-            let mut sheet = command.character.clone();
-            sheet["characterId"] = serde_json::json!(command.character_id);
-            sqlx::query("INSERT INTO party_characters(campaign_id,member_id,character_id,character_json) VALUES(?1,?2,?3,?4)").bind(command.campaign_id.0.to_string()).bind(command.member_id.to_string()).bind(command.character_id.to_string()).bind(sheet.to_string()).execute(&mut *tx).await.map_err(|_|error("party_write_failed"))?;
-            crate::campaigns::advance_session_revision(
-                &mut tx,
-                command.campaign_id,
-                command.session_id,
-                command.expected_revision,
-                "party_character_enrolled",
-                &command.causation_id,
-            )
-            .await?;
-            receipt(
-                &mut tx,
-                command.campaign_id,
-                &command.causation_id,
-                &request,
-            )
-            .await?;
-        }
-        let state = load(&mut tx, command.campaign_id)
-            .await?
-            .ok_or_else(|| error("party_missing"))?;
+        let state = enroll_in_transaction(&mut tx, command).await?;
         tx.commit()
             .await
             .map_err(|_| error("party_commit_failed"))?;
         Ok(state)
     }
+}
+
+pub(crate) async fn enroll_in_transaction(
+    tx: &mut Transaction<'_, Sqlite>,
+    command: EnrollPartyCharacter,
+) -> Result<PartyState, RepositoryError> {
+    use app_application::models::campaign_state::{
+        valid_character_document, within_character_budget,
+    };
+    if !valid_causation(&command.causation_id)
+        || !valid_character_document(&command.character)
+        || !within_character_budget(&command.character)
+    {
+        return Err(error("party_character_invalid"));
+    }
+    let request = serde_json::to_string(&command).map_err(|_| error("party_command_invalid"))?;
+    let mut current = load(tx, command.campaign_id)
+        .await?
+        .ok_or_else(|| error("party_missing"))?;
+    if current.session_id != command.session_id {
+        return Err(error("party_session_mismatch"));
+    }
+    if command.verified_host_member_id != current.roster.host_member_id {
+        return Err(error("party_host_required"));
+    }
+    if !is_replay(tx, command.campaign_id, &command.causation_id, &request).await? {
+        if current.revision != command.expected_revision {
+            return Err(RepositoryError::Conflict {
+                expected: command.expected_revision,
+                actual: current.revision,
+            });
+        }
+        let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM combat_encounters WHERE session_id=?1 AND ended_at IS NULL)").bind(command.session_id.0.to_string()).fetch_one(&mut **tx).await.map_err(|_|error("party_read_failed"))?;
+        if active {
+            return Err(error("party_combat_active"));
+        }
+        current
+            .roster
+            .join(command.member_id, command.character_id)
+            .map_err(|_| error("party_binding_rejected"))?;
+        if current.characters.contains_key(&command.character_id) {
+            return Err(error("party_character_already_enrolled"));
+        }
+        let mut sheet = command.character.clone();
+        sheet["characterId"] = serde_json::json!(command.character_id);
+        sqlx::query("INSERT INTO party_characters(campaign_id,member_id,character_id,character_json) VALUES(?1,?2,?3,?4)").bind(command.campaign_id.0.to_string()).bind(command.member_id.to_string()).bind(command.character_id.to_string()).bind(sheet.to_string()).execute(&mut **tx).await.map_err(|_|error("party_write_failed"))?;
+        crate::campaigns::advance_session_revision(
+            tx,
+            command.campaign_id,
+            command.session_id,
+            command.expected_revision,
+            "party_character_enrolled",
+            &command.causation_id,
+        )
+        .await?;
+        receipt(tx, command.campaign_id, &command.causation_id, &request).await?;
+    }
+    let state = load(tx, command.campaign_id)
+        .await?
+        .ok_or_else(|| error("party_missing"))?;
+    Ok(state)
 }

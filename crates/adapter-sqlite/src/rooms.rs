@@ -17,7 +17,10 @@ fn decode(raw: String) -> Result<RoomRecord, RepositoryError> {
     }
     Ok(room)
 }
-async fn read(tx: &mut Transaction<'_, Sqlite>, id: Uuid) -> Result<RoomRecord, RepositoryError> {
+pub(crate) async fn read(
+    tx: &mut Transaction<'_, Sqlite>,
+    id: Uuid,
+) -> Result<RoomRecord, RepositoryError> {
     let raw: Option<String> =
         sqlx::query_scalar("SELECT record_json FROM coop_rooms WHERE room_id=?1")
             .bind(id.to_string())
@@ -101,6 +104,36 @@ async fn host(
 
 #[async_trait::async_trait]
 impl RoomRepository for crate::SqliteStore {
+    async fn submit_character_proposal(
+        &self,
+        lease: &RoomLease,
+        command: app_application::models::room_character::SubmitRoomCharacter,
+    ) -> Result<app_application::models::room_character::ProposalSummary, RepositoryError> {
+        crate::room_characters::submit(self, lease, command).await
+    }
+    async fn own_character_proposal(
+        &self,
+        lease: &RoomLease,
+    ) -> Result<
+        Option<app_application::models::room_character::OwnCharacterProposal>,
+        RepositoryError,
+    > {
+        crate::room_characters::own(self, lease).await
+    }
+    async fn pending_character_proposals(
+        &self,
+        lease: &RoomLease,
+    ) -> Result<Vec<app_application::models::room_character::ProposalSummary>, RepositoryError>
+    {
+        crate::room_characters::pending(self, lease).await
+    }
+    async fn approve_character_proposal(
+        &self,
+        lease: &RoomLease,
+        command: app_application::models::room_character::ApproveRoomCharacter,
+    ) -> Result<app_application::models::room_character::CharacterApproval, RepositoryError> {
+        crate::room_characters::approve(self, lease, command).await
+    }
     async fn room(&self, id: Uuid) -> Result<Option<RoomRecord>, RepositoryError> {
         let raw: Option<String> =
             sqlx::query_scalar("SELECT record_json FROM coop_rooms WHERE room_id=?1")

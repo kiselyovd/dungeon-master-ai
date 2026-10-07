@@ -11,9 +11,12 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+mod characters;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum RoomError {
+    #[error("room_state_conflict")]
+    Conflict,
     #[error("room_access_denied")]
     Denied,
     #[error("room_input_invalid")]

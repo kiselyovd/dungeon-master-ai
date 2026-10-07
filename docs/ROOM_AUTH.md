@@ -57,6 +57,10 @@ router. It is not merged into or publicly bound by production bootstrap yet.
 | POST | `/rooms/{room_id}/invitation` | Host; optional saved target member |
 | DELETE | `/rooms/{room_id}/members/{member_id}` | Host |
 | DELETE | `/rooms/{room_id}` | Host |
+| POST | `/rooms/{room_id}/character-proposals` | Player; server injects owner |
+| GET | `/rooms/{room_id}/character-proposals` | Host; pending public summaries |
+| GET | `/rooms/{room_id}/character-proposals/own` | Member; own latest private draft |
+| POST | `/rooms/{room_id}/character-proposals/{proposal_id}/approve` | Host |
 
 Member requests use `Authorization: Bearer ...` and `x-room-member-id`. Duplicate
 credential/identity headers are rejected. Join JSON contains `join_id`,
@@ -74,5 +78,34 @@ administration routes are absent from this router; room creation remains interna
 
 The real HTTP test covers identity spoofing, host/guest restrictions, private-proof
 replay, both directions of biography privacy, unknown fields, oversized requests,
-duplicate headers, revocation and closure. Hero submission/approval, shared game
-projection, gameplay mutations, events and production/native wiring remain pending.
+duplicate headers, revocation and closure. Shared game projection, gameplay
+mutations, events and production/native wiring remain pending.
+
+## Character submission and acceptance
+
+Migration 0010 stores proposals and approval receipts separately from accepted
+party characters. A proposal contains an immutable proposal UUID, character UUID
+and complete owner-private sheet. Neither its Rust command nor the HTTP request
+contains an authoritative member/campaign identity supplied by the client.
+The service injects those identities from the authenticated room lease.
+
+Submitting a fresh proposal supersedes that player's previous pending draft.
+An unchanged proposal UUID replays its current status; changed content under the
+same UUID conflicts. Each member has at most one pending draft and can submit at
+most sixteen drafts per room. An accepted member cannot replace their hero through
+this workflow. The host receives mechanical summaries for active pending players;
+full drafts remain readable only by their owner. The submission route permits the
+existing portrait/character document budget; other room JSON routes retain 8 KiB.
+
+Approval takes an expected campaign revision and an immutable causation ID. Its
+SQLite BEGIN IMMEDIATE transaction rechecks the host lease, campaign/session and
+active target, then commits the party binding/sheet, campaign revision, proposal
+status and both operation receipts together. Superseded drafts, revoked players,
+active combat and stale revisions cannot be accepted. An exact approval retry
+returns the recorded revision; changed arguments under the same causation ID
+conflict. Clients should refresh the current party projection after a receipt.
+
+Coverage includes a real HTTP submission/approval/replay path, a biography larger
+than the ordinary room JSON limit, forced failure at the final approval receipt
+with complete rollback, stale lease/revocation rejection, and real database/vault
+reopening followed by acceptance of the recovered private draft.
