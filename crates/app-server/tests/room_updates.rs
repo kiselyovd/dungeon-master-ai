@@ -9,7 +9,9 @@ use app_application::{
         room_character::{ApproveRoomCharacter, SubmitRoomCharacter},
         session::CampaignSeed,
     },
-    ports::repositories::{CampaignStateRepository, MessageRepository, PartyRepository},
+    ports::repositories::{
+        CampaignStateRepository, MessageRepository, PartyRepository, RoomRepository,
+    },
     rooms::{JoinRoom, RoomSecret, RoomService, SystemRoomClock},
 };
 use futures::{Stream, StreamExt};
@@ -103,8 +105,9 @@ async fn restoration_resets_delivery_without_publishing_old_solo_chat() {
     let campaign = created.grant.room.campaign_id;
     let session = created.grant.room.session_id;
     store
-        .append(
-            session.0,
+        .append_room_agent_message(
+            host.lease(),
+            Uuid::new_v4(),
             app_application::models::chat::ChatMessage::Assistant {
                 content: "PUBLIC_A".into(),
             },
@@ -129,8 +132,9 @@ async fn restoration_resets_delivery_without_publishing_old_solo_chat() {
         .unwrap();
     assert_eq!(saved.snapshot.projection.shared_message_indices.len(), 1);
     store
-        .append(
-            session.0,
+        .append_room_agent_message(
+            host.lease(),
+            Uuid::new_v4(),
             app_application::models::chat::ChatMessage::Assistant {
                 content: "PUBLIC_B".into(),
             },
@@ -184,8 +188,9 @@ async fn restoration_resets_delivery_without_publishing_old_solo_chat() {
     assert!(private.timeline_reset_cursor > restored.timeline_reset_cursor);
     for index in 0..140 {
         store
-            .append(
-                session.0,
+            .append_room_agent_message(
+                host.lease(),
+                Uuid::new_v4(),
                 app_application::models::chat::ChatMessage::Assistant {
                     content: format!("AFTER_RESTORE_{index}"),
                 },
@@ -228,8 +233,9 @@ async fn a_large_backlog_is_delivered_in_strict_cursor_order_without_missing_cha
     let initial = service.updates(&host, None).await.unwrap().unwrap();
     for index in 0..300 {
         store
-            .append(
-                created.grant.room.session_id.0,
+            .append_room_agent_message(
+                host.lease(),
+                Uuid::new_v4(),
                 app_application::models::chat::ChatMessage::Assistant {
                     content: format!("Shared narration {index}"),
                 },
@@ -583,8 +589,9 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
         .await
         .unwrap();
     store
-        .append(
-            campaign.last_session_id.0,
+        .append_room_agent_message(
+            host.lease(),
+            Uuid::new_v4(),
             app_application::models::chat::ChatMessage::Assistant {
                 content: "Переправа затихла.".into(),
             },
@@ -655,8 +662,9 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
     assert!(!initial_host.to_string().contains("GUEST_PRIVATE_STORY"));
     assert!(!initial_guest.to_string().contains("HOST_PRIVATE_STORY"));
     store
-        .append(
-            campaign.last_session_id.0,
+        .append_room_agent_message(
+            host.lease(),
+            Uuid::new_v4(),
             app_application::models::chat::ChatMessage::Assistant {
                 content: "Колокол прозвучал.".into(),
             },
@@ -676,4 +684,141 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
     .unwrap();
     server.abort();
     let _ = server.await;
+}
+
+#[tokio::test]
+async fn local_chat_stays_private_while_a_durable_room_is_active() {
+    let (store, service, created, _) = fixture(
+        sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap(),
+        Arc::new(InMemorySecretsStore::default()),
+    )
+    .await;
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let initial = service.initial_updates(&host, None).await.unwrap();
+    let local = store
+        .append(
+            created.grant.room.session_id.0,
+            app_application::models::chat::ChatMessage::user_text("DETACHED_SOLO_PRIVATE"),
+        )
+        .await
+        .unwrap();
+    let leaked: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM shared_messages WHERE message_id=?1)")
+            .bind(local.id.to_string())
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    assert!(!leaked, "unscoped local message must never become shared");
+    assert!(service
+        .updates(&host, Some(initial.cursor))
+        .await
+        .unwrap()
+        .is_none());
+    let current = service.initial_updates(&host, None).await.unwrap();
+    assert!(!serde_json::to_string(&current)
+        .unwrap()
+        .contains("DETACHED_SOLO_PRIVATE"));
+}
+
+#[tokio::test]
+async fn scoped_publication_excludes_tool_context_and_rolls_back_with_delivery_failure() {
+    use app_application::models::chat::ChatMessage;
+    let (store, service, created, _) = fixture(
+        sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap(),
+        Arc::new(InMemorySecretsStore::default()),
+    )
+    .await;
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let turn = Uuid::new_v4();
+    store
+        .append_room_agent_message(
+            host.lease(),
+            turn,
+            ChatMessage::user_text("PUBLIC_INTENTION"),
+        )
+        .await
+        .unwrap();
+    store
+        .append_room_agent_message(
+            host.lease(),
+            turn,
+            ChatMessage::AssistantWithToolCalls {
+                content: Some("PRIVATE_TOOL_CONTEXT".into()),
+                tool_calls: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    let before = service.initial_updates(&host, None).await.unwrap();
+    assert!(serde_json::to_string(&before)
+        .unwrap()
+        .contains("PUBLIC_INTENTION"));
+    assert!(!serde_json::to_string(&before)
+        .unwrap()
+        .contains("PRIVATE_TOOL_CONTEXT"));
+    sqlx::raw_sql("CREATE TRIGGER fail_publication BEFORE INSERT ON room_changes WHEN NEW.kind='message' BEGIN SELECT RAISE(ABORT,'fixture_delivery_failure'); END;")
+        .execute(store.pool()).await.unwrap();
+    assert!(store
+        .append_room_agent_message(
+            host.lease(),
+            turn,
+            ChatMessage::Assistant {
+                content: "ROLLED_BACK_NARRATION".into(),
+            }
+        )
+        .await
+        .is_err());
+    let stored = store.list(created.grant.room.session_id.0).await.unwrap();
+    assert!(!serde_json::to_string(&stored)
+        .unwrap()
+        .contains("ROLLED_BACK_NARRATION"));
+    assert_eq!(
+        store
+            .room_agent_checkpoint(host.lease(), turn)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(service
+        .updates(&host, Some(before.cursor))
+        .await
+        .unwrap()
+        .is_none());
+    sqlx::raw_sql("DROP TRIGGER fail_publication")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    store
+        .append_room_agent_message(
+            host.lease(),
+            turn,
+            ChatMessage::Assistant {
+                content: "PUBLIC_CONFIRMED_NARRATION".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let current = service
+        .updates(&host, Some(before.cursor))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(serde_json::to_string(&current)
+        .unwrap()
+        .contains("PUBLIC_CONFIRMED_NARRATION"));
 }

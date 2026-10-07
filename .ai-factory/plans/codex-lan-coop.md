@@ -634,3 +634,23 @@ This is a single-host localhost/debug-WebView check, not two-device LAN acceptan
 or packaged production runtime proof. Busy-port abandon, guest archive management,
 shared-publication privacy during detached rooms and the complete two-client/solo
 session remain required. Vite test server is stopped after this checkpoint.
+
+
+### Scoped message-publication privacy (verification checkpoint)
+
+Reproduced that unscoped local chat became shared whenever durable room metadata
+remained active, including a detached host after restart. Migration 0015 replaces
+the broad messages insert trigger with publication from lease-checked
+room_agent_messages checkpoints only. User intentions and final assistant text
+publish atomically with the checkpoint; tool context and ordinary solo messages
+do not. Existing snapshot restoration preserves explicit visibility indices.
+Historical pre-migration visibility records are retained: their provenance cannot
+be safely reconstructed; this change proves future writes, not retroactive erasure.
+
+The first incremental rebuild missed the newly added migration (RED persisted).
+A dependency-free adapter-sqlite build script watches migrations so new files
+recompile the embedded sqlx migrator. Existing manual upgrade contracts now apply
+0015 too. Room-publication fixtures use the real scoped repository entry point.
+Two room-agent, 25 DM/native and six update/publication tests pass, including forced
+publication failure rollback, snapshot reset, backlog/reopening and private chat.
+Storage/upgrade and workspace Clippy/architecture checks pass. Independent read-only review found no actionable issue. Actual two-client/native/physical LAN session remains next.

@@ -510,3 +510,21 @@ SQLite/Stronghold state. Real WebView IPC and the actual recovery button preserv
 room/member/port/own hero; the renderer response contained no capability. This
 establishes single-host native restart, not physical LAN or full co-op gameplay.
 Explicit abandon when the saved port remains unavailable is still outstanding.
+
+
+## Shared narration publication
+
+Migration 0015 publishes messages from room_agent_messages checkpoints created by
+the authenticated room-agent repository. The same transaction validates the room
+lease and commits message, checkpoint, public visibility and event. User text and
+final assistant narration are shared; tool context is private. Ordinary local/solo
+message inserts never become shared merely because a durable room is active.
+Snapshot restoration retains explicitly saved shared-message visibility and emits
+its timeline reset. Existing pre-0015 visibility is preserved; migration does not
+claim to identify or erase previously misclassified historical chat.
+
+Regression evidence includes the original failing unscoped-chat reproduction,
+private tool context, failed event publication rolling back message/checkpoint,
+confirmed publication, snapshot restore, cursor backlog and database reopening.
+The adapter-sqlite build script watches migration additions to invalidate cached
+embedded migration code during incremental builds.
