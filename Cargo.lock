@@ -296,6 +296,8 @@ dependencies = [
  "app-llm",
  "app-server",
  "axum",
+ "reqwest 0.13.4",
+ "serde_json",
  "sqlx",
  "tempfile",
  "tokio",

@@ -136,3 +136,21 @@ pub fn build_room_router(
     let dm = app_server::http_services::room_dm_http_service(state, rooms.clone());
     adapter_http::rooms::router_with_dm(rooms, dm)
 }
+
+/// Compose native-only control when the Tauri process supplied its private token.
+pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow::Result<Router> {
+    let store = Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone()));
+    let rooms = Arc::new(app_application::rooms::RoomService::new(
+        store.clone(),
+        store,
+        state.secrets_repo(),
+        Arc::new(app_application::rooms::SystemRoomClock),
+    ));
+    let listener = Arc::new(crate::room_listener::RoomTcpListener::new(
+        state.clone(),
+        rooms.clone(),
+    ));
+    let service = app_server::http_services::native_room_host_http_service(state, rooms, listener);
+    adapter_http::room_owner::router(service, token)
+        .map_err(|_| anyhow::anyhow!("native room owner configuration invalid"))
+}

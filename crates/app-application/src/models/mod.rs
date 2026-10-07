@@ -17,3 +17,5 @@ pub mod room_world;
 pub mod session;
 pub mod settings;
 pub mod snapshot;
+
+pub mod room_host;

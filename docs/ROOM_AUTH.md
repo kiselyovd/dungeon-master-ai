@@ -329,3 +329,41 @@ repeated start, wrong-room stop and refusal of new connections are also verified
 Protected owner commands, Tauri invocation, native credential/outbox storage,
 host/join UI and physical-device LAN acceptance remain to be connected and tested.
 The port implementation and loopback tests do not prove those user flows.
+
+
+## Local native owner commands
+
+When Tauri supplies its existing runtime-control token, bootstrap composes a
+separate native-owner router on the loopback administrative listener. POST
+`/native/rooms/host` and DELETE `/native/rooms/{room_id}` require that private token;
+missing/wrong/duplicate Authorization is rejected. The public player router never
+contains these routes, even if a caller knows the native token. The strict host
+body contains request/campaign/session IDs, expected revision and bind address;
+provider, member identity and arbitrary extra fields are excluded.
+
+The real service persists the canonical request through the existing secrets port,
+creates the room and starts its scoped listener. Failed binding compensates the
+partial room before returning failure. Creation can commit before credential read
+fails; native-owner reconciliation uses the immutable creation receipt to close
+that exact room without another secret read. Failed reconciliation retains the
+request and campaign lane until a subsequent start/stop can complete cleanup.
+Already closed creation receipts cannot reopen a listener.
+
+Stop stages durable room close, transport shutdown and recovery-record deletion.
+Each completed stage survives a retry within the process, so an injected stop or
+secret-delete failure can be recovered without authenticating a closed room again.
+Successful repeated stop is idempotent. Real HTTP tests also confirm that local
+solo chat after failed hosting stays out of the next room's shared snapshot.
+
+Tauri registers host_room and stop_host_room. Both serialize the complete operation
+through one async lifecycle coordinator, including response/cache commit. Renderer
+responses contain public room/member/address and invitation, but never capability
+or native owner token. The host capability is retained in Rust NativeRoomState;
+existing room secrets remain backed by the configured backend secrets adapter.
+Delayed response ordering and capability omission have native unit coverage.
+
+This does not yet prove IPC execution in a real WebView, guest joining, encrypted
+client/outbox recovery or physical-device session acceptance. Restart recovery of
+the native selection and stable public binding also remains pending. No UI has
+been changed in this slice. Only existing workspace libraries were added as test
+(dev) dependencies in app-bootstrap; production dependencies are unchanged.

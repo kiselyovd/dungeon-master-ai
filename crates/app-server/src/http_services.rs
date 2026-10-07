@@ -1686,3 +1686,273 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
         })
     }
 }
+
+pub fn native_room_host_http_service(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+    listener: Arc<dyn app_application::ports::room_listener::RoomListenerControl>,
+) -> Arc<dyn adapter_http::services::NativeRoomHostHttpService> {
+    Arc::new(AppStateNativeRoomHostService {
+        state,
+        rooms,
+        listener,
+        active: tokio::sync::Mutex::new(None),
+        pending_creation: tokio::sync::Mutex::new(None),
+    })
+}
+struct ActiveNativeHost {
+    request: app_application::models::room_host::NativeHostRoomRequest,
+    grant: app_application::models::room_host::NativeHostRoomGrant,
+    running: bool,
+    closed: bool,
+    transport_stopped: bool,
+    pending_lane: Option<tokio::sync::OwnedMutexGuard<()>>,
+}
+struct AppStateNativeRoomHostService {
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+    listener: Arc<dyn app_application::ports::room_listener::RoomListenerControl>,
+    active: tokio::sync::Mutex<Option<ActiveNativeHost>>,
+    pending_creation: tokio::sync::Mutex<
+        Option<(
+            app_application::models::room_host::NativeHostRoomRequest,
+            tokio::sync::OwnedMutexGuard<()>,
+        )>,
+    >,
+}
+impl AppStateNativeRoomHostService {
+    fn creation(
+        request: &app_application::models::room_host::NativeHostRoomRequest,
+    ) -> app_application::models::room::CreateLocalRoom {
+        app_application::models::room::CreateLocalRoom {
+            campaign_id: request.campaign_id,
+            session_id: request.session_id,
+            expected_revision: request.expected_revision,
+            causation_id: format!("native-host:{}", request.request_id),
+        }
+    }
+    async fn reconcile_creation(&self) -> Result<(), HttpServiceError> {
+        let mut pending = self.pending_creation.lock().await;
+        if let Some((request, _)) = pending.as_ref() {
+            self.rooms
+                .cancel_local_creation(&Self::creation(request))
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_cleanup_failed",
+                })?;
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_request")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            *pending = None;
+        }
+        Ok(())
+    }
+    async fn cleanup(&self, active: &mut Option<ActiveNativeHost>) -> Result<(), HttpServiceError> {
+        use app_application::ports::repositories::RoomRepository;
+        let Some(current) = active.as_mut() else {
+            return Ok(());
+        };
+        current.running = false;
+        if !current.closed {
+            let record = SqliteStore::new(self.state.db().clone())
+                .room(current.grant.room.room_id)
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_close_failed",
+                })?
+                .ok_or(HttpServiceError::Conflict {
+                    code: "native_room_scope_changed",
+                })?;
+            if record.host_member_id != current.grant.member_id
+                || record.campaign_id != current.request.campaign_id
+                || record.session_id != current.request.session_id
+            {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_scope_changed",
+                });
+            }
+            if record.active {
+                let secret = app_application::rooms::RoomSecret::from_input(
+                    current.grant.capability.clone(),
+                )
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_credentials_invalid",
+                })?;
+                let subject = self
+                    .rooms
+                    .authenticate(record.room_id, record.host_member_id, &secret)
+                    .await
+                    .map_err(|_| HttpServiceError::Conflict {
+                        code: "native_host_room_closed",
+                    })?;
+                self.rooms
+                    .close(&subject)
+                    .await
+                    .map_err(|_| HttpServiceError::Internal {
+                        code: "native_room_close_failed",
+                    })?;
+            }
+            current.closed = true;
+        }
+        if !current.transport_stopped {
+            self.listener
+                .stop(current.grant.room.room_id)
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_stop_failed",
+                })?;
+            current.transport_stopped = true;
+        }
+        self.state
+            .secrets_repo()
+            .delete("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        *active = None;
+        Ok(())
+    }
+    fn copy_grant(
+        grant: &app_application::models::room_host::NativeHostRoomGrant,
+    ) -> app_application::models::room_host::NativeHostRoomGrant {
+        app_application::models::room_host::NativeHostRoomGrant {
+            room: grant.room.clone(),
+            member_id: grant.member_id,
+            capability: grant.capability.clone(),
+            invitation: grant.invitation.clone(),
+            address: grant.address,
+        }
+    }
+}
+#[async_trait]
+impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHostService {
+    async fn start(
+        &self,
+        request: app_application::models::room_host::NativeHostRoomRequest,
+    ) -> Result<app_application::models::room_host::NativeHostRoomGrant, HttpServiceError> {
+        use app_application::{
+            models::room_host::NativeHostRoomGrant, ports::room_listener::RoomListenerSpec,
+        };
+        let mut active = self.active.lock().await;
+        self.reconcile_creation().await?;
+        if active.as_ref().is_some_and(|current| !current.running) {
+            self.cleanup(&mut active).await?;
+        }
+        if let Some(current) = active.as_ref() {
+            if current.request != request {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_already_hosted",
+                });
+            }
+            self.rooms
+                .authenticate(
+                    current.grant.room.room_id,
+                    current.grant.member_id,
+                    &app_application::rooms::RoomSecret::from_input(
+                        current.grant.capability.clone(),
+                    )
+                    .map_err(|_| HttpServiceError::Internal {
+                        code: "native_host_credentials_invalid",
+                    })?,
+                )
+                .await
+                .map_err(|_| HttpServiceError::Conflict {
+                    code: "native_host_room_closed",
+                })?;
+            return Ok(Self::copy_grant(&current.grant));
+        }
+        let lane = self
+            .state
+            .campaign_lane(request.campaign_id.0)
+            .try_lock_owned()
+            .map_err(|_| HttpServiceError::Conflict {
+                code: "agent_turn_running",
+            })?;
+        let saved = serde_json::to_string(&request).map_err(|_| HttpServiceError::Internal {
+            code: "native_host_record_invalid",
+        })?;
+        self.state
+            .secrets_repo()
+            .set("native:host_room_request", &saved)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        let created = match self.rooms.create_local_room(Self::creation(&request)).await {
+            Ok(created) => created,
+            Err(_) => {
+                *self.pending_creation.lock().await = Some((request, lane));
+                self.reconcile_creation().await?;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_create_failed",
+                });
+            }
+        };
+        if !created.grant.room.active {
+            let _ = self
+                .state
+                .secrets_repo()
+                .delete("native:host_room_request")
+                .await;
+            return Err(HttpServiceError::Conflict {
+                code: "native_host_request_superseded",
+            });
+        }
+        let room_id = created.grant.room.room_id;
+        *active = Some(ActiveNativeHost {
+            request: request.clone(),
+            grant: NativeHostRoomGrant {
+                room: created.grant.room,
+                member_id: created.grant.member_id,
+                capability: created.grant.capability.expose().into(),
+                invitation: created.invitation.expose().into(),
+                address: request.bind_addr,
+            },
+            running: false,
+            closed: false,
+            transport_stopped: false,
+            pending_lane: Some(lane),
+        });
+        let address = match self
+            .listener
+            .start(RoomListenerSpec {
+                room_id,
+                bind_addr: request.bind_addr,
+            })
+            .await
+        {
+            Ok(address) => address,
+            Err(_) => {
+                self.cleanup(&mut active).await?;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_bind_failed",
+                });
+            }
+        };
+        let current = active
+            .as_mut()
+            .expect("native start retained its scoped state");
+        current.grant.address = address;
+        current.running = true;
+        current.pending_lane.take();
+        Ok(Self::copy_grant(&current.grant))
+    }
+    async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError> {
+        let mut active = self.active.lock().await;
+        self.reconcile_creation().await?;
+        if active
+            .as_ref()
+            .is_some_and(|current| current.grant.room.room_id != room_id)
+        {
+            return Err(HttpServiceError::Conflict {
+                code: "native_room_scope_changed",
+            });
+        }
+        self.cleanup(&mut active).await
+    }
+}

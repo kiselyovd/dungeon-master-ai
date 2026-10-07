@@ -282,6 +282,44 @@ impl RoomService {
                 .await?,
         })
     }
+    /// Native-owner compensation only. The immutable creation receipt proves the
+    /// exact command's room, including when credential delivery failed after commit.
+    pub async fn cancel_local_creation(&self, command: &CreateLocalRoom) -> Result<(), RoomError> {
+        let _lane = ROOM_MUTATION.lock().await;
+        let signature = serde_json::to_string(command).map_err(|_| RoomError::InvalidInput)?;
+        let room = match self
+            .rooms
+            .find_creation(command.campaign_id, &command.causation_id, &signature)
+            .await
+        {
+            Ok(room) => room,
+            // A mismatched immutable input owns no creation and cannot compensate it.
+            Err(crate::ports::repositories::RepositoryError::Operation {
+                code: "room_causation_mismatch",
+                ..
+            }) => return Ok(()),
+            Err(_) => return Err(RoomError::Repository),
+        };
+        let Some(room) = room else { return Ok(()) };
+        if room.campaign_id != command.campaign_id || room.session_id != command.session_id {
+            return Err(RoomError::Denied);
+        }
+        if room.active {
+            self.rooms
+                .close_room(&RoomLease {
+                    room_id: room.room_id,
+                    member_id: room.host_member_id,
+                    campaign_id: room.campaign_id,
+                    session_id: room.session_id,
+                    epoch: room.epoch,
+                    role: PartyRole::Host,
+                })
+                .await
+                .map_err(|_| RoomError::Repository)?;
+        }
+        Ok(())
+    }
+
     pub async fn authenticate(
         &self,
         room_id: Uuid,

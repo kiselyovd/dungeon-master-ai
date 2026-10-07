@@ -1094,3 +1094,237 @@ async fn persistent_sqlite_lock_exhausts_bounded_retry_without_delivering_events
     ));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
 }
+
+struct StopFailsOnce {
+    failures: AtomicUsize,
+}
+impl app_application::ports::room_listener::RoomListenerControl for StopFailsOnce {
+    fn start(
+        &self,
+        _: app_application::ports::room_listener::RoomListenerSpec,
+    ) -> app_application::ports::room_listener::RoomListenerFuture<'_, std::net::SocketAddr> {
+        Box::pin(async { Ok("127.0.0.1:4141".parse().unwrap()) })
+    }
+    fn stop(&self, _: Uuid) -> app_application::ports::room_listener::RoomListenerFuture<'_, ()> {
+        Box::pin(async move {
+            if self
+                .failures
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
+                    count.checked_sub(1)
+                })
+                .is_ok()
+            {
+                return Err(app_application::ports::room_listener::RoomListenerError {
+                    code: "fixture_stop_failed",
+                });
+            }
+            Ok(())
+        })
+    }
+}
+struct DeleteFailsOnce {
+    inner: Arc<dyn app_application::ports::secrets::SecretsStore>,
+    failures: AtomicUsize,
+}
+#[async_trait::async_trait]
+impl app_application::ports::secrets::SecretsStore for DeleteFailsOnce {
+    async fn get(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, app_application::ports::secrets::SecretsError> {
+        self.inner.get(key).await
+    }
+    async fn set(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.set(key, value).await
+    }
+    async fn delete(&self, key: &str) -> Result<(), app_application::ports::secrets::SecretsError> {
+        if key == "native:host_room_request"
+            && self
+                .failures
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
+                    count.checked_sub(1)
+                })
+                .is_ok()
+        {
+            return Err(app_application::ports::secrets::SecretsError::Operation {
+                operation: "delete",
+                code: "fixture_delete_failed",
+            });
+        }
+        self.inner.delete(key).await
+    }
+}
+#[tokio::test]
+async fn native_stop_resumes_cleanup_after_transport_or_secret_failure() {
+    for fail_transport in [true, false] {
+        let f = fixture().await;
+        let state = app_server::AppState::new(
+            Arc::new(Provider::default()),
+            "fixture".into(),
+            f.store.pool().clone(),
+        );
+        if !fail_transport {
+            state.set_secrets_repo(Arc::new(DeleteFailsOnce {
+                inner: state.secrets_repo(),
+                failures: AtomicUsize::new(1),
+            }));
+        }
+        let control = app_server::http_services::native_room_host_http_service(
+            state.clone(),
+            f.rooms.clone(),
+            Arc::new(StopFailsOnce {
+                failures: AtomicUsize::new(usize::from(fail_transport)),
+            }),
+        );
+        let request = app_application::models::room_host::NativeHostRoomRequest {
+            request_id: Uuid::new_v4(),
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: f
+                .store
+                .load_current(f.campaign)
+                .await
+                .unwrap()
+                .campaign
+                .revision,
+            bind_addr: "127.0.0.1:0".parse().unwrap(),
+        };
+        let grant = control.start(request.clone()).await.unwrap();
+        assert!(control.stop(grant.room.room_id).await.is_err());
+        assert!(
+            !f.store
+                .room(grant.room.room_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .active
+        );
+        control.stop(grant.room.room_id).await.unwrap();
+        control.stop(grant.room.room_id).await.unwrap();
+        assert!(state
+            .secrets_repo()
+            .get("native:host_room_request")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(control.start(request).await.is_err());
+    }
+}
+
+struct CredentialReadFailsOnce {
+    inner: Arc<dyn app_application::ports::secrets::SecretsStore>,
+    failures: AtomicUsize,
+}
+#[async_trait::async_trait]
+impl app_application::ports::secrets::SecretsStore for CredentialReadFailsOnce {
+    async fn get(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, app_application::ports::secrets::SecretsError> {
+        if key.contains(":credential:")
+            && self
+                .failures
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
+                    count.checked_sub(1)
+                })
+                .is_ok()
+        {
+            return Err(app_application::ports::secrets::SecretsError::Operation {
+                operation: "get",
+                code: "fixture_credential_failed",
+            });
+        }
+        self.inner.get(key).await
+    }
+    async fn set(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.set(key, value).await
+    }
+    async fn delete(&self, key: &str) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.delete(key).await
+    }
+}
+#[tokio::test]
+async fn native_grant_read_failure_compensates_committed_creation_before_solo_resumes() {
+    let f = fixture().await;
+    let state = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    );
+    let faulty = Arc::new(CredentialReadFailsOnce {
+        inner: state.secrets_repo(),
+        failures: AtomicUsize::new(1),
+    });
+    state.set_secrets_repo(faulty.clone());
+    let rooms = Arc::new(RoomService::new(
+        f.store.clone(),
+        f.store.clone(),
+        faulty,
+        Arc::new(SystemRoomClock),
+    ));
+    let service = app_server::http_services::native_room_host_http_service(
+        state.clone(),
+        rooms,
+        Arc::new(StopFailsOnce {
+            failures: AtomicUsize::new(0),
+        }),
+    );
+    let mut request = app_application::models::room_host::NativeHostRoomRequest {
+        request_id: Uuid::new_v4(),
+        campaign_id: f.campaign,
+        session_id: f.session,
+        expected_revision: f
+            .store
+            .load_current(f.campaign)
+            .await
+            .unwrap()
+            .campaign
+            .revision,
+        bind_addr: "127.0.0.1:0".parse().unwrap(),
+    };
+    assert!(service.start(request.clone()).await.is_err());
+    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM coop_rooms WHERE active=1")
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert_eq!(active, 0);
+    let private = f
+        .store
+        .append(
+            f.session.0,
+            ChatMessage::user_text("PRIVATE_AFTER_GRANT_DELIVERY_FAILURE"),
+        )
+        .await
+        .unwrap();
+    let shared: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM shared_messages WHERE message_id=?1)")
+            .bind(private.id.to_string())
+            .fetch_one(f.store.pool())
+            .await
+            .unwrap();
+    assert!(!shared);
+    assert!(state
+        .secrets_repo()
+        .get("native:host_room_request")
+        .await
+        .unwrap()
+        .is_none());
+    request.request_id = Uuid::new_v4();
+    request.expected_revision = f
+        .store
+        .load_current(f.campaign)
+        .await
+        .unwrap()
+        .campaign
+        .revision;
+    let grant = service.start(request).await.unwrap();
+    service.stop(grant.room.room_id).await.unwrap();
+}

@@ -26,7 +26,10 @@ pub async fn run() -> anyhow::Result<()> {
             .await
             .context("reconcile interrupted agent operations")?;
     }
-    let app = adapter_http::router(app_server::http_services::bundle(state));
+    let mut app = adapter_http::router(app_server::http_services::bundle(state.clone()));
+    if let Ok(token) = std::env::var("DMAI_RUNTIME_CONTROL_TOKEN") {
+        app = app.merge(wiring::build_native_room_owner_router(state, token)?);
+    }
     let listener = TcpListener::bind(&settings.bind_addr)
         .await
         .with_context(|| format!("bind {}", settings.bind_addr))?;

@@ -4,6 +4,7 @@ mod commands;
 mod processes;
 
 use commands::backend::{backend_port, BackendState};
+use commands::rooms::{host_room, stop_host_room, NativeRoomState};
 use processes::control::ControlServer;
 use processes::RuntimeProcesses;
 
@@ -18,6 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
+        .manage(NativeRoomState::default())
         .manage(RuntimeProcesses::default())
         .setup(|app| {
             let salt_path = app
@@ -57,7 +59,11 @@ pub fn run() {
                 window.app_handle().state::<ControlServer>().shutdown();
             }
         })
-        .invoke_handler(tauri::generate_handler![backend_port])
+        .invoke_handler(tauri::generate_handler![
+            backend_port,
+            host_room,
+            stop_host_room
+        ])
         .run(tauri::generate_context!())
         .expect("error while running the Tauri application");
 }

@@ -52,14 +52,14 @@ pub struct CommitRoomJoin {
     pub invitation_id: Uuid,
     pub now: u64,
 }
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublicRoomMember {
     pub member_id: Uuid,
     pub display_name: String,
     pub role: PartyRole,
     pub active: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublicRoom {
     pub room_id: Uuid,
     pub campaign_id: CampaignId,

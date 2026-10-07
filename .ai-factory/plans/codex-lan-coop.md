@@ -317,3 +317,43 @@ cancelable I/O; follow-up closed it without further actionable findings. Native
 owner/Tauri invocation, client credential/outbox, host/join UI and full physical
 LAN/model/session acceptance remain active and incomplete. No public listener is
 automatically enabled by the current production bootstrap.
+
+
+Native owner progress: loopback-only protected host/stop API now drives the real
+listener service and Tauri host_room/stop_host_room commands. Capabilities remain
+in Rust; renderer view omits them. Native token never reaches the public router.
+Real HTTP tests cover authorization, duplicate headers, strict body, actual public
+listener access, stop/retry, occupied-port compensation and private solo messages.
+Native unit tests cover sanitized view and ordered delayed lifecycle responses.
+Failure-injected transport stop/secret deletion prove staged cleanup; failed grant
+credential read after room commit is compensated by exact creation receipt. Pending
+failed reconciliation retains its request and campaign lane. Independent review
+findings are being closed; final full gates are running. Guest connection, native
+credential/outbox recovery, stable binding across actual restart, WebView/UI and
+complete physical LAN/session/model acceptance remain pending. Production deps
+are unchanged; bootstrap added existing workspace libraries only to dev tests.
+
+
+Native owner review closure: staged transport/secret-delete retry, failed binding
+compensation, delayed native response ordering and grant-read-after-commit recovery
+are covered by focused GREEN regressions. Compensation resolves exact immutable
+creation receipt without another credential read. A mismatched immutable retry owns
+no creation, closes nothing and releases pending recovery/lane; changed stopped
+nonce409 followed by freshnonce200 is verified through real HTTP. Independent review
+closed these findings and reports no further actionable issue in this slice.
+The previous full gate passed; the final post-mismatch full run is currently live
+(.artifacts/native-owner-verified-gates.log). Do not claim latest full completion or
+commit until that running verification finishes. Guest/broker/outbox, real native
+WebView, native selection/binding restart and UI/full-session acceptance remain
+incomplete; the overall goal stays active.
+
+
+Native owner checkpoint collection: final post-mismatch consolidated gates passed
+(workspace Rust, architecture/static/Clippy and 1042 frontend tests). Real native
+owner HTTP cases pass; delayed lifecycle and sanitized renderer native unit cases
+pass; injected stop/delete and grant-read failure cases pass. Independent review
+closed all identified slice findings, including immutable-mismatch recovery. Tauri
+commands compile/register, but actual WebView invocation and user host/join flow
+remain unverified. Original 32 source hashes remain unchanged. Guest, broker,
+client/outbox persistence, native restart/binding selection and complete session/
+model/physical LAN acceptance remain active; no whole-goal completion is claimed.

@@ -319,6 +319,15 @@ pub trait RoomDmHttpService: Send + Sync {
     ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError>;
 }
 
+#[async_trait]
+pub trait NativeRoomHostHttpService: Send + Sync {
+    async fn start(
+        &self,
+        request: app_application::models::room_host::NativeHostRoomRequest,
+    ) -> Result<app_application::models::room_host::NativeHostRoomGrant, HttpServiceError>;
+    async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
