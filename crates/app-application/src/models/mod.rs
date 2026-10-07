@@ -19,3 +19,5 @@ pub mod settings;
 pub mod snapshot;
 
 pub mod room_host;
+
+pub mod room_client;

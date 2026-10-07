@@ -118,6 +118,103 @@ async fn native_owner_opens_a_real_scoped_room_and_rejects_other_callers() {
         .await
         .unwrap()
         .is_some());
+    let guest_db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&guest_db).await.unwrap();
+    let guest_state = AppState::new(
+        Arc::new(app_llm::MockProvider::new(vec![])),
+        "fixture".into(),
+        guest_db,
+    );
+    let guest_token = format!(
+        "{}{}",
+        RoomListenerId::new_v4().simple(),
+        RoomListenerId::new_v4().simple()
+    );
+    let guest_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let guest_address = guest_listener.local_addr().unwrap();
+    let guest_router = app_bootstrap::wiring::build_native_room_owner_router(
+        guest_state.clone(),
+        guest_token.clone(),
+    )
+    .unwrap();
+    let guest_server =
+        tokio::spawn(async move { axum::serve(guest_listener, guest_router).await.unwrap() });
+    let guest_join = app_application::models::room_client::NativeGuestJoinRequest {
+        address: grant.address,
+        room_id: grant.room.room_id,
+        join_id: RoomListenerId::new_v4(),
+        display_name: "Tara".into(),
+        invitation: grant.invitation.clone(),
+    };
+    let guest_url = format!("http://{guest_address}/native/room-client/join");
+    assert_eq!(
+        client
+            .post(&guest_url)
+            .json(&guest_join)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    let response = client
+        .post(&guest_url)
+        .bearer_auth(&guest_token)
+        .json(&guest_join)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let joined: app_application::models::room_client::NativeGuestConnection =
+        response.json().await.unwrap();
+    assert_eq!(joined.room.members.len(), 2);
+    let again: app_application::models::room_client::NativeGuestConnection = client
+        .post(&guest_url)
+        .bearer_auth(&guest_token)
+        .json(&guest_join)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(again.member_id, joined.member_id);
+    assert_eq!(again.room.members.len(), 2);
+    let stored = guest_state
+        .secrets_repo()
+        .get(&format!("native:guest-join:{}", guest_join.join_id))
+        .await
+        .unwrap()
+        .unwrap();
+    let stored: app_application::models::room_client::StoredNativeGuestJoin =
+        serde_json::from_str(&stored).unwrap();
+    assert!(stored.connection.is_some());
+    assert!(app_application::rooms::RoomSecret::from_input(stored.resume_proof).is_ok());
+    let restarted = app_server::native_room_client::service(guest_state.clone()).unwrap();
+    let resumed = restarted
+        .resume(
+            app_application::models::room_client::NativeGuestResumeRequest {
+                room_id: grant.room.room_id,
+                join_id: guest_join.join_id,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(resumed.member_id, joined.member_id);
+    let mut changed = guest_join.clone();
+    changed.display_name = "Changed".into();
+    assert_eq!(
+        client
+            .post(&guest_url)
+            .bearer_auth(&guest_token)
+            .json(&changed)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        409
+    );
+    guest_server.abort();
     let repeated: NativeHostRoomGrant = client
         .post(&url)
         .bearer_auth(&token)

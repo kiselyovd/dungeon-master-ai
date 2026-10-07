@@ -150,7 +150,12 @@ pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow:
         state.clone(),
         rooms.clone(),
     ));
+    let client = app_server::native_room_client::service(state.clone())
+        .map_err(|_| anyhow::anyhow!("native guest service configuration invalid"))?;
     let service = app_server::http_services::native_room_host_http_service(state, rooms, listener);
-    adapter_http::room_owner::router(service, token)
-        .map_err(|_| anyhow::anyhow!("native room owner configuration invalid"))
+    let host = adapter_http::room_owner::router(service, token.clone())
+        .map_err(|_| anyhow::anyhow!("native room owner configuration invalid"))?;
+    let guest = adapter_http::room_owner::client_router(client, token)
+        .map_err(|_| anyhow::anyhow!("native guest owner configuration invalid"))?;
+    Ok(host.merge(guest))
 }

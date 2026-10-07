@@ -15,43 +15,46 @@ pub fn router(
     service: Arc<dyn NativeRoomHostHttpService>,
     token: String,
 ) -> Result<Router, HttpServiceError> {
+    protect(
+        Router::new()
+            .route("/native/rooms/host", post(start))
+            .route("/native/rooms/{room_id}", delete(stop))
+            .layer(DefaultBodyLimit::max(4096))
+            .layer(Extension(service)),
+        token,
+    )
+}
+fn protect(base: Router, token: String) -> Result<Router, HttpServiceError> {
     if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(HttpServiceError::Internal {
             code: "native_owner_token_invalid",
         });
     }
-    Ok(Router::new()
-        .route("/native/rooms/host", post(start))
-        .route("/native/rooms/{room_id}", delete(stop))
-        .layer(DefaultBodyLimit::max(4096))
-        .layer(Extension(service))
-        .layer(middleware::from_fn(
-            move |request: axum::extract::Request, next: Next| {
-                let expected = token.clone();
-                async move {
-                    let mut values = request.headers().get_all(header::AUTHORIZATION).iter();
-                    let value = values
-                        .next()
-                        .and_then(|value| value.to_str().ok())
-                        .and_then(|value| value.strip_prefix("Bearer "));
-                    let allowed = values.next().is_none()
-                        && value.is_some_and(|value| equal(value.as_bytes(), expected.as_bytes()));
-                    let mut response = if allowed {
-                        next.run(request).await
-                    } else {
-                        axum::response::IntoResponse::into_response(
-                            HttpServiceError::Unauthorized {
-                                code: "native_owner_denied",
-                            },
-                        )
-                    };
-                    response
-                        .headers_mut()
-                        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-                    response
-                }
-            },
-        )))
+    Ok(base.layer(middleware::from_fn(
+        move |request: axum::extract::Request, next: Next| {
+            let expected = token.clone();
+            async move {
+                let mut values = request.headers().get_all(header::AUTHORIZATION).iter();
+                let value = values
+                    .next()
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.strip_prefix("Bearer "));
+                let allowed = values.next().is_none()
+                    && value.is_some_and(|value| equal(value.as_bytes(), expected.as_bytes()));
+                let mut response = if allowed {
+                    next.run(request).await
+                } else {
+                    axum::response::IntoResponse::into_response(HttpServiceError::Unauthorized {
+                        code: "native_owner_denied",
+                    })
+                };
+                response
+                    .headers_mut()
+                    .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+                response
+            }
+        },
+    )))
 }
 fn equal(actual: &[u8], expected: &[u8]) -> bool {
     if actual.len() != expected.len() {
@@ -86,4 +89,30 @@ async fn stop(
 ) -> Result<StatusCode, HttpServiceError> {
     service.stop(room).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub fn client_router(
+    service: Arc<dyn crate::services::NativeRoomClientHttpService>,
+    token: String,
+) -> Result<Router, HttpServiceError> {
+    protect(
+        Router::new()
+            .route("/native/room-client/join", post(join_guest))
+            .route("/native/room-client/resume", post(resume_guest))
+            .layer(DefaultBodyLimit::max(4096))
+            .layer(Extension(service)),
+        token,
+    )
+}
+async fn join_guest(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomClientHttpService>>,
+    Json(request): Json<app_application::models::room_client::NativeGuestJoinRequest>,
+) -> Result<Json<app_application::models::room_client::NativeGuestConnection>, HttpServiceError> {
+    service.join(request).await.map(Json)
+}
+async fn resume_guest(
+    Extension(service): Extension<Arc<dyn crate::services::NativeRoomClientHttpService>>,
+    Json(request): Json<app_application::models::room_client::NativeGuestResumeRequest>,
+) -> Result<Json<app_application::models::room_client::NativeGuestConnection>, HttpServiceError> {
+    service.resume(request).await.map(Json)
 }

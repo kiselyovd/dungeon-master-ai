@@ -357,3 +357,49 @@ commands compile/register, but actual WebView invocation and user host/join flow
 remain unverified. Original 32 source hashes remain unchanged. Guest, broker,
 client/outbox persistence, native restart/binding selection and complete session/
 model/physical LAN acceptance remain active; no whole-goal completion is claimed.
+
+
+### Native guest connection checkpoint (verified locally)
+
+- Added protected join/resume routes on the existing loopback native-owner API.
+- Guest saves canonical join and resume proof before remote POST; retries recover
+  committed membership even when final local credential save failed.
+- Native Tauri join/resume commands retain the capability outside the renderer.
+- Focused real HTTP flow and two recovery tests pass, including actual Stronghold
+  file reopening and refusal after host revocation.
+- Independent review found no confirmed defect. Consolidated architecture/format/
+  Biome/typecheck/Clippy/workspace Rust checks passed, including native guest DTO.
+  The default frontend fork runner stalled without test output and was explicitly
+  stopped; the complete suite passed with CLI threads pool (155 files/1042 tests,
+  91.75 seconds). No project runner configuration was changed. This is separate
+  fallback evidence, not a claim that the original consolidated command finished.
+- All 32 original dirty-file hashes are preserved. No new production dependencies.
+  UI/action broker/outbox, subscription, WebView invocation, stable host restart
+  and full two-device session acceptance remain open.
+
+
+### Next slice: native room transport into the production UI
+
+Use a closed typed operation enum for state/update reads, own party/proposal,
+proposal submission/host approval and adventure/combat/rest actions. Never accept
+an arbitrary renderer URL, HTTP method, header, member identity or credential.
+Resolve the selected native host/guest connection in Rust; host wildcard bind
+addresses must map to a loopback destination for the local host client. Preserve
+remote status codes so stale revision, denial and unavailable host remain distinct.
+Bound response bytes and cancellation; do not hold the lifecycle lock across an
+indefinite event stream. Session generation guards must discard late responses
+from a previously selected room. Keep capabilities outside renderer projections.
+
+Before mutation, persist canonical action/nonce in the existing encrypted secrets
+store; an unknown delivery result must reuse the same nonce and expose pending
+recovery. Read operations must not create an outbox record. Add real two-client
+transport tests for accepted/rejected ownership, retry and disconnected host before
+connecting views. Keep the server's current snapshot/cursor authoritative; no local
+solo command fallback when the room connection fails.
+
+Then implement the previously approved compact UI brief using existing cards,
+buttons, overlays and EN/RU catalogs: host/join entry, own hero proposal, host
+approval and shared play screen. One shared AI DM handles narration/NPCs; each
+human controls their own accepted hero. Verify the real production root, lint,
+production build and browser/native smoke. Full party-session/restart and physical
+LAN evidence remain separate acceptance gates.

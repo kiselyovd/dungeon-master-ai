@@ -1328,3 +1328,161 @@ async fn native_grant_read_failure_compensates_committed_creation_before_solo_re
     let grant = service.start(request).await.unwrap();
     service.stop(grant.room.room_id).await.unwrap();
 }
+
+struct JoinSaveFailsOnce {
+    inner: Arc<dyn app_application::ports::secrets::SecretsStore>,
+    calls: AtomicUsize,
+}
+#[async_trait::async_trait]
+impl app_application::ports::secrets::SecretsStore for JoinSaveFailsOnce {
+    async fn get(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, app_application::ports::secrets::SecretsError> {
+        self.inner.get(key).await
+    }
+    async fn set(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), app_application::ports::secrets::SecretsError> {
+        if key.starts_with("native:guest-join:") && self.calls.fetch_add(1, Ordering::SeqCst) == 1 {
+            return Err(app_application::ports::secrets::SecretsError::Operation {
+                operation: "set",
+                code: "fixture_join_save_failed",
+            });
+        }
+        self.inner.set(key, value).await
+    }
+    async fn delete(&self, key: &str) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.delete(key).await
+    }
+}
+#[tokio::test]
+async fn native_guest_recovers_a_committed_remote_join_when_final_local_save_failed() {
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f.rooms.rotate_invitation(&host).await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let local_db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    adapter_sqlite::pool::migrate(&local_db).await.unwrap();
+    let local =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), local_db);
+    local.set_secrets_repo(Arc::new(JoinSaveFailsOnce {
+        inner: local.secrets_repo(),
+        calls: AtomicUsize::new(0),
+    }));
+    let join = app_application::models::room_client::NativeGuestJoinRequest {
+        address,
+        room_id: f.host.room.room_id,
+        join_id: Uuid::new_v4(),
+        display_name: "Recovering guest".into(),
+        invitation: invitation.expose().into(),
+    };
+    assert!(app_server::native_room_client::service(local.clone())
+        .unwrap()
+        .join(join.clone())
+        .await
+        .is_err());
+    let before = f.rooms.current_room(&host).await.unwrap();
+    assert_eq!(before.members.len(), 3);
+    let recovered = app_server::native_room_client::service(local.clone())
+        .unwrap()
+        .resume(
+            app_application::models::room_client::NativeGuestResumeRequest {
+                room_id: join.room_id,
+                join_id: join.join_id,
+            },
+        )
+        .await
+        .unwrap();
+    let after = f.rooms.current_room(&host).await.unwrap();
+    assert_eq!(after.members.len(), 3);
+    assert!(after
+        .members
+        .iter()
+        .any(|member| member.member_id == recovered.member_id));
+    server.abort();
+}
+
+#[tokio::test]
+async fn native_guest_resumes_after_stronghold_reopening_and_rejects_revocation() {
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f.rooms.rotate_invitation(&host).await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let vault_path = std::env::temp_dir().join(format!("dmai-guest-{}.hold", Uuid::new_v4()));
+    let local_db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    adapter_sqlite::pool::migrate(&local_db).await.unwrap();
+    let local = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        local_db.clone(),
+    );
+    local.set_secrets_repo(Arc::new(
+        adapter_secrets::StrongholdSecretsStore::open(
+            vault_path.clone(),
+            b"guest-test-passphrase".to_vec(),
+        )
+        .unwrap(),
+    ));
+    let join = app_application::models::room_client::NativeGuestJoinRequest {
+        address,
+        room_id: f.host.room.room_id,
+        join_id: Uuid::new_v4(),
+        display_name: "Persistent guest".into(),
+        invitation: invitation.expose().into(),
+    };
+    let first = app_server::native_room_client::service(local.clone())
+        .unwrap()
+        .join(join.clone())
+        .await
+        .unwrap();
+    drop(local);
+    let reopened =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), local_db);
+    reopened.set_secrets_repo(Arc::new(
+        adapter_secrets::StrongholdSecretsStore::open(
+            vault_path.clone(),
+            b"guest-test-passphrase".to_vec(),
+        )
+        .unwrap(),
+    ));
+    let service = app_server::native_room_client::service(reopened.clone()).unwrap();
+    let request = app_application::models::room_client::NativeGuestResumeRequest {
+        room_id: join.room_id,
+        join_id: join.join_id,
+    };
+    let recovered = service
+        .resume(
+            app_application::models::room_client::NativeGuestResumeRequest {
+                room_id: request.room_id,
+                join_id: request.join_id,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.member_id, recovered.member_id);
+    assert_eq!(first.capability, recovered.capability);
+    assert_eq!(f.rooms.current_room(&host).await.unwrap().members.len(), 3);
+    f.rooms.revoke(&host, recovered.member_id).await.unwrap();
+    assert!(service.resume(request).await.is_err());
+    drop(service);
+    drop(reopened);
+    server.abort();
+    std::fs::remove_file(vault_path).unwrap();
+}

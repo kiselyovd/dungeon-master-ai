@@ -367,3 +367,28 @@ client/outbox recovery or physical-device session acceptance. Restart recovery o
 the native selection and stable public binding also remains pending. No UI has
 been changed in this slice. Only existing workspace libraries were added as test
 (dev) dependencies in app-bootstrap; production dependencies are unchanged.
+
+
+## Native guest join recovery
+
+The protected loopback owner API also exposes POST `/native/room-client/join`
+and `/native/room-client/resume`; neither route belongs to the public room router.
+The native client persists a canonical SocketAddr/room/join request and a fresh
+resume proof through the configured secrets adapter before sending the remote
+join. A lost result or failed final local save can retry that same proof without
+creating a duplicate member. Reusing the join ID with changed inputs is rejected.
+A stored connection resumes through authenticated room refresh; revoked membership
+fails rather than silently opening a new membership.
+
+Remote requests disable redirects, use bounded timeouts, limit decoded responses
+to 64 KiB and validate the returned room/member role and capability. The local
+owner token never goes to the remote host. Tauri registers `join_room` and
+`resume_room`, retains capabilities in native state and returns only public room,
+member/join IDs and address. Renderer serialization has secret-omission coverage.
+Real HTTP join/idempotency and fault-injection tests pass; a real Stronghold file
+can be reopened and recover the same guest credential, with revocation enforced.
+
+This checkpoint does not prove a WebView invocation or a playable guest screen.
+Native action brokering, encrypted outbox, state/event subscription, room selection
+recovery, stable host restart and physical-device LAN acceptance remain pending.
+No production dependencies were added.

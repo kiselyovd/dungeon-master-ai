@@ -328,6 +328,18 @@ pub trait NativeRoomHostHttpService: Send + Sync {
     async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError>;
 }
 
+#[async_trait]
+pub trait NativeRoomClientHttpService: Send + Sync {
+    async fn join(
+        &self,
+        request: app_application::models::room_client::NativeGuestJoinRequest,
+    ) -> Result<app_application::models::room_client::NativeGuestConnection, HttpServiceError>;
+    async fn resume(
+        &self,
+        request: app_application::models::room_client::NativeGuestResumeRequest,
+    ) -> Result<app_application::models::room_client::NativeGuestConnection, HttpServiceError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

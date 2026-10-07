@@ -10,6 +10,7 @@ use uuid::Uuid;
 #[derive(Default)]
 pub struct NativeRoomState {
     host: Mutex<Option<NativeHostRoomGrant>>,
+    guest: Mutex<Option<app_application::models::room_client::NativeGuestConnection>>,
     lifecycle: tokio::sync::Mutex<()>,
 }
 #[derive(serde::Serialize)]
@@ -130,6 +131,95 @@ pub async fn stop_host_room(app: AppHandle, room_id: Uuid) -> Result<(), String>
         .await
 }
 
+#[derive(serde::Serialize)]
+pub struct NativeGuestRoomView {
+    room: PublicRoom,
+    member_id: Uuid,
+    join_id: Uuid,
+    address: SocketAddr,
+}
+fn guest_view(
+    connection: &app_application::models::room_client::NativeGuestConnection,
+) -> NativeGuestRoomView {
+    NativeGuestRoomView {
+        room: connection.room.clone(),
+        member_id: connection.member_id,
+        join_id: connection.join_id,
+        address: connection.address,
+    }
+}
+#[tauri::command]
+pub async fn join_room(
+    app: AppHandle,
+    request: app_application::models::room_client::NativeGuestJoinRequest,
+) -> Result<NativeGuestRoomView, String> {
+    let state = app.state::<NativeRoomState>();
+    let _lifecycle = state.lifecycle.lock().await;
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .post(format!("http://127.0.0.1:{port}/native/room-client/join"))
+        .bearer_auth(token)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|_| "native_guest_request_failed")?;
+    if !response.status().is_success() {
+        return Err("native_guest_request_rejected".into());
+    }
+    let connection = response
+        .json::<app_application::models::room_client::NativeGuestConnection>()
+        .await
+        .map_err(|_| "native_guest_response_invalid")?;
+    if connection.room.room_id != request.room_id
+        || connection.join_id != request.join_id
+        || connection.address != request.address
+        || app_application::rooms::RoomSecret::from_input(connection.capability.clone()).is_err()
+    {
+        return Err("native_guest_response_invalid".into());
+    }
+    let view = guest_view(&connection);
+    *state
+        .guest
+        .lock()
+        .map_err(|_| "native_room_state_unavailable")? = Some(connection);
+    Ok(view)
+}
+#[tauri::command]
+pub async fn resume_room(
+    app: AppHandle,
+    request: app_application::models::room_client::NativeGuestResumeRequest,
+) -> Result<NativeGuestRoomView, String> {
+    let state = app.state::<NativeRoomState>();
+    let _lifecycle = state.lifecycle.lock().await;
+    let (port, token) = owner_connection(&app)?;
+    let response = client()?
+        .post(format!("http://127.0.0.1:{port}/native/room-client/resume"))
+        .bearer_auth(token)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|_| "native_guest_request_failed")?;
+    if !response.status().is_success() {
+        return Err("native_guest_request_rejected".into());
+    }
+    let connection = response
+        .json::<app_application::models::room_client::NativeGuestConnection>()
+        .await
+        .map_err(|_| "native_guest_response_invalid")?;
+    if connection.room.room_id != request.room_id
+        || connection.join_id != request.join_id
+        || app_application::rooms::RoomSecret::from_input(connection.capability.clone()).is_err()
+    {
+        return Err("native_guest_response_invalid".into());
+    }
+    let view = guest_view(&connection);
+    *state
+        .guest
+        .lock()
+        .map_err(|_| "native_room_state_unavailable")? = Some(connection);
+    Ok(view)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,6 +244,23 @@ mod tests {
         assert!(view.get("capability").is_none());
         assert!(!view.to_string().contains(capability.expose()));
         assert_eq!(view["member_id"], serde_json::json!(grant.member_id));
+    }
+    #[test]
+    fn renderer_guest_view_excludes_connection_credentials() {
+        let host = grant(Uuid::new_v4());
+        let connection = app_application::models::room_client::NativeGuestConnection {
+            address: host.address,
+            room: host.room,
+            member_id: host.member_id,
+            capability: host.capability,
+            join_id: Uuid::new_v4(),
+        };
+        let view = serde_json::to_value(guest_view(&connection)).unwrap();
+        assert!(view.get("capability").is_none());
+        assert!(view.get("resume_proof").is_none());
+        assert!(view.get("invitation").is_none());
+        assert!(!view.to_string().contains(&connection.capability));
+        assert_eq!(view["join_id"], serde_json::json!(connection.join_id));
     }
     fn grant(room: Uuid) -> NativeHostRoomGrant {
         NativeHostRoomGrant {
