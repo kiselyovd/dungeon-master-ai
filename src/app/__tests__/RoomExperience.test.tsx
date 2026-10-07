@@ -136,4 +136,13 @@ it('recovers an existing host selection without creating a replacement room', as
   expect(mocks.recoverHost).toHaveBeenCalledTimes(2);
   expect(mocks.host).not.toHaveBeenCalled();
   expect(mocks.current).not.toHaveBeenCalled();
+  mocks.recoverHost.mockResolvedValueOnce({
+    kind: 'host',
+    room: wire.state.room,
+    member_id: wire.state.room.members.find((member) => member.role === 'host')?.member_id,
+    address: '127.0.0.1:4123',
+    invitation: 'renewed fixture',
+  });
+  await user.click(screen.getByRole('button', { name: 'Refresh invitation' }));
+  await screen.findByDisplayValue('renewed fixture');
 });

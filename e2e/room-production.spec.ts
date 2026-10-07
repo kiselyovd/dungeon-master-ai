@@ -188,4 +188,6 @@ test('host recovers a saved room from the production screen without creation inp
   await page.getByRole('button', { name: 'Совместная игра' }).click();
   await page.getByRole('button', { name: 'Восстановить комнату', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  await page.getByRole('button', { name: 'Обновить приглашение' }).click({ timeout: 5000 });
+  await expect(page.getByRole('textbox', { name: 'Приглашение' })).toHaveValue('fixture');
 });

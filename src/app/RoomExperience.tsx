@@ -35,6 +35,11 @@ function ConnectedRoom({
   onBack: () => void | Promise<void>;
 }) {
   const { view, controller } = useRoom(roomPorts, connection);
+  const [invitation, setInvitation] = useState(
+    connection.kind === 'host' ? connection.invitation : '',
+  );
+  const [refreshingInvitation, setRefreshingInvitation] = useState(false);
+  const [invitationError, setInvitationError] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closingError, setClosingError] = useState(false);
@@ -54,10 +59,35 @@ function ConnectedRoom({
   return (
     <>
       <RoomPlay
+        invitation={invitation}
+        onRefreshInvitation={
+          connection.kind === 'host'
+            ? () => {
+                if (refreshingInvitation) return;
+                setRefreshingInvitation(true);
+                setInvitationError(false);
+                void recoverHostRoom()
+                  .then((current) => {
+                    if (
+                      current?.kind !== 'host' ||
+                      current.room.room_id !== connection.room.room_id
+                    )
+                      throw new Error('room_scope_changed');
+                    setInvitation(current.invitation);
+                  })
+                  .catch(() => setInvitationError(true))
+                  .finally(() => setRefreshingInvitation(false));
+              }
+            : undefined
+        }
         view={{
           ...view,
-          busy: view.busy || closing,
-          errorCode: closingError ? 'native_host_stop_failed' : view.errorCode,
+          busy: view.busy || closing || refreshingInvitation,
+          errorCode: closingError
+            ? 'native_host_stop_failed'
+            : invitationError
+              ? 'native_host_invitation_failed'
+              : view.errorCode,
         }}
         battle={
           view.state && (

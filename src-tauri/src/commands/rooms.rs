@@ -69,20 +69,32 @@ async fn host_error(mut response: reqwest::Response) -> String {
     .into()
 }
 impl NativeRoomState {
+    fn retain_host(&self, grant: NativeHostRoomGrant) -> Result<NativeHostRoomView, String> {
+        let view = public_view(&grant);
+        let mut selected = self
+            .host
+            .lock()
+            .map_err(|_| "native_room_state_unavailable")?;
+        let unchanged = selected.as_ref().is_some_and(|old| {
+            old.room.room_id == grant.room.room_id
+                && old.member_id == grant.member_id
+                && old.address == grant.address
+                && old.capability == grant.capability
+        });
+        *selected = Some(grant);
+        if !unchanged {
+            self.generation
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        Ok(view)
+    }
     async fn apply_host<F>(&self, operation: F) -> Result<NativeHostRoomView, String>
     where
         F: std::future::Future<Output = Result<NativeHostRoomGrant, String>>,
     {
         let _lifecycle = self.lifecycle.lock().await;
         let grant = operation.await?;
-        let view = public_view(&grant);
-        *self
-            .host
-            .lock()
-            .map_err(|_| "native_room_state_unavailable")? = Some(grant);
-        self.generation
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(view)
+        self.retain_host(grant)
     }
     async fn apply_stop<F>(&self, operation: F) -> Result<(), String>
     where
@@ -171,15 +183,7 @@ pub async fn recover_host_room(app: AppHandle) -> Result<Option<NativeHostRoomVi
     {
         return Err("native_host_response_invalid".into());
     }
-    let view = public_view(&grant);
-    *state
-        .host
-        .lock()
-        .map_err(|_| "native_room_state_unavailable")? = Some(grant);
-    state
-        .generation
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    Ok(Some(view))
+    state.retain_host(grant).map(Some)
 }
 #[tauri::command]
 pub async fn stop_host_room(app: AppHandle, room_id: Uuid) -> Result<(), String> {
@@ -839,5 +843,26 @@ mod tests {
                 assert!(host.is_none());
             }
         }
+    }
+    #[test]
+    fn refreshing_the_same_host_invitation_preserves_active_stream_generation() {
+        let state = NativeRoomState::default();
+        let room = Uuid::new_v4();
+        let first = grant(room);
+        let member = first.member_id;
+        let capability = first.capability.clone();
+        state.retain_host(first).unwrap();
+        let generation = state.generation.load(std::sync::atomic::Ordering::SeqCst);
+        let mut refreshed = grant(room);
+        refreshed.member_id = member;
+        refreshed.capability = capability;
+        refreshed.invitation = "refreshed fixture".into();
+        state.retain_host(refreshed).unwrap();
+        assert_eq!(
+            state.generation.load(std::sync::atomic::Ordering::SeqCst),
+            generation
+        );
+        state.retain_host(grant(Uuid::new_v4())).unwrap();
+        assert!(state.generation.load(std::sync::atomic::Ordering::SeqCst) > generation);
     }
 }

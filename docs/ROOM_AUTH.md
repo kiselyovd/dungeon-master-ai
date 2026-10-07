@@ -528,3 +528,17 @@ private tool context, failed event publication rolling back message/checkpoint,
 confirmed publication, snapshot restore, cursor backlog and database reopening.
 The adapter-sqlite build script watches migration additions to invalidate cached
 embedded migration code during incremental builds.
+
+
+## Usable invitation on host recovery
+
+Invitations last ten minutes and are consumed by enrollment. Native host recovery
+reloads the canonical room and invitation; it renews expired or consumed codes
+and preserves an already usable code on repeated requests. The host-card Refresh
+invitation control uses that same recovery path, so retry after a lost response
+reads the current valid code. Existing members keep their credentials.
+
+Refreshing the same host identity, address and credential preserves native stream
+generation. A different identity/destination/capability still invalidates old
+responses. Expiration, consumption and repeated recovery have backend regressions;
+a native regression verifies that invitation refresh keeps stream generation.

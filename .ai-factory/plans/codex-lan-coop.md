@@ -654,3 +654,25 @@ recompile the embedded sqlx migrator. Existing manual upgrade contracts now appl
 Two room-agent, 25 DM/native and six update/publication tests pass, including forced
 publication failure rollback, snapshot reset, backlog/reopening and private chat.
 Storage/upgrade and workspace Clippy/architecture checks pass. Independent read-only review found no actionable issue. Actual two-client/native/physical LAN session remains next.
+
+
+### Two-native-client acceptance preparation / invitation fix
+
+Separate host/guest native identifiers, WebView profiles, SQLite databases,
+Stronghold vaults and backend processes were launched locally. Actual guest join
+exposed an expired ten-minute invitation returned by saved-host recovery; enrollment
+stopped before character acceptance, so no complete two-client proof is claimed.
+Native processes were closed; .artifacts/two-native contains scoped launch and
+acceptance scripts/profiles for continuation (excluded from Git).
+
+Host start/recover now loads canonical invitation and member projection, renews
+only expired/consumed codes, and preserves an already usable code across retries.
+The existing host-card controls provide Refresh invitation through recover IPC.
+Native retains stream generation for unchanged room/member/address/capability;
+changing identity/destination/credential still invalidates prior responses.
+Two backend expiration/consumption/recreation regressions, ten UI/root tests and
+one native stream-generation regression pass. TypeScript, build and workspace
+Clippy/architecture pass. Independent review found no actionable issue. Five current production-preview browser scenarios pass, including invitation refresh. The earlier run used the previous build and failed; its result is superseded by the current build run.
+Next: rebuild the isolated host/guest executables with this fix, complete native
+join/approval/ownership checks, shared DM and peaceful/defense/restart acceptance.
+Physical-device LAN remains distinct and unverified.

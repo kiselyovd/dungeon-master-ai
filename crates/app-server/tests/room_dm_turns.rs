@@ -2172,3 +2172,72 @@ async fn native_closed_host_recovery_clears_binding_before_a_fresh_room() {
     assert_ne!(fresh.room.room_id, grant.room.room_id);
     restarted.stop(fresh.room.room_id).await.unwrap();
 }
+
+#[tokio::test]
+async fn native_host_recovery_replaces_expired_or_consumed_invites_and_preserves_usable_one() {
+    let f = fixture().await;
+    let state = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    );
+    let service = app_server::http_services::native_room_host_http_service(
+        state,
+        f.rooms.clone(),
+        Arc::new(StopFailsOnce {
+            failures: AtomicUsize::new(0),
+        }),
+    );
+    let grant = service
+        .start(app_application::models::room_host::NativeHostRoomRequest {
+            request_id: Uuid::new_v4(),
+            campaign_id: f.campaign,
+            session_id: f.session,
+            expected_revision: f
+                .store
+                .load_current(f.campaign)
+                .await
+                .unwrap()
+                .campaign
+                .revision,
+            bind_addr: "127.0.0.1:0".parse().unwrap(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        service.recover().await.unwrap().unwrap().invitation,
+        grant.invitation
+    );
+    let mut record = f.store.room(grant.room.room_id).await.unwrap().unwrap();
+    record.invitation.expires_at = 0;
+    sqlx::query("UPDATE coop_rooms SET record_json=?1 WHERE room_id=?2")
+        .bind(serde_json::to_string(&record).unwrap())
+        .bind(record.room_id.to_string())
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    let fresh = service.recover().await.unwrap().unwrap();
+    assert_ne!(fresh.invitation, grant.invitation);
+    assert_eq!(fresh.address, grant.address);
+    assert_eq!(
+        service.recover().await.unwrap().unwrap().invitation,
+        fresh.invitation
+    );
+    f.rooms
+        .join(JoinRoom {
+            room_id: fresh.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "New guest".into(),
+            invitation: RoomSecret::from_input(fresh.invitation.clone()).unwrap(),
+            resume_proof: RoomSecret::generate(),
+        })
+        .await
+        .unwrap();
+    let second = service.recover().await.unwrap().unwrap();
+    assert_ne!(second.invitation, fresh.invitation);
+    assert_eq!(
+        service.recover().await.unwrap().unwrap().invitation,
+        second.invitation
+    );
+    service.stop(second.room.room_id).await.unwrap();
+}

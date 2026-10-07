@@ -7,6 +7,8 @@ import type { RoomView } from './model/RoomController';
 import styles from './Room.module.css';
 
 interface Props {
+  invitation?: string;
+  onRefreshInvitation?: (() => void) | undefined;
   battle?: ReactNode;
   view: RoomView;
   onLeave: () => void;
@@ -19,6 +21,8 @@ interface Props {
 }
 export function RoomPlay({
   view,
+  invitation,
+  onRefreshInvitation,
   battle,
   onLeave,
   onReconnect,
@@ -85,11 +89,16 @@ export function RoomPlay({
                         {...props}
                         className={styles.input}
                         readOnly
-                        value={connection.invitation}
+                        value={invitation ?? connection.invitation}
                         data-room-invitation
                       />
                     )}
                   </Field>
+                  {onRefreshInvitation && (
+                    <Button disabled={view.busy} onClick={onRefreshInvitation}>
+                      {t('refresh_invitation')}
+                    </Button>
+                  )}
                 </>
               )}
             </section>

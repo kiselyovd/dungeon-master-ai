@@ -1837,6 +1837,56 @@ impl AppStateNativeRoomHostService {
         *active = None;
         Ok(())
     }
+    async fn refresh_invitation(
+        &self,
+        current: &mut ActiveNativeHost,
+    ) -> Result<(), HttpServiceError> {
+        use app_application::ports::repositories::RoomRepository;
+        let record = SqliteStore::new(self.state.db().clone())
+            .room(current.grant.room.room_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_recovery_failed",
+            })?
+            .ok_or(HttpServiceError::Conflict {
+                code: "native_host_room_closed",
+            })?;
+        let subject = self
+            .rooms
+            .authenticate(
+                record.room_id,
+                current.grant.member_id,
+                &app_application::rooms::RoomSecret::from_input(current.grant.capability.clone())
+                    .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_credentials_invalid",
+                })?,
+            )
+            .await
+            .map_err(|_| HttpServiceError::Conflict {
+                code: "native_host_room_closed",
+            })?;
+        if record.invitation.consumed_by.is_some()
+            || app_application::rooms::RoomClock::now(&app_application::rooms::SystemRoomClock)
+                >= record.invitation.expires_at
+        {
+            self.rooms.rotate_invitation(&subject).await.map_err(|_| {
+                HttpServiceError::Internal {
+                    code: "native_host_invitation_failed",
+                }
+            })?;
+        }
+        // Reload the canonical secret: repeated recovery preserves a usable code.
+        let refreshed = self
+            .rooms
+            .create_local_room(Self::creation(&current.request))
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_recovery_failed",
+            })?;
+        current.grant.room = refreshed.grant.room;
+        current.grant.invitation = refreshed.invitation.expose().into();
+        Ok(())
+    }
     fn copy_grant(
         grant: &app_application::models::room_host::NativeHostRoomGrant,
     ) -> app_application::models::room_host::NativeHostRoomGrant {
@@ -1884,7 +1934,7 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
         if active.as_ref().is_some_and(|current| !current.running) {
             self.cleanup(&mut active).await?;
         }
-        if let Some(current) = active.as_ref() {
+        if let Some(current) = active.as_mut() {
             if current.request != request {
                 return Err(HttpServiceError::Conflict {
                     code: "native_room_already_hosted",
@@ -1905,6 +1955,7 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
                 .map_err(|_| HttpServiceError::Conflict {
                     code: "native_host_room_closed",
                 })?;
+            self.refresh_invitation(current).await?;
             return Ok(Self::copy_grant(&current.grant));
         }
         let persisted = self
@@ -2064,6 +2115,7 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
         current.grant.address = address;
         current.running = true;
         current.pending_lane.take();
+        self.refresh_invitation(current).await?;
         Ok(Self::copy_grant(&current.grant))
     }
     async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError> {
