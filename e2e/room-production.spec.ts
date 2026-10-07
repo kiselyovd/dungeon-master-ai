@@ -8,96 +8,121 @@ const wire = JSON.parse(
 
 import { mockTauri } from './fixtures/tauri-mock';
 
-async function installRoomStub(page: Page, snapshot: RoomUpdate, completed = true) {
+async function installRoomStub(
+  page: Page,
+  snapshot: RoomUpdate,
+  completed = true,
+  recoveryStages?: { aid: RoomUpdate; wait: RoomUpdate },
+) {
   await mockTauri(page, { onboarding_completed: completed, ui_language: 'ru' });
-  await page.addInitScript((snapshot) => {
-    type Internals = {
-      invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
-    };
-    let current: Internals | undefined;
-    const install = (value: Internals) => {
-      const original = value.invoke.bind(value);
-      const streams = new Map<string, () => void>();
-      value.invoke = async (command, args = {}) => {
-        if (command === 'recover_host_room')
-          return {
-            room: snapshot.state.room,
-            member_id: snapshot.state.room.members.find((member) => member.role === 'host')
-              ?.member_id,
-            address: '127.0.0.1:4123',
-            invitation: 'fixture',
-          };
-        if (command === 'saved_guest_rooms') return [];
-        if (command === 'postpone_guest_room') return;
-        if (command === 'join_room' || command === 'recover_guest_room') {
-          const request = args.request as { join_id: string };
-          const member = snapshot.state.room.members.find((member) => member.role === 'player');
-          return {
-            room: snapshot.state.room,
-            member_id: member?.member_id,
-            join_id:
-              command === 'recover_guest_room'
-                ? '77777777-7777-4777-8777-777777777777'
-                : request.join_id,
-            address: '127.0.0.1:4123',
-          };
-        }
-        if (
-          command === 'room_operation' &&
-          (args.operation as { kind: string }).kind === 'combat'
-        ) {
-          const combat = snapshot.state.combat as {
-            revision: number;
-            snapshot: {
-              current_combatant: string | null;
-              combatants: Array<{ id: string; character_id: string | null }>;
-            };
-          };
-          const own = String(snapshot.state.own_character?.characterId);
-          combat.snapshot.current_combatant =
-            combat.snapshot.combatants.find(
-              (actor) => actor.character_id && actor.character_id !== own,
-            )?.id ?? null;
-          combat.revision++;
-          snapshot.state.revision++;
-          snapshot.head++;
-          snapshot.cursor = snapshot.head;
-          snapshot.events = [];
-          return {
-            status: 200,
-            body: {
-              projection: combat,
-              duplicate: false,
-              receipt_revision: combat.revision,
-              receipt_events: [],
-            },
-          };
-        }
-        if (command === 'room_operation')
-          return {
-            status: 200,
-            body: (args.operation as { kind: string }).kind === 'pending_action' ? null : snapshot,
-          };
-        if (command === 'stream_room')
-          return await new Promise<void>((resolve) => streams.set(String(args.streamId), resolve));
-        if (command === 'cancel_room_stream') {
-          streams.get(String(args.streamId))?.();
-          streams.delete(String(args.streamId));
-          return;
-        }
-        return original(command, args);
+  await page.addInitScript(
+    ({ snapshot, recoveryStages }) => {
+      type Internals = {
+        invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
       };
-      current = value;
-    };
-    const target = window as unknown as { __TAURI_INTERNALS__?: Internals };
-    const existing = target.__TAURI_INTERNALS__;
-    Object.defineProperty(window, '__TAURI_INTERNALS__', {
-      configurable: true,
-      get: () => current,
-      set: install,
-    });
-    if (existing) install(existing);
-  }, snapshot);
+      let current: Internals | undefined;
+      const install = (value: Internals) => {
+        const original = value.invoke.bind(value);
+        const streams = new Map<string, () => void>();
+        value.invoke = async (command, args = {}) => {
+          if (command === 'recover_host_room')
+            return {
+              room: snapshot.state.room,
+              member_id: snapshot.state.room.members.find((member) => member.role === 'host')
+                ?.member_id,
+              address: '127.0.0.1:4123',
+              invitation: 'fixture',
+            };
+          if (
+            command === 'room_operation' &&
+            (args.operation as { kind: string }).kind === 'recovery' &&
+            recoveryStages
+          ) {
+            const operation = args.operation as { intent: { kind: string } };
+            snapshot = structuredClone(
+              operation.intent.kind === 'aid' ? recoveryStages.aid : recoveryStages.wait,
+            );
+            const event = [...snapshot.events]
+              .reverse()
+              .find((event) => (event.payload as { operation?: string }).operation === 'recovery');
+            return { status: 200, body: (event?.payload as { receipt: unknown }).receipt };
+          }
+          if (command === 'saved_guest_rooms') return [];
+          if (command === 'postpone_guest_room') return;
+          if (command === 'join_room' || command === 'recover_guest_room') {
+            const request = args.request as { join_id: string };
+            const member = snapshot.state.room.members.find((member) => member.role === 'player');
+            return {
+              room: snapshot.state.room,
+              member_id: member?.member_id,
+              join_id:
+                command === 'recover_guest_room'
+                  ? '77777777-7777-4777-8777-777777777777'
+                  : request.join_id,
+              address: '127.0.0.1:4123',
+            };
+          }
+          if (
+            command === 'room_operation' &&
+            (args.operation as { kind: string }).kind === 'combat'
+          ) {
+            const combat = snapshot.state.combat as {
+              revision: number;
+              snapshot: {
+                current_combatant: string | null;
+                combatants: Array<{ id: string; character_id: string | null }>;
+              };
+            };
+            const own = String(snapshot.state.own_character?.characterId);
+            combat.snapshot.current_combatant =
+              combat.snapshot.combatants.find(
+                (actor) => actor.character_id && actor.character_id !== own,
+              )?.id ?? null;
+            combat.revision++;
+            snapshot.state.revision++;
+            snapshot.head++;
+            snapshot.cursor = snapshot.head;
+            snapshot.events = [];
+            return {
+              status: 200,
+              body: {
+                projection: combat,
+                duplicate: false,
+                receipt_revision: combat.revision,
+                receipt_events: [],
+              },
+            };
+          }
+          if (command === 'room_operation')
+            return {
+              status: 200,
+              body:
+                (args.operation as { kind: string }).kind === 'pending_action' ? null : snapshot,
+            };
+          if (command === 'stream_room')
+            return await new Promise<void>((resolve) =>
+              streams.set(String(args.streamId), resolve),
+            );
+          if (command === 'cancel_room_stream') {
+            streams.get(String(args.streamId))?.();
+            streams.delete(String(args.streamId));
+            return;
+          }
+          return original(command, args);
+        };
+        current = value;
+      };
+      const target = window as unknown as { __TAURI_INTERNALS__?: Internals };
+      const existing = target.__TAURI_INTERNALS__;
+      Object.defineProperty(window, '__TAURI_INTERNALS__', {
+        configurable: true,
+        get: () => current,
+        set: install,
+      });
+      if (existing) install(existing);
+    },
+    { snapshot, recoveryStages },
+  );
 }
 
 test('production co-op root joins a guest and preserves its own hero', async ({ page }) => {
@@ -190,4 +215,28 @@ test('host recovers a saved room from the production screen without creation inp
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
   await page.getByRole('button', { name: 'Обновить приглашение' }).click({ timeout: 5000 });
   await expect(page.getByRole('textbox', { name: 'Приглашение' })).toHaveValue('fixture');
+});
+
+test('production recovery controls aid a dying hero and confirm waiting using real engine snapshots', async ({
+  page,
+}) => {
+  const fixture = (name: string) =>
+    JSON.parse(
+      readFileSync(new URL(`../src/api/__fixtures__/${name}.json`, import.meta.url), 'utf8'),
+    ) as RoomUpdate;
+  await installRoomStub(page, fixture('roomRecoveryUpdate'), true, {
+    aid: fixture('roomRecoveryAidUpdate'),
+    wait: fixture('roomRecoveryWaitUpdate'),
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить комнату', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Помощь раненым героям' })).toBeVisible();
+  await page.getByRole('button', { name: 'Попытаться помочь' }).click();
+  await expect(page.getByText('Tara · Стабилен, без сознания')).toBeVisible();
+  await page.getByRole('button', { name: 'Дождаться восстановления' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Дождаться восстановления' }).click();
+  await expect(page.getByRole('heading', { name: 'Помощь раненым героям' })).not.toBeVisible();
+  await expect(page.getByText('Tara · ОЗ 1/12 · КД 14')).toBeVisible();
 });

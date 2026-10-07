@@ -25,6 +25,7 @@ pub struct RoomState {
     pub title: String,
     pub revision: Revision,
     pub actors: Vec<PublicPartyActor>,
+    pub recovery: Vec<super::room_recovery::PublicHeroRecovery>,
     pub own_character: Option<Value>,
     pub own_proposal: Option<OwnCharacterProposal>,
     pub pending_proposals: Option<Vec<ProposalSummary>>,

@@ -24,6 +24,11 @@ pub enum NativeRoomOperation {
     OwnProposal {},
     PendingProposals {},
     RestStatus {},
+    Recovery {
+        request_id: String,
+        expected_revision: u64,
+        intent: super::room_recovery::RecoveryIntent,
+    },
     SubmitCharacter {
         proposal_id: Uuid,
         character_id: Uuid,

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { AdventureActionSchema } from './adventure';
+import { RecoveryIntentSchema } from './recovery';
 import { RestIntentSchema } from './rest';
 
 const uuid = v.pipe(v.string(), v.uuid());
@@ -28,6 +29,12 @@ export const HeroIntentSchema = v.variant('kind', [
   }),
 ]);
 const actionOptions = [
+  v.strictObject({
+    kind: v.literal('recovery'),
+    request_id: nonce,
+    expected_revision: integer,
+    intent: RecoveryIntentSchema,
+  }),
   v.strictObject({
     kind: v.literal('submit_character'),
     proposal_id: uuid,

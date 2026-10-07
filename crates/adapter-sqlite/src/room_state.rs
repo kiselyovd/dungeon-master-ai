@@ -56,7 +56,20 @@ async fn state(
         .iter()
         .find(|member| member.member_id == lease.member_id() && member.role == lease.role())
         .map(|member| member.character_id);
-    let own_character = owner.and_then(|id| party.characters.get(&id).cloned());
+    let own_character = owner.and_then(|id| {
+        party.characters.get(&id).cloned().map(|mut sheet| {
+            sheet["characterId"] = serde_json::json!(id);
+            sheet
+        })
+    });
+    let recovery = app_application::recovery::summaries(
+        &party,
+        &room,
+        owner,
+        crate::rest::active_combat(tx, room.session_id).await?,
+        app_application::recovery::safe(&current),
+    )
+    .map_err(error)?;
     let mut combat = if owner.is_some() {
         current
             .projection
@@ -126,6 +139,7 @@ async fn state(
         title: current.campaign.title,
         revision: party.revision,
         actors: public.actors,
+        recovery,
         own_character,
         own_proposal,
         pending_proposals: (lease.role() == PartyRole::Host).then_some(pending),

@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import aidWire from './__fixtures__/roomRecoveryAidUpdate.json';
 import wire from './__fixtures__/roomUpdate.json';
 import {
   joinRoom,
@@ -112,4 +113,27 @@ it('recovers the selected host without renderer credentials and rejects a guest 
   await expect(recoverHostRoom()).rejects.toMatchObject({ code: 'native_room_response_invalid' });
   mocked.invoke.mockResolvedValueOnce({ ...view, capability: 'must never enter renderer' });
   await expect(recoverHostRoom()).rejects.toMatchObject({ code: 'native_room_response_invalid' });
+});
+
+it('decodes a real recovery receipt and rejects client-supplied dice', async () => {
+  const event = [...aidWire.events].reverse().find((event) => 'receipt' in event.payload);
+  if (!event || !('receipt' in event.payload)) throw new Error('receipt required');
+  mocked.invoke.mockResolvedValue({ status: 200, body: event.payload.receipt });
+  const target = aidWire.state.recovery.find((hero) => hero.status === 'stable');
+  if (!target) throw new Error('target required');
+  const action = {
+    kind: 'recovery' as const,
+    request_id: crypto.randomUUID(),
+    expected_revision: aidWire.state.revision - 1,
+    intent: { kind: 'aid' as const, target_character_id: target.character_id },
+  };
+  await expect(sendRoomAction(aidWire.state.room.room_id, action)).resolves.toBeUndefined();
+  mocked.invoke.mockClear();
+  await expect(
+    sendRoomAction(aidWire.state.room.room_id, {
+      ...action,
+      intent: { kind: 'death_save', roll: 20 },
+    } as never),
+  ).rejects.toMatchObject({ code: 'native_room_operation_invalid' });
+  expect(mocked.invoke).not.toHaveBeenCalled();
 });

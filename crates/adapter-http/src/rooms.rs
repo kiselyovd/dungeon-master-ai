@@ -28,6 +28,7 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}/events", get(room_events))
         .route("/rooms/{room_id}/adventure/actions", post(adventure_action))
         .route("/rooms/{room_id}/rest", get(rest_status).post(rest_action))
+        .route("/rooms/{room_id}/recovery", post(recovery_action))
         .route("/rooms/{room_id}/combat/{encounter_id}", get(room_combat))
         .route(
             "/rooms/{room_id}/combat/{encounter_id}/actions",
@@ -478,6 +479,33 @@ async fn adventure_action(
                 request_id: request.request_id,
                 expected_revision: Revision(request.expected_revision),
                 action: request.action,
+            },
+        )
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecoveryRequest {
+    request_id: String,
+    expected_revision: u64,
+    intent: app_application::models::room_recovery::RecoveryIntent,
+}
+async fn recovery_action(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<RecoveryRequest>,
+) -> Result<Json<app_application::models::room_recovery::RoomRecoveryReceipt>, HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .recover_hero(
+            &subject,
+            app_application::models::room_recovery::RoomRecoveryCommand {
+                request_id: request.request_id,
+                expected_revision: Revision(request.expected_revision),
+                intent: request.intent,
             },
         )
         .await

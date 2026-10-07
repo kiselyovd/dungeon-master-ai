@@ -113,10 +113,19 @@ pub(crate) async fn recover(
             if !app_application::recovery::safe(&current) {
                 return Err(error("rest_unsafe"));
             }
-            let timer = vitality::read(&sheet, target_id)
+            let timer = if let Some(timer) = vitality::read(&sheet, target_id)
                 .map_err(error)?
                 .and_then(|s| s.natural_recovery)
-                .ok_or_else(|| error("hero_recovery_not_scheduled"))?;
+            {
+                timer
+            } else {
+                let timer = rng.natural_deadline(&target, now).map_err(error)?;
+                vitality::store_actor(&mut sheet, &target).map_err(error)?;
+                vitality::schedule_natural_recovery(&mut sheet, target_id, timer.clone())
+                    .map_err(error)?;
+                crate::party::persist_sheet(&mut tx, room.campaign_id, target_id, sheet).await?;
+                timer
+            };
             timer.ready_at_seconds.max(now)
         }
         RecoveryIntent::DeathSave {} => {

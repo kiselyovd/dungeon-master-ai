@@ -110,3 +110,29 @@ strict death-save input. Independent follow-up review found no actionable issue.
 Current checks pass: 80 SQLite tests, 38 room/update regressions, three pure recovery tests, workspace Clippy and architecture. HTTP/native/frontend wiring
 and real held-zero-HP continuation are next. Combat-turn death saves, damage-at-zero,
 solo endpoint and broad gameplay/model/LAN requirements still remain open.
+
+
+## Recovery transport and room UI checkpoint
+
+Dedicated authenticated POST /rooms/{id}/recovery accepts only nonce, expected
+revision and strict RecoveryIntent; client dice and unauthorized requests fail.
+The closed native Recovery operation uses the existing private broker/outbox,
+keeping member/capability outside renderer input. Actual HTTP/native-broker tests
+verify aid, passive wait, HP1 and safe public controls. Room state includes active
+hero mechanical recovery summaries and server-offered actions, without private
+sheets. Public status reading does not derive private loadouts/spell profiles.
+Stable heroes without a deadline can begin their owned wait atomically.
+
+React uses existing room card/Button/Modal styles and EN/RU catalogs. Wait requires
+explicit shared-time confirmation, closes on changed revision/action availability,
+and remounts after timeline restore; temporary blocking preserves the choice and
+prevents submission. API schemas validate intent/receipt/status and hero association.
+Real Rust snapshots cover pre-aid/stable/recovered stages for the production-root
+browser smoke. All 42 focused Rust cases, 22 frontend tests, six production-preview
+browser scenarios, TypeScript/build, workspace Clippy and architecture pass.
+Independent read-only review found no actionable issue in this increment.
+
+Browser uses native stubs with real engine snapshots. The actual two-Tauri held
+zero-HP continuation through these buttons is next; that P1 is not yet closed.
+Solo recovery transport, active-combat death turns and full-game/model/LAN acceptance
+remain outstanding. No new production dependencies or publication.

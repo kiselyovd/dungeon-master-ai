@@ -44,5 +44,21 @@
   "postpone": "Postpone the pending connection",
   "postpone_confirm": "Keep it for later and try another room",
   "postpone_hint": "The organizer may already have created your participant. The original attempt stays saved on this device so you can return to it later.",
-  "saved_connections": "Saved connection attempts"
+  "saved_connections": "Saved connection attempts",
+  "recovery_title": "Help wounded heroes",
+  "recovery_hint": "Medicine DC 10 stabilizes a hero. Stable heroes regain one HP after 1-4 game hours.",
+  "recovery_status": {
+    "dying": "Dying",
+    "stable": "Stable, unconscious",
+    "dead": "Dead"
+  },
+  "recovery_action": {
+    "aid": "Attempt first aid",
+    "wait": "Wait for recovery",
+    "death_save": "Roll a death saving throw"
+  },
+  "recovery_saves": "Death saves: {{successes}} successes, {{failures}} failures",
+  "recovery_remaining": "Recovery in {{minutes}} game minutes",
+  "recovery_safe_place": "Waiting requires a safe place. A conscious companion can bring the group back to town.",
+  "recovery_wait_hint": "This advances the shared game clock. Other dying heroes will make death saving throws while time passes."
 }

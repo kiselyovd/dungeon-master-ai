@@ -38,3 +38,21 @@ pub struct RoomRecoveryReceipt {
     pub death_saves: Vec<RecoveryDeathSave>,
     pub ready_at_seconds: Option<u64>,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryStatus {
+    Healthy,
+    Dying,
+    Stable,
+    Dead,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct PublicHeroRecovery {
+    pub character_id: Uuid,
+    pub status: RecoveryStatus,
+    pub successes: u8,
+    pub failures: u8,
+    pub ready_at_seconds: Option<u64>,
+    pub actions: Vec<RecoveryIntent>,
+}

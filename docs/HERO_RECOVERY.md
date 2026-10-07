@@ -48,3 +48,20 @@ The owned use case is verified through actual repositories/services, including a
 zero-HP continuation to rest without loading a save. It is not yet exposed through
 HTTP/native/frontend controls. Active-combat death turns, damage-at-zero and native
 held-defense continuation remain separate pending acceptance.
+
+
+## Room controls and transport
+
+The public player router exposes authenticated recovery intentions; it rejects
+client roll fields and binds the helper to verified membership. Native Recovery
+operations pass through the existing bounded broker and durable outbox. The room
+snapshot carries public mechanical status and allowed intentions for each active
+hero; no other private sheets are exposed. First-deadline creation for a stable
+hero is confirmed in the same owned transaction.
+
+Room controls show dying/stable/dead status and aid, passive waiting or the owner's
+save. Waiting confirms advancement of shared game time. Stale confirmation closes
+on revision/restore or lost availability; pending/disconnected controls are blocked.
+EN/RU labels reuse the existing design system. Focused HTTP/broker and production
+browser tests pass. Browser evidence uses native stubs and real Rust snapshots;
+actual Tauri continuation after held defense at zero HP remains pending.

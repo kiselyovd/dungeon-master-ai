@@ -38,7 +38,7 @@
       "sequence": 7,
       "kind": "state",
       "payload": {
-        "member_id": "e707be55-2693-4a0e-8a9f-b073f243dae0",
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
         "operation": "adventure",
         "receipt_revision": 5,
         "rolls": null
@@ -48,7 +48,7 @@
       "sequence": 8,
       "kind": "message",
       "payload": {
-        "message_id": "e66aedd1-095b-4ea6-bfe6-ba5d84983b0d"
+        "message_id": "d39e7067-0d1a-4828-a04a-e95e2108209a"
       }
     },
     {
@@ -60,7 +60,7 @@
       "sequence": 10,
       "kind": "state",
       "payload": {
-        "member_id": "e707be55-2693-4a0e-8a9f-b073f243dae0",
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
         "operation": "adventure",
         "receipt_revision": 6,
         "rolls": null
@@ -70,14 +70,14 @@
       "sequence": 11,
       "kind": "message",
       "payload": {
-        "message_id": "34e3cf50-5bf8-4b51-8403-ed543282e227"
+        "message_id": "7b4f7888-8bc0-46e0-adbb-b461ed1ccab5"
       }
     },
     {
       "sequence": 12,
       "kind": "message",
       "payload": {
-        "message_id": "7244a3be-5904-4bd1-a37f-f216e154ac57"
+        "message_id": "43d1a0c0-6e1d-4a28-b870-974222bf2a0e"
       }
     },
     {
@@ -89,7 +89,7 @@
       "sequence": 14,
       "kind": "state",
       "payload": {
-        "member_id": "e707be55-2693-4a0e-8a9f-b073f243dae0",
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
         "operation": "adventure",
         "receipt_revision": 7,
         "rolls": null
@@ -99,7 +99,7 @@
       "sequence": 15,
       "kind": "message",
       "payload": {
-        "message_id": "04df7b0a-21ac-464b-9a29-592e8f4b4628"
+        "message_id": "e107a1d2-ba10-4fab-b613-1559c6fed0f4"
       }
     },
     {
@@ -111,7 +111,7 @@
       "sequence": 17,
       "kind": "state",
       "payload": {
-        "member_id": "6f3fabf9-505b-4b62-89aa-1926b55f1aed",
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
         "operation": "adventure",
         "receipt_revision": 8,
         "rolls": null
@@ -126,7 +126,7 @@
       "sequence": 19,
       "kind": "state",
       "payload": {
-        "member_id": "6f3fabf9-505b-4b62-89aa-1926b55f1aed",
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
         "operation": "adventure",
         "receipt_revision": 9,
         "rolls": null
@@ -141,7 +141,7 @@
       "sequence": 21,
       "kind": "state",
       "payload": {
-        "member_id": "6f3fabf9-505b-4b62-89aa-1926b55f1aed",
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
         "operation": "adventure",
         "receipt_revision": 10,
         "rolls": null
@@ -155,7 +155,7 @@
   ],
   "state": {
     "campaign": {
-      "id": "3c90bb4d-c012-48cf-bee3-c75480c41a60",
+      "id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
       "schema_version": 1,
       "ruleset_id": "srd-5.2.1",
       "title": "Room agent",
@@ -164,25 +164,25 @@
         "kind": "bundled",
         "adventure_id": "bell-beneath-water"
       },
-      "last_session_id": "2a672d21-6c21-475f-8bc0-1ea8d1bc8d23",
+      "last_session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
       "revision": 11,
-      "created_at_epoch_ms": 1791394046768,
-      "updated_at_epoch_ms": 1791394046998
+      "created_at_epoch_ms": 1791410807646,
+      "updated_at_epoch_ms": 1791410807763
     },
     "room": {
-      "room_id": "9a9caad9-a8f6-45d5-a7d9-db04114fb5ca",
-      "campaign_id": "3c90bb4d-c012-48cf-bee3-c75480c41a60",
-      "session_id": "2a672d21-6c21-475f-8bc0-1ea8d1bc8d23",
+      "room_id": "dd3044b3-9dc8-41ed-9196-5f01e3333407",
+      "campaign_id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
+      "session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
       "active": true,
       "members": [
         {
-          "member_id": "6f3fabf9-505b-4b62-89aa-1926b55f1aed",
+          "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
           "display_name": "Mira",
           "role": "host",
           "active": true
         },
         {
-          "member_id": "e707be55-2693-4a0e-8a9f-b073f243dae0",
+          "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
           "display_name": "Guest",
           "role": "player",
           "active": true
@@ -193,8 +193,8 @@
     "revision": 11,
     "actors": [
       {
-        "member_id": "6f3fabf9-505b-4b62-89aa-1926b55f1aed",
-        "character_id": "5a5518d1-c812-47f1-b020-3f3a65d1c887",
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
         "role": "host",
         "name": "Mira",
         "class_id": "fighter",
@@ -204,8 +204,8 @@
         "ac": 14
       },
       {
-        "member_id": "e707be55-2693-4a0e-8a9f-b073f243dae0",
-        "character_id": "41872ed5-f301-4f2e-9821-71df87275488",
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+        "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
         "role": "player",
         "name": "Mira",
         "class_id": "fighter",
@@ -213,6 +213,24 @@
         "hp": 12,
         "max_hp": 12,
         "ac": 14
+      }
+    ],
+    "recovery": [
+      {
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+        "status": "healthy",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": []
+      },
+      {
+        "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+        "status": "healthy",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": []
       }
     ],
     "own_character": {
@@ -226,11 +244,23 @@
       },
       "ac": 14,
       "backstory": "GUEST_PRIVATE_STORY",
-      "characterId": "41872ed5-f301-4f2e-9821-71df87275488",
+      "characterId": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
       "combatResources": {
         "arrows": 0,
         "quantities": {},
-        "spellSlots": {}
+        "spellSlots": {},
+        "vitality": {
+          "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+          "combatant_id": "6c86c757-f815-40bd-b409-44d711b64d22",
+          "conditions": [],
+          "death_saves": {
+            "failures": 0,
+            "stable": false,
+            "successes": 0
+          },
+          "is_dead": false,
+          "natural_recovery": null
+        }
       },
       "heroClass": "fighter",
       "hp": 12,
@@ -243,25 +273,25 @@
     "pending_proposals": null,
     "messages": [
       {
-        "id": "e66aedd1-095b-4ea6-bfe6-ba5d84983b0d",
+        "id": "d39e7067-0d1a-4828-a04a-e95e2108209a",
         "role": "user",
         "text": "Иду в архив",
         "truncated": false
       },
       {
-        "id": "34e3cf50-5bf8-4b51-8403-ed543282e227",
+        "id": "7b4f7888-8bc0-46e0-adbb-b461ed1ccab5",
         "role": "assistant",
         "text": "Мы достигли архива.",
         "truncated": false
       },
       {
-        "id": "7244a3be-5904-4bd1-a37f-f216e154ac57",
+        "id": "43d1a0c0-6e1d-4a28-b870-974222bf2a0e",
         "role": "user",
         "text": "Возвращаюсь к причалу",
         "truncated": false
       },
       {
-        "id": "04df7b0a-21ac-464b-9a29-592e8f4b4628",
+        "id": "e107a1d2-ba10-4fab-b613-1559c6fed0f4",
         "role": "assistant",
         "text": "Мы достигли архива.",
         "truncated": false
@@ -355,7 +385,7 @@
         },
         "state": {
           "defense": "active",
-          "defense_encounter_id": "f0350077-2db2-4692-9364-743b8f845a8a",
+          "defense_encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
           "package_id": "bell-beneath-water",
           "location": "archive",
           "facts": ["ferry_route", "tikhon_located"],
@@ -389,44 +419,74 @@
         "available_actions": []
       },
       "campaign_scope": {
-        "campaign_id": "3c90bb4d-c012-48cf-bee3-c75480c41a60",
-        "session_id": "2a672d21-6c21-475f-8bc0-1ea8d1bc8d23",
-        "character_id": "5a5518d1-c812-47f1-b020-3f3a65d1c887",
+        "campaign_id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
+        "session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
         "revision": 11
       },
       "schema_version": 1,
-      "encounter_id": "f0350077-2db2-4692-9364-743b8f845a8a",
+      "encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
       "revision": 1,
       "snapshot": {
         "active": true,
         "round": 1,
-        "current_combatant": "49023513-6592-4adc-b168-11668171e6d5",
+        "current_combatant": "6c86c757-f815-40bd-b409-44d711b64d22",
         "initiative": [
           {
-            "id": "49023513-6592-4adc-b168-11668171e6d5",
-            "roll": 16,
+            "id": "c6accaf7-74ed-45c6-9bc7-909b1de4a95a",
+            "roll": 19,
             "dex_tiebreak": 2
           },
           {
-            "id": "d276b6eb-9e77-4ee5-8f9c-3ffc58b9646a",
-            "roll": 5,
+            "id": "6c86c757-f815-40bd-b409-44d711b64d22",
+            "roll": 10,
             "dex_tiebreak": 2
           },
           {
-            "id": "1951bcff-1fea-4c6e-89aa-441ed4cc6f05",
+            "id": "a5de2a3e-a10b-4305-ab5d-e62812db5fc6",
             "roll": 0,
             "dex_tiebreak": 0
           },
           {
-            "id": "445b2e73-9acc-4324-8247-fc9ed4521ffd",
+            "id": "34ef08d4-8e6d-4419-8096-69f72f1ca39d",
             "roll": 0,
             "dex_tiebreak": 0
           }
         ],
         "combatants": [
           {
-            "id": "49023513-6592-4adc-b168-11668171e6d5",
-            "character_id": "41872ed5-f301-4f2e-9821-71df87275488",
+            "id": "c6accaf7-74ed-45c6-9bc7-909b1de4a95a",
+            "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+            "name": "Mira",
+            "max_hp": 12,
+            "current_hp": 12,
+            "temp_hp": 0,
+            "ac": 14,
+            "speed_ft": 30,
+            "initiative_roll": 19,
+            "dex_mod": 2,
+            "conditions": [],
+            "budget": {
+              "spell_slot_used": false,
+              "action": true,
+              "bonus_action": true,
+              "reaction": true,
+              "movement_ft": 30
+            },
+            "death_saves": {
+              "successes": 0,
+              "failures": 0,
+              "stable": false
+            },
+            "is_dead": false,
+            "position": {
+              "x": 3,
+              "y": 3
+            }
+          },
+          {
+            "id": "6c86c757-f815-40bd-b409-44d711b64d22",
+            "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
             "loadout": {
               "default_weapon": "unarmed",
               "attacks": [
@@ -469,7 +529,7 @@
             "temp_hp": 0,
             "ac": 14,
             "speed_ft": 30,
-            "initiative_roll": 16,
+            "initiative_roll": 10,
             "dex_mod": 2,
             "conditions": [],
             "budget": {
@@ -491,38 +551,8 @@
             }
           },
           {
-            "id": "d276b6eb-9e77-4ee5-8f9c-3ffc58b9646a",
-            "character_id": "5a5518d1-c812-47f1-b020-3f3a65d1c887",
-            "name": "Mira",
-            "max_hp": 12,
-            "current_hp": 12,
-            "temp_hp": 0,
-            "ac": 14,
-            "speed_ft": 30,
-            "initiative_roll": 5,
-            "dex_mod": 2,
-            "conditions": [],
-            "budget": {
-              "spell_slot_used": false,
-              "action": true,
-              "bonus_action": true,
-              "reaction": true,
-              "movement_ft": 30
-            },
-            "death_saves": {
-              "successes": 0,
-              "failures": 0,
-              "stable": false
-            },
-            "is_dead": false,
-            "position": {
-              "x": 3,
-              "y": 3
-            }
-          },
-          {
             "display_name_key": "authored.water_echo_1",
-            "id": "1951bcff-1fea-4c6e-89aa-441ed4cc6f05",
+            "id": "a5de2a3e-a10b-4305-ab5d-e62812db5fc6",
             "loadout": {
               "default_weapon": "echo-pulse",
               "attacks": [
@@ -581,7 +611,7 @@
           },
           {
             "display_name_key": "authored.water_echo_2",
-            "id": "445b2e73-9acc-4324-8247-fc9ed4521ffd",
+            "id": "34ef08d4-8e6d-4419-8096-69f72f1ca39d",
             "loadout": {
               "default_weapon": "echo-pulse",
               "attacks": [
@@ -686,7 +716,7 @@
       },
       "state": {
         "defense": "active",
-        "defense_encounter_id": "f0350077-2db2-4692-9364-743b8f845a8a",
+        "defense_encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
         "package_id": "bell-beneath-water",
         "location": "archive",
         "facts": ["ferry_route", "tikhon_located"],

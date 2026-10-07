@@ -2679,3 +2679,214 @@ async fn revoked_hero_is_not_an_aid_target_and_does_not_roll_during_room_wait() 
         sheet
     );
 }
+
+#[tokio::test]
+async fn native_recovery_transport_and_public_controls_close_zero_hp_path() {
+    use app_application::models::{
+        room_recovery::RecoveryIntent,
+        room_transport::{NativeRoomOperation, NativeRoomTransportRequest},
+    };
+    let (f, id, host, guest) = recovery_fixture().await;
+    let mut own = f
+        .store
+        .load_current(f.campaign)
+        .await
+        .unwrap()
+        .projection
+        .character;
+    own["abilities"]["wis"] = json!(30);
+    own["level"] = json!(20);
+    own["skillProfs"] = json!({"medicine":true});
+    sqlx::query("UPDATE campaign_characters SET character_json=?1 WHERE campaign_id=?2")
+        .bind(own.to_string())
+        .bind(f.campaign.0.to_string())
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    let host_state = f.rooms.initial_updates(&host, None).await.unwrap();
+    let summary = host_state
+        .state
+        .recovery
+        .iter()
+        .find(|r| r.character_id == id)
+        .unwrap();
+    assert!(matches!(
+        summary.actions.as_slice(),
+        [RecoveryIntent::Aid { .. }]
+    ));
+    if let Some(path) = std::env::var_os("DMAI_ROOM_RECOVERY_FIXTURE") {
+        std::fs::write(path, serde_json::to_vec_pretty(&host_state).unwrap()).unwrap();
+    }
+    let guest_state = f.rooms.initial_updates(&guest, None).await.unwrap();
+    let summary = guest_state
+        .state
+        .recovery
+        .iter()
+        .find(|r| r.character_id == id)
+        .unwrap();
+    assert!(matches!(
+        summary.actions.as_slice(),
+        [RecoveryIntent::DeathSave {}]
+    ));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let client = reqwest::Client::new();
+    let url = format!("http://{address}/rooms/{}/recovery", f.host.room.room_id);
+    let body = json!({"request_id":"bad-client-roll","expected_revision":host_state.state.revision.0,"intent":{"kind":"death_save","roll":20}});
+    assert_eq!(
+        client
+            .post(&url)
+            .bearer_auth(f.guest.capability.expose())
+            .header("x-room-member-id", f.guest.member_id.to_string())
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        422
+    );
+    let normal = json!({"request_id":"no-auth-recovery","expected_revision":host_state.state.revision.0,"intent":{"kind":"death_save"}});
+    assert_eq!(
+        client
+            .post(&url)
+            .json(&normal)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    let native = app_server::native_room_transport::service(app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    ))
+    .unwrap();
+    let request = NativeRoomTransportRequest {
+        address,
+        room_id: f.host.room.room_id,
+        member_id: f.host.member_id,
+        capability: f.host.capability.expose().into(),
+        operation: NativeRoomOperation::Recovery {
+            request_id: "wire-aid".into(),
+            expected_revision: host_state.state.revision.0,
+            intent: RecoveryIntent::Aid {
+                target_character_id: id,
+            },
+        },
+    };
+    let result = native.execute(request).await.unwrap();
+    assert_eq!(result.status, 200);
+    assert_eq!(result.body.unwrap()["stabilized"], true);
+    let current = f.rooms.initial_updates(&guest, None).await.unwrap();
+    if let Some(path) = std::env::var_os("DMAI_ROOM_RECOVERY_AID_FIXTURE") {
+        std::fs::write(
+            path,
+            serde_json::to_vec_pretty(&f.rooms.initial_updates(&host, None).await.unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+    }
+    let summary = current
+        .state
+        .recovery
+        .iter()
+        .find(|r| r.character_id == id)
+        .unwrap();
+    assert!(matches!(
+        summary.actions.as_slice(),
+        [RecoveryIntent::Wait { .. }]
+    ));
+    let result = native
+        .execute(NativeRoomTransportRequest {
+            address,
+            room_id: f.guest.room.room_id,
+            member_id: f.guest.member_id,
+            capability: f.guest.capability.expose().into(),
+            operation: NativeRoomOperation::Recovery {
+                request_id: "wire-wait".into(),
+                expected_revision: current.state.revision.0,
+                intent: RecoveryIntent::Wait {
+                    target_character_id: id,
+                },
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(result.status, 200);
+    assert_eq!(result.body.unwrap()["recovered"], true);
+    assert_eq!(
+        f.rooms
+            .initial_updates(&guest, None)
+            .await
+            .unwrap()
+            .state
+            .own_character
+            .unwrap()["hp"],
+        1
+    );
+    if let Some(path) = std::env::var_os("DMAI_ROOM_RECOVERY_WAIT_FIXTURE") {
+        std::fs::write(
+            path,
+            serde_json::to_vec_pretty(&f.rooms.initial_updates(&host, None).await.unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+    }
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test]
+async fn stable_hero_without_deadline_can_start_owned_wait_and_wake() {
+    use app_application::models::room_recovery::{RecoveryIntent, RoomRecoveryCommand};
+    let (f, id, _, guest) = recovery_fixture().await;
+    let party = f.store.party(f.campaign).await.unwrap().unwrap();
+    let mut sheet = party.characters[&id].clone();
+    let mut actor = app_application::recovery::actor(&sheet, id).unwrap();
+    actor.death_saves.stabilize();
+    app_application::vitality::store_actor(&mut sheet, &actor).unwrap();
+    sqlx::query(
+        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
+    )
+    .bind(sheet.to_string())
+    .bind(f.campaign.0.to_string())
+    .bind(id.to_string())
+    .execute(f.store.pool())
+    .await
+    .unwrap();
+    let view = f.rooms.initial_updates(&guest, None).await.unwrap();
+    let summary = view
+        .state
+        .recovery
+        .iter()
+        .find(|s| s.character_id == id)
+        .unwrap();
+    assert!(summary.ready_at_seconds.is_none());
+    assert!(matches!(
+        summary.actions.as_slice(),
+        [RecoveryIntent::Wait { .. }]
+    ));
+    let result = f
+        .store
+        .recover_room_hero(
+            guest.lease(),
+            RoomRecoveryCommand {
+                request_id: "initial-stable-wait".into(),
+                expected_revision: view.state.revision,
+                intent: RecoveryIntent::Wait {
+                    target_character_id: id,
+                },
+            },
+            91,
+        )
+        .await
+        .unwrap();
+    assert!(result.recovered);
+    assert_eq!(
+        f.store.party(f.campaign).await.unwrap().unwrap().characters[&id]["hp"],
+        1
+    );
+}

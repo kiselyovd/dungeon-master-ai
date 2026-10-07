@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { AdventureProjectionSchema } from './adventure';
 import { CampaignSeedSchema } from './campaign';
+import { PublicHeroRecoverySchema } from './recovery';
 
 const uuid = v.pipe(v.string(), v.uuid());
 const integer = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(Number.MAX_SAFE_INTEGER));
@@ -50,6 +51,7 @@ export const RoomStateSchema = v.pipe(
     title: v.string(),
     revision: integer,
     actors: v.array(PublicActorSchema),
+    recovery: v.array(PublicHeroRecoverySchema),
     own_character: v.nullable(document),
     own_proposal: v.nullable(
       v.strictObject({ summary: ProposalSummarySchema, character: document }),
@@ -74,7 +76,29 @@ export const RoomStateSchema = v.pipe(
   v.check(
     (state) =>
       state.room.campaign_id === state.campaign.id &&
-      state.room.session_id === state.campaign.last_session_id,
+      state.room.session_id === state.campaign.last_session_id &&
+      state.recovery.length ===
+        state.actors.filter((actor) =>
+          state.room.members.some(
+            (member) => member.member_id === actor.member_id && member.active,
+          ),
+        ).length &&
+      new Set(state.recovery.map((hero) => hero.character_id)).size === state.recovery.length &&
+      state.recovery.every((hero) => {
+        const actor = state.actors.find((actor) => actor.character_id === hero.character_id);
+        if (!actor || (hero.status === 'healthy' ? actor.hp <= 0 : actor.hp !== 0)) return false;
+        return hero.actions.every((intent) => {
+          if (state.combat !== null) return false;
+          if (intent.kind === 'death_save')
+            return (
+              hero.status === 'dying' && hero.character_id === state.own_character?.characterId
+            );
+          return (
+            intent.target_character_id === hero.character_id &&
+            (intent.kind === 'aid' ? hero.status === 'dying' : hero.status === 'stable')
+          );
+        });
+      }),
   ),
 );
 export const RoomUpdateSchema = v.pipe(

@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import type { RoomView } from './model/RoomController';
 import styles from './Room.module.css';
+import { RoomRecoveryPanel } from './RoomRecoveryPanel';
 
 interface Props {
   invitation?: string;
@@ -102,6 +103,12 @@ export function RoomPlay({
                 </>
               )}
             </section>
+            <RoomRecoveryPanel
+              key={view.timelineReset}
+              state={state}
+              disabled={blocked}
+              onAction={onAction}
+            />
             <div className={styles.columns}>
               <section className={styles.card}>
                 <h2>{t('own')}</h2>

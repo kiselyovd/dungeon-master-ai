@@ -34,14 +34,14 @@
     {
       "kind": "message",
       "payload": {
-        "message_id": "007ff07a-6e12-455d-a388-f9bcb3d25a4b"
+        "message_id": "6801229e-32cf-431b-a006-fcb5ca900a83"
       },
       "sequence": 7
     },
     {
       "kind": "message",
       "payload": {
-        "message_id": "8b4994ba-13b3-4a85-af24-3fed8d089cdd"
+        "message_id": "93fd7697-d8f4-48cb-8781-52628167a093"
       },
       "sequence": 8
     },
@@ -57,23 +57,23 @@
     "actors": [
       {
         "ac": 14,
-        "character_id": "f7b2428c-a55a-4ab8-a3ea-f1917e837300",
+        "character_id": "34fcc647-e584-47a9-80a3-4b093b5368f1",
         "class_id": "fighter",
         "hp": 12,
         "level": 1,
         "max_hp": 12,
-        "member_id": "7735f099-6152-45d3-8917-7608c8af0167",
+        "member_id": "f59808dd-fc36-4d2f-a44d-c9aac87b391c",
         "name": "Mira",
         "role": "host"
       },
       {
         "ac": 14,
-        "character_id": "d1d56a23-4321-420f-a2c0-6a622fd3434e",
+        "character_id": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
         "class_id": "fighter",
         "hp": 12,
         "level": 1,
         "max_hp": 12,
-        "member_id": "de286d7e-d998-4261-b823-120685fbf8ab",
+        "member_id": "10a493ba-a699-41df-8cdc-57d13f5d4d81",
         "name": "Tara",
         "role": "player"
       }
@@ -81,9 +81,9 @@
     "adventure": null,
     "agent_busy": false,
     "campaign": {
-      "created_at_epoch_ms": 1791390938576,
-      "id": "e286535d-bed1-438c-9e5e-3698e30748de",
-      "last_session_id": "d981b57b-dd59-449d-bb5f-162bff854960",
+      "created_at_epoch_ms": 1791410803005,
+      "id": "a77fcf8e-7a58-420c-bcce-dbdd024c6cbd",
+      "last_session_id": "fc9eb102-20b5-4406-a730-8b646687d752",
       "premise": "Road",
       "revision": 4,
       "ruleset_id": "srd-5.2.1",
@@ -93,7 +93,7 @@
         "kind": "collaborative"
       },
       "title": "DM lane",
-      "updated_at_epoch_ms": 1791390938589
+      "updated_at_epoch_ms": 1791410803016
     },
     "clock": {
       "elapsed_seconds": 0
@@ -102,13 +102,13 @@
     "journal": [],
     "messages": [
       {
-        "id": "007ff07a-6e12-455d-a388-f9bcb3d25a4b",
+        "id": "6801229e-32cf-431b-a006-fcb5ca900a83",
         "role": "user",
         "text": "Осматриваюсь",
         "truncated": false
       },
       {
-        "id": "8b4994ba-13b3-4a85-af24-3fed8d089cdd",
+        "id": "93fd7697-d8f4-48cb-8781-52628167a093",
         "role": "assistant",
         "text": "Перед вами дорога. Что вы делаете?",
         "truncated": false
@@ -125,7 +125,7 @@
         "wis": 10
       },
       "ac": 14,
-      "characterId": "d1d56a23-4321-420f-a2c0-6a622fd3434e",
+      "characterId": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
       "heroClass": "fighter",
       "hp": 12,
       "hpMax": 12,
@@ -135,26 +135,44 @@
     },
     "own_proposal": null,
     "pending_proposals": null,
+    "recovery": [
+      {
+        "actions": [],
+        "character_id": "34fcc647-e584-47a9-80a3-4b093b5368f1",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "healthy",
+        "successes": 0
+      },
+      {
+        "actions": [],
+        "character_id": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "healthy",
+        "successes": 0
+      }
+    ],
     "revision": 4,
     "room": {
       "active": true,
-      "campaign_id": "e286535d-bed1-438c-9e5e-3698e30748de",
+      "campaign_id": "a77fcf8e-7a58-420c-bcce-dbdd024c6cbd",
       "members": [
         {
           "active": true,
           "display_name": "Mira",
-          "member_id": "7735f099-6152-45d3-8917-7608c8af0167",
+          "member_id": "f59808dd-fc36-4d2f-a44d-c9aac87b391c",
           "role": "host"
         },
         {
           "active": true,
           "display_name": "Guest",
-          "member_id": "de286d7e-d998-4261-b823-120685fbf8ab",
+          "member_id": "10a493ba-a699-41df-8cdc-57d13f5d4d81",
           "role": "player"
         }
       ],
-      "room_id": "bc13cb1b-3e53-4e6b-b982-b690227b1733",
-      "session_id": "d981b57b-dd59-449d-bb5f-162bff854960"
+      "room_id": "8a88becf-823d-4e7f-a6d0-8dc20eebe16a",
+      "session_id": "fc9eb102-20b5-4406-a730-8b646687d752"
     },
     "scene": null,
     "title": "DM lane"

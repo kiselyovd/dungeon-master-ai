@@ -96,6 +96,21 @@ fn wire(operation: &NativeRoomOperation) -> Result<WireOperation, HttpServiceErr
                 ),
             )
         }
+        Recovery {
+            request_id,
+            expected_revision,
+            intent,
+        } => {
+            if !valid_nonce(request_id) {
+                return Err(invalid());
+            }
+            (
+                "recovery".into(),
+                Some(
+                    json!({"request_id":request_id,"expected_revision":expected_revision,"intent":intent}),
+                ),
+            )
+        }
         Rest {
             request_id,
             expected_revision,

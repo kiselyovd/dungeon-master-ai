@@ -85,6 +85,13 @@ impl RecoveryEngine {
             disadvantage,
         })
     }
+    pub fn natural_deadline(
+        &mut self,
+        target: &Combatant,
+        now: u64,
+    ) -> Result<NaturalRecovery, &'static str> {
+        begin_natural_recovery(target, now, &mut self.rng).map_err(|_| "hero_recovery_invalid")
+    }
     pub fn stabilize(
         &mut self,
         target: &mut Combatant,
@@ -147,4 +154,80 @@ impl RecoveryEngine {
         }
         Ok(events)
     }
+}
+
+pub fn summaries(
+    party: &crate::models::party::PartyState,
+    room: &crate::models::room::RoomRecord,
+    owner: Option<Uuid>,
+    combat_active: bool,
+    safe: bool,
+) -> Result<Vec<crate::models::room_recovery::PublicHeroRecovery>, &'static str> {
+    use crate::models::room_recovery::{PublicHeroRecovery, RecoveryIntent, RecoveryStatus};
+    let conscious = if let Some(id) = owner {
+        let sheet = party
+            .characters
+            .get(&id)
+            .ok_or("hero_vitality_identity_mismatch")?;
+        let state = vitality::read(sheet, id)?;
+        sheet["hp"].as_i64().is_some_and(|hp| hp > 0)
+            && state.is_none_or(|s| !s.is_dead && !s.conditions.contains(&Condition::Unconscious))
+    } else {
+        false
+    };
+    let mut result = vec![];
+    for member in &party.roster.members {
+        if !room
+            .members
+            .iter()
+            .any(|m| m.member_id == member.member_id && m.active && m.role == member.role)
+        {
+            continue;
+        }
+        let id = member.character_id;
+        let sheet = party
+            .characters
+            .get(&id)
+            .ok_or("hero_vitality_identity_mismatch")?;
+        let state = vitality::read(sheet, id)?;
+        let hp = sheet["hp"].as_i64().ok_or("hero_vitality_invalid")?;
+        let dead = state.as_ref().is_some_and(|s| s.is_dead);
+        let stable = state.as_ref().is_some_and(|s| s.death_saves.stable);
+        let deadline = state.as_ref().and_then(|s| s.natural_recovery.as_ref());
+        let mut actions = vec![];
+        let status = if dead {
+            RecoveryStatus::Dead
+        } else if hp > 0 {
+            RecoveryStatus::Healthy
+        } else if stable {
+            RecoveryStatus::Stable
+        } else {
+            RecoveryStatus::Dying
+        };
+        if !combat_active && hp == 0 && !dead {
+            if stable && safe && (conscious || owner == Some(id)) {
+                actions.push(RecoveryIntent::Wait {
+                    target_character_id: id,
+                });
+            } else if !stable {
+                if conscious && owner != Some(id) {
+                    actions.push(RecoveryIntent::Aid {
+                        target_character_id: id,
+                    });
+                }
+                if owner == Some(id) {
+                    actions.push(RecoveryIntent::DeathSave {});
+                }
+            }
+        }
+        result.push(PublicHeroRecovery {
+            character_id: id,
+            status,
+            successes: state.as_ref().map_or(0, |s| s.death_saves.successes),
+            failures: state.as_ref().map_or(0, |s| s.death_saves.failures),
+            ready_at_seconds: deadline.map(|d| d.ready_at_seconds),
+            actions,
+        });
+    }
+    Ok(result)
 }

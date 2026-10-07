@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import * as v from 'valibot';
+import { RecoveryReceiptSchema } from './contracts/recovery';
 import { ProposalSummarySchema, PublicRoomSchema, RoomUpdateSchema } from './contracts/room';
 import {
   PendingRoomActionSchema,
@@ -172,13 +173,15 @@ export async function sendRoomAction(roomId: string, action: RoomAction): Promis
   if (!input.success) throw new RoomClientError('native_room_operation_invalid');
   const body = await execute(roomId, input.output);
   const schema =
-    action.kind === 'submit_character'
-      ? ProposalSummarySchema
-      : action.kind === 'approve_character'
-        ? v.strictObject({ proposal: ProposalSummarySchema, revision: integer })
-        : action.kind === 'combat'
-          ? combatReceipt
-          : worldReceipt;
+    action.kind === 'recovery'
+      ? RecoveryReceiptSchema
+      : action.kind === 'submit_character'
+        ? ProposalSummarySchema
+        : action.kind === 'approve_character'
+          ? v.strictObject({ proposal: ProposalSummarySchema, revision: integer })
+          : action.kind === 'combat'
+            ? combatReceipt
+            : worldReceipt;
   if (!v.safeParse(schema, body).success) return invalid();
 }
 
