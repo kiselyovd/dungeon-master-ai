@@ -588,3 +588,22 @@ production build, architecture and workspace all-target/all-feature Clippy pass.
 Four production-preview browser scenarios pass using native stubs and Rust wire
 fixtures. Actual WebView IPC, stable host restart, archive management and full
 solo/co-op session acceptance remain open. No new production dependencies.
+
+
+### Native host binding checkpoint (backend foundation)
+
+Persist the effective nonzero listener address with the immutable original host
+request through the existing secrets port. Recreating the host service with the
+same request reuses room/member/capability and binds the saved address; another
+request cannot overwrite the saved selection. Busy saved ports and transient
+credential reads preserve the durable room for retry. Closed-creation recovery
+removes binding then request with retryable error propagation. Stop without an
+in-process grant and with a saved selection returns recovery_required, rather
+than falsely claiming closure.
+
+Independent review closed orphan-binding and false stop-success findings.
+Twelve native HTTP/storage regressions and app-server all-target/all-feature
+Clippy pass. The regressions recreate service/state, not a real backend process.
+Next: protected recover/abandon of the saved host selection, Tauri IPC/UI wiring,
+real process restart and two-client acceptance. Existing generic shared-message
+publication during a detached durable room still needs a privacy audit.

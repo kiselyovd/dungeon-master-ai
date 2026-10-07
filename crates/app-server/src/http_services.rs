@@ -1700,6 +1700,12 @@ pub fn native_room_host_http_service(
         pending_creation: tokio::sync::Mutex::new(None),
     })
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedNativeHostBinding {
+    request: app_application::models::room_host::NativeHostRoomRequest,
+    address: std::net::SocketAddr,
+}
 struct ActiveNativeHost {
     request: app_application::models::room_host::NativeHostRoomRequest,
     grant: app_application::models::room_host::NativeHostRoomGrant,
@@ -1739,6 +1745,13 @@ impl AppStateNativeRoomHostService {
                 .await
                 .map_err(|_| HttpServiceError::Internal {
                     code: "native_room_cleanup_failed",
+                })?;
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_binding")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
                 })?;
             self.state
                 .secrets_repo()
@@ -1809,6 +1822,13 @@ impl AppStateNativeRoomHostService {
         }
         self.state
             .secrets_repo()
+            .delete("native:host_room_binding")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        self.state
+            .secrets_repo()
             .delete("native:host_room_request")
             .await
             .map_err(|_| HttpServiceError::Internal {
@@ -1866,6 +1886,49 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
                 })?;
             return Ok(Self::copy_grant(&current.grant));
         }
+        let persisted = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        if let Some(saved) = persisted {
+            let selected: app_application::models::room_host::NativeHostRoomRequest =
+                serde_json::from_str(&saved).map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_invalid",
+                })?;
+            if selected != request {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_already_hosted",
+                });
+            }
+        }
+        let binding = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_binding")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?
+            .map(|saved| serde_json::from_str::<SavedNativeHostBinding>(&saved))
+            .transpose()
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_invalid",
+            })?;
+        if binding
+            .as_ref()
+            .is_some_and(|saved| saved.request != request || saved.address.port() == 0)
+        {
+            return Err(HttpServiceError::Conflict {
+                code: "native_room_scope_changed",
+            });
+        }
+        let bind_addr = binding
+            .as_ref()
+            .map_or(request.bind_addr, |saved| saved.address);
         let lane = self
             .state
             .campaign_lane(request.campaign_id.0)
@@ -1885,6 +1948,11 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
             })?;
         let created = match self.rooms.create_local_room(Self::creation(&request)).await {
             Ok(created) => created,
+            Err(_) if binding.is_some() => {
+                return Err(HttpServiceError::Internal {
+                    code: "native_host_recovery_failed",
+                });
+            }
             Err(_) => {
                 *self.pending_creation.lock().await = Some((request, lane));
                 self.reconcile_creation().await?;
@@ -1894,11 +1962,20 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
             }
         };
         if !created.grant.room.active {
-            let _ = self
-                .state
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_binding")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            self.state
                 .secrets_repo()
                 .delete("native:host_room_request")
-                .await;
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
             return Err(HttpServiceError::Conflict {
                 code: "native_host_request_superseded",
             });
@@ -1920,13 +1997,17 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
         });
         let address = match self
             .listener
-            .start(RoomListenerSpec {
-                room_id,
-                bind_addr: request.bind_addr,
-            })
+            .start(RoomListenerSpec { room_id, bind_addr })
             .await
         {
             Ok(address) => address,
+            Err(_) if binding.is_some() => {
+                // A temporarily occupied saved port must not close the durable room.
+                *active = None;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_rebind_failed",
+                });
+            }
             Err(_) => {
                 self.cleanup(&mut active).await?;
                 return Err(HttpServiceError::Conflict {
@@ -1934,6 +2015,28 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
                 });
             }
         };
+        if binding.is_none() {
+            let saved = serde_json::to_string(&SavedNativeHostBinding {
+                request: request.clone(),
+                address,
+            })
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_invalid",
+            })?;
+            if self
+                .state
+                .secrets_repo()
+                .set("native:host_room_binding", &saved)
+                .await
+                .is_err()
+            {
+                // Listener is live, so cleanup must stop it before reporting failure.
+                self.cleanup(&mut active).await?;
+                return Err(HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                });
+            }
+        }
         let current = active
             .as_mut()
             .expect("native start retained its scoped state");
@@ -1945,6 +2048,22 @@ impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHos
     async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError> {
         let mut active = self.active.lock().await;
         self.reconcile_creation().await?;
+        if active.is_none()
+            && self
+                .state
+                .secrets_repo()
+                .get("native:host_room_request")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?
+                .is_some()
+        {
+            // No scoped in-process grant: never claim a persisted room was closed.
+            return Err(HttpServiceError::Conflict {
+                code: "native_host_recovery_required",
+            });
+        }
         if active
             .as_ref()
             .is_some_and(|current| current.grant.room.room_id != room_id)

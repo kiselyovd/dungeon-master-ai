@@ -479,3 +479,18 @@ Archive capacity is 64; deletion/management is still outstanding.
 Current focused HTTP/Stronghold tests prove reopen, revocation, rejected alternate
 join, post-commit local save failure and unreachable pending selection. Production
 preview smoke uses native stubs; it does not prove actual Tauri IPC or LAN play.
+
+
+## Durable native host binding
+
+The private saved binding references the exact original host request and effective
+listener address. Retry after service recreation keeps the room and credentials
+and attempts the same port. A busy saved port preserves room activity and records.
+A different request is rejected until the existing selection is reconciled.
+Closed-room replay clears both records before another host attempt is allowed.
+Without an in-process host grant, stop returns recovery_required when a durable
+selection exists; it does not report a closure that never occurred.
+
+Service-recreation regressions and static checks cover this backend foundation.
+Native saved-host recover/abandon, actual process restart and WebView proof remain
+outstanding; the current UI cannot yet select a saved host after restart.

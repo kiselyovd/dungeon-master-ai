@@ -1985,3 +1985,190 @@ async fn native_guest_can_postpone_unreachable_attempt_without_erasing_recovery_
     );
     server.abort();
 }
+
+struct RecordingHostListener {
+    binds: std::sync::Mutex<Vec<std::net::SocketAddr>>,
+    fail: AtomicUsize,
+}
+impl app_application::ports::room_listener::RoomListenerControl for RecordingHostListener {
+    fn start(
+        &self,
+        spec: app_application::ports::room_listener::RoomListenerSpec,
+    ) -> app_application::ports::room_listener::RoomListenerFuture<'_, std::net::SocketAddr> {
+        Box::pin(async move {
+            self.binds.lock().unwrap().push(spec.bind_addr);
+            if self
+                .fail
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
+                    count.checked_sub(1)
+                })
+                .is_ok()
+            {
+                return Err(app_application::ports::room_listener::RoomListenerError {
+                    code: "fixture_port_busy",
+                });
+            }
+            Ok(if spec.bind_addr.port() == 0 {
+                "127.0.0.1:4141".parse().unwrap()
+            } else {
+                spec.bind_addr
+            })
+        })
+    }
+    fn stop(&self, _: Uuid) -> app_application::ports::room_listener::RoomListenerFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
+}
+#[tokio::test]
+async fn native_host_recreation_retains_identity_port_and_retries_busy_binding() {
+    let f = fixture().await;
+    let state = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    );
+    let request = app_application::models::room_host::NativeHostRoomRequest {
+        request_id: Uuid::new_v4(),
+        campaign_id: f.campaign,
+        session_id: f.session,
+        expected_revision: f
+            .store
+            .load_current(f.campaign)
+            .await
+            .unwrap()
+            .campaign
+            .revision,
+        bind_addr: "127.0.0.1:0".parse().unwrap(),
+    };
+    let first = app_server::http_services::native_room_host_http_service(
+        state.clone(),
+        f.rooms.clone(),
+        Arc::new(RecordingHostListener {
+            binds: Default::default(),
+            fail: AtomicUsize::new(0),
+        }),
+    );
+    let grant = first.start(request.clone()).await.unwrap();
+    drop(first); // Simulate losing all in-process selection state without closing the room.
+    let reopened = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    );
+    reopened.set_secrets_repo(state.secrets_repo());
+    let listener = Arc::new(RecordingHostListener {
+        binds: Default::default(),
+        fail: AtomicUsize::new(1),
+    });
+    let recovered = app_server::http_services::native_room_host_http_service(
+        reopened.clone(),
+        f.rooms.clone(),
+        listener.clone(),
+    );
+    let mut replacement = request.clone();
+    replacement.request_id = Uuid::new_v4();
+    assert!(recovered.start(replacement).await.is_err());
+    assert!(listener.binds.lock().unwrap().is_empty());
+    assert!(recovered.start(request.clone()).await.is_err());
+    assert!(recovered.stop(grant.room.room_id).await.is_err());
+    assert!(reopened
+        .secrets_repo()
+        .get("native:host_room_binding")
+        .await
+        .unwrap()
+        .is_some());
+    assert!(
+        f.store
+            .room(grant.room.room_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .active
+    );
+    let resumed = recovered.start(request).await.unwrap();
+    assert_eq!(resumed.room.room_id, grant.room.room_id);
+    assert_eq!(resumed.member_id, grant.member_id);
+    assert_eq!(resumed.capability, grant.capability);
+    assert_eq!(resumed.address, grant.address);
+    assert_eq!(
+        *listener.binds.lock().unwrap(),
+        vec![grant.address, grant.address]
+    );
+    let rooms: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM coop_rooms WHERE active=1")
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert_eq!(rooms, 1);
+    recovered.stop(resumed.room.room_id).await.unwrap();
+    assert!(reopened
+        .secrets_repo()
+        .get("native:host_room_binding")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn native_closed_host_recovery_clears_binding_before_a_fresh_room() {
+    let f = fixture().await;
+    let state = app_server::AppState::new(
+        Arc::new(Provider::default()),
+        "fixture".into(),
+        f.store.pool().clone(),
+    );
+    let mut request = app_application::models::room_host::NativeHostRoomRequest {
+        request_id: Uuid::new_v4(),
+        campaign_id: f.campaign,
+        session_id: f.session,
+        expected_revision: f
+            .store
+            .load_current(f.campaign)
+            .await
+            .unwrap()
+            .campaign
+            .revision,
+        bind_addr: "127.0.0.1:0".parse().unwrap(),
+    };
+    let first = app_server::http_services::native_room_host_http_service(
+        state.clone(),
+        f.rooms.clone(),
+        Arc::new(StopFailsOnce {
+            failures: AtomicUsize::new(1),
+        }),
+    );
+    let grant = first.start(request.clone()).await.unwrap();
+    // Room close committed, but transport failure prevented metadata cleanup.
+    assert!(first.stop(grant.room.room_id).await.is_err());
+    drop(first);
+    let restarted = app_server::http_services::native_room_host_http_service(
+        state.clone(),
+        f.rooms.clone(),
+        Arc::new(StopFailsOnce {
+            failures: AtomicUsize::new(0),
+        }),
+    );
+    assert!(restarted.start(request.clone()).await.is_err());
+    assert!(state
+        .secrets_repo()
+        .get("native:host_room_binding")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(state
+        .secrets_repo()
+        .get("native:host_room_request")
+        .await
+        .unwrap()
+        .is_none());
+    request.request_id = Uuid::new_v4();
+    request.expected_revision = f
+        .store
+        .load_current(f.campaign)
+        .await
+        .unwrap()
+        .campaign
+        .revision;
+    let fresh = restarted.start(request).await.unwrap();
+    assert_ne!(fresh.room.room_id, grant.room.room_id);
+    restarted.stop(fresh.room.room_id).await.unwrap();
+}
