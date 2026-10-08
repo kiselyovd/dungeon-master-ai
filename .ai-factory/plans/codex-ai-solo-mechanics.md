@@ -211,3 +211,15 @@ Application/server regression suite passes; real HTTP/SQLite3-case interruption
 and same-request continuation confirmed. Independent bounded source/recovery review
 finds no actionable issue. 427 tests and Clippy pass; final fast-gate/local checkpoint collection recorded below. See
 COMBAT_RECOVERY.md for limits and local artifacts.
+
+Terminal validation final checkpoint4d096a8:427 application/server tests, Clippy
+alltargets and fast gates pass; independent source/recovery review closed. Original
+32baseline hashes preserved. Successful test fixtures now provide nonblank final
+text; this changes no production provider fallback.
+
+Real Bonsai temperature0.4 repeat: ten completed turns103.889s, ten authoredactions,
+revision12,10gold and closed_crossing; no quicksave. Independent semantic review
+stillFAIL (location/time contradiction, inventedlock, wetdryroute, mistranslation).
+No promotion or full-goal completion. Isolated processes/listeners verified stopped.
+See BONSAI_EVALUATION.md. Next real-model work must address reliable narrative
+fidelity rather than treating lower temperature as an accepted fix.

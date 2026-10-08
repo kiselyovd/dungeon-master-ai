@@ -140,3 +140,33 @@ this is not a completed full-session browser gate. Independent source/semantic
 review and explicit runtime/proxy/process cleanup confirmed. Installed weights
 and original project32-file baseline preserved. Russian model quality, complete
 peaceful/defensive native sessions and physical LAN/co-op acceptance remain open.
+
+## Lower-temperature repeat after4d096a8
+
+A fresh isolated ten-step real-model route used the same installed PTQ1_0 weights,
+pinned runtime/context/reasoning settings, current complete-response/preamble
+guards and application terminal validation, changing temperature1 to0.4. All ten
+turns completed in103.889seconds with nonblank public narration, no visible thinking
+markup and zero tool errors. Independent SQLite read confirms ten complete
+operations, ten authored actions, revision12, rescued Tikhon, closed_crossing
+and exactly10gold. No quick save was requested: saves/snapshots remain zero.
+
+Independent semantic review still returns FAIL:
+- Step3 narrates a one-hour arrival in Veresk, then says the hero remains in the
+  archive. The authoritative result keeps archive and advances the rescue5minutes.
+- Step4 adds a rusty lock blocking the sluice without a confirmed world fact.
+- Step6 puts the hero in ankle-deep water despite the selected dry upper route.
+- Step9 mistranslates quarterstaff and turns route closure into a permanent claim.
+
+The old echo's identity remains undiscovered, reward is not repeated and the ward
+is not declared repaired. No additional mechanical action is chosen for the hero.
+A suspicious parchment detail in step1 is not treated as a proven discovery leak
+because it has not been presented as an actionable clue or loot.
+
+Temperature reduction alone does not make this model an accepted Dungeon Master.
+The default provider remains unchanged. Evidence under .artifacts/bonsai/lowtemp:
+solo-report.json, solo-final.json, proof.json, backend/runtime logs and cleanup.json.
+Both isolated backend/model processes and ports31424/31808 were stopped and
+verified absent. Full native/peaceful/defensive/co-op semantic acceptance remains
+open. Separately, the current production browser suite now passes62 tests with
+one existing vision skip; see BROWSER_SESSION_ACCEPTANCE.md for its scope.
