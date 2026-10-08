@@ -30,3 +30,10 @@ Dice prerequisite completed: formerly ignored advantage reproduced and fixed;
 disadvantage, cancellation, typed schema, damage-mode rejection and replay-compatible
 serialization verified. Canonical skill modifiers and automatic armor penalties
 remain the next implementation step; see DEFENSE_EQUIPMENT.md.
+
+Canonical solo check checkpoint: strict identified skills, current sheet lookup,
+server ability/proficiency, automatic worn-armor Stealth/Poisoned disadvantage,
+DC result and bounded context implemented. Domain/application/SQLite/server suite
+passes; independent review closed portrait-context and legacy-budget findings.
+Co-op check authority/receipts and native/model check delivery remain next; the
+combined Stealth/untrained task stays open.

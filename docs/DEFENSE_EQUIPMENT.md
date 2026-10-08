@@ -95,3 +95,34 @@ roll modes; it does not yet derive skill modifiers/armor penalties from the hero
 Canonical checks must bind the exact current solo/active-party character, read
 abilities/proficiencies/declared defense from server data, and preserve the existing
 completed tool receipt on retry. No check result may be invented by the model.
+
+
+Canonical solo skill checks, 2026-10-08:
+- roll_dice accepts a strict check descriptor {character_id, skill, dc?}. Only a
+  single d20 is allowed and model-supplied modifiers are rejected. Known skills
+  map to standard abilities in the domain; level determines proficiency rather
+  than trusting cached proficiencyBonus.
+- A repository read matches the exact current campaign/session and character.
+  Missing/foreign identities fail. Guest reads require a present active room
+  member, but the co-op tool broker does not expose this command yet.
+- The application derives the skill modifier from the canonical sheet. Worn
+  armor automatically imposes Stealth disadvantage, Poisoned imposes check
+  disadvantage, and opposing advantage cancels before rolling. Downed/dead heroes
+  cannot attempt these checks. Natural20 alone does not override a failed DC.
+- Solo context supplies a bounded UUID/name identity and instructs the Master to
+  use canonical checks. Portrait/base64 and biography are excluded. Legacy
+  exact-budget sheets follow the same normalize_for_read policy as combat.
+- Independent review caught unrestricted portrait context and inconsistent
+  legacy normalization. Both fixes have regression coverage and re-review.
+
+Actual typed-tool/SQLite integration checks server-owned modifiers, armor penalty,
+foreign-identity rejection and zero writes/revision changes for checks. Pure tests
+cover carried armor, cancellation, incapacitation, natural20, Poisoned, bounded
+context and legacy budget. Decoder rejects unknown skills/invented check totals,
+nil identity, invalid DC and forged modifier. Four-crate domain/application/SQLite/
+server regression passes after the stale13-armor route assertion was updated.
+
+Remaining: co-op owner/lease/receipt integration, native/model skill-check delivery,
+expertise and contextual ability substitutions, untrained armor penalties. Generic
+NPC/world dice remain available; there is no semantic text heuristic deciding
+player actions. Full armor/gameplay/session acceptance remains open.

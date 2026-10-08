@@ -186,6 +186,7 @@ mod tests {
                 modifier: None,
                 advantage: None,
                 disadvantage: None,
+                check: None,
                 reason: None,
             }),
         };

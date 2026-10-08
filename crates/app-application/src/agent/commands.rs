@@ -19,6 +19,8 @@ pub struct RollDiceCommand {
     pub disadvantage: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<crate::hero_checks::HeroSkillCheck>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

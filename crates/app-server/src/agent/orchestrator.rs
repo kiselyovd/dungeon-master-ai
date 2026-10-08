@@ -277,7 +277,7 @@ impl AgentContextPort for LegacyContextAdapter {
                         state.projection.combat.as_ref().is_some_and(|combat| {
                             combat["snapshot"]["active"].as_bool() == Some(true)
                         });
-                    system_prompt.push_str(&format!("\nCANONICAL HERO MECHANICS: {}\nUse combat_action for the bound hero's intentions and rest_action for rest/time. Choose only supported spell choices and available weapons/targets shown here. After a tool result, that result supersedes the previous state. Raw damage/healing/token mutations cannot replace canonical intentions. All rolls and resource changes belong to the engine.",serde_json::json!({"combat":state.projection.combat,"rest_status":status})));
+                    system_prompt.push_str(&format!("\nCANONICAL HERO MECHANICS: {}\nUse combat_action for the bound hero's intentions and rest_action for rest/time. Choose only supported spell choices and available weapons/targets shown here. After a tool result, that result supersedes the previous state. Raw damage/healing/token mutations cannot replace canonical intentions. All rolls and resource changes belong to the engine. For player skill checks call roll_dice with dice 1d20 and check {{character_id, skill, dc}}; omit modifier. Armor/poisoned disadvantage is enforced automatically. Narrate the confirmed total/success only.",serde_json::json!({"skill_check_actor":state.character_id.map(|id|app_application::hero_checks::context_identity(id,&state.projection.character)),"combat":state.projection.combat,"rest_status":status})));
                 }
                 state.projection.adventure.is_some()
             }

@@ -95,7 +95,14 @@ fn all_tools_core() -> Vec<Tool> {
                     "modifier": { "type": "integer", "description": "Flat bonus/penalty to add to total" },
                     "advantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take higher. Cancels disadvantage." },
                     "disadvantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take lower. Cancels advantage." },
-                    "reason": { "type": "string", "description": "Short description of why we are rolling" }
+                    "reason": { "type": "string", "description": "Short description of why we are rolling" },
+                    "check": { "type": "object", "additionalProperties": false,
+                      "description": "For every player hero skill check, identify the canonical character from current context. Use dice 1d20 and omit modifier; server derives ability, proficiency and armor/condition penalties.",
+                      "properties": { "character_id": { "type": "string", "format": "uuid" },
+                        "skill": { "type": "string", "enum": ["acrobatics","animal_handling","arcana","athletics","deception","history","insight","intimidation","investigation","medicine","nature","perception","performance","persuasion","religion","sleight_of_hand","stealth","survival"] },
+                        "dc": { "type": "integer", "minimum": 0, "maximum": 40 } },
+                      "required": ["character_id","skill"] }
+
                 },
                 "required": ["dice"]
             }),

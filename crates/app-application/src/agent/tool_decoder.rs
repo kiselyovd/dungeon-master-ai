@@ -135,6 +135,15 @@ fn validate(command: &AgentToolCommand) -> Result<(), ToolDecodeError> {
         AgentToolCommand::AdventureAction(_) => Ok(()),
         AgentToolCommand::RollDice(command) => {
             require_text(&command.dice, "dice")?;
+            if let Some(check) = &command.check {
+                if check.character_id.is_nil()
+                    || check.dc.is_some_and(|dc| dc > 40)
+                    || command.modifier.is_some()
+                    || !matches!(command.dice.to_ascii_lowercase().as_str(), "d20" | "1d20")
+                {
+                    return Err(ToolDecodeError::ValidationFailed("hero check requires an identified character, single d20 and server-derived modifier".into()));
+                }
+            }
             if (command.advantage.unwrap_or(false) || command.disadvantage.unwrap_or(false))
                 && !matches!(command.dice.to_ascii_lowercase().as_str(), "d20" | "1d20")
             {

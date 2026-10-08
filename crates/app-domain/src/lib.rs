@@ -9,3 +9,5 @@ pub mod rest;
 pub mod rng;
 pub mod ruleset;
 pub mod srd;
+
+pub mod skills;

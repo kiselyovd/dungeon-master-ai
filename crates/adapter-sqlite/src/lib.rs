@@ -6,6 +6,7 @@ pub mod campaigns;
 pub mod combat;
 mod combat_binding;
 pub mod events;
+mod hero_checks;
 mod hero_intentions;
 pub mod journal;
 pub mod messages;

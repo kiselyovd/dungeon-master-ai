@@ -77,7 +77,32 @@ pub async fn execute_tool(
     // Transitional dispatch: Task 4 moves each typed variant into a use case.
     match tool_name {
         "adventure_action" => (json!({"error":"adventure_requires_turn_identity"}), true),
-        "roll_dice" => execute_roll_dice(&args),
+        "roll_dice" => {
+            if let app_application::agent::commands::AgentToolCommand::RollDice(command) = &command
+            {
+                if let Some(check) = &command.check {
+                    use app_application::hero_checks::HeroCheckSheetRepository;
+                    let sheet = match store
+                        .check_sheet(campaign_id, session_id, check.character_id)
+                        .await
+                    {
+                        Ok(sheet) => sheet,
+                        Err(_) => return (json!({"error":"hero_check_identity_mismatch"}), true),
+                    };
+                    return match app_application::hero_checks::roll_skill(
+                        &sheet,
+                        check,
+                        command.advantage.unwrap_or(false),
+                        command.disadvantage.unwrap_or(false),
+                        &mut app_domain::rng::SeededRng::new_random(),
+                    ) {
+                        Ok(result) => (result, false),
+                        Err(code) => (json!({"error":code}), true),
+                    };
+                }
+            }
+            execute_roll_dice(&args)
+        }
         "apply_damage" => execute_apply_damage(&args, store).await,
         "apply_healing" => execute_apply_healing(&args, store).await,
         "start_combat" => execute_start_combat(&args, store, session_id).await,
