@@ -154,3 +154,31 @@ logic; a revocation evidence weakness was repaired with the fresh-check case.
 Native/model shared-check delivery remains to be exercised. Existing untrained
 armor, Expertise and contextual ability substitution limitations remain; this is
 not a complete-SRD or complete-session claim.
+
+
+Two-native skill delivery acceptance, 2026-10-08:
+- Rebuilt the real host/guest Tauri binaries with separate QA identities/profiles
+  and restored the existing accepted two-human party through UI controls. One
+  Windows machine; private native/backend processes and databases remain separate.
+- The guest entered a Stealth intention and clicked Send to Master. A scripted
+  OpenAI-compatible provider requested check for the initiating member's canonical
+  character ID. The server rolled4, derived modifier2 and confirmed total6/DC15
+  failure. The fixture narrated from the actual tool result, without advancing a
+  hero's next action. Both native UIs displayed the same confirmed answer.
+- Campaign revision140->141; actor HP/roster unchanged. Read-only SQLite confirms
+  one prepared check, one shared event, four checkpoint messages and a completed
+  turn. Private reasoning is absent from delivered/persisted public messages.
+- Fully closed/restarted both native/backend processes. Both UIs restored the same
+  transcript. Replaying the completed request through the actual native stream
+  emitted tool start/result/text/done, preserved revision141 and the original dice,
+  and made no provider request (two requests before and after replay).
+- Screenshots inspected and independent read-only review confirmed SQLite, UI,
+  replay and cleanup evidence. All QA processes/listeners stopped.
+
+Evidence: .artifacts/two-native/check-ui-proof.json, check-durable.json,
+check-reopen-replay.json, check-provider-calls.json, check-guest.png,
+check-reopen.png, check-cleanup.json and check build/helper sources.
+The provider was configured by a settings API helper; replay used native API rather
+than an available UI retry button for an already completed turn. Both heroes were
+unarmored in this case. This proves transport/rules delivery with a scripted
+provider, not real-model semantics, physical-device LAN or a complete new session.

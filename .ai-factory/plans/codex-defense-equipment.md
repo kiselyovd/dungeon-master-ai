@@ -42,3 +42,9 @@ Co-op check authority/receipts implemented using existing prepared-tool records.
 File-backed two-member check/replay/reopen, rollback, reset and separate revocation
 regressions pass. Model/native delivery and untrained armor remain follow-ups.
 The combined Stealth/untrained task stays open until those limitations are resolved.
+
+Two-native scripted-provider check delivery accepted: guest UI Send -> canonical
+roll4+modifier2=6/DC15 failure -> same answer in both clients; full close/restart
+and completed native replay preserve revision141/dice/transcript, provider calls2
+unchanged. Independent SQLite/review/cleanup confirmed. This case is unarmored;
+real-model quality, physical LAN and remaining mechanics are still open.
