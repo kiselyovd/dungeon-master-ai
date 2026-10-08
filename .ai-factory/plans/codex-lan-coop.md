@@ -826,3 +826,35 @@ Full gates pass: 853 Rust tests, 1117 frontend tests; final fast gates and fresh
 production build/7 browser cases pass. Original 32-file baseline is preserved.
 These checks include inherited worktree changes, not clean-HEAD release proof.
 Physical LAN/model quality and retained-roster capacity remain open.
+
+
+## Saved roster presence in new rooms
+
+- [x] Reproduce saved guest heroes marked active before their human owners joined.
+  The saved-party regression failed with four active members instead of one.
+- [x] Initialize only the host as active. Preserve the full roster, guest sheets
+  and member UUIDs; each verified targeted invitation activates its saved owner.
+- [x] Verify two successive room cycles: retained four members, active counts
+  1->2->3->4, private authentication after each join, unchanged campaign roster.
+- [x] Independent read-only review finds no actionable issue in this narrow fix.
+- [x] Complete relevant gates and local checkpoint.
+
+Focused room-capability suite passes25 cases. Two existing stream tests assumed
+HTTP chunk/event alignment and a2sec deadline under parallel load; they now collect
+chunks on the original subscription until member_left, with bounded10sec wait and
+immediate EOF/error failure. Isolated auth/read barrier remains green. Full suite
+passes after this test-only correction; no production SSE semantics were altered.
+The broader gate hit a native DM-stream completion timeout under39 parallel
+fixtures sharing process-wide OUTBOX_LANE. Increasing3sec to10sec passed focused
+cases but failed another full run, so that was insufficient. The two test waits
+now match the transport's60sec chunk-read deadline; completion, narration,
+privacy, outbox and revocation assertions remain intact. Intentional failed
+network requests in other fixtures hold the shared lane until network timeout.
+Final full gates are repeated before checkpoint. Native full-session/model and
+physical-device LAN acceptance remain open.
+
+Final consolidated gate passes853 Rust tests and1117 frontend tests. The earlier
+3sec/10sec streaming deadline failures remain recorded; final60sec chunk-deadline
+run is green. Independent follow-up accepts the delivery-test deadline without
+claiming a60sec end-to-end latency bound. Original32 baseline hashes remain
+preserved; verification includes inherited worktree changes. Scoped checkpoint.

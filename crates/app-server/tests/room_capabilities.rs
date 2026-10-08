@@ -1774,7 +1774,19 @@ async fn full_saved_party_recovers_member_identity_in_each_new_room() {
     for round in 0..2 {
         command.causation_id = format!("room-{round}");
         let created = service.create_local_room(command.clone()).await.unwrap();
-        for member_id in &guests {
+        assert_eq!(created.grant.room.members.len(), 4);
+        assert_eq!(
+            created
+                .grant
+                .room
+                .members
+                .iter()
+                .filter(|member| member.active)
+                .count(),
+            1,
+            "saved guest heroes must wait for their human owners to join"
+        );
+        for (index, member_id) in guests.iter().enumerate() {
             let host = service
                 .authenticate(
                     created.grant.room.room_id,
@@ -1800,6 +1812,15 @@ async fn full_saved_party_recovers_member_identity_in_each_new_room() {
                 .await
                 .is_ok());
             assert_eq!(joined.room.members.len(), 4);
+            assert_eq!(
+                joined
+                    .room
+                    .members
+                    .iter()
+                    .filter(|member| member.active)
+                    .count(),
+                index + 2
+            );
         }
         let host = service
             .authenticate(
@@ -3237,12 +3258,23 @@ async fn remaining_host_subscription_survives_voluntary_departure_epoch_change()
         .leave(&subject, grant.room.epoch, "stream-guest-leave")
         .await
         .unwrap();
-    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), frames.next())
-        .await
-        .unwrap()
-        .expect("remaining host subscription must continue")
-        .unwrap();
-    assert!(String::from_utf8_lossy(&frame).contains("member_left"));
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        // HTTP chunks need not align with events; initial updates may still be queued.
+        let mut received = Vec::new();
+        loop {
+            let frame = frames
+                .next()
+                .await
+                .expect("remaining host subscription must continue")
+                .unwrap();
+            received.extend_from_slice(&frame);
+            if String::from_utf8_lossy(&received).contains("member_left") {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("departure update must arrive on the existing subscription");
     drop(frames);
     server.abort();
     let _ = server.await;
@@ -3340,12 +3372,23 @@ async fn host_subscription_reauthenticates_when_departure_commits_between_auth_a
         .await
         .unwrap();
     secrets.release.notify_one();
-    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), frames.next())
-        .await
-        .unwrap()
-        .expect("remaining host must survive auth/read epoch race")
-        .unwrap();
-    assert!(String::from_utf8_lossy(&frame).contains("member_left"));
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        // HTTP chunks need not align with events; initial updates may still be queued.
+        let mut received = Vec::new();
+        loop {
+            let frame = frames
+                .next()
+                .await
+                .expect("remaining host must survive auth/read epoch race")
+                .unwrap();
+            received.extend_from_slice(&frame);
+            if String::from_utf8_lossy(&received).contains("member_left") {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("departure update must arrive on the existing subscription");
     drop(frames);
     server.abort();
     let _ = server.await;

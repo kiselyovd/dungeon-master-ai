@@ -167,3 +167,15 @@ and two local navigation attempts. Follow-up review closes the finding.
 Full local gates pass (853 Rust tests, 1117 frontend tests); the final production
 build and seven room browser cases pass. Verification includes preserved inherited
 worktree changes and is not evidence of a clean-HEAD release.
+
+New rooms retain saved party identities but initially activate only the host.
+Saved guest heroes enter after their human owners complete a targeted invitation.
+Two room cycles verify active counts1->2->3->4 and unchanged member UUIDs/roster;
+no saved guest is counted as present merely because its sheet exists. Independent
+read-only review found no actionable issue in this narrow change.
+
+The final consolidated gate for saved-roster presence passes853 Rust tests and
+1117 frontend tests. Network delivery tests collect arbitrary HTTP chunks and
+allow the transport deadline when parallel native fixtures contend on the
+process-wide outbox lock; all completion/privacy/revocation assertions remain.
+This deadline is not an end-to-end performance guarantee.

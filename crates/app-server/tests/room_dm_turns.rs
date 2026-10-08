@@ -1649,7 +1649,9 @@ async fn native_stream_forwards_shared_dm_and_updates_with_private_credentials()
     };
     let mut stream = service.stream(request.clone()).await.unwrap();
     let mut bytes = Vec::new();
-    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(3), stream.next())
+    // Parallel native fixtures share OUTBOX_LANE with intentional network failures.
+    // Match the transport's stream-read deadline; this is a delivery contract test.
+    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(60), stream.next())
         .await
         .unwrap()
     {
@@ -1672,7 +1674,7 @@ async fn native_stream_forwards_shared_dm_and_updates_with_private_credentials()
     let mut subscription = service.stream(request.clone()).await.unwrap();
     let mut bytes = Vec::new();
     while !bytes.windows(2).any(|pair| pair == b"\n\n") {
-        let chunk = tokio::time::timeout(std::time::Duration::from_secs(3), subscription.next())
+        let chunk = tokio::time::timeout(std::time::Duration::from_secs(60), subscription.next())
             .await
             .unwrap()
             .unwrap()

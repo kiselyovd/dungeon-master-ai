@@ -249,7 +249,7 @@ impl RoomService {
                 member_id: member.member_id,
                 display_name,
                 role: member.role,
-                active: true,
+                active: member.role == PartyRole::Host,
                 credential_id,
             });
         }
