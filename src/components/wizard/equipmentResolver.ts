@@ -9,7 +9,7 @@
  */
 
 import type { Background, Compendium, Weapon } from '../../api/srd';
-import type { EquipmentSlot } from '../../state/charCreation';
+import type { CharacterDraft, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 
 export interface ParsedItemDescriptor {
@@ -443,4 +443,23 @@ export function promoteIcon(row: InventoryItem, compendium: Compendium): Invento
     };
   }
   return row;
+}
+
+/** Canonical inventory shared by the live preview and the committed sheet. */
+export function resolveDraftInventory(
+  draft: CharacterDraft,
+  compendium: Compendium,
+): InventoryItem[] {
+  const bg = compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null;
+  const background = readBackgroundStartingEquipment(bg);
+  return mergeInventoryRows([
+    ...(draft.equipmentMode === 'package'
+      ? resolveEquipmentSlots(draft.equipmentSlots, background, compendium)
+      : []),
+    ...(draft.equipmentMode === 'gold'
+      ? draft.equipmentInventory.map((row) => promoteIcon(row, compendium))
+      : []),
+    ...(draft.equipmentMode === 'gold' ? resolveEquipmentSlots([], background, compendium) : []),
+    ...computeGoldRows(draft, bg),
+  ]);
 }

@@ -33,3 +33,23 @@ wearing controls, frontend-server parity, native armor acceptance and downstream
 Stealth checks remain pending. Wearing untrained armor and its RAW penalties,
 including spellcasting restrictions, are not supported by this declared-loadout
 subset yet; no complete-SRD claim. The overall solo/co-op goal remains active.
+
+
+Frontend checkpoint: the equipment step now exposes an explicit worn body armor
+and shield choice using existing controls. The live sheet and commit resolve the
+same package/gold inventory and use the canonical catalog for AC and Strength
+speed penalties. Unavailable selections block saving instead of silently switching
+loadouts. PC projections and draft persistence retain versioned defense data.
+The real partialize/storage roundtrip now also retains required draft rulesetId.
+Nullable Rust armor fields are handled as absent caps/requirements.
+
+Verification: 194 focused wizard/storage tests pass, including heavy/medium armor,
+negative Dexterity, class defenses, package resolution, Rust-wire null and actual
+storage roundtrip. Production build passes. A production-root Playwright case
+confirms AC18 with Chain Mail/shield, AC12 when carried but unworn, and reload
+persistence in an existing characterless campaign. Independent read-only review
+found two defects (nullable wire and partialization); both were fixed and rechecked.
+Full frontend regression passes: 170 files / 1112 tests. Fast consolidated gates
+(architecture, Rust formatting, Biome, TypeScript, dash check) pass.
+This is browser fixture evidence; native creation/combat/reopen, recreation of an
+existing hero and downstream Stealth/untrained armor behavior remain pending.

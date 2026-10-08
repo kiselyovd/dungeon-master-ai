@@ -98,6 +98,8 @@ export const useStore = create<AppState>()(
           completed: state.onboarding.completed,
         },
         pc: {
+          ...(state.pc.defense ? { defense: state.pc.defense } : {}),
+          ...(state.pc.baseSpeedFt !== undefined ? { baseSpeedFt: state.pc.baseSpeedFt } : {}),
           characterId: state.pc.characterId ?? null,
           backstory: state.pc.backstory ?? '',
           ideals: state.pc.ideals ?? '',
@@ -127,6 +129,8 @@ export const useStore = create<AppState>()(
           portraitUrl: state.pc.portraitUrl,
         },
         charCreation: {
+          rulesetId: state.charCreation.rulesetId,
+          defenseChoice: state.charCreation.defenseChoice,
           classId: state.charCreation.classId,
           subclassId: state.charCreation.subclassId,
           raceId: state.charCreation.raceId,

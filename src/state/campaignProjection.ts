@@ -1,5 +1,7 @@
+import * as v from 'valibot';
 import type { Campaign } from '../api/contracts/campaign';
 import type { CampaignStateResponse } from '../api/contracts/campaignState';
+import { DefenseChoiceSchema } from '../api/contracts/defense';
 import type { RestoreSaveResponse, SessionMessageWire } from '../api/saves';
 import { parseMessage } from '../api/saves';
 import { parseCombatProjection } from '../features/combat/model/combatProjection';
@@ -219,6 +221,21 @@ function parseNpc(value: unknown): NpcRecord {
 function parsePcPatch(value: unknown): Partial<PcData> {
   const input = asRecord(value, 'restore_pc_invalid');
   const output: Partial<PcData> = {};
+  if (input.defense !== undefined) {
+    const parsed = v.safeParse(DefenseChoiceSchema, input.defense);
+    if (!parsed.success) throw new RestoreValidationError('restore_pc_invalid');
+    output.defense = parsed.output;
+  }
+  if (input.baseSpeedFt !== undefined) {
+    if (
+      typeof input.baseSpeedFt !== 'number' ||
+      !Number.isSafeInteger(input.baseSpeedFt) ||
+      input.baseSpeedFt < 1 ||
+      input.baseSpeedFt > 120
+    )
+      throw new RestoreValidationError('restore_pc_invalid');
+    output.baseSpeedFt = input.baseSpeedFt;
+  }
   for (const key of ['backstory', 'ideals', 'bonds', 'flaws'] as const) {
     if (input[key] !== undefined) output[key] = asString(input[key], 'restore_pc_invalid');
   }

@@ -193,5 +193,15 @@
   "nav_next": "Next",
   "nav_step": "Step {{current}} of {{total}}",
   "nav_next_blocked": "Complete this step before continuing",
-  "nav_footer_label": "Step navigation"
+  "nav_footer_label": "Step navigation",
+  "defense_unarmored": "No armor worn",
+  "defense_unavailable": "Selected armor is unavailable",
+  "defense_help": "Choose which carried armor you wear. Only owned armor with class training is currently supported.",
+  "defense_armor": "Worn armor",
+  "defense_shield": "Use a shield",
+  "defense_ac": "Armor Class: {{ac}}",
+  "defense_speed": "Insufficient Strength: speed reduced by {{feet}} feet.",
+  "defense_stealth": "This armor has a Stealth disadvantage penalty.",
+  "defense_invalid": "Choose available armor and a shield before saving.",
+  "warning_defense_invalid": "Choose available armor and a shield before saving."
 }

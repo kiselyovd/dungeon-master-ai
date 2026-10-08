@@ -1,6 +1,9 @@
+import type { Compendium } from '../../api/srd';
 import type { CharacterDraft } from '../../state/charCreation';
 import type { AbilityScores } from '../../state/pc';
 import { abilityMod, savingThrowMod, skillMod } from '../../state/pc';
+import { type DefensePreview, deriveDefensePreview } from './defensePreview';
+import { resolveDraftInventory } from './equipmentResolver';
 
 export interface LiveSheetAbilityRow {
   score: number;
@@ -25,6 +28,8 @@ export interface LiveSheetInventoryItem {
 }
 
 export interface LiveSheet {
+  defense: DefensePreview | null;
+  baseSpeedFt: number | null;
   name: string | null;
   className: string | null;
   raceName: string | null;
@@ -76,6 +81,7 @@ const ALL_SKILLS = Object.keys(SKILL_TO_ABILITY);
 const LEVEL_1_PROFICIENCY_BONUS = 2;
 
 interface MinimalCompendium {
+  equipment?: Compendium['equipment'];
   races: Array<{
     id: string;
     name_en: string;
@@ -95,6 +101,7 @@ interface MinimalCompendium {
     name_ru: string;
     hit_die: number;
     saving_throw_proficiencies: string[];
+    armor_proficiencies?: string[];
   }>;
   backgrounds: Array<{
     id: string;
@@ -167,26 +174,40 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
   const hp = hpMax;
 
   const initiative = abilities.dex.mod;
-  const speedFt = race ? race.speed : null;
-  // Unarmored AC (PHB 5e: 10 + DEX modifier). Armor-derived AC is a later
-  // enhancement; this replaces the previous hardcoded null so wizard-built
-  // characters commit a real AC instead of the EMPTY_PC default of 10.
-  const ac = 10 + abilities.dex.mod;
+  const baseSpeedFt = race ? race.speed : null;
+  const items: LiveSheetInventoryItem[] = compendium.equipment
+    ? resolveDraftInventory(draft, compendium as Compendium).map((item) => ({
+        ...item,
+        icon: item.icon ?? null,
+      }))
+    : [
+        ...draft.equipmentSlots
+          .filter((slot) => slot.itemId)
+          .map((slot) => ({
+            id: slot.slotId,
+            name: slot.customName ?? slot.itemId ?? '',
+            count: 1,
+            icon: null,
+          })),
+        ...draft.equipmentInventory.map((item) => ({ ...item, icon: item.icon ?? null })),
+      ];
+  const defense =
+    compendium.equipment && klass
+      ? deriveDefensePreview(
+          klass.id,
+          klass.armor_proficiencies ?? [],
+          Object.fromEntries(
+            ABILITY_KEYS.map((key) => [key, abilities[key].score]),
+          ) as unknown as AbilityScores,
+          items.map(({ icon, ...item }) => ({ ...item, ...(icon === null ? {} : { icon }) })),
+          compendium.equipment.armor,
+          draft.defenseChoice,
+        )
+      : null;
+  const ac = defense?.ac ?? 10 + abilities.dex.mod;
+  const speedFt =
+    baseSpeedFt === null ? null : Math.max(0, baseSpeedFt - (defense?.speedPenaltyFt ?? 0));
 
-  const items: LiveSheetInventoryItem[] = [];
-  for (const slot of draft.equipmentSlots) {
-    if (slot.itemId) {
-      items.push({
-        id: slot.slotId,
-        name: slot.customName ?? slot.itemId,
-        count: 1,
-        icon: null,
-      });
-    }
-  }
-  for (const it of draft.equipmentInventory) {
-    items.push({ id: it.id, name: it.name, count: it.count, icon: it.icon ?? null });
-  }
   const inventoryPreview = items.slice(0, 3);
   const inventoryOverflow = Math.max(0, items.length - 3);
 
@@ -198,6 +219,8 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
   const placeholder = !klass ? 'pick_class_to_begin' : null;
 
   return {
+    defense,
+    baseSpeedFt,
     name: draft.name || null,
     className: klass ? klass.name_en : null,
     raceName: race ? race.name_en : null,

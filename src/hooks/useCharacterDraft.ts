@@ -15,6 +15,7 @@ export function useCharacterDraft(): CharacterDraft {
     pointBuyRemaining: s.charCreation.pointBuyRemaining,
     skillProfs: s.charCreation.skillProfs,
     spells: s.charCreation.spells,
+    defenseChoice: s.charCreation.defenseChoice,
     equipmentMode: s.charCreation.equipmentMode,
     equipmentSlots: s.charCreation.equipmentSlots,
     equipmentInventory: s.charCreation.equipmentInventory,

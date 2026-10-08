@@ -8,14 +8,7 @@ import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
 import { DmConfirmModal } from '../DmConfirmModal';
 import { computeLiveSheet } from './computeLiveSheet';
-import {
-  computeGoldRows,
-  mergeInventoryRows,
-  parseEquipmentString,
-  promoteIcon,
-  readBackgroundStartingEquipment,
-  resolveEquipmentSlots,
-} from './equipmentResolver';
+import { parseEquipmentString, resolveDraftInventory } from './equipmentResolver';
 
 interface Warning {
   code: string;
@@ -70,6 +63,9 @@ export function ReviewTab({
     if (unresolved) warnings.push({ code: 'unresolved_wildcard', severity: 'warn' });
   }
 
+  if (computeLiveSheet(draft, compendium).defense?.valid === false)
+    warnings.push({ code: 'defense_invalid', severity: 'block' });
+
   const blocking = warnings.some((w) => w.severity === 'block');
 
   async function sendTestChat() {
@@ -93,37 +89,9 @@ export function ReviewTab({
   }
 
   async function beginConfirmed() {
-    if (committing) return;
+    if (committing || blocking) return;
     setConfirmOpen(false);
-    const bg = draft.backgroundId
-      ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
-      : null;
-    const bgItems = readBackgroundStartingEquipment(bg);
-
-    const resolvedFromSlots =
-      draft.equipmentMode === 'package'
-        ? resolveEquipmentSlots(draft.equipmentSlots, bgItems, compendium)
-        : [];
-
-    const fromGold =
-      draft.equipmentMode === 'gold'
-        ? draft.equipmentInventory.map((it) => promoteIcon(it, compendium))
-        : [];
-
-    const bgItemsForGold =
-      draft.equipmentMode === 'gold' && bg ? resolveEquipmentSlots([], bgItems, compendium) : [];
-
-    const goldRows = computeGoldRows(
-      { equipmentMode: draft.equipmentMode, goldRemaining: draft.goldRemaining },
-      bg,
-    );
-
-    const inventory = mergeInventoryRows([
-      ...resolvedFromSlots,
-      ...fromGold,
-      ...bgItemsForGold,
-      ...goldRows,
-    ]);
+    const inventory = resolveDraftInventory(draft, compendium);
 
     // Derive the real combat stats from the same live-sheet math the preview
     // uses, so a wizard-built character commits non-zero HP and a real AC
@@ -151,6 +119,8 @@ export function ReviewTab({
       hp: sheet.hp ?? 0,
       hpMax: sheet.hpMax ?? 0,
       ac: sheet.ac ?? 10,
+      ...(sheet.defense ? { defense: sheet.defense.choice } : {}),
+      baseSpeedFt: sheet.baseSpeedFt ?? 30,
       initiative: sheet.initiative ?? 0,
       speedFt: sheet.speedFt ?? 30,
       proficiencyBonus: sheet.proficiencyBonus,

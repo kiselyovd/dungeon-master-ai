@@ -28,6 +28,7 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
+import { DefenseChoiceSchema } from '../api/contracts/defense';
 import { withTimeout } from '../lib/withTimeout';
 import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema } from './charCreationSchema';
@@ -269,6 +270,8 @@ const SkillProfSchema = v.object({
 });
 
 const PcSchema = v.object({
+  defense: v.optional(DefenseChoiceSchema),
+  baseSpeedFt: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(120))),
   characterId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
   backstory: v.optional(v.string()),
   ideals: v.optional(v.string()),

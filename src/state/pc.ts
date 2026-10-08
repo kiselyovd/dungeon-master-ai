@@ -63,6 +63,8 @@ export interface InventoryItem {
 }
 
 export interface PcData {
+  defense?: import('../api/contracts/defense').DefenseChoice;
+  baseSpeedFt?: number;
   characterId?: string | null;
   backstory?: string;
   ideals?: string;
@@ -109,6 +111,8 @@ export interface PcData {
  * further down the file. Keep this in sync with `PcData` and `EMPTY_PC`.
  */
 export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
+  'defense',
+  'baseSpeedFt',
   'characterId',
   'backstory',
   'ideals',

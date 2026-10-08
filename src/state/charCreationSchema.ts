@@ -3,6 +3,7 @@
  * Used by persistStorage to validate the stored char_creation_draft JSON.
  */
 import * as v from 'valibot';
+import { DefenseChoiceSchema } from '../api/contracts/defense';
 import { CURRENT_CHARACTER_RULESET_ID } from './charCreation';
 import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 
@@ -64,6 +65,7 @@ export const StrictCharCreationDraftSchema = v.object({
     cantrips: v.array(v.string()),
     level1: v.array(v.string()),
   }),
+  defenseChoice: v.nullable(DefenseChoiceSchema),
   equipmentMode: EquipmentModeSchema,
   equipmentSlots: v.array(EquipmentSlotSchema),
   equipmentInventory: v.array(InventoryItemSchema),

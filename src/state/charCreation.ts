@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { DefenseChoice } from '../api/contracts/defense';
 import type { AbilityScores, InventoryItem } from './pc';
 
 export const CURRENT_CHARACTER_RULESET_ID = 'srd-5.2.1' as const;
@@ -67,6 +68,7 @@ export interface CharacterDraft {
   pointBuyRemaining: number;
   skillProfs: string[];
   spells: { cantrips: string[]; level1: string[] };
+  defenseChoice: DefenseChoice | null;
   equipmentMode: EquipmentMode | null;
   equipmentSlots: EquipmentSlot[];
   equipmentInventory: InventoryItem[];
@@ -95,6 +97,7 @@ export const EMPTY_DRAFT: CharacterDraft = {
   pointBuyRemaining: 27,
   skillProfs: [],
   spells: { cantrips: [], level1: [] },
+  defenseChoice: null,
   equipmentMode: null,
   equipmentSlots: [],
   equipmentInventory: [],

@@ -13,6 +13,7 @@ import type { EquipmentMode, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 import { useStore } from '../../state/useStore';
 import { Icons } from '../../ui/Icons';
+import { DefenseControls } from './DefenseControls';
 import { filterCompendiumByWildcard, parseEquipmentString } from './equipmentResolver';
 
 interface RawStartingEquipmentEntry {
@@ -317,6 +318,7 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
           }}
         />
       )}
+      {mode !== null && <DefenseControls compendium={compendium} />}
     </section>
   );
 }
