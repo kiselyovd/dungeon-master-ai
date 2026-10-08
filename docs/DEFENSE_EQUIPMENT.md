@@ -53,3 +53,29 @@ Full frontend regression passes: 170 files / 1112 tests. Fast consolidated gates
 (architecture, Rust formatting, Biome, TypeScript, dash check) pass.
 This is browser fixture evidence; native creation/combat/reopen, recreation of an
 existing hero and downstream Stealth/untrained armor behavior remain pending.
+
+
+Native acceptance, 2026-10-08 (working baseline with inherited changes):
+- Rebuilt backend and Tauri with the isolated soloqa identity/profile. Created a
+  second bundled campaign through the real UI, then Fighter/Human/Soldier,
+  standard array, class package and hero name Boris (Russian label).
+- The actual catalog-backed wizard displayed Chain Mail AC16, Strength17 and
+  speed30. Confirmed character PUT stored defense version1, armor_id chain-mail,
+  shield false, baseSpeedFt30 and AC16. No frontend store injection created it.
+- A real backend combat start supplied one NPC only; server bound the sole human
+  character. Real End Turn UI advanced round1 to round2/revision4. The NPC rolled
+  13+2=15 and missed against AC16, leaving HP11. This demonstrates the armor's
+  actual attack threshold, beyond matching cached numbers.
+- Closed native/backend completely, verified old listeners absent, relaunched
+  the same profile at a new backend port. Character UUID, defense, frontend AC16,
+  combat AC16, round2 and revision4 survived. Read-only SQLite independently
+  confirmed one character commit, four events and zero snapshots/restores.
+- Screenshots inspected; independent reviewer confirmed DB/attack/reopen and
+  cleanup. All owned processes/listeners stopped.
+
+Evidence: .artifacts/solo-native/armor-creation-combat.json, armor-turn.json/png,
+armor-reopen.json/png, armor-durable.json, armor-cleanup.json and armor build logs.
+This native case covers Chain Mail without a shield and one human combat turn.
+Shield/other armor native scenarios, existing hero recreation, full session and
+packaged release remain outside this acceptance. Stealth and untrained armor
+mechanics remain open; broader solo/co-op goal remains active.
