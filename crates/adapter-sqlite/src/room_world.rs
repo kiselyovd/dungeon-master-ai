@@ -97,6 +97,16 @@ pub(crate) async fn adventure(
             .map_err(|_| error("room_world_commit_failed"))?;
         return Ok(receipt);
     }
+    crate::room_human_commands::require_pending_binding(
+        store,
+        &mut tx,
+        lease,
+        &command.request_id,
+        &app_application::agent::human_commands::HumanAction::Adventure(command.action),
+        command.expected_revision.0,
+        None,
+    )
+    .await?;
     let state = crate::adventure::act_in_transaction(
         &mut tx,
         app_application::models::adventure::AdventureCommand {
@@ -174,6 +184,16 @@ pub(crate) async fn rest(
             .map_err(|_| error("room_world_commit_failed"))?;
         return Ok(receipt);
     }
+    crate::room_human_commands::require_pending_binding(
+        store,
+        &mut tx,
+        lease,
+        &command.request_id,
+        &app_application::agent::human_commands::HumanAction::Rest(command.intent),
+        command.expected_revision.0,
+        None,
+    )
+    .await?;
     if current.campaign.revision != command.expected_revision {
         return Err(RepositoryError::Conflict {
             expected: command.expected_revision,

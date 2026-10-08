@@ -35,6 +35,8 @@ use std::sync::{
 };
 use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
+#[path = "support/room_human_commands_cases.rs"]
+mod human_command_cases;
 struct Fixture {
     store: Arc<SqliteStore>,
     rooms: Arc<RoomService>,

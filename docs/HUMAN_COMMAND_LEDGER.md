@@ -33,7 +33,15 @@ actor-token identity are captured separately from old command_json signatures.
 Stale uncommitted contexts and mismatched full signatures are rejected in the
 canonical write transaction. Dice/refusal settlement also checks prepared context.
 
-Room persistence, model manifest generation/verification, trusted future-target
+The room SQLite adapter stores member/turn-scoped manifests and binds preparation
+in the same transaction. Current process owner, lease, actor, room epoch and reset
+cursor come from protected storage. Canonical receipts recover effects without
+requiring a transcript; repeated identical commands retain distinct nonces.
+New-effect transactions reject stale prepared context, durable refusals and
+unbound legacy preparation for turns that already have a manifest. Truly legacy
+turns and manual room commands retain their existing signatures and contracts.
+
+Model manifest generation/verification, trusted future-target
 resolution and replacement of the runtime completion loop are **not wired yet**.
 Legacy unbound operations need conservative recovery; this foundation does not
 make old effects repeatable or claim live session/LAN acceptance.
@@ -43,5 +51,6 @@ Focused checks:
 ```powershell
 cargo test -p app-application --test human_commands_tests --test workflow_tests
 cargo test -p adapter-sqlite --test human_commands --test agent_operations
+cargo test -p app-server --test room_dm_turns
 bun run architecture:check
 ```

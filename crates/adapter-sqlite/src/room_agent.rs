@@ -132,6 +132,24 @@ pub(crate) async fn prepare(
     tool_id: &str,
     command: AgentToolCommand,
 ) -> Result<PreparedRoomTool, RepositoryError> {
+    let mut tx = store
+        .pool
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+        .map_err(|_| error("room_agent_begin_failed"))?;
+    let result = prepare_in_transaction(&mut tx, lease, turn_id, tool_id, command).await?;
+    tx.commit()
+        .await
+        .map_err(|_| error("room_agent_commit_failed"))?;
+    Ok(result)
+}
+pub(crate) async fn prepare_in_transaction(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    lease: &RoomLease,
+    turn_id: Uuid,
+    tool_id: &str,
+    command: AgentToolCommand,
+) -> Result<PreparedRoomTool, RepositoryError> {
     if turn_id.is_nil()
         || tool_id.is_empty()
         || tool_id.len() > 256
@@ -158,14 +176,9 @@ pub(crate) async fn prepare(
         _ => return Err(error("room_access_denied")),
     }
     .to_string();
-    let mut tx = store
-        .pool
-        .begin_with("BEGIN IMMEDIATE")
-        .await
-        .map_err(|_| error("room_agent_begin_failed"))?;
-    let room = crate::rooms::read(&mut tx, lease.room_id()).await?;
+    let room = crate::rooms::read(tx, lease.room_id()).await?;
     crate::rooms::verify_lease(&room, lease)?;
-    let party = crate::party::load(&mut tx, room.campaign_id)
+    let party = crate::party::load(tx, room.campaign_id)
         .await?
         .ok_or_else(|| error("room_access_denied"))?;
     if party.session_id != room.session_id
@@ -177,14 +190,14 @@ pub(crate) async fn prepare(
     {
         return Err(error("room_access_denied"));
     }
-    timeline(&mut tx, lease, turn_id).await?;
-    if let Some(row)=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut *tx).await.map_err(read_error)? {
+    timeline(tx, lease, turn_id).await?;
+    if let Some(row)=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut **tx).await.map_err(read_error)? {
         if row.get::<String,_>("command_json")!=request {return Err(error("room_world_conflict"));}
         let prepared=serde_json::from_str(&row.get::<String,_>("prepared_json")).map_err(|_|error("room_agent_read_failed"))?;
-        tx.commit().await.map_err(|_|error("room_agent_commit_failed"))?;return Ok(prepared);
+        return Ok(prepared);
     }
-    let reset_cursor = timeline(&mut tx, lease, turn_id).await?;
-    let current = crate::campaign_state::load_in_transaction(&mut tx, room.campaign_id).await?;
+    let reset_cursor = timeline(tx, lease, turn_id).await?;
+    let current = crate::campaign_state::load_in_transaction(tx, room.campaign_id).await?;
     let mut prepared = PreparedRoomTool {
         nonce: Uuid::new_v4().to_string(),
         expected_revision: current.campaign.revision.0,
@@ -202,10 +215,7 @@ pub(crate) async fn prepare(
         prepared.expected_revision = projection.revision;
         prepared.encounter_id = Some(projection.encounter_id);
     }
-    sqlx::query("INSERT INTO room_agent_tools(room_id,member_id,turn_id,tool_id,command_json,prepared_json,reset_cursor) VALUES(?1,?2,?3,?4,?5,?6,?7)").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).bind(request).bind(serde_json::to_string(&prepared).map_err(|_|error("room_agent_write_failed"))?).bind(reset_cursor).execute(&mut *tx).await.map_err(|_|error("room_agent_write_failed"))?;
-    tx.commit()
-        .await
-        .map_err(|_| error("room_agent_commit_failed"))?;
+    sqlx::query("INSERT INTO room_agent_tools(room_id,member_id,turn_id,tool_id,command_json,prepared_json,reset_cursor) VALUES(?1,?2,?3,?4,?5,?6,?7)").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).bind(request).bind(serde_json::to_string(&prepared).map_err(|_|error("room_agent_write_failed"))?).bind(reset_cursor).execute(&mut **tx).await.map_err(|_|error("room_agent_write_failed"))?;
     Ok(prepared)
 }
 
@@ -257,24 +267,34 @@ pub(crate) async fn replay(
     tool_id: &str,
     command: AgentToolCommand,
 ) -> Result<Option<app_application::agent::tool_dispatch::ToolExecution>, RepositoryError> {
-    use app_application::models::{
-        identity::Revision,
-        room_combat::RoomCombatResult,
-        room_world::{RoomAdventureCommand, RoomRestCommand},
-    };
     let mut tx = store
         .pool
         .begin()
         .await
         .map_err(|_| error("room_agent_begin_failed"))?;
-    guard(&mut tx, lease).await?;
-    timeline(&mut tx, lease, turn_id).await?;
+    let result = replay_in_transaction(&mut tx, lease, turn_id, tool_id, command).await?;
+    tx.commit()
+        .await
+        .map_err(|_| error("room_agent_commit_failed"))?;
+    Ok(result)
+}
+pub(crate) async fn replay_in_transaction(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    lease: &RoomLease,
+    turn_id: Uuid,
+    tool_id: &str,
+    command: AgentToolCommand,
+) -> Result<Option<app_application::agent::tool_dispatch::ToolExecution>, RepositoryError> {
+    use app_application::models::{
+        identity::Revision,
+        room_combat::RoomCombatResult,
+        room_world::{RoomAdventureCommand, RoomRestCommand},
+    };
+    guard(tx, lease).await?;
+    timeline(tx, lease, turn_id).await?;
     let row=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4")
-        .bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut *tx).await.map_err(read_error)?;
+        .bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut **tx).await.map_err(read_error)?;
     let Some(row) = row else {
-        tx.commit()
-            .await
-            .map_err(|_| error("room_agent_commit_failed"))?;
         return Ok(None);
     };
     let signature = match &command {
@@ -301,7 +321,7 @@ pub(crate) async fn replay(
             };
             let signature =
                 serde_json::to_string(&cmd).map_err(|_| error("room_action_invalid"))?;
-            crate::room_world::replay(&mut tx, lease, &prepared.nonce, "adventure", &signature)
+            crate::room_world::replay(tx, lease, &prepared.nonce, "adventure", &signature)
                 .await?
                 .map(|receipt| serde_json::to_value(receipt).expect("typed receipt"))
         }
@@ -313,7 +333,7 @@ pub(crate) async fn replay(
             };
             let signature =
                 serde_json::to_string(&cmd).map_err(|_| error("room_action_invalid"))?;
-            crate::room_world::replay(&mut tx, lease, &prepared.nonce, "rest", &signature)
+            crate::room_world::replay(tx, lease, &prepared.nonce, "rest", &signature)
                 .await?
                 .map(|receipt| serde_json::to_value(receipt).expect("typed receipt"))
         }
@@ -321,8 +341,7 @@ pub(crate) async fn replay(
             let encounter = prepared
                 .encounter_id
                 .ok_or_else(|| error("room_combat_conflict"))?;
-            let (owner, mut projection) =
-                crate::room_combat::context(&mut tx, lease, encounter).await?;
+            let (owner, mut projection) = crate::room_combat::context(tx, lease, encounter).await?;
             let id = format!(
                 "room:{}:{}:{}",
                 lease.room_id(),
@@ -330,7 +349,7 @@ pub(crate) async fn replay(
                 prepared.nonce
             );
             let expected=serde_json::json!({"room":lease.room_id(),"member":lease.member_id(),"character":owner,"encounter":encounter,"expected_revision":prepared.expected_revision,"action":action}).to_string();
-            if let Some(row)=sqlx::query("SELECT signature,projection_json FROM combat_action_receipts WHERE encounter_id=?1 AND request_id=?2").bind(encounter.to_string()).bind(id).fetch_optional(&mut *tx).await.map_err(read_error)? {
+            if let Some(row)=sqlx::query("SELECT signature,projection_json FROM combat_action_receipts WHERE encounter_id=?1 AND request_id=?2").bind(encounter.to_string()).bind(id).fetch_optional(&mut **tx).await.map_err(read_error)? {
                 if row.get::<String,_>("signature")!=expected {return Err(error("room_world_conflict"));}
                 let old:app_application::models::combat::CombatProjection=serde_json::from_str(&row.get::<String,_>("projection_json")).map_err(|_|error("room_agent_read_failed"))?;
                 app_application::models::room_combat::project_for_owner(&mut projection,owner);
@@ -338,7 +357,7 @@ pub(crate) async fn replay(
             } else {None}
         }
         AgentToolCommand::RollDice(command) => {
-            let (_, _, owner, _) = crate::room_world::context(&mut tx, lease).await?;
+            let (_, _, owner, _) = crate::room_world::context(tx, lease).await?;
             let check = command
                 .check
                 .as_ref()
@@ -356,9 +375,6 @@ pub(crate) async fn replay(
         }
         _ => return Err(error("room_access_denied")),
     };
-    tx.commit()
-        .await
-        .map_err(|_| error("room_agent_commit_failed"))?;
     Ok(result.map(
         |result| app_application::agent::tool_dispatch::ToolExecution {
             result,

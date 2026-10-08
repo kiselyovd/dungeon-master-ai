@@ -55,6 +55,16 @@ pub(crate) async fn resolve(
             .map_err(|_| repository_error("room_check_commit_failed"))?;
         return Ok(result);
     }
+    crate::room_human_commands::require_pending_binding(
+        store,
+        &mut tx,
+        lease,
+        &prepared.nonce,
+        &app_application::agent::human_commands::HumanAction::Dice(command.clone()),
+        prepared.expected_revision,
+        None,
+    )
+    .await?;
     if current.campaign.revision.0 != prepared.expected_revision {
         return Err(RepositoryError::Conflict {
             expected: app_application::models::identity::Revision(prepared.expected_revision),

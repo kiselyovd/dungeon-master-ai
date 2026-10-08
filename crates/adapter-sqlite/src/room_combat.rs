@@ -145,6 +145,16 @@ pub(crate) async fn act(
         tx.commit().await.map_err(|_|error("room_combat_commit_failed"))?;
         return Ok(RoomCombatResult {projection,duplicate:true,receipt_revision:recorded.revision,receipt_events:recorded.events});
     }
+    crate::room_human_commands::require_pending_binding(
+        store,
+        &mut tx,
+        lease,
+        &command.request_id,
+        &app_application::agent::human_commands::HumanAction::Combat(command.action.clone()),
+        command.expected_revision,
+        Some(encounter),
+    )
+    .await?;
     if projection.revision != command.expected_revision {
         return Err(RepositoryError::RevisionConflict {
             expected: command.expected_revision,

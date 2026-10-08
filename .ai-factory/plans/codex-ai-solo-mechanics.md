@@ -545,3 +545,23 @@ Original32 source hashes preserved. This is private solo persistence and guarded
 canonical execution support, not runtime/model-manifest wiring or live session
 acceptance. Room metadata and full original solo/co-op/native/physicalLAN scope
 remain active.
+
+Room private journal checkpoint: migration0020 stores member/turn manifest and
+bindings separately from unchanged tool signatures. Preparation/binding share
+one transaction; owner, original request, lease, actor, epoch and reset cursor
+come from protected storage. Canonical receipts recover effect-before-transcript;
+pending world/combat context and durable refusal are enforced in actual effect
+transactions. Legacy prepare cannot bypass a manifest-bearing turn. Seven new
+SQL/application regressions pass: repeated goals/rollback/replay, source and owner
+isolation, durable refusal, stale revision, legacy bypass, exclusive owner recovery
+and timeline reset. Existing room suite also passes. Independent review found the
+legacy bypass, confirmed its fix and closed the checked source scope. Consolidated
+gates are running. Manifest generation/verification, future-target resolution,
+runtime completion replacement and live/native/physical LAN acceptance remain
+open. Direct execution of compound free-text commands remains the agreed behavior.
+
+Final room-storage collection: all consolidated gates pass (915 Rust,1117
+frontend, architecture/static checks and Clippy). Independent review closed the
+legacy preparation bypass. This checkpoint provides private room persistence
+and guarded effects; model planning/runtime integration and complete real-model,
+native and separate-device LAN/VPN sessions are still required.
