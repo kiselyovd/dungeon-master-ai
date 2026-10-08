@@ -100,7 +100,7 @@ pub async fn execute_tool(
 }
 
 fn execute_roll_dice(args: &Value) -> (Value, bool) {
-    use app_domain::dice::roll_expr_detailed;
+    use app_domain::dice::{roll_d20_detailed, roll_expr_detailed};
     use app_domain::rng::SeededRng;
 
     let dice_str = args["dice"].as_str().unwrap_or("1d20");
@@ -108,7 +108,16 @@ fn execute_roll_dice(args: &Value) -> (Value, bool) {
 
     let expr = parse_dice_expr(dice_str, modifier);
     let mut rng = SeededRng::new_random();
-    let detail = roll_expr_detailed(&expr, &mut rng);
+    let detail = if expr.count == 1 && expr.die == app_domain::dice::Die::D20 {
+        roll_d20_detailed(
+            modifier,
+            args["advantage"].as_bool().unwrap_or(false),
+            args["disadvantage"].as_bool().unwrap_or(false),
+            &mut rng,
+        )
+    } else {
+        roll_expr_detailed(&expr, &mut rng)
+    };
     (
         json!({ "rolls": detail.rolls, "total": detail.total, "modifier": modifier }),
         false,
@@ -1924,5 +1933,44 @@ mod cast_spell_tests {
         assert_eq!(val["status"].as_str(), Some("resolved"));
         let targets = val["targets"].as_array().unwrap();
         assert_eq!(targets.len(), 0, "no targets -> empty array");
+    }
+}
+
+#[cfg(test)]
+mod dice_mode_tests {
+    use super::*;
+
+    #[test]
+    fn tool_honors_advantage_and_disadvantage_instead_of_ignoring_flags() {
+        for (flag, higher) in [("advantage", true), ("disadvantage", false)] {
+            for _ in 0..20 {
+                let (result, error) =
+                    execute_roll_dice(&json!({"dice":"1d20","modifier":3,flag:true}));
+                assert!(!error);
+                let rolls = result["rolls"].as_array().unwrap();
+                assert_eq!(rolls.len(), 2);
+                let a = rolls[0].as_i64().unwrap();
+                let b = rolls[1].as_i64().unwrap();
+                assert_eq!(
+                    result["total"],
+                    if higher { a.max(b) } else { a.min(b) } + 3
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn advantage_and_disadvantage_cancel_and_damage_dice_stay_additive() {
+        let (result, error) =
+            execute_roll_dice(&json!({"dice":"1d20","advantage":true,"disadvantage":true}));
+        assert!(!error);
+        assert_eq!(result["rolls"].as_array().unwrap().len(), 1);
+        let (result, error) = execute_roll_dice(&json!({"dice":"2d6","modifier":2}));
+        assert!(!error);
+        let rolls = result["rolls"].as_array().unwrap();
+        assert_eq!(
+            result["total"],
+            rolls.iter().map(|n| n.as_i64().unwrap()).sum::<i64>() + 2
+        );
     }
 }

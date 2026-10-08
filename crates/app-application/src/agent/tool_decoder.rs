@@ -133,7 +133,17 @@ fn validate(command: &AgentToolCommand) -> Result<(), ToolDecodeError> {
     match command {
         AgentToolCommand::CombatAction(_) | AgentToolCommand::RestAction(_) => Ok(()),
         AgentToolCommand::AdventureAction(_) => Ok(()),
-        AgentToolCommand::RollDice(command) => require_text(&command.dice, "dice"),
+        AgentToolCommand::RollDice(command) => {
+            require_text(&command.dice, "dice")?;
+            if (command.advantage.unwrap_or(false) || command.disadvantage.unwrap_or(false))
+                && !matches!(command.dice.to_ascii_lowercase().as_str(), "d20" | "1d20")
+            {
+                return Err(ToolDecodeError::ValidationFailed(
+                    "advantage/disadvantage require a single d20".into(),
+                ));
+            }
+            Ok(())
+        }
         AgentToolCommand::ApplyDamage(command) => {
             require_text(&command.token_id, "token_id")?;
             if command.amount < 0 {

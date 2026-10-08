@@ -16,6 +16,8 @@ pub struct RollDiceCommand {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advantage: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disadvantage: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 

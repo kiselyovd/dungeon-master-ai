@@ -93,7 +93,8 @@ fn all_tools_core() -> Vec<Tool> {
                 "properties": {
                     "dice": { "type": "string", "description": "Dice expression e.g. 2d6, 1d20, 4d6" },
                     "modifier": { "type": "integer", "description": "Flat bonus/penalty to add to total" },
-                    "advantage": { "type": "boolean", "description": "Roll twice, take higher" },
+                    "advantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take higher. Cancels disadvantage." },
+                    "disadvantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take lower. Cancels advantage." },
                     "reason": { "type": "string", "description": "Short description of why we are rolling" }
                 },
                 "required": ["dice"]

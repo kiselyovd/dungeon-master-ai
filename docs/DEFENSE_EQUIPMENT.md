@@ -79,3 +79,19 @@ This native case covers Chain Mail without a shield and one human combat turn.
 Shield/other armor native scenarios, existing hero recreation, full session and
 packaged release remain outside this acceptance. Stealth and untrained armor
 mechanics remain open; broader solo/co-op goal remains active.
+
+
+Dice prerequisite, 2026-10-08: reproduced the DM roll_dice advantage flag being
+ignored (one die instead of two). Domain roll_d20_detailed now retains both dice,
+selects max/min for advantage/disadvantage and cancels opposing flags before
+consuming RNG. The typed command and advertised schema include disadvantage.
+Active mode flags reject expressions other than d20/1d20; damage rolls remain
+additive. Missing optional fields retain legacy receipt serialization.
+
+Verification: reproduced RED, two executor cases GREEN, seven domain dice tests,
+one typed decoder case, actual typed-tool integration and all107server unit tests
+pass. Independent code review found no actionable issues. This fixes generic DM
+roll modes; it does not yet derive skill modifiers/armor penalties from the hero.
+Canonical checks must bind the exact current solo/active-party character, read
+abilities/proficiencies/declared defense from server data, and preserve the existing
+completed tool receipt on retry. No check result may be invented by the model.

@@ -81,3 +81,30 @@ fn disadvantage_takes_lower() {
         assert_eq!(total, *rolls.iter().min().unwrap());
     }
 }
+
+#[test]
+fn d20_modes_keep_evidence_and_cancel_without_consuming_extra_randomness() {
+    use app_domain::dice::roll_d20_detailed;
+    for (advantage, disadvantage) in [(true, false), (false, true)] {
+        let result = roll_d20_detailed(-2, advantage, disadvantage, &mut SeededRng::from_seed(42));
+        assert_eq!(result.rolls.len(), 2);
+        let chosen = if advantage {
+            result.rolls.iter().max()
+        } else {
+            result.rolls.iter().min()
+        }
+        .unwrap();
+        assert_eq!(result.total, chosen - 2);
+        assert_eq!(result.modifier, -2);
+    }
+    let mut plain = SeededRng::from_seed(42);
+    let mut cancelled = SeededRng::from_seed(42);
+    assert_eq!(
+        roll_d20_detailed(3, false, false, &mut plain),
+        roll_d20_detailed(3, true, true, &mut cancelled)
+    );
+    assert_eq!(
+        roll_d20_detailed(0, false, false, &mut plain),
+        roll_d20_detailed(0, false, false, &mut cancelled)
+    );
+}

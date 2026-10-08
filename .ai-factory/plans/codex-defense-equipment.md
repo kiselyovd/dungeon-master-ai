@@ -25,3 +25,8 @@ Native Chain Mail acceptance: real wizard AC16, stored versioned choice, server-
 human in battle, actual NPC15 misses against16, cold reopen same UUID/round2/rev4.
 Read-only SQLite and independent review confirm one commit/no snapshots/cleanup.
 Shield/other armor native coverage and existing hero recreation remain follow-ups.
+
+Dice prerequisite completed: formerly ignored advantage reproduced and fixed;
+disadvantage, cancellation, typed schema, damage-mode rejection and replay-compatible
+serialization verified. Canonical skill modifiers and automatic armor penalties
+remain the next implementation step; see DEFENSE_EQUIPMENT.md.

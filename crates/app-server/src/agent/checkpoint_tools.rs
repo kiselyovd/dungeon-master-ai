@@ -185,6 +185,7 @@ mod tests {
                 dice: "1d20".into(),
                 modifier: None,
                 advantage: None,
+                disadvantage: None,
                 reason: None,
             }),
         };
