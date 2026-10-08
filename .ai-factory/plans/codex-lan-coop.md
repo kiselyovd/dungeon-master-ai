@@ -747,3 +747,37 @@ Biome/TypeScript fast gates pass. Independent follow-up confirms restore fix.
 Original32baseline hashes verified; scoped local checkpoint excludes inherited
 edits. Active-fight removal and
 returning-member/capacity lifecycle remain open.
+
+## Explicit departure during combat
+
+- [x] Reproduce removal/room closure leaving the current human turn inaccessible.
+- [x] Keep recorded hero/token identities, HP/resources and history, mark explicitly
+  removed heroes withdrawn from participation; never hand them to NPC automation.
+  Skip their turns, death saves, targeting and occupancy. Normal network loss
+  keeps membership/hero participation so the same player can reconnect.
+- [x] Reconcile membership and encounter atomically on revoke/close and old save
+  restore; settle permitted NPC turns to the next present human under existing
+  authored boundaries. Preserve receipts/revision/rollback and publish shared state.
+- [x] Extend current VTT/initiative projection to omit withdrawn tokens with the
+  existing styles/components. Add canonical contract/root and browser checks.
+- [x] Verify restart/replay/restore plus independent review and local checkpoint.
+
+UI brief: an explicitly removed player's token/initiative row disappears from the
+active table; its saved sheet stays intact. No new controls/styles are needed.
+Host closure continues the present host in solo. Rejoining an old retained hero
+and roster capacity remain subsequent lifecycle work. No production dependency.
+
+Departure checkpoint: current guest turn failure reproduced. Revoke/close now
+withdraw absent humans while preserving recorded UUIDs and retained sheets; NPC
+settlement reaches the present host. Old co-op save restore reconciles actual
+membership and same-restore retry is inert. Publication failure rolls back room
+epoch/membership, encounter, HP/resources, clock and revision; removing someone
+else preserves the present actor's spent budget and time. Independent review
+found nullable legacy encounter handling and an invalid browser fixture; both
+reproduced and corrected without loosening contracts.22 room cases and focused
+frontend/browser checks pass; full integrated gates pass (843 workspace Rust and1115 frontend tests).
+Dedicated dying-withdrawn/RNG regression added afterward passes all6 death-turn
+cases. Revoke/close old-save cases now also close/reopen a real file pool.
+Independent follow-up finds no actionable issue; scoped local checkpoint follows.
+Explicit guest self-leave, return of withdrawn heroes, roster capacity and native
+real-model/two-device acceptance remain open. Network loss keeps membership.

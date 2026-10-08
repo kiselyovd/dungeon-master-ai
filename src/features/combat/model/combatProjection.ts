@@ -108,6 +108,7 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
       typeof combatant.budget.reaction !== 'boolean' ||
       !isNumber(combatant.budget.movement_ft) ||
       typeof combatant.is_dead !== 'boolean' ||
+      !(combatant.withdrawn === undefined || typeof combatant.withdrawn === 'boolean') ||
       !isRecord(combatant.position) ||
       !isNumber(combatant.position.x) ||
       !isNumber(combatant.position.y)
@@ -124,28 +125,30 @@ export function projectionFromToolResult(result: unknown): CombatProjectionDto |
 
 export function projectionTokens(projection: CombatProjectionDto): CombatToken[] {
   const activeId = projection.snapshot.current_combatant;
-  return projection.snapshot.combatants.map((combatant) => ({
-    id: combatant.id,
-    isDead: combatant.is_dead,
-    ...(combatant.display_name_key ? { displayNameKey: combatant.display_name_key } : {}),
-    ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
-    ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
-    ...(combatant.casting ? { casting: combatant.casting } : {}),
-    spellSlotUsed: combatant.budget.spell_slot_used ?? false,
-    name: combatant.name,
-    hp: combatant.current_hp,
-    maxHp: combatant.max_hp,
-    ac: combatant.ac,
-    x: combatant.position.x,
-    y: combatant.position.y,
-    conditions: [...combatant.conditions],
-    isActive: combatant.id === activeId,
-    speed: combatant.speed_ft,
-    actionAvailable: combatant.budget.action,
-    bonusAvailable: combatant.budget.bonus_action,
-    reactionAvailable: combatant.budget.reaction,
-    movementRemaining: combatant.budget.movement_ft,
-  }));
+  return projection.snapshot.combatants
+    .filter((combatant) => !combatant.withdrawn)
+    .map((combatant) => ({
+      id: combatant.id,
+      isDead: combatant.is_dead,
+      ...(combatant.display_name_key ? { displayNameKey: combatant.display_name_key } : {}),
+      ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
+      ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
+      ...(combatant.casting ? { casting: combatant.casting } : {}),
+      spellSlotUsed: combatant.budget.spell_slot_used ?? false,
+      name: combatant.name,
+      hp: combatant.current_hp,
+      maxHp: combatant.max_hp,
+      ac: combatant.ac,
+      x: combatant.position.x,
+      y: combatant.position.y,
+      conditions: [...combatant.conditions],
+      isActive: combatant.id === activeId,
+      speed: combatant.speed_ft,
+      actionAvailable: combatant.budget.action,
+      bonusAvailable: combatant.budget.bonus_action,
+      reactionAvailable: combatant.budget.reaction,
+      movementRemaining: combatant.budget.movement_ft,
+    }));
 }
 
 function validLoadout(value: unknown): boolean {

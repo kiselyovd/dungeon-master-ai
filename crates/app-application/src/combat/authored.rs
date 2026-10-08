@@ -98,7 +98,7 @@ pub fn finalize(projection: &mut CombatProjection, retreat: bool) -> Option<Defe
         .snapshot
         .combatants
         .iter()
-        .filter(|actor| actor.character_id.is_some())
+        .filter(|actor| actor.character_id.is_some() && !actor.withdrawn)
         .collect::<Vec<_>>();
     let living = heroes
         .iter()
@@ -130,7 +130,7 @@ pub fn recover_defeated_hero(projection: &mut CombatProjection) -> Result<(), &'
         .snapshot
         .combatants
         .iter_mut()
-        .filter(|actor| actor.character_id.is_some())
+        .filter(|actor| actor.character_id.is_some() && !actor.withdrawn)
         .collect::<Vec<_>>();
     if heroes.is_empty() {
         return Err("authored_hero_missing");
@@ -161,11 +161,12 @@ pub fn prepare_end(projection: &mut CombatProjection) -> Result<(), &'static str
             .combatants
             .iter()
             .any(|actor| actor.character_id.is_none() && actor.current_hp > 0 && !actor.is_dead)
-        || !projection
-            .snapshot
-            .combatants
-            .iter()
-            .any(|actor| actor.character_id.is_some() && actor.current_hp > 0 && !actor.is_dead)
+        || !projection.snapshot.combatants.iter().any(|actor| {
+            actor.character_id.is_some()
+                && !actor.withdrawn
+                && actor.current_hp > 0
+                && !actor.is_dead
+        })
     {
         return Ok(());
     }

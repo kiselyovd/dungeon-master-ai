@@ -82,6 +82,8 @@ impl Default for DeathSaves {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Combatant {
     #[serde(default)]
+    pub withdrawn: bool,
+    #[serde(default)]
     pub untrained_armor: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name_key: Option<String>,
@@ -114,6 +116,7 @@ impl Combatant {
             display_name_key: None,
             id,
             character_id: None,
+            withdrawn: false,
             untrained_armor: false,
             loadout: None,
             casting: None,

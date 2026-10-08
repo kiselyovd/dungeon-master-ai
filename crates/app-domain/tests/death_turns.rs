@@ -104,3 +104,27 @@ fn explicit_opening_turn_rolls_a_dying_first_actor() {
     assert_eq!(result.death_saves.len(), 1);
     assert_eq!(e.order.current().id, c);
 }
+
+#[test]
+fn withdrawn_dying_hero_neither_rolls_nor_refreshes_budget_or_consumes_rng() {
+    for face in [1, 20] {
+        let (mut e, a, b, c) = engine(face);
+        let actor = e.combatants.get_mut(&b).unwrap();
+        actor.withdrawn = true;
+        actor.budget.action = false;
+        actor.budget.movement_ft = 7;
+        let before = serde_json::to_value(&*actor).unwrap();
+        let result = e.resolve(CombatAction::EndTurn { combatant: a }).unwrap();
+        assert_eq!(e.order.current().id, c);
+        assert!(result.death_saves.is_empty());
+        assert!(result.healing.is_empty());
+        assert_eq!(serde_json::to_value(&e.combatants[&b]).unwrap(), before);
+        let actor = e.combatants.get_mut(&c).unwrap();
+        actor.current_hp = 0;
+        actor.add_condition(Condition::Unconscious);
+        e.resolve(CombatAction::EndTurn { combatant: c }).unwrap();
+        let next = e.resolve(CombatAction::EndTurn { combatant: a }).unwrap();
+        assert_eq!(next.death_saves[0].combatant, c);
+        assert_eq!(next.death_saves[0].roll, face);
+    }
+}

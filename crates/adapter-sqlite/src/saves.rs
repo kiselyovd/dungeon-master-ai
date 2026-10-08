@@ -271,6 +271,12 @@ impl SnapshotRepository for SqliteStore {
             &record.causation_id,
         )
         .await?;
+        crate::combat_binding::reconcile_membership(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+        )
+        .await?;
         sqlx::query(
             "INSERT INTO snapshot_restores \
              (causation_id, save_id, session_id, snapshot_id, created_at) \

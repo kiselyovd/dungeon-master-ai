@@ -27,10 +27,12 @@ pub fn settle_npcs_until(
         if stop_round.is_some_and(|round| engine.order.round() >= round) {
             return Ok(());
         }
-        let heroes = engine
-            .combatants
-            .values()
-            .any(|actor| actor.character_id.is_some() && actor.current_hp > 0 && !actor.is_dead);
+        let heroes = engine.combatants.values().any(|actor| {
+            actor.character_id.is_some()
+                && !actor.withdrawn
+                && actor.current_hp > 0
+                && !actor.is_dead
+        });
         let enemies = engine
             .combatants
             .values()
@@ -60,11 +62,9 @@ pub fn finish_if_resolved(projection: &mut CombatProjection) {
     if !bound {
         return;
     }
-    let heroes = projection
-        .snapshot
-        .combatants
-        .iter()
-        .any(|actor| actor.character_id.is_some() && actor.current_hp > 0 && !actor.is_dead);
+    let heroes = projection.snapshot.combatants.iter().any(|actor| {
+        actor.character_id.is_some() && !actor.withdrawn && actor.current_hp > 0 && !actor.is_dead
+    });
     let enemies = projection
         .snapshot
         .combatants

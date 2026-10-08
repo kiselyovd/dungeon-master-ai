@@ -138,7 +138,24 @@ async fn state(
         room: room.public_view(),
         title: current.campaign.title,
         revision: party.revision,
-        actors: public.actors,
+        actors: public
+            .actors
+            .into_iter()
+            .filter(|actor| {
+                party
+                    .roster
+                    .members
+                    .iter()
+                    .find(|member| member.character_id == actor.character_id)
+                    .is_some_and(|member| {
+                        room.members.iter().any(|present| {
+                            present.active
+                                && present.member_id == member.member_id
+                                && present.role == member.role
+                        })
+                    })
+            })
+            .collect(),
         recovery,
         own_character,
         own_proposal,

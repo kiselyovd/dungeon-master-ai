@@ -61,7 +61,8 @@ impl CombatResolver {
             if !self.clear_line(actor.position, victim.position) {
                 return Err(ValidationError::Obstructed);
             }
-            if victim.is_dead
+            if victim.withdrawn
+                || victim.is_dead
                 || (!matches!(rule.effect, SpellEffect::Heal(_))
                     && (victim.current_hp <= 0 && victim.character_id.is_none()
                         || victim.character_id.is_some() && actor.character_id.is_some()))

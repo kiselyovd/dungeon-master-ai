@@ -69,9 +69,9 @@ removal. An independent reviewer found the initial restore mismatch; separate
 RED reproduction and repair are retained. Logs under .artifacts/browser-session:
 roster-{red,restore-red,green,reopen,backend-final,clippy}.log.
 
-Open lifecycle work: removing a player during an active battle, restoring an old
-co-op encounter while its players are absent, retired roster capacity and rejoining
-retained heroes. This checkpoint does not prove native/two-device LAN behavior
+The subsequent departure section closes active-battle host revocation/closure and
+old-save reconciliation. Explicit guest self-leave, retired roster capacity and
+rejoining retained heroes remain open. This checkpoint does not prove native/two-device LAN behavior
 or full session completion. No UI, schema or production dependency was added.
 
 Final local collection after7842315:440 SQLite/server tests, changed-crate Clippy
@@ -79,3 +79,46 @@ alltargets, architecture, formatting, Biome and TypeScript pass. Independent
 follow-up review closed the restore finding. The verified attached worktree keeps
 its inherited baseline; original32source hashes are preserved. No new frontend or
 real model/native session was exercised by this backend-only checkpoint.
+
+## Explicit removal during an active battle
+
+Host revocation and room closure atomically mark absent bound heroes withdrawn
+without changing their recorded character/token IDs or stored sheets. The host
+continues in solo after closure. This is an administrative participation change;
+no player action is generated and no hero becomes an NPC. A network disconnect
+does not change membership and the same player can reconnect.
+
+Withdrawn actors remain in recorded combat history, but do not occupy tiles,
+receive NPC attacks/spells, roll death saves, refresh budgets or take turns.
+They do not keep a defeated party alive or receive authored defeat healing.
+The current departed turn skips under the existing round/boundary rules; allowed
+NPC turns settle to the next present human. If the present human already owns
+the turn, its spent budget and clock remain unchanged. Public room actors and
+active tabletop/initiative omit absent heroes; retained private sheets stay saved.
+
+Old save restore uses saved sheets, then reconciles present membership rather than
+returning control to an absent hero. Restore receipts prevent a second transition
+or NPC settlement on retry. A failure inserting the shared participant-change
+event rolls back room epoch/membership, combat, resources, clock and revisions
+together. Legacy encounters with a NULL projection still permit revoke/close
+and remain unchanged.
+
+Evidence under .artifacts/browser-session/departure-*: RED for the inaccessible
+guest turn and legacy NULL handling; real SQLite/service revoke and close
+continuation, old-save restore/retry, rollback/spent-budget regression; seven
+production-browser room cases with scripted native transport, plus focused
+contract/projection tests and a production build. The browser fixture uses the
+host identity and a matching recovery summary; strict validation was preserved.
+
+Explicit guest self-leave, rejoining a withdrawn participant and retained-roster
+capacity remain next lifecycle work. Native two-device/model acceptance and full
+playability are not proved by this checkpoint. No schema migration or dependency.
+
+Final departure collection: full gates pass (843 workspace Rust tests,1115
+frontend tests, all-target/all-feature Clippy, architecture, formatting, Biome and
+TypeScript). Two departure cases also close/reopen a file-backed database after
+old-save restore, preserving the present turn, withdrawn flag and guest sheet.
+A later focused six-case death-turn run confirms withdrawn dying heroes neither
+roll nor revive/refresh/consume RNG. Seven production-browser room cases and the
+production build pass; screenshot inspected. Independent follow-up closes both
+findings. No CI/release, physical LAN or live-model narration was verified here.

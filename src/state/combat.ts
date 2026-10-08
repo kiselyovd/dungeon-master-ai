@@ -70,7 +70,9 @@ export function combatProjectionState(projection: CombatProjectionDto) {
     encounterId: projection.encounter_id,
     revision: projection.revision,
     tokens,
-    initiativeOrder: projection.snapshot.initiative.map((entry) => entry.id),
+    initiativeOrder: projection.snapshot.initiative
+      .map((entry) => entry.id)
+      .filter((id) => tokens.some((token) => token.id === id)),
     currentTurnId: projection.snapshot.current_combatant,
     round: projection.snapshot.round,
     actionUsed: active ? active.actionAvailable === false : false,

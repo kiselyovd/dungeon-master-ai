@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
 import type { RoomUpdate } from '../src/api/contracts/room';
+import type { CombatProjectionDto } from '../src/features/combat/model/types';
 
 const wire = JSON.parse(
   readFileSync(new URL('../src/api/__fixtures__/roomUpdate.json', import.meta.url), 'utf8'),
@@ -239,4 +240,46 @@ test('production recovery controls aid a dying hero and confirm waiting using re
   await page.getByRole('dialog').getByRole('button', { name: 'Дождаться восстановления' }).click();
   await expect(page.getByRole('heading', { name: 'Помощь раненым героям' })).not.toBeVisible();
   await expect(page.getByText('Tara · ОЗ 1/12 · КД 14')).toBeVisible();
+});
+
+test('production room table omits a withdrawn human without hiding the remaining turn', async ({
+  page,
+}) => {
+  const snapshot = JSON.parse(
+    readFileSync(new URL('../src/api/__fixtures__/roomCombatUpdate.json', import.meta.url), 'utf8'),
+  ) as RoomUpdate;
+  const hostActor = snapshot.state.actors.find((a) => a.role === 'host');
+  if (!hostActor || !snapshot.state.own_character) throw new Error('host fixture required');
+  const own = hostActor.character_id;
+  snapshot.state.own_character.characterId = own;
+  snapshot.state.actors = snapshot.state.actors.filter((a) => a.character_id === own);
+  snapshot.state.room.members = snapshot.state.room.members.map((m) => ({
+    ...m,
+    active: m.role === 'host',
+  }));
+  snapshot.state.recovery = snapshot.state.recovery.filter((hero) => hero.character_id === own);
+  const combat = snapshot.state.combat as CombatProjectionDto | null;
+  if (!combat) throw new Error('combat fixture required');
+  if (combat.campaign_scope) combat.campaign_scope.character_id = own;
+  const withdrawn = combat.snapshot.combatants.find(
+    (a) => a.character_id && a.character_id !== own,
+  );
+  if (!withdrawn) throw new Error('second human required');
+  withdrawn.withdrawn = true;
+  withdrawn.name = 'Departed hero';
+  combat.snapshot.current_combatant =
+    combat.snapshot.combatants.find((a) => a.character_id === own)?.id ?? null;
+  await installRoomStub(page, snapshot);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить комнату' }).click();
+  const initiative = page.getByLabel('Инициатива', { exact: true });
+  await expect(initiative).toBeVisible();
+  await expect(initiative.getByText(withdrawn.name, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Закончить ход' })).toBeEnabled();
+  await page.screenshot({
+    path: '.artifacts/browser-session/withdrawn-room.png',
+    fullPage: true,
+    mask: [page.locator('[data-room-invitation]')],
+  });
 });

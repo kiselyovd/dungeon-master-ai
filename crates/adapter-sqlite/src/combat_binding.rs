@@ -163,7 +163,7 @@ pub(crate) async fn bind_start(
         .snapshot
         .combatants
         .iter()
-        .filter(|actor| actor.character_id.is_some())
+        .filter(|actor| actor.character_id.is_some() && !actor.withdrawn)
     {
         let id = hero.character_id.unwrap().0;
         let mut sheet = sheets
@@ -213,6 +213,9 @@ pub(crate) async fn sync_opening_heroes(
         let Some(id) = actor.character_id else {
             continue;
         };
+        if actor.withdrawn {
+            continue;
+        }
         let mut sheet = sheets
             .remove(&id.0)
             .ok_or_else(|| repository_error("combat_hero_identity_mismatch"))?;
@@ -265,7 +268,7 @@ pub(crate) async fn sync_hero(
         .snapshot
         .combatants
         .iter()
-        .filter(|actor| actor.character_id.is_some())
+        .filter(|actor| actor.character_id.is_some() && !actor.withdrawn)
     {
         let id = hero.character_id.unwrap().0;
         let mut sheet = sheets
@@ -380,4 +383,46 @@ async fn advance(
             .checked_add(1)
             .ok_or_else(|| repository_error("combat_campaign_revision_invalid"))?,
     })
+}
+
+/// Membership and encounter changes share the caller's IMMEDIATE transaction.
+pub(crate) async fn reconcile_membership(
+    tx: &mut Transaction<'_, Sqlite>,
+    campaign: CampaignId,
+    session: SessionId,
+) -> Result<(), RepositoryError> {
+    let raw: Option<Option<String>> = sqlx::query_scalar(
+        "SELECT projection FROM combat_encounters WHERE session_id=?1 AND ended_at IS NULL",
+    )
+    .bind(session.0.to_string())
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|_| repository_error("read_combat_participants"))?;
+    let Some(raw) = raw.flatten() else {
+        return Ok(());
+    };
+    let mut projection: CombatProjection =
+        serde_json::from_str(&raw).map_err(|_| repository_error("decode_combat_projection"))?;
+    if !projection.snapshot.active {
+        return Ok(());
+    }
+    if projection.campaign_scope.is_none() {
+        return Ok(());
+    }
+    recover_loadouts(tx, &mut projection).await?;
+    let (_, present) = sheets(tx, campaign, session.0, true).await?;
+    let previous = projection.revision;
+    let mut next = app_application::combat::resolve::reconcile_participants(
+        projection,
+        &present.keys().copied().collect(),
+        Uuid::new_v4().as_u128() as u64,
+    )
+    .map_err(|_| repository_error("combat_participants_invalid"))?;
+    if next.revision == previous {
+        return Ok(());
+    }
+    crate::combat::persist_projection(tx, previous, &mut next).await?;
+    sqlx::query("INSERT INTO room_changes(room_id,kind,payload_json) SELECT room_id,'state',?1 FROM coop_rooms WHERE campaign_id=?2 AND session_id=?3 AND active=1")
+        .bind(serde_json::json!({"operation":"combat_participants_changed","encounter_id":next.encounter_id,"revision":next.revision}).to_string()).bind(campaign.0.to_string()).bind(session.0.to_string()).execute(&mut **tx).await.map_err(|_|repository_error("publish_combat_participants"))?;
+    Ok(())
 }

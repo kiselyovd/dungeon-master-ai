@@ -225,6 +225,70 @@ pub fn prepare_action(
     Ok(projection)
 }
 
+/// Explicit membership changes withdraw absent humans; no player action is synthesized.
+pub fn reconcile_participants(
+    mut projection: CombatProjection,
+    present: &std::collections::BTreeSet<uuid::Uuid>,
+    seed: u64,
+) -> Result<CombatProjection, ResolveCombatError> {
+    if projection
+        .campaign_scope
+        .as_ref()
+        .is_some_and(|scope| !present.contains(&scope.character_id))
+    {
+        return Err(ResolveCombatError::InvalidState);
+    }
+    let mut changed = false;
+    for actor in &mut projection.snapshot.combatants {
+        if let Some(owner) = actor.character_id {
+            let withdrawn = !present.contains(&owner.0);
+            if actor.withdrawn != withdrawn {
+                actor.withdrawn = withdrawn;
+                changed = true;
+            }
+        }
+    }
+    if !changed {
+        return Ok(projection);
+    }
+    let (actors, order) =
+        resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
+    let mut engine = CombatResolver::new(actors, order, SeededRng::from_seed(seed));
+    if let Some(authored) = &projection.authored {
+        engine
+            .set_map(authored.map.clone())
+            .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    engine.set_turn_boundary(
+        projection.authored.as_ref().map(|_| 4),
+        projection.authored.is_some(),
+    );
+    let mut events = vec![];
+    if engine.combatants[&engine.order.current().id].withdrawn {
+        events.push(
+            engine
+                .begin_current_turn()
+                .map_err(|_| ResolveCombatError::InvalidState)?,
+        );
+        super::automation::settle_npcs_until(
+            &mut engine,
+            &mut events,
+            projection.authored.as_ref().map(|_| 4),
+        )
+        .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    replace_resolved_state(
+        &mut projection,
+        engine.combatants,
+        engine.order,
+        Default::default(),
+    );
+    projection.events = events;
+    super::automation::finish_if_resolved(&mut projection);
+    super::authored::finalize(&mut projection, false);
+    Ok(projection)
+}
+
 fn repository_error(error: RepositoryError) -> ResolveCombatError {
     match error {
         RepositoryError::RevisionConflict { expected, actual } => {

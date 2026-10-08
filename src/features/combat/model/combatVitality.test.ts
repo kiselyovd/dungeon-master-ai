@@ -12,3 +12,11 @@ it('actual Rust dying actor mortality survives presentation mapping', () => {
   expect(hero.isDead).toBe(false);
   expect(isDeadToken(hero)).toBe(false);
 });
+
+it('rejects malformed withdrawal flags while allowing legacy absence', () => {
+  const legacy = structuredClone(wire.ended);
+  expect(parseCombatProjection(legacy)).not.toBeNull();
+  const malformed = structuredClone(legacy);
+  (malformed.snapshot.combatants[0] as unknown as Record<string, unknown>).withdrawn = 'false';
+  expect(parseCombatProjection(malformed)).toBeNull();
+});

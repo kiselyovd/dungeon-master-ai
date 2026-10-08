@@ -439,6 +439,8 @@ impl RoomRepository for crate::SqliteStore {
             .checked_add(1)
             .ok_or_else(|| error("room_epoch_overflow"))?;
         write(&mut tx, &room).await?;
+        crate::combat_binding::reconcile_membership(&mut tx, room.campaign_id, room.session_id)
+            .await?;
         tx.commit().await.map_err(|_| error("room_commit_failed"))?;
         Ok(())
     }
@@ -462,6 +464,8 @@ impl RoomRepository for crate::SqliteStore {
             .checked_add(1)
             .ok_or_else(|| error("room_epoch_overflow"))?;
         write(&mut tx, &room).await?;
+        crate::combat_binding::reconcile_membership(&mut tx, room.campaign_id, room.session_id)
+            .await?;
         tx.commit().await.map_err(|_| error("room_commit_failed"))?;
         Ok(())
     }

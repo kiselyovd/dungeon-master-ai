@@ -133,10 +133,9 @@ impl CombatResolver {
                 return Ok(events);
             }
             if self.rescue_downed_party
-                && !self
-                    .combatants
-                    .values()
-                    .any(|a| a.character_id.is_some() && a.current_hp > 0 && !a.is_dead)
+                && !self.combatants.values().any(|a| {
+                    a.character_id.is_some() && !a.withdrawn && a.current_hp > 0 && !a.is_dead
+                })
             {
                 return Ok(events);
             }
@@ -145,6 +144,10 @@ impl CombatResolver {
                 .combatants
                 .get_mut(&id)
                 .ok_or(ValidationError::CombatantNotFound)?;
+            if actor.withdrawn {
+                self.order.advance();
+                continue;
+            }
             if actor.character_id.is_some() {
                 if let Some(result) = super::healing::resolve_death_save(actor, &mut self.rng) {
                     if result.roll == 20 {
@@ -196,7 +199,9 @@ impl CombatResolver {
     fn occupied(&self, actor: CombatantId) -> std::collections::HashSet<Position> {
         self.combatants
             .values()
-            .filter(|other| other.id != actor && other.current_hp > 0 && !other.is_dead)
+            .filter(|other| {
+                other.id != actor && !other.withdrawn && other.current_hp > 0 && !other.is_dead
+            })
             .map(|other| other.position)
             .collect()
     }
@@ -278,6 +283,13 @@ impl CombatResolver {
     }
 
     fn require_current(&self, combatant: CombatantId) -> Result<(), ValidationError> {
+        if self
+            .combatants
+            .get(&combatant)
+            .is_some_and(|actor| actor.withdrawn)
+        {
+            return Err(ValidationError::Incapacitated);
+        }
         if self.order.current().id != combatant {
             return Err(ValidationError::NotYourTurn);
         }
@@ -289,7 +301,8 @@ impl CombatResolver {
             .combatants
             .get(&id)
             .ok_or(ValidationError::CombatantNotFound)?;
-        if actor.current_hp <= 0
+        if actor.withdrawn
+            || actor.current_hp <= 0
             || actor.is_dead
             || actor.has_condition(super::conditions::Condition::Unconscious)
         {
@@ -318,7 +331,10 @@ impl CombatResolver {
                 .combatants
                 .values()
                 .filter(|target| {
-                    target.character_id.is_some() && target.current_hp > 0 && !target.is_dead
+                    target.character_id.is_some()
+                        && !target.withdrawn
+                        && target.current_hp > 0
+                        && !target.is_dead
                 })
                 .min_by_key(|target| (origin.distance_ft(target.position), target.id.0.as_u128()))
                 .map(|target| target.id);
@@ -356,6 +372,7 @@ impl CombatResolver {
                                 next.distance_ft(destination) < current.distance_ft(destination)
                                     && !self.combatants.values().any(|other| {
                                         other.id != id
+                                            && !other.withdrawn
                                             && other.current_hp > 0
                                             && other.position == *next
                                     })
@@ -415,7 +432,8 @@ impl CombatResolver {
         if !self.clear_line(actor.position, victim.position) {
             return Err(ValidationError::Obstructed);
         }
-        if victim.is_dead
+        if victim.withdrawn
+            || victim.is_dead
             || (victim.current_hp <= 0 && victim.character_id.is_none())
             || (actor.character_id.is_some() && victim.character_id.is_some())
         {
@@ -492,6 +510,7 @@ impl CombatResolver {
             && self.combatants.values().any(|enemy| {
                 enemy.id != attacker
                     && enemy.character_id.is_some() != actor.character_id.is_some()
+                    && !enemy.withdrawn
                     && enemy.current_hp > 0
                     && !enemy.is_dead
                     && !enemy.has_condition(Condition::Unconscious)
@@ -628,7 +647,8 @@ impl CombatResolver {
         if !self.combatants.contains_key(&target_id) {
             return Err(ValidationError::TargetNotFound);
         }
-        if self.combatants[&target_id].is_dead
+        if self.combatants[&target_id].withdrawn
+            || self.combatants[&target_id].is_dead
             || (self.combatants[&target_id].current_hp <= 0
                 && self.combatants[&target_id].character_id.is_none())
         {

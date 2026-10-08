@@ -122,6 +122,7 @@ export interface CombatProjectionDto {
         movement_ft: number;
       };
       is_dead: boolean;
+      withdrawn?: boolean;
       position: { x: number; y: number };
     }>;
   };
