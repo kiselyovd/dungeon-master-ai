@@ -206,28 +206,74 @@ function buildChatProvidersSlice(
   }
 }
 
-export async function postSettingsV2(
+let settingsQueue: Promise<void> = Promise.resolve();
+let backendGeneration = 0;
+let appliedSettings: { url: string; body: string } | null = null;
+
+/** An acknowledgement only applies to the current backend process. */
+export function invalidateBackendSettings(): void {
+  backendGeneration += 1;
+  appliedSettings = null;
+}
+
+export function postSettingsV2(
   settings: SettingsInput,
   localRuntime?: LocalRuntimeSettingsInput,
 ): Promise<void> {
-  const wire = toV2Wire(settings, localRuntime);
-  const url = await backendUrl('/settings/v2');
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(wire),
-    });
-  } catch (e) {
-    throw ChatError.from(e);
-  }
-  if (!resp.ok) {
-    const parsed = (await resp.json().catch(() => ({}) as BackendError)) as BackendError;
-    const message = parsed.error?.message ?? `POST /settings/v2 HTTP ${resp.status}`;
-    throw new ChatError('provider_error', message);
-  }
-  await discardResponseBody(resp);
+  return writeSettings(settings, localRuntime, true);
+}
+
+/** Reuses an acknowledged configuration; retries failed writes before a DM turn. */
+export function ensureSettingsV2(
+  settings: SettingsInput,
+  localRuntime?: LocalRuntimeSettingsInput,
+): Promise<void> {
+  return writeSettings(settings, localRuntime, false);
+}
+
+function writeSettings(
+  settings: SettingsInput,
+  localRuntime: LocalRuntimeSettingsInput | undefined,
+  force: boolean,
+): Promise<void> {
+  // Capture an immutable request now. Secrets stay in memory and the private transport.
+  const body = JSON.stringify(toV2Wire(settings, localRuntime));
+  const operation = settingsQueue.then(async () => {
+    const url = await backendUrl('/settings/v2');
+    const generation = backendGeneration;
+    if (!force && appliedSettings?.url === url && appliedSettings.body === body) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+        signal: controller.signal,
+      });
+      if (!resp.ok) {
+        const parsed = (await resp.json().catch(() => ({}) as BackendError)) as BackendError;
+        throw new ChatError(
+          'provider_error',
+          parsed.error?.message ?? `POST /settings/v2 HTTP ${resp.status}`,
+        );
+      }
+      await discardResponseBody(resp);
+      if (controller.signal.aborted)
+        throw new ChatError('network', 'provider_configuration_timeout');
+      if (generation !== backendGeneration)
+        throw new ChatError('network', 'backend_configuration_changed');
+      appliedSettings = { url, body };
+    } catch (error) {
+      if (controller.signal.aborted)
+        throw new ChatError('network', 'provider_configuration_timeout');
+      throw ChatError.from(error);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  settingsQueue = operation.catch(() => undefined);
+  return operation;
 }
 
 function assertNeverProvider(value: never): never {

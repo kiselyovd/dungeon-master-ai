@@ -88,6 +88,7 @@ export interface CombatProjectionPort {
 }
 
 export interface AgentTurnPorts {
+  prepareProvider?(): Promise<void>;
   chat: ChatPort;
   toolLog: ToolLogPort;
   journal: JournalPort;

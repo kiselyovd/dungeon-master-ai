@@ -68,3 +68,18 @@ config-diagnosis.json, config-after-resave.json, dm-after-resave-proof.json and
 cleanup-proof.json, with native screenshots and build/process logs. These are QA
 artifacts, not tracked production inputs. No new production dependency, release,
 push or deployment was introduced. Whole-goal completion remains unproven.
+
+
+## Provider startup correction
+
+The native restart gap is fixed: production bootstrap restores hydrated provider
+settings to the current backend, and the first solo DM request awaits that same
+acknowledgement. FIFO/immutable requests, process invalidation, timeout and abort
+handling protect it from late responses and a stuck setup request. A pre-request
+failure retries as a new turn, retaining its nonce without an invalid resume flag.
+
+Two fresh native launches automatically configure the saved provider and commit
+new UI question/reply pairs without Settings Save. The fixture proves actual
+transport; embedded cold-model startup, Bonsai quality and physical LAN remain
+separate. See PROVIDER_STARTUP.md for evidence and limits. Armor and ended VTT
+presentation are the next verified defects to repair.

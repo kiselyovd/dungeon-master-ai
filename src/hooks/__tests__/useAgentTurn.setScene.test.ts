@@ -1,10 +1,11 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { useStore } from '../../state/useStore';
 import { useAgentTurn } from '../useAgentTurn';
 
 // Mock the SSE transport so the test can drive onToolCallResult directly.
+vi.mock('../../app/providerStartup', () => ({ prepareBackendProvider: vi.fn(async () => {}) }));
 vi.mock('../../api/agent', () => ({
   streamAgentTurn: vi.fn(async (opts: AgentTurnOptions) => {
     opts.onEvent?.({ type: 'tool_call_start', id: 'tc-1', toolName: 'set_scene', round: 1 });
@@ -61,6 +62,7 @@ describe('useAgentTurn set_scene handler', () => {
     act(() => {
       turn = result.current.send('old action');
     });
+    await waitFor(() => expect(streamAgentTurn).toHaveBeenCalledTimes(1));
     act(() => {
       useStore.getState().restoration.clear();
     });

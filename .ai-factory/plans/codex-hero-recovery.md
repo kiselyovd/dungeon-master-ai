@@ -273,3 +273,18 @@ Native run also reproduced missing provider startup replay (manual same-settings
 Save restores DM transport), unarmored AC despite ChainMail, and stale ended VTT
 HP0/skull after healing. These must be repaired next; the native recovery checkpoint
 does not close broad solo/co-op playability, real-model quality or physical LAN.
+
+
+## Provider startup correction
+
+The native restart gap is fixed: production bootstrap restores hydrated provider
+settings to the current backend, and the first solo DM request awaits that same
+acknowledgement. FIFO/immutable requests, process invalidation, timeout and abort
+handling protect it from late responses and a stuck setup request. A pre-request
+failure retries as a new turn, retaining its nonce without an invalid resume flag.
+
+Two fresh native launches automatically configure the saved provider and commit
+new UI question/reply pairs without Settings Save. The fixture proves actual
+transport; embedded cold-model startup, Bonsai quality and physical LAN remain
+separate. See PROVIDER_STARTUP.md for evidence and limits. Armor and ended VTT
+presentation are the next verified defects to repair.

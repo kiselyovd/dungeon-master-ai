@@ -51,10 +51,8 @@
   "scene_transitions_label": "Переходы между сценами",
   "scene_transitions_helper": "Проигрывать короткий ролик при смене сцены (не чаще одного раза в 30 секунд).",
   "scene_transitions_toggle": "Включено",
-
   "character_section_title": "Персонаж",
   "recreate_character": "Пересоздать персонажа",
-
   "discover_models": "Найти модели",
   "discovering": "Поиск...",
   "section_recommended": "Рекомендованные",
@@ -96,5 +94,7 @@
   "license_banner_modality_image": "изображений",
   "license_banner_modality_video": "видео",
   "license_restricted_tooltip": "Отключено: включён OSS-only режим, а этот провайдер не OSS.",
-  "license_restricted_marker": "(non-OSS)"
+  "license_restricted_marker": "(non-OSS)",
+  "backend_configuration_changed": "Сервер перезапустился во время настройки. Сохраните настройки ещё раз.",
+  "provider_configuration_timeout": "Сервер не подтвердил настройки вовремя. Повторите сохранение."
 }

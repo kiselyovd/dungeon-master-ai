@@ -9,11 +9,13 @@ import { applyCombatOutcome } from '../state/combatOutcome';
 import type { Disposition } from '../state/npc';
 import { applyRestOutcome } from '../state/restOutcome';
 import { useStore } from '../state/useStore';
+import { prepareBackendProvider } from './providerStartup';
 
 /** Application composition adapter; feature logic only receives narrow ports. */
 export function useAgentTurn() {
   const ports = useMemo<AgentTurnPorts>(
     () => ({
+      prepareProvider: prepareBackendProvider,
       chat: {
         prepareReplay: (historyLength) =>
           useStore.setState((state) => ({

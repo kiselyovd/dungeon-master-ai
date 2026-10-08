@@ -48,6 +48,9 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
     effectiveSeed.active_session_id ??= '53a7fa02-cfb6-4717-b7fe-e6408f81a569';
   }
 
+  await page.route('**/settings/v2', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
   await mockCampaignState(page, effectiveSeed);
 
   // SplashOverlay polls /health every 250ms and only dismisses once it gets

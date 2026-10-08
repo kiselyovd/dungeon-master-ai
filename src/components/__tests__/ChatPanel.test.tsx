@@ -9,6 +9,7 @@ import { ChatPanel } from '../ChatPanel';
 import toolCardStyles from '../ToolCallCard.module.css';
 import '../../i18n';
 
+vi.mock('../../app/providerStartup', () => ({ prepareBackendProvider: vi.fn(async () => {}) }));
 vi.mock('../../api/agent', () => ({
   streamAgentTurn: vi.fn(),
 }));

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SettingsData } from '../../state/settings';
 import { setBackendPortForTesting } from '../client';
-import { postSettingsV2, toV2Wire } from '../settings';
+import { ensureSettingsV2, invalidateBackendSettings, postSettingsV2, toV2Wire } from '../settings';
 
 // Read whatever DEFAULT_SETTINGS exists; if not exported, build a baseline inline.
 function baseSettings(): SettingsData {
@@ -161,4 +161,120 @@ describe('postSettingsV2', () => {
     );
     await expect(postSettingsV2(baseSettings())).rejects.toThrow(/invalid api_key/);
   });
+});
+
+describe('acknowledged backend configuration', () => {
+  beforeEach(() => {
+    invalidateBackendSettings();
+    setBackendPortForTesting(9999);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  it('deduplicates successful restores but writes again for a new backend', async () => {
+    const fetch = vi.fn().mockImplementation(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    await ensureSettingsV2(baseSettings());
+    await ensureSettingsV2(baseSettings());
+    expect(fetch).toHaveBeenCalledTimes(1);
+    setBackendPortForTesting(9998);
+    await ensureSettingsV2(baseSettings());
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it('does not cache a failed restore and keeps manual Save independent', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 500 }))
+      .mockImplementation(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    await expect(ensureSettingsV2(baseSettings())).rejects.toThrow();
+    await ensureSettingsV2(baseSettings());
+    await ensureSettingsV2(baseSettings());
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await postSettingsV2(baseSettings());
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+  it('serializes immutable snapshots so a late old write cannot replace a newer Save', async () => {
+    let resolve!: (r: Response) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((r) => {
+            resolve = r;
+          }),
+      )
+      .mockImplementation(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    const settings = baseSettings();
+    const old = postSettingsV2(settings);
+    await new Promise((r) => setTimeout(r, 0));
+    const config = settings.providers['openai-compat'];
+    if (!config) throw new Error('missing fixture');
+    config.model = 'new-model';
+    const latest = postSettingsV2(settings);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    resolve(new Response('{}'));
+    await Promise.all([old, latest]);
+    expect(JSON.parse(fetch.mock.calls[0]?.[1].body).chat.active_model_id).toBe(
+      'anthropic/claude-3.5-sonnet',
+    );
+    expect(JSON.parse(fetch.mock.calls[1]?.[1].body).chat.active_model_id).toBe('new-model');
+  });
+  it('an acknowledgement from before backend invalidation cannot satisfy the next restore', async () => {
+    let resolve!: (r: Response) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((r) => {
+            resolve = r;
+          }),
+      )
+      .mockImplementation(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    const old = ensureSettingsV2(baseSettings());
+    await new Promise((r) => setTimeout(r, 0));
+    invalidateBackendSettings();
+    const current = ensureSettingsV2(baseSettings());
+    resolve(new Response('{}'));
+    const results = await Promise.allSettled([old, current]);
+    expect(results[0]?.status).toBe('rejected');
+    expect(results[1]?.status).toBe('fulfilled');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+it('a hung settings request times out and releases the FIFO for another restore', async () => {
+  invalidateBackendSettings();
+  setBackendPortForTesting(9999);
+  vi.useFakeTimers();
+  try {
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        (_url, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener(
+              'abort',
+              () => reject(new DOMException('aborted', 'AbortError')),
+              { once: true },
+            );
+          }),
+      )
+      .mockImplementation(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    const first = ensureSettingsV2(baseSettings());
+    const rejection = expect(first).rejects.toMatchObject({
+      code: 'network',
+      message: 'provider_configuration_timeout',
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await rejection;
+    await ensureSettingsV2(baseSettings());
+    expect(fetch).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
 });

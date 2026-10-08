@@ -75,7 +75,11 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
       await postSettingsV2(state.settings, state.localMode);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setSubmitError(message);
+      setSubmitError(
+        message === 'backend_configuration_changed' || message === 'provider_configuration_timeout'
+          ? t(message)
+          : message,
+      );
       return;
     }
 
