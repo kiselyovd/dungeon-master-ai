@@ -95,11 +95,25 @@ impl OpenAICompatProvider {
 #[async_trait]
 impl LlmProvider for OpenAICompatProvider {
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
+        let tool_round = !req.tools.is_empty();
         let model = req.model.clone();
         let options = Self::build_options(&req);
         let mut g_req = convert_messages(req.messages, req.tools);
         if let Some(system) = req.system_prompt {
             g_req = g_req.with_system(system);
+        }
+
+        // genai 0.6.5 drops all but the first tool in a single OpenAI SSE delta.
+        // Read complete tool-enabled rounds through its existing non-stream API.
+        // Plain text-only chat keeps incremental streaming below.
+        if tool_round {
+            let response = self
+                .client
+                .exec_chat(&model, g_req, Some(&options))
+                .await
+                .map_err(|error| classify_genai_error(error.to_string()))?;
+            let chunks = complete_round_chunks(response)?;
+            return Ok(futures::stream::iter(chunks.into_iter().map(Ok)).boxed());
         }
 
         let stream_response = self
@@ -141,6 +155,106 @@ impl LlmProvider for OpenAICompatProvider {
     fn active_model(&self) -> &str {
         &self.default_model
     }
+}
+
+fn complete_round_chunks(response: genai::chat::ChatResponse) -> Result<Vec<ChatChunk>, LlmError> {
+    use crate::provider::FinishReason;
+    use genai::chat::StopReason;
+    let native_calls = response.tool_calls();
+    let all_text = response.texts().join("");
+    let legacy_calls = if native_calls.is_empty() {
+        crate::genai_common::completed_text_tool_calls(&all_text)
+    } else {
+        vec![]
+    };
+    let legacy = !legacy_calls.is_empty();
+    let calls = if legacy {
+        legacy_calls.iter().collect()
+    } else {
+        native_calls
+    };
+    let finish = match &response.stop_reason {
+        Some(StopReason::Completed(_) | StopReason::StopSequence(_)) => {
+            if calls.is_empty() {
+                FinishReason::Stop
+            } else {
+                FinishReason::ToolUse
+            }
+        }
+        Some(StopReason::ToolCall(_)) if !calls.is_empty() => FinishReason::ToolUse,
+        Some(StopReason::ToolCall(_)) => {
+            return Err(LlmError::InvalidResponse(
+                "provider_tool_calls_missing".into(),
+            ))
+        }
+        Some(StopReason::MaxTokens(_)) => {
+            return Err(LlmError::InvalidResponse(
+                "provider_output_truncated".into(),
+            ))
+        }
+        Some(StopReason::ContentFilter(_)) => {
+            return Err(LlmError::InvalidResponse("provider_output_filtered".into()))
+        }
+        Some(StopReason::Other(_)) | None => {
+            return Err(LlmError::InvalidResponse(
+                "provider_finish_reason_unknown".into(),
+            ))
+        }
+    };
+    if finish == FinishReason::ToolUse {
+        let mut identities = std::collections::HashSet::new();
+        if calls.iter().any(|call| {
+            call.call_id.trim().is_empty()
+                || call.fn_name.trim().is_empty()
+                || !identities.insert(call.call_id.as_str())
+        }) {
+            return Err(LlmError::InvalidResponse(
+                "provider_tool_identity_invalid".into(),
+            ));
+        }
+    }
+    let mut chunks = Vec::new();
+    if let Some(reasoning) = &response.reasoning_content {
+        if !reasoning.is_empty() {
+            chunks.push(ChatChunk::ThinkingDelta {
+                text: reasoning.clone(),
+            });
+        }
+    }
+    if !calls.is_empty() && all_text.contains("<|tool_call>call:") {
+        let prefix = all_text.split("<|tool_call>call:").next().unwrap_or("");
+        if !prefix.is_empty() {
+            chunks.push(ChatChunk::TextDelta {
+                text: prefix.to_owned(),
+            });
+        }
+    } else {
+        for text in response.texts() {
+            if !text.is_empty() {
+                chunks.push(ChatChunk::TextDelta {
+                    text: text.to_owned(),
+                });
+            }
+        }
+    }
+    // Only a validated complete batch reaches this delivery boundary.
+    if finish == FinishReason::ToolUse {
+        for call in calls {
+            chunks.push(ChatChunk::ToolCallStart {
+                id: call.call_id.clone(),
+                name: call.fn_name.clone(),
+            });
+            chunks.push(ChatChunk::ToolCallArgsDelta {
+                id: call.call_id.clone(),
+                args_fragment: call.fn_arguments.to_string(),
+            });
+            chunks.push(ChatChunk::ToolCallDone {
+                id: call.call_id.clone(),
+            });
+        }
+    }
+    chunks.push(ChatChunk::Done { reason: finish });
+    Ok(chunks)
 }
 
 #[cfg(test)]

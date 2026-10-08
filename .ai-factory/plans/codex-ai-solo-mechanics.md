@@ -174,3 +174,11 @@ Review focus: duplicate model call IDs across different turns; stale pre-restore
 - Follow-up review confirmed those fixes and found missing ToolCallStart during delivery repair. Reproduced RED and repaired start-before-media/result so real renderer cards can receive the recovered outcome.
 - Full gate found test-module ordering in checkpoint_tools; moved the module to the end without changing behavior. Final integrated gate/review collection still pending. Durable-operation task remains unchecked because reload recovery and running-request handling remain unfinished.
 - Final collection: full gates passed (workspace Rust plus1025 frontend tests), production build and two targeted production-browser scenarios passed. Tests now supply an explicit terminal provider round instead of treating empty EOF as success; separate regression verifies no final Assistant is persisted for an interrupted draft. Independent follow-up review closed all findings in this phase. Original32 source-baseline hashes remained unchanged; inherited edits excluded from the scoped checkpoint. Native AI-directed/live-model/full-mechanics/co-op acceptance still pending.
+
+Tool transport checkpoint,2026-10-08: same-frame multi-tool loss reproduced in
+installed genai0.6.5. Tool-enabled OpenAI-compatible rounds now use existing SDK
+complete-response handling, preserving all IDs/args/order; no-tools remains SSE.
+Seven wire regressions and full provider/server suites pass. Independent review
+closed incomplete-final-response and mixed-legacy-markup findings. This supersedes
+pending reqwest proposal; no dependency approval needed for the implemented path.
+Real Bonsai/tool/narration session and native acceptance remain next.

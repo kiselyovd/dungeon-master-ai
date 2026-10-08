@@ -68,3 +68,29 @@ load or tool probe is not proof of a complete playable session. Next acceptance
 must cover the complete peaceful and defensive routes, narrative fidelity,
 native application/restart, and then LAN/VPN co-op. Evaluation processes were
 stopped; weights and original project files were preserved.
+
+
+Tool transport reliability checkpoint, 2026-10-08:
+The installed genai0.6.5 streaming adapter was reproduced dropping the second
+native tool when both calls arrive in one OpenAI SSE delta. A wire fixture now
+serves both protocol forms and asserts both IDs/argument payloads/order.
+Tool-enabled OpenAI-compatible requests use the existing SDK exec_chat complete
+response API, then publish the usual provider chunk contract. Plain no-tools chat
+retains incremental streaming. This supersedes the proposed reqwest workaround:
+no new production dependency, SDK upgrade or download is required.
+
+All tools in a validated complete batch retain their IDs, JSON args and order.
+Invalid/duplicate IDs and missing/unknown terminal metadata fail before delivery.
+Truncated/filtered responses also fail before any chunk, because the current agent
+must not persist partial unconfirmed prose as a final answer. Native+legacy mixed
+responses keep native IDs and suppress leaked markup without duplicate execution;
+legacy-only local-model markers use the shared existing parser. Reasoning/text
+keep their existing event types and downstream privacy controls.
+
+Evidence: wire RED -> GREEN, seven focused cases (multiple calls, termination,
+identity, text/reasoning, legacy, mixed and cancellable waiting), full adapter and
+server suites pass. Independent review found terminal-state and mixed-markup
+issues; both repairs were confirmed. Additional waiting for a complete tool-enabled
+response is the tradeoff; it may include final narration because the catalog is
+still offered for that round. No real Bonsai semantic/native acceptance claimed
+by this transport checkpoint. See .artifacts/tool-round logs and provider tests.

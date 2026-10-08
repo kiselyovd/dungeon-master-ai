@@ -89,6 +89,23 @@ pub(crate) fn convert_messages(messages: Vec<ChatMessage>, tools: Vec<Tool>) -> 
 const LEAKED_TOOL_MARKER: &str = "<|tool_call>";
 static LEAKED_STREAM_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
+/// Normalize the same legacy tool markers for complete OpenAI-compatible replies.
+pub(crate) fn completed_text_tool_calls(content: &str) -> Vec<GToolCall> {
+    let stream_id = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    parse_leaked_tool_calls(content)
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, (name, args))| {
+            Some(GToolCall {
+                call_id: leaked_tool_call_id(stream_id, index),
+                fn_name: name,
+                fn_arguments: serde_json::from_str(&args).ok()?,
+                thought_signatures: None,
+            })
+        })
+        .collect()
+}
+
 fn leaked_tool_call_id(stream_id: u64, index: usize) -> String {
     format!("leaked-{stream_id}-{index}")
 }
