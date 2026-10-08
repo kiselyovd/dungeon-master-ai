@@ -210,3 +210,31 @@ describe('VttCanvas', () => {
     expect(tooltip?.textContent).toMatch(/15/);
   });
 });
+
+it('finished generic encounters do not leave stale combat tokens on the exploration board', async () => {
+  const { useStore } = await import('../../state/useStore');
+  useStore.setState(useStore.getInitialState());
+  useStore.setState((state) => ({
+    combat: {
+      ...state.combat,
+      encounterId: 'ended',
+      active: false,
+      tokens: [
+        {
+          id: 'downed',
+          characterId: 'human',
+          isDead: false,
+          name: 'Human',
+          hp: 0,
+          maxHp: 12,
+          ac: 12,
+          x: 1,
+          y: 1,
+          conditions: ['unconscious'],
+        },
+      ],
+    },
+  }));
+  const { queryByTestId } = render(<VttCanvas />);
+  expect(queryByTestId('combat-token-downed')).toBeNull();
+});

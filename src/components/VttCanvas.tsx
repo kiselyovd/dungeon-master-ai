@@ -64,6 +64,7 @@ export function VttCanvas({
 }: Props) {
   const { t } = useTranslation('combat');
 
+  const storedEncounterId = useStore((s) => s.combat.encounterId);
   const storedActive = useStore((s) => s.combat.active);
   const storedTokens = useStore((s) => s.combat.tokens);
   const authored = useStore((s) => s.combat.authored);
@@ -74,7 +75,11 @@ export function VttCanvas({
   const storedImage = useStore((s) => s.session.mapImageUrl);
   const combatActive = presentation ? presentation.active : storedActive;
   const arena = presentation ? presentation.map : combatActive ? authored?.map : adventureMap;
-  const tokens = presentation ? presentation.tokens : !combatActive && authored ? [] : storedTokens;
+  const tokens = presentation
+    ? presentation.tokens
+    : !combatActive && (authored || storedEncounterId)
+      ? []
+      : storedTokens;
   const currentTurnId = presentation ? presentation.currentTurnId : storedTurn;
   const combatRevision = presentation ? presentation.revision : storedRevision;
   const aoeTemplates = presentation ? [] : storedAoe;

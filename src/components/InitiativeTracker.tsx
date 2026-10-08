@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { isDeadToken } from '../features/combat/model/selectors';
 import type { CombatToken } from '../state/combat';
 import { Icons } from '../ui/Icons';
 
@@ -38,7 +39,7 @@ export function InitiativeTracker({ tokens, order, round, activeTokenId, onSelec
         {ordered.map((tok, index) => {
           const isActive = activeTokenId === tok.id || (activeTokenId === undefined && index === 0);
           const isDone = activeIndex >= 0 && index < activeIndex;
-          const isDead = tok.hp === 0;
+          const isDead = isDeadToken(tok);
           const hpPct = tok.maxHp > 0 ? (tok.hp / tok.maxHp) * 100 : 0;
           const hpClass = hpPct < 25 ? 'crit' : hpPct < 50 ? 'low' : '';
           return (

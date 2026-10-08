@@ -339,3 +339,43 @@ it('discards an unconfirmed drag when room permission disappears', () => {
   expect(element.style.left).toBe('60px');
   expect(move).not.toHaveBeenCalled();
 });
+
+it('a dying bound human has no death marker and cannot move or show an actionable turn', () => {
+  const token = {
+    ...baseToken,
+    characterId: 'human',
+    hp: 0,
+    isDead: false,
+    isActive: true,
+    conditions: ['unconscious'],
+  };
+  const move = vi.fn();
+  const { getByTestId, queryByTestId } = render(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      currentTurnId={token.id}
+      onMove={move}
+      playerPresentation={{ characterId: 'human', heroClass: 'fighter', portraitUrl: null }}
+    />,
+  );
+  const element = getByTestId('combat-token-tok-1');
+  expect(element).toHaveAttribute('data-downed', 'true');
+  expect(element).not.toHaveAttribute('data-dead');
+  expect(queryByTestId('combat-token-skull')).toBeNull();
+  expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
+  fireEvent.pointerDown(element, { button: 0, pointerId: 1, clientX: 75, clientY: 105 });
+  fireEvent.pointerMove(element, { pointerId: 1, clientX: 120, clientY: 120 });
+  fireEvent.pointerUp(element, { pointerId: 1, clientX: 120, clientY: 120 });
+  expect(move).not.toHaveBeenCalled();
+});
+it('a confirmed dead human keeps the death marker', () => {
+  const { getByTestId } = render(
+    <CombatToken
+      token={{ ...baseToken, characterId: 'human', hp: 0, isDead: true }}
+      cellSize={30}
+    />,
+  );
+  expect(getByTestId('combat-token-tok-1')).toHaveAttribute('data-dead', 'true');
+  expect(getByTestId('combat-token-skull')).toBeVisible();
+});

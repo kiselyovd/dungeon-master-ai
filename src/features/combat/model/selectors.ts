@@ -26,3 +26,16 @@ export function isPlayerToken(
     ? token.characterId === characterId
     : playerName !== null && token.name === playerName;
 }
+
+/** Modern projections carry authoritative mortality; legacy unbound zero-HP monsters retain their prior display. */
+export function isDeadToken(token: CombatToken): boolean {
+  return token.isDead ?? (token.hp <= 0 && !token.characterId);
+}
+export function isIncapacitatedToken(token: CombatToken): boolean {
+  return (
+    token.hp <= 0 ||
+    isDeadToken(token) ||
+    token.conditions.includes('unconscious') ||
+    token.conditions.includes('stunned')
+  );
+}

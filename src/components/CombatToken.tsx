@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TOKEN_ART } from '../assets/livingTabletop';
+import { isDeadToken, isIncapacitatedToken } from '../features/combat/model/selectors';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
 
@@ -95,7 +96,8 @@ export function CombatToken({
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
-  const isDead = token.hp === 0;
+  const isDead = isDeadToken(token);
+  const incapacitated = isIncapacitatedToken(token);
   const storedCharacterId = useStore((s) => s.pc.characterId);
   const pcCharacterId = playerPresentation ? playerPresentation.characterId : storedCharacterId;
   const isPcToken = pcCharacterId
@@ -216,7 +218,8 @@ export function CombatToken({
   const currentLeft = isDragging && liveLeft !== null ? liveLeft : originLeft;
   const currentTop = isDragging && liveTop !== null ? liveTop : originTop;
   // A token is draggable only when it is the active PC token on its turn and alive.
-  const draggable = onMove !== undefined && isPcToken && token.id === currentTurnId && !isDead;
+  const draggable =
+    onMove !== undefined && isPcToken && token.id === currentTurnId && !incapacitated;
   useEffect(() => {
     if (!draggable) cancelDrag();
   }, [draggable, cancelDrag]);
@@ -273,6 +276,7 @@ export function CombatToken({
         data-testid={`combat-token-${token.id}`}
         data-active={token.isActive ? 'true' : undefined}
         data-dead={isDead ? 'true' : undefined}
+        data-downed={token.hp <= 0 && !isDead ? 'true' : undefined}
         onPointerDown={draggable ? onPointerDown : undefined}
         onPointerMove={draggable ? onPointerMove : undefined}
         onPointerUp={draggable ? onPointerEnd : undefined}
@@ -292,7 +296,7 @@ export function CombatToken({
           // tokens never pulse - the skull overlay is the only motion cue.
           // Suppressed when the user prefers reduced motion. [W1.7b]
           animation:
-            token.isActive && !isDragging && !isDead && !prefersReducedMotion
+            token.isActive && !isDragging && !incapacitated && !prefersReducedMotion
               ? 'token-pulse 1.6s ease-in-out infinite'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
@@ -341,7 +345,7 @@ export function CombatToken({
             <div
               data-testid="combat-token-skull"
               role="img"
-              aria-label="Dead"
+              aria-label={t('dead')}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -447,7 +451,7 @@ export function CombatToken({
         {/* "Your turn" cue: shown only when the PC's own token is active and
             alive. Floats above the token circle so it does not overlap
             conditions or the HP bar. [W1.7b] */}
-        {isPcToken && token.isActive && !isDead && (
+        {isPcToken && token.isActive && !incapacitated && (
           <div
             data-testid={`combat-token-${token.id}-your-turn`}
             className="token-your-turn"

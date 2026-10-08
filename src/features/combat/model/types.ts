@@ -56,6 +56,7 @@ export interface AoeTemplateEntry {
 }
 
 export interface CombatToken {
+  isDead?: boolean;
   displayNameKey?: string;
   id: string;
   characterId?: string;

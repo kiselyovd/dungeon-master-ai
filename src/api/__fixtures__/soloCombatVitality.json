@@ -1,0 +1,833 @@
+{
+  "before": {
+    "schema_version": 1,
+    "ruleset_id": "srd-5.2.1",
+    "campaign": {
+      "id": "317556bf-3426-4ef6-a9f6-0d1f5dc11a84",
+      "schema_version": 1,
+      "ruleset_id": "srd-5.2.1",
+      "title": "Колокол под водой",
+      "premise": "В Вереске слышен колокол из затопленной звонницы. Перевозчик Тихон не вернулся. Его дочь Мила просит привести отца домой и выяснить, что тревожит реку.",
+      "seed": {
+        "kind": "bundled",
+        "adventure_id": "bell-beneath-water"
+      },
+      "last_session_id": "b5d48319-2ffd-46ee-a428-913fdbb7f372",
+      "revision": 4,
+      "created_at": "2026-10-08T00:01:00.817Z",
+      "updated_at": "2026-10-08T00:04:37.479Z"
+    },
+    "session_id": "b5d48319-2ffd-46ee-a428-913fdbb7f372",
+    "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+    "projection": {
+      "adventure": {
+        "state": {
+          "defense": null,
+          "defense_encounter_id": null,
+          "package_id": "bell-beneath-water",
+          "location": "town",
+          "facts": ["ferry_route"],
+          "ending": null,
+          "closed": false,
+          "history": []
+        },
+        "available_actions": [
+          {
+            "kind": "move",
+            "location": "quay"
+          },
+          {
+            "kind": "move",
+            "location": "shrine"
+          },
+          {
+            "kind": "move",
+            "location": "warehouse"
+          },
+          {
+            "kind": "talk_agata"
+          },
+          {
+            "kind": "finish"
+          }
+        ]
+      },
+      "messages": [],
+      "character": {
+        "abilities": {
+          "cha": 8,
+          "con": 13,
+          "dex": 15,
+          "int": 12,
+          "str": 17,
+          "wis": 10
+        },
+        "ac": 12,
+        "alignment": null,
+        "background": "soldier",
+        "backstory": "",
+        "bonds": "",
+        "characterId": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+        "combatResources": {
+          "arrows": 20,
+          "quantities": {
+            "flail": 1,
+            "greatsword": 1,
+            "javelin": 8,
+            "shortbow": 1,
+            "spear": 1
+          },
+          "spellSlots": {},
+          "vitality": {
+            "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+            "combatant_id": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+            "conditions": [],
+            "death_saves": {
+              "failures": 0,
+              "stable": false,
+              "successes": 0
+            },
+            "is_dead": false,
+            "natural_recovery": null
+          }
+        },
+        "experience": 0,
+        "experienceNext": 300,
+        "flaws": "",
+        "heroClass": "fighter",
+        "hp": 1,
+        "hpMax": 11,
+        "ideals": "",
+        "initiative": 2,
+        "inventory": [
+          {
+            "count": 1,
+            "icon": "shield",
+            "id": "chain-mail",
+            "name": "Chain Mail"
+          },
+          {
+            "count": 1,
+            "icon": "sword",
+            "id": "greatsword",
+            "name": "Greatsword"
+          },
+          {
+            "count": 1,
+            "icon": "sword",
+            "id": "flail",
+            "name": "Flail"
+          },
+          {
+            "count": 8,
+            "icon": "sword",
+            "id": "javelin",
+            "name": "Javelin"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "dungeoneers-pack",
+            "name": "Dungeoneer's Pack"
+          },
+          {
+            "count": 1,
+            "icon": "sword",
+            "id": "spear",
+            "name": "Spear"
+          },
+          {
+            "count": 1,
+            "icon": "bow",
+            "id": "shortbow",
+            "name": "Shortbow"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "arrows-20",
+            "name": "20 Arrows"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "gaming-set",
+            "name": "Gaming Set"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "healers-kit",
+            "name": "Healer's Kit"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "quiver",
+            "name": "Quiver"
+          },
+          {
+            "count": 1,
+            "icon": "scroll",
+            "id": "travelers-clothes",
+            "name": "Traveler's Clothes"
+          },
+          {
+            "count": 14,
+            "icon": "coin",
+            "id": "gold",
+            "name": "Gold pieces"
+          }
+        ],
+        "level": 1,
+        "name": "Дарен",
+        "personalityFlags": [],
+        "portraitUrl": null,
+        "proficiencyBonus": 2,
+        "race": "human",
+        "savingThrowProfs": {
+          "cha": false,
+          "con": true,
+          "dex": false,
+          "int": false,
+          "str": true,
+          "wis": false
+        },
+        "skillProfs": {
+          "acrobatics": false,
+          "animal_handling": false,
+          "arcana": false,
+          "athletics": true,
+          "deception": false,
+          "history": false,
+          "insight": false,
+          "intimidation": true,
+          "investigation": false,
+          "medicine": false,
+          "nature": false,
+          "perception": true,
+          "performance": false,
+          "persuasion": false,
+          "religion": false,
+          "sleight_of_hand": false,
+          "stealth": false,
+          "survival": true
+        },
+        "speedFt": 30,
+        "spells": {
+          "cantrips": [],
+          "level1": []
+        },
+        "subclass": null
+      },
+      "combat": {
+        "campaign_scope": {
+          "campaign_id": "317556bf-3426-4ef6-a9f6-0d1f5dc11a84",
+          "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+          "revision": 4,
+          "session_id": "b5d48319-2ffd-46ee-a428-913fdbb7f372"
+        },
+        "encounter_id": "07ba1db8-2112-4e76-b811-2d855521d0e8",
+        "events": [
+          {
+            "ability_scores_checked": [],
+            "conditions_added": [],
+            "conditions_removed": [],
+            "damage": [],
+            "death_saves": [],
+            "deaths": [],
+            "healing": [],
+            "movement": [],
+            "rolls": [],
+            "spell_slots_consumed": []
+          },
+          {
+            "ability_scores_checked": [],
+            "conditions_added": [],
+            "conditions_removed": [],
+            "damage": [],
+            "death_saves": [],
+            "deaths": [],
+            "healing": [],
+            "movement": [],
+            "rolls": [
+              {
+                "detail": {
+                  "modifier": 2,
+                  "rolls": [2],
+                  "total": 4
+                },
+                "natural": 2,
+                "purpose": "miss vs AC 12"
+              }
+            ],
+            "spell_slots_consumed": []
+          }
+        ],
+        "revision": 0,
+        "schema_version": 1,
+        "snapshot": {
+          "active": true,
+          "combatants": [
+            {
+              "ac": 10,
+              "budget": {
+                "action": false,
+                "bonus_action": true,
+                "movement_ft": 30,
+                "reaction": true,
+                "spell_slot_used": false
+              },
+              "conditions": [],
+              "current_hp": 20,
+              "death_saves": {
+                "failures": 0,
+                "stable": false,
+                "successes": 0
+              },
+              "dex_mod": 0,
+              "id": "c1b5644a-b3ce-4b8b-a751-16a8b2f316b6",
+              "initiative_roll": 20,
+              "is_dead": false,
+              "loadout": {
+                "arrows": 0,
+                "attacks": [
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 2,
+                    "damage": {
+                      "count": 0,
+                      "die": "D4",
+                      "modifier": 1
+                    },
+                    "damage_type": "bludgeoning",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 0,
+                    "normal_range_ft": 0,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": false,
+                    "two_handed": false,
+                    "versatile_damage": null,
+                    "weapon_id": "unarmed"
+                  }
+                ],
+                "default_weapon": "unarmed",
+                "quantities": {},
+                "shield": false
+              },
+              "max_hp": 20,
+              "name": "Goblin",
+              "position": {
+                "x": 9,
+                "y": 8
+              },
+              "speed_ft": 30,
+              "temp_hp": 0
+            },
+            {
+              "ac": 12,
+              "budget": {
+                "action": true,
+                "bonus_action": true,
+                "movement_ft": 30,
+                "reaction": true,
+                "spell_slot_used": false
+              },
+              "casting": {
+                "ability_modifier": 1,
+                "attack_bonus": 3,
+                "choices": [],
+                "level": 1,
+                "prepared": [],
+                "save_dc": 11,
+                "slots": {}
+              },
+              "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+              "conditions": [],
+              "current_hp": 1,
+              "death_saves": {
+                "failures": 0,
+                "stable": false,
+                "successes": 0
+              },
+              "dex_mod": 2,
+              "id": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+              "initiative_roll": 4,
+              "is_dead": false,
+              "loadout": {
+                "arrows": 20,
+                "attacks": [
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 5,
+                    "damage": {
+                      "count": 2,
+                      "die": "D6",
+                      "modifier": 3
+                    },
+                    "damage_type": "slashing",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 0,
+                    "normal_range_ft": 0,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": false,
+                    "two_handed": true,
+                    "versatile_damage": null,
+                    "weapon_id": "greatsword"
+                  },
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 5,
+                    "damage": {
+                      "count": 1,
+                      "die": "D8",
+                      "modifier": 3
+                    },
+                    "damage_type": "bludgeoning",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 0,
+                    "normal_range_ft": 0,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": false,
+                    "two_handed": false,
+                    "versatile_damage": null,
+                    "weapon_id": "flail"
+                  },
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 5,
+                    "damage": {
+                      "count": 1,
+                      "die": "D6",
+                      "modifier": 3
+                    },
+                    "damage_type": "piercing",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 120,
+                    "normal_range_ft": 30,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": true,
+                    "two_handed": false,
+                    "versatile_damage": null,
+                    "weapon_id": "javelin"
+                  },
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 5,
+                    "damage": {
+                      "count": 1,
+                      "die": "D6",
+                      "modifier": 3
+                    },
+                    "damage_type": "piercing",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 60,
+                    "normal_range_ft": 20,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": true,
+                    "two_handed": false,
+                    "versatile_damage": {
+                      "count": 1,
+                      "die": "D8",
+                      "modifier": 3
+                    },
+                    "weapon_id": "spear"
+                  },
+                  {
+                    "ammunition": true,
+                    "attack_bonus": 4,
+                    "damage": {
+                      "count": 1,
+                      "die": "D6",
+                      "modifier": 2
+                    },
+                    "damage_type": "piercing",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 320,
+                    "normal_range_ft": 80,
+                    "ranged": true,
+                    "reach_ft": 5,
+                    "thrown": false,
+                    "two_handed": true,
+                    "versatile_damage": null,
+                    "weapon_id": "shortbow"
+                  },
+                  {
+                    "ammunition": false,
+                    "attack_bonus": 5,
+                    "damage": {
+                      "count": 0,
+                      "die": "D4",
+                      "modifier": 4
+                    },
+                    "damage_type": "bludgeoning",
+                    "heavy_disadvantage": false,
+                    "long_range_ft": 0,
+                    "normal_range_ft": 0,
+                    "ranged": false,
+                    "reach_ft": 5,
+                    "thrown": false,
+                    "two_handed": false,
+                    "versatile_damage": null,
+                    "weapon_id": "unarmed"
+                  }
+                ],
+                "default_weapon": "greatsword",
+                "quantities": {
+                  "flail": 1,
+                  "greatsword": 1,
+                  "javelin": 8,
+                  "shortbow": 1,
+                  "spear": 1
+                },
+                "shield": false
+              },
+              "max_hp": 11,
+              "name": "Дарен",
+              "position": {
+                "x": 8,
+                "y": 8
+              },
+              "speed_ft": 30,
+              "temp_hp": 0
+            }
+          ],
+          "current_combatant": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+          "initiative": [
+            {
+              "dex_tiebreak": 0,
+              "id": "c1b5644a-b3ce-4b8b-a751-16a8b2f316b6",
+              "roll": 20
+            },
+            {
+              "dex_tiebreak": 2,
+              "id": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+              "roll": 4
+            }
+          ],
+          "round": 1
+        }
+      },
+      "scene": null,
+      "journal": [],
+      "npcs": []
+    }
+  },
+  "ended": {
+    "campaign_scope": {
+      "campaign_id": "317556bf-3426-4ef6-a9f6-0d1f5dc11a84",
+      "session_id": "b5d48319-2ffd-46ee-a428-913fdbb7f372",
+      "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+      "revision": 5
+    },
+    "schema_version": 1,
+    "encounter_id": "07ba1db8-2112-4e76-b811-2d855521d0e8",
+    "revision": 1,
+    "snapshot": {
+      "active": false,
+      "round": 3,
+      "current_combatant": null,
+      "initiative": [
+        {
+          "id": "c1b5644a-b3ce-4b8b-a751-16a8b2f316b6",
+          "roll": 20,
+          "dex_tiebreak": 0
+        },
+        {
+          "id": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+          "roll": 4,
+          "dex_tiebreak": 2
+        }
+      ],
+      "combatants": [
+        {
+          "id": "c1b5644a-b3ce-4b8b-a751-16a8b2f316b6",
+          "loadout": {
+            "default_weapon": "unarmed",
+            "attacks": [
+              {
+                "weapon_id": "unarmed",
+                "attack_bonus": 2,
+                "damage": {
+                  "count": 0,
+                  "die": "D4",
+                  "modifier": 1
+                },
+                "damage_type": "bludgeoning",
+                "reach_ft": 5,
+                "normal_range_ft": 0,
+                "long_range_ft": 0,
+                "ranged": false,
+                "thrown": false,
+                "ammunition": false,
+                "two_handed": false,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              }
+            ],
+            "quantities": {},
+            "arrows": 0,
+            "shield": false
+          },
+          "name": "Goblin",
+          "max_hp": 20,
+          "current_hp": 20,
+          "temp_hp": 0,
+          "ac": 10,
+          "speed_ft": 30,
+          "initiative_roll": 20,
+          "dex_mod": 0,
+          "conditions": [],
+          "budget": {
+            "spell_slot_used": false,
+            "action": true,
+            "bonus_action": true,
+            "reaction": true,
+            "movement_ft": 30
+          },
+          "death_saves": {
+            "successes": 0,
+            "failures": 0,
+            "stable": false
+          },
+          "is_dead": false,
+          "position": {
+            "x": 9,
+            "y": 8
+          }
+        },
+        {
+          "id": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+          "character_id": "852fcc16-8325-4e97-8b40-3b87a2606e6d",
+          "loadout": {
+            "default_weapon": "greatsword",
+            "attacks": [
+              {
+                "weapon_id": "greatsword",
+                "attack_bonus": 5,
+                "damage": {
+                  "count": 2,
+                  "die": "D6",
+                  "modifier": 3
+                },
+                "damage_type": "slashing",
+                "reach_ft": 5,
+                "normal_range_ft": 0,
+                "long_range_ft": 0,
+                "ranged": false,
+                "thrown": false,
+                "ammunition": false,
+                "two_handed": true,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              },
+              {
+                "weapon_id": "flail",
+                "attack_bonus": 5,
+                "damage": {
+                  "count": 1,
+                  "die": "D8",
+                  "modifier": 3
+                },
+                "damage_type": "bludgeoning",
+                "reach_ft": 5,
+                "normal_range_ft": 0,
+                "long_range_ft": 0,
+                "ranged": false,
+                "thrown": false,
+                "ammunition": false,
+                "two_handed": false,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              },
+              {
+                "weapon_id": "javelin",
+                "attack_bonus": 5,
+                "damage": {
+                  "count": 1,
+                  "die": "D6",
+                  "modifier": 3
+                },
+                "damage_type": "piercing",
+                "reach_ft": 5,
+                "normal_range_ft": 30,
+                "long_range_ft": 120,
+                "ranged": false,
+                "thrown": true,
+                "ammunition": false,
+                "two_handed": false,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              },
+              {
+                "weapon_id": "spear",
+                "attack_bonus": 5,
+                "damage": {
+                  "count": 1,
+                  "die": "D6",
+                  "modifier": 3
+                },
+                "damage_type": "piercing",
+                "reach_ft": 5,
+                "normal_range_ft": 20,
+                "long_range_ft": 60,
+                "ranged": false,
+                "thrown": true,
+                "ammunition": false,
+                "two_handed": false,
+                "versatile_damage": {
+                  "count": 1,
+                  "die": "D8",
+                  "modifier": 3
+                },
+                "heavy_disadvantage": false
+              },
+              {
+                "weapon_id": "shortbow",
+                "attack_bonus": 4,
+                "damage": {
+                  "count": 1,
+                  "die": "D6",
+                  "modifier": 2
+                },
+                "damage_type": "piercing",
+                "reach_ft": 5,
+                "normal_range_ft": 80,
+                "long_range_ft": 320,
+                "ranged": true,
+                "thrown": false,
+                "ammunition": true,
+                "two_handed": true,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              },
+              {
+                "weapon_id": "unarmed",
+                "attack_bonus": 5,
+                "damage": {
+                  "count": 0,
+                  "die": "D4",
+                  "modifier": 4
+                },
+                "damage_type": "bludgeoning",
+                "reach_ft": 5,
+                "normal_range_ft": 0,
+                "long_range_ft": 0,
+                "ranged": false,
+                "thrown": false,
+                "ammunition": false,
+                "two_handed": false,
+                "versatile_damage": null,
+                "heavy_disadvantage": false
+              }
+            ],
+            "quantities": {
+              "flail": 1,
+              "greatsword": 1,
+              "javelin": 8,
+              "shortbow": 1,
+              "spear": 1
+            },
+            "arrows": 20,
+            "shield": false
+          },
+          "casting": {
+            "choices": [],
+            "level": 1,
+            "ability_modifier": 1,
+            "attack_bonus": 3,
+            "save_dc": 11,
+            "prepared": [],
+            "slots": {}
+          },
+          "name": "Дарен",
+          "max_hp": 11,
+          "current_hp": 0,
+          "temp_hp": 0,
+          "ac": 12,
+          "speed_ft": 30,
+          "initiative_roll": 4,
+          "dex_mod": 2,
+          "conditions": ["unconscious"],
+          "budget": {
+            "spell_slot_used": false,
+            "action": true,
+            "bonus_action": true,
+            "reaction": true,
+            "movement_ft": 30
+          },
+          "death_saves": {
+            "successes": 1,
+            "failures": 0,
+            "stable": false
+          },
+          "is_dead": false,
+          "position": {
+            "x": 8,
+            "y": 8
+          }
+        }
+      ]
+    },
+    "events": [
+      {
+        "rolls": [],
+        "damage": [],
+        "healing": [],
+        "conditions_added": [],
+        "conditions_removed": [],
+        "deaths": [],
+        "death_saves": [],
+        "movement": [],
+        "spell_slots_consumed": [],
+        "ability_scores_checked": []
+      },
+      {
+        "rolls": [
+          {
+            "purpose": "attack roll vs AC 12",
+            "detail": {
+              "rolls": [12],
+              "modifier": 2,
+              "total": 14
+            },
+            "natural": 12
+          }
+        ],
+        "damage": [
+          {
+            "target": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+            "raw_amount": 1,
+            "effective_amount": 1,
+            "damage_type": "bludgeoning",
+            "new_hp": 0,
+            "was_critical": false
+          }
+        ],
+        "healing": [],
+        "conditions_added": [],
+        "conditions_removed": [],
+        "deaths": [],
+        "death_saves": [
+          {
+            "combatant": "b53446d5-3fc9-47b3-9e61-6c86eb8b89f6",
+            "roll": 13,
+            "success": true,
+            "successes_total": 1,
+            "failures_total": 0,
+            "dead": false,
+            "stable": false
+          }
+        ],
+        "movement": [],
+        "spell_slots_consumed": [],
+        "ability_scores_checked": []
+      }
+    ]
+  }
+}

@@ -181,3 +181,27 @@ Native run also reproduced missing provider startup replay (manual same-settings
 Save restores DM transport), unarmored AC despite ChainMail, and stale ended VTT
 HP0/skull after healing. These must be repaired next; the native recovery checkpoint
 does not close broad solo/co-op playability, real-model quality or physical LAN.
+
+
+## Tabletop mortality and ended encounters
+
+Server is_dead now survives conversion to presentation tokens. A living bound hero
+at zero HP has the existing unconscious condition display and no skull/crossed-out
+initiative name. Zero HP, death and incapacitating conditions still block dragging
+and actionable-turn decoration. The skull uses the existing localized dead label.
+Legacy unbound zero-HP tokens retain their prior fallback; this does not reconstruct
+missing historic vitality.
+
+Finished generic encounters now stop rendering their historical combat tokens,
+matching the existing authored-encounter behavior. The stored encounter/history is
+preserved; recovery and rest cannot leave an old zero-HP token on the live board.
+Room presentation remains driven by the public room snapshot.
+
+Verification uses the actual native combat-start/ended projection fixture: 49
+component/mapping tests and the focused combat regression group pass; TypeScript,
+production build, architecture and four production-preview combat/recovery browser
+cases pass. The new root case clicks EndTurn, applies the real ended payload and
+checks live HUD0HP with no old token/skull. Screenshot was inspected. Independent
+read-only code review found no actionable issue. This is frontend/browser evidence;
+a new native battle for this visual change and broader full-session acceptance remain
+separate. Armor and the legacy complete-campaign fixture are still pending.

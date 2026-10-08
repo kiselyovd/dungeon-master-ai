@@ -126,6 +126,7 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
   const activeId = projection.snapshot.current_combatant;
   return projection.snapshot.combatants.map((combatant) => ({
     id: combatant.id,
+    isDead: combatant.is_dead,
     ...(combatant.display_name_key ? { displayNameKey: combatant.display_name_key } : {}),
     ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
     ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
