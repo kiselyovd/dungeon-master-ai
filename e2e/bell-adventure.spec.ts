@@ -114,7 +114,7 @@ test('production UI completes the real authored peaceful route and reloads its e
     'Go to Old quay',
     'Go to Flooded archive',
     'Go to Lower belfry',
-    "Acknowledge Savely's last rescue",
+    "Acknowledge the echo's last rescue",
     'Repair the inscription and sound the memorial bell',
     'Go to Flooded archive',
     'Go to Old quay',

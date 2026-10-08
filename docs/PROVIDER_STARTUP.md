@@ -41,7 +41,9 @@ startup-cleanup-proof.json. They verify configuration/transport and cleanup, not
 Bonsai quality or physical LAN. Armor, finished VTT presentation and the broader
 solo/co-op session requirements remain open. No new production dependency or release.
 
-Four focused production-browser startup/recovery scenarios pass. The legacy
-full-campaign mock still lacks authoritative hero binding, campaign scope and
-current casting/snapshot contracts; its full-session gate requires fixture migration.
-It remains an open item in the broader playability work.
+Four focused production-browser startup/recovery scenarios pass. The full-campaign
+fixture now uses canonical character ownership, campaign scope, casting/loadout
+and current snapshot contracts. The complete browser suite passes62 cases with
+one existing vision skip; see BROWSER_SESSION_ACCEPTANCE.md for real-backend
+versus scripted-transport evidence. Real-model/full native session and physical
+LAN acceptance remain open.

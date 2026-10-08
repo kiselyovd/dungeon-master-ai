@@ -8,7 +8,7 @@ native character creation. Preserve human control and server-authoritative rules
 - [x] Add explicit worn-armor/shield controls and correct live preview/committed choice.
 - [x] Verify frontend-server parity, real native creation/combat/reopen and review.
 - [ ] Apply Stealth disadvantage and decide supported untrained-armor penalties.
-- [ ] Modernize the legacy full-campaign UI fixture with actual ownership/contracts.
+- [x] Modernize the legacy full-campaign UI fixture with actual ownership/contracts.
 
 Backend foundation: see DEFENSE_EQUIPMENT.md and .artifacts/armor logs. Pure4/app4
 cases, full core/storage regression and HTTP owned-armor case pass. Independent
@@ -48,3 +48,18 @@ roll4+modifier2=6/DC15 failure -> same answer in both clients; full close/restar
 and completed native replay preserve revision141/dice/transcript, provider calls2
 unchanged. Independent SQLite/review/cleanup confirmed. This case is unarmored;
 real-model quality, physical LAN and remaining mechanics are still open.
+
+Browser fixture checkpoint, 2026-10-08: canonical cleric ownership, prepared spell
+slots, weapon intentions, current-state save restoration and fresh scoped combat
+projections replace the legacy full-campaign fixture. The stale-projection check
+was proved negative by disabling both revision guards in a temporary build: the
+test failed on token position60px versus270px, then passed after exact restoration.
+Other chat/movement/tabletop fixtures now configure the provider before sending.
+Full production-browser suite:62 passed,1 existing vision skip. Four authored Bell
+cases use the real isolated SQLite/backend for peaceful, distinct endings, restore
+which rolls back the reward, followed by a new rescue granting10gold, and defensive combat/map/rescue. The full-campaign test
+uses scripted transport; real-model narrative quality and physical LAN stay open.
+See docs/BROWSER_SESSION_ACCEPTANCE.md. Independent review closed the timing race
+and found no remaining actionable fixture issue. No production guards weakened.
+Fast gates pass (architecture, Cargo formatting, Biome, TypeScript and em-dash);
+production build and full browser suite pass. Backend process/listener stopped.

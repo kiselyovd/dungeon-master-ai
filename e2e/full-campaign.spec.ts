@@ -1,8 +1,15 @@
 import { expect, type Page, type Route, test } from '@playwright/test';
+import type { CampaignStateResponse } from '../src/api/contracts/campaignState';
 import { mockTauri } from './fixtures/tauri-mock';
 
 const CAMPAIGN_ID = '00000000-0000-4000-8000-000000000001';
 const SESSION_ID = '00000000-0000-4000-8000-000000000002';
+const HERO_ID = '00000000-0000-4000-8000-000000001001';
+const GOBLIN_ID = '00000000-0000-4000-8000-000000001002';
+const ENCOUNTER_ID = '00000000-0000-4000-8000-000000001003';
+const SAVE_ID = '00000000-0000-4000-8000-000000001004';
+const SNAPSHOT_ID = '00000000-0000-4000-8000-000000001005';
+let characterId: string | null = null;
 const PIXEL_B64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=';
 
@@ -26,24 +33,72 @@ function projection(revision: number, options: ProjectionOptions = {}) {
   } = options;
   return {
     schema_version: 1,
-    encounter_id: 'encounter-campaign',
+    encounter_id: ENCOUNTER_ID,
+    campaign_scope: {
+      campaign_id: CAMPAIGN_ID,
+      session_id: SESSION_ID,
+      character_id: characterId,
+      revision: revision + 3,
+    },
     revision,
     snapshot: {
       active,
-      round: revision >= 3 ? 2 : 1,
-      current_combatant: current,
+      round: revision >= 5 ? 3 : revision >= 3 ? 2 : 1,
+      current_combatant: current === 'hero' ? HERO_ID : current === 'goblin' ? GOBLIN_ID : null,
       initiative: [
-        { id: 'hero', roll: 18, dex_tiebreak: 2 },
-        { id: 'goblin', roll: 12, dex_tiebreak: 1 },
+        { id: HERO_ID, roll: 18, dex_tiebreak: 2 },
+        { id: GOBLIN_ID, roll: 12, dex_tiebreak: 1 },
       ],
       combatants: [
         {
-          id: 'hero',
+          id: HERO_ID,
+          character_id: characterId,
+          loadout: {
+            default_weapon: 'mace',
+            attacks: [
+              {
+                weapon_id: 'mace',
+                attack_bonus: 6,
+                damage: { count: 1, die: 'D6', modifier: 4 },
+                damage_type: 'bludgeoning',
+                reach_ft: 5,
+                normal_range_ft: 0,
+                long_range_ft: 0,
+                ranged: false,
+                thrown: false,
+                ammunition: false,
+                two_handed: false,
+                versatile_damage: null,
+                heavy_disadvantage: false,
+              },
+            ],
+            quantities: { mace: 1 },
+            arrows: 0,
+            shield: false,
+          },
+          casting: {
+            level: 1,
+            ability_modifier: 1,
+            attack_bonus: 3,
+            save_dc: 11,
+            prepared: ['cure-wounds'],
+            choices: [
+              {
+                id: 'cure-wounds',
+                level: 1,
+                range_ft: 5,
+                bonus_action: false,
+                healing: true,
+                supported: true,
+              },
+            ],
+            slots: { '1': { maximum: 2, remaining: revision >= 2 ? 1 : 2 } },
+          },
           name: 'Aria',
-          max_hp: 12,
+          max_hp: 10,
           current_hp: heroHp,
           temp_hp: 0,
-          ac: 14,
+          ac: 12,
           speed_ft: 30,
           initiative_roll: 18,
           dex_mod: 2,
@@ -58,7 +113,7 @@ function projection(revision: number, options: ProjectionOptions = {}) {
           position: { x: heroX, y: 0 },
         },
         {
-          id: 'goblin',
+          id: GOBLIN_ID,
           name: 'Goblin Scout',
           max_hp: 7,
           current_hp: goblinHp,
@@ -70,7 +125,7 @@ function projection(revision: number, options: ProjectionOptions = {}) {
           conditions: [],
           budget: { action: true, bonus_action: true, reaction: true, movement_ft: 30 },
           is_dead: goblinHp === 0,
-          position: { x: 4, y: 0 },
+          position: { x: 3, y: 0 },
         },
       ],
     },
@@ -136,16 +191,16 @@ const compendium = {
   ],
   classes: [
     {
-      id: 'fighter',
+      id: 'cleric',
       ruleset_id: 'srd-5.2.1',
-      name_key: 'catalog.classes.fighter',
-      name_en: 'Fighter',
-      name_ru: 'Воин',
-      hit_die: 10,
-      primary_ability: ['str'],
-      saving_throw_proficiencies: ['str', 'con'],
-      armor_proficiencies: [],
-      weapon_proficiencies: [],
+      name_key: 'catalog.classes.cleric',
+      name_en: 'Cleric',
+      name_ru: 'Жрец',
+      hit_die: 8,
+      primary_ability: ['wis'],
+      saving_throw_proficiencies: ['wis', 'cha'],
+      armor_proficiencies: ['light', 'medium', 'shield'],
+      weapon_proficiencies: ['simple'],
       tool_proficiencies: [],
       skill_proficiencies: {},
       starting_equipment: [],
@@ -187,7 +242,7 @@ const compendium = {
 test('a complete campaign remains authoritative, restorable, and honest about bundled art', async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(30_000);
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: null,
@@ -209,14 +264,15 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     active_session_id: SESSION_ID,
     char_creation_draft: {
       rulesetId: 'srd-5.2.1',
-      classId: 'fighter',
+      classId: 'cleric',
       raceId: 'human',
       backgroundId: 'soldier',
-      abilityMethod: 'standard_array',
+      abilityMethod: '4d6_drop_lowest',
       abilities: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 10 },
       equipmentMode: 'gold',
       equipmentSlots: [],
-      equipmentInventory: [],
+      equipmentInventory: [{ id: 'mace', name: 'Mace', count: 1 }],
+      spells: { cantrips: [], level1: ['cure-wounds'] },
       name: 'Aria',
       activeTab: 'review',
     },
@@ -243,11 +299,67 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
 
+  characterId = null;
+  let currentState: CampaignStateResponse = {
+    schema_version: 1,
+    ruleset_id: 'srd-5.2.1',
+    campaign: {
+      id: CAMPAIGN_ID,
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      title: 'Aria Chronicle',
+      premise: 'Moonlit Tavern',
+      seed: { kind: 'collaborative', answers: {} },
+      last_session_id: SESSION_ID,
+      revision: 1,
+      created_at: '2026-08-12T12:00:00Z',
+      updated_at: '2026-08-12T12:00:00Z',
+    },
+    session_id: SESSION_ID,
+    character_id: null,
+    projection: { messages: [], character: {}, combat: null, scene: null, journal: [], npcs: [] },
+  };
+  await page.route(
+    /^https?:\/\/[^/]+\/campaigns(?:\/[^/?]+(?:\/(?:state|character))?)?(?:\?|$)/,
+    async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/character') && route.request().method() === 'PUT') {
+        const input = route.request().postDataJSON();
+        expect(input.session_id).toBe(SESSION_ID);
+        expect(input.expected_revision).toBe(currentState.campaign.revision);
+        characterId = input.character_id;
+        currentState.character_id = input.character_id;
+        currentState.projection.character = { ...input.character, characterId: input.character_id };
+        currentState.campaign.revision++;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          path === '/campaigns'
+            ? [currentState.campaign]
+            : path.endsWith('/state') || path.endsWith('/character')
+              ? currentState
+              : currentState.campaign,
+        ),
+      });
+    },
+  );
+  const applyProjection = (value: ReturnType<typeof projection>) => {
+    if (value.campaign_scope.revision < currentState.campaign.revision) return;
+    currentState.campaign.revision = value.campaign_scope.revision;
+    currentState.projection.combat = value;
+    currentState.projection.character.hp = value.snapshot.combatants[0]?.current_hp;
+  };
+  let savedState: CampaignStateResponse | null = null;
   let quickSaveCreated = false;
   const saveSummary = {
-    id: 'save-quick',
+    id: SAVE_ID,
+    campaign_id: currentState.campaign.id,
     session_id: SESSION_ID,
-    kind: 'checkpoint',
+    snapshot_id: SNAPSHOT_ID,
+    revision: 11,
+    kind: 'auto',
     title: 'Quick Save',
     summary: 'Moonlit Tavern',
     tag: 'exploration',
@@ -266,10 +378,13 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     }
     if (url.pathname.endsWith('/saves/quick') && route.request().method() === 'POST') {
       quickSaveCreated = true;
+      currentState.campaign.revision++;
+      saveSummary.revision = currentState.campaign.revision;
+      savedState = structuredClone(currentState);
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ id: saveSummary.id }),
+        body: JSON.stringify({ id: saveSummary.id, revision: saveSummary.revision }),
       });
       return;
     }
@@ -286,18 +401,24 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
   await page.route(/^https?:\/\/[^/]+\/saves\//, async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/restore')) {
+      expect(savedState).not.toBeNull();
+      if (!savedState) throw new Error('missing checkpoint');
+      const nextRevision = currentState.campaign.revision + 1;
+      currentState = structuredClone(savedState);
+      currentState.campaign.revision = nextRevision;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          game_state: {
-            schema_version: 2,
-            scene: { title: 'Moonlit Tavern', subtitle: null, mode: 'exploration' },
-          },
-          messages: [
-            { role: 'user', parts: [{ type: 'text', text: 'We return to safety.' }] },
-            { role: 'assistant', content: 'The hearth burns softly.' },
-          ],
+          id: SNAPSHOT_ID,
+          campaign_id: CAMPAIGN_ID,
+          session_id: SESSION_ID,
+          revision: saveSummary.revision,
+          current_revision: nextRevision,
+          current_state: currentState,
+          schema_version: 1,
+          ruleset_id: 'srd-5.2.1',
+          projection: savedState.projection,
         }),
       });
       return;
@@ -315,7 +436,43 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
   let agentTurn = 0;
   await page.route('**/agent/turn', async (route) => {
     agentTurn += 1;
+    const input = route.request().postDataJSON();
+    currentState.projection.messages.push({
+      role: 'user',
+      parts: [{ type: 'text', text: input.player_message }],
+    });
     if (agentTurn === 1) {
+      applyProjection(projection(0));
+      currentState.projection.scene = {
+        title: 'Moonlit Tavern',
+        subtitle: null,
+        mode: 'exploration',
+      };
+      currentState.projection.messages.push({
+        role: 'assistant',
+        content: 'Moonlight spills across the tavern floor.',
+      });
+      currentState.projection.npcs = [
+        {
+          id: 'mira',
+          campaign_id: CAMPAIGN_ID,
+          name: 'Mira Vale',
+          role: 'innkeeper',
+          disposition: 'friendly',
+          trust: 0,
+          facts: [{ text: 'Knows the old forest road.', created_at: '2026-08-12T12:00:00Z' }],
+          updated_at: '2026-08-12T12:00:00Z',
+        },
+      ];
+      currentState.projection.journal = [
+        {
+          id: 'journal-entry-1',
+          campaign_id: CAMPAIGN_ID,
+          chapter: 'The Moonlit Tavern',
+          entry_html: '<p>A hidden path was revealed.</p>',
+          created_at: '2026-08-12T12:00:00Z',
+        },
+      ];
       const body =
         event('text_delta', { text: 'Moonlight spills across the tavern floor.' }) +
         toolStart('scene-1', 'set_scene') +
@@ -366,76 +523,30 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
       return;
     }
     if (agentTurn === 2) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
       await fulfillSse(
         route,
-        event('text_delta', { text: 'The scout lunges, and Aria regains the initiative.' }) +
-          toolStart('turn-hero', 'start_combat') +
+        toolStart('old-receipt', 'combat_action') +
           toolResult(
-            'turn-hero',
-            'start_combat',
-            {},
-            {
-              projection: projection(4, { heroX: 2, heroHp: 12, current: 'hero' }),
-            },
+            'old-receipt',
+            'combat_action',
+            { kind: 'weapon', target: GOBLIN_ID, weapon_id: 'mace' },
+            { projection: projection(2, { heroX: 9, heroHp: 1, goblinHp: 7 }) },
           ) +
+          event('text_delta', { text: 'The scout is wounded; Aria remains ready.' }) +
           event('agent_done', { total_rounds: 1 }),
       );
+      currentState.projection.messages.push({
+        role: 'assistant',
+        content: 'The scout is wounded; Aria remains ready.',
+      });
       return;
     }
-    if (agentTurn === 3) {
-      await fulfillSse(
-        route,
-        toolStart('attack-stale', 'apply_damage') +
-          toolResult(
-            'attack-stale',
-            'apply_damage',
-            {},
-            {
-              projection: projection(2, { heroX: 9, heroHp: 1, goblinHp: 7 }),
-            },
-          ) +
-          toolStart('attack-hit', 'apply_damage') +
-          toolResult(
-            'attack-hit',
-            'apply_damage',
-            {},
-            {
-              projection: projection(5, {
-                heroX: 2,
-                heroHp: 12,
-                heroAction: false,
-                goblinHp: 2,
-              }),
-            },
-          ) +
-          event('text_delta', { text: 'The blade strikes true.' }) +
-          event('agent_done', { total_rounds: 1 }),
-      );
-      return;
-    }
-    if (agentTurn === 4) {
-      await fulfillSse(
-        route,
-        toolStart('combat-end', 'end_combat') +
-          toolResult(
-            'combat-end',
-            'end_combat',
-            {},
-            {
-              projection: projection(7, {
-                active: false,
-                current: null,
-                heroX: 2,
-                heroHp: 12,
-                goblinHp: 0,
-              }),
-            },
-          ) +
-          event('text_delta', { text: 'The tavern falls quiet once more.' }) +
-          event('agent_done', { total_rounds: 1 }),
-      );
-      return;
-    }
+    currentState.projection.scene = { title: 'Ashen Cellar', subtitle: null, mode: 'exploration' };
+    currentState.projection.messages.push({
+      role: 'assistant',
+      content: 'You descend into the ashen cellar.',
+    });
     await fulfillSse(
       route,
       toolStart('scene-2', 'set_scene') +
@@ -451,9 +562,11 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
   });
   let capturedMove: unknown;
   let endTurnCount = 0;
+  let attackCount = 0;
   await page.route('**/combat/action', async (route) => {
     const request = route.request().postDataJSON() as { action_type: string };
     if (request.action_type === 'move') {
+      applyProjection(projection(1, { heroX: 2, heroHp: 8 }));
       capturedMove = request;
       await moveReleased;
       await fulfillSse(
@@ -464,35 +577,55 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
       );
       return;
     }
-    if (request.action_type === 'cast') {
+    if (request.action_type === 'spell') {
+      expect(route.request().postDataJSON().args).toMatchObject({
+        caster_id: HERO_ID,
+        spell_id: 'cure-wounds',
+        target_ids: [HERO_ID],
+        slot_level: 1,
+      });
+      applyProjection(projection(2, { heroX: 2, heroHp: 10, heroAction: false }));
       await fulfillSse(
         route,
         event('combat_projection', {
-          projection: projection(2, { heroX: 2, heroHp: 12, heroAction: false }),
+          projection: projection(2, { heroX: 2, heroHp: 10, heroAction: false }),
         }),
       );
       return;
     }
-    endTurnCount += 1;
-    await fulfillSse(
-      route,
-      event('combat_projection', {
-        projection: projection(endTurnCount === 1 ? 3 : 6, {
-          heroX: 2,
-          heroHp: 12,
-          heroAction: false,
-          goblinHp: endTurnCount === 1 ? 7 : 2,
-          current: 'goblin',
-        }),
-      }),
-    );
-  });
-
-  const staleWarnings: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'warning' && message.text().includes('stale_combat_projection')) {
-      staleWarnings.push(message.text());
+    if (request.action_type === 'weapon_attack') {
+      attackCount++;
+      expect(route.request().postDataJSON().args).toMatchObject({
+        attacker_id: HERO_ID,
+        target_id: GOBLIN_ID,
+        weapon_id: 'mace',
+      });
+      const next =
+        attackCount === 1
+          ? projection(4, { heroX: 2, heroHp: 10, heroAction: false, goblinHp: 2 })
+          : projection(6, {
+              active: false,
+              current: null,
+              heroX: 2,
+              heroHp: 10,
+              heroAction: false,
+              goblinHp: 0,
+            });
+      applyProjection(next);
+      await fulfillSse(route, event('combat_projection', { projection: next }));
+      return;
     }
+    expect(request.action_type).toBe('end_turn');
+    endTurnCount++;
+    const next = projection(endTurnCount === 1 ? 3 : 5, {
+      heroX: 2,
+      heroHp: 10,
+      heroAction: true,
+      goblinHp: endTurnCount === 1 ? 7 : 2,
+      current: 'hero',
+    });
+    applyProjection(next);
+    await fulfillSse(route, event('combat_projection', { projection: next }));
   });
 
   await test.step('create the player character through the production wizard', async () => {
@@ -514,12 +647,12 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await expect(page.getByTestId('dm-vtt-map-bg')).toBeVisible();
     await expect(page.getByTestId('tool-call-card-illustration-1').getByRole('img')).toBeVisible();
     await expect(page.getByText('From the built-in collection')).toHaveCount(2);
-    await expect(page.getByTestId('combat-token-hero')).toBeVisible();
+    await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toBeVisible();
     await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toBeVisible();
   });
 
   await test.step('move only after an authoritative revision and heal with a spell', async () => {
-    const hero = page.getByTestId('combat-token-hero');
+    const hero = page.getByTestId(`combat-token-${HERO_ID}`);
     await expect(hero).toHaveCSS('left', '0px');
     const box = await hero.boundingBox();
     expect(box).not.toBeNull();
@@ -549,31 +682,46 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
       .toMatchObject({
         expected_revision: 0,
         action_type: 'move',
-        args: { combatant_id: 'hero', x: 2, y: 0 },
+        args: { combatant_id: HERO_ID, x: 2, y: 0 },
       });
     await expect(hero).toHaveCSS('left', '0px');
     releaseMove?.();
     await expect(hero).toHaveCSS('left', '60px');
 
     await page.getByTestId('action-btn-cast').click();
-    await expect(page.getByLabel(/Aria 12\/12 HP/)).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm spell', exact: true }).click();
+    await expect(page.getByLabel(/Aria 10\/10 HP/)).toBeVisible();
     await expect(page.getByTestId('action-btn-attack')).toBeDisabled();
   });
 
   await test.step('advance initiative, resolve an attack, ignore stale state, and end combat', async () => {
     await page.getByTestId('action-btn-end_turn').click();
-    await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toHaveCount(0);
-    await sendChat(page, 'Resolve the goblin turn.');
     await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toBeVisible();
+    await page.getByTestId('action-btn-cast').click();
+    await expect(page.getByRole('dialog', { name: 'Cast a spell' })).toContainText(
+      /1\s*\/\s*2 remaining/,
+    );
+    await page
+      .getByRole('dialog', { name: 'Cast a spell' })
+      .getByRole('button', { name: 'Cancel', exact: true })
+      .click();
     await page.getByTestId('action-btn-attack').click();
+    await page.getByRole('button', { name: 'Confirm attack', exact: true }).click();
     await expect(page.getByLabel(/Goblin Scout 2\/7 HP/)).toBeVisible();
-    await expect(page.getByTestId('combat-token-hero')).toHaveCSS('left', '60px');
-    await expect.poll(() => staleWarnings.length).toBeGreaterThan(0);
+    await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toHaveCSS('left', '60px');
+    await sendChat(page, 'Inspect the fight.');
+    await expect(
+      page.getByText('The scout is wounded; Aria remains ready.', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toHaveCSS('left', '60px');
+    await expect(page.getByLabel(/Aria 10\/10 HP/)).toBeVisible();
+    await expect(page.getByLabel(/Goblin Scout 2\/7 HP/)).toBeVisible();
     await page.getByTestId('action-btn-end_turn').click();
-    await sendChat(page, 'End the defeated encounter.');
+    await page.getByTestId('action-btn-attack').click();
+    await page.getByRole('button', { name: 'Confirm attack', exact: true }).click();
     await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toHaveCount(0);
     await expect(page.getByRole('complementary', { name: 'Initiative' })).toHaveCount(0);
-    await expect(page.getByTestId('combat-token-hero')).not.toHaveAttribute('data-active', 'true');
+    await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toHaveCount(0);
   });
 
   await test.step('inspect NPC and journal projections', async () => {
@@ -598,13 +746,21 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await saves.getByRole('button', { name: /Load|Загрузить/ }).click();
     await expect(saves).toHaveCount(0);
     await expect(page.locator('.dm-scene-pill')).toContainText('Moonlit Tavern');
-    await expect(page.getByText('The hearth burns softly.')).toBeVisible();
+    await expect(page.getByText('The scout is wounded; Aria remains ready.')).toBeVisible();
     await expect(page.getByTestId('dm-vtt-map-bg')).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole('button', { name: /Aria/i })).toBeVisible();
     await expect(page.getByTestId('dm-vtt-map-bg')).toHaveCount(0);
     await expect(page.locator('[data-testid^="tool-call-card-"] img')).toHaveCount(0);
+    await page.getByRole('button', { name: 'NPCs', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'NPC Memory' })).toContainText('Mira Vale');
+    await page.getByRole('button', { name: 'Close NPC memory' }).click();
+    await page.getByRole('button', { name: 'Journal', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: "Bard's Journal" })).toContainText(
+      'A hidden path was revealed.',
+    );
+    await page.getByRole('button', { name: 'Close journal' }).click();
     const persisted = await page.evaluate(() => {
       const values: string[] = [];
       for (let index = 0; index < localStorage.length; index += 1) {

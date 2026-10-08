@@ -3,6 +3,12 @@ import { mockTauri } from './fixtures/tauri-mock';
 
 const projection = (revision: number, heroX: number) => ({
   schema_version: 1,
+  campaign_scope: {
+    campaign_id: '2c7d0d90-e970-47a7-aac4-66a147f96e58',
+    session_id: '53a7fa02-cfb6-4717-b7fe-e6408f81a569',
+    character_id: '92414394-f4b1-477f-9278-10f75c3c4fb7',
+    revision: revision + 2,
+  },
   encounter_id: 'encounter-e2e',
   revision,
   snapshot: {
@@ -16,6 +22,7 @@ const projection = (revision: number, heroX: number) => ({
     combatants: [
       {
         id: 'hero',
+        character_id: '92414394-f4b1-477f-9278-10f75c3c4fb7',
         name: 'Hero',
         max_hp: 12,
         current_hp: 12,
@@ -65,7 +72,16 @@ test('token movement remains a request until a newer server projection arrives',
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: 'fighter',
-    active_provider: 'local-mistralrs',
+    active_provider: 'openai-compat',
+    providers: {
+      'openai-compat': {
+        kind: 'openai-compat',
+        baseUrl: 'http://127.0.0.1:31415/v1',
+        model: 'fixture-dm',
+        apiKey: 'fixture-key',
+      },
+      'local-mistralrs': null,
+    },
     ui_language: 'en',
     pc: {
       heroClass: 'fighter',
