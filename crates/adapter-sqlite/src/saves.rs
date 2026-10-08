@@ -893,12 +893,22 @@ async fn restore_combat(
         serde_json::from_value(value.clone())
             .map_err(|_| repository_error("decode_snapshot_combat_projection"))?;
     if let Some(scope) = &projection.campaign_scope {
+        let bound = projection
+            .snapshot
+            .combatants
+            .iter()
+            .filter_map(|actor| actor.character_id.map(|id| id.0))
+            .collect::<std::collections::BTreeSet<_>>();
+        if !bound.contains(&scope.character_id) {
+            return Err(repository_error("combat_hero_identity_mismatch"));
+        }
         let mut sheets = vec![(scope.character_id, &snapshot.projection.character)];
         if let Some(party) = &snapshot.projection.party {
             sheets.extend(
                 party
                     .members
                     .iter()
+                    .filter(|member| bound.contains(&member.character_id))
                     .map(|member| (member.character_id, &member.character)),
             );
         }

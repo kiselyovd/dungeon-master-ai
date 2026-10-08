@@ -2156,3 +2156,256 @@ async fn denied_invitation_rotation_does_not_write_any_secret() {
     assert!(service.rotate_invitation(&peer).await.is_err());
     assert_eq!(secrets.writes.load(Ordering::SeqCst), before);
 }
+
+#[tokio::test]
+async fn retained_room_heroes_do_not_enter_new_solo_fights_after_revocation_or_close() {
+    use app_application::ports::repositories::CombatRepository;
+    for close in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(directory.path().join("room.db"))
+            .create_if_missing(true);
+        let (store, command) = fixture(
+            sqlx::SqlitePool::connect_with(options.clone())
+                .await
+                .unwrap(),
+        )
+        .await;
+        let service = RoomService::new(
+            store.clone(),
+            store.clone(),
+            Arc::new(InMemorySecretsStore::default()),
+            Arc::new(Clock(AtomicU64::new(1000))),
+        );
+        let created = service.create_local_room(command).await.unwrap();
+        let (grant, _, host, encounter, mut old) = group_fight(&store, &service, &created).await;
+        let party = store
+            .party(created.grant.room.campaign_id)
+            .await
+            .unwrap()
+            .unwrap();
+        let host_id = party
+            .roster
+            .members
+            .iter()
+            .find(|m| m.member_id == party.roster.host_member_id)
+            .unwrap()
+            .character_id;
+        let guest_id = party
+            .roster
+            .members
+            .iter()
+            .find(|m| m.member_id == grant.member_id)
+            .unwrap()
+            .character_id;
+        old.snapshot.active = false;
+        old.revision = 1;
+        store.compare_and_set(0, old.clone()).await.unwrap();
+        if close {
+            service.close(&host).await.unwrap();
+        } else {
+            service.revoke(&host, grant.member_id).await.unwrap();
+        }
+        let archived = store.party(party.campaign_id).await.unwrap().unwrap();
+        let guest_before = archived.characters[&guest_id].clone();
+        let historical: String =
+            sqlx::query_scalar("SELECT projection FROM combat_encounters WHERE id=?1")
+                .bind(encounter.to_string())
+                .fetch_one(store.pool())
+                .await
+                .unwrap();
+        let historical: app_application::models::combat::CombatProjection =
+            serde_json::from_str(&historical).unwrap();
+        assert_eq!(
+            historical.snapshot.combatants.len(),
+            old.snapshot.combatants.len()
+        );
+        let npc = app_domain::combat::types::CombatantId::new();
+        let next = Uuid::new_v4();
+        let mut projection = app_application::models::combat::CombatProjection::empty(next, 0);
+        projection.snapshot = app_application::models::combat::CombatSnapshot {
+            active: true,
+            round: 1,
+            current_combatant: Some(npc),
+            initiative: vec![app_domain::combat::initiative::InitiativeEntry {
+                id: npc,
+                roll: -99,
+                dex_tiebreak: 0,
+            }],
+            combatants: vec![app_domain::combat::combatant::Combatant::new(
+                npc,
+                "Foe".into(),
+                100,
+                100,
+                10,
+            )],
+        };
+        let created_fight = store.create(party.session_id.0, projection).await.unwrap();
+        let ids = created_fight
+            .snapshot
+            .combatants
+            .iter()
+            .filter_map(|a| a.character_id.map(|id| id.0))
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec![host_id], "closed={close}");
+        let mut forged = created_fight.clone();
+        forged
+            .snapshot
+            .combatants
+            .retain(|a| a.character_id.is_none());
+        forged.campaign_scope = None;
+        forged.revision = 1;
+        assert!(store.compare_and_set(0, forged).await.is_err());
+        assert_eq!(store.get(next).await.unwrap().unwrap().revision, 0);
+
+        assert_eq!(
+            store
+                .get(next)
+                .await
+                .unwrap()
+                .unwrap()
+                .snapshot
+                .combatants
+                .len(),
+            2
+        );
+        assert_eq!(
+            store
+                .party(party.campaign_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .characters[&guest_id],
+            guest_before
+        );
+        use app_application::{
+            campaigns::{CreateSnapshot, CreateSnapshotCommand},
+            models::snapshot::RestoreSnapshotRecord,
+            ports::repositories::SnapshotRepository,
+        };
+        let current = store.load_current(party.campaign_id).await.unwrap();
+        let saved = CreateSnapshot::new(store.clone())
+            .execute(CreateSnapshotCommand {
+                id: Uuid::new_v4(),
+                campaign_id: party.campaign_id,
+                session_id: party.session_id,
+                expected_revision: current.campaign.revision,
+                title: "Solo after coop".into(),
+                kind: "manual".into(),
+                summary: "".into(),
+                tag: "".into(),
+                causation_id: "solo-after-coop-save".into(),
+                character: current.projection.character,
+            })
+            .await
+            .unwrap();
+        let current = store.load_current(party.campaign_id).await.unwrap();
+        store
+            .restore_snapshot(RestoreSnapshotRecord {
+                save_id: saved.save_id,
+                campaign_id: party.campaign_id,
+                session_id: party.session_id,
+                expected_revision: current.campaign.revision,
+                causation_id: "solo-after-coop-restore".into(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .get(next)
+                .await
+                .unwrap()
+                .unwrap()
+                .snapshot
+                .combatants
+                .len(),
+            2
+        );
+        store.pool().close().await;
+        let reopened = SqliteStore::new(sqlx::SqlitePool::connect_with(options).await.unwrap());
+        assert_eq!(
+            reopened
+                .get(next)
+                .await
+                .unwrap()
+                .unwrap()
+                .snapshot
+                .combatants
+                .len(),
+            2
+        );
+        assert_eq!(
+            reopened
+                .party(party.campaign_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .characters[&guest_id],
+            guest_before
+        );
+        reopened.pool().close().await;
+    }
+}
+
+#[tokio::test]
+async fn group_rest_ignores_retained_incapacitated_revoked_hero_and_replays_once() {
+    use app_application::models::{rest::RestIntent, room_world::RoomRestCommand};
+    use app_application::ports::repositories::CombatRepository;
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, _, host, _, mut old) = group_fight(&store, &service, &created).await;
+    old.snapshot.active = false;
+    old.revision = 1;
+    store.compare_and_set(0, old).await.unwrap();
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let guest_id = party
+        .roster
+        .members
+        .iter()
+        .find(|m| m.member_id == grant.member_id)
+        .unwrap()
+        .character_id;
+    let mut guest = party.characters[&guest_id].clone();
+    guest["hp"] = json!(0);
+    sqlx::query("UPDATE party_characters SET character_json=?1 WHERE character_id=?2")
+        .bind(guest.to_string())
+        .bind(guest_id.to_string())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    service.revoke(&host, grant.member_id).await.unwrap();
+    let host = service
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let current = store.load_current(party.campaign_id).await.unwrap();
+    let command = RoomRestCommand {
+        request_id: "present-only-rest".into(),
+        expected_revision: current.campaign.revision,
+        intent: RestIntent::Long,
+    };
+    let receipt = service.rest(&host, command.clone()).await.unwrap();
+    assert!(!receipt.duplicate);
+    let after = store.party(party.campaign_id).await.unwrap().unwrap();
+    assert_eq!(after.characters[&guest_id], guest);
+    assert!(service.rest(&host, command).await.unwrap().duplicate);
+    assert_eq!(
+        store.party(party.campaign_id).await.unwrap().unwrap(),
+        after
+    );
+}

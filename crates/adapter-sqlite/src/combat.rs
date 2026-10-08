@@ -195,6 +195,29 @@ pub(crate) async fn persist_projection(
             .fetch_one(&mut **transaction)
             .await
             .map_err(|_| repository_error("read_combat_session"))?;
+    let previous: String =
+        sqlx::query_scalar("SELECT projection FROM combat_encounters WHERE id=?1")
+            .bind(projection.encounter_id.to_string())
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_combat_bindings"))?;
+    let previous: CombatProjection = serde_json::from_str(&previous)
+        .map_err(|_| repository_error("decode_combat_projection"))?;
+    if previous.campaign_scope.is_some() {
+        let bindings = |p: &CombatProjection| {
+            let mut ids = p
+                .snapshot
+                .combatants
+                .iter()
+                .filter_map(|a| a.character_id.map(|owner| (owner.0, a.id.0)))
+                .collect::<Vec<_>>();
+            ids.sort();
+            ids
+        };
+        if bindings(&previous) != bindings(projection) {
+            return Err(repository_error("combat_hero_identity_mismatch"));
+        }
+    }
     crate::authored_combat::resolve(
         transaction,
         Uuid::parse_str(&session).map_err(|_| repository_error("combat_session_invalid"))?,

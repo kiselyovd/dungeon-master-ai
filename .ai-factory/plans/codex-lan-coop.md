@@ -719,3 +719,31 @@ branch remains documented. All test processes are stopped.
 The specific co-op P1 is closed locally. Complete solo, active-combat death saves,
 damage-at-zero, real-model quality, physical LAN and remaining UX/lifecycle work
 stay open. See COOP_ACCEPTANCE.md and codex-hero-recovery.md for bounded evidence.
+
+## Present versus retained heroes
+
+- [x] Reproduce excluded/closed-room heroes entering a new encounter or blocking
+  group rest. Preserve historical sheets/ownership and old encounter readability.
+- [x] New battle membership follows the current active room, with host-only solo
+  after closure and an explicit trusted legacy party fallback before any room.
+- [x] Group long rest touches only currently active accepted members; archived
+  hero HP/resources stay unchanged. Check replay and real SQLite reopening.
+- [x] Run focused/full relevant checks, independent review and local checkpoint.
+
+No UI/dependency/schema changes in this checkpoint. Removing someone during an
+already active battle, retired-roster capacity and returning old members require
+separate lifecycle handling; do not claim this fixes all disconnect/room closure.
+
+Roster checkpoint: both original failures reproduced (roster-red.log); new fights
+use active accepted room members, with host-only after revocation/closure. Retained
+sheets and historical encounter ownership remain unchanged. Old bindings are
+immutable for existing encounter writes, including a forged scope removal.
+Independent review found a save/restore mismatch for the new host-only encounter;
+RED reproduced in roster-restore-red.log. Restore now hydrates only recorded
+bound owners, requiring the host and exact known identities. File-backed full
+close/reopen and restore regressions run for both revoked and closed cases.
+Final collection:440 SQLite/server tests, Clippy alltargets, architecture/format/
+Biome/TypeScript fast gates pass. Independent follow-up confirms restore fix.
+Original32baseline hashes verified; scoped local checkpoint excludes inherited
+edits. Active-fight removal and
+returning-member/capacity lifecycle remain open.

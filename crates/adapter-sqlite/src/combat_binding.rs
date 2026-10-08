@@ -12,6 +12,7 @@ async fn sheets(
     tx: &mut Transaction<'_, Sqlite>,
     campaign: CampaignId,
     session: Uuid,
+    starting: bool,
 ) -> Result<(Uuid, Sheets), RepositoryError> {
     // Raw rows avoid capture_projection -> recover_loadouts recursion.
     let root=sqlx::query("SELECT cc.character_id,cc.character_json FROM campaign_characters cc JOIN sessions s ON s.campaign_id=cc.campaign_id WHERE cc.campaign_id=?1 AND s.id=?2 AND s.id=(SELECT latest.id FROM sessions latest WHERE latest.campaign_id=?1 ORDER BY CAST(latest.created_at AS INTEGER) DESC,latest.id DESC LIMIT 1)")
@@ -20,7 +21,22 @@ async fn sheets(
         .map_err(|_| repository_error("combat_hero_identity_mismatch"))?;
     let mut result = Sheets::new();
     let mut rows = vec![root];
-    rows.extend(sqlx::query("SELECT character_id,character_json FROM party_characters WHERE campaign_id=?1 ORDER BY rowid").bind(campaign.0.to_string()).fetch_all(&mut **tx).await.map_err(|_|repository_error("read_combat_party"))?);
+    let present = if starting {
+        crate::party::active_members(tx, campaign, SessionId(session)).await?
+    } else {
+        None
+    };
+    let retained=sqlx::query("SELECT member_id,character_id,character_json FROM party_characters WHERE campaign_id=?1 ORDER BY rowid").bind(campaign.0.to_string()).fetch_all(&mut **tx).await.map_err(|_|repository_error("read_combat_party"))?;
+    for row in retained {
+        let member = Uuid::parse_str(&row.get::<String, _>("member_id"))
+            .map_err(|_| repository_error("combat_hero_identity_mismatch"))?;
+        if present
+            .as_ref()
+            .is_none_or(|members| members.contains(&member))
+        {
+            rows.push(row);
+        }
+    }
     for row in rows {
         let id = Uuid::parse_str(&row.get::<String, _>("character_id"))
             .map_err(|_| repository_error("combat_hero_identity_mismatch"))?;
@@ -43,7 +59,20 @@ async fn sheets(
     }
     Ok((root_id, result))
 }
-fn verify_bindings(projection: &CombatProjection, sheets: &Sheets) -> Result<(), RepositoryError> {
+fn retain_bound_sheets(projection: &CombatProjection, sheets: &mut Sheets) {
+    let bound = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter_map(|actor| actor.character_id.map(|id| id.0))
+        .collect::<std::collections::BTreeSet<_>>();
+    sheets.retain(|id, _| bound.contains(id));
+}
+fn verify_bindings(
+    projection: &CombatProjection,
+    sheets: &Sheets,
+    root: Uuid,
+) -> Result<(), RepositoryError> {
     let bound = projection
         .snapshot
         .combatants
@@ -54,7 +83,10 @@ fn verify_bindings(projection: &CombatProjection, sheets: &Sheets) -> Result<(),
         .iter()
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
-    if bound.len() != sheets.len() || identities != sheets.keys().copied().collect() {
+    if !identities.contains(&root)
+        || bound.len() != sheets.len()
+        || identities != sheets.keys().copied().collect()
+    {
         return Err(repository_error("combat_hero_identity_mismatch"));
     }
     Ok(())
@@ -66,11 +98,13 @@ pub(crate) async fn recover_loadouts(
     let Some(scope) = projection.campaign_scope.clone() else {
         return Ok(());
     };
-    let (root, sheets) = sheets(tx, CampaignId(scope.campaign_id), scope.session_id).await?;
+    let (root, mut sheets) =
+        sheets(tx, CampaignId(scope.campaign_id), scope.session_id, false).await?;
     if root != scope.character_id {
         return Err(repository_error("combat_hero_identity_mismatch"));
     }
-    verify_bindings(projection, &sheets)?;
+    retain_bound_sheets(projection, &mut sheets);
+    verify_bindings(projection, &sheets, root)?;
     app_application::combat::hero::recover_party_loadouts(
         &sheets
             .iter()
@@ -107,7 +141,7 @@ pub(crate) async fn bind_start(
     if active {
         return Err(repository_error("combat_already_active"));
     }
-    let (root, mut sheets) = sheets(tx, campaign_id, session_id).await?;
+    let (root, mut sheets) = sheets(tx, campaign_id, session_id, true).await?;
     let mut ordered = vec![(root, &sheets[&root])];
     ordered.extend(
         sheets
@@ -165,11 +199,12 @@ pub(crate) async fn sync_opening_heroes(
         return Ok(());
     };
     let campaign = CampaignId(scope.campaign_id);
-    let (root, mut sheets) = sheets(tx, campaign, scope.session_id).await?;
+    let (root, mut sheets) = sheets(tx, campaign, scope.session_id, false).await?;
     if root != scope.character_id {
         return Err(repository_error("combat_hero_identity_mismatch"));
     }
-    verify_bindings(projection, &sheets)?;
+    retain_bound_sheets(projection, &mut sheets);
+    verify_bindings(projection, &sheets, root)?;
     let now = crate::rest::read_clock(tx, SessionId(scope.session_id))
         .await?
         .unwrap_or_default()
@@ -211,8 +246,9 @@ pub(crate) async fn sync_hero(
         Uuid::parse_str(&row.get::<String, _>("campaign_id"))
             .map_err(|_| repository_error("combat_campaign_invalid"))?,
     );
-    let (root, mut sheets) = sheets(tx, campaign, session).await?;
-    verify_bindings(projection, &sheets)?;
+    let (root, mut sheets) = sheets(tx, campaign, session, false).await?;
+    retain_bound_sheets(projection, &mut sheets);
+    verify_bindings(projection, &sheets, root)?;
     let previous_round = u32::try_from(row.get::<i64, _>("round"))
         .map_err(|_| repository_error("combat_round_invalid"))?;
     crate::rest::advance_combat_clock(

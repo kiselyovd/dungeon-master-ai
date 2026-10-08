@@ -1,6 +1,6 @@
 use app_application::{
     models::{
-        identity::CampaignId,
+        identity::{CampaignId, SessionId},
         party::{EnrollPartyCharacter, InitializeParty, PartyRoster, PartyState},
     },
     ports::repositories::{PartyRepository, RepositoryError},
@@ -14,6 +14,44 @@ fn error(code: &'static str) -> RepositoryError {
         operation: "party",
         code,
     }
+}
+
+/// None preserves the trusted pre-room party API. Once a campaign has room history,
+/// only the current room's active members participate; closure leaves host-only solo.
+pub(crate) async fn active_members(
+    tx: &mut Transaction<'_, Sqlite>,
+    campaign: CampaignId,
+    session: SessionId,
+) -> Result<Option<std::collections::BTreeSet<Uuid>>, RepositoryError> {
+    let room: Option<String> = sqlx::query_scalar(
+        "SELECT room_id FROM coop_rooms WHERE campaign_id=?1 AND session_id=?2 AND active=1",
+    )
+    .bind(campaign.0.to_string())
+    .bind(session.0.to_string())
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|_| error("party_room_read_failed"))?;
+    if let Some(id) = room {
+        let id = Uuid::parse_str(&id).map_err(|_| error("party_room_invalid"))?;
+        let room = crate::rooms::read(tx, id).await?;
+        if !room.active || room.campaign_id != campaign || room.session_id != session {
+            return Err(error("party_room_invalid"));
+        }
+        return Ok(Some(
+            room.members
+                .into_iter()
+                .filter(|m| m.active)
+                .map(|m| m.member_id)
+                .collect(),
+        ));
+    }
+    let history: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM coop_rooms WHERE campaign_id=?1)")
+            .bind(campaign.0.to_string())
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|_| error("party_room_read_failed"))?;
+    Ok(history.then(Default::default))
 }
 
 pub(crate) async fn persist_sheet(

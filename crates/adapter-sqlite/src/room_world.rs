@@ -186,6 +186,21 @@ pub(crate) async fn rest(
     }
     let mut own_outcome = None;
     for (index, (id, sheet)) in party.characters.iter().enumerate() {
+        let present = party
+            .roster
+            .members
+            .iter()
+            .find(|member| member.character_id == *id)
+            .is_some_and(|member| {
+                room.members.iter().any(|present| {
+                    present.member_id == member.member_id
+                        && present.role == member.role
+                        && present.active
+                })
+            });
+        if !present {
+            continue;
+        }
         if !group && *id != owner {
             continue;
         }
