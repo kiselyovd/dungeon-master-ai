@@ -25,7 +25,15 @@ authority, validate against the original request, and allocate binding identitie
 atomically with tool preparation. Existing tool `command_json` signatures remain
 unchanged. Client history and narration cannot supply completion evidence.
 
-SQLite persistence, model manifest generation/verification, trusted future-target
+The solo SQLite adapter now persists the private manifest and atomically binds
+steps with existing tool preparation. It verifies owner, actor, original request
+and restore generation; exact canonical receipts repair missing result metadata
+after effect-before-transcript interruption. Prepared world/combat revisions and
+actor-token identity are captured separately from old command_json signatures.
+Stale uncommitted contexts and mismatched full signatures are rejected in the
+canonical write transaction. Dice/refusal settlement also checks prepared context.
+
+Room persistence, model manifest generation/verification, trusted future-target
 resolution and replacement of the runtime completion loop are **not wired yet**.
 Legacy unbound operations need conservative recovery; this foundation does not
 make old effects repeatable or claim live session/LAN acceptance.
@@ -34,5 +42,6 @@ Focused checks:
 
 ```powershell
 cargo test -p app-application --test human_commands_tests --test workflow_tests
+cargo test -p adapter-sqlite --test human_commands --test agent_operations
 bun run architecture:check
 ```

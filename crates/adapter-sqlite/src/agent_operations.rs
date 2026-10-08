@@ -477,10 +477,45 @@ impl SqliteStore {
     ) -> Result<(), RepositoryError> {
         let raw = serde_json::to_string(result)
             .map_err(|_| repository_error("encode_tool_checkpoint_result"))?;
-        let changed=sqlx::query("UPDATE agent_tool_steps SET result_json=?3 WHERE request_id=?1 AND tool_call_id=?2 AND result_json IS NULL").bind(request_id.to_string()).bind(tool_call_id).bind(raw).execute(&self.pool).await.map_err(|_|repository_error("finish_tool_checkpoint"))?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_tool_checkpoint_result"))?;
+        let bound:Option<String>=sqlx::query_scalar("SELECT binding_json FROM solo_human_command_bindings WHERE request_id=?1 AND tool_call_id=?2").bind(request_id.to_string()).bind(tool_call_id).fetch_optional(&mut *tx).await.map_err(|_|repository_error("read_tool_checkpoint_binding"))?;
+        if let Some(bound) = bound {
+            let binding: app_application::agent::human_commands::PreparedCommandBinding =
+                serde_json::from_str(&bound)
+                    .map_err(|_| repository_error("decode_tool_checkpoint_binding"))?;
+            if result.is_error
+                && !result.result["error"]
+                    .as_str()
+                    .is_some_and(app_application::agent::intentions::definitive_rejection)
+            {
+                return Err(rejected("human_command_outcome_uncertain"));
+            }
+            if result.is_error
+                || matches!(
+                    binding.signature,
+                    app_application::agent::human_commands::HumanAction::Dice(_)
+                )
+            {
+                crate::human_commands::require_prepared_context(
+                    &mut tx,
+                    &format!("agent:{request_id}:{tool_call_id}"),
+                    binding.scope.campaign_id,
+                    binding.scope.session_id,
+                )
+                .await?;
+            }
+        }
+        let changed=sqlx::query("UPDATE agent_tool_steps SET result_json=?3 WHERE request_id=?1 AND tool_call_id=?2 AND result_json IS NULL").bind(request_id.to_string()).bind(tool_call_id).bind(raw).execute(&mut *tx).await.map_err(|_|repository_error("finish_tool_checkpoint"))?;
         if changed.rows_affected() != 1 {
             return Err(rejected("agent_tool_checkpoint_conflict"));
         }
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_tool_checkpoint_result"))?;
         Ok(())
     }
     /// Bootstrap-only reconciliation, after acquiring the OS-backed exclusive

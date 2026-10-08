@@ -101,6 +101,18 @@ pub enum HumanAction {
     Dice(RollDiceCommand),
 }
 impl HumanAction {
+    pub fn to_tool(&self) -> AgentToolCommand {
+        match self {
+            Self::Adventure(action) => {
+                AgentToolCommand::AdventureAction(super::commands::AdventureActionCommand {
+                    action: *action,
+                })
+            }
+            Self::Combat(action) => AgentToolCommand::CombatAction(action.clone()),
+            Self::Rest(action) => AgentToolCommand::RestAction(*action),
+            Self::Dice(action) => AgentToolCommand::RollDice(action.clone()),
+        }
+    }
     pub fn from_tool(command: &AgentToolCommand) -> Result<Self, CommandLedgerError> {
         match command {
             AgentToolCommand::AdventureAction(value) => Ok(Self::Adventure(value.action)),

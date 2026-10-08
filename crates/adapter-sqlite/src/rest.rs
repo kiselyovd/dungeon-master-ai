@@ -179,6 +179,22 @@ impl RestRepository for SqliteStore {
    let result=serde_json::from_str(&row.get::<String,_>("result_json")).map_err(|_|repository_error("decode_rest_receipt"))?;
    tx.commit().await.map_err(|_|repository_error("commit_rest_retry"))?;return Ok(result);
   }
+        if let Some(prepared) = crate::human_commands::require_prepared_context(
+            &mut tx,
+            &command.causation_id,
+            command.campaign_id.0,
+            command.session_id.0,
+        )
+        .await?
+        {
+            if prepared.binding.signature
+                != app_application::agent::human_commands::HumanAction::Rest(command.intent)
+                || prepared.binding.scope.actor_id != command.character_id
+                || prepared.stamp.campaign_revision != command.expected_revision.0
+            {
+                return Err(repository_error("human_command_signature_mismatch"));
+            }
+        }
         let current =
             crate::campaign_state::load_in_transaction(&mut tx, command.campaign_id).await?;
         if current.session_id != command.session_id

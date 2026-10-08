@@ -29,6 +29,9 @@ pub enum HeroCombatIntent {
     },
 }
 impl HeroCombatIntent {
+    pub fn for_actor_id(&self, actor: Uuid) -> CombatActionCommand {
+        self.for_actor(CombatantId(actor))
+    }
     pub fn for_actor(&self, actor: CombatantId) -> CombatActionCommand {
         match self {
             Self::EndTurn => CombatActionCommand::EndTurn { combatant: actor },

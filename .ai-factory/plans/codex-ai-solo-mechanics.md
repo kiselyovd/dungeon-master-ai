@@ -521,3 +521,27 @@ production completion path, SQLite migration, model plan, live/native or physica
 LAN acceptance is claimed. Next implementation is protected SQLite metadata
 and atomic prepared-step binding with reopen/crash/scope regressions, followed
 by runtime wiring and full session acceptance.
+
+Solo SQLite journal implemented as private per-operation/current-owner adapter.
+Migration0019 stores manifest/bindings separately from unchanged tool signatures.
+Manifest save verifies saved request/actor/timeline and rejects retroactive legacy
+authorization; preparation and binding are atomic. Canonical receipt lookup/
+delivery repair closes effect-before-transcript gaps and real pool reopen with
+new process owner preserves progress. Frozen campaign/combat revision, encounter
+and actor token reject stale pending effects; actual canonical write transactions
+verify the full signature/context too. Dice/refusal settlement rejects stale or
+uncertain results without poisoning pending steps.12 SQL scenarios plus focused
+operation/combat/repository/pure-ledger suites pass. Independent review found
+fixed pending-context and incomplete-signature P2s, then closed checked scope.
+Full gates running. Room storage, model planning and runtime completion wiring
+remain pending; no live/native/physicalLAN/full-goal acceptance claimed.
+
+Final solo-storage collection: consolidated gates pass (908 Rust,1117 frontend,
+architecture/static checks and Clippy).12 actual SQL scenarios cover rollback,
+reopen/new owner, effect-before-transcript repair, signature/timeline guards,
+legacy rejection, stale encounter/turn, full commit signature, durable refusal
+and dice/uncertain settlement. Independent review closed both discovered P2s.
+Original32 source hashes preserved. This is private solo persistence and guarded
+canonical execution support, not runtime/model-manifest wiring or live session
+acceptance. Room metadata and full original solo/co-op/native/physicalLAN scope
+remain active.

@@ -148,6 +148,22 @@ pub(crate) async fn act_in_transaction(
         .map_err(|_| repository_error("decode_adventure_receipt"))?;
         return Ok(state);
     }
+    if let Some(prepared) = crate::human_commands::require_prepared_context(
+        tx,
+        &command.causation_id,
+        command.campaign_id.0,
+        command.session_id.0,
+    )
+    .await?
+    {
+        if prepared.binding.signature
+            != app_application::agent::human_commands::HumanAction::Adventure(command.action)
+            || prepared.binding.scope.actor_id != command.character_id
+            || prepared.stamp.campaign_revision != command.expected_revision.0
+        {
+            return Err(rejected("human_command_signature_mismatch"));
+        }
+    }
     let mut current = crate::campaign_state::load_in_transaction(tx, command.campaign_id).await?;
     if let Some(actor) = actor {
         current.character_id = Some(command.character_id);

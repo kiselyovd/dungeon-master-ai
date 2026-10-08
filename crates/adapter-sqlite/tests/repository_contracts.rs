@@ -132,7 +132,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 18);
+    assert_eq!(migration_count, 19);
     let scoped:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='room_agent_message_published')")
         .fetch_one(store.pool()).await.unwrap();
     assert!(scoped);

@@ -44,6 +44,40 @@ impl CombatRepository for SqliteStore {
                 duplicate: true,
             });
         }
+        if let Some(scope) = &projection.campaign_scope {
+            if let Some(prepared) = crate::human_commands::require_prepared_context(
+                &mut tx,
+                request_id,
+                scope.campaign_id,
+                scope.session_id,
+            )
+            .await?
+            {
+                let stamp = prepared
+                    .stamp
+                    .combat
+                    .ok_or_else(|| repository_error("human_command_context_invalid"))?;
+                let app_application::agent::human_commands::HumanAction::Combat(action) =
+                    prepared.binding.signature
+                else {
+                    return Err(repository_error("human_command_signature_mismatch"));
+                };
+                let actual: serde_json::Value = serde_json::from_str(signature)
+                    .map_err(|_| repository_error("human_command_data_invalid"))?;
+                if stamp.encounter_id != projection.encounter_id
+                    || stamp.revision != expected_revision
+                    || actual
+                        != serde_json::json!({"encounter_id":stamp.encounter_id,"expected_revision":stamp.revision,"action":action.for_actor_id(stamp.actor_token)})
+                {
+                    return Err(repository_error("human_command_context_stale"));
+                }
+            }
+        }
+        if projection.campaign_scope.is_none()
+            && crate::human_commands::has_bound_manifest(&mut tx, request_id).await?
+        {
+            return Err(repository_error("human_command_context_invalid"));
+        }
         persist_projection(&mut tx, expected_revision, &mut projection).await?;
         let raw = serde_json::to_string(&projection)
             .map_err(|_| repository_error("encode_combat_receipt"))?;

@@ -51,6 +51,26 @@ impl HeroIntentionRepository for SqliteStore {
         // combat commit but before the agent checkpoint must not repeat the effect.
         let receipt=sqlx::query("SELECT r.signature,r.projection_json FROM combat_action_receipts r JOIN combat_encounters e ON e.id=r.encounter_id WHERE e.session_id=?1 AND r.request_id=?2")
             .bind(intent.session_id.0.to_string()).bind(&intent.causation_id).fetch_optional(&self.pool).await.map_err(|_|rejected("hero_combat_receipt_failed"))?;
+        let prepared = if receipt.is_none() {
+            let mut tx = self
+                .pool
+                .begin_with("BEGIN IMMEDIATE")
+                .await
+                .map_err(|_| rejected("hero_combat_prepare_failed"))?;
+            let prepared = crate::human_commands::require_prepared_context(
+                &mut tx,
+                &intent.causation_id,
+                intent.campaign_id.0,
+                intent.session_id.0,
+            )
+            .await?;
+            tx.commit()
+                .await
+                .map_err(|_| rejected("hero_combat_prepare_failed"))?;
+            prepared
+        } else {
+            None
+        };
         let (projection, expected_revision) = if let Some(row) = receipt {
             let projection: CombatProjection =
                 serde_json::from_str(&row.get::<String, _>("projection_json"))
@@ -99,6 +119,21 @@ impl HeroIntentionRepository for SqliteStore {
                 return Err(rejected("hero_intention_mismatch"));
             }
             revision
+        } else if let Some(prepared) = prepared {
+            let expected = prepared
+                .stamp
+                .combat
+                .ok_or_else(|| rejected("human_command_context_invalid"))?;
+            if prepared.binding.signature
+                != app_application::agent::human_commands::HumanAction::Combat(
+                    intent.action.clone(),
+                )
+                || expected.encounter_id != projection.encounter_id
+                || expected.actor_token != heroes[0].id.0
+            {
+                return Err(rejected("human_command_signature_mismatch"));
+            }
+            expected.revision
         } else {
             projection.revision
         };
