@@ -1402,6 +1402,84 @@ impl app_application::agent::intentions::PlayerIntentionVerifier for CompoundFix
         )
     }
 }
+
+#[derive(Debug)]
+struct IncorrectForecastFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier
+    for IncorrectForecastFixtureVerifier
+{
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.candidate.is_none() && check.resolved.len() < 2,
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn final_completion_ledger_can_correct_a_false_single_action_forecast() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.max_rounds = 4;
+    settings.player_verifier = Some(Arc::new(IncorrectForecastFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "move",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        vec![
+            ChatChunk::TextDelta {
+                text: "Premature completion after only movement".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+        agency_round(agency_tool(
+            "inspect",
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("false-forecast");
+    input.request.player_message = "Move to quay and inspect it".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+    assert!(!events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("Premature"))
+    ));
+    assert!(!messages.values.lock().unwrap().iter().any(|message|matches!(message,ChatMessage::Assistant {content} if content.contains("Premature"))));
+}
 #[tokio::test]
 async fn explicitly_requested_compound_intentions_are_not_reduced_to_one_action() {
     let dispatcher = agency_dispatcher();
@@ -1516,6 +1594,137 @@ async fn prose_cannot_complete_an_unexecuted_player_action_or_leak_a_phantom_arr
     ));
     assert!(!messages.values.lock().unwrap().iter().any(|message|matches!(message,ChatMessage::Assistant{content} if content.contains("no tool ran"))));
 }
+
+#[derive(Debug)]
+struct DeniedProposalFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for DeniedProposalFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check
+                    .candidate
+                    .as_ref()
+                    .is_some_and(|(_, args)| args["action"]["kind"] == "move"),
+                further_requested: check.candidate.is_none() && check.resolved.is_empty(),
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn permission_denial_cannot_resolve_the_human_request_or_publish_phantom_progress() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.max_rounds = 4;
+    settings.player_verifier = Some(Arc::new(DeniedProposalFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "denied",
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        )),
+        vec![
+            ChatChunk::TextDelta {
+                text: "Phantom arrival without movement".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+        agency_round(agency_tool(
+            "requested",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("denial-is-not-an-outcome");
+    input.request.player_message = "I go to quay".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(!events
+        .iter()
+        .any(|event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("Phantom"))));
+    assert!(!messages.values.lock().unwrap().iter().any(
+        |message| matches!(message,ChatMessage::Assistant {content} if content.contains("Phantom"))
+    ));
+}
+
+#[tokio::test]
+async fn confirmed_obstruction_supplies_the_actual_refusal_cause_to_the_narrator() {
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"error":"combat_obstructed","resolution":"rejected"}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "shot",
+            "combat_action",
+            json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+        )),
+        agency_final(),
+    ]));
+    let events = agency_service(
+        provider.clone(),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        2,
+    )
+    .execute(command("blocked-shot-cause"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let requests = provider.requests.lock().unwrap();
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("a physical obstacle blocks the requested attack"));
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("препятствие перекрывает линию атаки"));
+    assert!(!requests[1]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+}
 #[tokio::test]
 async fn intention_verifier_accepts_only_complete_boolean_json_without_tool_or_terminal_errors() {
     use app_application::agent::intentions::{
@@ -1621,6 +1830,55 @@ async fn verifier_rejects_permission_without_a_candidate_and_omits_images_from_i
     );
     assert_eq!(value["player_message"], "Иду в архив");
     assert!(value["candidate"].is_null());
+}
+
+#[tokio::test]
+async fn completion_ledger_preserves_skill_success_and_failure_for_conditional_commands() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+        ResolvedPlayerIntention,
+    };
+    for success in [true, false] {
+        let pending = if success {
+            vec![]
+        } else {
+            vec!["перемещаюсь к выходу"]
+        };
+        let provider = Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta {
+                text: json!({"remaining_commands":pending}).to_string(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ]]));
+        let decision=LlmPlayerIntentionVerifier::new(provider.clone(),"fixture".into()).assess(PlayerIntentionCheck {
+            player_message:"Проверяю Скрытность; если проверка провалится, перемещаюсь к выходу".into(),candidate:None,conversation:vec![],
+            resolved:vec![ResolvedPlayerIntention {tool_call_id:"skill".into(),tool_name:"roll_dice".into(),args:json!({"dice":"1d20","check":{"skill":"stealth"}}),rejected:false,result:json!({"success":success,"total":if success {18} else {7},"dc":12,"skill":"stealth","rolls":[if success {14} else {3}],"modifier":4})}],
+            public_context:json!({"adventure":{"available_actions":[{"kind":"finish"}]},"authored_map":{"blocked":[1]},"targets":[]}),
+        }).await.unwrap();
+        assert!(!decision.allowed);
+        assert_eq!(decision.further_requested, !success);
+        let requests = provider.requests.lock().unwrap();
+        let ChatMessage::User { parts } = &requests[0].messages[0] else {
+            panic!("input missing")
+        };
+        let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+            panic!("text input required")
+        };
+        let input: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(
+            input["completed_attempts"][0]["check_result"]["success"],
+            success
+        );
+        assert_eq!(
+            input["completed_attempts"][0]["check_result"]["total"],
+            if success { 18 } else { 7 }
+        );
+        assert_eq!(input["completed_attempts"][0]["check_result"]["dc"], 12);
+        assert!(input["public_context"].is_null());
+        assert!(input["reference_labels"]["adventure"].is_null());
+    }
 }
 
 #[tokio::test]

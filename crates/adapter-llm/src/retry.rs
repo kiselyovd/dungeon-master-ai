@@ -70,20 +70,41 @@ impl RetryableProvider {
     pub fn with_policy(inner: Arc<dyn LlmProvider>, policy: ExponentialBuilder) -> Self {
         Self { inner, policy }
     }
+    async fn stream_with_schema(
+        &self,
+        req: ChatRequest,
+        schema: Option<serde_json::Value>,
+    ) -> Result<ChunkStream, LlmError> {
+        let inner = self.inner.clone();
+        let op = move || {
+            let inner = inner.clone();
+            let req = req.clone();
+            let schema = schema.clone();
+            async move {
+                match schema {
+                    Some(schema) => inner.stream_chat_json(req, schema).await,
+                    None => inner.stream_chat(req).await,
+                }
+            }
+        };
+        op.retry(self.policy)
+            .when(|e: &LlmError| is_retryable(e))
+            .await
+    }
 }
 
 #[async_trait]
 impl LlmProvider for RetryableProvider {
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
-        let inner = self.inner.clone();
-        let op = move || {
-            let inner = inner.clone();
-            let req = req.clone();
-            async move { inner.stream_chat(req).await }
-        };
-        op.retry(self.policy)
-            .when(|e: &LlmError| is_retryable(e))
-            .await
+        self.stream_with_schema(req, None).await
+    }
+
+    async fn stream_chat_json(
+        &self,
+        req: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        self.stream_with_schema(req, Some(schema)).await
     }
 
     fn name(&self) -> &'static str {

@@ -254,6 +254,7 @@ impl AgentTurnService {
             .tools
             .for_context(context.combat_active, context.adventure_active);
         restrict_to_narration(&mut tools, &mut system_prompt, player_intention_resolved);
+        append_rejection_brief(&mut system_prompt, &resolved_intentions);
         let mut pending_recovered = Vec::new();
         if let Some(saved) = &checkpoint {
             let completed = saved
@@ -422,10 +423,7 @@ impl AgentTurnService {
                 self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
                     .await?;
 
-                if controlled_turn
-                    && matches!(finish_reason, FinishReason::Stop)
-                    && !player_intention_resolved
-                {
+                if controlled_turn && matches!(finish_reason, FinishReason::Stop) {
                     let decision = self
                         .assess_player(
                             &request.player_message,
@@ -436,6 +434,17 @@ impl AgentTurnService {
                         )
                         .await?;
                     if decision.further_requested {
+                        player_intention_resolved = false;
+                        // A pre-execution forecast cannot truncate a compound
+                        // request. Restore the current canonical catalog when
+                        // the outcome ledger still has a requested action.
+                        tools = self
+                            .config
+                            .tools
+                            .for_context(context.combat_active, context.adventure_active);
+                        system_prompt =
+                            append_board(context.system_prompt.clone(), request.board.as_deref());
+                        append_rejection_brief(&mut system_prompt, &resolved_intentions);
                         system_prompt.push_str("\nThe current human's mechanical request is NOT resolved. Do not claim travel, combat, rescue, repair or completion through prose. Use the available canonical tool for the remaining requested step; ask a concise clarification if it cannot be determined. Do not add a different action.");
                         continue;
                     }
@@ -601,7 +610,9 @@ impl AgentTurnService {
                             if decision.allowed {
                                 permission = Some(decision);
                             } else {
-                                player_intention_resolved = !decision.further_requested;
+                                // Denying a proposal is not a recorded outcome of
+                                // the human's request. Recheck completion separately
+                                // against actual outcomes before publishing prose.
                                 interception = Some(super::tool_dispatch::ToolExecution {
                                     result: json!({"error":"player_intention_not_requested"}),
                                     is_error: true,
@@ -765,6 +776,7 @@ impl AgentTurnService {
                         &mut system_prompt,
                         player_intention_resolved,
                     );
+                    append_rejection_brief(&mut system_prompt, &resolved_intentions);
                 }
             }
 
@@ -793,6 +805,7 @@ impl AgentTurnService {
                     .tools
                     .for_context(context.combat_active, context.adventure_active);
                 restrict_to_narration(&mut tools, &mut system_prompt, player_intention_resolved);
+                append_rejection_brief(&mut system_prompt, &resolved_intentions);
             }
         }
 
@@ -952,7 +965,7 @@ fn error_code(error: &AgentTurnError) -> &'static str {
         AgentTurnError::Context(_) => "context",
         AgentTurnError::Provider => "provider",
         AgentTurnError::Persistence => "persistence",
-        AgentTurnError::ToolDispatch(_) => "tool_dispatch",
+        AgentTurnError::ToolDispatch(code) => code,
         AgentTurnError::Runtime(_) => "runtime",
         AgentTurnError::EventPublication(_) => "event_publication",
     }
@@ -1091,4 +1104,16 @@ fn legacy_world_mechanics(name: &str) -> bool {
         name,
         "apply_damage" | "apply_healing" | "cast_spell" | "update_token" | "remove_token"
     )
+}
+
+fn append_rejection_brief(
+    prompt: &mut String,
+    resolved: &[super::intentions::ResolvedPlayerIntention],
+) {
+    let Some(last) = resolved.last().filter(|result| result.rejected) else {
+        return;
+    };
+    if last.result["error"] == "combat_obstructed" {
+        prompt.push_str("\nCONFIRMED ENGINE REFUSAL: a physical obstacle blocks the requested attack. The attack did not occur. Do not describe a hit/miss roll or say there are no barriers; do not speculate about another cause. This refusal does not authorize moving, changing targets or ending the hero's turn. / Подтверждённый отказ движка: препятствие перекрывает линию атаки. Атака не выполнена; это не попадание и не промах. Объясни именно препятствие, не утверждай, что физических преград нет, и не придумывай другую причину. Следующее действие выбирает игрок.");
+    }
 }

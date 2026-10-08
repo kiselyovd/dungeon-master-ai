@@ -321,7 +321,7 @@ model/native/physical LAN acceptance are recorded separately, never inferred fro
 these fixtures. QA processes and ports31425/31809 are verified stopped.
 
 Next acceptance work, grounded in the failed runs:
-- [ ] Request provider-supported structured JSON for the separate checker using
+- [x] Request provider-supported structured JSON for the separate checker using
   the installed SDK; retain strict terminal/schema validation even when a provider
   ignores the format. Verify actual wire payload and model outputs. Preserve a
   safe static diagnostic code for verification failure without logging model text.
@@ -337,3 +337,29 @@ five exact repeats and the full suite pass without weakening production limits.
 Final independent staged-source review finds no new actionable defect. Original
 32 dirty-file hashes are preserved. This closes the local implementation check,
 not model semantic acceptance, native sessions, physical LAN or the overall goal.
+
+Structured-output checkpoint: production retry wrapper now forwards
+JSON Schema (RED actual-wire missing-format regression, then GREEN). Permission
+denial cannot consume a human request or publish phantom progress. Completion
+uses quoted remaining commands and finished-attempt ledger, with skill outcome
+metrics retained for conditional requests; no new command is authorized there.
+Focused26 workflow/9 wire/5 retry tests pass. A RED-to-GREEN regression now
+rechecks completion at Stop even after a false pre-execution forecast: pending
+compound actions restore the current catalog; premature prose is neither stored
+nor published. Independent staged-source review closed this fix.
+
+Actual compound move+inspect executes both choices, quay/revision5 (65.604s).
+Faulty future-action interpretation of an NPC motive interrupted defense start;
+same-request continuation completes42.064s at unchanged revision6 and unchanged
+combat. Refused bow shot also remains recoverable: ledger continuation completes
+27.461s at unchanged revision6 and unchanged combat. No unrequested EndTurn or
+new shot occurs. Narration stillFAIL: fabricated water wall/arrow flight despite
+engine refusal. No promotion; native/physical LAN and full semantic session remain
+required. QA processes and ports31425/31809/31810 verified stopped.
+
+Final structured-output checkpoint: consolidated full gates pass (876 Rust tests,
+1117 frontend tests, architecture/static checks and Clippy). Independent source
+review reports no actionable issue in this checkpoint; independent semantic
+review confirms the real narration failures remain. Original32 baseline hashes
+are unchanged. Passing gates do not establish native, physical LAN or model
+semantic session acceptance.

@@ -101,3 +101,60 @@ checker-probe-compact}.json, guarded-thinking/{solo-report,solo-final}.json,
 guarded-thinking/combat/report.json and guarded-thinking/compound/solo-report.json,
 plus build, model, backend, wire and focused-test logs. Isolated QA processes were
 stopped after these runs; installed weights and ordinary settings remain intact.
+
+## Structured permission and completion ledger
+
+The provider port now requests JSON Schema, both OpenAI-compatible adapters
+forward it, and RetryableProvider preserves it on each attempt. A wrapped-provider
+wire regression reproduced the missing format before the retry fix. Complete
+terminal metadata and application-side shape validation remain mandatory even
+when an endpoint ignores the preference.
+
+Permission and completion are separate questions. Denying a model proposal does
+not finish the human request. Completion reads finished attempts (performed or
+refused), asks for remaining positive commands quoted from the original message,
+and cannot authorize a new action. It omits availability menus and maps, retains
+reference labels/exit coordinates, skill-check success/total/DC and combat events
+for explicit conditional requests. Empty, invented, oversized or extra-field
+responses are rejected. These contracts improve guard reliability; they do not
+prove universal natural-language accuracy. Every controlled Stop rechecks the
+ledger even when the earlier permission forecast predicted no remaining action.
+A pending compound step restores the canonical tool catalog without persisting
+or publishing the premature reply (RED-to-GREEN workflow regression).
+
+Fresh real observations on hash-verified QA executables over 04f1a89 plus current
+uncommitted work, with inherited baseline preserved:
+
+| Scenario | Confirmed observation | Limit |
+| --- | --- | --- |
+| Move to quay AND inspect, no further travel | Both selected actions succeed in order, then one save; location quay, revision 5, 65.604 s | Narration invents tool marks on railings rather than the ward |
+| Start defense with an NPC escape motive | Start commits once; a faulty future-action decision loops until the 180 s client timeout | Original request is retained for continuation |
+| Same-request defense continuation | Complete reply in 42.064 s; revision stays 6, entire combat projection unchanged | Russian and location descriptions remain imperfect |
+| Shot at first water echo, explicitly no EndTurn | Correct target/weapon; engine refuses combat_obstructed; no turn advancement or resource change | Completion initially loops despite the finished refusal |
+| Same-request refused-shot continuation with ledger | Complete reply in 27.461 s; revision stays 6, entire combat projection unchanged | Semantic FAIL: arrow described as flying and a water wall invented |
+
+The obstruction reminder supplies the confirmed refusal cause after context
+refresh/recovery. It still did not make the latest prose faithful: the engine
+refused the action before a shot, and the map does not establish a water wall.
+Model promotion remains blocked by semantic acceptance, not by passing fixtures.
+
+Ledger diagnostics distinguish a finished refused shot from an explicitly
+requested movement fallback and a still-pending inspection. These direct model
+probes are narrower than full session acceptance. Paired skill success/failure
+tests verify payload preservation, not real-model accuracy for every conditional.
+
+Evidence: .artifacts/qwen9b/schema/{captures,verified,final,cue,ledger},
+resume-combat.json, resume-shot.json, ledger-list-probe.json, versioned executable
+hash proofs and focused/wire logs. Cold-start attempts before model readiness,
+the attempted overwrite of a still-mapped old executable, and a resume before
+reapplying QA settings are setup failures; they are excluded from semantic claims.
+Bootstrap deliberately uses a mock until settings are applied. Current QA uses
+versioned copies and verifies their hashes before launch. Backend/model/proxy
+processes and ports 31425, 31809 and 31810 were stopped and verified; ordinary
+settings and installed weights remain untouched.
+
+Checkpoint verification: 26 workflow, 9 provider-wire and 5 retry tests pass;
+final consolidated gates pass with 876 Rust and 1117 frontend tests, including
+architecture/static checks and Clippy. Independent staged-source review closed
+the checked implementation; independent semantic review confirmed the prose
+failures above. This is local verification, not native or physical LAN acceptance.

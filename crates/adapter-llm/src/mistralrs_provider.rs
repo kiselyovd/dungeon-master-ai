@@ -62,6 +62,15 @@ impl LlmProvider for MistralrsLocalProvider {
         self.inner.stream_chat(req).await
     }
 
+    async fn stream_chat_json(
+        &self,
+        mut req: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        req.model = "default".into();
+        self.inner.stream_chat_json(req, schema).await
+    }
+
     fn capabilities_for_model(&self, model_id: &str) -> Capabilities {
         let lc = model_id.to_ascii_lowercase();
         // Gemma 4 E-variants (the only Gemma we ship) are multimodal, emit a

@@ -280,7 +280,9 @@ async fn real_stream_terminal_metadata_cannot_turn_truncated_verifier_json_into_
             )
             .mount(&server)
             .await;
-        let provider = Arc::new(OpenAICompatProvider::new(server.uri(), "fixture".into()));
+        let provider = Arc::new(adapter_llm::retry::RetryableProvider::new(Arc::new(
+            OpenAICompatProvider::new(server.uri(), "fixture".into()),
+        )));
         let decision = LlmPlayerIntentionVerifier::new(provider, "dmai-qwen9b-eval".into())
             .assess(PlayerIntentionCheck {
                 player_message: "Move to quay".into(),
@@ -294,5 +296,201 @@ async fn real_stream_terminal_metadata_cannot_turn_truncated_verifier_json_into_
             })
             .await;
         assert_eq!(decision.is_ok(), valid, "finish reason {reason}");
+        let requests = server.received_requests().await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+        assert_eq!(body["response_format"]["type"], "json_schema");
+        let spec = &body["response_format"]["json_schema"];
+        assert_eq!(spec["name"], "player_intention");
+        assert_eq!(spec["strict"], true);
+        assert_eq!(spec["schema"]["additionalProperties"], false);
+        assert_eq!(spec["schema"]["properties"]["allowed"]["type"], "boolean");
+        assert_eq!(
+            spec["schema"]["properties"]["further_requested"]["type"],
+            "boolean"
+        );
+        assert!(body["tools"].is_null());
+    }
+}
+
+#[tokio::test]
+async fn no_candidate_schema_cannot_grant_permission_even_when_provider_ignores_it() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    use std::sync::Arc;
+    for (reply, valid, pending) in [
+        (serde_json::json!({"remaining_commands":[]}), true, false),
+        (
+            serde_json::json!({"remaining_commands":["Иду в архив"]}),
+            true,
+            true,
+        ),
+        (
+            serde_json::json!({"allowed":true,"further_requested":false}),
+            false,
+            false,
+        ),
+        (
+            serde_json::json!({"remaining_commands":["Атакую врага"]}),
+            false,
+            false,
+        ),
+        (serde_json::json!({"remaining_commands":[""]}), false, false),
+        (
+            serde_json::json!({"remaining_commands":vec!["Иду в архив";17]}),
+            false,
+            false,
+        ),
+    ] {
+        let server = MockServer::start().await;
+        let text = reply.to_string();
+        let content = serde_json::json!({"choices":[{"index":0,"delta":{"content":text},"finish_reason":null}]});
+        let finish = serde_json::json!({"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(format!(
+                        "data: {content}\n\ndata: {finish}\n\ndata: [DONE]\n\n"
+                    )),
+            )
+            .mount(&server)
+            .await;
+        let provider = Arc::new(OpenAICompatProvider::new(server.uri(), "fixture".into()));
+        let result = LlmPlayerIntentionVerifier::new(provider, "fixture-model".into())
+            .assess(PlayerIntentionCheck {
+                player_message: "Иду в архив".into(),
+                candidate: None,
+                resolved: vec![],
+                conversation: vec![],
+                public_context: serde_json::json!({}),
+            })
+            .await;
+        assert_eq!(result.is_ok(), valid, "{reply}");
+        if valid {
+            let decision = result.unwrap();
+            assert!(!decision.allowed);
+            assert_eq!(decision.further_requested, pending);
+        }
+        let requests = server.received_requests().await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+        assert_eq!(
+            body["response_format"]["json_schema"]["schema"]["properties"]["remaining_commands"]
+                ["items"]["type"],
+            "string"
+        );
+        let input: serde_json::Value = serde_json::from_str(
+            body["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|message| message["role"] == "user")
+                .unwrap()["content"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(input["public_context"].is_null());
+        assert!(input["completed_attempts"].is_array());
+    }
+}
+
+#[tokio::test]
+async fn local_provider_preserves_structured_format_and_its_default_model_alias() {
+    use adapter_llm::mistralrs_provider::MistralrsLocalProvider;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(sse_body()),
+        )
+        .mount(&server)
+        .await;
+    let provider = MistralrsLocalProvider::new(server.address().port(), "configured-model".into());
+    let schema = serde_json::json!({"type":"object","properties":{"ok":{"type":"boolean"}},"required":["ok"],"additionalProperties":false});
+    let mut stream = provider
+        .stream_chat_json(
+            ChatRequest {
+                messages: vec![ChatMessage::user_text("Reply as JSON")],
+                model: "caller-model".into(),
+                max_tokens: Some(128),
+                temperature: Some(0.0),
+                tools: vec![],
+                system_prompt: None,
+                reasoning: None,
+            },
+            schema.clone(),
+        )
+        .await
+        .unwrap();
+    while let Some(chunk) = stream.next().await {
+        chunk.unwrap();
+    }
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(body["model"], "default");
+    assert_eq!(body["response_format"]["json_schema"]["schema"], schema);
+}
+
+#[tokio::test]
+async fn structured_schema_survives_each_retry_of_a_tool_enabled_wire_request() {
+    use std::sync::Arc;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(429)
+                .set_body_json(serde_json::json!({"error":{"message":"fixture rate limit"}})),
+        )
+        .with_priority(1)
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices":[{"index":0,"message":{"role":"assistant","content":"{\"ok\":true}"},"finish_reason":"stop"}]
+        })))
+        .with_priority(5)
+        .mount(&server)
+        .await;
+    let provider = adapter_llm::retry::RetryableProvider::with_policy(
+        Arc::new(OpenAICompatProvider::new(server.uri(), "fixture".into())),
+        backon::ExponentialBuilder::default()
+            .with_min_delay(std::time::Duration::from_millis(1))
+            .with_max_times(1),
+    );
+    let schema = serde_json::json!({"type":"object","properties":{"ok":{"type":"boolean"}},"required":["ok"],"additionalProperties":false});
+    let mut stream = provider
+        .stream_chat_json(
+            ChatRequest {
+                messages: vec![ChatMessage::user_text("Return JSON")],
+                model: "fixture-model".into(),
+                max_tokens: Some(128),
+                temperature: Some(0.0),
+                tools: vec![adapter_llm::Tool {
+                    name: "query_rules".into(),
+                    description: "fixture".into(),
+                    parameters: serde_json::json!({"type":"object","properties":{}}),
+                }],
+                system_prompt: None,
+                reasoning: None,
+            },
+            schema.clone(),
+        )
+        .await
+        .unwrap();
+    while let Some(chunk) = stream.next().await {
+        chunk.unwrap();
+    }
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    for request in requests {
+        let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(body["response_format"]["json_schema"]["schema"], schema);
+        assert_eq!(body["response_format"]["json_schema"]["strict"], true);
     }
 }

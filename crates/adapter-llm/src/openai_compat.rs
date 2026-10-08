@@ -90,14 +90,18 @@ impl OpenAICompatProvider {
         }
         options
     }
-}
-
-#[async_trait]
-impl LlmProvider for OpenAICompatProvider {
-    async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
+    async fn stream_with_schema(
+        &self,
+        req: ChatRequest,
+        schema: Option<serde_json::Value>,
+    ) -> Result<ChunkStream, LlmError> {
         let tool_round = !req.tools.is_empty();
         let model = req.model.clone();
-        let options = Self::build_options(&req);
+        let mut options = Self::build_options(&req);
+        if let Some(schema) = schema {
+            options = options
+                .with_response_format(genai::chat::JsonSpec::new("player_intention", schema));
+        }
         let mut g_req = convert_messages(req.messages, req.tools);
         if let Some(system) = req.system_prompt {
             g_req = g_req.with_system(system);
@@ -128,6 +132,21 @@ impl LlmProvider for OpenAICompatProvider {
         tokio::spawn(pump_genai_stream(g_stream, tx));
 
         Ok(ReceiverStream::new(rx).boxed())
+    }
+}
+
+#[async_trait]
+impl LlmProvider for OpenAICompatProvider {
+    async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
+        self.stream_with_schema(req, None).await
+    }
+
+    async fn stream_chat_json(
+        &self,
+        req: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        self.stream_with_schema(req, Some(schema)).await
     }
 
     fn name(&self) -> &'static str {
