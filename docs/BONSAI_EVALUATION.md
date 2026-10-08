@@ -94,3 +94,49 @@ issues; both repairs were confirmed. Additional waiting for a complete tool-enab
 response is the tradeoff; it may include final narration because the catalog is
 still offered for that round. No real Bonsai semantic/native acceptance claimed
 by this transport checkpoint. See .artifacts/tool-round logs and provider tests.
+
+
+Real-model continuation, 2026-10-08 (no default-provider promotion):
+Three fresh QA-route/ending observations used the installed PTQ1_0 weights and
+pinned Prism runtime, context8192, one slot, medium reasoning/budget1024 and
+application temperature1. The current complete-response transport completed the
+first ten-request route in80.656seconds with zero tool errors, one chosen adventure
+action per step, rescued Tikhon, closed_crossing and exactly10gold. Independent
+review rejected narration: premature discoveries, rescued Tikhon put back upstairs,
+raw identifiers/poor translations and a stray closing think tag.
+
+Repairs: the DM context now carries fact-dependent located/rescued/reward/discovery
+and ending briefs, scene-scoped knowledge, EN/RU names, and human-agency guidance.
+UI labels no longer reveal the old echo's name before discovery. Embedded/stray
+thinking markers are separated before legacy-tool parsing, so hidden thought text
+cannot synthesize a tool call. Empty final public replies fail; tool-bearing prose
+is suppressed until the subsequent confirmed final response. Safe provider error
+categories are logged without response bodies, credentials or thought text.
+
+The next brief route improved rescue/discovery/markup, but its final request was
+interrupted after finish and quick_save committed. No agent_done was delivered;
+errors=[] in the raw report was NOT success. The runtime generated2048tokens in
+that last request, consistent with an output-cap interruption, but its exact
+finish metadata was not captured then. A strict same-request resume on a rebuilt
+backend completed in6.196seconds with revision13, ten actions, one save and one
+10gold reward unchanged. That resume's prose incorrectly reopened the ferry;
+its semantic result remains FAIL despite mechanically safe recovery.
+
+An explicit closed-crossing brief repaired the main ending distinction. A final
+fresh ten-request route completed all replies in102.132seconds with zero tool
+errors, one save, exactly10gold, Tikhon home, closed trading route and damaged ward.
+Independent review still rejects stable Russian narration: mixed Chinese/Latin
+characters, distorted names, an unsupported no-detour assertion and wet-path
+inconsistency. Its duplicate epilogue/technical save prose prompted the final
+preamble suppression, verified on wire tests but not re-run through real inference
+yet. Do not erase earlier failures or call this full native/model acceptance.
+
+Evidence: .artifacts/bonsai/current/{solo-report,solo-final}.json;
+.artifacts/bonsai/brief/{solo-report,resume-proof,epilogue-proof}.json;
+.artifacts/bonsai/finalbrief/{solo-report,solo-final}.json and model/backend logs.
+Final validation:474application/provider/server tests, nine focused wire cases,
+Clippy, production build pass. Production Playwright:1passed/3existing skipped;
+this is not a completed full-session browser gate. Independent source/semantic
+review and explicit runtime/proxy/process cleanup confirmed. Installed weights
+and original project32-file baseline preserved. Russian model quality, complete
+peaceful/defensive native sessions and physical LAN/co-op acceptance remain open.

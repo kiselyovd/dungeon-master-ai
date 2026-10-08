@@ -288,7 +288,10 @@ impl AgentTurnService {
                 let mut chunks = tokio::select! {
                     biased;
                     _ = self.cancellation.cancelled() => return Err(AgentTurnError::Cancelled),
-                    chunks = self.provider.stream_chat(chat_request) => chunks.map_err(|_| AgentTurnError::Provider)?,
+                    chunks = self.provider.stream_chat(chat_request) => chunks.map_err(|error| {
+                        tracing::warn!(error_code = safe_provider_error_code(&error), "LLM response unavailable");
+                        AgentTurnError::Provider
+                    })?,
                 };
                 let mut provider_done = false;
                 let mut round_text = String::new();
@@ -685,4 +688,24 @@ fn append_board(mut system_prompt: String, board: Option<&str>) -> String {
         system_prompt.push_str(board);
     }
     system_prompt
+}
+
+/// Diagnostic categories must never contain provider bodies, credentials or thought text.
+fn safe_provider_error_code(error: &crate::ports::llm::LlmError) -> &'static str {
+    use crate::ports::llm::LlmError;
+    match error {
+        LlmError::RateLimit => "rate_limit",
+        LlmError::AuthFailure => "authentication",
+        LlmError::Network(_) => "network",
+        LlmError::Provider(_) => "provider",
+        LlmError::InvalidResponse(code) => match code.as_str() {
+            "provider_output_truncated" => "provider_output_truncated",
+            "provider_output_filtered" => "provider_output_filtered",
+            "provider_public_response_missing" => "provider_public_response_missing",
+            "provider_finish_reason_unknown" => "provider_finish_reason_unknown",
+            "provider_tool_calls_missing" => "provider_tool_calls_missing",
+            "provider_tool_identity_invalid" => "provider_tool_identity_invalid",
+            _ => "invalid_response",
+        },
+    }
 }

@@ -161,7 +161,7 @@ fn complete_round_chunks(response: genai::chat::ChatResponse) -> Result<Vec<Chat
     use crate::provider::FinishReason;
     use genai::chat::StopReason;
     let native_calls = response.tool_calls();
-    let all_text = response.texts().join("");
+    let (all_text, embedded_thinking) = separate_embedded_thinking(&response.texts().join(""));
     let legacy_calls = if native_calls.is_empty() {
         crate::genai_common::completed_text_tool_calls(&all_text)
     } else {
@@ -221,21 +221,27 @@ fn complete_round_chunks(response: genai::chat::ChatResponse) -> Result<Vec<Chat
             });
         }
     }
-    if !calls.is_empty() && all_text.contains("<|tool_call>call:") {
-        let prefix = all_text.split("<|tool_call>call:").next().unwrap_or("");
-        if !prefix.is_empty() {
-            chunks.push(ChatChunk::TextDelta {
-                text: prefix.to_owned(),
-            });
-        }
+    if !embedded_thinking.is_empty() {
+        chunks.push(ChatChunk::ThinkingDelta {
+            text: embedded_thinking,
+        });
+    }
+    let public_text = if !calls.is_empty() && all_text.contains("<|tool_call>call:") {
+        all_text.split("<|tool_call>call:").next().unwrap_or("")
     } else {
-        for text in response.texts() {
-            if !text.is_empty() {
-                chunks.push(ChatChunk::TextDelta {
-                    text: text.to_owned(),
-                });
-            }
-        }
+        &all_text
+    };
+    if finish == FinishReason::Stop && public_text.trim().is_empty() {
+        return Err(LlmError::InvalidResponse(
+            "provider_public_response_missing".into(),
+        ));
+    }
+    // Tool-bearing prose is a plan, not an engine-confirmed outcome. Only the
+    // subsequent final response may narrate results to the player.
+    if finish == FinishReason::Stop && !public_text.is_empty() {
+        chunks.push(ChatChunk::TextDelta {
+            text: public_text.to_owned(),
+        });
     }
     // Only a validated complete batch reaches this delivery boundary.
     if finish == FinishReason::ToolUse {
@@ -255,6 +261,24 @@ fn complete_round_chunks(response: genai::chat::ChatResponse) -> Result<Vec<Chat
     }
     chunks.push(ChatChunk::Done { reason: finish });
     Ok(chunks)
+}
+
+/// Some compatible runtimes emit a duplicated closing tag in content after a
+/// reasoning-budget cut. Treat the reserved prefix as thinking, never narration.
+fn separate_embedded_thinking(text: &str) -> (String, String) {
+    if let Some(close) = text.rfind("</think>") {
+        let hidden = text[..close].replace("<think>", "");
+        let remainder = &text[close + "</think>".len()..];
+        let (visible, extra) = separate_embedded_thinking(remainder);
+        return (visible, hidden + &extra);
+    }
+    if let Some(open) = text.find("<think>") {
+        return (
+            text[..open].to_owned(),
+            text[open + "<think>".len()..].to_owned(),
+        );
+    }
+    (text.to_owned(), String::new())
 }
 
 #[cfg(test)]

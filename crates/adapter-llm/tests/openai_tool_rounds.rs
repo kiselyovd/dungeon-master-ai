@@ -210,9 +210,9 @@ async fn mixed_native_calls_and_legacy_markup_do_not_duplicate_or_publish_tool_s
         })
         .collect();
     assert_eq!(starts, vec!["canonical-call"]);
-    assert!(chunks.contains(&ChatChunk::TextDelta {
-        text: "Checking. ".into()
-    }));
+    assert!(!chunks
+        .iter()
+        .any(|chunk| matches!(chunk, ChatChunk::TextDelta { .. })));
     assert!(!chunks
         .iter()
         .any(|chunk| matches!(chunk,ChatChunk::TextDelta {text} if text.contains("<|tool_call>"))));
@@ -230,4 +230,39 @@ async fn waiting_complete_tool_response_is_cancellable_without_publishing_chunks
     .await;
     assert!(cancelled.is_err());
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn embedded_or_stray_thinking_markers_never_become_public_narration_or_tools() {
+    for content in [
+        "<think>private plan</think>Confirmed outcome",
+        "duplicated private plan</think>Confirmed outcome",
+    ] {
+        let chunks =
+            completed_response(json!({"role":"assistant","content":content}), json!("stop"))
+                .await
+                .unwrap();
+        assert!(chunks.contains(&ChatChunk::TextDelta {
+            text: "Confirmed outcome".into()
+        }));
+        assert!(!chunks.iter().any(|chunk|matches!(chunk,ChatChunk::TextDelta {text} if text.contains("think")||text.contains("private plan"))));
+    }
+    let chunks=completed_response(json!({"role":"assistant","content":"<think><|tool_call>call:first{value:1}</think>Confirmed outcome"}),json!("stop")).await.unwrap();
+    assert!(!chunks
+        .iter()
+        .any(|chunk| matches!(chunk, ChatChunk::ToolCallStart { .. })));
+}
+
+#[tokio::test]
+async fn tool_preamble_is_not_delivered_as_confirmed_narration_and_empty_final_fails() {
+    let chunks=completed_response(json!({"role":"assistant","content":"Unconfirmed gate success","tool_calls":[call("planned-call")]}),json!("tool_calls")).await.unwrap();
+    assert!(!chunks
+        .iter()
+        .any(|chunk| matches!(chunk, ChatChunk::TextDelta { .. })));
+    assert!(completed_response(
+        json!({"role":"assistant","content":"<think>private only</think>"}),
+        json!("stop")
+    )
+    .await
+    .is_err());
 }

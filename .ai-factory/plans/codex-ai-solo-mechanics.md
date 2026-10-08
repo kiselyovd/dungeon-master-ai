@@ -182,3 +182,13 @@ Seven wire regressions and full provider/server suites pass. Independent review
 closed incomplete-final-response and mixed-legacy-markup findings. This supersedes
 pending reqwest proposal; no dependency approval needed for the implemented path.
 Real Bonsai/tool/narration session and native acceptance remain next.
+
+Real Bonsai continuation,2026-10-08: installedmodel10-step route mechanically
+completed with zeroerrors, correcteffects/reward, but independent semanticreview
+failed discovery/role/localization/ending. Fact-dependent context and reasoning/
+preamble transport fixes added. Real interrupted finish+save resumed same request
+without repeatedeffects (revision13/one save/10gold); prosefail preserved. Latest
+fresh ten-step route102.132s completed; Russianlanguage/unsupporteddetails gate
+stillFAIL.474Rust tests/nine wirecases/Clippy/build pass; browser1pass3skips.
+Do notpromote Bonsai ormark model/native/fullsession work complete. Runtime and
+QAprocesses cleaned; see BONSAI_EVALUATION.md for provenance and openlimitations.
