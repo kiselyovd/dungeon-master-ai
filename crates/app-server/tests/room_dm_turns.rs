@@ -170,6 +170,7 @@ fn config() -> AgentTurnConfig {
             combat: app_server::agent::tools::tools_for_phase(available, true),
         },
         player_verifier: None,
+        narration_verifier: None,
     }
 }
 #[derive(Default)]
@@ -237,6 +238,76 @@ async fn operation(ports: &RoomAgentPorts, text: &str) -> AgentOperation {
         request: command.request,
         model: Some("fixture".into()),
     }
+}
+
+#[derive(Debug, Default)]
+struct ResumeNarrationChecker {
+    models: std::sync::Mutex<Vec<String>>,
+}
+#[async_trait::async_trait]
+impl app_application::agent::narration::NarrationVerifier for ResumeNarrationChecker {
+    async fn assess(
+        &self,
+        check: app_application::agent::narration::NarrationCheck,
+    ) -> Result<
+        app_application::agent::narration::NarrationVerdict,
+        app_application::agent::narration::NarrationError,
+    > {
+        let mut models = self.models.lock().unwrap();
+        models.push(check.model);
+        if models.len() == 1 {
+            return Err(app_application::agent::narration::NarrationError);
+        }
+        Ok(app_application::agent::narration::NarrationVerdict { violations: vec![] })
+    }
+}
+#[tokio::test]
+async fn room_narration_resume_uses_saved_model_and_withholds_unchecked_draft() {
+    let f = fixture().await;
+    let turn = Uuid::new_v4();
+    let ports = f.ports(&f.guest, turn).await;
+    let owner = Uuid::new_v4();
+    let lane = Arc::new(Mutex::new(()));
+    let provider = Arc::new(Provider::default());
+    let checker = Arc::new(ResumeNarrationChecker::default());
+    let mut first = config();
+    first.model = "saved-A".into();
+    first.narration_verifier = Some(checker.clone());
+    let events = collect(
+        RoomDmRunner::new(ports.clone(), provider.clone(), first, lane.clone(), owner)
+            .execute("Осматриваюсь".into(), false)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            AgentEvent::TextDelta { .. } | AgentEvent::AgentDone { .. }
+        )),
+        "{events:?}"
+    );
+    let status: String = sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+        .bind(turn.to_string())
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert_eq!(status, "interrupted");
+    let mut changed = config();
+    changed.model = "current-B".into();
+    changed.narration_verifier = Some(checker.clone());
+    let resumed = collect(
+        RoomDmRunner::new(ports, provider, changed, lane, owner)
+            .execute("Осматриваюсь".into(), true)
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(
+        matches!(resumed.last(), Some(AgentEvent::AgentDone { .. })),
+        "{resumed:?}"
+    );
+    assert_eq!(*checker.models.lock().unwrap(), vec!["saved-A", "saved-A"]);
 }
 #[tokio::test]
 async fn completed_turn_replays_only_for_its_owner_without_model_or_message_duplication() {

@@ -158,3 +158,55 @@ final consolidated gates pass with 876 Rust and 1117 frontend tests, including
 architecture/static checks and Clippy. Independent staged-source review closed
 the checked implementation; independent semantic review confirmed the prose
 failures above. This is local verification, not native or physical LAN acceptance.
+
+Narration-check prototype: the installed Qwen classified four supplied public
+fact/draft pairs correctly (actual failed shot/quay text rejected; paired faithful
+rewrites accepted). It recognized invented_mechanism for the water wall, and
+clue_mismatch plus required_discovery_omitted for the quay. Diagnostic request
+latencies were 17.761, 16.961, 20.677 and 20.869 seconds. Evidence lives in
+.artifacts/qwen9b/schema/narration-probe.json. This is not wired into publication;
+paired examples and manually supplied evidence do not prove session acceptance.
+
+## Narration publication gate (integration verification in progress)
+
+The application now buffers the final story until a separate strict fact check
+accepts it. It can repair prose once with no tools, then checks again. Failed or
+incomplete checks interrupt without storing/publishing the bad draft; confirmed
+attempts survive continuation. Checks use public scene/outcome evidence, not the
+private DM prompt or whole tool-result history. Known discovered Bell facts and
+call-scoped movement/weapon/spell obstruction facts constrain the story. The
+effective saved model is used on room-resume even after changing settings.
+
+Focused 30 workflow, canonical-public-fact and 40 room-turn regressions pass;
+independent source review closed the movement-refusal and stale-model findings.
+Real model compound/refused-shot probes and consolidated gates are running on
+a hash-verified executable; fixture success is not semantic session acceptance.
+
+Integrated observations on executable f57395810b37 over003077f plus the
+narration-gate source:
+
+- Blocked longbow shot: AgentDone128.584s, correct target/refusal, full combat
+  projection unchanged (revision6, arrows20, HP/positions/action unchanged), no
+  EndTurn. Story says the arrow never left the bow and invents no water wall.
+  Independent semantic PASS for this scenario; two closing questions and latency
+  remain limitations. The shared host also ran consolidated gates during this probe.
+- Compound move+inspect: both effects once, quay/revision4, but no final text or
+  AgentDone at160.662s. Narration rejected; correction did not finish. Same-request
+  resume preserves the entire adventure, replays the two recorded actions and
+  adds one quicksave (revision4 to5); it also publishes no bad text.
+- Captured correction ends with finish_reason=length and continued reasoning in
+  content. Direct reasoning_effort=none is ineffective on this installed server;
+  an isolated chat_template_kwargs enable_thinking=false probe stops in2.355s
+  without reasoning, but merely repeats the wrong draft. It does not prove a fix.
+
+Evidence: .artifacts/qwen9b/schema/narration/{build-proof.json,shot.json,
+compound/solo-report.json,resume-compound.json,captures,probe-repair.json,
+probe-repair-no-thinking.json}. Per-request template parameters were checked
+against the [llama.cpp server documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+and tested against the installed binary. No production reasoning preference or
+ordinary model setting was changed.
+
+Final local verification: 882 Rust and1117 frontend tests, architecture/static
+checks and Clippy pass. Independent source review closed both findings. These
+results establish a publication/recovery boundary, not full narration or native/
+physicalLAN/session acceptance. Original32 dirty-file hashes remain unchanged.

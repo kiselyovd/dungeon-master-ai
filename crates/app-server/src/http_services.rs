@@ -1177,7 +1177,13 @@ impl AgentHttpService for AppStateAgentHttpService {
         .with_gpu_swap(gpu_swap)
         .with_video_provider(video_provider);
         let orchestrator = if let Some(verifier) = player_verifier {
-            orchestrator.with_player_verifier(verifier)
+            orchestrator
+                .with_player_verifier(verifier)
+                .with_narration_verifier(Arc::new(
+                    app_application::agent::narration::LlmNarrationVerifier::new(
+                        self.state.provider(),
+                    ),
+                ))
         } else {
             orchestrator
         };
@@ -1728,6 +1734,14 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
                 tool_availability: config.tool_availability,
                 tools,
                 player_verifier,
+                narration_verifier: self.state.player_verification_enabled().then(|| {
+                    Arc::new(
+                        app_application::agent::narration::LlmNarrationVerifier::new(
+                            self.state.provider(),
+                        ),
+                    )
+                        as Arc<dyn app_application::agent::narration::NarrationVerifier>
+                }),
             },
             lane,
             self.state.process_id(),

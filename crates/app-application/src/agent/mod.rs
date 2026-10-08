@@ -2,6 +2,7 @@ pub mod commands;
 pub mod context;
 pub mod hero_intentions;
 pub mod intentions;
+pub mod narration;
 pub mod operations;
 pub mod tool_decoder;
 pub mod tool_dispatch;

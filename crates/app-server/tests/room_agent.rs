@@ -126,6 +126,7 @@ fn engine_with_sink(
             tool_availability: ToolAvailability::default(),
             tools: catalog,
             player_verifier: None,
+            narration_verifier: None,
         },
     ))
 }

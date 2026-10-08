@@ -69,6 +69,7 @@ pub struct AgentOrchestrator {
     video_provider: Option<Arc<dyn VideoProvider>>,
     gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
     player_verifier: Option<Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>>,
+    narration_verifier: Option<Arc<dyn app_application::agent::narration::NarrationVerifier>>,
 }
 
 impl AgentOrchestrator {
@@ -77,6 +78,13 @@ impl AgentOrchestrator {
         verifier: Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>,
     ) -> Self {
         self.player_verifier = Some(verifier);
+        self
+    }
+    pub fn with_narration_verifier(
+        mut self,
+        verifier: Arc<dyn app_application::agent::narration::NarrationVerifier>,
+    ) -> Self {
+        self.narration_verifier = Some(verifier);
         self
     }
     pub fn new(
@@ -95,6 +103,7 @@ impl AgentOrchestrator {
             video_provider: None,
             gpu_swap: None,
             player_verifier: None,
+            narration_verifier: None,
         }
     }
 
@@ -205,6 +214,7 @@ impl AgentOrchestrator {
                 tool_availability: self.config.tool_availability,
                 tools: tool_catalog,
                 player_verifier: self.player_verifier.clone(),
+                narration_verifier: self.narration_verifier.clone(),
             },
         ));
         let command = AgentTurnCommand {

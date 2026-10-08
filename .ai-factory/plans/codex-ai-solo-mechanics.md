@@ -363,3 +363,50 @@ review reports no actionable issue in this checkpoint; independent semantic
 review confirms the real narration failures remain. Original32 baseline hashes
 are unchanged. Passing gates do not establish native, physical LAN or model
 semantic session acceptance.
+
+## Next: verified narration publication
+
+- [x] Extract confirmed public narration evidence from the existing canon and
+  current attempt receipts; keep private DM knowledge outside the verifier.
+- [x] Add a separate structured narration-check port before final Assistant
+  persistence and TextDelta publication. Allow atmosphere/dialogue, reject
+  contradicted mechanics, invented investigative causes and omitted discoveries.
+- [x] Allow one prose-only correction with no tools, then recheck; on exhaustion
+  interrupt without publishing bad prose or repeating committed mechanics.
+- [x] Prove draft privacy, compound no-repeat and same-request recovery through
+  fixtures; wire both solo and room production paths.
+- [ ] Repeat actual Qwen compound/refused-shot sessions and independent semantic
+  review before promotion or full native/LAN acceptance.
+
+Read-only independent architecture review identified the existing buffered Stop
+publication point, canonical context and durable receipts as the insertion
+boundaries. An isolated real-Qwen diagnostic classified four supplied cases
+correctly: actual bad shot and actual bad quay rejected, paired faithful rewrites
+accepted. Evidence: .artifacts/qwen9b/schema/narration-probe.json. This is a small
+prototype using explicitly supplied public facts, not integrated production
+verification or evidence of universal narration accuracy.
+
+Narration publication implementation: strict known-fact verdict, one tool-free
+correction and recheck before final message/events. Discovered Bell facts share
+the existing ward canon; closed endings, rescue/reward and dry archive route
+provide public constraints. Whole tool results/private prompt/history are omitted.
+Obstruction facts distinguish movement, ranged/melee attacks and spells, with
+call-scoped IDs; the main refusal reminder uses the same classification.
+Checker receives the effective selected model per request, including room resume.
+30 workflow tests, public canon tests and 40 room-turn tests pass. Independent
+review closed both found P2s (move-as-shot, stale room-checker model). Final gates
+and real-model integrated narration observations are in progress.
+
+Final narration gate local collection: full consolidated gates pass (882 Rust,
+1117 frontend tests; architecture/static checks and Clippy). Hash-verified QA
+executable f57395810b37 covers this source over003077f. Actual blocked longbow
+shot completes128.584s with unchanged full combat projection/revision6, ammo20,
+no EndTurn or new effect. Independent semantic review passes this scenario only.
+Compound move+inspect both commit once at quay/revision4, but prose is withheld
+and correction ends incomplete (160.662s); same-request resume retains the entire adventure, adds one quicksave
+(revision4 to5), and also withholds its bad draft. Captured correction exhausts the token limit
+while reasoning continues in content. Direct QA-only no-thinking correction
+stops in2.355s but repeats the bad draft: it is not an accepted repair or a
+production change. Next: precise violation spans, sufficient public fact evidence
+and bounded correction runtime, then actual compound/rescue/ending acceptance.
+No model promotion; native/physicalLAN/full-game acceptance remains open.

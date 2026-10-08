@@ -1,5 +1,55 @@
-//! DM-only facts: never include this string in public state or player events.
+//! Shared discovered narration facts and separate private DM context.
 use app_domain::adventure::{AdventureState, Ending, Fact, Location};
+
+const EXAMINED_WARD: &str = "The examined ward bears fresh tool marks where the clapper was cut loose. The maintained upper path reaches the archive safely; a failed check never blocks every rescue route.";
+
+/// Discovered facts only. This must never include scene-scoped DM secrets.
+pub fn bell_public_narration_facts(
+    state: &AdventureState,
+    inspection_in_this_request: bool,
+) -> Vec<crate::agent::narration::NarrationFact> {
+    use crate::agent::narration::NarrationFact;
+    if state.package_id != app_domain::adventure::BELL_ADVENTURE_ID {
+        return Vec::new();
+    }
+    let mut facts = Vec::new();
+    let mut add = |id: &str, text: &str, required| {
+        facts.push(NarrationFact {
+            id: id.into(),
+            text: text.into(),
+            required,
+        });
+    };
+    if state.facts.contains(&Fact::WardDamaged) {
+        add("ward_inspection", EXAMINED_WARD, inspection_in_this_request);
+    }
+    if state.facts.contains(&Fact::TikhonRescued) {
+        add("tikhon_rescued", "Tikhon is safely at home with his adult daughter Mila in Veresk. He is not still waiting in the archive or on a boat.", false);
+    } else if state.facts.contains(&Fact::TikhonLocated) {
+        add(
+            "tikhon_located",
+            "Tikhon has been found alive in the upper chamber. He has not yet been escorted home.",
+            false,
+        );
+    }
+    if state.facts.contains(&Fact::RewardGranted) {
+        add("rescue_reward", "Exactly ten gold were already granted once for rescue. No additional reward is confirmed.", false);
+    }
+    if state.facts.contains(&Fact::RosterAvailable) || state.facts.contains(&Fact::EchoAcknowledged)
+    {
+        add("historic_echo", "Savely died forty years ago saving the last evacuation boat. He and the living ferryman Tikhon are distinct people. The memorial roll is a record, not a grove or genealogy.", false);
+    }
+    if state.location == Location::Archive {
+        add("archive_route", "The upper path and staircase are dry and provide a rescue route. The memorial roll and optional land ledger are separate records.", false);
+    }
+    match state.ending {
+        Some(Ending::ClosedCrossing) => add("ending", "The town is protected by the sealed lower sluice. The ferry route is closed. The ward remains damaged; sealing the gates did not banish or silence the echo.", true),
+        Some(Ending::RememberedRiver) => add("ending", "The ward has been restored and the ferry can reopen.", true),
+        Some(Ending::UnfinishedDebt) => add("ending", "No successful ending was achieved; unresolved rescue or river danger remains.", true),
+        None => {},
+    }
+    facts
+}
 
 pub fn bell_dm_context(state: &AdventureState) -> String {
     let rescued = state.facts.contains(&Fact::TikhonRescued);
@@ -47,7 +97,7 @@ pub fn bell_dm_context(state: &AdventureState) -> String {
     };
     let relevant = match state.location {
         Location::Town => "Mila is Tikhon's adult daughter; she knows his last ferry route, not the culprit. Agata saw porters with a wrapped metal object, but cannot identify it. Ten gold pieces are granted by the engine once for rescue; never narrate an additional reward.",
-        Location::Quay if state.facts.contains(&Fact::WardDamaged) => "The examined ward bears fresh tool marks where the clapper was cut loose. The maintained upper path reaches the archive safely; a failed check never blocks every rescue route.",
+        Location::Quay if state.facts.contains(&Fact::WardDamaged) => EXAMINED_WARD,
         Location::Quay => "Describe wet boards, the river and the maintained upper path to the archive. The ward has not yet been inspected; do not announce its cause before that discovery.",
         Location::Shrine => "Leon knows the ward and holds a working memorial roster copy; he does not know where the clapper is. Either this copy or the drowned original works. He explains the ritual without a compulsory roll.",
         Location::Warehouse => "Varden cut the clapper loose to sell its silver fitting and hid it here. He also illegally obtained the quay. He can return the clapper through negotiation or public intervention without confessing the separate land fraud. He wrongly believes the haunting can be bought off. Do not reveal either secret as already known unless supported by discovered facts/action outcomes.",
@@ -75,6 +125,37 @@ mod tests {
         assert!(context.contains("not yet been found"));
         assert!(context.contains("separate records"));
         assert!(!context.contains("sell its silver fitting"));
+    }
+    #[test]
+    fn public_narration_facts_include_only_discoveries_and_share_the_ward_canon() {
+        let mut state = AdventureState::new();
+        state.location = Location::Warehouse;
+        let unknown = serde_json::to_string(&bell_public_narration_facts(&state, false)).unwrap();
+        for secret in ["Varden", "Savely", "tool marks", "silver fitting"] {
+            assert!(!unknown.contains(secret));
+        }
+        state.location = Location::Quay;
+        state.facts.insert(Fact::WardDamaged);
+        let facts = bell_public_narration_facts(&state, true);
+        let ward = facts
+            .iter()
+            .find(|fact| fact.id == "ward_inspection")
+            .unwrap();
+        assert!(ward.required);
+        assert!(bell_dm_context(&state).contains(&ward.text));
+        assert!(
+            !bell_public_narration_facts(&state, false)
+                .iter()
+                .find(|fact| fact.id == "ward_inspection")
+                .unwrap()
+                .required
+        );
+        state.facts.insert(Fact::TikhonRescued);
+        assert!(bell_public_narration_facts(&state, false)
+            .iter()
+            .any(|fact| fact.id == "tikhon_rescued" && fact.text.contains("at home")));
+        state.package_id = "different-adventure".into();
+        assert!(bell_public_narration_facts(&state, true).is_empty());
     }
 }
 

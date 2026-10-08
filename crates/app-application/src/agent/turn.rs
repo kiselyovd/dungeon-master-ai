@@ -36,6 +36,7 @@ pub struct AgentTurnConfig {
     pub tool_availability: ToolAvailability,
     pub tools: AgentToolCatalog,
     pub player_verifier: Option<Arc<dyn super::intentions::PlayerIntentionVerifier>>,
+    pub narration_verifier: Option<Arc<dyn super::narration::NarrationVerifier>>,
 }
 
 #[derive(Debug, Clone)]
@@ -347,7 +348,7 @@ impl AgentTurnService {
                         }
                         ChatChunk::TextDelta { text } => {
                             round_text.push_str(&text);
-                            if !controlled_turn {
+                            if !controlled_turn && self.config.narration_verifier.is_none() {
                                 self.push_delta(
                                     request.session_id,
                                     &mut sequence,
@@ -450,6 +451,18 @@ impl AgentTurnService {
                     }
                     player_intention_resolved = true;
                 }
+                if matches!(finish_reason, FinishReason::Stop)
+                    && self.config.narration_verifier.is_some()
+                {
+                    round_text = self
+                        .verify_narration(
+                            &request.player_message,
+                            round_text,
+                            &context.public_intention_context,
+                            &resolved_intentions,
+                        )
+                        .await?;
+                }
                 let assistant_message = if tool_calls.is_empty() {
                     (!round_text.trim().is_empty()).then(|| ChatMessage::Assistant {
                         content: round_text.clone(),
@@ -467,7 +480,9 @@ impl AgentTurnService {
                         .map_err(|_| AgentTurnError::Persistence)?;
                     messages.push(message);
                 }
-                if controlled_turn && matches!(finish_reason, FinishReason::Stop) {
+                if (controlled_turn || self.config.narration_verifier.is_some())
+                    && matches!(finish_reason, FinishReason::Stop)
+                {
                     self.emit(
                         request.session_id,
                         &mut sequence,
@@ -831,6 +846,58 @@ impl AgentTurnService {
         Ok(())
     }
 
+    async fn verify_narration(
+        &self,
+        player_message: &str,
+        draft: String,
+        public_context: &Value,
+        resolved: &[super::intentions::ResolvedPlayerIntention],
+    ) -> Result<String, AgentTurnError> {
+        use super::narration::{complete_text, narration_evidence, repair_request, NarrationCheck};
+        let verifier = self
+            .config
+            .narration_verifier
+            .as_ref()
+            .ok_or(AgentTurnError::Runtime("narration_verifier_missing"))?;
+        let mut check = NarrationCheck {
+            model: self.config.model.clone(),
+            player_message: player_message.into(),
+            draft,
+            evidence: narration_evidence(public_context, resolved),
+        };
+        for attempt in 0..=1 {
+            let verdict = tokio::select! {
+                biased;
+                _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
+                verdict=verifier.assess(check.clone())=>verdict.map_err(|_|AgentTurnError::Runtime("narration_verification_unavailable"))?,
+            };
+            if verdict.violations.is_empty() {
+                return Ok(check.draft);
+            }
+            tracing::warn!(
+                error_code = "narration_unfaithful",
+                violations = verdict.violations.len(),
+                attempt,
+                "DM narration withheld"
+            );
+            if attempt == 1 {
+                return Err(AgentTurnError::Runtime("narration_unfaithful"));
+            }
+            let request = repair_request(&self.config.model, &check, &verdict);
+            let stream = tokio::select! {
+                biased;
+                _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
+                stream=self.provider.stream_chat(request)=>stream.map_err(|_|AgentTurnError::Provider)?,
+            };
+            check.draft = tokio::select! {
+                biased;
+                _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
+                text=complete_text(stream,16384)=>text.map_err(|_|AgentTurnError::Runtime("narration_repair_incomplete"))?,
+            };
+        }
+        Err(AgentTurnError::Runtime("narration_unfaithful"))
+    }
+
     async fn assess_player(
         &self,
         player_message: &str,
@@ -1113,7 +1180,9 @@ fn append_rejection_brief(
     let Some(last) = resolved.last().filter(|result| result.rejected) else {
         return;
     };
-    if last.result["error"] == "combat_obstructed" {
-        prompt.push_str("\nCONFIRMED ENGINE REFUSAL: a physical obstacle blocks the requested attack. The attack did not occur. Do not describe a hit/miss roll or say there are no barriers; do not speculate about another cause. This refusal does not authorize moving, changing targets or ending the hero's turn. / Подтверждённый отказ движка: препятствие перекрывает линию атаки. Атака не выполнена; это не попадание и не промах. Объясни именно препятствие, не утверждай, что физических преград нет, и не придумывай другую причину. Следующее действие выбирает игрок.");
+    if let Some(fact) = super::narration::obstruction_fact(last) {
+        prompt.push_str("\nCONFIRMED ENGINE REFUSAL: ");
+        prompt.push_str(&fact.text);
+        prompt.push_str(" This refusal does not authorize a replacement action. The player chooses what to do next.");
     }
 }
