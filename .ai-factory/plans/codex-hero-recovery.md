@@ -257,3 +257,19 @@ These prove frontend behavior and actual Rust wire shapes, not a native solo bat
 or model narration. The next acceptance must drive the real Tauri/server solo path
 from combat to recovery/rest without snapshot rollback. Full model, session UX and
 physical LAN requirements remain open; no publication or goal-completion claim.
+
+
+## Actual native solo continuation
+
+Fresh QA Tauri profile and real UI wizard create Daren (HP11). Deliberate pre-fight
+injuryHP1 and one generic NPC encounter lead to actual damageHP0, then native owned
+saves12/10, stabilization, confirmedWaitHP1 and LongRestHP11. Revisions5-9 and clock
+12->18->24->7224->36024 match SQLite receipts. No snapshot/restore exists in this
+campaign and no HP edit follows combat start. Cold restart preserves identity,
+health and cooldown. Independent read-only review confirms bounded recovery evidence
+and final process/listener cleanup. See SOLO_RECOVERY_ACCEPTANCE.md.
+
+Native run also reproduced missing provider startup replay (manual same-settings
+Save restores DM transport), unarmored AC despite ChainMail, and stale ended VTT
+HP0/skull after healing. These must be repaired next; the native recovery checkpoint
+does not close broad solo/co-op playability, real-model quality or physical LAN.
