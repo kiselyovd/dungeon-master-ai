@@ -2247,6 +2247,23 @@
     ],
     "armor": [
       {
+        "id": "padded-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.padded-armor",
+        "name_en": "Padded Armor",
+        "name_ru": "Стёганый доспех",
+        "category": "light",
+        "cost": {
+          "gp": 5
+        },
+        "ac_base": 11,
+        "stealth_disadvantage": true,
+        "weight_lb": 8,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
         "id": "leather-armor",
         "ruleset_id": "srd-5.2.1",
         "name_key": "catalog.equipment.leather-armor",
@@ -2257,9 +2274,10 @@
           "gp": 10
         },
         "ac_base": 11,
+        "stealth_disadvantage": false,
         "weight_lb": 10,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2270,12 +2288,31 @@
         "name_ru": "Клёпаный кожаный доспех",
         "category": "light",
         "cost": {
+          "gp": 45
+        },
+        "ac_base": 12,
+        "stealth_disadvantage": false,
+        "weight_lb": 13,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "hide-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.hide-armor",
+        "name_en": "Hide Armor",
+        "name_ru": "Шкурный доспех",
+        "category": "medium",
+        "cost": {
           "gp": 10
         },
         "ac_base": 12,
-        "weight_lb": 13,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
+        "weight_lb": 12,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2286,14 +2323,87 @@
         "name_ru": "Кольчужная рубаха",
         "category": "medium",
         "cost": {
-          "gp": 10
+          "gp": 50
         },
         "ac_base": 13,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
         "weight_lb": 20,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
-        "srd_section": "Equipment / Armor",
-        "ac_dex_bonus_cap": 2
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "scale-mail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.scale-mail",
+        "name_en": "Scale Mail",
+        "name_ru": "Чешуйчатый доспех",
+        "category": "medium",
+        "cost": {
+          "gp": 50
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": true,
+        "weight_lb": 45,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "breastplate",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.breastplate",
+        "name_en": "Breastplate",
+        "name_ru": "Кираса",
+        "category": "medium",
+        "cost": {
+          "gp": 400
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
+        "weight_lb": 20,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "half-plate-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.half-plate-armor",
+        "name_en": "Half Plate Armor",
+        "name_ru": "Полулаты",
+        "category": "medium",
+        "cost": {
+          "gp": 750
+        },
+        "ac_base": 15,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": true,
+        "weight_lb": 40,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "ring-mail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.ring-mail",
+        "name_en": "Ring Mail",
+        "name_ru": "Колечный доспех",
+        "category": "heavy",
+        "cost": {
+          "gp": 30
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "weight_lb": 40,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
       },
       {
         "id": "chain-mail",
@@ -2303,15 +2413,54 @@
         "name_ru": "Кольчуга",
         "category": "heavy",
         "cost": {
-          "gp": 10
+          "gp": 75
         },
         "ac_base": 16,
-        "weight_lb": 55,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
-        "srd_section": "Equipment / Armor",
         "ac_dex_bonus_cap": 0,
-        "str_req": 13
+        "stealth_disadvantage": true,
+        "str_req": 13,
+        "weight_lb": 55,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "splint-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.splint-armor",
+        "name_en": "Splint Armor",
+        "name_ru": "Наборный доспех",
+        "category": "heavy",
+        "cost": {
+          "gp": 200
+        },
+        "ac_base": 17,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "str_req": 15,
+        "weight_lb": 60,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "plate-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.plate-armor",
+        "name_en": "Plate Armor",
+        "name_ru": "Латы",
+        "category": "heavy",
+        "cost": {
+          "gp": 1500
+        },
+        "ac_base": 18,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "str_req": 15,
+        "weight_lb": 65,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
       },
       {
         "id": "shield",
@@ -2324,9 +2473,10 @@
           "gp": 10
         },
         "ac_base": 2,
+        "stealth_disadvantage": false,
         "weight_lb": 6,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       }
     ],

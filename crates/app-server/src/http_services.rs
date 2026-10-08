@@ -331,7 +331,11 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
         } => HttpServiceError::NotFound,
         app_application::campaigns::CampaignError::Persistence {
             code:
-                code @ ("character_invalid"
+                code @ ("hero_defense_invalid"
+                | "hero_armor_unknown"
+                | "hero_armor_unavailable"
+                | "hero_shield_unavailable"
+                | "character_invalid"
                 | "character_identity_mismatch"
                 | "character_session_mismatch"
                 | "character_causation_mismatch"

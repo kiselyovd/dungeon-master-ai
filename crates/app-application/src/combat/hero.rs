@@ -10,11 +10,14 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
     if character_id.is_nil() || !valid_character_document(sheet) {
         return Err("combat_hero_invalid");
     }
+    let mut normalized = sheet.clone();
+    crate::defense::normalize_for_read(&mut normalized)?;
+    let sheet = &normalized;
     let speed = match sheet.get("speedFt") {
         None => 30,
         Some(value) => value
             .as_i64()
-            .filter(|speed| (1..=120).contains(speed))
+            .filter(|speed| (0..=120).contains(speed))
             .ok_or("combat_hero_speed_invalid")? as i32,
     };
     let mut actor = Combatant::new(
@@ -308,6 +311,11 @@ fn loadout_from_sheet(
                     .min(*quantity);
             }
         }
+    }
+    if let Some(raw) = sheet.get("defense") {
+        let choice: app_domain::combat::defense::DefenseChoice =
+            serde_json::from_value(raw.clone()).map_err(|_| "hero_defense_invalid")?;
+        loadout.shield = choice.shield;
     }
     Ok(loadout)
 }

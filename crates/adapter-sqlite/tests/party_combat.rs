@@ -913,3 +913,30 @@ async fn damage_at_zero_clears_the_saved_recovery_timer_and_death_commits_atomic
     assert!(vitality.natural_recovery.is_none());
     assert_eq!(dead.characters[&id]["hp"], 0);
 }
+
+#[tokio::test]
+async fn legacy_guest_at_the_metadata_limit_remains_readable_after_armor_rules_update() {
+    use app_application::models::campaign_state::{
+        within_character_budget, MAX_CHARACTER_METADATA_BYTES,
+    };
+    let (store, party, _) = fixture().await;
+    let guest = party.roster.members[1].character_id;
+    let mut sheet = party.characters[&guest].clone();
+    sheet.as_object_mut().unwrap().remove("defense");
+    sheet["inventory"] = json!([{"id":"chain-shirt","name":"Chain Shirt","count":1}]);
+    sheet["backstory"] = json!("");
+    let used = serde_json::to_vec(&sheet).unwrap().len();
+    sheet["backstory"] = json!("x".repeat(MAX_CHARACTER_METADATA_BYTES - used));
+    assert!(within_character_budget(&sheet));
+    sqlx::query(
+        "UPDATE party_characters SET character_json=?1 WHERE campaign_id=?2 AND character_id=?3",
+    )
+    .bind(sheet.to_string())
+    .bind(party.campaign_id.0.to_string())
+    .bind(guest.to_string())
+    .execute(store.pool())
+    .await
+    .unwrap();
+    let loaded = store.party(party.campaign_id).await.unwrap().unwrap();
+    assert_eq!(loaded.characters[&guest], sheet);
+}

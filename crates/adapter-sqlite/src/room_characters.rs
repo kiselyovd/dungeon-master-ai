@@ -86,6 +86,10 @@ pub(crate) async fn submit(
         return Err(error("room_character_invalid"));
     }
     app_application::vitality::strip_client_state(&mut command.character);
+    app_application::defense::normalize(&mut command.character).map_err(error)?;
+    if !app_application::models::campaign_state::within_character_budget(&command.character) {
+        return Err(error("character_too_large"));
+    }
     command.character["characterId"] = serde_json::json!(command.character_id);
     let mut tx = store
         .pool

@@ -566,3 +566,49 @@ async fn initial_snapshot_fallback_cannot_import_client_vitality() {
     )
     .is_ok());
 }
+
+#[tokio::test]
+async fn normalized_armor_commit_is_derived_retry_safe_and_budget_checked_before_durable_write() {
+    use app_application::models::campaign_state::{
+        within_character_budget, MAX_CHARACTER_METADATA_BYTES,
+    };
+    let store = store().await;
+    let campaign = campaign(store.clone(), "Armor").await;
+    let id = Uuid::new_v4();
+    let mut character = hero("Armor hero");
+    character["inventory"] = json!([{"id":"chain-mail","name":"Chain Mail","count":1},{"id":"shield","name":"Shield","count":1}]);
+    character["defense"] = json!({"schema_version":1,"armor_id":"chain-mail","shield":true});
+    let command = CommitCampaignCharacter {
+        campaign_id: campaign.id,
+        session_id: campaign.last_session_id,
+        character_id: id,
+        expected_revision: campaign.revision,
+        causation_id: "armor".into(),
+        character,
+    };
+    let first = store.commit_character(command.clone()).await.unwrap();
+    let retry = store.commit_character(command).await.unwrap();
+    assert_eq!(first, retry);
+    assert_eq!(first.projection.character["ac"], 18);
+    let mut oversized = hero("Oversized");
+    oversized["characterId"] = json!(id);
+    oversized["inventory"] = json!([{"id":"chain-mail","name":"Chain Mail","count":1}]);
+    oversized["backstory"] = json!("");
+    let used = serde_json::to_vec(&oversized).unwrap().len();
+    oversized["backstory"] = json!("x".repeat(MAX_CHARACTER_METADATA_BYTES - used));
+    assert!(within_character_budget(&oversized));
+    let failed = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: id,
+            expected_revision: first.campaign.revision,
+            causation_id: "oversized-armor".into(),
+            character: oversized,
+        })
+        .await;
+    assert!(failed.is_err());
+    let after = store.load_current(campaign.id).await.unwrap();
+    assert_eq!(after.campaign.revision, first.campaign.revision);
+    assert_eq!(after.projection.character, first.projection.character);
+}

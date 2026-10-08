@@ -22,6 +22,11 @@ pub(crate) async fn persist_sheet(
     character: Uuid,
     sheet: Value,
 ) -> Result<(), RepositoryError> {
+    let mut sheet = sheet;
+    app_application::defense::normalize(&mut sheet).map_err(error)?;
+    if !app_application::models::campaign_state::within_character_budget(&sheet) {
+        return Err(error("character_too_large"));
+    }
     if !app_application::models::campaign_state::valid_character_document(&sheet)
         || !app_application::models::campaign_state::within_character_budget(&sheet)
     {
@@ -78,8 +83,9 @@ pub(crate) async fn load(
             .map_err(|_| error("party_identity_invalid"))?;
         let character = Uuid::parse_str(&row.get::<String, _>("character_id"))
             .map_err(|_| error("party_identity_invalid"))?;
-        let sheet: Value = serde_json::from_str(&row.get::<String, _>("character_json"))
+        let mut sheet: Value = serde_json::from_str(&row.get::<String, _>("character_json"))
             .map_err(|_| error("party_character_invalid"))?;
+        app_application::defense::normalize_for_read(&mut sheet).map_err(error)?;
         if !app_application::models::campaign_state::valid_character_document(&sheet)
             || !app_application::models::campaign_state::within_character_budget(&sheet)
         {
@@ -379,7 +385,11 @@ pub(crate) async fn enroll_in_transaction(
         }
         let mut sheet = command.character.clone();
         app_application::vitality::strip_client_state(&mut sheet);
+        app_application::defense::normalize(&mut sheet).map_err(error)?;
         sheet["characterId"] = serde_json::json!(command.character_id);
+        if !within_character_budget(&sheet) {
+            return Err(error("character_too_large"));
+        }
         sqlx::query("INSERT INTO party_characters(campaign_id,member_id,character_id,character_json) VALUES(?1,?2,?3,?4)").bind(command.campaign_id.0.to_string()).bind(command.member_id.to_string()).bind(command.character_id.to_string()).bind(sheet.to_string()).execute(&mut **tx).await.map_err(|_|error("party_write_failed"))?;
         crate::campaigns::advance_session_revision(
             tx,

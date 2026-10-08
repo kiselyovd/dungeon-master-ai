@@ -67,7 +67,9 @@ impl CampaignStateRepository for SqliteStore {
         let request = serde_json::to_string(&command)
             .map_err(|_| repository_error("encode_character_commit"))?;
         if !within_character_budget(&command.character) {
-            return Err(repository_error("character_too_large"));
+            return Err(app_application::defense::repository_error(
+                "character_too_large",
+            ));
         }
         let mut tx = self
             .pool
@@ -184,6 +186,7 @@ pub(crate) async fn load_in_transaction(
                     .map_err(|_| repository_error("decode_current_character"))?,
                 "character_identity_invalid",
             )?;
+            app_application::defense::normalize_for_read(&mut doc).map_err(repository_error)?;
             doc["characterId"] = json!(character_id);
             (Some(character_id), doc)
         }
@@ -207,6 +210,14 @@ pub(crate) async fn persist_character(
     character_id: Uuid,
     document: Value,
 ) -> Result<(), RepositoryError> {
+    let mut document = document;
+    app_application::defense::normalize(&mut document)
+        .map_err(app_application::defense::repository_error)?;
+    if !valid_character_document(&document) || !within_character_budget(&document) {
+        return Err(app_application::defense::repository_error(
+            "character_too_large",
+        ));
+    }
     sqlx::query("INSERT INTO campaign_characters (campaign_id, character_id, schema_version, ruleset_id, character_json, updated_at)
         VALUES (?1, ?2, 1, 'srd-5.2.1', ?3, ?4) ON CONFLICT(campaign_id) DO UPDATE SET
         character_id = excluded.character_id, character_json = excluded.character_json, updated_at = excluded.updated_at")

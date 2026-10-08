@@ -14,3 +14,5 @@ pub mod vitality;
 pub mod recovery;
 
 pub mod solo_recovery;
+
+pub mod defense;
