@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod context;
 pub mod hero_intentions;
+pub mod human_commands;
 pub mod intentions;
 pub mod narration;
 pub mod operations;

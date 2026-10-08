@@ -461,3 +461,63 @@ bindings rather than repeatedly guessing whether a recorded effect occurred.
 Keep direct execution, real compounds/conditionals and final independent review;
 no confirmation UI or one-action cap. Legacy unbound history must never silently
 authorize or manufacture a new effect. Native/physicalLAN/full-goal remain open.
+
+## Durable human-command manifest and effect bindings
+
+Independent read-only architecture review confirms that quotes alone cannot
+prove no second command was omitted. Persist a scoped immutable command manifest
+before the first effect, plus command-to-prepared-step bindings, not client
+history or final prose. Existing command_json signatures remain unchanged.
+
+- [ ] Define ordered command IDs/source spans, typed destinations/targets and
+  dependencies; keep negated constraints separate. Validate against the saved
+  human request, including repeated identical phrases and conditional fallback.
+- [ ] Persist manifest privately with solo operation/generation and room member/
+  lease/timeline scope; make changed-request/changed-manifest reuse conflict.
+- [ ] Atomically bind a verified candidate before effect preparation, using
+  CheckpointTools/claim_tool_step and room_agent::prepare. Validate the typed
+  signature, command ID, scope and canonical nonce; do not rewrite old signatures.
+- [ ] Derive finished attempts from confirmed canonical receipts or definitive
+  rejections. Permission/decoder denials and uncertain repository failures do
+  not complete commands. Prerequisite travel cannot finish a different destination.
+- [ ] Extend existing agent_replay delivery repair for effect-before-transcript
+  interruption; preserve raw non-idempotent uncertainty. Reject restore/revocation
+  and cross-owner/cross-timeline metadata before using it.
+- [ ] Drive pending progress from applicable unfinished manifest commands while
+  preserving permission, ownership, legality and action/resource budgets per step.
+  Conditions resolve from confirmed check outcomes; unknown conditions stay open.
+- [ ] Keep conservative legacy recovery: replay existing outcomes honestly,
+  never derive new authorization from unbound historical transcript.
+- [ ] Regress move+inspect through reopen with a deliberately wrong completion
+  verifier; crash before/after effect/before ToolResult, changed signature,
+  double attack, intermediate movement, conditional success/failure, restore
+  and cross-member cases. Then actual model/native/physicalLAN and final review.
+
+This records authoritative progress; it does not magically verify initial NLP
+extraction. Manifest generation and concrete permission still require independent
+semantic acceptance. No confirmation UI, one-action cap or production dependency.
+
+Human-command pure foundation implemented (not runtime integration): ordered
+UTF8 source spans/occurrence helper, typed canonical human intentions, separate
+constraints, unresolved-target placeholders, scope/generation/room epoch/reset
+cursor, monotonic step identities, canonical nonce uniqueness, exact replay and
+confirmed-outcome progress. Performed intermediate travel cannot close another
+destination; a definitive refusal closes an attempt; prepared/uncertain states
+stay open. Check guards use confirmed booleans, missing results stay unknown;
+specific refusal guards match actual codes.11 focused ledger groups plus33
+workflows pass. Independent review found/fixed nonce reuse across commands and
+closed pure-foundation scope. Private inward repository port now defines protected
+load, semantically-verified manifest save, and atomic preparation after permission.
+Persistence, trusted receipt/authority adapters, semantic planning, unresolved
+target resolution, legacy compatibility and runtime replacement remain pending.
+Initial gates found clone-on-Copy RestIntent; corrected. Final post-port gates
+are running. Protocol notes: docs/HUMAN_COMMAND_LEDGER.md.
+
+Final pure-foundation collection: post-port consolidated gates pass (896 Rust,
+1117 frontend tests, architecture/static checks and Clippy). Independent source
+review closed nonce reuse and repository-contract scope. Original32 dirty-file
+hashes remain unchanged. This checkpoint defines/tests the protocol only: no
+production completion path, SQLite migration, model plan, live/native or physical
+LAN acceptance is claimed. Next implementation is protected SQLite metadata
+and atomic prepared-step binding with reopen/crash/scope regressions, followed
+by runtime wiring and full session acceptance.
