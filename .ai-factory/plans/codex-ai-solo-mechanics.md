@@ -223,3 +223,76 @@ stillFAIL (location/time contradiction, inventedlock, wetdryroute, mistranslatio
 No promotion or full-goal completion. Isolated processes/listeners verified stopped.
 See BONSAI_EVALUATION.md. Next real-model work must address reliable narrative
 fidelity rather than treating lower temperature as an accepted fix.
+
+
+## Installed-model comparison and approved Qwen9B candidate
+
+- [x] Compare the other installed Bonsai27B Q1_0 through real current backend.
+  Verify local weight hash, isolated Stronghold profile and actual world outcomes.
+- [x] Independent review of language, facts and intention fidelity; record failures
+  without promoting model or treating agent_done as successful gameplay.
+- [x] Obtain explicit approval before downloading an uninstalled large model.
+  User approved Qwen3.5-9B Q4_K_M5.627GB after both installed candidates failed.
+- [x] Download pinned weights and verify published SHA256; launch isolated runtime.
+- [ ] Run real-model rescue/ending/combat checks, durable readback and independent
+  semantic review. Keep ordinary model/settings and saves unchanged until accepted.
+- [ ] Update evidence/docs and scoped local checkpoint; complete native session
+  and physical LAN acceptance remain separately required.
+
+Installed community Bonsai1 source sha71d68718..., revisionf4e1b84..., already
+present3.803GB file. Nonthinking, temperature0.7, context16384 on RTX3080/10GB.
+Five replies complete in21.666sec but route FAIL: index1 claims archive arrival
+without action; index2 performs unchosen inspect_quay; index3 moves town instead
+of unavailable rescue; index4 correctly rejects town->belfry. Three successful
+world actions, one tool rejection, revision5, no rescue/reward/ending. Russian
+has mixed script, raw IDs and invented actions. Different settings/single runs
+support this scenario verdict only, not a general model ranking. Isolated
+backend/model processes and ports stopped; original weights preserved.
+
+Initial Qwen download was cancelled on finding the older no-auto-large-download
+constraint. No weight bytes arrived;196B metadata remained because automatic
+approval review rejected cleanup. User subsequently explicitly approved download,
+so the same pinned revision resumes. No production dependency is added.
+
+
+Qwen9B first current-runtime observations (no promotion): nonthinking10 completed
+replies25.564sec, eight successful actions, rescued Tikhon/10gold/sealedsluice but
+no finish/ending and a false repairedbell claim. Thinking1024: seven completed
+replies50.189sec, nine actions/one rejection, with unchosen acknowledgment,
+return and roster recovery. Combat: two attempts107.955sec, one completed,
+6redundant initiative rolls, denied shot through a wall, unchosen EndTurn then
+weapon effect; second operation interrupted after round limit. Canonical actor
+HP11/arrows19 and revision8 persist. User input explicitly forbade ending the
+hero turn. Independent semantic reviews reject these configurations. These are
+real HTTP/model checks, not native full-session or physical LAN acceptance.
+
+## Resolve one player intention, then narrate
+
+- [x] Reproduce multi-action drift from real Qwen thinking/actual combat, plus
+  application RED regressions for same batch, next round, cross-kind and recovery.
+- [ ] Implement a prepared-adventure resolution/narration phase. First decoded
+  engine hero intention resolves once: success OR definitive gameplay rejection.
+  Keep decoding correction possible; storage/transport uncertainty interrupts.
+  Withhold subsequent adventure/combat/rest/dice operations and check each batch
+  entry. Rules/media/save remain available. Do not replace a failed attack with
+  EndTurn or another action the player did not choose.
+- [ ] Recover phase only from this request's checkpoint, never previous history.
+  Add receipt-only dispatcher/capability ports and canonical repository lookups.
+  Validate immutable args, owner/lease/session/timeline under one repository path.
+  Recover already committed effects without dispatching new ones. None means
+  reject; unknown/read failure means interrupted. Never replay stale projections.
+- [ ] Regress A-confirmed+B-pending both without effect and with prior committed
+  world effect but missing tool checkpoint/result, including SQLite reopening.
+  Cover changed arguments, restore/revoke, rejected intent and old multi-effect
+  checkpoints. Preserve all prior confirmed effects truthfully.
+- [ ] Expose safe definitive combat refusal reasons to the narrator where current
+  adapters erase them; classify uncertain repository errors without false refusal.
+- [ ] Run focused/core/room/full gates, rebuild isolated backend and repeat real
+  Qwen rescue/ending/combat plus independent source/semantic review. Record fresh
+  native/session evidence separately; do not promote an unaccepted model.
+
+This limits tool resolution, not semantic correctness of the first interpretation.
+Compound requests require separate player turns or a future explicit confirmed
+plan. NPC consequences inside one canonical action remain server-authoritative.
+Current new workflow RED tests are intentionally uncommitted; production backend
+in these model observations remains b4950c7 with inherited baseline preserved.

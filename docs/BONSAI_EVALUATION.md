@@ -170,3 +170,27 @@ Both isolated backend/model processes and ports31424/31808 were stopped and
 verified absent. Full native/peaceful/defensive/co-op semantic acceptance remains
 open. Separately, the current production browser suite now passes62 tests with
 one existing vision skip; see BROWSER_SESSION_ACCEPTANCE.md for its scope.
+
+
+## Other installed Bonsai Q1_0 comparison
+
+The installed lmstudio-community/Bonsai-27B-GGUF/Bonsai-27B-Q1_0.gguf also fails
+this real gameplay scenario. Local SHA256 matches published revision
+f4e1b84fac8d99a340cc87d06cd572dbe8a974d5 (source metadata in
+.artifacts/bonsai1/source.json). Current backend b4950c7 used an isolated encrypted
+profile, same Prism runtime, context16384, nonthinking and temperature0.7.
+Five replies completed in21.666sec, but only three adventure actions succeeded;
+one later action was correctly rejected. Index1 narrates archive arrival without
+a move; index2 executes unchosen inspect_quay; index3 returns town rather than
+rescuing Tikhon. The route stops at index4's unavailable belfry transition. Actual
+SQLite state is revision5/town, no located/rescued Tikhon, reward or ending.
+Independent review returns FAIL for intent fidelity and damaged mixed-language
+Russian. agent_done and complete operation receipts do not prove player intent
+was fulfilled. Different settings and single runs do not establish a general
+ranking against Prism Bonsai2. No model promotion; processes/listeners stopped.
+
+User explicitly approved a separate Qwen3.5-9B Q4_K_M comparison afterward.
+Pinned weight metadata and approval/download evidence are under .artifacts/qwen9b.
+The earlier unapproved attempt was stopped before weight bytes arrived; metadata
+cleanup was rejected by automatic approval review. No general model-download
+permission or production-provider change is inferred from this narrow approval.
