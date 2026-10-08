@@ -283,3 +283,113 @@ async fn simultaneous_distinct_turns_in_one_campaign_are_executed_in_one_lane() 
     assert!(a.contains("agent_done") && b.contains("agent_done"));
     assert_eq!(provider.peak.load(Ordering::SeqCst), 1);
 }
+
+#[tokio::test]
+async fn invalid_terminal_responses_leave_real_operations_interrupted() {
+    for (label, chunks) in [
+        (
+            "truncated",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished draft".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Length,
+                },
+            ],
+        ),
+        (
+            "error",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished draft".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Error,
+                },
+            ],
+        ),
+        (
+            "empty",
+            vec![ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }],
+        ),
+    ] {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        app_server::db::init_db(&pool).await.unwrap();
+        let server = TestServer::start_with(
+            Arc::new(MockProvider::new(chunks).with_followup_rounds(vec![vec![
+                ChatChunk::TextDelta {
+                    text: "Confirmed continuation.".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ]])),
+            pool.clone(),
+        )
+        .await;
+        let id = Uuid::new_v4();
+        let session = Uuid::new_v4();
+        let body = json!({"request_id":id,"campaign_id":Uuid::new_v4(),"session_id":session,"player_message":"Look","history":[]});
+        let response = Client::new()
+            .post(server.url("/agent/turn"))
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(
+            !response.contains("event: agent_done"),
+            "{label}: {response}"
+        );
+
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM agent_turn_operations WHERE request_id=?1")
+                .bind(id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(status, "interrupted", "{label}");
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE session_id=?1")
+            .bind(session.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 1, "only the human message persists: {label}");
+        let mut resume = body;
+        resume["resume"] = json!(true);
+        let continued = Client::new()
+            .post(server.url("/agent/turn"))
+            .json(&resume)
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(continued.contains("agent_done"), "{label}: {continued}");
+        assert!(continued.contains("Confirmed continuation."), "{label}");
+        assert!(!continued.contains("unfinished draft"), "{label}");
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM agent_turn_operations WHERE request_id=?1")
+                .bind(id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(status, "complete", "{label}");
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE session_id=?1")
+            .bind(session.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 2, "one human message and confirmed reply: {label}");
+    }
+}

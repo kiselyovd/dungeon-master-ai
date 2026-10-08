@@ -282,9 +282,14 @@ async fn resume_after_committed_action_finishes_narration_without_repeating_effe
 }
 
 fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
-    MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
-        reason: FinishReason::Stop,
-    }]])
+    MockProvider::new(chunks).with_followup_rounds(vec![vec![
+        ChatChunk::TextDelta {
+            text: "Confirmed tool outcome.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]])
 }
 
 struct CapturingHeroProvider {
@@ -306,9 +311,14 @@ async fn collaborative_start_combat_refreshes_catalog_for_the_next_canonical_int
         ))
         .with_followup_rounds(vec![
             hero_tool_round("turn", "combat_action", json!({"kind":"end_turn"})),
-            vec![ChatChunk::Done {
-                reason: FinishReason::Stop,
-            }],
+            vec![
+                ChatChunk::TextDelta {
+                    text: "The turn is confirmed.".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ],
         ]),
         requests: Default::default(),
     });

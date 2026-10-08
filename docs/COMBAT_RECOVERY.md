@@ -53,3 +53,33 @@ Those requirements remain in the solo/co-op plan.
 - These checks describe the complete attached worktree. Unrelated inherited
   edits remain outside the scoped checkpoint; the original32 baseline files
   retained their recorded hashes.
+
+## Provider terminal failures
+
+The application turn service validates terminal rounds for every provider, beyond
+the OpenAI-compatible adapter's complete-response checks. Length/Error, empty or
+blank Stop, tools paired with Stop, ToolUse without completed calls, and unclosed
+tool buffers cannot persist a final assistant reply or dispatch tools from that
+invalid round. Previously streamed public draft text can appear transiently, but
+the turn remains interrupted and existing continuation removes unfinished events.
+Logs contain static diagnostic categories rather than provider content.
+
+Exhausting the agent round budget also interrupts the turn. Confirmed earlier tool
+results remain in its checkpoint; continuation uses them without repeating dispatch.
+The same original request is retained. This does not promise semantic correctness
+of a model's complete prose or repair arbitrary malformed tool JSON.
+
+Evidence after6cb6720 on the preserved worktree baseline:
+- RED application regression reproduced Length emitting AgentDone.
+- Eight invalid terminal cases now reject without assistant commit/tool dispatch.
+- One-round confirmed roll survives exhaustion; same-request continuation dispatches
+  the tool once, calls the provider twice and stores one human message.
+- Three real HTTP/SQLite cases persist interrupted status with only the human
+  message, then resume to complete with one confirmed reply and no unfinished draft.
+- Application/server regression suite passes; independent bounded review finds
+  no remaining actionable issue. Existing success fixtures now supply real final
+  text rather than relying on empty Stop being a successful answer.
+
+Local artifacts: .artifacts/browser-session/terminal-red.log,
+terminal-backend-final.log and terminal-clippy.log. No release, native/live-model
+quality or physical LAN acceptance is claimed by these provider-port regressions.

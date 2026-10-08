@@ -119,7 +119,12 @@ async fn agent_turn_persists_assistant_with_tool_calls_and_tool_result() {
 }
 
 fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
-    MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
-        reason: FinishReason::Stop,
-    }]])
+    MockProvider::new(chunks).with_followup_rounds(vec![vec![
+        ChatChunk::TextDelta {
+            text: "Confirmed tool outcome.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]])
 }

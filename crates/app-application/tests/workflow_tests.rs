@@ -502,9 +502,14 @@ async fn agent_turn_rejects_unknown_tool_without_calling_dispatcher() {
                 reason: FinishReason::ToolUse,
             },
         ],
-        vec![ChatChunk::Done {
-            reason: FinishReason::Stop,
-        }],
+        vec![
+            ChatChunk::TextDelta {
+                text: "The requested tool is unavailable.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
     ]));
     let dispatcher = Arc::new(FakeToolDispatcher {
         execution: ToolExecution {
@@ -592,9 +597,14 @@ async fn agent_turn_surfaces_provider_persistence_cancellation_and_duplicate_fai
     assert_eq!(cancelled, [Err(AgentTurnError::Cancelled)]);
 
     let duplicate_service = service(
-        Arc::new(FakeProvider::scripted(vec![vec![ChatChunk::Done {
-            reason: FinishReason::Stop,
-        }]])),
+        Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta {
+                text: "Confirmed.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ]])),
         Arc::new(FakeMessages::default()),
         dispatcher,
         Arc::new(NoopApplicationEventSink),
@@ -839,4 +849,214 @@ async fn combat_resolution_rejects_stale_revision_and_has_no_partial_write() {
     assert!(matches!(failed, Err(ResolveCombatError::Persistence)));
     assert_eq!(repository.projection.lock().unwrap().revision, 4);
     assert_eq!(repository.writes.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn invalid_provider_terminal_rounds_never_commit_or_dispatch() {
+    let call = || {
+        vec![
+            ChatChunk::ToolCallStart {
+                id: "call-1".into(),
+                name: "roll_dice".into(),
+            },
+            ChatChunk::ToolCallArgsDelta {
+                id: "call-1".into(),
+                args_fragment: r#"{"dice":"1d20"}"#.into(),
+            },
+            ChatChunk::ToolCallDone {
+                id: "call-1".into(),
+            },
+        ]
+    };
+    let mut cases = vec![
+        (
+            "length",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Length,
+                },
+            ],
+        ),
+        (
+            "error",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Error,
+                },
+            ],
+        ),
+        (
+            "empty-stop",
+            vec![ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }],
+        ),
+        (
+            "blank-stop",
+            vec![
+                ChatChunk::TextDelta { text: " \n".into() },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ],
+        ),
+        (
+            "empty-tool-use",
+            vec![ChatChunk::Done {
+                reason: FinishReason::ToolUse,
+            }],
+        ),
+        (
+            "unfinished-tool",
+            vec![
+                ChatChunk::ToolCallStart {
+                    id: "call-1".into(),
+                    name: "roll_dice".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::ToolUse,
+                },
+            ],
+        ),
+    ];
+    for (label, reason) in [
+        ("truncated-tools", FinishReason::Length),
+        ("stop-with-tools", FinishReason::Stop),
+    ] {
+        let mut chunks = call();
+        chunks.push(ChatChunk::Done { reason });
+        cases.push((label, chunks));
+    }
+    for (label, chunks) in cases {
+        let messages = Arc::new(FakeMessages::default());
+        let dispatcher = Arc::new(FakeToolDispatcher {
+            execution: ToolExecution {
+                result: json!({}),
+                is_error: false,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+            calls: AtomicUsize::new(0),
+        });
+        let output = service(
+            Arc::new(FakeProvider::scripted(vec![chunks])),
+            messages.clone(),
+            dispatcher.clone(),
+            Arc::new(NoopApplicationEventSink),
+            Arc::new(NeverCancelled),
+        )
+        .execute(command(label))
+        .collect::<Vec<_>>()
+        .await;
+        assert!(
+            matches!(output.last(), Some(Err(AgentTurnError::Provider))),
+            "{label}: {output:?}"
+        );
+        assert!(
+            !output
+                .iter()
+                .any(|event| matches!(event, Ok(AgentEvent::AgentDone { .. }))),
+            "{label}"
+        );
+        assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 0, "{label}");
+        assert_eq!(
+            messages.values.lock().unwrap().len(),
+            1,
+            "only user persists: {label}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn exhausted_rounds_resume_confirmed_tools_without_repeating_dispatch() {
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        vec![
+            ChatChunk::ToolCallStart {
+                id: "confirmed-roll".into(),
+                name: "roll_dice".into(),
+            },
+            ChatChunk::ToolCallArgsDelta {
+                id: "confirmed-roll".into(),
+                args_fragment: r#"{"dice":"1d20"}"#.into(),
+            },
+            ChatChunk::ToolCallDone {
+                id: "confirmed-roll".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::ToolUse,
+            },
+        ],
+        vec![
+            ChatChunk::TextDelta {
+                text: "Confirmed result".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+    ]));
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"total":14}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let mut one_round = config();
+    one_round.max_rounds = 1;
+    let service = Arc::new(AgentTurnService::new(
+        provider.clone(),
+        Arc::new(FakeContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        one_round,
+    ));
+    let original = command("round-limit");
+    let first = service
+        .clone()
+        .execute(original.clone())
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(first.last(), Some(Err(AgentTurnError::Provider))),
+        "{first:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let checkpoint = messages.values.lock().unwrap().clone();
+    assert!(matches!(
+        checkpoint.last(),
+        Some(ChatMessage::ToolResult(_))
+    ));
+    let resumed = service
+        .execute_recovered(original, Some(checkpoint))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(resumed.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{resumed:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        messages
+            .values
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| matches!(m, ChatMessage::User { .. }))
+            .count(),
+        1
+    );
 }

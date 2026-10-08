@@ -192,3 +192,22 @@ fresh ten-step route102.132s completed; Russianlanguage/unsupporteddetails gate
 stillFAIL.474Rust tests/nine wirecases/Clippy/build pass; browser1pass3skips.
 Do notpromote Bonsai ormark model/native/fullsession work complete. Runtime and
 QAprocesses cleaned; see BONSAI_EVALUATION.md for provenance and openlimitations.
+
+## Provider-independent terminal-round validation
+
+- [x] Reproduce Length/Error, empty Stop, tool/finish mismatches and incomplete
+  tool buffers becoming completed turns through the application provider port.
+- [x] Reject invalid terminal rounds before persisting the assistant or dispatching
+  their tools. Retain prior confirmed rounds for explicit continuation.
+- [x] Treat exhausted agent rounds as interrupted; resume confirmed tool results
+  without executing them again. Verify application and real HTTP/SQLite outcomes.
+- [x] Run focused/full backend gates and independent review, then local checkpoint.
+
+No UI/dependency/schema changes intended. Public drafts may already be streamed,
+but cannot become durable completed replies. Existing interruption UI handles the
+provider error. Preserve arbitrary provider content from diagnostic logs.
+
+Application/server regression suite passes; real HTTP/SQLite3-case interruption
+and same-request continuation confirmed. Independent bounded source/recovery review
+finds no actionable issue. 427 tests and Clippy pass; final fast-gate/local checkpoint collection recorded below. See
+COMBAT_RECOVERY.md for limits and local artifacts.

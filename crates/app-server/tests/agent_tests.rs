@@ -1089,7 +1089,12 @@ async fn apply_damage_no_relation_applies_full_damage() {
 }
 
 fn finishing_mock(chunks: Vec<ChatChunk>) -> MockProvider {
-    MockProvider::new(chunks).with_followup_rounds(vec![vec![ChatChunk::Done {
-        reason: FinishReason::Stop,
-    }]])
+    MockProvider::new(chunks).with_followup_rounds(vec![vec![
+        ChatChunk::TextDelta {
+            text: "Confirmed tool outcome.".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]])
 }

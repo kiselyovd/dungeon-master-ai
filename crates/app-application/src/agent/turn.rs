@@ -257,6 +257,7 @@ impl AgentTurnService {
         }
         let mut sequence = 0_u64;
         let mut total_rounds = 0_usize;
+        let mut final_reply_confirmed = false;
 
         for round_index in 0..self.config.max_rounds {
             self.ensure_not_cancelled()?;
@@ -379,7 +380,16 @@ impl AgentTurnService {
                         }
                     }
                 }
-                if !provider_done {
+                let valid_terminal_round = match finish_reason {
+                    FinishReason::Stop => tool_calls.is_empty() && !round_text.trim().is_empty(),
+                    FinishReason::ToolUse => !tool_calls.is_empty(),
+                    FinishReason::Length | FinishReason::Error => false,
+                };
+                if !provider_done || !tool_buffers.is_empty() || !valid_terminal_round {
+                    tracing::warn!(
+                        error_code = "provider_terminal_round_invalid",
+                        "LLM round incomplete"
+                    );
                     return Err(AgentTurnError::Provider);
                 }
                 self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
@@ -516,7 +526,8 @@ impl AgentTurnService {
                 messages.push(tool_result);
             }
 
-            if !matches!(finish_reason, FinishReason::ToolUse) || tool_calls.is_empty() {
+            if matches!(finish_reason, FinishReason::Stop) {
+                final_reply_confirmed = true;
                 break;
             }
             {
@@ -540,6 +551,12 @@ impl AgentTurnService {
                     .tools
                     .for_context(context.combat_active, context.adventure_active);
             }
+        }
+
+        if !final_reply_confirmed {
+            // Confirmed tool results remain recoverable; exhaustion is not a DM answer.
+            tracing::warn!(error_code = "agent_round_limit", "LLM turn incomplete");
+            return Err(AgentTurnError::Provider);
         }
 
         self.emit(
