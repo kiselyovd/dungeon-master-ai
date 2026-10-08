@@ -32,7 +32,10 @@ pub(crate) async fn resolve(
         .map_err(|_| repository_error("room_check_begin_failed"))?;
     let (room, party, owner, current) = crate::room_world::context(&mut tx, lease).await?;
     if check.character_id != owner {
-        return Err(repository_error("room_access_denied"));
+        return Err(RepositoryError::Operation {
+            operation: "room_skill_check",
+            code: "room_access_denied",
+        });
     }
     crate::room_agent::timeline(&mut tx, lease, turn).await?;
     let row=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4")
@@ -45,22 +48,7 @@ pub(crate) async fn resolve(
         serde_json::from_str(&row.get::<String, _>("prepared_json"))
             .map_err(|_| repository_error("room_check_read_failed"))?;
     if let Some(mut result) = prepared.check_result {
-        if !result.is_object()
-            || result["character_id"] != json!(owner)
-            || result["skill"] != json!(check.skill)
-            || result["total"].as_i64().is_none()
-            || result["modifier"].as_i64().is_none()
-            || result["receipt_revision"].as_u64().is_none()
-            || result["rolls"].as_array().is_none_or(|rolls| {
-                rolls.is_empty()
-                    || rolls.len() > 2
-                    || rolls
-                        .iter()
-                        .any(|roll| roll.as_i64().is_none_or(|roll| !(1..=20).contains(&roll)))
-            })
-        {
-            return Err(repository_error("room_check_receipt_invalid"));
-        }
+        validate_receipt(&result, owner, check)?;
         result["duplicate"] = json!(true);
         tx.commit()
             .await
@@ -80,7 +68,16 @@ pub(crate) async fn resolve(
         command.disadvantage.unwrap_or(false),
         seed,
     )
-    .map_err(repository_error)?;
+    .map_err(|code| {
+        if code == "hero_check_incapacitated" {
+            RepositoryError::Operation {
+                operation: "room_skill_check",
+                code,
+            }
+        } else {
+            repository_error(code)
+        }
+    })?;
     let revision = crate::campaigns::advance_session_revision(
         &mut tx,
         room.campaign_id,
@@ -113,4 +110,28 @@ pub(crate) async fn resolve(
         .await
         .map_err(|_| repository_error("room_check_commit_failed"))?;
     Ok(result)
+}
+
+pub(crate) fn validate_receipt(
+    result: &Value,
+    owner: Uuid,
+    check: &app_application::hero_checks::HeroSkillCheck,
+) -> Result<(), RepositoryError> {
+    if !result.is_object()
+        || result["character_id"] != json!(owner)
+        || result["skill"] != json!(check.skill)
+        || result["total"].as_i64().is_none()
+        || result["modifier"].as_i64().is_none()
+        || result["receipt_revision"].as_u64().is_none()
+        || result["rolls"].as_array().is_none_or(|rolls| {
+            rolls.is_empty()
+                || rolls.len() > 2
+                || rolls
+                    .iter()
+                    .any(|roll| roll.as_i64().is_none_or(|roll| !(1..=20).contains(&roll)))
+        })
+    {
+        return Err(repository_error("room_check_receipt_invalid"));
+    }
+    Ok(())
 }

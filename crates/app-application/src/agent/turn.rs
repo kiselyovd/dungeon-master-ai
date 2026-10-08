@@ -35,6 +35,7 @@ pub struct AgentTurnConfig {
     pub reasoning_budget: ReasoningSpec,
     pub tool_availability: ToolAvailability,
     pub tools: AgentToolCatalog,
+    pub player_verifier: Option<Arc<dyn super::intentions::PlayerIntentionVerifier>>,
 }
 
 #[derive(Debug, Clone)]
@@ -221,6 +222,29 @@ impl AgentTurnService {
             .map_err(|error| AgentTurnError::Context(error.code))?;
         let mut system_prompt =
             append_board(context.system_prompt.clone(), request.board.as_deref());
+        let controlled_turn = self.config.player_verifier.is_some();
+        let mut resolved_intentions = if controlled_turn {
+            checkpoint
+                .as_ref()
+                .map(|saved| resolved_player_intentions(saved))
+                .transpose()?
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let mut player_intention_resolved = false;
+        if controlled_turn && !resolved_intentions.is_empty() {
+            let decision = self
+                .assess_player(
+                    &request.player_message,
+                    None,
+                    &resolved_intentions,
+                    &request.history,
+                    &context.public_intention_context,
+                )
+                .await?;
+            player_intention_resolved = !decision.further_requested;
+        }
         let continuing = checkpoint.is_some();
         if continuing {
             system_prompt.push_str("\nThis is an interrupted turn continuation. Recorded tool results are already confirmed. Finish the original intention from those results; do not repeat confirmed effects. Provide a coherent reply without replaying an unfinished draft.");
@@ -229,6 +253,7 @@ impl AgentTurnService {
             .config
             .tools
             .for_context(context.combat_active, context.adventure_active);
+        restrict_to_narration(&mut tools, &mut system_prompt, player_intention_resolved);
         let mut pending_recovered = Vec::new();
         if let Some(saved) = &checkpoint {
             let completed = saved
@@ -321,14 +346,16 @@ impl AgentTurnService {
                         }
                         ChatChunk::TextDelta { text } => {
                             round_text.push_str(&text);
-                            self.push_delta(
-                                request.session_id,
-                                &mut sequence,
-                                &mut pending_delta,
-                                AgentEvent::TextDelta { text },
-                                tx,
-                            )
-                            .await?;
+                            if !controlled_turn {
+                                self.push_delta(
+                                    request.session_id,
+                                    &mut sequence,
+                                    &mut pending_delta,
+                                    AgentEvent::TextDelta { text },
+                                    tx,
+                                )
+                                .await?;
+                            }
                         }
                         ChatChunk::ToolCallStart { id, name } => {
                             self.flush_delta(
@@ -395,6 +422,25 @@ impl AgentTurnService {
                 self.flush_delta(request.session_id, &mut sequence, &mut pending_delta, tx)
                     .await?;
 
+                if controlled_turn
+                    && matches!(finish_reason, FinishReason::Stop)
+                    && !player_intention_resolved
+                {
+                    let decision = self
+                        .assess_player(
+                            &request.player_message,
+                            None,
+                            &resolved_intentions,
+                            &messages,
+                            &context.public_intention_context,
+                        )
+                        .await?;
+                    if decision.further_requested {
+                        system_prompt.push_str("\nThe current human's mechanical request is NOT resolved. Do not claim travel, combat, rescue, repair or completion through prose. Use the available canonical tool for the remaining requested step; ask a concise clarification if it cannot be determined. Do not add a different action.");
+                        continue;
+                    }
+                    player_intention_resolved = true;
+                }
                 let assistant_message = if tool_calls.is_empty() {
                     (!round_text.trim().is_empty()).then(|| ChatMessage::Assistant {
                         content: round_text.clone(),
@@ -412,11 +458,163 @@ impl AgentTurnService {
                         .map_err(|_| AgentTurnError::Persistence)?;
                     messages.push(message);
                 }
+                if controlled_turn && matches!(finish_reason, FinishReason::Stop) {
+                    self.emit(
+                        request.session_id,
+                        &mut sequence,
+                        AgentEvent::TextDelta {
+                            text: round_text.clone(),
+                        },
+                        tx,
+                    )
+                    .await?;
+                }
             }
 
             for tool_call in &tool_calls {
                 self.ensure_not_cancelled()?;
-                let execution = if context.adventure_active
+                let mut interception = None;
+                let mut permission = None;
+                if controlled_turn && legacy_world_mechanics(&tool_call.name) {
+                    if let Ok(decoded) = decode_tool_call(&tool_call.name, &tool_call.args) {
+                        interception = self
+                            .tools
+                            .replay(ToolDispatchRequest {
+                                request_id: command.request_id.clone(),
+                                tool_call_id: tool_call.id.clone(),
+                                campaign_id: request.campaign_id,
+                                session_id: request.session_id,
+                                command: decoded,
+                            })
+                            .await
+                            .map_err(|error| AgentTurnError::ToolDispatch(error.code))?;
+                    }
+                }
+                if interception.is_none()
+                    && controlled_turn
+                    && legacy_hero_mutation(
+                        &tool_call.name,
+                        &tool_call.args,
+                        &context.public_intention_context,
+                    )
+                {
+                    interception = Some(super::tool_dispatch::ToolExecution {
+                        result: json!({"error":"canonical_player_intention_required"}),
+                        is_error: true,
+                        handled_by: "engine".into(),
+                        media: vec![],
+                    });
+                }
+                if interception.is_none()
+                    && controlled_turn
+                    && legacy_world_mechanics(&tool_call.name)
+                    && decode_tool_call(&tool_call.name, &tool_call.args).is_ok()
+                {
+                    let decision = self
+                        .assess_player(
+                            &request.player_message,
+                            Some((tool_call.name.clone(), tool_call.args.clone())),
+                            &resolved_intentions,
+                            &messages,
+                            &context.public_intention_context,
+                        )
+                        .await?;
+                    if !decision.allowed {
+                        interception = Some(super::tool_dispatch::ToolExecution {
+                            result: json!({"error":"canonical_player_intention_required"}),
+                            is_error: true,
+                            handled_by: "engine".into(),
+                            media: vec![],
+                        });
+                    }
+                }
+                if interception.is_none()
+                    && controlled_turn
+                    && player_resolution_tool(&tool_call.name)
+                    && (player_intention_resolved
+                        || tools.iter().any(|tool| tool.name == tool_call.name))
+                {
+                    if let Ok(decoded) = decode_tool_call(&tool_call.name, &tool_call.args) {
+                        let recorded = self
+                            .tools
+                            .replay(ToolDispatchRequest {
+                                request_id: command.request_id.clone(),
+                                tool_call_id: tool_call.id.clone(),
+                                campaign_id: request.campaign_id,
+                                session_id: request.session_id,
+                                command: decoded,
+                            })
+                            .await
+                            .map_err(|error| AgentTurnError::ToolDispatch(error.code))?;
+                        if let Some(recorded) = recorded {
+                            if let Some(rejected) = super::intentions::recognized_resolution(
+                                recorded.is_error,
+                                &recorded.result,
+                            ) {
+                                if !resolved_intentions
+                                    .iter()
+                                    .any(|resolved| resolved.tool_call_id == tool_call.id)
+                                {
+                                    resolved_intentions.push(
+                                        super::intentions::ResolvedPlayerIntention {
+                                            tool_call_id: tool_call.id.clone(),
+                                            result: recorded.result.clone(),
+                                            tool_name: tool_call.name.clone(),
+                                            args: tool_call.args.clone(),
+                                            rejected,
+                                        },
+                                    );
+                                }
+                                let decision = self
+                                    .assess_player(
+                                        &request.player_message,
+                                        None,
+                                        &resolved_intentions,
+                                        &messages,
+                                        &context.public_intention_context,
+                                    )
+                                    .await?;
+                                player_intention_resolved = !decision.further_requested;
+                            } else {
+                                return Err(AgentTurnError::ToolDispatch(
+                                    "player_resolution_uncertain",
+                                ));
+                            }
+                            interception = Some(recorded);
+                        } else if player_intention_resolved {
+                            interception = Some(super::tool_dispatch::ToolExecution {
+                                result: json!({"error":"player_intention_already_resolved"}),
+                                is_error: true,
+                                handled_by: "engine".into(),
+                                media: vec![],
+                            });
+                        } else {
+                            let decision = self
+                                .assess_player(
+                                    &request.player_message,
+                                    Some((tool_call.name.clone(), tool_call.args.clone())),
+                                    &resolved_intentions,
+                                    &messages,
+                                    &context.public_intention_context,
+                                )
+                                .await?;
+                            if decision.allowed {
+                                permission = Some(decision);
+                            } else {
+                                player_intention_resolved = !decision.further_requested;
+                                interception = Some(super::tool_dispatch::ToolExecution {
+                                    result: json!({"error":"player_intention_not_requested"}),
+                                    is_error: true,
+                                    handled_by: "engine".into(),
+                                    media: vec![],
+                                });
+                            }
+                        }
+                    }
+                }
+                let execution = if let Some(execution) = interception {
+                    execution
+                } else if context.adventure_active
                     && !tools.iter().any(|tool| tool.name == tool_call.name)
                 {
                     super::tool_dispatch::ToolExecution {
@@ -450,7 +648,28 @@ impl AgentTurnService {
                                     .await
                                     .map_err(|error| AgentTurnError::Runtime(error.code))?;
                             }
-                            result.map_err(|error| AgentTurnError::ToolDispatch(error.code))?
+                            let execution =
+                                result.map_err(|error| AgentTurnError::ToolDispatch(error.code))?;
+                            if let Some(decision) = permission {
+                                let rejected = super::intentions::recognized_resolution(
+                                    execution.is_error,
+                                    &execution.result,
+                                )
+                                .ok_or(
+                                    AgentTurnError::ToolDispatch("player_resolution_uncertain"),
+                                )?;
+                                resolved_intentions.push(
+                                    super::intentions::ResolvedPlayerIntention {
+                                        tool_call_id: tool_call.id.clone(),
+                                        result: execution.result.clone(),
+                                        tool_name: tool_call.name.clone(),
+                                        args: tool_call.args.clone(),
+                                        rejected,
+                                    },
+                                );
+                                player_intention_resolved = !decision.further_requested;
+                            }
+                            execution
                         }
                         Err(error) => {
                             tracing::warn!(
@@ -499,6 +718,16 @@ impl AgentTurnService {
                         .await?;
                 }
 
+                let tool_result = ChatMessage::ToolResult(ToolResult {
+                    tool_call_id: tool_call.id.clone(),
+                    content: serde_json::to_string(&execution.result).unwrap_or_default(),
+                    is_error: execution.is_error,
+                });
+                self.messages
+                    .append(request.session_id, tool_result.clone())
+                    .await
+                    .map_err(|_| AgentTurnError::Persistence)?;
+                messages.push(tool_result);
                 self.emit(
                     request.session_id,
                     &mut sequence,
@@ -514,16 +743,29 @@ impl AgentTurnService {
                     tx,
                 )
                 .await?;
-                let tool_result = ChatMessage::ToolResult(ToolResult {
-                    tool_call_id: tool_call.id.clone(),
-                    content: serde_json::to_string(&execution.result).unwrap_or_default(),
-                    is_error: execution.is_error,
-                });
-                self.messages
-                    .append(request.session_id, tool_result.clone())
-                    .await
-                    .map_err(|_| AgentTurnError::Persistence)?;
-                messages.push(tool_result);
+                if controlled_turn {
+                    context = self
+                        .context
+                        .build(AgentContextRequest {
+                            campaign_id: request.campaign_id,
+                            player_message: request.player_message.clone(),
+                            base_system_prompt: self.config.system_prompt.clone(),
+                            embedding_model: self.config.embedding_model.clone(),
+                        })
+                        .await
+                        .map_err(|error| AgentTurnError::Context(error.code))?;
+                    system_prompt =
+                        append_board(context.system_prompt.clone(), request.board.as_deref());
+                    tools = self
+                        .config
+                        .tools
+                        .for_context(context.combat_active, context.adventure_active);
+                    restrict_to_narration(
+                        &mut tools,
+                        &mut system_prompt,
+                        player_intention_resolved,
+                    );
+                }
             }
 
             if matches!(finish_reason, FinishReason::Stop) {
@@ -550,6 +792,7 @@ impl AgentTurnService {
                     .config
                     .tools
                     .for_context(context.combat_active, context.adventure_active);
+                restrict_to_narration(&mut tools, &mut system_prompt, player_intention_resolved);
             }
         }
 
@@ -575,6 +818,34 @@ impl AgentTurnService {
         Ok(())
     }
 
+    async fn assess_player(
+        &self,
+        player_message: &str,
+        candidate: Option<(String, Value)>,
+        resolved: &[super::intentions::ResolvedPlayerIntention],
+        conversation: &[ChatMessage],
+        public_context: &Value,
+    ) -> Result<super::intentions::PlayerIntentionDecision, AgentTurnError> {
+        let verifier = self
+            .config
+            .player_verifier
+            .as_ref()
+            .ok_or(AgentTurnError::ToolDispatch("player_verifier_missing"))?;
+        let check = super::intentions::PlayerIntentionCheck {
+            player_message: player_message.into(),
+            candidate,
+            resolved: resolved.to_vec(),
+            conversation: conversation.to_vec(),
+            public_context: public_context.clone(),
+        };
+        let decision = tokio::select! {biased;_ = self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),result=verifier.assess(check)=>result.map_err(|_|AgentTurnError::ToolDispatch("player_verification_unavailable"))?};
+        tracing::debug!(
+            allowed = decision.allowed,
+            further_requested = decision.further_requested,
+            "player intention checked"
+        );
+        Ok(decision)
+    }
     fn ensure_not_cancelled(&self) -> Result<(), AgentTurnError> {
         if self.cancellation.is_cancelled() {
             Err(AgentTurnError::Cancelled)
@@ -725,4 +996,99 @@ fn safe_provider_error_code(error: &crate::ports::llm::LlmError) -> &'static str
             _ => "invalid_response",
         },
     }
+}
+
+fn player_intention_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "adventure_action" | "combat_action" | "rest_action" | "end_combat"
+    )
+}
+fn player_resolution_tool(name: &str) -> bool {
+    player_intention_tool(name) || name == "roll_dice"
+}
+fn resolved_player_intentions(
+    messages: &[ChatMessage],
+) -> Result<Vec<super::intentions::ResolvedPlayerIntention>, AgentTurnError> {
+    let calls = messages
+        .iter()
+        .filter_map(|message| match message {
+            ChatMessage::AssistantWithToolCalls { tool_calls, .. } => Some(tool_calls),
+            _ => None,
+        })
+        .flatten()
+        .filter(|call| {
+            player_resolution_tool(&call.name) && decode_tool_call(&call.name, &call.args).is_ok()
+        })
+        .collect::<Vec<_>>();
+    let mut resolved = Vec::new();
+    let mut seen = HashSet::new();
+    for call in calls {
+        if !seen.insert(call.id.clone()) {
+            continue;
+        }
+        if let Some(result) = messages.iter().find_map(|message| match message {
+            ChatMessage::ToolResult(result) if result.tool_call_id == call.id => Some(result),
+            _ => None,
+        }) {
+            let value: Value = serde_json::from_str(&result.content)
+                .map_err(|_| AgentTurnError::ToolDispatch("player_resolution_uncertain"))?;
+            if let Some(rejected) =
+                super::intentions::recognized_resolution(result.is_error, &value)
+            {
+                resolved.push(super::intentions::ResolvedPlayerIntention {
+                    tool_call_id: call.id.clone(),
+                    result: value.clone(),
+                    tool_name: call.name.clone(),
+                    args: call.args.clone(),
+                    rejected,
+                });
+            } else if !matches!(
+                value["error"].as_str(),
+                Some(
+                    "tool_not_available_in_authored_adventure"
+                        | "player_intention_already_resolved"
+                        | "player_intention_not_requested"
+                        | "canonical_player_intention_required"
+                )
+            ) {
+                return Err(AgentTurnError::ToolDispatch("player_resolution_uncertain"));
+            }
+        }
+    }
+    Ok(resolved)
+}
+fn restrict_to_narration(
+    tools: &mut Vec<crate::models::chat::Tool>,
+    prompt: &mut String,
+    resolved: bool,
+) {
+    if !resolved {
+        return;
+    }
+    tools.retain(|tool| !player_resolution_tool(&tool.name));
+    prompt.push_str("\nThe player's engine intention in THIS request is already resolved, either confirmed or definitively rejected. Narrate its actual result and stop. Do not choose a follow-up action, move, attack, rest, end-turn, or new dice roll for the hero. A rejected action does not authorize a replacement action. Future choices belong to the next human request. Recorded results are historical; do not invent success or overwrite current facts.");
+}
+
+fn legacy_hero_mutation(name: &str, args: &Value, context: &Value) -> bool {
+    let id = match name {
+        "update_token" | "remove_token" => args["id"].as_str(),
+        "cast_spell" => args["caster_id"].as_str(),
+        _ => None,
+    };
+    id.is_some_and(|id| {
+        context["targets"].as_array().is_some_and(|targets| {
+            targets.iter().any(|actor| {
+                !actor["character_id"].is_null()
+                    && (actor["id"] == id || actor["character_id"] == id)
+            })
+        })
+    })
+}
+
+fn legacy_world_mechanics(name: &str) -> bool {
+    matches!(
+        name,
+        "apply_damage" | "apply_healing" | "cast_spell" | "update_token" | "remove_token"
+    )
 }

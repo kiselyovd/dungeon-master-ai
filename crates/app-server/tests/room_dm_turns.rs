@@ -169,6 +169,7 @@ fn config() -> AgentTurnConfig {
             exploration: app_server::agent::tools::tools_for_phase(available, false),
             combat: app_server::agent::tools::tools_for_phase(available, true),
         },
+        player_verifier: None,
     }
 }
 #[derive(Default)]

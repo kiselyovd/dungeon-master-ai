@@ -60,3 +60,44 @@ are stopped and verified separately. A cancelled earlier unapproved attempt
 left 196 bytes of metadata; automatic approval review rejected its cleanup. The
 user subsequently approved this specific download. See BONSAI_EVALUATION.md for
 installed-model failures and the active AI Factory plan for remaining work.
+
+## Direct chat execution with a separate intention check
+
+The user selected direct execution, including genuine compound requests, without
+a confirmation dialog. The new application guard checks each proposed hero action
+against the immutable human message, keeps confirmed outcomes across recovery,
+and withholds final prose while requested mechanics remain unresolved. Raw legacy
+mutations also require source authorization; completed receipts are recovered
+before any new check. JSON/terminal failures interrupt before a new effect.
+
+Real guarded runs used freshly built, uncommitted work on top of 8f1fdf2 with
+inherited changes preserved. These are loopback HTTP/model checks, not native
+session, physical LAN, clean-HEAD or release evidence. No model was promoted.
+
+| Run | Actual outcome | Acceptance |
+| --- | --- | --- |
+| Nonthinking | First move confirmed; archive move omitted; following request interrupted | FAIL |
+| Thinking, 1,024 tokens | 10 completed replies, all 10 chosen adventure actions, rescue / 10 gold / closed_crossing, revision 13 | Mechanics pass; narration FAIL |
+| Thinking combat | First start-defense request interrupted before any tool effect; revision stays 5 | FAIL |
+| Thinking compound move + inspect | Intention verification interrupted before any tool effect | FAIL |
+
+The thinking route resolved town return and finish that earlier runs omitted, and
+added no unrequested hero actions. One quick save occurred after locating Tikhon;
+it is not a final snapshot. Independent SQLite/source/narrative review still
+rejects the run: the narrator changes the requested dry route into waist-deep
+water (index 1), leaves the already rescued Tikhon waiting for another trip
+(index 3), invents a permanently flooded quay then describes its normal boards
+(indexes 5/7), assigns feelings to the hero and introduces Russian wording errors.
+The final epilogue accurately states the closed ferry, damaged ward, surviving
+echo and one-time reward. Correct receipts do not make preceding prose truthful.
+
+Direct checker probes also exposed weak decisions without thinking and malformed
+or truncated output with thinking. A response granting permission with no
+candidate is now invalid at the application boundary. Experimental shorter
+prompts were only diagnostic; they were not promoted into production.
+
+Evidence: .artifacts/qwen9b/guarded/{solo-report,checker-probe,checker-probe-object,
+checker-probe-compact}.json, guarded-thinking/{solo-report,solo-final}.json,
+guarded-thinking/combat/report.json and guarded-thinking/compound/solo-report.json,
+plus build, model, backend, wire and focused-test logs. Isolated QA processes were
+stopped after these runs; installed weights and ordinary settings remain intact.

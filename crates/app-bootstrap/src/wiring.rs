@@ -43,6 +43,7 @@ pub async fn build_state(settings: &config::Settings) -> anyhow::Result<AppState
     };
     init_db(&pool).await.context("run migrations")?;
     let state = AppState::new(llm, settings.default_model.clone(), pool);
+    state.enable_player_verification();
 
     if let Some(control) = adapter_media::LoopbackRuntimeControl::from_env()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?

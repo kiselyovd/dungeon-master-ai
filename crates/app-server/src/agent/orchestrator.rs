@@ -68,9 +68,17 @@ pub struct AgentOrchestrator {
     image_provider: Option<Arc<dyn ImageProvider>>,
     video_provider: Option<Arc<dyn VideoProvider>>,
     gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
+    player_verifier: Option<Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>>,
 }
 
 impl AgentOrchestrator {
+    pub fn with_player_verifier(
+        mut self,
+        verifier: Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>,
+    ) -> Self {
+        self.player_verifier = Some(verifier);
+        self
+    }
     pub fn new(
         provider: Arc<dyn LlmProvider>,
         pool: SqlitePool,
@@ -86,6 +94,7 @@ impl AgentOrchestrator {
             image_provider,
             video_provider: None,
             gpu_swap: None,
+            player_verifier: None,
         }
     }
 
@@ -195,6 +204,7 @@ impl AgentOrchestrator {
                 reasoning_budget: self.config.reasoning_budget,
                 tool_availability: self.config.tool_availability,
                 tools: tool_catalog,
+                player_verifier: self.player_verifier.clone(),
             },
         ));
         let command = AgentTurnCommand {
@@ -264,6 +274,17 @@ impl AgentContextPort for LegacyContextAdapter {
         .map_err(|_| AgentContextError {
             code: "campaign_context_failed",
         })?;
+        let public_intention_context = current
+            .as_ref()
+            .ok()
+            .map(|state| {
+                app_application::agent::context::public_intention_context(
+                    state.projection.adventure.as_ref(),
+                    state.projection.combat.as_ref(),
+                    state.projection.character["name"].as_str(),
+                )
+            })
+            .unwrap_or_default();
         let adventure_active = match current {
             Ok(state) => {
                 if state.character_id.is_some() {
@@ -293,6 +314,7 @@ impl AgentContextPort for LegacyContextAdapter {
             adventure_active,
             system_prompt,
             combat_active,
+            public_intention_context,
         })
     }
 }
@@ -307,6 +329,17 @@ struct LegacyToolAdapter {
 
 #[async_trait]
 impl ToolCapabilityHandler for LegacyToolAdapter {
+    async fn replay_capability(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        self.store
+            .recover_player_tool(&request)
+            .await
+            .map_err(|_| ToolDispatchError {
+                code: "tool_replay_failed",
+            })
+    }
     async fn execute_capability(
         &self,
         request: ToolDispatchRequest,
@@ -349,6 +382,15 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                 _ => None,
             };
             if let Some(outcome) = outcome {
+                if outcome
+                    .as_ref()
+                    .err()
+                    .is_some_and(|error| definitive_player_rejection(error).is_none())
+                {
+                    return Err(ToolDispatchError {
+                        code: "hero_intention_uncertain",
+                    });
+                }
                 return Ok(match outcome {
                     Ok(state) => {
                         let mut status =
@@ -369,7 +411,7 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                         }
                     }
                     Err(error) => ToolExecution {
-                        result: serde_json::json!({"error":match error{app_application::ports::repositories::RepositoryError::Operation{code,..}=>code,_=>"hero_intention_failed"}}),
+                        result: serde_json::json!({"error":definitive_player_rejection(&error).expect("classified rejection"),"resolution":"rejected"}),
                         is_error: true,
                         handled_by: "engine".into(),
                         media: vec![],
@@ -390,6 +432,15 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                     action: command.action,
                 })
                 .await;
+            if outcome
+                .as_ref()
+                .err()
+                .is_some_and(|error| definitive_player_rejection(error).is_none())
+            {
+                return Err(ToolDispatchError {
+                    code: "adventure_intention_uncertain",
+                });
+            }
             return Ok(match outcome {
                 Ok(state) => ToolExecution {
                     result: serde_json::json!({"schema_version":1,"ruleset_id":"srd-5.2.1","campaign_id":state.campaign.id.0,"session_id":state.session_id.0,"character_id":state.character_id,"revision":state.campaign.revision.0,"adventure":state.projection.adventure,"inventory":state.projection.character["inventory"],"projection":state.projection.combat}),
@@ -409,7 +460,7 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                         _ => "campaign_revision_conflict",
                     };
                     ToolExecution {
-                        result: serde_json::json!({"error":code}),
+                        result: serde_json::json!({"error":code,"resolution":"rejected"}),
                         is_error: true,
                         handled_by: "engine".into(),
                         media: vec![],
@@ -503,5 +554,22 @@ impl RuntimeCoordinator for LegacyRuntimeAdapter {
             gpu_swap.release().await;
         }
         Ok(())
+    }
+}
+
+fn definitive_player_rejection(
+    error: &app_application::ports::repositories::RepositoryError,
+) -> Option<&'static str> {
+    use app_application::ports::repositories::RepositoryError;
+    match error {
+        RepositoryError::Conflict { .. } | RepositoryError::RevisionConflict { .. } => {
+            Some("player_intention_conflict")
+        }
+        RepositoryError::Operation { code, .. }
+            if app_application::agent::intentions::definitive_rejection(code) =>
+        {
+            Some(code)
+        }
+        _ => None,
     }
 }

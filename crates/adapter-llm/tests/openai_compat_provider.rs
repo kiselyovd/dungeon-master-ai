@@ -253,3 +253,46 @@ async fn dm_system_context_is_present_in_the_actual_wire_request() {
         "The model must receive the server's authored context"
     );
 }
+
+#[tokio::test]
+async fn real_stream_terminal_metadata_cannot_turn_truncated_verifier_json_into_permission() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    use std::sync::Arc;
+    for (reason, valid) in [
+        (serde_json::json!("stop"), true),
+        (serde_json::json!("length"), false),
+        (serde_json::json!("content_filter"), false),
+        (serde_json::Value::Null, false),
+    ] {
+        let server = MockServer::start().await;
+        let content = serde_json::json!({"choices":[{"index":0,"delta":{"content":"{\"allowed\":true,\"further_requested\":false}"},"finish_reason":null}]});
+        let finish = serde_json::json!({"choices":[{"index":0,"delta":{},"finish_reason":reason}]});
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(format!(
+                        "data: {content}\n\ndata: {finish}\n\ndata: [DONE]\n\n"
+                    )),
+            )
+            .mount(&server)
+            .await;
+        let provider = Arc::new(OpenAICompatProvider::new(server.uri(), "fixture".into()));
+        let decision = LlmPlayerIntentionVerifier::new(provider, "dmai-qwen9b-eval".into())
+            .assess(PlayerIntentionCheck {
+                player_message: "Move to quay".into(),
+                candidate: Some((
+                    "adventure_action".into(),
+                    serde_json::json!({"action":{"kind":"move","location":"quay"}}),
+                )),
+                resolved: vec![],
+                conversation: vec![],
+                public_context: serde_json::json!({}),
+            })
+            .await;
+        assert_eq!(decision.is_ok(), valid, "finish reason {reason}");
+    }
+}

@@ -12,7 +12,7 @@ fn error(code: &'static str) -> RepositoryError {
         code,
     }
 }
-async fn context(
+pub(crate) async fn context(
     tx: &mut Transaction<'_, Sqlite>,
     lease: &RoomLease,
     encounter: Uuid,

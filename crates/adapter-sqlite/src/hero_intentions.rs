@@ -115,7 +115,9 @@ impl HeroIntentionRepository for SqliteStore {
                 rejected(match error {
                     ResolveCombatError::StaleRevision { .. } => "hero_combat_stale",
                     ResolveCombatError::RequestMismatch => "hero_intention_mismatch",
-                    ResolveCombatError::Rejected(_) => "hero_combat_rejected",
+                    ResolveCombatError::Rejected(error) => {
+                        app_application::combat::resolve::validation_code(&error)
+                    }
                     _ => "hero_combat_failed",
                 })
             })?;

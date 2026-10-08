@@ -1,5 +1,6 @@
 pub mod adventure;
 pub mod agent_operations;
+mod agent_replay;
 mod authored_combat;
 pub mod campaign_state;
 pub mod campaigns;

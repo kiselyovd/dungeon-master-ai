@@ -247,3 +247,124 @@ fn read_error(error: sqlx::Error) -> RepositoryError {
     tracing::warn!(database_code = code, "room agent SQLite read failed");
     self::error("room_agent_read_failed")
 }
+
+/// Validate ownership/timeline/signature and read an existing effect atomically.
+/// A missing preparation or receipt never allocates a nonce or executes a command.
+pub(crate) async fn replay(
+    store: &crate::SqliteStore,
+    lease: &RoomLease,
+    turn_id: Uuid,
+    tool_id: &str,
+    command: AgentToolCommand,
+) -> Result<Option<app_application::agent::tool_dispatch::ToolExecution>, RepositoryError> {
+    use app_application::models::{
+        identity::Revision,
+        room_combat::RoomCombatResult,
+        room_world::{RoomAdventureCommand, RoomRestCommand},
+    };
+    let mut tx = store
+        .pool
+        .begin()
+        .await
+        .map_err(|_| error("room_agent_begin_failed"))?;
+    guard(&mut tx, lease).await?;
+    timeline(&mut tx, lease, turn_id).await?;
+    let row=sqlx::query("SELECT command_json,prepared_json FROM room_agent_tools WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND tool_id=?4")
+        .bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn_id.to_string()).bind(tool_id).fetch_optional(&mut *tx).await.map_err(read_error)?;
+    let Some(row) = row else {
+        tx.commit()
+            .await
+            .map_err(|_| error("room_agent_commit_failed"))?;
+        return Ok(None);
+    };
+    let signature = match &command {
+        AgentToolCommand::AdventureAction(value) => serde_json::json!({"adventure":value}),
+        AgentToolCommand::CombatAction(value) => serde_json::json!({"combat":value}),
+        AgentToolCommand::RestAction(value) => serde_json::json!({"rest":value}),
+        AgentToolCommand::RollDice(value) if value.check.is_some() => {
+            serde_json::json!({"check":value})
+        }
+        _ => return Err(error("room_access_denied")),
+    }
+    .to_string();
+    if signature != row.get::<String, _>("command_json") {
+        return Err(error("room_world_conflict"));
+    }
+    let prepared: PreparedRoomTool = serde_json::from_str(&row.get::<String, _>("prepared_json"))
+        .map_err(|_| error("room_agent_read_failed"))?;
+    let result = match command {
+        AgentToolCommand::AdventureAction(action) => {
+            let cmd = RoomAdventureCommand {
+                request_id: prepared.nonce.clone(),
+                expected_revision: Revision(prepared.expected_revision),
+                action: action.action,
+            };
+            let signature =
+                serde_json::to_string(&cmd).map_err(|_| error("room_action_invalid"))?;
+            crate::room_world::replay(&mut tx, lease, &prepared.nonce, "adventure", &signature)
+                .await?
+                .map(|receipt| serde_json::to_value(receipt).expect("typed receipt"))
+        }
+        AgentToolCommand::RestAction(intent) => {
+            let cmd = RoomRestCommand {
+                request_id: prepared.nonce.clone(),
+                expected_revision: Revision(prepared.expected_revision),
+                intent,
+            };
+            let signature =
+                serde_json::to_string(&cmd).map_err(|_| error("room_action_invalid"))?;
+            crate::room_world::replay(&mut tx, lease, &prepared.nonce, "rest", &signature)
+                .await?
+                .map(|receipt| serde_json::to_value(receipt).expect("typed receipt"))
+        }
+        AgentToolCommand::CombatAction(action) => {
+            let encounter = prepared
+                .encounter_id
+                .ok_or_else(|| error("room_combat_conflict"))?;
+            let (owner, mut projection) =
+                crate::room_combat::context(&mut tx, lease, encounter).await?;
+            let id = format!(
+                "room:{}:{}:{}",
+                lease.room_id(),
+                lease.member_id(),
+                prepared.nonce
+            );
+            let expected=serde_json::json!({"room":lease.room_id(),"member":lease.member_id(),"character":owner,"encounter":encounter,"expected_revision":prepared.expected_revision,"action":action}).to_string();
+            if let Some(row)=sqlx::query("SELECT signature,projection_json FROM combat_action_receipts WHERE encounter_id=?1 AND request_id=?2").bind(encounter.to_string()).bind(id).fetch_optional(&mut *tx).await.map_err(read_error)? {
+                if row.get::<String,_>("signature")!=expected {return Err(error("room_world_conflict"));}
+                let old:app_application::models::combat::CombatProjection=serde_json::from_str(&row.get::<String,_>("projection_json")).map_err(|_|error("room_agent_read_failed"))?;
+                app_application::models::room_combat::project_for_owner(&mut projection,owner);
+                Some(serde_json::to_value(RoomCombatResult{projection,duplicate:true,receipt_revision:old.revision,receipt_events:old.events}).expect("typed combat receipt"))
+            } else {None}
+        }
+        AgentToolCommand::RollDice(command) => {
+            let (_, _, owner, _) = crate::room_world::context(&mut tx, lease).await?;
+            let check = command
+                .check
+                .as_ref()
+                .ok_or_else(|| error("room_access_denied"))?;
+            if check.character_id != owner {
+                return Err(error("room_access_denied"));
+            }
+            if let Some(mut result) = prepared.check_result {
+                crate::room_checks::validate_receipt(&result, owner, check)?;
+                result["duplicate"] = serde_json::json!(true);
+                Some(result)
+            } else {
+                None
+            }
+        }
+        _ => return Err(error("room_access_denied")),
+    };
+    tx.commit()
+        .await
+        .map_err(|_| error("room_agent_commit_failed"))?;
+    Ok(result.map(
+        |result| app_application::agent::tool_dispatch::ToolExecution {
+            result,
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+    ))
+}

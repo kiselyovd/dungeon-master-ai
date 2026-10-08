@@ -29,6 +29,7 @@ pub struct AppState {
 }
 
 struct AppStateInner {
+    player_verification_enabled: std::sync::atomic::AtomicBool,
     campaign_lanes: Mutex<HashMap<uuid::Uuid, Weak<tokio::sync::Mutex<()>>>>,
     process_id: uuid::Uuid,
     settings_runtime: RwLock<RuntimeSettingsSnapshot>,
@@ -64,6 +65,18 @@ struct RuntimeSettingsSnapshot {
 }
 
 impl AppState {
+    /// Production composition enables semantic checks; isolated mechanical fixtures
+    /// inject their own policy ports instead of claiming real-model acceptance.
+    pub fn enable_player_verification(&self) {
+        self.inner
+            .player_verification_enabled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    pub fn player_verification_enabled(&self) -> bool {
+        self.inner
+            .player_verification_enabled
+            .load(std::sync::atomic::Ordering::SeqCst)
+    }
     pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
         let models_dir = std::env::temp_dir().join("dmai-models");
         // One shared secrets repo: the download manager reads the HF token from
@@ -85,6 +98,7 @@ impl AppState {
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
+                player_verification_enabled: std::sync::atomic::AtomicBool::new(false),
                 campaign_lanes: Mutex::new(HashMap::new()),
                 process_id: uuid::Uuid::new_v4(),
                 settings_runtime: RwLock::new(RuntimeSettingsSnapshot {

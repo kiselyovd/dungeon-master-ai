@@ -16,6 +16,14 @@ pub(super) struct CheckpointTools<T> {
 
 #[async_trait]
 impl<T: ToolCapabilityHandler> ToolCapabilityHandler for CheckpointTools<T> {
+    async fn replay_capability(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        // The inner repository validates the checkpoint signature and canonical receipt
+        // in one read transaction; never claim a missing step before this lookup.
+        self.inner.replay_capability(request).await
+    }
     async fn execute_capability(
         &self,
         request: ToolDispatchRequest,

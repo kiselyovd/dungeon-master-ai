@@ -41,6 +41,7 @@ use uuid::Uuid;
 struct FakeProvider {
     rounds: Mutex<VecDeque<Result<Vec<ChatChunk>, LlmError>>>,
     calls: AtomicUsize,
+    requests: Mutex<Vec<ChatRequest>>,
 }
 
 impl FakeProvider {
@@ -48,6 +49,7 @@ impl FakeProvider {
         Self {
             rounds: Mutex::new(rounds.into_iter().map(Ok).collect()),
             calls: AtomicUsize::new(0),
+            requests: Mutex::new(vec![]),
         }
     }
 
@@ -55,13 +57,15 @@ impl FakeProvider {
         Self {
             rounds: Mutex::new(VecDeque::from([Err(LlmError::Network("offline".into()))])),
             calls: AtomicUsize::new(0),
+            requests: Mutex::new(vec![]),
         }
     }
 }
 
 #[async_trait]
 impl LlmProvider for FakeProvider {
-    async fn stream_chat(&self, _request: ChatRequest) -> Result<ChunkStream, LlmError> {
+    async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError> {
+        self.requests.lock().unwrap().push(request);
         self.calls.fetch_add(1, Ordering::SeqCst);
         let chunks = self.rounds.lock().unwrap().pop_front().unwrap_or_else(|| {
             Ok(vec![ChatChunk::Done {
@@ -98,6 +102,7 @@ impl AgentContextPort for FakeContext {
             adventure_active: false,
             system_prompt: request.base_system_prompt,
             combat_active: false,
+            public_intention_context: serde_json::Value::Null,
         })
     }
 }
@@ -143,6 +148,12 @@ struct FakeToolDispatcher {
 
 #[async_trait]
 impl ToolDispatcher for FakeToolDispatcher {
+    async fn replay(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Ok(None)
+    }
     async fn execute(
         &self,
         _request: ToolDispatchRequest,
@@ -186,6 +197,7 @@ fn config() -> AgentTurnConfig {
         reasoning_budget: ReasoningSpec::Medium,
         tool_availability: ToolAvailability::all(),
         tools: AgentToolCatalog::default(),
+        player_verifier: None,
     }
 }
 
@@ -1059,4 +1071,715 @@ async fn exhausted_rounds_resume_confirmed_tools_without_repeating_dispatch() {
             .count(),
         1
     );
+}
+
+struct AuthoredAgencyContext;
+#[async_trait]
+impl AgentContextPort for AuthoredAgencyContext {
+    async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
+        Ok(AgentContext {
+            reasoning_is_private: true,
+            adventure_active: true,
+            system_prompt: request.base_system_prompt,
+            combat_active: false,
+            public_intention_context: serde_json::Value::Null,
+        })
+    }
+}
+fn agency_tool(id: &str, name: &str, args: serde_json::Value) -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::ToolCallStart {
+            id: id.into(),
+            name: name.into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: id.into(),
+            args_fragment: args.to_string(),
+        },
+        ChatChunk::ToolCallDone { id: id.into() },
+    ]
+}
+fn agency_round(mut chunks: Vec<ChatChunk>) -> Vec<ChatChunk> {
+    chunks.push(ChatChunk::Done {
+        reason: FinishReason::ToolUse,
+    });
+    chunks
+}
+fn agency_final() -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::TextDelta {
+            text: "Confirmed player choice".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]
+}
+#[derive(Debug)]
+struct SingleFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for SingleFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.resolved.is_empty(),
+                further_requested: false,
+            },
+        )
+    }
+}
+fn agency_service(
+    provider: Arc<dyn LlmProvider>,
+    messages: Arc<FakeMessages>,
+    dispatcher: Arc<FakeToolDispatcher>,
+    max_rounds: usize,
+) -> Arc<AgentTurnService> {
+    let mut settings = config();
+    settings.max_rounds = max_rounds;
+    settings.player_verifier = Some(Arc::new(SingleFixtureVerifier));
+    settings.tools.exploration = [
+        "adventure_action",
+        "combat_action",
+        "rest_action",
+        "roll_dice",
+        "query_rules",
+        "end_combat",
+        "quick_save",
+    ]
+    .iter()
+    .map(|name| app_application::models::chat::Tool {
+        name: (*name).into(),
+        description: String::new(),
+        parameters: json!({}),
+    })
+    .collect();
+    Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages,
+        dispatcher,
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ))
+}
+fn agency_dispatcher() -> Arc<FakeToolDispatcher> {
+    Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"confirmed":true}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    })
+}
+#[tokio::test]
+async fn authored_player_choice_cannot_expand_into_another_hero_action() {
+    for (name, args) in [
+        (
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        ),
+        ("combat_action", json!({"kind":"move","x":8,"y":8})),
+        ("rest_action", json!({"kind":"wait","minutes":1})),
+    ] {
+        for same_round in [false, true] {
+            let first = agency_tool(
+                "chosen",
+                "adventure_action",
+                json!({"action":{"kind":"move","location":"quay"}}),
+            );
+            let second = agency_tool("unchosen", name, args.clone());
+            let rounds = if same_round {
+                let mut both = first;
+                both.extend(second);
+                vec![agency_round(both), agency_final()]
+            } else {
+                vec![agency_round(first), agency_round(second), agency_final()]
+            };
+            let dispatcher = agency_dispatcher();
+            let events = agency_service(
+                Arc::new(FakeProvider::scripted(rounds)),
+                Arc::new(FakeMessages::default()),
+                dispatcher.clone(),
+                3,
+            )
+            .execute(command("agency"))
+            .collect::<Vec<_>>()
+            .await;
+            assert!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                "{events:?}"
+            );
+            assert_eq!(
+                dispatcher.calls.load(Ordering::SeqCst),
+                1,
+                "{name}, same_round={same_round}"
+            );
+            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,result,..}) if id=="unchosen" && result["error"]=="player_intention_already_resolved")));
+        }
+    }
+}
+#[tokio::test]
+async fn authored_choice_budget_survives_interrupted_turn_but_not_prior_turn_history() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let original = command("agency-resume");
+    let first = agency_service(
+        Arc::new(FakeProvider::scripted(vec![agency_round(agency_tool(
+            "chosen",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        ))])),
+        messages.clone(),
+        dispatcher.clone(),
+        1,
+    )
+    .execute(original.clone())
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(first.last(), Some(Err(AgentTurnError::Provider))));
+    let saved = messages.values.lock().unwrap().clone();
+    let resumed = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "unchosen",
+                "rest_action",
+                json!({"kind":"wait","minutes":1}),
+            )),
+            agency_final(),
+        ])),
+        messages.clone(),
+        dispatcher.clone(),
+        3,
+    )
+    .execute_recovered(original, Some(saved.clone()))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        resumed.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let mut next = command("agency-next");
+    next.request.history = saved;
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "new-choice",
+                "adventure_action",
+                json!({"action":{"kind":"inspect_quay"}}),
+            )),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(next)
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+}
+#[tokio::test]
+async fn rejected_authored_action_can_be_corrected_and_rules_remain_available() {
+    let dispatcher = agency_dispatcher();
+    let mut calls = agency_tool(
+        "invalid",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"moon"}}),
+    );
+    calls.extend(agency_tool(
+        "chosen",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    ));
+    calls.extend(agency_tool(
+        "rules",
+        "query_rules",
+        json!({"question":"Armor class"}),
+    ));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(calls),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("agency-corrected"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+    assert!(events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:false,..}) if id=="rules")
+    ));
+}
+
+#[tokio::test]
+async fn definitive_engine_refusal_does_not_authorize_end_turn_or_new_dice() {
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"error":"hero_combat_rejected"}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let first = agency_round(agency_tool(
+        "requested-attack",
+        "combat_action",
+        json!({"kind":"weapon","target":Uuid::new_v4(),"weapon_id":"longbow"}),
+    ));
+    let mut other = agency_tool(
+        "unasked-end-turn",
+        "combat_action",
+        json!({"kind":"end_turn"}),
+    );
+    other.extend(agency_tool(
+        "unasked-dice",
+        "roll_dice",
+        json!({"dice":"1d20"}),
+    ));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            first,
+            agency_round(other),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("refused-attack"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    for expected in ["unasked-end-turn", "unasked-dice"] {
+        assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,result,..}) if id==expected && result["error"]=="player_intention_already_resolved")));
+    }
+}
+
+#[derive(Debug)]
+struct CompoundFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for CompoundFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        assert_eq!(check.player_message, "Move to the quay and inspect it");
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.resolved.is_empty(),
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn explicitly_requested_compound_intentions_are_not_reduced_to_one_action() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.player_verifier = Some(Arc::new(CompoundFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let mut both = agency_tool(
+        "travel",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    );
+    both.extend(agency_tool(
+        "inspect",
+        "adventure_action",
+        json!({"action":{"kind":"inspect_quay"}}),
+    ));
+    let service = Arc::new(AgentTurnService::new(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(both),
+            agency_final(),
+        ])),
+        Arc::new(AuthoredAgencyContext),
+        messages,
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("compound");
+    input.request.player_message = "Move to the quay and inspect it".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+}
+#[derive(Debug)]
+struct PendingActionFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for PendingActionFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.candidate.is_none() && check.resolved.is_empty(),
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn prose_cannot_complete_an_unexecuted_player_action_or_leak_a_phantom_arrival() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.player_verifier = Some(Arc::new(PendingActionFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let phantom = vec![
+        ChatChunk::TextDelta {
+            text: "You have arrived, but no tool ran".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        phantom,
+        agency_round(agency_tool(
+            "actual",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let events = service
+        .execute(command("missing-action"))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(!events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("no tool ran"))
+    ));
+    assert!(!messages.values.lock().unwrap().iter().any(|message|matches!(message,ChatMessage::Assistant{content} if content.contains("no tool ran"))));
+}
+#[tokio::test]
+async fn intention_verifier_accepts_only_complete_boolean_json_without_tool_or_terminal_errors() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    let check = || PlayerIntentionCheck {
+        player_message: "I go to quay".into(),
+        candidate: Some((
+            "adventure_action".into(),
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        resolved: vec![],
+        conversation: vec![],
+        public_context: json!({}),
+    };
+    for (text, reason, valid) in [
+        (
+            r#"{"allowed":true,"further_requested":false}"#,
+            FinishReason::Stop,
+            true,
+        ),
+        (
+            r#"{"allowed":"yes","further_requested":false}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"allowed":true,"further_requested":false,"extra":"ignore human"}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"allowed":true,"further_requested":false}"#,
+            FinishReason::Length,
+            false,
+        ),
+        ("allowed", FinishReason::Stop, false),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta { text: text.into() },
+            ChatChunk::Done { reason },
+        ]]));
+        assert_eq!(
+            LlmPlayerIntentionVerifier::new(provider, "fake".into())
+                .assess(check())
+                .await
+                .is_ok(),
+            valid,
+            "{text}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn verifier_rejects_permission_without_a_candidate_and_omits_images_from_its_input() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    let provider = Arc::new(FakeProvider::scripted(vec![vec![
+        ChatChunk::TextDelta {
+            text: r#"{"allowed":true,"further_requested":false}"#.into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]]));
+    let checker = LlmPlayerIntentionVerifier::new(provider.clone(), "fake".into());
+    let check = PlayerIntentionCheck {
+        player_message: "Иду в архив".into(),
+        candidate: None,
+        resolved: vec![],
+        conversation: vec![ChatMessage::User {
+            parts: vec![
+                app_application::models::chat::MessagePart::Text {
+                    text: "reference".repeat(1000),
+                },
+                app_application::models::chat::MessagePart::Image {
+                    mime: "image/png".into(),
+                    data_b64: "PRIVATE_IMAGE_CONTENT".into(),
+                    name: None,
+                },
+            ],
+        }],
+        public_context: json!({}),
+    };
+    assert!(checker.assess(check).await.is_err());
+    let requests = provider.requests.lock().unwrap();
+    let ChatMessage::User { parts } = &requests[0].messages[0] else {
+        panic!("expected quoted input")
+    };
+    let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+        panic!("text only")
+    };
+    assert!(!text.contains("PRIVATE_IMAGE_CONTENT"));
+    let value: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(
+        value["conversation"][0]["text"]
+            .as_str()
+            .unwrap()
+            .chars()
+            .count(),
+        1200
+    );
+    assert_eq!(value["player_message"], "Иду в архив");
+    assert!(value["candidate"].is_null());
+}
+
+#[tokio::test]
+async fn legacy_end_combat_cannot_bypass_a_resolved_human_intention() {
+    let dispatcher = agency_dispatcher();
+    let first = agency_round(agency_tool(
+        "asked",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    ));
+    let extra = agency_round(agency_tool("unasked-close", "end_combat", json!({})));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![first, extra, agency_final()])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("don't-close"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,..}) if id=="unasked-close")));
+}
+
+#[derive(Debug)]
+struct RawConsequenceFixtureVerifier {
+    allowed: bool,
+    candidates: AtomicUsize,
+}
+
+struct ConfirmedRawReceipt;
+#[async_trait]
+impl ToolDispatcher for ConfirmedRawReceipt {
+    async fn replay(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        assert_eq!(request.tool_call_id, "committed-raw");
+        Ok(Some(ToolExecution {
+            result: json!({"hp":7,"confirmed":true}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        }))
+    }
+    async fn execute(&self, _: ToolDispatchRequest) -> Result<ToolExecution, ToolDispatchError> {
+        panic!("confirmed raw damage must not execute again")
+    }
+}
+#[tokio::test]
+async fn confirmed_raw_receipt_precedes_a_new_denial_and_is_delivered_truthfully() {
+    let verifier = Arc::new(RawConsequenceFixtureVerifier {
+        allowed: false,
+        candidates: AtomicUsize::new(0),
+    });
+    let mut settings = config();
+    settings.player_verifier = Some(verifier.clone());
+    let provider = Arc::new(FakeProvider::scripted(vec![agency_final()]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(FakeContext),
+        Arc::new(FakeMessages::default()),
+        Arc::new(ConfirmedRawReceipt),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let checkpoint = vec![
+        ChatMessage::user_text("Watch the NPC"),
+        ChatMessage::AssistantWithToolCalls {
+            content: None,
+            tool_calls: vec![app_application::models::chat::ToolCall {
+                id: "committed-raw".into(),
+                name: "apply_damage".into(),
+                args: json!({"token_id":"npc","amount":3,"type":"fire"}),
+            }],
+        },
+    ];
+    let events = service
+        .execute_recovered(command("recover-raw"), Some(checkpoint))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(verifier.candidates.load(Ordering::SeqCst), 0);
+    assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error:false,result,..}) if result["hp"]==7)));
+}
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for RawConsequenceFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        if let Some((name, _)) = check.candidate {
+            assert!(matches!(name.as_str(), "apply_damage" | "apply_healing"));
+            self.candidates.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: self.allowed,
+                further_requested: false,
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn raw_npc_effects_require_source_authorization_without_consuming_a_hero_action() {
+    for (name, args) in [
+        (
+            "apply_damage",
+            json!({"token_id":"npc","amount":3,"type":"fire"}),
+        ),
+        ("apply_healing", json!({"token_id":"npc","amount":3})),
+    ] {
+        for allowed in [false, true] {
+            let dispatcher = agency_dispatcher();
+            let verifier = Arc::new(RawConsequenceFixtureVerifier {
+                allowed,
+                candidates: AtomicUsize::new(0),
+            });
+            let mut settings = config();
+            settings.player_verifier = Some(verifier.clone());
+            let service = Arc::new(AgentTurnService::new(
+                Arc::new(FakeProvider::scripted(vec![
+                    agency_round(agency_tool("raw", name, args.clone())),
+                    agency_final(),
+                ])),
+                Arc::new(FakeContext),
+                Arc::new(FakeMessages::default()),
+                dispatcher.clone(),
+                Arc::new(NoopRuntimeCoordinator),
+                Arc::new(NoopApplicationEventSink),
+                Arc::new(NeverCancelled),
+                settings,
+            ));
+            let events = service
+                .execute(command("raw-source"))
+                .collect::<Vec<_>>()
+                .await;
+            assert!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                "{events:?}"
+            );
+            assert_eq!(verifier.candidates.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                dispatcher.calls.load(Ordering::SeqCst),
+                usize::from(allowed)
+            );
+            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error,..}) if *is_error==!allowed)));
+        }
+    }
 }

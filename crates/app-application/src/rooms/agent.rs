@@ -247,16 +247,54 @@ impl AgentContextPort for RoomAgentPorts {
                 &adventure.state,
             ));
         }
+        let combat = state
+            .combat
+            .as_ref()
+            .map(|combat| serde_json::to_value(combat).expect("typed combat"));
+        let public_intention_context = crate::agent::context::public_intention_context(
+            state.adventure.as_ref(),
+            combat.as_ref(),
+            state
+                .own_character
+                .as_ref()
+                .and_then(|character| character["name"].as_str()),
+        );
         Ok(AgentContext {
             reasoning_is_private: true,
             adventure_active: state.adventure.is_some(),
             system_prompt: prompt,
             combat_active: state.combat.is_some(),
+            public_intention_context,
         })
     }
 }
 #[async_trait::async_trait]
 impl ToolDispatcher for RoomAgentPorts {
+    async fn replay(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        if request.request_id != self.turn_id.to_string()
+            || request.campaign_id != self.subject.lease().campaign_id().0
+            || request.session_id != self.subject.lease().session_id().0
+        {
+            return Err(ToolDispatchError {
+                code: "room_agent_denied",
+            });
+        }
+        self.rooms
+            .rooms
+            .replay_room_agent_tool(
+                self.subject.lease(),
+                self.turn_id,
+                &request.tool_call_id,
+                request.command,
+            )
+            .await
+            .map_err(|_| ToolDispatchError {
+                code: "room_agent_replay_failed",
+            })
+    }
     async fn execute(
         &self,
         request: ToolDispatchRequest,
@@ -324,7 +362,13 @@ impl ToolDispatcher for RoomAgentPorts {
                     uuid::Uuid::new_v4().as_u128() as u64,
                 )
                 .await
-                .map_err(|_| super::RoomError::ActionRejected),
+                .map_err(|error| match error {
+                    crate::ports::repositories::RepositoryError::Operation {
+                        code: "room_access_denied" | "hero_check_incapacitated",
+                        ..
+                    } => super::RoomError::Denied,
+                    _ => super::RoomError::Repository,
+                }),
             AgentToolCommand::AdventureAction(command) => self
                 .rooms
                 .adventure(
@@ -366,6 +410,14 @@ impl ToolDispatcher for RoomAgentPorts {
                 .map(|result| serde_json::to_value(result).expect("typed combat result")),
             _ => unreachable!(),
         };
+        if matches!(
+            result,
+            Err(super::RoomError::Repository | super::RoomError::Secrets)
+        ) {
+            return Err(ToolDispatchError {
+                code: "room_intention_uncertain",
+            });
+        }
         Ok(match result {
             Ok(result) => ToolExecution {
                 result,
@@ -374,7 +426,7 @@ impl ToolDispatcher for RoomAgentPorts {
                 media: vec![],
             },
             Err(_) => ToolExecution {
-                result: serde_json::json!({"error":"room_intention_rejected"}),
+                result: serde_json::json!({"error":"room_intention_rejected","resolution":"rejected"}),
                 is_error: true,
                 handled_by: "engine".into(),
                 media: vec![],

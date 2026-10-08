@@ -347,3 +347,22 @@ fn repository_error(error: RepositoryError) -> ResolveCombatError {
         _ => ResolveCombatError::Persistence,
     }
 }
+
+pub fn validation_code(error: &app_domain::combat::resolver::ValidationError) -> &'static str {
+    use app_domain::combat::resolver::ValidationError::*;
+    match error {
+        Obstructed => "combat_obstructed",
+        OutOfRange => "combat_out_of_range",
+        ExitRequired => "combat_exit_required",
+        SpellUnavailable => "combat_spell_unavailable",
+        SpellSlotUnavailable => "combat_slot_unavailable",
+        Incapacitated => "combat_incapacitated",
+        WeaponUnavailable => "combat_weapon_unavailable",
+        AmmunitionExhausted => "combat_ammunition_exhausted",
+        HandsOccupied => "combat_hands_occupied",
+        NotYourTurn => "combat_not_your_turn",
+        InvalidTarget | TargetNotFound => "combat_target_invalid",
+        ActionEconomy(_) | ActionExhausted => "combat_budget_unavailable",
+        _ => "hero_combat_rejected",
+    }
+}

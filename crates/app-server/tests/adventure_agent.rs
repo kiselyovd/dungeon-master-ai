@@ -26,7 +26,19 @@ async fn fixture_seed(
     sqlx::SqlitePool,
     app_application::models::session::CampaignDetail,
 ) {
-    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    fixture_on_pool(
+        sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap(),
+        seed,
+    )
+    .await
+}
+async fn fixture_on_pool(
+    pool: sqlx::SqlitePool,
+    seed: CampaignSeed,
+) -> (
+    sqlx::SqlitePool,
+    app_application::models::session::CampaignDetail,
+) {
     app_server::db::init_db(&pool).await.unwrap();
     let store = Arc::new(SqliteStore::new(pool.clone()));
     let campaign = CreateCampaign::new(store.clone())
@@ -649,4 +661,305 @@ async fn model_wait_intention_updates_real_time_and_returns_public_status() {
             .elapsed_seconds,
         3600
     );
+}
+
+fn replay_request(
+    campaign: &app_application::models::session::CampaignDetail,
+    request_id: Uuid,
+    tool_id: &str,
+    args: serde_json::Value,
+) -> app_application::agent::tool_dispatch::ToolDispatchRequest {
+    app_application::agent::tool_dispatch::ToolDispatchRequest {
+        request_id: request_id.to_string(),
+        tool_call_id: tool_id.into(),
+        campaign_id: campaign.id.0,
+        session_id: campaign.last_session_id.0,
+        command: app_application::agent::tool_decoder::decode_tool_call("adventure_action", &args)
+            .unwrap(),
+    }
+}
+
+#[tokio::test]
+async fn denied_raw_hero_mutation_recovers_delivery_without_executing_or_losing_signature() {
+    use app_application::agent::operations::{
+        AgentOperation, AgentOperationRepository, OperationClaim,
+    };
+    use app_application::models::chat::{ChatMessage, ToolCall, ToolResult};
+    let (pool, campaign) = fixture().await;
+    let store = SqliteStore::new(pool.clone());
+    let id = Uuid::new_v4();
+    let owner = Uuid::new_v4();
+    let operation = AgentOperation {
+        request_id: id,
+        request: AgentTurnRequest {
+            campaign_id: campaign.id.0,
+            session_id: campaign.last_session_id.0,
+            player_message: "Look around; do not move me".into(),
+            history: vec![],
+            images: vec![],
+            board: None,
+        },
+        model: None,
+    };
+    store.claim(operation.clone(), owner).await.unwrap();
+    let args = json!({"id":Uuid::new_v4(),"x":5,"y":2});
+    let call = ToolCall {
+        id: "denied-raw".into(),
+        name: "update_token".into(),
+        args: args.clone(),
+    };
+    store
+        .append_turn_message(
+            id,
+            campaign.last_session_id.0,
+            ChatMessage::AssistantWithToolCalls {
+                content: None,
+                tool_calls: vec![call],
+            },
+        )
+        .await
+        .unwrap();
+    store
+        .append_turn_message(
+            id,
+            campaign.last_session_id.0,
+            ChatMessage::ToolResult(ToolResult {
+                tool_call_id: "denied-raw".into(),
+                content: json!({"error":"canonical_player_intention_required"}).to_string(),
+                is_error: true,
+            }),
+        )
+        .await
+        .unwrap();
+    let before = store.load_current(campaign.id).await.unwrap();
+    store.finish(id, owner, false).await.unwrap();
+    let claim = store.resume(operation.clone(), owner).await.unwrap();
+    let OperationClaim::Resuming { events, .. } = claim else {
+        panic!("expected recovery")
+    };
+    assert_eq!(events.iter().filter(|event|matches!(event,AgentEvent::ToolCallResult{id:delivery,is_error:true,..} if delivery.ends_with("denied-raw"))).count(),1);
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), before);
+    let raw: String = sqlx::query_scalar("SELECT result_json FROM agent_tool_steps WHERE request_id=?1 AND tool_call_id='denied-raw'")
+        .bind(id.to_string()).fetch_one(&pool).await.unwrap();
+    let execution: app_application::agent::tool_dispatch::ToolExecution =
+        serde_json::from_str(&raw).unwrap();
+    assert!(execution.is_error);
+    assert_eq!(
+        execution.result["error"],
+        "canonical_player_intention_required"
+    );
+    // Both completed and pending records must reject a transcript/receipt mismatch.
+    store.finish(id, owner, false).await.unwrap();
+    for pending in [false, true] {
+        sqlx::query("UPDATE agent_tool_steps SET command_json='{}',result_json=CASE WHEN ?2 THEN NULL ELSE result_json END WHERE request_id=?1")
+            .bind(id.to_string()).bind(pending).execute(&pool).await.unwrap();
+        assert!(store.resume(operation.clone(), owner).await.is_err());
+        assert_eq!(store.load_current(campaign.id).await.unwrap(), before);
+    }
+}
+#[tokio::test]
+async fn replay_only_reads_canonical_effect_without_allocating_or_executing_a_missing_tool() {
+    use app_application::{
+        models::{
+            adventure::{Action, AdventureIntent, Location},
+            identity::CampaignId,
+        },
+        ports::repositories::AdventureRepository,
+    };
+    let (pool, campaign) = fixture().await;
+    let store = SqliteStore::new(pool.clone());
+    let id = Uuid::new_v4();
+    let mut request = replay_request(
+        &campaign,
+        id,
+        "call-1",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    );
+    let before = store.load_current(campaign.id).await.unwrap();
+    assert!(store.replay_player_tool(&request).await.unwrap().is_none());
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), before);
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM agent_tool_steps")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    store
+        .act_as_dm(AdventureIntent {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            causation_id: format!("agent:{id}:call-1"),
+            action: Action::Move(Location::Quay),
+        })
+        .await
+        .unwrap();
+    let committed = store.load_current(campaign.id).await.unwrap();
+    for _ in 0..2 {
+        let result = store.replay_player_tool(&request).await.unwrap().unwrap();
+        assert!(!result.is_error);
+        assert_eq!(result.result["revision"], committed.campaign.revision.0);
+    }
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), committed);
+    request.command = app_application::agent::tool_decoder::decode_tool_call(
+        "adventure_action",
+        &json!({"action":{"kind":"inspect_quay"}}),
+    )
+    .unwrap();
+    assert!(store.replay_player_tool(&request).await.is_err());
+    request.campaign_id = CampaignId(Uuid::new_v4()).0;
+    assert!(store.replay_player_tool(&request).await.is_err());
+}
+#[tokio::test]
+async fn pending_tool_recovery_survives_file_reopen_and_rejects_changed_scope_or_timeline() {
+    use app_application::agent::operations::{AgentOperation, AgentOperationRepository};
+    use app_application::{
+        models::adventure::{Action, AdventureIntent, Location},
+        ports::repositories::AdventureRepository,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let options = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(dir.path().join("replay.db"))
+        .create_if_missing(true);
+    let (pool, campaign) = fixture_on_pool(
+        sqlx::SqlitePool::connect_with(options.clone())
+            .await
+            .unwrap(),
+        CampaignSeed::Bundled {
+            adventure_id: "bell-beneath-water".into(),
+        },
+    )
+    .await;
+    let store = SqliteStore::new(pool.clone());
+    let id = Uuid::new_v4();
+    let args = json!({"action":{"kind":"move","location":"quay"}});
+    let request = replay_request(&campaign, id, "pending", args.clone());
+    store
+        .claim(
+            AgentOperation {
+                request_id: id,
+                request: AgentTurnRequest {
+                    campaign_id: campaign.id.0,
+                    session_id: campaign.last_session_id.0,
+                    player_message: "go quay".into(),
+                    history: vec![],
+                    images: vec![],
+                    board: None,
+                },
+                model: None,
+            },
+            Uuid::new_v4(),
+        )
+        .await
+        .unwrap();
+    store
+        .claim_tool_step(
+            id,
+            "pending",
+            json!({"tool_name":"adventure_action","args":args}),
+        )
+        .await
+        .unwrap();
+    assert!(store.replay_player_tool(&request).await.unwrap().is_none());
+    store
+        .act_as_dm(AdventureIntent {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            causation_id: format!("agent:{id}:pending"),
+            action: Action::Move(Location::Quay),
+        })
+        .await
+        .unwrap();
+    let committed = store.load_current(campaign.id).await.unwrap();
+    drop(store);
+    pool.close().await;
+    let pool = sqlx::SqlitePool::connect_with(options).await.unwrap();
+    let store = SqliteStore::new(pool.clone());
+    assert!(
+        !store
+            .replay_player_tool(&request)
+            .await
+            .unwrap()
+            .unwrap()
+            .is_error
+    );
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), committed);
+    let pending: Option<String> =
+        sqlx::query_scalar("SELECT result_json FROM agent_tool_steps WHERE request_id=?1")
+            .bind(id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        pending.is_none(),
+        "read-only recovery never writes a new checkpoint"
+    );
+    let recovered = store.recover_player_tool(&request).await.unwrap().unwrap();
+    assert!(!recovered.is_error);
+    let repaired: String =
+        sqlx::query_scalar("SELECT result_json FROM agent_tool_steps WHERE request_id=?1")
+            .bind(id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let repaired: app_application::agent::tool_dispatch::ToolExecution =
+        serde_json::from_str(&repaired).unwrap();
+    assert_eq!(repaired.result, recovered.result);
+    assert!(!repaired.is_error);
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), committed);
+    let mut wrong = request.clone();
+    wrong.session_id = Uuid::new_v4();
+    assert!(store.replay_player_tool(&wrong).await.is_err());
+    sqlx::query("UPDATE sessions SET restore_generation=restore_generation+1 WHERE id=?1")
+        .bind(request.session_id.to_string())
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(store.replay_player_tool(&request).await.is_err());
+}
+#[tokio::test]
+async fn rest_receipt_lookup_preserves_resources_and_clock() {
+    use app_application::agent::hero_intentions::{HeroIntention, HeroIntentionRepository};
+    use app_application::models::rest::RestIntent;
+    let (pool, campaign) = fixture().await;
+    let store = SqliteStore::new(pool);
+    let id = Uuid::new_v4();
+    let mut request = replay_request(
+        &campaign,
+        id,
+        "rest",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    );
+    request.command = app_application::agent::tool_decoder::decode_tool_call(
+        "rest_action",
+        &json!({"kind":"wait","minutes":5}),
+    )
+    .unwrap();
+    assert!(store.replay_player_tool(&request).await.unwrap().is_none());
+    store
+        .rest_as_dm(
+            HeroIntention {
+                campaign_id: campaign.id,
+                session_id: campaign.last_session_id,
+                causation_id: format!("agent:{id}:rest"),
+                action: RestIntent::Wait { minutes: 5 },
+            },
+            1,
+        )
+        .await
+        .unwrap();
+    let before = store.load_current(campaign.id).await.unwrap();
+    assert!(
+        !store
+            .replay_player_tool(&request)
+            .await
+            .unwrap()
+            .unwrap()
+            .is_error
+    );
+    assert_eq!(store.load_current(campaign.id).await.unwrap(), before);
+    request.command = app_application::agent::tool_decoder::decode_tool_call(
+        "rest_action",
+        &json!({"kind":"wait","minutes":6}),
+    )
+    .unwrap();
+    assert!(store.replay_player_tool(&request).await.is_err());
 }

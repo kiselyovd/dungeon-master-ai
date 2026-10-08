@@ -161,6 +161,15 @@ impl RoomRepository for crate::SqliteStore {
     ) -> Result<Vec<app_application::models::campaign::StoredMessage>, RepositoryError> {
         crate::room_agent::load_checkpoint(self, lease, turn).await
     }
+    async fn replay_room_agent_tool(
+        &self,
+        lease: &RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: app_application::agent::commands::AgentToolCommand,
+    ) -> Result<Option<app_application::agent::tool_dispatch::ToolExecution>, RepositoryError> {
+        crate::room_agent::replay(self, lease, turn_id, tool_id, command).await
+    }
     async fn prepare_room_agent_tool(
         &self,
         lease: &RoomLease,

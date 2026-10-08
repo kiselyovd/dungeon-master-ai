@@ -1159,6 +1159,14 @@ impl AgentHttpService for AppStateAgentHttpService {
         // restart the model child, so no legacy in-process GPU swap is built.
         let gpu_swap = None;
         let pool = self.state.db().clone();
+        let player_verifier = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                app_application::agent::intentions::LlmPlayerIntentionVerifier::new(
+                    provider.clone(),
+                    config.model.clone(),
+                ),
+            ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
+        });
         let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
             provider,
             pool.clone(),
@@ -1168,6 +1176,11 @@ impl AgentHttpService for AppStateAgentHttpService {
         )
         .with_gpu_swap(gpu_swap)
         .with_video_provider(video_provider);
+        let orchestrator = if let Some(verifier) = player_verifier {
+            orchestrator.with_player_verifier(verifier)
+        } else {
+            orchestrator
+        };
         let driver = Arc::new(DurableOrchestratorDriver {
             orchestrator,
             lane: self.state.campaign_lane(command.request.campaign_id),
@@ -1693,6 +1706,14 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
             &config.system_prompt,
             config.tool_availability,
         );
+        let player_verifier = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                app_application::agent::intentions::LlmPlayerIntentionVerifier::new(
+                    self.state.provider(),
+                    config.model.clone(),
+                ),
+            ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
+        });
         RoomDmRunner::new(
             Arc::new(RoomAgentPorts::new(self.rooms.clone(), subject, request_id)),
             self.state.provider(),
@@ -1706,6 +1727,7 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
                 reasoning_budget: config.reasoning_budget,
                 tool_availability: config.tool_availability,
                 tools,
+                player_verifier,
             },
             lane,
             self.state.process_id(),

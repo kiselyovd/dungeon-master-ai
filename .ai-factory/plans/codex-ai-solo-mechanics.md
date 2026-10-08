@@ -266,21 +266,26 @@ HP11/arrows19 and revision8 persist. User input explicitly forbade ending the
 hero turn. Independent semantic reviews reject these configurations. These are
 real HTTP/model checks, not native full-session or physical LAN acceptance.
 
-## Resolve one player intention, then narrate
+## Execute requested player intentions directly, then narrate
 
 - [x] Reproduce multi-action drift from real Qwen thinking/actual combat, plus
   application RED regressions for same batch, next round, cross-kind and recovery.
-- [ ] Implement a prepared-adventure resolution/narration phase. First decoded
-  engine hero intention resolves once: success OR definitive gameplay rejection.
+- [x] Implement a separate semantic authorization check against the immutable
+  human message. Execute directly without a per-action confirmation UI. Genuine
+  compound requests can resolve multiple requested actions in order; a confirmed
+  or definitively rejected attempt cannot authorize an unrequested follow-up.
   Keep decoding correction possible; storage/transport uncertainty interrupts.
-  Withhold subsequent adventure/combat/rest/dice operations and check each batch
-  entry. Rules/media/save remain available. Do not replace a failed attack with
+  Check every proposed action, including same-batch entries, and withhold final
+  prose while explicitly requested mechanics remain unresolved. Rules/media/save
+  remain available. Do not replace a failed attack with
   EndTurn or another action the player did not choose.
-- [ ] Recover phase only from this request's checkpoint, never previous history.
+- [x] Recover phase only from this request's checkpoint, never previous history.
   Add receipt-only dispatcher/capability ports and canonical repository lookups.
   Validate immutable args, owner/lease/session/timeline under one repository path.
-  Recover already committed effects without dispatching new ones. None means
-  reject; unknown/read failure means interrupted. Never replay stale projections.
+  Recover already committed effects without dispatching new ones. Missing receipts
+  cannot confirm an effect; unknown/read failure means interrupted. Never replay
+  stale projections. Legacy raw mutations recover only completed steps; a pending
+  non-idempotent effect remains uncertain.
 - [ ] Regress A-confirmed+B-pending both without effect and with prior committed
   world effect but missing tool checkpoint/result, including SQLite reopening.
   Cover changed arguments, restore/revoke, rejected intent and old multi-effect
@@ -291,8 +296,44 @@ real HTTP/model checks, not native full-session or physical LAN acceptance.
   Qwen rescue/ending/combat plus independent source/semantic review. Record fresh
   native/session evidence separately; do not promote an unaccepted model.
 
-This limits tool resolution, not semantic correctness of the first interpretation.
-Compound requests require separate player turns or a future explicit confirmed
-plan. NPC consequences inside one canonical action remain server-authoritative.
-Current new workflow RED tests are intentionally uncommitted; production backend
-in these model observations remains b4950c7 with inherited baseline preserved.
+User explicitly selected direct execution from text with a separate model check.
+The checker receives public context and recorded outcomes, never DM-only lore;
+strict JSON and complete terminal metadata are required before authorization.
+NPC consequences inside canonical actions remain server-authoritative. The model
+checker is not proof of narrative truth or universal semantic reliability; actual
+model evaluation and independent review remain required. Historical model results
+above used b4950c7 with inherited baseline preserved; guarded runs must record
+their own build and evidence. Current implementation remains uncommitted.
+
+Guarded evaluation: thinking Qwen completed all ten selected adventure actions in
+129.012 seconds, returned to town and confirmed closed_crossing, rescue and ten
+gold at revision13; one save followed locating Tikhon. Independent semantic review
+still FAIL: dry-path/deep-water contradiction, already rescued Tikhon described as
+awaiting transport, invented permanent flooding, assigned hero feelings and Russian
+wording errors. Guarded combat-start and compound move+inspect interrupted before
+effects (24.936/15.040 seconds, unchanged revisions5/2). No model promotion.
+
+Focused verification:22 workflow tests,11 adventure-agent tests,3 room-agent tests,
+39 room-DM tests and6 actual OpenAI-compatible wire tests pass. Independent bounded
+source/recovery review closed after raw-effect/source checks, replay-before-policy,
+immutable signatures and denied-result delivery repair. Full gates and remaining
+model/native/physical LAN acceptance are recorded separately, never inferred from
+these fixtures. QA processes and ports31425/31809 are verified stopped.
+
+Next acceptance work, grounded in the failed runs:
+- [ ] Request provider-supported structured JSON for the separate checker using
+  the installed SDK; retain strict terminal/schema validation even when a provider
+  ignores the format. Verify actual wire payload and model outputs. Preserve a
+  safe static diagnostic code for verification failure without logging model text.
+- [ ] Repeat combat-start, explicitly forbidden EndTurn, real compound actions and
+  same-request continuation. Require correct effects AND completed honest replies.
+- [ ] Resolve the independently identified narrative contradictions; repeat the
+  rescue/ending route and independent semantic review before any model promotion.
+
+Checkpoint verification: full consolidated gates pass with869 Rust tests and1117
+frontend tests, architecture guard, formatting, Biome, TypeScript and Clippy. A
+Windows body-limit regression now tests32MiB+1 instead of an unread1MiB tail;
+five exact repeats and the full suite pass without weakening production limits.
+Final independent staged-source review finds no new actionable defect. Original
+32 dirty-file hashes are preserved. This closes the local implementation check,
+not model semantic acceptance, native sessions, physical LAN or the overall goal.

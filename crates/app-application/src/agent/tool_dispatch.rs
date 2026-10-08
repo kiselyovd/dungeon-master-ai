@@ -83,6 +83,15 @@ pub struct ToolDispatchError {
 
 #[async_trait]
 pub trait ToolDispatcher: Send + Sync {
+    /// Recover a recorded outcome without claiming a new tool or executing any effect.
+    async fn replay(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Err(ToolDispatchError {
+            code: "tool_replay_unavailable",
+        })
+    }
     async fn execute(
         &self,
         request: ToolDispatchRequest,
@@ -91,6 +100,14 @@ pub trait ToolDispatcher: Send + Sync {
 
 #[async_trait]
 pub trait ToolCapabilityHandler: Send + Sync {
+    async fn replay_capability(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Err(ToolDispatchError {
+            code: "tool_replay_unavailable",
+        })
+    }
     async fn execute_capability(
         &self,
         request: ToolDispatchRequest,
@@ -125,6 +142,19 @@ impl CapabilityToolDispatcher {
 
 #[async_trait]
 impl ToolDispatcher for CapabilityToolDispatcher {
+    async fn replay(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        let handler = match capability(&request.command) {
+            ToolCapability::Dice => &self.dice,
+            ToolCapability::Combat => &self.combat,
+            ToolCapability::Campaign => &self.campaign,
+            ToolCapability::Rules => &self.rules,
+            ToolCapability::Media => &self.media,
+        };
+        handler.replay_capability(request).await
+    }
     async fn execute(
         &self,
         request: ToolDispatchRequest,

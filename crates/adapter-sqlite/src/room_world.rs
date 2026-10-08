@@ -46,7 +46,7 @@ pub(crate) async fn context(
     current.projection.character = party.characters[&owner].clone();
     Ok((room, party, owner, current))
 }
-async fn replay(
+pub(crate) async fn replay(
     tx: &mut Transaction<'_, Sqlite>,
     lease: &RoomLease,
     id: &str,

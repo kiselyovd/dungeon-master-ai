@@ -110,11 +110,99 @@ impl AgentOperationRepository for SqliteStore {
                         continue;
                     }
                     let id = format!("{}:{}", input.request_id, call.id);
+                    let decoded = app_application::agent::tool_decoder::decode_tool_call(
+                        &call.name, &call.args,
+                    );
+                    let args = decoded
+                        .as_ref()
+                        .map(|command| command.to_args())
+                        .unwrap_or_else(|_| call.args.clone());
+                    let signature =
+                        serde_json::json!({"tool_name":call.name,"args":args}).to_string();
+                    let recorded_signature: Option<String> = sqlx::query_scalar(
+                        "SELECT command_json FROM agent_tool_steps WHERE request_id=?1 AND tool_call_id=?2",
+                    )
+                    .bind(input.request_id.to_string()).bind(&call.id)
+                    .fetch_optional(&mut *tx).await
+                    .map_err(|_| repository_error("read_confirmed_tool_delivery"))?;
+                    if recorded_signature.is_some_and(|recorded| recorded != signature) {
+                        return Err(rejected("agent_tool_signature_mismatch"));
+                    }
                     let raw: Option<String> = sqlx::query_scalar("SELECT result_json FROM agent_tool_steps WHERE request_id=?1 AND tool_call_id=?2 AND result_json IS NOT NULL")
                         .bind(input.request_id.to_string()).bind(&call.id).fetch_optional(&mut *tx).await.map_err(|_|repository_error("read_confirmed_tool_delivery"))?;
-                    let Some(raw) = raw else { continue };
-                    let execution: ToolExecution = serde_json::from_str(&raw)
-                        .map_err(|_| repository_error("decode_confirmed_tool_delivery"))?;
+                    let execution: ToolExecution = if let Some(raw) = raw {
+                        serde_json::from_str(&raw)
+                            .map_err(|_| repository_error("decode_confirmed_tool_delivery"))?
+                    } else {
+                        let transcript = messages
+                            .iter()
+                            .find_map(|message| match message {
+                                ChatMessage::ToolResult(result)
+                                    if result.tool_call_id == call.id =>
+                                {
+                                    Some(result)
+                                }
+                                _ => None,
+                            })
+                            .ok_or_else(|| repository_error("confirmed_tool_receipt_missing"))?;
+                        let value: serde_json::Value = serde_json::from_str(&transcript.content)
+                            .map_err(|_| repository_error("decode_confirmed_tool_delivery"))?;
+                        let mut recovered = None;
+                        if let Ok(command) = &decoded {
+                            if matches!(
+                                call.name.as_str(),
+                                "adventure_action"
+                                    | "combat_action"
+                                    | "rest_action"
+                                    | "roll_dice"
+                                    | "end_combat"
+                            ) {
+                                let request =
+                                    app_application::agent::tool_dispatch::ToolDispatchRequest {
+                                        request_id: input.request_id.to_string(),
+                                        tool_call_id: call.id.clone(),
+                                        campaign_id: input.request.campaign_id,
+                                        session_id: input.request.session_id,
+                                        command: command.clone(),
+                                    };
+                                recovered =
+                                    crate::agent_replay::replay_in_transaction(&mut tx, &request)
+                                        .await?;
+                            }
+                        }
+                        let execution = if let Some(result) = recovered {
+                            result
+                        } else if transcript.is_error
+                            && (decoded.is_err()
+                                || app_application::agent::intentions::recognized_resolution(
+                                    true, &value,
+                                )
+                                .is_some()
+                                || matches!(
+                                    value["error"].as_str(),
+                                    Some(
+                                        "tool_not_available_in_authored_adventure"
+                                            | "canonical_player_intention_required"
+                                            | "player_intention_not_requested"
+                                            | "player_intention_already_resolved"
+                                    )
+                                ))
+                        {
+                            ToolExecution {
+                                result: value,
+                                is_error: true,
+                                handled_by: "engine".into(),
+                                media: vec![],
+                            }
+                        } else {
+                            return Err(repository_error("confirmed_tool_receipt_missing"));
+                        };
+                        let raw = serde_json::to_string(&execution)
+                            .map_err(|_| repository_error("encode_confirmed_tool_delivery"))?;
+                        sqlx::query("INSERT INTO agent_tool_steps(request_id,tool_call_id,command_json,result_json) VALUES(?1,?2,?3,?4) ON CONFLICT(request_id,tool_call_id) DO UPDATE SET result_json=excluded.result_json WHERE agent_tool_steps.result_json IS NULL AND agent_tool_steps.command_json=excluded.command_json")
+                            .bind(input.request_id.to_string()).bind(&call.id).bind(signature).bind(raw).execute(&mut *tx).await.map_err(|_|repository_error("repair_confirmed_tool_delivery"))?;
+                        execution
+                    };
                     if !events.iter().any(|event| matches!(event,AgentEvent::ToolCallStart{id:existing,..} if existing==&id)) {
                         let start=AgentEvent::ToolCallStart{id:id.clone(),tool_name:call.name.clone(),round};
                         let first_delivery=events.iter().position(|event| match event {

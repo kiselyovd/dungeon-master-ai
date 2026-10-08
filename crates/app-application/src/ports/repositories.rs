@@ -130,6 +130,13 @@ pub trait RoomRepository: Send + Sync {
         lease: &crate::models::room::RoomLease,
         turn_id: Uuid,
     ) -> Result<Vec<crate::models::campaign::StoredMessage>, RepositoryError>;
+    async fn replay_room_agent_tool(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::AgentToolCommand,
+    ) -> Result<Option<crate::agent::tool_dispatch::ToolExecution>, RepositoryError>;
     async fn prepare_room_agent_tool(
         &self,
         lease: &crate::models::room::RoomLease,

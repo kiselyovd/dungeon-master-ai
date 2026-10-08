@@ -125,6 +125,7 @@ fn engine_with_sink(
             reasoning_budget: app_application::models::chat::ReasoningSpec::Low,
             tool_availability: ToolAvailability::default(),
             tools: catalog,
+            player_verifier: None,
         },
     ))
 }
@@ -874,7 +875,11 @@ async fn room_skill_check_is_owner_scoped_replay_safe_and_transactional() {
             .await
             .unwrap();
     sqlx::query("UPDATE room_agent_tools SET prepared_json=json_set(prepared_json,'$.check_result',123) WHERE tool_id='skill-one'").execute(store.pool()).await.unwrap();
-    assert!(ports.execute(request.clone()).await.unwrap().is_error);
+    assert_eq!(
+        ports.execute(request.clone()).await.unwrap_err().code,
+        "room_intention_uncertain"
+    );
+    assert!(ports.replay(request.clone()).await.is_err());
     sqlx::query("UPDATE room_agent_tools SET prepared_json=?1 WHERE tool_id='skill-one'")
         .bind(saved_prepared)
         .execute(store.pool())
@@ -909,7 +914,10 @@ async fn room_skill_check_is_owner_scoped_replay_safe_and_transactional() {
         tool_call_id: "rollback-check".into(),
         ..request.clone()
     };
-    assert!(ports.execute(retry.clone()).await.unwrap().is_error);
+    assert_eq!(
+        ports.execute(retry.clone()).await.unwrap_err().code,
+        "room_intention_uncertain"
+    );
     assert_eq!(store.party(campaign.id).await.unwrap().unwrap(), after);
     let saved:Option<String>=sqlx::query_scalar("SELECT json_extract(prepared_json,'$.check_result') FROM room_agent_tools WHERE tool_id='rollback-check'").fetch_one(store.pool()).await.unwrap();
     assert!(saved.is_none());
