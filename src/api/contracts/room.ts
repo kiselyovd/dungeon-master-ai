@@ -20,6 +20,7 @@ const RoomCampaignSchema = v.strictObject({
   updated_at_epoch_ms: integer,
 });
 export const PublicRoomSchema = v.strictObject({
+  epoch: v.optional(v.pipe(integer, v.minValue(1))),
   room_id: uuid,
   campaign_id: uuid,
   session_id: uuid,

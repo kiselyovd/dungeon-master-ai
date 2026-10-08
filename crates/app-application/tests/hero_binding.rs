@@ -75,3 +75,92 @@ fn untrained_defense_binds_and_repairs_legacy_snapshot_without_resetting_resourc
     let legacy: app_domain::combat::combatant::Combatant = serde_json::from_value(wire).unwrap();
     assert!(!legacy.untrained_armor);
 }
+
+#[test]
+fn returning_hero_uses_a_free_cell_without_refreshing_spent_budgets() {
+    use app_application::{
+        combat::resolve::reconcile_participants,
+        models::combat::{
+            AuthoredEncounter, AuthoredEncounterKind, CombatProjection, CombatSnapshot,
+        },
+    };
+    use app_domain::combat::{
+        combatant::Combatant,
+        geometry::BattleMap,
+        initiative::InitiativeEntry,
+        types::{CharacterId, CombatantId, Position},
+    };
+    let root = CombatantId::new();
+    let guest = CombatantId::new();
+    let npc = CombatantId::new();
+    let mut a = Combatant::new(root, "A".into(), 12, 8, 14);
+    a.character_id = Some(CharacterId(root.0));
+    a.position = Position { x: 0, y: 0 };
+    a.budget.action = false;
+    a.budget.movement_ft = 17;
+    let mut b = Combatant::new(guest, "B".into(), 12, 6, 14);
+    b.character_id = Some(CharacterId(guest.0));
+    b.withdrawn = true;
+    b.position = Position { x: 1, y: 0 };
+    b.budget.action = false;
+    b.budget.movement_ft = 7;
+    let mut enemy = Combatant::new(npc, "NPC".into(), 6, 6, 11);
+    enemy.position = Position { x: 1, y: 0 };
+    let mut projection = CombatProjection::empty(Uuid::new_v4(), 0);
+    projection.authored = Some(AuthoredEncounter {
+        kind: AuthoredEncounterKind::BellArchiveDefense,
+        outcome: None,
+        map: BattleMap {
+            width: 3,
+            height: 1,
+            blocked: vec![],
+            exits: vec![a.position],
+        },
+    });
+    projection.snapshot = CombatSnapshot {
+        active: true,
+        round: 1,
+        current_combatant: Some(root),
+        initiative: vec![
+            InitiativeEntry {
+                id: root,
+                roll: 20,
+                dex_tiebreak: 0,
+            },
+            InitiativeEntry {
+                id: guest,
+                roll: 15,
+                dex_tiebreak: 0,
+            },
+            InitiativeEntry {
+                id: npc,
+                roll: 10,
+                dex_tiebreak: 0,
+            },
+        ],
+        combatants: vec![a, b, enemy],
+    };
+    let ready =
+        reconcile_participants(projection, &[root.0, guest.0].into_iter().collect(), 42).unwrap();
+    let returned = ready
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.id == guest)
+        .unwrap();
+    assert_eq!(returned.position, Position { x: 2, y: 0 });
+    assert!(!returned.withdrawn);
+    assert!(!returned.budget.action);
+    assert_eq!(returned.budget.movement_ft, 7);
+    assert_eq!(returned.current_hp, 6);
+    let root = ready
+        .snapshot
+        .combatants
+        .iter()
+        .find(|a| a.id == root)
+        .unwrap();
+    assert!(!root.budget.action);
+    assert_eq!(root.budget.movement_ft, 17);
+    assert_eq!(ready.snapshot.round, 1);
+    assert!(ready.events.is_empty());
+}

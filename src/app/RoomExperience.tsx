@@ -7,6 +7,7 @@ import {
   hostRoom,
   type JoinRoomRequest,
   joinRoom,
+  leaveGuestRoom,
   postponeGuestRoom,
   type RoomConnection,
   recoverGuestRoom,
@@ -43,12 +44,22 @@ function ConnectedRoom({
   const [wizard, setWizard] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closingError, setClosingError] = useState(false);
+  const confirmedDeparture = useRef<string | null>(null);
+  const connectionKey = `${connection.kind}:${connection.room.room_id}:${connection.member_id}`;
   async function leave() {
     if (closing) return;
     setClosing(true);
     setClosingError(false);
     try {
-      if (connection.kind === 'host') await stopHostRoom(connection.room.room_id);
+      if (confirmedDeparture.current !== connectionKey) {
+        if (connection.kind === 'host') await stopHostRoom(connection.room.room_id);
+        else
+          await leaveGuestRoom(
+            connection.room.room_id,
+            view.state?.room.epoch ?? connection.room.epoch ?? 1,
+          );
+        confirmedDeparture.current = connectionKey;
+      }
       await onBack();
       controller.leave();
     } catch {

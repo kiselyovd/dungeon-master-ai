@@ -162,6 +162,26 @@ const worldReceipt = v.strictObject({
   duplicate: v.boolean(),
   rest_outcome: v.nullable(v.unknown()),
 });
+const departureReceipt = v.strictObject({
+  receipt_revision: integer,
+  duplicate: v.boolean(),
+  departure_epoch: v.pipe(integer, v.minValue(1)),
+});
+export async function leaveGuestRoom(roomId: string, expectedEpoch: number): Promise<void> {
+  const pending = await loadPendingRoomAction(roomId);
+  const action: RoomAction =
+    pending?.kind === 'leave'
+      ? pending
+      : { kind: 'leave', request_id: crypto.randomUUID(), expected_epoch: expectedEpoch };
+  await sendRoomAction(roomId, action);
+  if (action.kind === 'leave' && action.expected_epoch < expectedEpoch) {
+    await sendRoomAction(roomId, {
+      kind: 'leave',
+      request_id: crypto.randomUUID(),
+      expected_epoch: expectedEpoch,
+    });
+  }
+}
 const combatReceipt = v.strictObject({
   projection: v.unknown(),
   duplicate: v.boolean(),
@@ -173,15 +193,17 @@ export async function sendRoomAction(roomId: string, action: RoomAction): Promis
   if (!input.success) throw new RoomClientError('native_room_operation_invalid');
   const body = await execute(roomId, input.output);
   const schema =
-    action.kind === 'recovery'
-      ? RecoveryReceiptSchema
-      : action.kind === 'submit_character'
-        ? ProposalSummarySchema
-        : action.kind === 'approve_character'
-          ? v.strictObject({ proposal: ProposalSummarySchema, revision: integer })
-          : action.kind === 'combat'
-            ? combatReceipt
-            : worldReceipt;
+    action.kind === 'leave'
+      ? departureReceipt
+      : action.kind === 'recovery'
+        ? RecoveryReceiptSchema
+        : action.kind === 'submit_character'
+          ? ProposalSummarySchema
+          : action.kind === 'approve_character'
+            ? v.strictObject({ proposal: ProposalSummarySchema, revision: integer })
+            : action.kind === 'combat'
+              ? combatReceipt
+              : worldReceipt;
   if (!v.safeParse(schema, body).success) return invalid();
 }
 

@@ -5,6 +5,10 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoomMember {
+    #[serde(default)]
+    pub left: bool,
+    #[serde(default)]
+    pub departure_epoch: u64,
     pub member_id: Uuid,
     pub display_name: String,
     pub role: PartyRole,
@@ -61,15 +65,21 @@ pub struct PublicRoomMember {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublicRoom {
+    #[serde(default = "initial_epoch")]
+    pub epoch: u64,
     pub room_id: Uuid,
     pub campaign_id: CampaignId,
     pub session_id: SessionId,
     pub active: bool,
     pub members: Vec<PublicRoomMember>,
 }
+fn initial_epoch() -> u64 {
+    1
+}
 impl RoomRecord {
     pub fn public_view(&self) -> PublicRoom {
         PublicRoom {
+            epoch: self.epoch,
             room_id: self.room_id,
             campaign_id: self.campaign_id,
             session_id: self.session_id,
@@ -100,6 +110,10 @@ impl RoomRecord {
                 !member.member_id.is_nil()
                     && !member.credential_id.is_nil()
                     && valid_display_name(&member.display_name)
+                    && (!member.left
+                        || (!member.active
+                            && member.role == PartyRole::Player
+                            && member.departure_epoch > 0))
             })
             && self
                 .members
@@ -168,4 +182,17 @@ impl RoomLease {
     pub fn role(&self) -> PartyRole {
         self.role
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoomReturnIntent {
+    pub request_id: String,
+    pub expected_departure_epoch: u64,
+}
+#[derive(Clone, Serialize, Deserialize)]
+pub struct RoomDepartureReceipt {
+    pub receipt_revision: Revision,
+    pub duplicate: bool,
+    pub departure_epoch: u64,
 }

@@ -407,6 +407,8 @@ impl RoomRepository for crate::SqliteStore {
                 return Err(error("room_full_or_duplicate"));
             }
             room.members.push(RoomMember {
+                left: false,
+                departure_epoch: 0,
                 member_id: record.member_id,
                 display_name: record.display_name.clone(),
                 credential_id: record.credential_id,
@@ -425,6 +427,139 @@ impl RoomRepository for crate::SqliteStore {
             .map_err(|_| error("room_receipt_failed"))?;
         tx.commit().await.map_err(|_| error("room_commit_failed"))?;
         Ok(command.record)
+    }
+    async fn leave_member(
+        &self,
+        lease: &RoomLease,
+        expected_epoch: u64,
+        request_id: &str,
+    ) -> Result<app_application::models::room::RoomDepartureReceipt, RepositoryError> {
+        use app_application::models::{identity::Revision, room::RoomDepartureReceipt};
+        crate::room_world::nonce(request_id)?;
+        let signature = serde_json::json!({"expected_epoch":expected_epoch}).to_string();
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| error("room_begin_failed"))?;
+        let mut room = read(&mut tx, lease.room_id()).await?;
+        if !room.active
+            || room.epoch != lease.epoch()
+            || room.campaign_id != lease.campaign_id()
+            || room.session_id != lease.session_id()
+            || lease.role() != PartyRole::Player
+        {
+            return Err(error("room_access_denied"));
+        }
+        let index = room
+            .members
+            .iter()
+            .position(|m| {
+                m.member_id == lease.member_id()
+                    && m.role == PartyRole::Player
+                    && (m.active || m.left)
+            })
+            .ok_or_else(|| error("room_access_denied"))?;
+        if let Some(row)=sqlx::query("SELECT request_json,receipt_json FROM room_departure_receipts WHERE room_id=?1 AND member_id=?2 AND request_id=?3").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(request_id).fetch_optional(&mut *tx).await.map_err(|_|error("room_receipt_failed"))? {
+            if row.get::<String,_>("request_json")!=signature {return Err(error("room_causation_mismatch"));}
+            let mut receipt:RoomDepartureReceipt=serde_json::from_str(&row.get::<String,_>("receipt_json")).map_err(|_|error("room_receipt_failed"))?;receipt.duplicate=true;
+            tx.commit().await.map_err(|_|error("room_commit_failed"))?;return Ok(receipt);
+        }
+        if expected_epoch != room.epoch || !room.members[index].active {
+            return Err(error("room_departure_conflict"));
+        }
+        room.members[index].active = false;
+        room.members[index].left = true;
+        room.epoch = room
+            .epoch
+            .checked_add(1)
+            .ok_or_else(|| error("room_epoch_overflow"))?;
+        room.members[index].departure_epoch = room.epoch;
+        write(&mut tx, &room).await?;
+        crate::combat_binding::reconcile_membership(&mut tx, room.campaign_id, room.session_id)
+            .await?;
+        sqlx::query("INSERT INTO room_changes(room_id,kind,payload_json) VALUES(?1,'state',?2)").bind(room.room_id.to_string()).bind(serde_json::json!({"operation":"member_left","member_id":lease.member_id(),"request_id":request_id}).to_string()).execute(&mut *tx).await.map_err(|_|error("room_write_failed"))?;
+        let revision: i64 = sqlx::query_scalar("SELECT revision FROM sessions WHERE id=?1")
+            .bind(room.session_id.0.to_string())
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| error("room_read_failed"))?;
+        let receipt = RoomDepartureReceipt {
+            receipt_revision: Revision(
+                u64::try_from(revision).map_err(|_| error("room_record_invalid"))?,
+            ),
+            duplicate: false,
+            departure_epoch: room.epoch,
+        };
+        sqlx::query("INSERT INTO room_departure_receipts(room_id,member_id,request_id,request_json,receipt_json) VALUES(?1,?2,?3,?4,?5)").bind(room.room_id.to_string()).bind(lease.member_id().to_string()).bind(request_id).bind(signature).bind(serde_json::to_string(&receipt).map_err(|_|error("room_receipt_failed"))?).execute(&mut *tx).await.map_err(|_|error("room_receipt_failed"))?;
+        tx.commit().await.map_err(|_| error("room_commit_failed"))?;
+        Ok(receipt)
+    }
+    async fn return_member(
+        &self,
+        room_id: Uuid,
+        member_id: Uuid,
+        credential_id: Uuid,
+        expected_epoch: u64,
+        expected_departure_epoch: u64,
+        request_id: &str,
+    ) -> Result<(), RepositoryError> {
+        crate::room_world::nonce(request_id)?;
+        let signature=serde_json::json!({"expected_departure_epoch":expected_departure_epoch,"credential_id":credential_id}).to_string();
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| error("room_begin_failed"))?;
+        let mut room = read(&mut tx, room_id).await?;
+        if !room.active {
+            return Err(error("room_access_denied"));
+        }
+        let index = room
+            .members
+            .iter()
+            .position(|m| {
+                m.member_id == member_id
+                    && m.credential_id == credential_id
+                    && m.role == PartyRole::Player
+                    && (m.active || m.left)
+            })
+            .ok_or_else(|| error("room_access_denied"))?;
+        if room.members[index].departure_epoch != expected_departure_epoch {
+            return Err(error("room_departure_conflict"));
+        }
+        if let Some(old)=sqlx::query_scalar::<_,String>("SELECT request_json FROM room_return_receipts WHERE room_id=?1 AND member_id=?2 AND request_id=?3").bind(room_id.to_string()).bind(member_id.to_string()).bind(request_id).fetch_optional(&mut *tx).await.map_err(|_|error("room_receipt_failed"))? {
+            if old!=signature {return Err(error("room_causation_mismatch"));}
+            tx.commit().await.map_err(|_|error("room_commit_failed"))?;return Ok(());
+        }
+        if room.epoch != expected_epoch {
+            return Err(error("room_departure_conflict"));
+        }
+        if room.members[index].left {
+            room.members[index].active = true;
+            room.members[index].left = false;
+            room.epoch = room
+                .epoch
+                .checked_add(1)
+                .ok_or_else(|| error("room_epoch_overflow"))?;
+            write(&mut tx, &room).await?;
+            crate::combat_binding::reconcile_membership(&mut tx, room.campaign_id, room.session_id)
+                .await?;
+            sqlx::query(
+                "INSERT INTO room_changes(room_id,kind,payload_json) VALUES(?1,'state',?2)",
+            )
+            .bind(room.room_id.to_string())
+            .bind(
+                serde_json::json!({"operation":"member_returned","member_id":member_id})
+                    .to_string(),
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| error("room_write_failed"))?;
+        }
+        sqlx::query("INSERT INTO room_return_receipts(room_id,member_id,request_id,request_json) VALUES(?1,?2,?3,?4)").bind(room_id.to_string()).bind(member_id.to_string()).bind(request_id).bind(signature).execute(&mut *tx).await.map_err(|_|error("room_receipt_failed"))?;
+        tx.commit().await.map_err(|_| error("room_commit_failed"))?;
+        Ok(())
     }
     async fn close_room(&self, lease: &RoomLease) -> Result<(), RepositoryError> {
         let mut tx = self
@@ -455,10 +590,13 @@ impl RoomRepository for crate::SqliteStore {
             .members
             .iter_mut()
             .find(|target| {
-                target.member_id == member && target.role == PartyRole::Player && target.active
+                target.member_id == member
+                    && target.role == PartyRole::Player
+                    && (target.active || target.left)
             })
             .ok_or_else(|| error("room_member_invalid"))?;
         target.active = false;
+        target.left = false;
         room.epoch = room
             .epoch
             .checked_add(1)

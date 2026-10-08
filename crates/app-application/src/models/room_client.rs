@@ -29,6 +29,10 @@ pub struct NativeGuestConnection {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StoredNativeGuestJoin {
+    #[serde(default)]
+    pub departure_epoch: Option<u64>,
+    #[serde(default)]
+    pub return_intent: Option<super::room::RoomReturnIntent>,
     pub request: NativeGuestJoinRequest,
     pub resume_proof: String,
     pub connection: Option<NativeGuestConnection>,

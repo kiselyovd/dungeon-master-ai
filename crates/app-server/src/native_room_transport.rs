@@ -43,10 +43,25 @@ struct WireOperation {
     path: String,
     body: Option<Value>,
 }
+pub(crate) fn departure_slot(room: uuid::Uuid, member: uuid::Uuid) -> String {
+    format!("native:room-departure:{room}:{member}")
+}
 fn wire(operation: &NativeRoomOperation) -> Result<WireOperation, HttpServiceError> {
     use NativeRoomOperation::*;
     let (path, body) = match operation {
         PendingAction {} | Subscribe { .. } | DmTurn { .. } => return Err(invalid()),
+        Leave {
+            request_id,
+            expected_epoch,
+        } => {
+            if !valid_nonce(request_id) || request_id.len() > 64 || *expected_epoch == 0 {
+                return Err(invalid());
+            }
+            (
+                "leave".into(),
+                Some(json!({"request_id":request_id,"expected_epoch":expected_epoch})),
+            )
+        }
         State {} => ("state".into(), None),
         Updates { after } => (format!("updates?after={after}"), None),
         Party {} => ("party".into(), None),
@@ -178,13 +193,20 @@ impl NativeRoomTransportHttpService for Transport {
                 "native:room-outbox:{}:{}",
                 request.room_id, request.member_id
             );
+            let departure = self
+                .state
+                .secrets_repo()
+                .get(&departure_slot(request.room_id, request.member_id))
+                .await
+                .map_err(|_| store_failed())?;
             let pending = self
                 .state
                 .secrets_repo()
                 .get(&slot)
                 .await
                 .map_err(|_| store_failed())?;
-            let body = pending
+            let body = departure
+                .or(pending)
                 .map(|raw| {
                     let saved: NativeRoomTransportRequest =
                         serde_json::from_str(&raw).map_err(|_| store_failed())?;
@@ -206,6 +228,11 @@ impl NativeRoomTransportHttpService for Transport {
             "native:room-outbox:{}:{}",
             request.room_id, request.member_id
         );
+        let slot = if matches!(request.operation, NativeRoomOperation::Leave { .. }) {
+            departure_slot(request.room_id, request.member_id)
+        } else {
+            slot
+        };
         if operation.body.is_some() {
             if let Some(pending) = secrets.get(&slot).await.map_err(|_| store_failed())? {
                 let pending: NativeRoomTransportRequest =
@@ -278,6 +305,21 @@ impl NativeRoomTransportHttpService for Transport {
         // 5xx, timeout and rate limiting are uncertain; retain the exact mutation.
         // Confirmed acceptance or a definitive rejection can release the slot.
         if mutation && status.is_success() {
+            if matches!(request.operation, NativeRoomOperation::Leave { .. }) {
+                let epoch = body
+                    .as_ref()
+                    .and_then(|body| body["departure_epoch"].as_u64())
+                    .filter(|epoch| *epoch > 0)
+                    .ok_or_else(failed)?;
+                crate::native_room_client::archive_departure(
+                    &self.state,
+                    request.room_id,
+                    request.member_id,
+                    &request.capability,
+                    epoch,
+                )
+                .await?;
+            }
             secrets.delete(&slot).await.map_err(|_| store_failed())?;
         }
         Ok(NativeRoomTransportResult {

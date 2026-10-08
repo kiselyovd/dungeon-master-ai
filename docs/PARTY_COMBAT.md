@@ -122,3 +122,48 @@ A later focused six-case death-turn run confirms withdrawn dying heroes neither
 roll nor revive/refresh/consume RNG. Seven production-browser room cases and the
 production build pass; screenshot inspected. Independent follow-up closes both
 findings. No CI/release, physical LAN or live-model narration was verified here.
+
+## Voluntary exit and return
+
+A player can leave its own room through a nonce/epoch-bound request. Voluntary
+exit differs from host revocation; normal private/gameplay authentication is
+revoked in both cases. Only the original private join proof plus a new versioned
+return intent reactivates a voluntarily departed member. Original JOIN replay
+is inert after departure, and an earlier return cannot undo a later exit. A host
+ban denies return. Member/hero/token IDs and resources stay unchanged.
+
+Migration18 stores departure/return receipts separately. Native exit uses its
+own durable outbox, preserving an unknown gameplay/DM action. A confirmed exit
+archives the matching private handle; returning settles an uncertain exit first,
+then persists an immutable return intention before the request. Shared selection
+serialization prevents archival from deleting a different new connection. Private
+known-handle indexing preserves an old departure even when another room was
+selected before its ACK. Records precede index pointers, and absent unrelated
+records are safely ignored during matching archival.
+
+Remaining participants keep their update streams across room epoch changes.
+Every poll revalidates the original private proof; an auth/read epoch race retries
+without emitting stale state. Departed/banned peers fail fresh authentication.
+Returning bound heroes use a free cell if their old cell is occupied, with no
+action/budget/HP refresh. The guest Leave UI waits for confirmed server acceptance
+and private local archival. Unmount/network loss does not send a departure.
+
+Evidence under .artifacts/browser-session/self-leave-*: core replay/ban/version
+checks, actual HTTP stream and barrier RED/GREEN, both selection race orderings,
+Stronghold cold reopen after dropped503ACK with prior outbox unchanged, and native
+UI proof/durable SQLite readback. Two actual Tauri QA windows on one Windows PC
+showed2->1->2 actors and epochs1->2->3; same full guest sheet, UUID andHP12. Host
+subscription stayed live. Screenshots were inspected with invitations hidden.
+The first QA harness picked an old unsuffixed server; that attempt failed, actual
+executables were corrected/hash-checked, and the UI proof was repeated successfully.
+Both native apps/backends were then stopped. No live LLM answer, physical-device
+LAN, CI or release is claimed here. Retained roster/handle capacity remains open.
+
+A confirmed server exit is remembered per connection while leaving the screen.
+If local campaign activation fails afterward, retry only repeats navigation;
+it does not send a new departure nonce to an already inactive member. Independent
+review found this path; a failing-then-passing root test verifies one remote exit
+and two local navigation attempts. Follow-up review closes the finding.
+Full local gates pass (853 Rust tests, 1117 frontend tests); the final production
+build and seven room browser cases pass. Verification includes preserved inherited
+worktree changes and is not evidence of a clean-HEAD release.

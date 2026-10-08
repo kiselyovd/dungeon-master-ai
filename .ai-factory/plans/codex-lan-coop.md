@@ -781,3 +781,48 @@ cases. Revoke/close old-save cases now also close/reopen a real file pool.
 Independent follow-up finds no actionable issue; scoped local checkpoint follows.
 Explicit guest self-leave, return of withdrawn heroes, roster capacity and native
 real-model/two-device acceptance remain open. Network loss keeps membership.
+
+## Voluntary guest exit and return
+
+- [x] Separate voluntary departure from host revocation in existing room JSON.
+  Only a verified original join proof can return a departed member; a ban stays
+  denied. Retain member/character/token UUIDs and resources.
+- [x] Add nonce/epoch-bound authenticated own-leave with durable receipt/replay,
+  atomic participant reconciliation, state publication and rollback. Replaying an
+  earlier leave after return must not withdraw the player again.
+- [x] Wire the explicit guest Leave button through native transport; unmount and
+  network loss remain local cancellation. Preserve unknown prior intentions and
+  keep an uncertain leave immutable, including recovery before returning.
+- [x] Reactivate existing bound heroes on verified return without refreshing a
+  present actor's spent budget. Resolve occupied arrival cells safely.
+- [x] Verify private/public permissions, lost ACK, restart/return, real HTTP,
+  native/root/browser flows, appropriate gates and independent final review.
+
+UI brief: retain current Leave button and error treatment; close the guest screen
+only after confirmed server departure and local recovery-handle preservation.
+Reuse existing components/locale catalogs. No dependencies, styles or model change.
+Room public epoch is a nonsecret stale-intention guard. Native leave recovery uses
+a separate slot so it cannot erase an unknown gameplay/DM intention. Returning
+first resolves that leave receipt, then restores the same approved hero.
+
+Voluntary-exit progress: migration18 adds departure/return receipts. Original JOIN
+replay cannot undo exit; distinct return nonce uses the player's departure epoch.
+Leave and return replay are inert across later cycles, bans remain denied. Native
+leave has a separate outbox, archives only its own handle and preserves an older
+gameplay intention; lost503ACK survives Stronghold reopening and returns the
+same approved hero. Index stores records before pointers and tolerates missing
+unrelated indexed records. Shared selection locking and both ACK orderings are
+regressed. Remaining-peer SSE reauthenticates on membership changes; a barrier
+proves the auth/read race and retry, with revoked peers still denied.
+Real two-Tauri UI exit/archived-return proof: counts2->1->2, epochs1->2->3, same
+UUID/full sheet/HP12, live host subscription. Read-only SQLite finds one departure
+and one return receipt plus18 migrations. Canonical app/server hashes matched;
+the first harness run used an obsolete unsuffixed QA sidecar and was rejected,
+then replaced/repeated. No model turn was generated and both QA processes stopped.
+Final independent review also found a confirmed-exit/local-navigation retry trap:
+RED/GREEN root regression now proves one remote leave and two local transitions.
+Confirmation is scoped to room/member/role. Follow-up review closes the finding.
+Full gates pass: 853 Rust tests, 1117 frontend tests; final fast gates and fresh
+production build/7 browser cases pass. Original 32-file baseline is preserved.
+These checks include inherited worktree changes, not clean-HEAD release proof.
+Physical LAN/model quality and retained-roster capacity remain open.

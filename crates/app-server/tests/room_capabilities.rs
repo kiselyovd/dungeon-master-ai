@@ -3015,3 +3015,338 @@ async fn departure_rolls_back_membership_and_preserves_a_present_spent_turn() {
         clock_before
     );
 }
+
+#[tokio::test]
+async fn voluntary_leave_replays_and_returns_the_same_hero_but_host_revocation_stays_denied() {
+    use app_application::ports::{repositories::CombatRepository, secrets::SecretsStore};
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let secrets = Arc::new(InMemorySecretsStore::default());
+    let service = RoomService::new(
+        store.clone(),
+        store.clone(),
+        secrets.clone(),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    );
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, _, _, encounter, _) = group_fight(&store, &service, &created).await;
+    let room_id = created.grant.room.room_id;
+    let party = store
+        .party(created.grant.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let guest_id = party
+        .roster
+        .members
+        .iter()
+        .find(|m| m.member_id == grant.member_id)
+        .unwrap()
+        .character_id;
+    let before = party.characters[&guest_id].clone();
+    let epoch = store.room(room_id).await.unwrap().unwrap().epoch;
+    let subject = service
+        .authenticate_departure(room_id, grant.member_id, &grant.capability)
+        .await
+        .unwrap();
+    let first = service
+        .leave(&subject, epoch, "guest-leave-once")
+        .await
+        .unwrap();
+    assert!(!first.duplicate);
+    assert!(service
+        .authenticate(room_id, grant.member_id, &grant.capability)
+        .await
+        .is_err());
+    let retry = service
+        .authenticate_departure(room_id, grant.member_id, &grant.capability)
+        .await
+        .unwrap();
+    assert!(service.current_room(&retry).await.is_err());
+    let revision = store
+        .load_current(party.campaign_id)
+        .await
+        .unwrap()
+        .campaign
+        .revision;
+    assert!(
+        service
+            .leave(&retry, epoch, "guest-leave-once")
+            .await
+            .unwrap()
+            .duplicate
+    );
+    assert_eq!(
+        store
+            .load_current(party.campaign_id)
+            .await
+            .unwrap()
+            .campaign
+            .revision,
+        revision
+    );
+    let join:String=sqlx::query_scalar("SELECT join_id FROM room_join_receipts WHERE room_id=?1 AND json_extract(record_json,'$.member_id')=?2").bind(room_id.to_string()).bind(grant.member_id.to_string()).fetch_one(store.pool()).await.unwrap();
+    let private = secrets
+        .get(&format!("room:{room_id}:join:{join}"))
+        .await
+        .unwrap()
+        .unwrap();
+    let pending: serde_json::Value = serde_json::from_str(&private).unwrap();
+    let request = || JoinRoom {
+        room_id,
+        join_id: Uuid::parse_str(&join).unwrap(),
+        display_name: "Guest".into(),
+        invitation: secret(&created.invitation),
+        resume_proof: RoomSecret::from_input(pending["resume_proof"].as_str().unwrap().into())
+            .unwrap(),
+    };
+    let departed_epoch = store.room(room_id).await.unwrap().unwrap().epoch;
+    assert!(service.join(request()).await.is_err());
+    assert_eq!(
+        store.room(room_id).await.unwrap().unwrap().epoch,
+        departed_epoch
+    );
+    let return_intent = app_application::models::room::RoomReturnIntent {
+        request_id: "return-once".into(),
+        expected_departure_epoch: first.departure_epoch,
+    };
+    let returned = service
+        .return_join(request(), return_intent.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        service
+            .return_join(request(), return_intent.clone())
+            .await
+            .unwrap()
+            .member_id,
+        grant.member_id
+    );
+    assert_eq!(returned.member_id, grant.member_id);
+    assert_eq!(
+        store
+            .party(party.campaign_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .characters[&guest_id],
+        before
+    );
+    assert!(
+        !store
+            .get(encounter)
+            .await
+            .unwrap()
+            .unwrap()
+            .snapshot
+            .combatants
+            .iter()
+            .find(|a| a.character_id.is_some_and(|id| id.0 == guest_id))
+            .unwrap()
+            .withdrawn
+    );
+    let retry = service
+        .authenticate_departure(room_id, grant.member_id, &returned.capability)
+        .await
+        .unwrap();
+    let epoch_after = store.room(room_id).await.unwrap().unwrap().epoch;
+    assert!(
+        service
+            .leave(&retry, epoch, "guest-leave-once")
+            .await
+            .unwrap()
+            .duplicate
+    );
+    assert_eq!(
+        store.room(room_id).await.unwrap().unwrap().epoch,
+        epoch_after
+    );
+    let second = service
+        .leave(&retry, epoch_after, "second-leave")
+        .await
+        .unwrap();
+    assert!(second.departure_epoch > first.departure_epoch);
+    assert!(matches!(
+        service.return_join(request(), return_intent.clone()).await,
+        Err(app_application::rooms::RoomError::Conflict)
+    ));
+    assert!(
+        !store
+            .room(room_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .members
+            .iter()
+            .find(|m| m.member_id == grant.member_id)
+            .unwrap()
+            .active
+    );
+    let host = service
+        .authenticate(room_id, created.grant.member_id, &created.grant.capability)
+        .await
+        .unwrap();
+    service.revoke(&host, grant.member_id).await.unwrap();
+    assert!(service.join(request()).await.is_err());
+    assert!(service.return_join(request(), return_intent).await.is_err());
+    assert!(service
+        .authenticate_departure(room_id, grant.member_id, &returned.capability)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn remaining_host_subscription_survives_voluntary_departure_epoch_change() {
+    use futures::StreamExt;
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let service = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(InMemorySecretsStore::default()),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    ));
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, _, _) = guest_proposal(&store, &service, &created).await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(service.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let response = reqwest::Client::new()
+        .get(format!(
+            "http://{address}/rooms/{}/events",
+            created.grant.room.room_id
+        ))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    let mut frames = response.bytes_stream();
+    let first = frames.next().await.unwrap().unwrap();
+    assert!(String::from_utf8_lossy(&first).contains("room_update"));
+    let subject = service
+        .authenticate_departure(grant.room.room_id, grant.member_id, &grant.capability)
+        .await
+        .unwrap();
+    service
+        .leave(&subject, grant.room.epoch, "stream-guest-leave")
+        .await
+        .unwrap();
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), frames.next())
+        .await
+        .unwrap()
+        .expect("remaining host subscription must continue")
+        .unwrap();
+    assert!(String::from_utf8_lossy(&frame).contains("member_left"));
+    drop(frames);
+    server.abort();
+    let _ = server.await;
+}
+
+struct PauseHostCredential {
+    inner: InMemorySecretsStore,
+    target: std::sync::Mutex<Option<String>>,
+    armed: std::sync::atomic::AtomicBool,
+    started: tokio::sync::Notify,
+    release: tokio::sync::Notify,
+}
+#[async_trait::async_trait]
+impl app_application::ports::secrets::SecretsStore for PauseHostCredential {
+    async fn get(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, app_application::ports::secrets::SecretsError> {
+        let target = self.target.lock().unwrap().as_deref() == Some(key);
+        if target && self.armed.swap(false, Ordering::SeqCst) {
+            self.started.notify_one();
+            self.release.notified().await;
+        }
+        self.inner.get(key).await
+    }
+    async fn set(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.set(key, value).await
+    }
+    async fn delete(&self, key: &str) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.delete(key).await
+    }
+}
+#[tokio::test]
+async fn host_subscription_reauthenticates_when_departure_commits_between_auth_and_read() {
+    use futures::StreamExt;
+    let (store, command) =
+        fixture(sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let secrets = Arc::new(PauseHostCredential {
+        inner: InMemorySecretsStore::default(),
+        target: std::sync::Mutex::new(None),
+        armed: std::sync::atomic::AtomicBool::new(false),
+        started: tokio::sync::Notify::new(),
+        release: tokio::sync::Notify::new(),
+    });
+    let service = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        secrets.clone(),
+        Arc::new(Clock(AtomicU64::new(1000))),
+    ));
+    let created = service.create_local_room(command).await.unwrap();
+    let (grant, _, _) = guest_proposal(&store, &service, &created).await;
+    let room = store
+        .room(created.grant.room.room_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let credential = room
+        .members
+        .iter()
+        .find(|m| m.member_id == created.grant.member_id)
+        .unwrap()
+        .credential_id;
+    *secrets.target.lock().unwrap() =
+        Some(format!("room:{}:credential:{}", room.room_id, credential));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(service.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let response = reqwest::Client::new()
+        .get(format!("http://{address}/rooms/{}/events", room.room_id))
+        .bearer_auth(created.grant.capability.expose())
+        .header("x-room-member-id", created.grant.member_id.to_string())
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    let mut frames = response.bytes_stream();
+    let _initial = frames.next().await.unwrap().unwrap();
+    secrets.armed.store(true, Ordering::SeqCst);
+    secrets.started.notified().await;
+    let guest = service
+        .authenticate_departure(room.room_id, grant.member_id, &grant.capability)
+        .await
+        .unwrap();
+    service
+        .leave(&guest, room.epoch, "barrier-leave")
+        .await
+        .unwrap();
+    secrets.release.notify_one();
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), frames.next())
+        .await
+        .unwrap()
+        .expect("remaining host must survive auth/read epoch race")
+        .unwrap();
+    assert!(String::from_utf8_lossy(&frame).contains("member_left"));
+    drop(frames);
+    server.abort();
+    let _ = server.await;
+}

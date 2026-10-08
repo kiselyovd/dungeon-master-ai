@@ -7,6 +7,10 @@ use uuid::Uuid;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NativeRoomOperation {
+    Leave {
+        request_id: String,
+        expected_epoch: u64,
+    },
     State {},
     Subscribe {
         after: Option<u64>,

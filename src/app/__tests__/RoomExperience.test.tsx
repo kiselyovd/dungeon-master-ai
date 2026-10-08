@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   saved: vi.fn(),
   postpone: vi.fn(),
   resume: vi.fn(),
+  leave: vi.fn(),
 }));
 vi.mock('../../api/rooms', () => ({
   recoverHostRoom: mocks.recoverHost,
@@ -22,6 +23,7 @@ vi.mock('../../api/rooms', () => ({
   hostRoom: mocks.host,
   joinRoom: vi.fn(),
   stopHostRoom: vi.fn(async () => {}),
+  leaveGuestRoom: mocks.leave,
 }));
 vi.mock('../../api/campaigns', () => ({ fetchCampaignState: mocks.current }));
 vi.mock('../roomPorts', () => ({
@@ -47,6 +49,7 @@ beforeEach(() => {
   mocks.recoverHost.mockReset();
   mocks.saved.mockResolvedValue([]);
   mocks.postpone.mockResolvedValue(undefined);
+  mocks.leave.mockReset();
   mocks.current.mockReset();
   mocks.current.mockResolvedValue({
     session_id: campaign.last_session_id,
@@ -145,4 +148,69 @@ it('recovers an existing host selection without creating a replacement room', as
   });
   await user.click(screen.getByRole('button', { name: 'Refresh invitation' }));
   await screen.findByDisplayValue('renewed fixture');
+});
+
+it('waits for confirmed guest departure before leaving the connected screen', async () => {
+  const choice = {
+    room_id: wire.state.room.room_id,
+    join_id: '77777777-7777-4777-8777-777777777777',
+    address: '127.0.0.1:4123',
+    display_name: 'Saved player',
+  };
+  mocks.saved.mockResolvedValue([choice]);
+  mocks.resume.mockResolvedValue({
+    kind: 'guest',
+    room: wire.state.room,
+    member_id: wire.state.room.members.find((m) => m.role === 'player')?.member_id,
+    address: choice.address,
+    join_id: choice.join_id,
+  });
+  let confirm: () => void = () => {};
+  mocks.leave.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        confirm = resolve;
+      }),
+  );
+  const back = vi.fn();
+  const user = userEvent.setup();
+  render(<RoomExperience campaigns={[]} onBack={back} />);
+  await user.click(await screen.findByRole('button', { name: 'Saved player · 127.0.0.1:4123' }));
+  await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  await user.click(screen.getByRole('button', { name: 'Leave room' }));
+  expect(back).not.toHaveBeenCalled();
+  expect(mocks.leave).toHaveBeenCalledWith(wire.state.room.room_id, 1);
+  confirm();
+  await vi.waitFor(() => expect(back).toHaveBeenCalledTimes(1));
+});
+
+it('retries only local navigation after a confirmed guest departure', async () => {
+  const choice = {
+    room_id: wire.state.room.room_id,
+    join_id: '77777777-7777-4777-8777-777777777777',
+    address: '127.0.0.1:4123',
+    display_name: 'Saved player',
+  };
+  mocks.saved.mockResolvedValue([choice]);
+  mocks.resume.mockResolvedValue({
+    kind: 'guest',
+    room: wire.state.room,
+    member_id: wire.state.room.members.find((m) => m.role === 'player')?.member_id,
+    address: choice.address,
+    join_id: choice.join_id,
+  });
+  mocks.leave.mockResolvedValueOnce(undefined).mockRejectedValue(new Error('already left'));
+  const back = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('local activation failed'))
+    .mockResolvedValue(undefined);
+  const user = userEvent.setup();
+  render(<RoomExperience campaigns={[]} onBack={back} />);
+  await user.click(await screen.findByRole('button', { name: 'Saved player · 127.0.0.1:4123' }));
+  await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  await user.click(screen.getByRole('button', { name: 'Leave room' }));
+  await screen.findByRole('alert');
+  await user.click(screen.getByRole('button', { name: 'Leave room' }));
+  await vi.waitFor(() => expect(back).toHaveBeenCalledTimes(2));
+  expect(mocks.leave).toHaveBeenCalledTimes(1);
 });

@@ -2890,3 +2890,610 @@ async fn stable_hero_without_deadline_can_start_owned_wait_and_wake() {
         1
     );
 }
+
+#[tokio::test]
+async fn native_guest_leaves_archives_and_returns_its_approved_hero() {
+    use app_application::models::{room_client::*, room_transport::*};
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f
+        .rooms
+        .invite_member(&host, f.guest.member_id)
+        .await
+        .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    let client = app_server::native_room_client::service(local.clone()).unwrap();
+    let joined = client
+        .join(NativeGuestJoinRequest {
+            address,
+            room_id: f.host.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Returning guest".into(),
+            invitation: invitation.expose().into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(joined.member_id, f.guest.member_id);
+    let before = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let transport = app_server::native_room_transport::service(local.clone()).unwrap();
+    let receipt = transport
+        .execute(NativeRoomTransportRequest {
+            address,
+            room_id: joined.room.room_id,
+            member_id: joined.member_id,
+            capability: joined.capability.clone(),
+            operation: NativeRoomOperation::Leave {
+                request_id: "native-leave".into(),
+                expected_epoch: joined.room.epoch,
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(receipt.status, 200);
+    assert!(receipt.body.unwrap()["departure_epoch"].as_u64().unwrap() > joined.room.epoch);
+    assert!(client.recover().await.unwrap().is_none());
+    let saved = client.saved().await.unwrap();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].join_id, joined.join_id);
+    let returned = client
+        .resume(NativeGuestResumeRequest {
+            room_id: joined.room.room_id,
+            join_id: joined.join_id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(returned.member_id, joined.member_id);
+    assert_eq!(returned.capability, joined.capability);
+    let after = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(before.roster, after.roster);
+    assert_eq!(before.characters, after.characters);
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test]
+async fn native_departure_lost_ack_survives_vault_reopening_without_erasing_prior_intention() {
+    use app_application::models::{room_client::*, room_transport::*};
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f
+        .rooms
+        .invite_member(&host, f.guest.member_id)
+        .await
+        .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let drop_once = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let router = adapter_http::rooms::router(f.rooms.clone()).layer(axum::middleware::from_fn(
+        move |request: axum::extract::Request, next: axum::middleware::Next| {
+            let drop_once = drop_once.clone();
+            async move {
+                let is_leave = request.uri().path().ends_with("/leave");
+                let response = next.run(request).await;
+                if is_leave && drop_once.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                    axum::response::IntoResponse::into_response(
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    )
+                } else {
+                    response
+                }
+            }
+        },
+    ));
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db.clone());
+    let directory = tempfile::tempdir().unwrap();
+    let vault = directory.path().join("guest.hold");
+    local.set_secrets_repo(Arc::new(
+        adapter_secrets::StrongholdSecretsStore::open(vault.clone(), b"test-native-leave".to_vec())
+            .unwrap(),
+    ));
+    let client = app_server::native_room_client::service(local.clone()).unwrap();
+    let joined = client
+        .join(NativeGuestJoinRequest {
+            address,
+            room_id: f.host.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Returning guest".into(),
+            invitation: invitation.expose().into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(joined.member_id, f.guest.member_id);
+    let before = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let transport = app_server::native_room_transport::service(local.clone()).unwrap();
+    let old = NativeRoomTransportRequest {
+        address,
+        room_id: joined.room.room_id,
+        member_id: joined.member_id,
+        capability: joined.capability.clone(),
+        operation: NativeRoomOperation::Rest {
+            request_id: "prior-unknown-rest".into(),
+            expected_revision: before.revision.0,
+            intent: app_application::models::rest::RestIntent::Wait { minutes: 2 },
+        },
+    };
+    let original = serde_json::to_string(&old).unwrap();
+    let old_slot = format!(
+        "native:room-outbox:{}:{}",
+        joined.room.room_id, joined.member_id
+    );
+    local
+        .secrets_repo()
+        .set(&old_slot, &original)
+        .await
+        .unwrap();
+    let receipt = transport
+        .execute(NativeRoomTransportRequest {
+            address,
+            room_id: joined.room.room_id,
+            member_id: joined.member_id,
+            capability: joined.capability.clone(),
+            operation: NativeRoomOperation::Leave {
+                request_id: "native-leave".into(),
+                expected_epoch: joined.room.epoch,
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(receipt.status, 503);
+    assert!(f
+        .rooms
+        .authenticate(
+            joined.room.room_id,
+            joined.member_id,
+            &RoomSecret::from_input(joined.capability.clone()).unwrap()
+        )
+        .await
+        .is_err());
+    drop(transport);
+    drop(client);
+    drop(local);
+    let reopened = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    reopened.set_secrets_repo(Arc::new(
+        adapter_secrets::StrongholdSecretsStore::open(vault, b"test-native-leave".to_vec())
+            .unwrap(),
+    ));
+    let client = app_server::native_room_client::service(reopened.clone()).unwrap();
+    let returned = client
+        .resume(NativeGuestResumeRequest {
+            room_id: joined.room.room_id,
+            join_id: joined.join_id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(returned.member_id, joined.member_id);
+    assert_eq!(returned.capability, joined.capability);
+    let after = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(before.roster, after.roster);
+    assert_eq!(before.characters, after.characters);
+    assert_eq!(
+        reopened
+            .secrets_repo()
+            .get(&old_slot)
+            .await
+            .unwrap()
+            .unwrap(),
+        original
+    );
+    let departure_slot = format!(
+        "native:room-departure:{}:{}",
+        joined.room.room_id, joined.member_id
+    );
+    assert!(reopened
+        .secrets_repo()
+        .get(&departure_slot)
+        .await
+        .unwrap()
+        .is_none());
+    server.abort();
+    let _ = server.await;
+}
+
+struct DelayedGuestArchive {
+    inner: InMemorySecretsStore,
+    armed: std::sync::atomic::AtomicBool,
+    started: Notify,
+    release: Notify,
+    selected_b: Notify,
+    room_b: Uuid,
+}
+#[async_trait::async_trait]
+impl app_application::ports::secrets::SecretsStore for DelayedGuestArchive {
+    async fn get(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, app_application::ports::secrets::SecretsError> {
+        self.inner.get(key).await
+    }
+    async fn set(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), app_application::ports::secrets::SecretsError> {
+        if key == "native:guest-archived-selections" && self.armed.swap(false, Ordering::SeqCst) {
+            self.started.notify_one();
+            self.release.notified().await;
+        }
+        self.inner.set(key, value).await?;
+        if key == "native:guest-selection"
+            && serde_json::from_str::<serde_json::Value>(value)
+                .ok()
+                .is_some_and(|v| v["room_id"].as_str() == Some(self.room_b.to_string().as_str()))
+        {
+            self.selected_b.notify_one();
+        }
+        Ok(())
+    }
+    async fn delete(&self, key: &str) -> Result<(), app_application::ports::secrets::SecretsError> {
+        self.inner.delete(key).await
+    }
+}
+#[tokio::test]
+async fn delayed_departure_archive_cannot_delete_a_new_room_selection() {
+    use app_application::models::{room_client::*, room_transport::*};
+    let a = fixture().await;
+    let b = fixture().await;
+    let ah = a
+        .rooms
+        .authenticate(a.host.room.room_id, a.host.member_id, &a.host.capability)
+        .await
+        .unwrap();
+    let ai = a.rooms.rotate_invitation(&ah).await.unwrap();
+    let bh = b
+        .rooms
+        .authenticate(b.host.room.room_id, b.host.member_id, &b.host.capability)
+        .await
+        .unwrap();
+    let bi = b.rooms.rotate_invitation(&bh).await.unwrap();
+    let al = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let aa = al.local_addr().unwrap();
+    let ar = adapter_http::rooms::router(a.rooms.clone());
+    let at = tokio::spawn(async move {
+        axum::serve(al, ar).await.unwrap();
+    });
+    let bl = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ba = bl.local_addr().unwrap();
+    let br = adapter_http::rooms::router(b.rooms.clone());
+    let bt = tokio::spawn(async move {
+        axum::serve(bl, br).await.unwrap();
+    });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db.clone());
+    let secrets = Arc::new(DelayedGuestArchive {
+        inner: InMemorySecretsStore::default(),
+        armed: std::sync::atomic::AtomicBool::new(true),
+        started: Notify::new(),
+        release: Notify::new(),
+        selected_b: Notify::new(),
+        room_b: b.host.room.room_id,
+    });
+    local.set_secrets_repo(secrets.clone());
+    let client = app_server::native_room_client::service(local.clone()).unwrap();
+    let joined = client
+        .join(NativeGuestJoinRequest {
+            address: aa,
+            room_id: a.host.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "A".into(),
+            invitation: ai.expose().into(),
+        })
+        .await
+        .unwrap();
+    let transport = app_server::native_room_transport::service(local.clone()).unwrap();
+    let leave = tokio::spawn(async move {
+        transport
+            .execute(NativeRoomTransportRequest {
+                address: aa,
+                room_id: joined.room.room_id,
+                member_id: joined.member_id,
+                capability: joined.capability,
+                operation: NativeRoomOperation::Leave {
+                    request_id: "archive-race".into(),
+                    expected_epoch: joined.room.epoch,
+                },
+            })
+            .await
+            .unwrap()
+    });
+    secrets.started.notified().await;
+    let join_b = tokio::spawn(async move {
+        client
+            .join(NativeGuestJoinRequest {
+                address: ba,
+                room_id: b.host.room.room_id,
+                join_id: Uuid::new_v4(),
+                display_name: "B".into(),
+                invitation: bi.expose().into(),
+            })
+            .await
+            .unwrap()
+    });
+    tokio::select! {_ = secrets.selected_b.notified()=>{},_ = tokio::time::sleep(std::time::Duration::from_millis(100))=>{}}
+    secrets.release.notify_one();
+    assert_eq!(leave.await.unwrap().status, 200);
+    let joined_b = join_b.await.unwrap();
+    let restarted = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    restarted.set_secrets_repo(secrets);
+    let recovered = app_server::native_room_client::service(restarted)
+        .unwrap()
+        .recover()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(recovered.room.room_id, joined_b.room.room_id);
+    assert_eq!(recovered.member_id, joined_b.member_id);
+    at.abort();
+    bt.abort();
+    let _ = at.await;
+    let _ = bt.await;
+}
+
+#[tokio::test]
+async fn a_confirmed_departure_remains_returnable_after_another_room_was_selected() {
+    use app_application::models::{room_client::*, room_transport::*};
+    let a = fixture().await;
+    let b = fixture().await;
+    let ah = a
+        .rooms
+        .authenticate(a.host.room.room_id, a.host.member_id, &a.host.capability)
+        .await
+        .unwrap();
+    let ai = a.rooms.rotate_invitation(&ah).await.unwrap();
+    let bh = b
+        .rooms
+        .authenticate(b.host.room.room_id, b.host.member_id, &b.host.capability)
+        .await
+        .unwrap();
+    let bi = b.rooms.rotate_invitation(&bh).await.unwrap();
+    let al = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let aa = al.local_addr().unwrap();
+    let ack_started = Arc::new(Notify::new());
+    let ack_release = Arc::new(Notify::new());
+    let started = ack_started.clone();
+    let release = ack_release.clone();
+    let ar = adapter_http::rooms::router(a.rooms.clone()).layer(axum::middleware::from_fn(
+        move |request: axum::extract::Request, next: axum::middleware::Next| {
+            let started = started.clone();
+            let release = release.clone();
+            async move {
+                let leave = request.uri().path().ends_with("/leave");
+                let response = next.run(request).await;
+                if leave {
+                    started.notify_one();
+                    release.notified().await;
+                }
+                response
+            }
+        },
+    ));
+    let at = tokio::spawn(async move {
+        axum::serve(al, ar).await.unwrap();
+    });
+    let bl = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ba = bl.local_addr().unwrap();
+    let br = adapter_http::rooms::router(b.rooms.clone());
+    let bt = tokio::spawn(async move {
+        axum::serve(bl, br).await.unwrap();
+    });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local =
+        app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db.clone());
+    let secrets = Arc::new(InMemorySecretsStore::default());
+    local.set_secrets_repo(secrets.clone());
+    let client = app_server::native_room_client::service(local.clone()).unwrap();
+    let joined = client
+        .join(NativeGuestJoinRequest {
+            address: aa,
+            room_id: a.host.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "A".into(),
+            invitation: ai.expose().into(),
+        })
+        .await
+        .unwrap();
+    let original_room = joined.room.room_id;
+    let original_join = joined.join_id;
+    let original_member = joined.member_id;
+    let transport = app_server::native_room_transport::service(local.clone()).unwrap();
+    let leave = tokio::spawn(async move {
+        transport
+            .execute(NativeRoomTransportRequest {
+                address: aa,
+                room_id: joined.room.room_id,
+                member_id: joined.member_id,
+                capability: joined.capability,
+                operation: NativeRoomOperation::Leave {
+                    request_id: "archive-race".into(),
+                    expected_epoch: joined.room.epoch,
+                },
+            })
+            .await
+            .unwrap()
+    });
+    ack_started.notified().await;
+    let join_b = tokio::spawn(async move {
+        client
+            .join(NativeGuestJoinRequest {
+                address: ba,
+                room_id: b.host.room.room_id,
+                join_id: Uuid::new_v4(),
+                display_name: "B".into(),
+                invitation: bi.expose().into(),
+            })
+            .await
+            .unwrap()
+    });
+    let joined_b = join_b.await.unwrap();
+    let selected = app_server::native_room_client::service(local.clone())
+        .unwrap()
+        .recover()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(selected.room.room_id, joined_b.room.room_id);
+    ack_release.notify_one();
+    assert_eq!(leave.await.unwrap().status, 200);
+    let restarted = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    restarted.set_secrets_repo(secrets);
+    let recovered = app_server::native_room_client::service(restarted)
+        .unwrap()
+        .recover()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(recovered.room.room_id, joined_b.room.room_id);
+    assert_eq!(recovered.member_id, joined_b.member_id);
+    let returned = app_server::native_room_client::service(local)
+        .unwrap()
+        .resume(NativeGuestResumeRequest {
+            room_id: original_room,
+            join_id: original_join,
+        })
+        .await
+        .unwrap();
+    assert_eq!(returned.member_id, original_member);
+    assert_eq!(returned.join_id, original_join);
+    at.abort();
+    bt.abort();
+    let _ = at.await;
+    let _ = bt.await;
+}
+
+#[tokio::test]
+async fn a_missing_known_join_record_does_not_block_another_confirmed_departure() {
+    use app_application::models::{room_client::*, room_transport::*};
+    let f = fixture().await;
+    let host = f
+        .rooms
+        .authenticate(f.host.room.room_id, f.host.member_id, &f.host.capability)
+        .await
+        .unwrap();
+    let invitation = f
+        .rooms
+        .invite_member(&host, f.guest.member_id)
+        .await
+        .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router(f.rooms.clone());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let local = app_server::AppState::new(Arc::new(Provider::default()), "fixture".into(), db);
+    local
+        .secrets_repo()
+        .set(
+            "native:guest-known-joins",
+            &serde_json::to_string(&vec![NativeGuestResumeRequest {
+                room_id: f.host.room.room_id,
+                join_id: Uuid::new_v4(),
+            }])
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let client = app_server::native_room_client::service(local.clone()).unwrap();
+    let joined = client
+        .join(NativeGuestJoinRequest {
+            address,
+            room_id: f.host.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Returning guest".into(),
+            invitation: invitation.expose().into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(joined.member_id, f.guest.member_id);
+    let before = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let transport = app_server::native_room_transport::service(local.clone()).unwrap();
+    let receipt = transport
+        .execute(NativeRoomTransportRequest {
+            address,
+            room_id: joined.room.room_id,
+            member_id: joined.member_id,
+            capability: joined.capability.clone(),
+            operation: NativeRoomOperation::Leave {
+                request_id: "native-leave".into(),
+                expected_epoch: joined.room.epoch,
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(receipt.status, 200);
+    assert!(receipt.body.unwrap()["departure_epoch"].as_u64().unwrap() > joined.room.epoch);
+    assert!(client.recover().await.unwrap().is_none());
+    let saved = client.saved().await.unwrap();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].join_id, joined.join_id);
+    let returned = client
+        .resume(NativeGuestResumeRequest {
+            room_id: joined.room.room_id,
+            join_id: joined.join_id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(returned.member_id, joined.member_id);
+    assert_eq!(returned.capability, joined.capability);
+    let after = f
+        .store
+        .party(f.host.room.campaign_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(before.roster, after.roster);
+    assert_eq!(before.characters, after.characters);
+    server.abort();
+    let _ = server.await;
+}

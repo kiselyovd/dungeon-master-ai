@@ -227,6 +227,21 @@ pub trait RoomRepository: Send + Sync {
         &self,
         command: crate::models::room::CommitRoomJoin,
     ) -> Result<crate::models::room::RoomJoinRecord, RepositoryError>;
+    async fn leave_member(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        expected_epoch: u64,
+        request_id: &str,
+    ) -> Result<crate::models::room::RoomDepartureReceipt, RepositoryError>;
+    async fn return_member(
+        &self,
+        room_id: Uuid,
+        member_id: Uuid,
+        credential_id: Uuid,
+        expected_epoch: u64,
+        expected_departure_epoch: u64,
+        request_id: &str,
+    ) -> Result<(), RepositoryError>;
     async fn close_room(
         &self,
         lease: &crate::models::room::RoomLease,

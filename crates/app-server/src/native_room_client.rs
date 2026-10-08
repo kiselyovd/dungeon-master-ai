@@ -10,6 +10,7 @@ use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
+static SELECTION_LANE: Mutex<()> = Mutex::const_new(());
 fn invalid() -> HttpServiceError {
     HttpServiceError::BadRequest {
         code: "native_guest_request_invalid",
@@ -23,24 +24,174 @@ fn failed() -> HttpServiceError {
 fn slot(join: Uuid) -> String {
     format!("native:guest-join:{join}")
 }
+/// Archive only the matching selected guest, preserving credentials and gameplay outbox.
+pub(crate) async fn archive_departure(
+    state: &AppState,
+    room: Uuid,
+    member: Uuid,
+    capability: &str,
+    epoch: u64,
+) -> Result<(), HttpServiceError> {
+    let _lane = SELECTION_LANE.lock().await;
+    let secrets = state.secrets_repo();
+    let current = secrets
+        .get("native:guest-selection")
+        .await
+        .map_err(|_| failed())?
+        .map(|raw| serde_json::from_str::<NativeGuestResumeRequest>(&raw))
+        .transpose()
+        .map_err(|_| failed())?;
+    let raw = secrets
+        .get("native:guest-known-joins")
+        .await
+        .map_err(|_| failed())?;
+    let mut known: Vec<NativeGuestResumeRequest> = raw
+        .map(|raw| serde_json::from_str(&raw))
+        .transpose()
+        .map_err(|_| failed())?
+        .unwrap_or_default();
+    if let Some(pointer) = &current {
+        if !known
+            .iter()
+            .any(|p| p.room_id == pointer.room_id && p.join_id == pointer.join_id)
+        {
+            known.push(NativeGuestResumeRequest {
+                room_id: pointer.room_id,
+                join_id: pointer.join_id,
+            });
+        }
+    }
+    let raw = secrets
+        .get("native:guest-archived-selections")
+        .await
+        .map_err(|_| failed())?;
+    let mut archive: Vec<NativeGuestResumeRequest> = raw
+        .map(|raw| serde_json::from_str(&raw))
+        .transpose()
+        .map_err(|_| failed())?
+        .unwrap_or_default();
+    for pointer in known.into_iter().filter(|pointer| pointer.room_id == room) {
+        let Some(raw) = secrets
+            .get(&slot(pointer.join_id))
+            .await
+            .map_err(|_| failed())?
+        else {
+            continue;
+        };
+        let mut record: StoredNativeGuestJoin = serde_json::from_str(&raw).map_err(|_| failed())?;
+        if record.connection.as_ref().is_none_or(|connection| {
+            connection.member_id != member
+                || connection.capability != capability
+                || connection.room.epoch > epoch
+        }) {
+            continue;
+        }
+        record.departure_epoch = Some(epoch);
+        record.return_intent = None;
+        secrets
+            .set(
+                &slot(pointer.join_id),
+                &serde_json::to_string(&record).map_err(|_| failed())?,
+            )
+            .await
+            .map_err(|_| failed())?;
+        if !archive
+            .iter()
+            .any(|old| old.room_id == room && old.join_id == pointer.join_id)
+        {
+            if archive.len() >= 64 {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_guest_archive_full",
+                });
+            }
+            archive.push(NativeGuestResumeRequest {
+                room_id: room,
+                join_id: pointer.join_id,
+            });
+            secrets
+                .set(
+                    "native:guest-archived-selections",
+                    &serde_json::to_string(&archive).map_err(|_| failed())?,
+                )
+                .await
+                .map_err(|_| failed())?;
+        }
+        if current
+            .as_ref()
+            .is_some_and(|selected| selected.room_id == room && selected.join_id == pointer.join_id)
+        {
+            secrets
+                .delete("native:guest-selection")
+                .await
+                .map_err(|_| failed())?;
+        }
+    }
+    Ok(())
+}
 pub fn service(state: AppState) -> Result<Arc<dyn NativeRoomClientHttpService>, HttpServiceError> {
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(8))
         .build()
         .map_err(|_| failed())?;
-    Ok(Arc::new(ClientService {
-        state,
-        client,
-        lane: Mutex::new(()),
-    }))
+    Ok(Arc::new(ClientService { state, client }))
 }
 struct ClientService {
     state: AppState,
     client: reqwest::Client,
-    lane: Mutex<()>,
 }
 impl ClientService {
+    async fn settle_departure(
+        &self,
+        record: &mut StoredNativeGuestJoin,
+    ) -> Result<(), HttpServiceError> {
+        let Some(connection) = &record.connection else {
+            return Ok(());
+        };
+        let key = crate::native_room_transport::departure_slot(
+            connection.room.room_id,
+            connection.member_id,
+        );
+        let Some(raw) = self
+            .state
+            .secrets_repo()
+            .get(&key)
+            .await
+            .map_err(|_| failed())?
+        else {
+            return Ok(());
+        };
+        let pending: app_application::models::room_transport::NativeRoomTransportRequest =
+            serde_json::from_str(&raw).map_err(|_| failed())?;
+        let outcome = crate::native_room_transport::service(self.state.clone())?
+            .execute(pending)
+            .await?;
+        if !(200..300).contains(&outcome.status) {
+            return Err(failed());
+        }
+        let epoch = outcome
+            .body
+            .as_ref()
+            .and_then(|body| body["departure_epoch"].as_u64())
+            .filter(|epoch| *epoch > 0)
+            .ok_or_else(failed)?;
+        let _lane = SELECTION_LANE.lock().await;
+        *record = self
+            .load(record.request.join_id)
+            .await?
+            .ok_or_else(failed)?;
+        if record
+            .connection
+            .as_ref()
+            .is_some_and(|connection| connection.room.epoch <= epoch)
+        {
+            record.departure_epoch = Some(epoch);
+            record.return_intent = None;
+            self.save(record).await?;
+        }
+        Ok(())
+    }
+
     async fn check_pending(
         &self,
         request: &NativeGuestJoinRequest,
@@ -113,13 +264,38 @@ impl ClientService {
         let raw = serde_json::to_string(record).map_err(|_| HttpServiceError::Internal {
             code: "native_guest_store_invalid",
         })?;
-        self.state
-            .secrets_repo()
+        let secrets = self.state.secrets_repo();
+        secrets
             .set(&slot(record.request.join_id), &raw)
             .await
             .map_err(|_| HttpServiceError::Internal {
                 code: "native_guest_store_failed",
-            })
+            })?;
+        let known = secrets
+            .get("native:guest-known-joins")
+            .await
+            .map_err(|_| failed())?;
+        let mut known: Vec<NativeGuestResumeRequest> = known
+            .map(|raw| serde_json::from_str(&raw))
+            .transpose()
+            .map_err(|_| failed())?
+            .unwrap_or_default();
+        if !known.iter().any(|pointer| {
+            pointer.room_id == record.request.room_id && pointer.join_id == record.request.join_id
+        }) {
+            known.push(NativeGuestResumeRequest {
+                room_id: record.request.room_id,
+                join_id: record.request.join_id,
+            });
+            secrets
+                .set(
+                    "native:guest-known-joins",
+                    &serde_json::to_string(&known).map_err(|_| failed())?,
+                )
+                .await
+                .map_err(|_| failed())?;
+        }
+        Ok(())
     }
     async fn complete_selected(
         &self,
@@ -240,7 +416,10 @@ impl ClientService {
         &self,
         record: &mut StoredNativeGuestJoin,
     ) -> Result<NativeGuestConnection, HttpServiceError> {
-        if record.connection.is_some() {
+        if record.connection.is_some()
+            && record.return_intent.is_none()
+            && record.departure_epoch.is_none()
+        {
             return self.refresh(record).await;
         }
         #[derive(serde::Deserialize)]
@@ -250,7 +429,7 @@ impl ClientService {
             member_id: Uuid,
             capability: String,
         }
-        let response=self.client.post(format!("http://{}/rooms/{}/join",record.request.address,record.request.room_id)).json(&serde_json::json!({"join_id":record.request.join_id,"display_name":record.request.display_name,"invitation":record.request.invitation,"resume_proof":record.resume_proof})).send().await.map_err(|_|failed())?;
+        let response=self.client.post(format!("http://{}/rooms/{}/join",record.request.address,record.request.room_id)).json(&serde_json::json!({"join_id":record.request.join_id,"display_name":record.request.display_name,"invitation":record.request.invitation,"resume_proof":record.resume_proof,"return_intent":record.return_intent})).send().await.map_err(|_|failed())?;
         let grant: Grant = self.decode(response).await?;
         if !Self::valid_connection(
             &record.request,
@@ -268,6 +447,8 @@ impl ClientService {
             join_id: record.request.join_id,
         };
         record.connection = Some(connection.clone());
+        record.departure_epoch = None;
+        record.return_intent = None;
         self.save(record).await?;
         Ok(connection)
     }
@@ -275,7 +456,7 @@ impl ClientService {
 #[async_trait::async_trait]
 impl NativeRoomClientHttpService for ClientService {
     async fn saved(&self) -> Result<Vec<NativeGuestRecoveryChoice>, HttpServiceError> {
-        let _lane = self.lane.lock().await;
+        let _lane = SELECTION_LANE.lock().await;
         let raw = self
             .state
             .secrets_repo()
@@ -311,7 +492,7 @@ impl NativeRoomClientHttpService for ClientService {
         Ok(choices)
     }
     async fn postpone(&self) -> Result<(), HttpServiceError> {
-        let _lane = self.lane.lock().await;
+        let _lane = SELECTION_LANE.lock().await;
         let secrets = self.state.secrets_repo();
         let Some(raw) = secrets
             .get("native:guest-pending-selection")
@@ -369,7 +550,20 @@ impl NativeRoomClientHttpService for ClientService {
     }
 
     async fn recover(&self) -> Result<Option<NativeGuestConnection>, HttpServiceError> {
-        let _lane = self.lane.lock().await;
+        if let Some(raw) = self
+            .state
+            .secrets_repo()
+            .get("native:guest-selection")
+            .await
+            .map_err(|_| failed())?
+        {
+            let pointer: NativeGuestResumeRequest =
+                serde_json::from_str(&raw).map_err(|_| failed())?;
+            if let Some(mut record) = self.load(pointer.join_id).await? {
+                self.settle_departure(&mut record).await?;
+            }
+        }
+        let _lane = SELECTION_LANE.lock().await;
         let pending = self
             .state
             .secrets_repo()
@@ -406,6 +600,9 @@ impl NativeRoomClientHttpService for ClientService {
         if record.request.room_id != pointer.room_id {
             return Err(invalid());
         }
+        if record.departure_epoch.is_some() {
+            return Ok(None);
+        }
         self.complete_selected(&mut record).await.map(Some)
     }
 
@@ -413,7 +610,7 @@ impl NativeRoomClientHttpService for ClientService {
         &self,
         request: NativeGuestJoinRequest,
     ) -> Result<NativeGuestConnection, HttpServiceError> {
-        let _lane = self.lane.lock().await;
+        let _lane = SELECTION_LANE.lock().await;
         if request.room_id.is_nil()
             || request.join_id.is_nil()
             || request.address.port() == 0
@@ -434,6 +631,8 @@ impl NativeRoomClientHttpService for ClientService {
             record
         } else {
             let record = StoredNativeGuestJoin {
+                departure_epoch: None,
+                return_intent: None,
                 request,
                 resume_proof: RoomSecret::generate().expose().into(),
                 connection: None,
@@ -448,7 +647,6 @@ impl NativeRoomClientHttpService for ClientService {
         &self,
         request: NativeGuestResumeRequest,
     ) -> Result<NativeGuestConnection, HttpServiceError> {
-        let _lane = self.lane.lock().await;
         if request.room_id.is_nil() || request.join_id.is_nil() {
             return Err(invalid());
         }
@@ -460,6 +658,21 @@ impl NativeRoomClientHttpService for ClientService {
             return Err(HttpServiceError::Conflict {
                 code: "native_guest_request_mismatch",
             });
+        }
+        self.settle_departure(&mut record).await?;
+        let _lane = SELECTION_LANE.lock().await;
+        let mut record = self
+            .load(request.join_id)
+            .await?
+            .ok_or(HttpServiceError::NotFound)?;
+        if let Some(epoch) = record.departure_epoch {
+            if record.return_intent.is_none() {
+                record.return_intent = Some(app_application::models::room::RoomReturnIntent {
+                    request_id: Uuid::new_v4().to_string(),
+                    expected_departure_epoch: epoch,
+                });
+                self.save(&record).await?;
+            }
         }
         self.select(&record.request, true).await?;
         self.complete_selected(&mut record).await

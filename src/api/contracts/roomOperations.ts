@@ -30,6 +30,11 @@ export const HeroIntentSchema = v.variant('kind', [
 ]);
 const actionOptions = [
   v.strictObject({
+    kind: v.literal('leave'),
+    request_id: nonce,
+    expected_epoch: v.pipe(integer, v.minValue(1)),
+  }),
+  v.strictObject({
     kind: v.literal('recovery'),
     request_id: nonce,
     expected_revision: integer,

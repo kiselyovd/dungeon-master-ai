@@ -22,6 +22,7 @@ pub fn router(service: Arc<RoomService>) -> Router {
     Router::new()
         .route("/rooms/{room_id}", get(current_room).delete(close_room))
         .route("/rooms/{room_id}/join", post(join_room))
+        .route("/rooms/{room_id}/leave", post(leave_room))
         .route("/rooms/{room_id}/party", get(own_party))
         .route("/rooms/{room_id}/state", get(room_state))
         .route("/rooms/{room_id}/updates", get(room_updates))
@@ -108,6 +109,34 @@ async fn subject(
         .await
         .map_err(room_error)
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LeaveRoomRequest {
+    request_id: String,
+    expected_epoch: u64,
+}
+async fn leave_room(
+    State(service): State<Arc<RoomService>>,
+    Path(room): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<LeaveRoomRequest>,
+) -> Result<Json<app_application::models::room::RoomDepartureReceipt>, HttpServiceError> {
+    let member = Uuid::parse_str(single_header(&headers, "x-room-member-id")?)
+        .map_err(|_| room_error(RoomError::Denied))?;
+    let capability = single_header(&headers, "authorization")?
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| room_error(RoomError::Denied))?;
+    let capability = RoomSecret::from_input(capability.into()).map_err(room_error)?;
+    let subject = service
+        .authenticate_departure(room, member, &capability)
+        .await
+        .map_err(room_error)?;
+    service
+        .leave(&subject, request.expected_epoch, &request.request_id)
+        .await
+        .map(Json)
+        .map_err(room_error)
+}
 // Secret-bearing DTOs deliberately have no Debug implementation.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -116,6 +145,8 @@ struct JoinRequest {
     display_name: String,
     invitation: String,
     resume_proof: String,
+    #[serde(default)]
+    return_intent: Option<app_application::models::room::RoomReturnIntent>,
 }
 #[derive(Serialize)]
 struct JoinResponse {
@@ -137,16 +168,18 @@ async fn join_room(
     Path(room_id): Path<Uuid>,
     Json(request): Json<JoinRequest>,
 ) -> Result<Json<JoinResponse>, HttpServiceError> {
-    let grant = service
-        .join(JoinRoom {
-            room_id,
-            join_id: request.join_id,
-            display_name: request.display_name,
-            invitation: RoomSecret::from_input(request.invitation).map_err(room_error)?,
-            resume_proof: RoomSecret::from_input(request.resume_proof).map_err(room_error)?,
-        })
-        .await
-        .map_err(room_error)?;
+    let command = JoinRoom {
+        room_id,
+        join_id: request.join_id,
+        display_name: request.display_name,
+        invitation: RoomSecret::from_input(request.invitation).map_err(room_error)?,
+        resume_proof: RoomSecret::from_input(request.resume_proof).map_err(room_error)?,
+    };
+    let grant = match request.return_intent {
+        Some(intent) => service.return_join(command, intent).await,
+        None => service.join(command).await,
+    }
+    .map_err(room_error)?;
     Ok(Json(JoinResponse {
         room: grant.room,
         member_id: grant.member_id,
@@ -384,7 +417,7 @@ async fn room_events(
         sse::{Event, KeepAlive},
         IntoResponse, Sse,
     };
-    let subject = subject(&service, room_id, &headers).await?;
+    let initial_subject = subject(&service, room_id, &headers).await?;
     let after = if headers.contains_key("last-event-id") {
         Some(
             single_header(&headers, "last-event-id")?
@@ -396,15 +429,23 @@ async fn room_events(
     } else {
         None
     };
-    let initial = service
-        .initial_updates(&subject, after)
-        .await
-        .map_err(room_error)?;
+    let mut initial_subject = initial_subject;
+    let mut attempts = 0;
+    let initial = loop {
+        match service.initial_updates(&initial_subject, after).await {
+            Ok(update) => break update,
+            Err(RoomError::Denied) if attempts < 2 => {
+                attempts += 1;
+                initial_subject = subject(&service, room_id, &headers).await?;
+            }
+            Err(error) => return Err(room_error(error)),
+        }
+    };
     let cursor = initial.cursor;
     let head = initial.head;
     let stream = futures::stream::unfold(
-        (Some(initial), service, subject, cursor, head),
-        |(initial, service, subject, mut cursor, mut head)| async move {
+        (Some(initial), service, headers, room_id, cursor, head),
+        |(initial, service, headers, room_id, mut cursor, mut head)| async move {
             if let Some(update) = initial {
                 let event = Event::default()
                     .event("room_update")
@@ -413,14 +454,17 @@ async fn room_events(
                     .ok()?;
                 return Some((
                     Ok::<Event, std::convert::Infallible>(event),
-                    (None, service, subject, cursor, head),
+                    (None, service, headers, room_id, cursor, head),
                 ));
             }
             loop {
                 if cursor == head {
                     tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 }
-                match service.updates(&subject, Some(cursor)).await {
+                // Fresh proof validation keeps remaining peers live across membership epochs.
+                // Revoked/departed members still fail authentication before any new snapshot.
+                let current = subject(&service, room_id, &headers).await.ok()?;
+                match service.updates(&current, Some(cursor)).await {
                     Ok(Some(update)) => {
                         cursor = update.cursor;
                         head = update.head;
@@ -431,11 +475,17 @@ async fn room_events(
                             .ok()?;
                         return Some((
                             Ok::<Event, std::convert::Infallible>(event),
-                            (None, service, subject, cursor, head),
+                            (None, service, headers, room_id, cursor, head),
                         ));
                     }
                     Ok(None) => {
                         head = cursor;
+                    }
+                    Err(RoomError::Denied) => {
+                        // Membership can commit between authentication and the read.
+                        // Authenticate again on the next bounded-rate poll; revoked peers
+                        // fail before any new state is emitted.
+                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                     }
                     Err(_) => return None,
                 }

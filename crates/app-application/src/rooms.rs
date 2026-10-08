@@ -244,6 +244,8 @@ impl RoomService {
                 .take(64)
                 .collect::<String>();
             members.push(RoomMember {
+                left: false,
+                departure_epoch: 0,
                 member_id: member.member_id,
                 display_name,
                 role: member.role,
@@ -326,6 +328,25 @@ impl RoomService {
         member_id: Uuid,
         capability: &RoomSecret,
     ) -> Result<RoomSubject, RoomError> {
+        self.authenticate_membership(room_id, member_id, capability, false)
+            .await
+    }
+    pub async fn authenticate_departure(
+        &self,
+        room_id: Uuid,
+        member_id: Uuid,
+        capability: &RoomSecret,
+    ) -> Result<RoomSubject, RoomError> {
+        self.authenticate_membership(room_id, member_id, capability, true)
+            .await
+    }
+    async fn authenticate_membership(
+        &self,
+        room_id: Uuid,
+        member_id: Uuid,
+        capability: &RoomSecret,
+        departure: bool,
+    ) -> Result<RoomSubject, RoomError> {
         let room = self
             .rooms
             .room(room_id)
@@ -336,7 +357,11 @@ impl RoomService {
         let member = room
             .members
             .iter()
-            .find(|member| member.member_id == member_id && member.active)
+            .find(|member| {
+                member.member_id == member_id
+                    && (member.active || departure && member.left)
+                    && (!departure || member.role == PartyRole::Player)
+            })
             .ok_or(RoomError::Denied)?;
         let expected = self
             .read_secret(&credential_key(room_id, member.credential_id))
@@ -412,6 +437,27 @@ impl RoomService {
         Ok(room)
     }
     pub async fn join(&self, command: JoinRoom) -> Result<RoomGrant, RoomError> {
+        self.join_with_return(command, None).await
+    }
+    pub async fn return_join(
+        &self,
+        command: JoinRoom,
+        intent: crate::models::room::RoomReturnIntent,
+    ) -> Result<RoomGrant, RoomError> {
+        if intent.expected_departure_epoch == 0
+            || intent.request_id.trim().is_empty()
+            || intent.request_id.len() > 64
+            || intent.request_id.chars().any(char::is_control)
+        {
+            return Err(RoomError::InvalidInput);
+        }
+        self.join_with_return(command, Some(intent)).await
+    }
+    async fn join_with_return(
+        &self,
+        command: JoinRoom,
+        return_intent: Option<crate::models::room::RoomReturnIntent>,
+    ) -> Result<RoomGrant, RoomError> {
         let _lane = ROOM_MUTATION.lock().await;
         if command.room_id.is_nil()
             || command.join_id.is_nil()
@@ -452,14 +498,54 @@ impl RoomService {
                 || record.credential_id != pending.credential_id
                 || record.display_name != name
                 || !room.members.iter().any(|member| {
-                    member.active
+                    (member.active || member.left)
                         && member.member_id == record.member_id
                         && member.credential_id == record.credential_id
                 })
             {
                 return Err(RoomError::Denied);
             }
+            let departed = room
+                .members
+                .iter()
+                .any(|member| member.member_id == record.member_id && member.left);
+            if departed && return_intent.is_none() {
+                return Err(RoomError::Denied);
+            }
+            if let Some(intent) = return_intent {
+                self.rooms
+                    .return_member(
+                        room.room_id,
+                        record.member_id,
+                        record.credential_id,
+                        room.epoch,
+                        intent.expected_departure_epoch,
+                        &intent.request_id,
+                    )
+                    .await
+                    .map_err(|error| match error {
+                        crate::ports::repositories::RepositoryError::Operation {
+                            code: "room_departure_conflict" | "room_causation_mismatch",
+                            ..
+                        } => RoomError::Conflict,
+                        crate::ports::repositories::RepositoryError::Operation {
+                            code: "room_access_denied",
+                            ..
+                        } => RoomError::Denied,
+                        _ => RoomError::Repository,
+                    })?;
+                let current = self
+                    .rooms
+                    .room(room.room_id)
+                    .await
+                    .map_err(|_| RoomError::Repository)?
+                    .ok_or(RoomError::Denied)?;
+                return self.grant(&current, record.member_id).await;
+            }
             return self.grant(&room, record.member_id).await;
+        }
+        if return_intent.is_some() {
+            return Err(RoomError::Denied);
         }
         if room.invitation.consumed_by.is_some() || self.clock.now() >= room.invitation.expires_at {
             return Err(RoomError::Denied);
@@ -610,6 +696,36 @@ impl RoomService {
             return Err(RoomError::Denied);
         }
         Ok(secret)
+    }
+    pub async fn leave(
+        &self,
+        subject: &RoomSubject,
+        expected_epoch: u64,
+        request_id: &str,
+    ) -> Result<crate::models::room::RoomDepartureReceipt, RoomError> {
+        if subject.lease.role != PartyRole::Player
+            || expected_epoch == 0
+            || request_id.trim().is_empty()
+            || request_id.len() > 64
+            || request_id.chars().any(char::is_control)
+        {
+            return Err(RoomError::InvalidInput);
+        }
+        let _lane = ROOM_MUTATION.lock().await;
+        self.rooms
+            .leave_member(&subject.lease, expected_epoch, request_id)
+            .await
+            .map_err(|error| match error {
+                crate::ports::repositories::RepositoryError::Operation {
+                    code: "room_departure_conflict" | "room_causation_mismatch",
+                    ..
+                } => RoomError::Conflict,
+                crate::ports::repositories::RepositoryError::Operation {
+                    code: "room_access_denied",
+                    ..
+                } => RoomError::Denied,
+                _ => RoomError::Repository,
+            })
     }
     pub async fn revoke(&self, subject: &RoomSubject, member_id: Uuid) -> Result<(), RoomError> {
         let _lane = ROOM_MUTATION.lock().await;

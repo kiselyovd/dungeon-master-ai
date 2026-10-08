@@ -238,11 +238,57 @@ pub fn reconcile_participants(
     {
         return Err(ResolveCombatError::InvalidState);
     }
+    let mut occupied = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter(|actor| {
+            !actor.withdrawn
+                && actor.current_hp > 0
+                && !actor.is_dead
+                && actor.character_id.is_none_or(|id| present.contains(&id.0))
+        })
+        .map(|actor| actor.position)
+        .collect::<std::collections::HashSet<_>>();
     let mut changed = false;
     for actor in &mut projection.snapshot.combatants {
         if let Some(owner) = actor.character_id {
             let withdrawn = !present.contains(&owner.0);
             if actor.withdrawn != withdrawn {
+                if !withdrawn && actor.current_hp > 0 && !actor.is_dead {
+                    let origin = actor.position;
+                    if occupied.contains(&origin) {
+                        let candidate = if let Some(authored) = &projection.authored {
+                            let blocked = authored
+                                .map
+                                .blocked
+                                .iter()
+                                .copied()
+                                .collect::<std::collections::HashSet<_>>();
+                            (0..i32::from(authored.map.width))
+                                .flat_map(|x| {
+                                    (0..i32::from(authored.map.height))
+                                        .map(move |y| app_domain::combat::types::Position { x, y })
+                                })
+                                .filter(|p| !blocked.contains(p) && !occupied.contains(p))
+                                .min_by_key(|p| (origin.distance_ft(*p), p.x, p.y))
+                        } else {
+                            (1..=occupied.len().saturating_add(1))
+                                .flat_map(|r| {
+                                    let r = i32::try_from(r).unwrap_or(i32::MAX);
+                                    [(r, 0), (-r, 0), (0, r), (0, -r)]
+                                })
+                                .map(|(x, y)| app_domain::combat::types::Position {
+                                    x: origin.x.saturating_add(x),
+                                    y: origin.y.saturating_add(y),
+                                })
+                                .find(|p| !occupied.contains(p))
+                        }
+                        .ok_or(ResolveCombatError::InvalidState)?;
+                        actor.position = candidate;
+                    }
+                    occupied.insert(actor.position);
+                }
                 actor.withdrawn = withdrawn;
                 changed = true;
             }

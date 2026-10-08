@@ -48,6 +48,20 @@ async function installRoomStub(
               .find((event) => (event.payload as { operation?: string }).operation === 'recovery');
             return { status: 200, body: (event?.payload as { receipt: unknown }).receipt };
           }
+          if (
+            command === 'room_operation' &&
+            (args.operation as { kind: string }).kind === 'leave'
+          ) {
+            (window as unknown as { __confirmedLeave?: unknown }).__confirmedLeave = args.operation;
+            return {
+              status: 200,
+              body: {
+                receipt_revision: snapshot.state.revision,
+                duplicate: false,
+                departure_epoch: (snapshot.state.room.epoch ?? 1) + 1,
+              },
+            };
+          }
           if (command === 'saved_guest_rooms') return [];
           if (command === 'postpone_guest_room') return;
           if (command === 'join_room' || command === 'recover_guest_room') {
@@ -151,6 +165,11 @@ test('production co-op root joins a guest and preserves its own hero', async ({ 
     ),
   ).toBe(true);
   await page.getByRole('button', { name: 'Покинуть комнату' }).click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __confirmedLeave?: { kind: string } }).__confirmedLeave?.kind,
+    ),
+  ).toBe('leave');
   await expect(page.getByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
 });
 
