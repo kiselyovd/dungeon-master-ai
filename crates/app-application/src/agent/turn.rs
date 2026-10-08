@@ -853,7 +853,10 @@ impl AgentTurnService {
         public_context: &Value,
         resolved: &[super::intentions::ResolvedPlayerIntention],
     ) -> Result<String, AgentTurnError> {
-        use super::narration::{complete_text, narration_evidence, repair_request, NarrationCheck};
+        use super::narration::{
+            complete_text, narration_evidence, parse_repair, repair_request, repair_schema,
+            NarrationCheck,
+        };
         let verifier = self
             .config
             .narration_verifier
@@ -887,12 +890,12 @@ impl AgentTurnService {
             let stream = tokio::select! {
                 biased;
                 _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
-                stream=self.provider.stream_chat(request)=>stream.map_err(|_|AgentTurnError::Provider)?,
+                stream=self.provider.stream_chat_json(request,repair_schema())=>stream.map_err(|_|AgentTurnError::Provider)?,
             };
             check.draft = tokio::select! {
                 biased;
                 _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
-                text=complete_text(stream,16384)=>text.map_err(|_|AgentTurnError::Runtime("narration_repair_incomplete"))?,
+                text=complete_text(stream,16384)=>parse_repair(&text.map_err(|_|AgentTurnError::Runtime("narration_repair_incomplete"))?).map_err(|_|AgentTurnError::Runtime("narration_repair_invalid"))?,
             };
         }
         Err(AgentTurnError::Runtime("narration_unfaithful"))

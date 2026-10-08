@@ -1,7 +1,8 @@
 //! Shared discovered narration facts and separate private DM context.
 use app_domain::adventure::{AdventureState, Ending, Fact, Location};
 
-const EXAMINED_WARD: &str = "The examined ward bears fresh tool marks where the clapper was cut loose. The maintained upper path reaches the archive safely; a failed check never blocks every rescue route.";
+const EXAMINED_WARD: &str = "At that inspection, fresh tool marks were found ON THE WARD (оберег), where the bell clapper (язык колокола) had been cut off and removed. The tool marks are on the ward itself, not on a wall or railings. The inspection did not locate the removed clapper. / При осмотре обнаружено: оберег повреждён; на самом обереге свежие следы инструмента в месте, где срезали и сняли язык колокола. Следы не на стене и не на перилах. Где снятый язык находится, осмотр не установил. This historical discovery does not override later confirmed recovery or restoration.";
+const QUAY_UPPER_PATH: &str = "The maintained upper path reaches the archive safely; a failed check never blocks every rescue route. / Верхняя тропа ведёт к архиву безопасно; неудачная проверка не перекрывает все пути спасения.";
 
 /// Discovered facts only. This must never include scene-scoped DM secrets.
 pub fn bell_public_narration_facts(
@@ -22,6 +23,9 @@ pub fn bell_public_narration_facts(
     };
     if state.facts.contains(&Fact::WardDamaged) {
         add("ward_inspection", EXAMINED_WARD, inspection_in_this_request);
+    }
+    if state.location == Location::Quay {
+        add("quay_route", QUAY_UPPER_PATH, false);
     }
     if state.facts.contains(&Fact::TikhonRescued) {
         add("tikhon_rescued", "Tikhon is safely at home with his adult daughter Mila in Veresk. He is not still waiting in the archive or on a boat.", false);
@@ -106,10 +110,15 @@ pub fn bell_dm_context(state: &AdventureState) -> String {
         Location::Archive => "The upper path and staircase are dry. The missing ferryman has not yet been found; a voice/clue from the upper room may invite investigation. The memorial roll and land ledger are separate records; the ledger is optional.",
         Location::Belfry => "The echo repeats an old rescue call, not modern politics. No historical survivors remain trapped. Repair needs the recovered/repaired clapper, either roster and acknowledgment. Sealing the lower sluice means closing its existing gates with their built-in mechanism, requiring no new equipment, welding or spell. It protects the town but closes the quay and does not repair the ward. Combat alone never restores it.",
     };
+    let route = if state.location == Location::Quay {
+        QUAY_UPPER_PATH
+    } else {
+        ""
+    };
     let public_state = serde_json::to_string(state).expect("typed adventure state serializes");
     let actions = serde_json::to_string(&state.available_actions())
         .expect("typed adventure actions serialize");
-    format!("\n\nAUTHORED ADVENTURE - THE BELL BENEATH THE WATER\nImmutable canon: Veresk is in the Reed March. The missing living ferryman and the historic echo are distinct people. Preserve roster/ledger and ward-cause/flood-consequence distinctions. Invent only nonessential flavor. Do not invent quest items, grant resources, change scene or declare an ending through prose. Engine-confirmed actions/facts below are authoritative. Use adventure_action with an action from the JSON list to confirm the player's intention, then narrate its real result. A successful ToolResult confirms a completed action. Narrate that completed outcome even when the refreshed available-action list no longer offers it; that list governs future choices, not the action just completed. Do not execute an additional intention the player did not choose. API identifiers belong only in tool arguments; translate presentation nouns into the narration language and never print raw identifiers in player prose. Tools withheld by the prepared adventure must not be called or simulated in prose. Unsupported actions require an honest explanation and available alternatives. DM-only knowledge is not automatically player knowledge. Keep narration to a few clear sentences and optional short NPC dialogue, then one open question only while the session is open. A closed session ends with its confirmed epilogue. Do not print a menu of API actions: the UI presents available choices. Never invent new quest objects or family ties.\nConfirmed narration brief: {tikhon} {reward} {historic} {ending_brief} {ward} {turn_style}\nPresentation glossary EN/RU: Veresk=Вереск; old quay=старый причал; drowned archive=затопленный архив; lower belfry=нижняя звонница; memorial roll=памятный список спасённых; land ledger=земельная книга; Tikhon=Тихон; Mila=Мила; Agata=Агата; Leon=Леон; Varden=Варден. recover_roster means retrieve the original memorial roll, NOT restore a grove. recover_ledger means retrieve land-ownership evidence, NOT farming records.\nCurrent public state JSON: {public_state}\nAvailable intentions JSON: {actions}\nRelevant NPC knowledge and canon: {relevant}")
+    format!("\n\nAUTHORED ADVENTURE - THE BELL BENEATH THE WATER\nImmutable canon: Veresk is in the Reed March. The missing living ferryman and the historic echo are distinct people. Preserve roster/ledger and ward-cause/flood-consequence distinctions. Invent only nonessential flavor. Do not invent quest items, grant resources, change scene or declare an ending through prose. Engine-confirmed actions/facts below are authoritative. Use adventure_action with an action from the JSON list to confirm the player's intention, then narrate its real result. A successful ToolResult confirms a completed action. Narrate that completed outcome even when the refreshed available-action list no longer offers it; that list governs future choices, not the action just completed. Do not execute an additional intention the player did not choose. API identifiers belong only in tool arguments; translate presentation nouns into the narration language and never print raw identifiers in player prose. Tools withheld by the prepared adventure must not be called or simulated in prose. Unsupported actions require an honest explanation and available alternatives. DM-only knowledge is not automatically player knowledge. Keep narration to a few clear sentences and optional short NPC dialogue, then one open question only while the session is open. A closed session ends with its confirmed epilogue. Do not print a menu of API actions: the UI presents available choices. Never invent new quest objects or family ties.\nConfirmed narration brief: {tikhon} {reward} {historic} {ending_brief} {ward} {turn_style}\nPresentation glossary EN/RU: Veresk=Вереск; old quay=старый причал; drowned archive=затопленный архив; lower belfry=нижняя звонница; memorial roll=памятный список спасённых; land ledger=земельная книга; Tikhon=Тихон; Mila=Мила; Agata=Агата; Leon=Леон; Varden=Варден. recover_roster means retrieve the original memorial roll, NOT restore a grove. recover_ledger means retrieve land-ownership evidence, NOT farming records.\nCurrent public state JSON: {public_state}\nAvailable intentions JSON: {actions}\nRelevant NPC knowledge and canon: {relevant} {route}")
 }
 
 #[cfg(test)]

@@ -210,3 +210,27 @@ Final local verification: 882 Rust and1117 frontend tests, architecture/static
 checks and Clippy pass. Independent source review closed both findings. These
 results establish a publication/recovery boundary, not full narration or native/
 physicalLAN/session acceptance. Original32 dirty-file hashes remain unchanged.
+
+Structured correction checkpoint: violations carry exact draft quotes (max400
+characters), omissions can reference only required facts, and repair uses a
+strict narration-only JSON envelope. Fresh generation receives public evidence
+and rejected claims without the entire discarded draft. Shared EN/RU ward terms
+separate the required clue from optional quay-route information.31 workflow
+tests and final consolidated gates pass (883 Rust,1117 frontend, architecture/
+static checks and Clippy); independent source review closed the omission finding.
+
+Actual same-request continuation on executable b26cf12a8d33: revision5 stays5,
+entire adventure unchanged, original move/inspect/save receipts replayed without
+new effects. A faithful correction is generated, but the checker wrongly reports
+required_discovery_omitted. No final text/AgentDone is delivered after129.640s.
+Independent semantic review passes the generated correction and classifies the
+checker rejection as false-positive; integrated delivery remains FAIL. Evidence:
+.artifacts/qwen9b/schema/repair/{build-proof.json,captures,resume-compound.json}.
+
+Isolated no-thinking diagnostics: a narrow contradiction boolean distinguishes
+faithful ward marks from wrong railings/dangling clapper (3/3). A missing-ID list
+still rejects the faithful discovery, while a positive conveyed boolean accepts
+it and rejects atmosphere-only/wrong-object text (3/3). These are paired small
+probes, not universal accuracy or production reasoning changes. Next: bounded
+positive fact-coverage adjudication for reported omissions, followed by real
+compound, rescue/ending/native and physicalLAN acceptance. No model promotion.

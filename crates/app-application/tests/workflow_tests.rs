@@ -42,6 +42,7 @@ struct FakeProvider {
     rounds: Mutex<VecDeque<Result<Vec<ChatChunk>, LlmError>>>,
     calls: AtomicUsize,
     requests: Mutex<Vec<ChatRequest>>,
+    schemas: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeProvider {
@@ -50,6 +51,7 @@ impl FakeProvider {
             rounds: Mutex::new(rounds.into_iter().map(Ok).collect()),
             calls: AtomicUsize::new(0),
             requests: Mutex::new(vec![]),
+            schemas: Mutex::new(vec![]),
         }
     }
 
@@ -58,12 +60,21 @@ impl FakeProvider {
             rounds: Mutex::new(VecDeque::from([Err(LlmError::Network("offline".into()))])),
             calls: AtomicUsize::new(0),
             requests: Mutex::new(vec![]),
+            schemas: Mutex::new(vec![]),
         }
     }
 }
 
 #[async_trait]
 impl LlmProvider for FakeProvider {
+    async fn stream_chat_json(
+        &self,
+        request: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        self.schemas.lock().unwrap().push(schema);
+        self.stream_chat(request).await
+    }
     async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError> {
         self.requests.lock().unwrap().push(request);
         self.calls.fetch_add(1, Ordering::SeqCst);
@@ -231,6 +242,7 @@ impl app_application::agent::narration::NarrationVerifier for DraftFixtureVerifi
                         .map(|fact| fact.id.clone())
                         .unwrap_or_else(|| "public_state".into()),
                     code: NarrationViolationCode::InventedMechanism,
+                    quote: check.draft.clone(),
                 }]
             } else {
                 vec![]
@@ -275,6 +287,9 @@ fn narration_round(text: &str) -> Vec<ChatChunk> {
         },
     ]
 }
+fn narration_repair_round(text: &str) -> Vec<ChatChunk> {
+    narration_round(&json!({"narration":text}).to_string())
+}
 fn refused_shot_dispatcher() -> Arc<FakeToolDispatcher> {
     Arc::new(FakeToolDispatcher {
         execution: ToolExecution {
@@ -297,7 +312,7 @@ async fn narration_correction_is_prose_only_and_bad_drafts_never_publish() {
             json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
         )),
         narration_round(bad),
-        narration_round(good),
+        narration_repair_round(good),
     ]));
     let messages = Arc::new(FakeMessages::default());
     let dispatcher = refused_shot_dispatcher();
@@ -349,6 +364,14 @@ async fn narration_correction_is_prose_only_and_bad_drafts_never_publish() {
         assert!(!repair_text.contains(secret), "{secret}");
     }
     assert_eq!(checker.checks.lock().unwrap().len(), 2);
+    assert_eq!(
+        provider.schemas.lock().unwrap()[0]["required"],
+        json!(["narration"])
+    );
+    assert_eq!(
+        provider.schemas.lock().unwrap()[0]["additionalProperties"],
+        false
+    );
     assert!(checker.checks.lock().unwrap()[0]
         .evidence
         .facts
@@ -364,7 +387,7 @@ async fn rejected_narration_resumes_confirmed_attempt_without_dispatching_again(
             json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
         )),
         narration_round("Стрела летит"),
-        narration_round("Возникает стена воды"),
+        narration_repair_round("Возникает стена воды"),
         narration_round("Препятствие перекрывает линию атаки. Выстрел не выполнен."),
     ]));
     let messages = Arc::new(FakeMessages::default());
@@ -424,17 +447,42 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
     for (text, reason, valid) in [
         (r#"{"violations":[]}"#, FinishReason::Stop, true),
         (
-            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect"}]}"#,
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
             FinishReason::Stop,
             true,
         ),
         (
-            r#"{"violations":[{"fact_id":"invented","code":"unconfirmed_effect"}]}"#,
+            r#"{"violations":[{"fact_id":"invented","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
             FinishReason::Stop,
             false,
         ),
         (
-            r#"{"violations":[{"fact_id":"public_state","code":"unknown"}]}"#,
+            r#"{"violations":[{"fact_id":"public_state","code":"unknown","quote":"Препятствие"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"invented quote"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":""}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"required_discovery_omitted","quote":""}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+            FinishReason::Stop,
+            true,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect"}]}"#,
             FinishReason::Stop,
             false,
         ),
@@ -457,7 +505,17 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
                 model: "saved-A".into(),
                 player_message: "Стреляю".into(),
                 draft: "Препятствие мешает выстрелу".into(),
-                evidence: narration_evidence(&json!({"hero_name":"Федор"}), &[]),
+                evidence: {
+                    let mut evidence = narration_evidence(&json!({"hero_name":"Федор"}), &[]);
+                    evidence
+                        .facts
+                        .push(app_application::agent::narration::NarrationFact {
+                            id: "discovery".into(),
+                            text: "A required confirmed discovery".into(),
+                            required: true,
+                        });
+                    evidence
+                },
             })
             .await;
         assert_eq!(result.is_ok(), valid, "{text}");
@@ -467,6 +525,24 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
         assert!(!serde_json::to_string(&requests[0])
             .unwrap()
             .contains("PRIVATE_CHECK_REASONING"));
+    }
+}
+
+#[test]
+fn narration_repair_rejects_prose_planning_empty_or_extra_fields() {
+    use app_application::agent::narration::parse_repair;
+    assert_eq!(
+        parse_repair(r#"{"narration":"Оберег повреждён. Язык снят. Что делаешь?"}"#).unwrap(),
+        "Оберег повреждён. Язык снят. Что делаешь?"
+    );
+    for invalid in [
+        "Let me analyze the draft",
+        r#"{"narration":"   "}"#,
+        r#"{"analysis":"private","narration":"story"}"#,
+        r#"{"narration":42}"#,
+        r#"{"text":"story"}"#,
+    ] {
+        assert!(parse_repair(invalid).is_err(), "{invalid}");
     }
 }
 
@@ -1834,7 +1910,7 @@ async fn explicitly_requested_compound_intentions_are_not_reduced_to_one_action(
         Arc::new(FakeProvider::scripted(vec![
             agency_round(both),
             narration_round("Из ниоткуда возникает стена воды"),
-            agency_final(),
+            narration_repair_round("Confirmed player choice"),
         ])),
         Arc::new(AuthoredAgencyContext),
         messages,
