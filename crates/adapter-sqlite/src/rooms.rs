@@ -170,6 +170,16 @@ impl RoomRepository for crate::SqliteStore {
     ) -> Result<app_application::models::room_agent::PreparedRoomTool, RepositoryError> {
         crate::room_agent::prepare(self, lease, turn_id, tool_id, command).await
     }
+    async fn resolve_room_skill_check(
+        &self,
+        lease: &RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: app_application::agent::commands::RollDiceCommand,
+        rng_seed: u64,
+    ) -> Result<serde_json::Value, RepositoryError> {
+        crate::room_checks::resolve(self, lease, turn_id, tool_id, command, rng_seed).await
+    }
     async fn act_room_adventure(
         &self,
         lease: &RoomLease,

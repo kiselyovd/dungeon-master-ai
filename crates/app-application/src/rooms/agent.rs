@@ -147,10 +147,16 @@ pub fn scoped_catalog(
         .filter(|tool| {
             matches!(
                 tool.name.as_str(),
-                "adventure_action" | "combat_action" | "rest_action"
+                "adventure_action" | "combat_action" | "rest_action" | "roll_dice"
             )
         })
         .collect::<Vec<_>>();
+    for tool in &mut tools {
+        if tool.name == "roll_dice" {
+            tool.description = "Resolve a skill check requested by the current human player. Use dice 1d20 and check {character_id, skill, dc}; omit modifier. Only the initiating player's hero may be checked. The engine derives modifiers, armor penalties and records dice for replay. This check does not choose or execute a hero action.".into();
+            tool.parameters["required"] = serde_json::json!(["dice", "check"]);
+        }
+    }
     tools.sort_by(|left, right| left.name.cmp(&right.name));
     tools.dedup_by(|left, right| left.name == right.name);
     catalog.exploration = tools.clone();
@@ -209,7 +215,7 @@ impl AgentContextPort for RoomAgentPorts {
             });
         }
         let mut prompt = request.base_system_prompt;
-        prompt.push_str("\nYou are the Dungeon Master of this shared campaign, never a player character. Lead narration, portray NPCs and adjudicate scenes and combat. Every hero is controlled exclusively by its human player. Resolve only the initiating player's declared hero intention; do not choose a hero's decisions, dialogue, movement, attacks or rest on their behalf. Ask the player when their intention is ambiguous. The deterministic engine owns dice, damage, resources and NPC combat turns. Describe consequences only after confirmed tool results. Accepted hero biographies and hidden canon are DM knowledge, not automatically public discoveries; reveal them only when the adventure establishes discovery. Other heroes are not controllable through the initiating player's tools.");
+        prompt.push_str("\nYou are the Dungeon Master of this shared campaign, never a player character. Lead narration, portray NPCs and adjudicate scenes and combat. Every hero is controlled exclusively by its human player. Resolve only the initiating player's declared hero intention; do not choose a hero's decisions, dialogue, movement, attacks or rest on their behalf. Ask the player when their intention is ambiguous. The deterministic engine owns dice, damage, resources and NPC combat turns. Describe consequences only after confirmed tool results. Accepted hero biographies and hidden canon are DM knowledge, not automatically public discoveries; reveal them only when the adventure establishes discovery. Other heroes are not controllable through the initiating player's tools. For a skill check use roll_dice with dice 1d20 and check {character_id, skill, dc}, using only the initiating player's accepted character ID; omit modifier. The server derives proficiency and armor/condition penalties and records the outcome. A check does not itself perform Hide, Search or any other hero action.");
         let mut dm_party = self
             .rooms
             .rooms
@@ -284,6 +290,7 @@ impl ToolDispatcher for RoomAgentPorts {
             AgentToolCommand::AdventureAction(_)
                 | AgentToolCommand::CombatAction(_)
                 | AgentToolCommand::RestAction(_)
+                | AgentToolCommand::RollDice(_)
         ) {
             return Ok(ToolExecution {
                 result: serde_json::json!({"error":"room_tool_unavailable"}),
@@ -306,6 +313,18 @@ impl ToolDispatcher for RoomAgentPorts {
                 code: "room_agent_tool_conflict",
             })?;
         let result = match request.command {
+            AgentToolCommand::RollDice(command) => self
+                .rooms
+                .rooms
+                .resolve_room_skill_check(
+                    self.subject.lease(),
+                    self.turn_id,
+                    &request.tool_call_id,
+                    command,
+                    uuid::Uuid::new_v4().as_u128() as u64,
+                )
+                .await
+                .map_err(|_| super::RoomError::ActionRejected),
             AgentToolCommand::AdventureAction(command) => self
                 .rooms
                 .adventure(

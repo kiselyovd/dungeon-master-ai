@@ -37,3 +37,8 @@ DC result and bounded context implemented. Domain/application/SQLite/server suit
 passes; independent review closed portrait-context and legacy-budget findings.
 Co-op check authority/receipts and native/model check delivery remain next; the
 combined Stealth/untrained task stays open.
+
+Co-op check authority/receipts implemented using existing prepared-tool records.
+File-backed two-member check/replay/reopen, rollback, reset and separate revocation
+regressions pass. Model/native delivery and untrained armor remain follow-ups.
+The combined Stealth/untrained task stays open until those limitations are resolved.

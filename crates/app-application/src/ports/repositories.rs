@@ -137,6 +137,14 @@ pub trait RoomRepository: Send + Sync {
         tool_id: &str,
         command: crate::agent::commands::AgentToolCommand,
     ) -> Result<crate::models::room_agent::PreparedRoomTool, RepositoryError>;
+    async fn resolve_room_skill_check(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::RollDiceCommand,
+        rng_seed: u64,
+    ) -> Result<serde_json::Value, RepositoryError>;
     async fn act_room_adventure(
         &self,
         lease: &crate::models::room::RoomLease,

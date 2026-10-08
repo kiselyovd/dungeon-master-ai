@@ -46,6 +46,7 @@ impl SqliteStore {
 mod room_dm_turns;
 
 mod recovery_clock;
+mod room_checks;
 mod room_recovery;
 
 mod solo_recovery;

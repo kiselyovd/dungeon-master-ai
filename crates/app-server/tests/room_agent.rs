@@ -38,7 +38,7 @@ impl app_application::ports::llm::LlmProvider for Provider {
         assert!(!text.contains("HOST_PRIVATE_SOLO_CHAT"));
         assert!(request.tools.iter().all(|tool| matches!(
             tool.name.as_str(),
-            "adventure_action" | "combat_action" | "rest_action"
+            "adventure_action" | "combat_action" | "rest_action" | "roll_dice"
         )));
         let chunks = if self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
             vec![
@@ -689,4 +689,287 @@ async fn collaborative_dm_reasoning_never_becomes_player_visible() {
     assert!(!serde_json::to_string(&ports.checkpoint().await.unwrap())
         .unwrap()
         .contains("DM_SECRET_BACKSTORY"));
+}
+
+#[tokio::test]
+async fn room_skill_check_is_owner_scoped_replay_safe_and_transactional() {
+    let task_db_path = std::env::temp_dir().join(format!("dmai-room-check-{}.db", Uuid::new_v4()));
+    let task_db_url = format!(
+        "sqlite://{}?mode=rwc",
+        task_db_path.to_string_lossy().replace('\\', "/")
+    );
+    let db = sqlx::SqlitePool::connect(&task_db_url).await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let store = Arc::new(SqliteStore::new(db));
+    let campaign = CreateCampaign::new(store.clone())
+        .execute(CreateCampaignCommand {
+            title: "Room agent".into(),
+            premise: "Ferry".into(),
+            seed: CampaignSeed::Bundled {
+                adventure_id: "bell-beneath-water".into(),
+            },
+        })
+        .await
+        .unwrap();
+    let host_sheet = json!({"name":"Mira","heroClass":"fighter","level":1,"hp":12,"hpMax":12,"ac":14,"abilities":{"str":15,"dex":14,"con":13,"int":12,"wis":10,"cha":8},"inventory":[],"backstory":"HOST_PRIVATE_STORY"});
+    let current = store
+        .commit_character(CommitCampaignCharacter {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            character_id: Uuid::new_v4(),
+            expected_revision: campaign.revision,
+            causation_id: "hero".into(),
+            character: host_sheet.clone(),
+        })
+        .await
+        .unwrap();
+    store
+        .append(
+            campaign.last_session_id.0,
+            app_application::models::chat::ChatMessage::user_text("HOST_PRIVATE_SOLO_CHAT"),
+        )
+        .await
+        .unwrap();
+    let task_secrets = Arc::new(InMemorySecretsStore::default());
+    let rooms = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        task_secrets.clone(),
+        Arc::new(SystemRoomClock),
+    ));
+    let created = rooms
+        .create_local_room(CreateLocalRoom {
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: current.campaign.revision,
+            causation_id: "room".into(),
+        })
+        .await
+        .unwrap();
+    let guest = rooms
+        .join(JoinRoom {
+            room_id: created.grant.room.room_id,
+            join_id: Uuid::new_v4(),
+            display_name: "Guest".into(),
+            invitation: RoomSecret::from_input(created.invitation.expose().into()).unwrap(),
+            resume_proof: RoomSecret::generate(),
+        })
+        .await
+        .unwrap();
+    let guest_subject = rooms
+        .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
+        .await
+        .unwrap();
+    let host_subject = rooms
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let character_id = Uuid::new_v4();
+    let proposal_id = Uuid::new_v4();
+    let mut sheet = host_sheet;
+    sheet["backstory"] = json!("GUEST_PRIVATE_STORY");
+    sheet["characterId"] = json!(character_id);
+    sheet["inventory"] = json!([{"id":"chain-mail","name":"Chain Mail","count":1}]);
+    sheet["defense"] = json!({"schema_version":1,"armor_id":"chain-mail","shield":false});
+    sheet["skillProfs"] = json!({"stealth":true});
+    rooms
+        .submit_character(
+            &guest_subject,
+            SubmitRoomCharacter {
+                proposal_id,
+                character_id,
+                character: sheet,
+            },
+        )
+        .await
+        .unwrap();
+    let party = store.party(campaign.id).await.unwrap().unwrap();
+    rooms
+        .approve_character(
+            &host_subject,
+            ApproveRoomCharacter {
+                proposal_id,
+                expected_revision: party.revision,
+                causation_id: "accept".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+    use app_application::{
+        agent::commands::RollDiceCommand,
+        hero_checks::{HeroSkillCheck, Skill},
+    };
+    let turn_id = Uuid::new_v4();
+    let ports = RoomAgentPorts::new(rooms.clone(), guest_subject, turn_id);
+    let check = RollDiceCommand {
+        dice: "1d20".into(),
+        modifier: None,
+        advantage: None,
+        disadvantage: None,
+        reason: None,
+        check: Some(HeroSkillCheck {
+            character_id,
+            skill: Skill::Stealth,
+            dc: Some(15),
+        }),
+    };
+    let request = ToolDispatchRequest {
+        request_id: turn_id.to_string(),
+        tool_call_id: "skill-one".into(),
+        campaign_id: campaign.id.0,
+        session_id: campaign.last_session_id.0,
+        command: AgentToolCommand::RollDice(check.clone()),
+    };
+    let before = store.party(campaign.id).await.unwrap().unwrap();
+    let first = ports.execute(request.clone()).await.unwrap();
+    assert!(!first.is_error, "{:?}", first.result);
+    assert_eq!(first.result["character_id"], json!(character_id));
+    assert_eq!(first.result["modifier"], 4);
+    assert_eq!(first.result["armor_disadvantage"], true);
+    assert_eq!(first.result["rolls"].as_array().unwrap().len(), 2);
+    let after = store.party(campaign.id).await.unwrap().unwrap();
+    assert_eq!(after.revision.0, before.revision.0 + 1);
+    assert_eq!(after.characters, before.characters);
+    let replay = ports.execute(request.clone()).await.unwrap();
+    assert!(!replay.is_error);
+    assert_eq!(replay.result["duplicate"], true);
+    assert_eq!(replay.result["rolls"], first.result["rolls"]);
+    assert_eq!(replay.result["total"], first.result["total"]);
+    assert_eq!(store.party(campaign.id).await.unwrap().unwrap(), after);
+    store.pool().close().await;
+    let db = sqlx::SqlitePool::connect(&task_db_url).await.unwrap();
+    pool::migrate(&db).await.unwrap();
+    let store = Arc::new(SqliteStore::new(db));
+    let rooms = Arc::new(RoomService::new(
+        store.clone(),
+        store.clone(),
+        task_secrets,
+        Arc::new(SystemRoomClock),
+    ));
+    let guest_subject = rooms
+        .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
+        .await
+        .unwrap();
+    let host_subject = rooms
+        .authenticate(
+            created.grant.room.room_id,
+            created.grant.member_id,
+            &created.grant.capability,
+        )
+        .await
+        .unwrap();
+    let ports = RoomAgentPorts::new(rooms.clone(), guest_subject, turn_id);
+    let reopened = ports.execute(request.clone()).await.unwrap();
+    assert_eq!(reopened.result["duplicate"], true);
+    assert_eq!(reopened.result["rolls"], first.result["rolls"]);
+    assert_eq!(store.party(campaign.id).await.unwrap().unwrap(), after);
+    let saved_prepared: String =
+        sqlx::query_scalar("SELECT prepared_json FROM room_agent_tools WHERE tool_id='skill-one'")
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    sqlx::query("UPDATE room_agent_tools SET prepared_json=json_set(prepared_json,'$.check_result',123) WHERE tool_id='skill-one'").execute(store.pool()).await.unwrap();
+    assert!(ports.execute(request.clone()).await.unwrap().is_error);
+    sqlx::query("UPDATE room_agent_tools SET prepared_json=?1 WHERE tool_id='skill-one'")
+        .bind(saved_prepared)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let mut altered = check.clone();
+    altered.check.as_mut().unwrap().skill = Skill::Athletics;
+    assert!(ports
+        .execute(ToolDispatchRequest {
+            command: AgentToolCommand::RollDice(altered),
+            ..request.clone()
+        })
+        .await
+        .is_err());
+    let mut foreign = check.clone();
+    foreign.check.as_mut().unwrap().character_id = current.character_id.unwrap();
+    assert!(
+        ports
+            .execute(ToolDispatchRequest {
+                tool_call_id: "foreign-owner".into(),
+                command: AgentToolCommand::RollDice(foreign),
+                ..request.clone()
+            })
+            .await
+            .unwrap()
+            .is_error
+    );
+    assert_eq!(store.party(campaign.id).await.unwrap().unwrap(), after);
+    // Failure after computing the roll must roll back revision and saved result together.
+    sqlx::raw_sql("CREATE TRIGGER reject_check AFTER INSERT ON room_changes WHEN json_extract(NEW.payload_json,'$.operation')='skill_check' BEGIN SELECT RAISE(ABORT,'test_check_rollback'); END;").execute(store.pool()).await.unwrap();
+    let retry = ToolDispatchRequest {
+        tool_call_id: "rollback-check".into(),
+        ..request.clone()
+    };
+    assert!(ports.execute(retry.clone()).await.unwrap().is_error);
+    assert_eq!(store.party(campaign.id).await.unwrap().unwrap(), after);
+    let saved:Option<String>=sqlx::query_scalar("SELECT json_extract(prepared_json,'$.check_result') FROM room_agent_tools WHERE tool_id='rollback-check'").fetch_one(store.pool()).await.unwrap();
+    assert!(saved.is_none());
+    sqlx::raw_sql("DROP TRIGGER reject_check")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert!(!ports.execute(retry.clone()).await.unwrap().is_error);
+    assert_eq!(
+        ports.execute(retry).await.unwrap().result["duplicate"],
+        true
+    );
+    let live = store.load_current(campaign.id).await.unwrap();
+    let snapshot = app_application::campaigns::CreateSnapshot::new(store.clone())
+        .execute(app_application::campaigns::CreateSnapshotCommand {
+            id: Uuid::new_v4(),
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: live.campaign.revision,
+            title: "Check snapshot".into(),
+            kind: "manual".into(),
+            summary: "".into(),
+            tag: "".into(),
+            causation_id: "check-save".into(),
+            character: live.projection.character,
+        })
+        .await
+        .unwrap();
+    let live = store.load_current(campaign.id).await.unwrap();
+    store
+        .restore_snapshot(app_application::models::snapshot::RestoreSnapshotRecord {
+            save_id: snapshot.save_id,
+            campaign_id: campaign.id,
+            session_id: campaign.last_session_id,
+            expected_revision: live.campaign.revision,
+            causation_id: "check-restore".into(),
+        })
+        .await
+        .unwrap();
+    assert!(ports.execute(request.clone()).await.is_err());
+    let fresh_turn = Uuid::new_v4();
+    let fresh_subject = rooms
+        .authenticate(guest.room.room_id, guest.member_id, &guest.capability)
+        .await
+        .unwrap();
+    let fresh_ports = RoomAgentPorts::new(rooms.clone(), fresh_subject, fresh_turn);
+    let fresh_request = ToolDispatchRequest {
+        request_id: fresh_turn.to_string(),
+        tool_call_id: "fresh-after-reset".into(),
+        ..request
+    };
+    assert!(
+        !fresh_ports
+            .execute(fresh_request.clone())
+            .await
+            .unwrap()
+            .is_error
+    );
+    rooms.revoke(&host_subject, guest.member_id).await.unwrap();
+    assert!(fresh_ports.execute(fresh_request).await.is_err());
+    store.pool().close().await;
+    std::fs::remove_file(task_db_path).unwrap();
 }

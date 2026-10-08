@@ -68,3 +68,19 @@ pub fn roll_skill(
 pub fn context_identity(character: Uuid, sheet: &Value) -> Value {
     json!({"character_id":character,"name":sheet["name"].as_str().unwrap_or("").chars().take(120).collect::<String>()})
 }
+
+pub fn roll_skill_seeded(
+    sheet: &Value,
+    check: &HeroSkillCheck,
+    advantage: bool,
+    disadvantage: bool,
+    seed: u64,
+) -> Result<Value, &'static str> {
+    roll_skill(
+        sheet,
+        check,
+        advantage,
+        disadvantage,
+        &mut SeededRng::from_seed(seed),
+    )
+}

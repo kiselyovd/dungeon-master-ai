@@ -144,6 +144,7 @@ pub(crate) async fn prepare(
         AgentToolCommand::AdventureAction(_)
             | AgentToolCommand::CombatAction(_)
             | AgentToolCommand::RestAction(_)
+            | AgentToolCommand::RollDice(_)
     ) {
         return Err(error("room_access_denied"));
     }
@@ -151,6 +152,9 @@ pub(crate) async fn prepare(
         AgentToolCommand::AdventureAction(value) => serde_json::json!({"adventure":value}),
         AgentToolCommand::CombatAction(value) => serde_json::json!({"combat":value}),
         AgentToolCommand::RestAction(value) => serde_json::json!({"rest":value}),
+        AgentToolCommand::RollDice(value) if value.check.is_some() => {
+            serde_json::json!({"check":value})
+        }
         _ => return Err(error("room_access_denied")),
     }
     .to_string();
@@ -185,6 +189,7 @@ pub(crate) async fn prepare(
         nonce: Uuid::new_v4().to_string(),
         expected_revision: current.campaign.revision.0,
         encounter_id: None,
+        check_result: None,
     };
     if matches!(command, AgentToolCommand::CombatAction(_)) {
         let projection: app_application::models::combat::CombatProjection = serde_json::from_value(

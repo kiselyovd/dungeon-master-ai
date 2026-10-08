@@ -126,3 +126,31 @@ Remaining: co-op owner/lease/receipt integration, native/model skill-check deliv
 expertise and contextual ability substitutions, untrained armor penalties. Generic
 NPC/world dice remain available; there is no semantic text heuristic deciding
 player actions. Full armor/gameplay/session acceptance remains open.
+
+
+Co-op check checkpoint, 2026-10-08:
+The room tool catalog now exposes roll_dice only with a canonical check descriptor.
+The broker/transaction verifies the current lease, accepted owner and exact prepared
+command. It rejects another player's hero and generic unbound room dice. Domain
+skill modifiers/armor/Poisoned rules are shared with solo. The Master requests a
+check for the initiating human's intention; this does not execute a hero action.
+
+The existing room_agent_tools prepared record stores an optional check_result.
+Old rows decode with no result. New dice, completed result, campaign revision and
+shared room event commit in one IMMEDIATE transaction; no new migration or
+production dependency. A retry returns the same recorded dice before checking a
+new revision. Timeline reset and revoked lease still reject old results. Malformed
+recorded outcomes fail without delivery/panic.
+
+Verification: real two-member RoomAgentPorts/SQLite scenario covers guest Chain
+Mail Stealth, exact replay/no second revision, real file-pool close/reopen, changed
+payload, foreign hero, injected final-write rollback then retry, malformed result,
+snapshot reset, and a separately fresh post-reset check denied after revocation.
+All three room-agent cases pass. Four-crate regression passes657tests before the
+last receipt-shape guard; focused complete room-check scenario passes after it.
+Independent review confirmed transaction/authority/replay/privacy and reopen/reset
+logic; a revocation evidence weakness was repaired with the fresh-check case.
+
+Native/model shared-check delivery remains to be exercised. Existing untrained
+armor, Expertise and contextual ability substitution limitations remain; this is
+not a complete-SRD or complete-session claim.
