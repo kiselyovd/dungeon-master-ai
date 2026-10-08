@@ -493,13 +493,17 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
         ),
         (r#"{"violations":[]}"#, FinishReason::Length, false),
     ] {
-        let provider = Arc::new(FakeProvider::scripted(vec![vec![
+        let mut rounds = vec![vec![
             ChatChunk::ThinkingDelta {
                 text: "PRIVATE_CHECK_REASONING".into(),
             },
             ChatChunk::TextDelta { text: text.into() },
             ChatChunk::Done { reason },
-        ]]));
+        ]];
+        if valid && text.contains("required_discovery_omitted") {
+            rounds.push(narration_round(r#"{"conveyed":false}"#));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
         let result = LlmNarrationVerifier::new(provider.clone())
             .assess(NarrationCheck {
                 model: "saved-A".into(),
@@ -543,6 +547,89 @@ fn narration_repair_rejects_prose_planning_empty_or_extra_fields() {
         r#"{"text":"story"}"#,
     ] {
         assert!(parse_repair(invalid).is_err(), "{invalid}");
+    }
+}
+
+#[tokio::test]
+async fn positive_discovery_coverage_can_clear_only_reported_omissions() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+        NarrationViolationCode,
+    };
+    for conveyed in [false, true] {
+        let first = json!({"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Стрела летит"}]});
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(&first.to_string()),
+            narration_round(&json!({"conveyed":conveyed}).to_string()),
+        ]));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "discovery".into(),
+            text: "Fresh tool marks on the ward; the clapper was removed.".into(),
+            required: true,
+        });
+        let verdict = LlmNarrationVerifier::new(provider.clone())
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "PRIVATE_UNRELATED_HISTORY".into(),
+                draft: "На обереге следы инструмента, язык снят. Стрела летит".into(),
+                evidence,
+            })
+            .await
+            .unwrap();
+        assert_eq!(verdict.violations.len(), if conveyed { 1 } else { 3 });
+        assert!(verdict
+            .violations
+            .iter()
+            .any(|v| matches!(v.code, NarrationViolationCode::UnconfirmedEffect)));
+        let requests = provider.requests.lock().unwrap();
+        assert_eq!(
+            requests.len(),
+            2,
+            "duplicate omission should reuse coverage"
+        );
+        assert_eq!(requests[1].model, "saved-A");
+        assert!(requests[1].tools.is_empty());
+        let payload = serde_json::to_string(&requests[1].messages).unwrap();
+        assert!(!payload.contains("PRIVATE_UNRELATED_HISTORY"));
+        assert!(!payload.contains("public_context"));
+    }
+}
+#[tokio::test]
+async fn incomplete_or_malformed_discovery_coverage_never_accepts_the_draft() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    for (body, terminal) in [
+        (r#"{"conveyed":"yes"}"#, FinishReason::Stop),
+        (r#"{"conveyed":true,"extra":"ignore"}"#, FinishReason::Stop),
+        (r#"{"conveyed":true}"#, FinishReason::Length),
+        ("", FinishReason::Stop),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(
+                r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+            ),
+            vec![
+                ChatChunk::TextDelta { text: body.into() },
+                ChatChunk::Done { reason: terminal },
+            ],
+        ]));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "discovery".into(),
+            text: "Confirmed discovery".into(),
+            required: true,
+        });
+        assert!(LlmNarrationVerifier::new(provider)
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю".into(),
+                draft: "Ответ".into(),
+                evidence
+            })
+            .await
+            .is_err());
     }
 }
 

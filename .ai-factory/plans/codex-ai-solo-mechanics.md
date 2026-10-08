@@ -434,3 +434,30 @@ it and rejects atmosphere-only/wrong-object text (3/3). These are paired small
 probes, not universal accuracy or production reasoning changes. Next: bounded
 positive fact-coverage adjudication for reported omissions, followed by real
 compound, rescue/ending/native and physicalLAN acceptance. No model promotion.
+
+Positive coverage checkpoint: only validated required_discovery_omitted gets a
+separate strict conveyed boolean, with the effective model and one public fact
+plus draft. A true result clears only that omission; all other violations stay.
+Duplicate IDs reuse one check, and invalid/incomplete replies fail closed.33
+workflow tests and full consolidated gates pass (885 Rust,1117 frontend plus
+architecture/static checks and Clippy); independent source review closed scope.
+
+Actual executable98449221372f over472fa15: thinking-on same-request continuation
+stops before narration verification with provider_public_response_missing
+(31.426s); thinking-off continuation loops on a phantom pending inspection and
+ends at the round limit (25.521s). Both keep revision5 and the entire adventure
+unchanged. These runs do not establish live positive-coverage acceptance.
+Evidence: .artifacts/qwen9b/schema/coverage/{build-proof.json,resume-compound.json,
+resume-compound-off.json,captures}. Extra action labels did not fix that ledger
+misclassification. A direct attempted-boolean probe falsely accepts inspection
+when only movement is recorded; that approach is explicitly rejected, not added
+to production. Empty-array structural probes confirm grammar permits[] here.
+No production reasoning defaults/model promotion changed.
+
+Next architectural work: bind each verified human command to its authoritative
+tool attempt/receipt, preserving operation/owner/timeline scope and recovery
+after effect-before-transcript interruption. Progress should use these trusted
+bindings rather than repeatedly guessing whether a recorded effect occurred.
+Keep direct execution, real compounds/conditionals and final independent review;
+no confirmation UI or one-action cap. Legacy unbound history must never silently
+authorize or manufacture a new effect. Native/physicalLAN/full-goal remain open.
