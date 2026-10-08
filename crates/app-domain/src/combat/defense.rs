@@ -15,6 +15,7 @@ pub struct DefenseStats {
     pub ac: i32,
     pub speed_penalty_ft: i32,
     pub stealth_disadvantage: bool,
+    pub untrained_armor: bool,
 }
 pub struct DefenseInput<'a> {
     pub class_id: &'a str,
@@ -53,59 +54,67 @@ pub fn derive(
         .iter()
         .find(|c| c.id == input.class_id)
         .ok_or("combat_class_unknown")?;
-    if choice.shield
-        && (!owns(input, "shield") || !class.armor_proficiencies.iter().any(|p| p == "shield"))
-    {
+    let shield_trained = class.armor_proficiencies.iter().any(|p| p == "shield");
+    if choice.shield && !owns(input, "shield") {
         return Err("hero_shield_unavailable");
     }
     let dex = ability_modifier(input.dexterity);
-    let (base, speed_penalty_ft, stealth_disadvantage) = if let Some(id) = &choice.armor_id {
-        let armor = catalog
-            .equipment
-            .armor
-            .iter()
-            .find(|a| a.id == *id && a.category != "shield")
-            .ok_or("hero_armor_unknown")?;
-        if !owns(input, id) || !class.armor_proficiencies.contains(&armor.category) {
-            return Err("hero_armor_unavailable");
-        }
-        let dex_bonus = match armor.ac_dex_bonus_cap {
-            Some(0) => 0,
-            Some(cap) => dex.min(cap),
-            None => dex,
+    let (base, speed_penalty_ft, stealth_disadvantage, untrained_armor) =
+        if let Some(id) = &choice.armor_id {
+            let armor = catalog
+                .equipment
+                .armor
+                .iter()
+                .find(|a| a.id == *id && a.category != "shield")
+                .ok_or("hero_armor_unknown")?;
+            if !owns(input, id) {
+                return Err("hero_armor_unavailable");
+            }
+            let dex_bonus = match armor.ac_dex_bonus_cap {
+                Some(0) => 0,
+                Some(cap) => dex.min(cap),
+                None => dex,
+            };
+            (
+                armor.ac_base + dex_bonus,
+                if armor
+                    .str_req
+                    .is_some_and(|required| input.strength < required)
+                {
+                    10
+                } else {
+                    0
+                },
+                armor.stealth_disadvantage,
+                !class.armor_proficiencies.contains(&armor.category),
+            )
+        } else {
+            let base = 10 + dex;
+            (
+                match input.class_id {
+                    "barbarian" => base + ability_modifier(input.constitution),
+                    "monk" if !choice.shield => base + ability_modifier(input.wisdom),
+                    _ => base,
+                },
+                0,
+                false,
+                false,
+            )
         };
-        (
-            armor.ac_base + dex_bonus,
-            if armor
-                .str_req
-                .is_some_and(|required| input.strength < required)
-            {
-                10
+    Ok(DefenseStats {
+        choice: choice.clone(),
+        ac: base
+            + if choice.shield && shield_trained {
+                2
             } else {
                 0
             },
-            armor.stealth_disadvantage,
-        )
-    } else {
-        let base = 10 + dex;
-        (
-            match input.class_id {
-                "barbarian" => base + ability_modifier(input.constitution),
-                "monk" if !choice.shield => base + ability_modifier(input.wisdom),
-                _ => base,
-            },
-            0,
-            false,
-        )
-    };
-    Ok(DefenseStats {
-        choice: choice.clone(),
-        ac: base + if choice.shield { 2 } else { 0 },
         speed_penalty_ft,
         stealth_disadvantage,
+        untrained_armor,
     })
 }
-/// Deterministic starting-kit recommendation; the player can declare another owned trained option.
+/// Recommend trained starting gear; the player can explicitly declare another owned option.
 pub fn starting_choice(input: &DefenseInput<'_>) -> Result<DefenseStats, &'static str> {
     let class = character_catalog()
         .classes

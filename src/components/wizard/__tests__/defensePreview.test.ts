@@ -66,7 +66,7 @@ describe('defense preview uses the server catalog and explicit worn choice', () 
     expect(
       derive('wizard', abilities, { schema_version: 1, armor_id: 'chain-mail', shield: false })
         .valid,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       derive('fighter', abilities, { schema_version: 1, armor_id: 'plate-armor', shield: false })
         .valid,
@@ -100,4 +100,28 @@ describe('defense preview uses the server catalog and explicit worn choice', () 
       defense: { choice: { armor_id: 'chain-mail', shield: true }, valid: true },
     });
   });
+});
+
+it('reports untrained owned gear penalties without recommending it', () => {
+  const explicit = derive('wizard', abilities, {
+    schema_version: 1,
+    armor_id: 'chain-mail',
+    shield: true,
+  });
+  expect(explicit).toMatchObject({
+    ac: 16,
+    valid: true,
+    untrainedArmor: true,
+    untrainedShield: true,
+  });
+  const suggested = deriveDefensePreview(
+    'wizard',
+    [],
+    abilities,
+    gear,
+    compendium.equipment.armor,
+    null,
+  );
+  expect(suggested).toMatchObject({ ac: 12, untrainedArmor: false, untrainedShield: false });
+  expect(suggested.choice).toEqual({ schema_version: 1, armor_id: null, shield: false });
 });

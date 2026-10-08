@@ -196,12 +196,14 @@
   "nav_footer_label": "Step navigation",
   "defense_unarmored": "No armor worn",
   "defense_unavailable": "Selected armor is unavailable",
-  "defense_help": "Choose which carried armor you wear. Only owned armor with class training is currently supported.",
+  "defense_help": "Choose which carried armor you wear. Training determines penalties and shield protection.",
   "defense_armor": "Worn armor",
   "defense_shield": "Use a shield",
   "defense_ac": "Armor Class: {{ac}}",
   "defense_speed": "Insufficient Strength: speed reduced by {{feet}} feet.",
   "defense_stealth": "This armor has a Stealth disadvantage penalty.",
+  "defense_untrained_armor": "No training with this armor: Strength and Dexterity tests have disadvantage, and you cannot cast spells.",
+  "defense_untrained_shield": "No shield training: this shield gives no Armor Class bonus.",
   "defense_invalid": "Choose available armor and a shield before saving.",
   "warning_defense_invalid": "Choose available armor and a shield before saving."
 }

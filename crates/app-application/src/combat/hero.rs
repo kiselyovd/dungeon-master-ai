@@ -11,7 +11,7 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
         return Err("combat_hero_invalid");
     }
     let mut normalized = sheet.clone();
-    crate::defense::normalize_for_read(&mut normalized)?;
+    let defense = crate::defense::normalize_for_read(&mut normalized)?;
     let sheet = &normalized;
     let speed = match sheet.get("speedFt") {
         None => 30,
@@ -27,6 +27,7 @@ pub fn hero_combatant(character_id: Uuid, sheet: &Value) -> Result<Combatant, &'
         sheet["hp"].as_i64().ok_or("combat_hero_invalid")? as i32,
         sheet["ac"].as_i64().ok_or("combat_hero_invalid")? as i32,
     );
+    actor.untrained_armor = defense.is_some_and(|defense| defense.untrained_armor);
     actor.character_id = Some(CharacterId(character_id));
     crate::vitality::restore_actor(sheet, character_id, &mut actor)?;
     actor.loadout = Some(loadout_from_sheet(sheet)?);
@@ -57,10 +58,7 @@ pub fn bind_party(
     seed: u64,
 ) -> Result<(), &'static str> {
     use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
-    use app_domain::{
-        dice::{roll_one, Die},
-        rng::SeededRng,
-    };
+    use app_domain::rng::SeededRng;
     let ids = sheets
         .iter()
         .map(|(id, _)| *id)
@@ -89,10 +87,13 @@ pub fn bind_party(
                 Position { x: 7, y: 7 },
             ][index]
         };
-        hero.initiative_roll = roll_one(
-            Die::D20,
+        hero.initiative_roll = app_domain::dice::roll_d20_detailed(
+            hero.dex_mod,
+            false,
+            hero.untrained_armor,
             &mut SeededRng::from_seed(seed.wrapping_add(index as u64)),
-        ) + hero.dex_mod;
+        )
+        .total;
         heroes.push(hero);
     }
     let mut npcs = projection
@@ -225,8 +226,13 @@ pub fn recover_party_loadouts(
             let sheet = sheets
                 .get(&owner.0)
                 .ok_or("combat_hero_identity_mismatch")?;
-            if actor.casting.is_none() {
-                actor.casting = Some(casting_from_sheet(sheet)?);
+            actor.untrained_armor = crate::defense::normalize_for_read(&mut (*sheet).clone())?
+                .is_some_and(|defense| defense.untrained_armor);
+            let canonical_casting = casting_from_sheet(sheet)?;
+            if let Some(casting) = &mut actor.casting {
+                casting.choices = canonical_casting.choices;
+            } else {
+                actor.casting = Some(canonical_casting);
             }
         }
         if actor.loadout.is_some() {
@@ -378,8 +384,14 @@ pub fn casting_from_sheet(
         slots.insert(slot, SpellSlots { maximum, remaining });
     }
     let proficiency = 2 + i32::from((level - 1) / 4);
+    let untrained = crate::defense::normalize_for_read(&mut sheet.clone())?
+        .is_some_and(|defense| defense.untrained_armor);
     Ok(CastingProfile {
-        choices: app_domain::combat::magic::spell_choices(&prepared),
+        choices: if untrained {
+            vec![]
+        } else {
+            app_domain::combat::magic::spell_choices(&prepared)
+        },
         level,
         ability_modifier: modifier,
         attack_bonus: modifier + proficiency,

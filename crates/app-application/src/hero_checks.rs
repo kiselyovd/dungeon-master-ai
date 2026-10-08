@@ -54,8 +54,10 @@ pub fn roll_skill(
     };
     let modifier = app_domain::skills::skill_modifier(score as i32, level, proficient)?;
     let defense = crate::defense::normalize_for_read(&mut sheet.clone())?;
-    let armor_disadvantage = check.skill == Skill::Stealth
-        && defense.is_some_and(|defense| defense.stealth_disadvantage);
+    let armor_disadvantage = defense.is_some_and(|defense| {
+        (check.skill == Skill::Stealth && defense.stealth_disadvantage)
+            || (defense.untrained_armor && matches!(check.skill.ability(), "str" | "dex"))
+    });
     let poisoned_disadvantage = actor.conditions.contains(&Condition::Poisoned);
     let disadvantage = disadvantage || armor_disadvantage || poisoned_disadvantage;
     let detail = roll_d20_detailed(modifier, advantage, disadvantage, rng);

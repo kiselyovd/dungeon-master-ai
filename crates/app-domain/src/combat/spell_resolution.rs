@@ -18,6 +18,9 @@ impl CombatResolver {
         self.require_current(caster)?;
         self.require_conscious(caster)?;
         let actor = &self.combatants[&caster];
+        if actor.untrained_armor {
+            return Err(ValidationError::SpellUnavailable);
+        }
         let casting = actor
             .casting
             .clone()
@@ -146,12 +149,10 @@ impl CombatResolver {
                         total: 0,
                     }
                 } else {
-                    roll_expr_detailed(
-                        &DiceExpr {
-                            count: 1,
-                            die: Die::D20,
-                            modifier: self.combatants[&target].dex_mod,
-                        },
+                    crate::dice::roll_d20_detailed(
+                        self.combatants[&target].dex_mod,
+                        false,
+                        self.combatants[&target].untrained_armor,
                         &mut self.rng,
                     )
                 };
@@ -162,7 +163,7 @@ impl CombatResolver {
                     } else {
                         format!("{spell_id} save vs DC {}", casting.save_dc)
                     },
-                    natural: detail.rolls.first().copied().unwrap_or(0),
+                    natural: detail.total - detail.modifier,
                     detail,
                 });
                 if !success {

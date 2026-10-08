@@ -53,7 +53,7 @@ fn medium_caps_positive_dex_but_keeps_negative_and_shields_stack_once() {
     );
 }
 #[test]
-fn carrying_armor_is_not_wearing_and_unowned_or_untrained_declarations_fail() {
+fn carrying_armor_is_not_wearing_and_unowned_declarations_fail() {
     let owned = vec![("chain-mail".into(), 1)];
     assert_eq!(
         derive(&input("fighter", &owned, 14), &choice(None, false))
@@ -66,11 +66,13 @@ fn carrying_armor_is_not_wearing_and_unowned_or_untrained_declarations_fail() {
         &choice(Some("chain-mail"), false)
     )
     .is_err());
-    assert!(derive(
+    let untrained = derive(
         &input("wizard", &owned, 14),
-        &choice(Some("chain-mail"), false)
+        &choice(Some("chain-mail"), false),
     )
-    .is_err());
+    .unwrap();
+    assert_eq!(untrained.ac, 16);
+    assert!(untrained.untrained_armor);
     assert!(derive(&input("fighter", &owned, 14), &choice(None, true)).is_err());
 }
 #[test]
@@ -92,4 +94,18 @@ fn unarmored_class_defenses_and_starting_kit_recommendations_are_consistent() {
     let result = starting_choice(&input("fighter", &owned, 14)).unwrap();
     assert_eq!(result.ac, 18);
     assert_eq!(result.choice.armor_id.as_deref(), Some("chain-mail"));
+}
+
+#[test]
+fn untrained_shield_has_no_ac_bonus_and_does_not_block_spells() {
+    let owned = vec![("shield".into(), 1)];
+    let result = derive(&input("wizard", &owned, 14), &choice(None, true)).unwrap();
+    assert_eq!(result.ac, 12);
+    assert!(!result.untrained_armor);
+    assert!(
+        !starting_choice(&input("wizard", &owned, 14))
+            .unwrap()
+            .choice
+            .shield
+    );
 }

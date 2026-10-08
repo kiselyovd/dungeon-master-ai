@@ -156,3 +156,25 @@ fn poisoned_condition_is_read_from_server_vitality_for_every_skill() {
     assert_eq!(result["armor_disadvantage"], false);
     assert_eq!(result["rolls"].as_array().unwrap().len(), 2);
 }
+
+#[test]
+fn untrained_owned_armor_penalizes_strength_and_dexterity_but_not_wisdom() {
+    let mut sheet = hero();
+    sheet["heroClass"] = json!("wizard");
+    for skill in [Skill::Athletics, Skill::Acrobatics, Skill::Perception] {
+        let result = roll_skill(
+            &sheet,
+            &check(skill),
+            false,
+            false,
+            &mut SeededRng::from_seed(42),
+        )
+        .unwrap();
+        let penalty = skill != Skill::Perception;
+        assert_eq!(result["armor_disadvantage"], penalty);
+        assert_eq!(
+            result["rolls"].as_array().unwrap().len(),
+            if penalty { 2 } else { 1 }
+        );
+    }
+}

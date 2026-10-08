@@ -8,12 +8,14 @@ export interface DefensePreview {
   ac: number;
   speedPenaltyFt: number;
   stealthDisadvantage: boolean;
+  untrainedArmor: boolean;
+  untrainedShield: boolean;
   valid: boolean;
   availableArmor: Armor[];
   shieldAvailable: boolean;
 }
 
-/** Mirrors the server's trained, owned defense subset; the server validates every commit. */
+/** Mirrors the server's owned defense and training penalties; the server validates every commit. */
 export function deriveDefensePreview(
   classId: string | null,
   training: string[],
@@ -24,10 +26,9 @@ export function deriveDefensePreview(
 ): DefensePreview {
   const owns = (id: string) =>
     inventory.some((item) => item.count > 0 && (item.id === id || item.id === `${classId}-${id}`));
-  const availableArmor = armor.filter(
-    (item) => item.category !== 'shield' && owns(item.id) && training.includes(item.category),
-  );
-  const shieldAvailable = owns('shield') && training.includes('shield');
+  const availableArmor = armor.filter((item) => item.category !== 'shield' && owns(item.id));
+  const shieldAvailable = owns('shield');
+  const shieldTrained = training.includes('shield');
   const dex = abilityMod(abilities.dex);
   const derive = (choice: DefenseChoice): DefensePreview => {
     const worn =
@@ -53,17 +54,28 @@ export function deriveDefensePreview(
     return {
       choice,
       valid,
-      ac: (worn ? worn.ac_base + dexBonus : unarmored) + (choice.shield ? 2 : 0),
+      ac: (worn ? worn.ac_base + dexBonus : unarmored) + (choice.shield && shieldTrained ? 2 : 0),
       speedPenaltyFt: worn?.str_req != null && abilities.str < worn.str_req ? 10 : 0,
       stealthDisadvantage: worn?.stealth_disadvantage ?? false,
+      untrainedArmor: !!worn && !training.includes(worn.category),
+      untrainedShield: choice.shield && !shieldTrained,
       availableArmor,
       shieldAvailable,
     };
   };
   if (explicit) return derive(explicit);
-  let best = derive({ schema_version: 1, armor_id: null, shield: shieldAvailable });
+  let best = derive({
+    schema_version: 1,
+    armor_id: null,
+    shield: shieldAvailable && shieldTrained,
+  });
   for (const item of availableArmor) {
-    const candidate = derive({ schema_version: 1, armor_id: item.id, shield: shieldAvailable });
+    if (!training.includes(item.category)) continue;
+    const candidate = derive({
+      schema_version: 1,
+      armor_id: item.id,
+      shield: shieldAvailable && shieldTrained,
+    });
     if (candidate.ac > best.ac) best = candidate;
   }
   return best;

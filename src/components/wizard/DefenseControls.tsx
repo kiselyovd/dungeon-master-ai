@@ -52,6 +52,8 @@ export function DefenseControls({ compendium }: { compendium: Compendium }) {
       <p>{t('defense_ac', { ac: defense.ac })}</p>
       {defense.speedPenaltyFt > 0 && <p>{t('defense_speed', { feet: defense.speedPenaltyFt })}</p>}
       {defense.stealthDisadvantage && <p>{t('defense_stealth')}</p>}
+      {defense.untrainedArmor && <p>{t('defense_untrained_armor')}</p>}
+      {defense.untrainedShield && <p>{t('defense_untrained_shield')}</p>}
       {!defense.valid && <p role="alert">{t('defense_invalid')}</p>}
     </div>
   );

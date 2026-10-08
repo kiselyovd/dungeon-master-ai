@@ -104,3 +104,59 @@ async fn campaign_state_persists_a_character_and_reports_conflicts() {
         422
     );
 }
+
+#[tokio::test]
+async fn untrained_owned_defense_commits_and_reloads_with_canonical_ac() {
+    let server = TestServer::start().await;
+    let client = reqwest::Client::new();
+    let campaign:Value=client.post(server.url("/campaigns")).json(&json!({"schema_version":1,"ruleset_id":"srd-5.2.1","title":"Armor","premise":"Training","seed":{"kind":"collaborative","answers":{"genre":["fantasy"]}}})).send().await.unwrap().error_for_status().unwrap().json().await.unwrap();
+    let character_id = Uuid::new_v4();
+    let character = json!({"heroClass":"wizard","name":"Mage","level":1,"hp":8,"hpMax":8,"ac":1,"abilities":{"str":12,"dex":14,"con":14,"int":16,"wis":12,"cha":10},"inventory":[{"id":"chain-mail","name":"Chain Mail","count":1},{"id":"shield","name":"Shield","count":1}],"defense":{"schema_version":1,"armor_id":"chain-mail","shield":true}});
+    let payload = json!({"schema_version":1,"ruleset_id":"srd-5.2.1","session_id":campaign["last_session_id"],"character_id":character_id,"expected_revision":campaign["revision"],"causation_id":"untrained-defense","character":character});
+    let url = server.url(&format!(
+        "/campaigns/{}/character",
+        campaign["id"].as_str().unwrap()
+    ));
+    let committed: Value = client
+        .put(&url)
+        .json(&payload)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(committed["projection"]["character"]["ac"], 16);
+    assert_eq!(committed["projection"]["character"]["speedFt"], 20);
+    let retried: Value = client
+        .put(&url)
+        .json(&payload)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(retried, committed);
+    let loaded: Value = client
+        .get(server.url(&format!(
+            "/campaigns/{}/state",
+            campaign["id"].as_str().unwrap()
+        )))
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        loaded["projection"]["character"],
+        committed["projection"]["character"]
+    );
+}

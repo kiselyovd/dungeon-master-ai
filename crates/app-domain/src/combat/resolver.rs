@@ -469,8 +469,9 @@ impl CombatResolver {
         if profile.ammunition && loadout.arrows == 0 {
             return Err(ValidationError::AmmunitionExhausted);
         }
-        let mut disadvantage =
-            profile.heavy_disadvantage || (ranged && distance > profile.normal_range_ft);
+        let mut disadvantage = actor.untrained_armor
+            || profile.heavy_disadvantage
+            || (ranged && distance > profile.normal_range_ft);
         let mut advantage = false;
         for condition in &actor.conditions {
             if attacker_condition_modifier(*condition) == AttackModifier::Disadvantage {

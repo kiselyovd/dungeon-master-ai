@@ -418,3 +418,83 @@ fn missile_darts_do_not_combine_into_false_massive_damage() {
     assert_eq!(engine.combatants[&target].death_saves.failures, 2);
     assert!(!engine.combatants[&target].is_dead);
 }
+
+#[test]
+fn untrained_armor_blocks_spells_before_budget_slots_or_rng_change() {
+    let (mut engine, hero, enemy) = fixture();
+    engine.combatants.get_mut(&hero).unwrap().untrained_armor = true;
+    let before = serde_json::to_value(&engine.combatants).unwrap();
+    let action = || CombatAction::Spell {
+        caster: hero,
+        spell_id: "cure-wounds".into(),
+        targets: vec![hero],
+        slot_level: 1,
+    };
+    assert!(engine.resolve(action()).is_err());
+    assert_eq!(serde_json::to_value(&engine.combatants).unwrap(), before);
+    engine.combatants.get_mut(&hero).unwrap().untrained_armor = false;
+    let result = engine.resolve(action()).unwrap();
+    let (mut fresh, fresh_hero, _) = fixture();
+    let expected = fresh
+        .resolve(CombatAction::Spell {
+            caster: fresh_hero,
+            spell_id: "cure-wounds".into(),
+            targets: vec![fresh_hero],
+            slot_level: 1,
+        })
+        .unwrap();
+    assert_eq!(result.rolls[0].detail.rolls, expected.rolls[0].detail.rolls);
+    assert_eq!(engine.combatants[&enemy].current_hp, 100);
+}
+#[test]
+fn untrained_armor_penalizes_dexterity_saves_and_weapon_attacks() {
+    let (mut engine, hero, enemy) = fixture();
+    engine.combatants.get_mut(&enemy).unwrap().untrained_armor = true;
+    let events = engine
+        .resolve(CombatAction::Spell {
+            caster: hero,
+            spell_id: "sacred-flame".into(),
+            targets: vec![enemy],
+            slot_level: 0,
+        })
+        .unwrap();
+    assert_eq!(events.rolls[0].detail.rolls.len(), 2);
+    assert_eq!(
+        events.rolls[0].detail.total,
+        *events.rolls[0].detail.rolls.iter().min().unwrap()
+    );
+    assert_eq!(
+        events.rolls[0].natural,
+        events.rolls[0].detail.total - events.rolls[0].detail.modifier
+    );
+    let (mut engine, hero, enemy) = fixture();
+    let actor = engine.combatants.get_mut(&hero).unwrap();
+    actor.untrained_armor = true;
+    actor.loadout = Some(
+        app_domain::combat::loadout::CombatLoadout::derive(
+            app_domain::combat::loadout::LoadoutInput {
+                class_id: "cleric",
+                level: 1,
+                strength: 14,
+                dexterity: 14,
+                owned: vec![("mace".into(), 1)],
+                arrows: 0,
+            },
+        )
+        .unwrap(),
+    );
+    let events = engine
+        .resolve(CombatAction::WeaponAttack {
+            attacker: hero,
+            target: enemy,
+            weapon_id: Some("mace".into()),
+            mode: Default::default(),
+            two_handed: false,
+        })
+        .unwrap();
+    assert_eq!(events.rolls[0].detail.rolls.len(), 2);
+    assert_eq!(
+        events.rolls[0].natural,
+        *events.rolls[0].detail.rolls.iter().min().unwrap()
+    );
+}

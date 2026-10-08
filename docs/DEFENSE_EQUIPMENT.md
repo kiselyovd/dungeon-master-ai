@@ -1,5 +1,9 @@
 # Equipment defense foundation
 
+Current status: explicit owned untrained armor is supported with server-enforced
+penalties. The final Untrained armor section supersedes earlier checkpoint limits.
+Native untrained-armor and physical-device acceptance remain open.
+
 The native fighter wizard supplied Chain Mail but computed only10+DEX, showing
 AC12. Official SRD5.2.1 Equipment/Armor (printed page92) gives Chain Mail AC16:
 https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf
@@ -182,3 +186,43 @@ The provider was configured by a settings API helper; replay used native API rat
 than an available UI retry button for an already completed turn. Both heroes were
 unarmored in this case. This proves transport/rules delivery with a scripted
 provider, not real-model semantics, physical-device LAN or a complete new session.
+
+## Untrained armor
+
+Rules follow official [Armor Training](https://www.dndbeyond.com/sources/dnd/br-2024/equipment#ArmorTraining)
+and SRD5.2.1. An explicit declaration can wear owned body armor without class
+training: its AC/Strength speed penalty applies, all supported Strength/Dexterity
+D20 tests have disadvantage, and spells are unavailable. An owned shield without
+training gives no AC bonus; carrying/holding it does not itself prohibit spells.
+Shield use still occupies the hand for existing two-handed weapon restrictions
+and prevents the Monk's unarmored Wisdom benefit.
+
+The canonical sheet derives the penalty flag; model/client modifiers never set it.
+Skills, initiative, weapon attacks and supported Dexterity spell saves use it.
+Spell validation rejects before action/slot/HP/RNG changes. Casting choices are
+hidden while armor prevents spells. Old combat JSON defaults the new flag tofalse;
+bound solo/party hydration recomputes it and visible casting choices from the
+current sheet without refreshing action budget, slots or ammunition. Starting-kit
+recommendations continue using trained armor; untrained carried gear is never
+automatically worn.
+
+The existing wizard offers owned armor/shields and EN/RU training warnings, with
+AC/speed parity. Two production-browser cases verify trained carrying choice and
+explicit untrained choice/warnings/AC16 plus reload. The browser transport is
+scripted; a real HTTP/SQLite case commits, retries and reloads the untrained sheet
+with AC16/speed20 and no duplicate revision. Domain checks verify minimum-of-two
+saving/attack dice, rejected spell resource/RNG preservation and shield behavior.
+Application checks cover Strength/Dexterity/Wisdom distinctions, initiative and
+legacy hydration with spent resources.
+
+Evidence: .artifacts/browser-session/untrained-{red,green,combat,ui,frontend,build,
+browser,backend-final,clippy}.log. Independent bounded review confirms rule parity
+and authority/recovery. Physical/native untrained equipment, multiclass/feat
+training grants, general unsupported saving throws, Expertise and contextual skill
+ability substitution remain open. No complete-SRD/session or release claim.
+
+Final collection: full gates pass (837 workspace Rust tests,1113 frontend tests,
+workspace all-target/all-feature Clippy, architecture, formatting, Biome and
+TypeScript). Production build and2 targeted production-browser tests pass. Scoped
+local checkpoint preserves the original32file hashes and excludes inherited edits.
+The evidence describes the attached actual baseline, not a clean-HEAD release.
