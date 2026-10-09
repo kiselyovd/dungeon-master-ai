@@ -141,12 +141,156 @@ async fn quantified_source_expands_only_with_complete_group_and_semantic_count_a
         .is_err());
     let mut incomplete = proposal;
     incomplete["commands"].as_array_mut().unwrap().pop();
-    let p = provider(vec![(incomplete, FinishReason::Stop)]);
+    let p = provider(vec![
+        (incomplete.clone(), FinishReason::Stop),
+        (incomplete, FinishReason::Stop),
+    ]);
     assert!(LlmHumanCommandPlanner::new(p.clone(), "script".into())
         .plan(input(quote))
         .await
         .is_err());
-    assert_eq!(p.requests.lock().unwrap().len(), 1);
+    assert_eq!(p.requests.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn a_prohibition_cannot_also_be_an_unresolved_command_and_duration_is_not_repetition() {
+    let text = "Жду минуту дважды. Ход не завершаю.";
+    let mut commands = (1..=2)
+        .map(|index| {
+            let mut value = command("Жду минуту дважды", 0);
+            value["repetition"] = json!({"index":index,"total":2});
+            value
+        })
+        .collect::<Vec<_>>();
+    commands.push(json!({"source":{"quote":"Ход не завершаю","occurrence":0},"tool_name":null,"args_json":null,"unresolved":"Prohibit combat_action with kind: end_turn","condition":null,"repetition":null}));
+    let invalid =
+        json!({"commands":commands,"constraints":[{"quote":"Ход не завершаю","occurrence":0}]});
+    let p = provider(vec![
+        (invalid.clone(), FinishReason::Stop),
+        (invalid, FinishReason::Stop),
+    ]);
+    assert!(LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .plan(input(text))
+        .await
+        .is_err());
+    assert_eq!(
+        p.requests.lock().unwrap().len(),
+        2,
+        "a still-invalid structural repair never reaches semantic approval"
+    );
+    let mut wait = command("Жду две минуты", 0);
+    wait["args_json"] = json!(json!({"kind":"wait","minutes":2}).to_string());
+    let p = provider(vec![
+        (
+            json!({"commands":[wait],"constraints":[{"quote":"Ход не завершаю","occurrence":0}]}),
+            FinishReason::Stop,
+        ),
+        (json!({"valid":true}), FinishReason::Stop),
+    ]);
+    let result = LlmHumanCommandPlanner::new(p, "script".into())
+        .plan(input("Жду две минуты. Ход не завершаю."))
+        .await
+        .unwrap();
+    assert_eq!(result.commands.len(), 1);
+    assert!(result.commands[0].repetition.is_none());
+    assert_eq!(
+        result.commands[0].goal,
+        HumanCommandGoal::Exact {
+            action: HumanAction::Rest(app_application::models::rest::RestIntent::Wait {
+                minutes: 2
+            })
+        }
+    );
+    assert_eq!(result.constraints.len(), 1);
+}
+
+#[tokio::test]
+async fn one_structural_repair_preserves_original_scope_and_still_needs_semantic_approval() {
+    let text = "Жду минуту. Жду минуту. Ход не завершаю.";
+    let original = input(text);
+    let malformed = json!({"commands":[command("Жду минуту",0),command("Жду минуту",2)],"constraints":[{"quote":"Ход не завершаю","occurrence":2}]});
+    let corrected = json!({"commands":[command("Жду минуту",0),command("Жду минуту",1)],"constraints":[{"quote":"Ход не завершаю","occurrence":0}]});
+    for valid in [false, true] {
+        let p = provider(vec![
+            (malformed.clone(), FinishReason::Stop),
+            (corrected.clone(), FinishReason::Stop),
+            (json!({"valid":valid}), FinishReason::Stop),
+        ]);
+        let result = LlmHumanCommandPlanner::new(p.clone(), "saved-model".into())
+            .plan(original.clone())
+            .await;
+        assert_eq!(result.is_ok(), valid);
+        if let Ok(manifest) = result {
+            assert_eq!(manifest.scope, original.scope);
+            assert_eq!(manifest.commands.len(), 2);
+            assert!(manifest.commands.iter().all(|c| c.repetition.is_none()));
+            assert_ne!(
+                manifest.commands[0].source.start,
+                manifest.commands[1].source.start
+            );
+            assert_eq!(manifest.constraints[0].quote, "Ход не завершаю");
+        }
+        let requests = p.requests.lock().unwrap();
+        assert_eq!(requests.len(), 3);
+        assert!(requests
+            .iter()
+            .all(|(r, _)| r.tools.is_empty() && r.model == "saved-model"));
+        let ChatMessage::User { parts } = &requests[1].0.messages[0] else {
+            panic!("quoted repair input")
+        };
+        let MessagePart::Text { text: payload } = &parts[0] else {
+            panic!("text input")
+        };
+        let payload: Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(payload["original"]["player_message"], text);
+        assert_eq!(
+            payload["rejected_proposal"]["commands"][1]["source"]["occurrence"],
+            2
+        );
+        assert!(requests[2]
+            .0
+            .system_prompt
+            .as_ref()
+            .unwrap()
+            .contains("Independently"));
+    }
+    for reason in [FinishReason::Length, FinishReason::Stop] {
+        let p = provider(vec![
+            (malformed.clone(), FinishReason::Stop),
+            (malformed.clone(), reason),
+        ]);
+        assert!(LlmHumanCommandPlanner::new(p.clone(), "saved-model".into())
+            .plan(original.clone())
+            .await
+            .is_err());
+        assert_eq!(
+            p.requests.lock().unwrap().len(),
+            2,
+            "no unbounded repair loop or unchecked manifest"
+        );
+    }
+}
+
+#[tokio::test]
+async fn source_errors_never_mask_invalid_arguments_in_any_command() {
+    for bad_position in [0, 1] {
+        let mut commands = vec![command("missing quote", 0), command("Жду минуту", 0)];
+        commands[bad_position]["tool_name"] = json!("apply_damage");
+        commands[bad_position]["args_json"] = json!(json!({"amount":999}).to_string());
+        let p = provider(vec![(
+            json!({"commands":commands,"constraints":[]}),
+            FinishReason::Stop,
+        )]);
+        assert!(LlmHumanCommandPlanner::new(p.clone(), "saved-model".into())
+            .plan(input("Жду минуту"))
+            .await
+            .is_err());
+        assert_eq!(
+            p.requests.lock().unwrap().len(),
+            1,
+            "no structural repair or semantic approval when ANY typed argument is invalid"
+        );
+    }
 }
 #[tokio::test]
 async fn compound_adventure_requires_full_wrapped_arguments_and_preserves_negative_constraint() {
@@ -213,7 +357,7 @@ async fn invalid_quote_raw_dm_effect_or_false_verdict_never_produce_a_manifest()
         (
             json!({"commands":[command("Не было этих слов",0)],"constraints":[]}),
             json!({"valid":true}),
-            1,
+            2,
         ),
         (
             json!({"commands":[{"source":{"quote":"Жду минуту","occurrence":0},"tool_name":"apply_damage","args_json":json!({"target":"x","amount":99}).to_string(),"unresolved":null,"condition":null}],"constraints":[]}),

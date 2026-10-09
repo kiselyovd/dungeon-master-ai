@@ -302,3 +302,51 @@ Focused36 workflow and5 planning groups pass. Frozen consolidated gates pass:
 942 Rust tests,1127 frontend tests, architecture/static checks and all-feature
 Clippy. Backend build passes. This backend-only scope has no new browser/native
 acceptance. User-owned source changes remain separate.
+
+
+Quantified live continuation (a62e907 plus owned planner fixes): executable
+0dbde38118bd296821bcfa5b89b84b49d344d6ab28194b56d99478b60e313b51
+completed the original "Жду минуту дважды. Ход не завершаю." after an interrupted
+planning attempt and backend restart. Two distinct canonical rest receipts contain
+Wait1 minute, campaign clock60 then120 seconds, revision2→4. Location, inventory,
+HP and spell slots stayed unchanged; no end_turn was executed. Thinking-on took
+105.745s and needed one prose correction to remove an invented feeling. This is
+a real quantity episode, not a latency or full-session acceptance result.
+Thinking-off initially proposed60-minute waits plus a move from the prohibition;
+thinking-on before the prompt fix duplicated the prohibition as NeedsResolution.
+Both were rejected before any effect. Positive-only clarification and duration
+example are added; paired duration control stays one2-minute wait.
+
+The next compound request failed on source occurrence indices and a duplicate
+constraint. Renaming the unresolved wire field/adding source descriptions fixed
+one probe but broke quantity/duration controls; that experiment is NOT promoted.
+Instead, source/structure errors get exactly one fresh plan generation using the
+protected original input and quoted rejected proposal. All typed arguments in
+ALL commands are checked first, so a source error cannot mask an argument error.
+Malformed/truncated responses, invalid arguments and semantic denials still fail;
+the repaired proposal must pass structure and independent semantic approval
+before persistence or dispatch. Nine planner groups pass, including mixed-error,
+false-approval and bounded/truncated-repair regressions. Independent review closed
+the mixed-error finding and has no remaining source issue.
+
+Executable fe53127c0b10f5da9a70be423be62b5776b67aab055bf08efe160b7f19e08012
+actually repaired the original quay request (captures15→16→17), then executed move
+and inspection once (revision4→6, locationquay). Delivery still failed after97.403s:
+faithful=false correctly rejected invented feeling/interpretation, but diagnostics
+reported only a false omission, which coverage cleared. The gate failed closed
+before prose correction. Independent semantic review confirms this distinction.
+Next: a valid negative decision without localized diagnostics must remain an
+explicit non-publishable internal verdict, allowing the existing one tool-free
+prose correction and fresh checks. Do not fabricate a fact ID/offending quotation,
+accept the original draft or retry game effects; malformed checks remain errors.
+This next publication transition is not implemented in this checkpoint.
+Evidence: .artifacts/quantified-0f6d4ae/{build-proof-a62e907.json,
+build-proof-prohibition.json,build-proof.json,captures,quantity-fixed-report.json,
+quantity-sql-proof.json,session-resume-report.json,source-final-*.json}.
+Full rescue/ending, native sessions and physicalLAN remain open; no model/default
+promotion or user-profile mutation.
+
+Source-repair checkpoint gates pass:951 Rust and1127 frontend, architecture/static
+checks and all-feature Clippy; final backend build passes. Original32 dirty source
+hashes preserved, owned evaluation processes stopped. No browser/native/physical
+LAN/full-adventure acceptance is inferred from these backend and model episodes.

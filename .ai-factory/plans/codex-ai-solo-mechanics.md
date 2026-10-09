@@ -692,3 +692,28 @@ room regression pass; consolidated gates pass with948 Rust and1127 frontend
 checks. Final staged independent review has no actionable finding. All32 original
 source hashes are preserved; only owned files are staged. No frontend behavior
 changed, no dependencies added, no model/default promotion or publication.
+
+
+Model/source-planning continuation:
+- [x] Real quantified request: two1-minute canonical receipts, exactly120 seconds,
+  no extra movement/end-turn/resource effect; verified final delivered (105.745s).
+- [x] Positive-only unresolved rule and duration example; captured duplicate
+  prohibition/duration regression. No default-model or reasoning promotion.
+- [x] One bounded source/structure repair against protected original data; decode
+  ALL typed arguments first, preserve full source/conditions/count/constraints and
+  independently verify the corrected manifest. Nine focused planner groups pass.
+- [x] Actual compound repair executes move+inspect once; revision4→6, staysquay.
+  Independent source review closed mixed-error ordering; semantic review rejects
+  invented feeling and confirms diagnostic false omission.
+- [x] Frozen final gates and scoped checkpoint (951 Rust,1127 frontend,
+  architecture/static and all-feature Clippy pass).
+- [ ] Explicit non-publishable negative-without-diagnostics verdict → one existing
+  prose correction → full fresh checks; errors/second refusal stay fail-closed,
+  no fabricated localized claim or repeated game effect.
+- [ ] Complete real solo peaceful/defensive, native and separate-device LAN proofs.
+
+Final source-repair verification: all9 planning groups and frozen consolidated
+checks pass (951 Rust,1127 frontend). Independent review closed argument/source
+ordering and confirms the next narration gap. Actual quantity and compound
+mechanics are evidenced separately from failed compound delivery. Owned QA
+backend/model/proxy are stopped; original32 source hashes remain protected.

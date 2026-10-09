@@ -112,3 +112,13 @@ attack followed by budget refusal with an unchanged combat projection, and two
 room attempts with different nonces and no third effect on replay. These checks
 establish protocol/engine behavior, not real-model quantity interpretation or
 native/physical separate-device LAN acceptance.
+
+
+Planning repair is bounded to one fresh generation for source/structure errors,
+before a manifest is saved or any effect is dispatched. The original protected
+request, public references and canonical schemas are preserved; a rejected
+proposal is quoted untrusted data, not permission. Every command's typed
+arguments are checked before any source span, so mixed source/argument errors
+cannot trigger this retry. The fresh proposal passes the same exact quote,
+structure and independent semantic checks. Malformed/truncated replies, invalid
+arguments and a negative semantic decision do not receive unbounded retries.
