@@ -472,3 +472,31 @@ Escort frozen verification: consolidated gates GREEN (961 Rust, 1128 frontend;
 architecture/static/all-feature Clippy). All four affected production-browser
 scenarios pass, including legacy rescue, snapshot recovery and defensive ending.
 Evidence: .artifacts/escort-050f0ad/browser-all.log and gates-final.log.
+
+
+Agency diagnostic continuation after 1d1c833 (isolated Qwen9B, no production changes):
+- Per-claim extraction/support with engine context, reasoning budget1024:
+  4/6 expected accept/reject decisions. It falsely accepts original farewell
+  as engine_outcome and rejects the NPC-only control. Exact-source fields also
+  contain fabricated/nonexact quotations. Rejected as a production validator.
+- Same six inputs with reasoning budget4096/max_tokens8192: 5/6 decisions;
+  original farewell still falsely accepted. More reasoning alone is insufficient.
+- Direct/no-thinking same six inputs: 4/6; original farewell and an invented
+  explicit hero goodbye are falsely accepted. Some evidence quotes copy draft
+  rather than source. No runtime/default reasoning promotion.
+- Explicit bilingual hero-speech generation instruction, three captured-context
+  replays: independent review rejects all three. One changes route/retells arrival,
+  one assigns readiness for new tasks, one relocates the granted reward to a purse
+  on a table. No production prompt patch accepted on these results.
+- Isolated source-only entailment of one hero claim against original human text,
+  without engine context, direct/no-thinking: 4/4 paired decisions (reject original
+  farewell and new emotion; accept declared speech and faithful paraphrase).
+  This is a narrow diagnostic, not full-draft extraction or session acceptance.
+  Hypothesis: mixing effect evidence with human authorization encourages the model
+  to treat a completed action as permission for additional hero behavior. Follow-up
+  must verify actor identification/exact claim extraction and source support on
+  whole drafts, NPC controls, refusals and compound requests before integration.
+Evidence: .artifacts/agency-1d1c833/{farewell,npc_only,declared_speech,
+invented_emotion,npc_speech,hero_speech,generation-*,direct-*,source-*}.json,
+budget4096/*.json. Captured original prompts and outputs are preserved. No engine
+writes, user campaigns, defaults or production dependencies changed.

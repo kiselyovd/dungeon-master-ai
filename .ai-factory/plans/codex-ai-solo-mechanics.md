@@ -802,3 +802,16 @@ Narrative agency still FAIL: Qwen added unrequested farewell speech despite a
 positive fidelity verdict. A separate agency-boolean probe failed its paired
 controls and is not incorporated into production. Do not promote this model or
 claim whole-goal acceptance from correct escort mechanics.
+
+
+Agency diagnostics after escort checkpoint:
+- [x] Reproduce original farewell plus paired NPC/declared-speech/emotion controls;
+  reject claim-based validator (4/6) and larger reasoning (5/6) as insufficient.
+- [x] Independent review rejects all3 stronger-prompt generation replays;
+  direct/no-thinking claim extraction remains insufficient (4/6).
+- [x] Source-only claim entailment pilot passes4/4; preserve as diagnostic only.
+- [ ] Verify full-draft actor/claim extraction plus source-only support on wider
+  paired controls, compounds and refusals; preserve engine-outcome fidelity as a
+  distinct obligation. No new production validator until evidence supports it.
+- [ ] Fresh full AI-led peaceful/defensive, native/recovery and physical LAN/VPN
+  acceptance remain required. Do not replace them with these focused probes.
