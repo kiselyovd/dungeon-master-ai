@@ -832,3 +832,19 @@ Full-draft agency follow-up:
   Scoped local checkpoint only; whole-goal acceptance remains open.
 - [ ] Continue fresh full AI-led sessions and remaining native/physical LAN
   requirements; model quality remains open, with no rejected validator promotion.
+
+
+Fresh-session planning continuation:
+- [x] Reproduce initial compound rejection before effects; schema alone insufficient
+  because currently unavailable InspectQuay lacks ward-purpose definition.
+- [x] Add typed proposed_action_meanings, shared helper/canonicalschemas in both
+  VERIFY paths. Preserve current offers/discoveries/authority; RED/GREEN test,
+ 12planner/19lib/40workflow and full963Rust/1128frontend pass, backend buildPASS,
+ independent source review clean.
+- [x] Repeat fresh full AI-led attempt on new binary; fails during source structural
+  planning/repair, no effects. Direct-mode planning pilot succeeds but wider current
+  verifier controls3/5 and fresh direct session fail; no mode/default promotion.
+- [ ] Evaluate stronger local model only after new download authorization;
+  full AI-led peaceful/defensive/native/recovery and physical LAN stay required.
+- [ ] Inspect explicit delivery of planning failure to player: these captured HTTP
+  streams close with only keepalive, while backend records planning_unavailable.

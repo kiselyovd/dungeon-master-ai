@@ -539,3 +539,44 @@ pass; architecture/static/all-feature Clippy GREEN, final backend build passes.
 Logs .artifacts/agency-full-ef164fe/{gates.log,build.log}. Independent source
 review clean; independent narrative review still FAILS broad acceptance. Owned
 QA model stopped and its port free. No UI layout or transport change in this step.
+
+
+Fresh full-session attempts after880e9bf:
+- Latest source backend64f902cceddf24b9, fresh isolated DB, canonical fixture escort
+  PASS before model startup. Fresh AI campaign3d55b5d8-87a3-4211-b451-a20c8e3d5777,
+  original first message "Иду к старому причалу и осматриваю оберег."
+  stops after22.567s, revision2 unchanged. Correct two-command generation is
+  semantically rejected: currentTown public_actions lacks InspectQuay meaning.
+- Supplying only canonical schemas/normalizedgoal explanation still rejects it;
+  captured reasoning says inspect_quay inspects a quay instead of the requested
+  ward. Supplying trusted proposed-action definition fixes that captured positive
+  case; omission, wrongtarget and structurally valid swapped-goals controls deny.
+  A raw reversed-source-order control was falsely accepted by the model, but
+  validate_structure rejects it before semantic verification in production.
+- Implemented shared canonical-purpose helper; proposed_action_meanings only for
+  decoded Exact Adventure goals after structural validation, Bell-gated. Availability
+  stays truthful/current; definitions do not reveal discoveries or authorize actions.
+  Both initial and clarification VERIFY receive definitions and canonical schemas.
+  Current public_actions/discovered facts/engine eligibility remain unchanged.
+- Regression RED missing payload then GREEN:12 planner,19lib,40workflow groups.
+  Independent source review clean; full gates963Rust/1128frontend GREEN and buildPASS.
+- New-source183e77bbd2e616dd backend, separate fresh DB and canonical fixturePASS:
+  first full-session request fails after26.154s, revision2 unchanged. This time
+  planning/one structural repair repeat incorrect occurrence1 and invented overlapping
+  constraint before semantic verification. Reasoning budget1024 is exhausted.
+- Same captured generation with thinking disabled produces correct two commands
+  and empty constraints. However current-verifier direct-mode controls fail positive
+  case and falsely allow a question mapped to InspectQuay (only3/5 expected decisions).
+  Fresh direct-mode full-session first request likewise stops after3.107s, revision2
+  unchanged. Direct-mode/runtime default is NOT promoted. All3 AI campaigns have
+  no gameplay effects; request planning remains blocked, not a completed session.
+Evidence .artifacts/full-session-880e9bf (initial/prototype captures),
+.artifacts/meaning-880e9bf (new binary/build-proof, fixture, reports, captures,
+gates.log, build.log), .artifacts/direct-meaning-880e9bf (controls/runtime/report).
+The SSE contains only keepalive on these failures; Done/errors arrays in diagnostic
+reports do not imply success: authoritative backend code is
+human_command_planning_unavailable, durable revision/history remain unchanged.
+No rejected semantic/narrative validator is integrated or overridden. A stronger
+local-model test is proposed separately; approval for9B is not reused for a new
+16.5GB27B download. GPU actually RTX3080/10GB, RAM68,565,700,608bytes;27BQ4 cannot
+fit wholly on GPU. Neither speed nor quality of27B is verified or promised.

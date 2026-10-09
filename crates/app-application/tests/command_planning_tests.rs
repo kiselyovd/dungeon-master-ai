@@ -507,3 +507,91 @@ async fn truncated_generation_or_verification_is_not_accepted() {
             .is_err());
     }
 }
+
+#[tokio::test]
+async fn future_action_meaning_reaches_both_verifiers_without_granting_permission() {
+    use app_application::{
+        agent::context::public_intention_context,
+        models::adventure::{AdventureProjection, AdventureState},
+    };
+    let text = "Иду к старому причалу и осматриваю оберег.";
+    let mut original = input(text);
+    original.public_context = public_intention_context(
+        Some(&AdventureProjection::from(AdventureState::new())),
+        None,
+        Some("Нора"),
+    );
+    let proposal = json!({"commands":[{"source":{"quote":"Иду к старому причалу","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"move","location":"quay"}}).to_string(),"unresolved":null,"condition":null},{"source":{"quote":"осматриваю оберег","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"inspect_quay"}}).to_string(),"unresolved":null,"condition":null}],"constraints":[]});
+    let p = provider(vec![
+        (proposal, FinishReason::Stop),
+        (json!({"valid":true}), FinishReason::Stop),
+    ]);
+    let mut manifest = LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .plan(original.clone())
+        .await
+        .unwrap();
+    let first_payload = {
+        let requests = p.requests.lock().unwrap();
+        let ChatMessage::User { parts } = &requests[1].0.messages[0] else {
+            panic!("user input")
+        };
+        let MessagePart::Text { text } = &parts[0] else {
+            panic!("text input")
+        };
+        serde_json::from_str::<Value>(text).unwrap()
+    };
+    assert_eq!(first_payload["canonical_tools"], json!(original.tools));
+    assert_eq!(
+        first_payload["proposed_action_meanings"][0]["command_id"],
+        2
+    );
+    assert_eq!(
+        first_payload["proposed_action_meanings"][0]["currently_available"],
+        false
+    );
+    assert!(first_payload["proposed_action_meanings"][0]["purpose"]
+        .as_str()
+        .unwrap()
+        .contains("Inspect the ward"));
+    assert!(!first_payload["public_context"]["public_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["args"]["action"]["kind"] == "inspect_quay"));
+    assert!(!first_payload.to_string().contains("fresh tool marks"));
+    manifest.commands[1].goal = HumanCommandGoal::NeedsResolution {
+        description: "Осмотреть оберег".into(),
+    };
+    let p = provider(vec![
+        (
+            json!({"tool_name":"adventure_action","args_json":json!({"action":{"kind":"inspect_quay"}}).to_string(),"question":null}),
+            FinishReason::Stop,
+        ),
+        (json!({"valid":false}), FinishReason::Stop),
+    ]);
+    assert!(LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .resolve(CommandResolutionInput {
+            original,
+            manifest,
+            command_id: 2,
+            clarifications: vec![]
+        })
+        .await
+        .is_err());
+    let requests = p.requests.lock().unwrap();
+    let ChatMessage::User { parts } = &requests[1].0.messages[0] else {
+        panic!("user input")
+    };
+    let MessagePart::Text { text } = &parts[0] else {
+        panic!("text input")
+    };
+    let resolved_payload: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(
+        resolved_payload["proposed_action_meanings"],
+        first_payload["proposed_action_meanings"]
+    );
+    assert_eq!(
+        resolved_payload["canonical_tools"],
+        first_payload["canonical_tools"]
+    );
+}

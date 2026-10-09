@@ -36,11 +36,16 @@ pub fn bell_public_route_references(state: &AdventureState) -> Vec<serde_json::V
     })]
 }
 
-/// Meanings of currently offered canonical actions, without undiscovered outcomes.
-pub fn bell_public_action_references(state: &AdventureState) -> Vec<serde_json::Value> {
+/// Meaning of a typed proposed action, not proof of human permission or success.
+pub fn bell_public_action_reference(
+    state: &AdventureState,
+    action: app_domain::adventure::Action,
+) -> Option<serde_json::Value> {
     use app_domain::adventure::Action;
-    state.available_actions().into_iter().filter_map(|action| {
-        let purpose = match action {
+    if state.package_id != app_domain::adventure::BELL_ADVENTURE_ID {
+        return None;
+    }
+    let purpose = match action {
             Action::Move(_) => return None,
             Action::InspectQuay => "Inspect the ward at the old quay. / Осмотреть оберег на старом причале.",
             Action::TalkAgata => "Talk to Agata about the quay and porters. / Поговорить с Агатой о причале и грузчиках.",
@@ -60,8 +65,18 @@ pub fn bell_public_action_references(state: &AdventureState) -> Vec<serde_json::
             Action::Finish => "Record the actual outcome and end the session. / Записать фактический итог и завершить сессию.",
             Action::StartDefense => "Begin the optional defensive encounter. / Начать защитный бой.",
         };
-        Some(serde_json::json!({"tool_name":"adventure_action","args":{"action":action},"purpose":purpose,"currently_available":true}))
-    }).collect()
+    Some(
+        serde_json::json!({"tool_name":"adventure_action","args":{"action":action},"purpose":purpose,"currently_available":state.available_actions().contains(&action)}),
+    )
+}
+
+/// Meanings of currently offered canonical actions, without undiscovered outcomes.
+pub fn bell_public_action_references(state: &AdventureState) -> Vec<serde_json::Value> {
+    state
+        .available_actions()
+        .into_iter()
+        .filter_map(|action| bell_public_action_reference(state, action))
+        .collect()
 }
 
 /// Discovered facts only. This must never include scene-scoped DM secrets.
