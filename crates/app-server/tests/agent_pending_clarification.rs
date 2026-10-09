@@ -60,6 +60,7 @@ async fn pending_http_read_recovers_original_request_on_a_new_server_without_mut
                 },
             },
             commands: vec![HumanCommand {
+                repetition: None,
                 id: 1,
                 source: CommandSpan::from_quote(
                     &operation.request.player_message,

@@ -7,8 +7,12 @@ requests. The AI remains the Dungeon Master; heroes belong to human players.
 The application foundation currently defines an ordered manifest, exact source
 spans, separate negative constraints, typed intentions, conditions, prepared-step
 bindings and confirmed outcomes. Spans use UTF-8 bytes and are derived by the
-server from quotes in the saved original message; repeated phrases have distinct
-positions and command IDs. Structural validation does **not** establish semantic
+server from quotes in the saved original message. Separate repeated phrases have
+distinct positions and command IDs. An explicitly quantified clause can share
+one full source span across a complete contiguous repetition group, with
+one-based `index` and `total` metadata on each command. Missing ordinals, mixed
+counts, changed spans and overlaps outside the group are rejected. The optional
+metadata defaults to absent for existing saved manifests; no migration is needed. Structural validation does **not** establish semantic
 permission. Both the initial manifest and each concrete candidate still need
 independent intention verification.
 
@@ -91,3 +95,20 @@ cargo test -p adapter-sqlite --test human_commands --test agent_operations
 cargo test -p app-server --test room_dm_turns
 bun run architecture:check
 ```
+
+Quantified requests still use one binding and canonical receipt per attempt.
+A performed or refused first attempt does not finish a second requested attempt.
+Each new attempt uses a distinct tool call and, in rooms, a distinct canonical
+nonce. Exact replay returns the old outcome. Quantity does not grant actions,
+resources, successful outcomes or turn advancement: a second attack can receive
+an authoritative budget refusal without damage or moving to another turn.
+The existing manifest bound is32 commands; larger quantities must remain
+explicitly unresolved rather than being silently truncated. Semantic extraction
+and verification of the count remain model-dependent.
+
+Verification covers a file-backed Wait twice after effect-before-transcript,
+pool close/reopen and a new process owner (+120 seconds exactly), a real fighter
+attack followed by budget refusal with an unchanged combat projection, and two
+room attempts with different nonces and no third effect on replay. These checks
+establish protocol/engine behavior, not real-model quantity interpretation or
+native/physical separate-device LAN acceptance.

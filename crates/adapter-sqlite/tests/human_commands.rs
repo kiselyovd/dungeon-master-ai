@@ -232,6 +232,7 @@ async fn fixture(pool: SqlitePool) -> Fixture {
         },
         commands: vec![
             HumanCommand {
+                repetition: None,
                 id: 1,
                 source: CommandSpan::from_quote(message, "Иду на причал", 0).unwrap(),
                 goal: HumanCommandGoal::Exact {
@@ -240,6 +241,7 @@ async fn fixture(pool: SqlitePool) -> Fixture {
                 condition: None,
             },
             HumanCommand {
+                repetition: None,
                 id: 2,
                 source: CommandSpan::from_quote(message, "осматриваю его", 0).unwrap(),
                 goal: HumanCommandGoal::Exact {
@@ -515,6 +517,297 @@ async fn journal_survives_real_pool_close_reopen_and_new_process_owner() {
     );
     f.store.pool().close().await;
     std::fs::remove_file(path).unwrap();
+}
+
+#[tokio::test]
+async fn quantified_wait_survives_effect_before_transcript_reopen_without_extra_time() {
+    use app_application::{
+        models::rest::{RestCommand, RestIntent},
+        ports::repositories::RestRepository,
+    };
+    let path = std::env::temp_dir().join(format!("dmai-quantified-{}.db", Uuid::new_v4()));
+    let url = format!(
+        "sqlite://{}?mode=rwc",
+        path.to_string_lossy().replace('\\', "/")
+    );
+    let mut f = fixture(SqlitePool::connect(&url).await.unwrap()).await;
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    f.operation.request_id = Uuid::new_v4();
+    f.operation.request.player_message = "Жду минуту дважды".into();
+    f.store.claim(f.operation.clone(), f.owner).await.unwrap();
+    f.manifest.scope.request_id = f.operation.request_id;
+    for (position, command) in f.manifest.commands.iter_mut().enumerate() {
+        command.source =
+            CommandSpan::from_quote(&f.operation.request.player_message, "Жду минуту дважды", 0)
+                .unwrap();
+        command.goal = HumanCommandGoal::Exact {
+            action: HumanAction::Rest(RestIntent::Wait { minutes: 1 }),
+        };
+        command.repetition = Some(CommandRepetition {
+            index: position as u16 + 1,
+            total: 2,
+        });
+    }
+    f.journal()
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    assert!(f
+        .journal()
+        .prepare_after_permission(f.proposal(2, "wait-2"))
+        .await
+        .is_err());
+    f.journal()
+        .prepare_after_permission(f.proposal(1, "wait-1"))
+        .await
+        .unwrap();
+    let status = f
+        .store
+        .status(CampaignId(f.operation.request.campaign_id))
+        .await
+        .unwrap();
+    let first = RestCommand {
+        campaign_id: CampaignId(f.operation.request.campaign_id),
+        session_id: app_application::models::identity::SessionId(f.operation.request.session_id),
+        character_id: f.manifest.scope.actor_id,
+        expected_revision: app_application::models::identity::Revision(status.revision),
+        causation_id: format!("agent:{}:wait-1", f.operation.request_id),
+        intent: RestIntent::Wait { minutes: 1 },
+    };
+    f.store.rest(first.clone(), 7).await.unwrap();
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    f.store.pool().close().await;
+    f.store = SqliteStore::new(SqlitePool::connect(&url).await.unwrap());
+    f.owner = Uuid::new_v4();
+    f.store.resume(f.operation.clone(), f.owner).await.unwrap();
+    let recovered = f.journal().load_current().await.unwrap().unwrap();
+    assert_eq!(recovered.receipts.len(), 1);
+    assert_eq!(
+        recovered.manifest.commands[1]
+            .repetition
+            .as_ref()
+            .unwrap()
+            .index,
+        2
+    );
+    assert_eq!(
+        recovered
+            .manifest
+            .progress(&recovered.bindings, &recovered.receipts)
+            .unwrap()[1]
+            .1,
+        HumanCommandProgress::Ready
+    );
+    f.journal()
+        .prepare_after_permission(f.proposal(2, "wait-2"))
+        .await
+        .unwrap();
+    let mut second = first.clone();
+    second.expected_revision = app_application::models::identity::Revision(status.revision + 1);
+    second.causation_id = format!("agent:{}:wait-2", f.operation.request_id);
+    f.store.rest(second.clone(), 7).await.unwrap();
+    // Exact retries return stored outcomes, even after the next effect committed.
+    f.store.rest(first, 7).await.unwrap();
+    f.store.rest(second.clone(), 7).await.unwrap();
+    let complete = f.journal().load_current().await.unwrap().unwrap();
+    assert_eq!(complete.receipts.len(), 2);
+    assert!(complete
+        .manifest
+        .progress(&complete.bindings, &complete.receipts)
+        .unwrap()
+        .iter()
+        .all(|(_, p)| p.closed()));
+    let after = f
+        .store
+        .status(CampaignId(f.operation.request.campaign_id))
+        .await
+        .unwrap();
+    assert_eq!(after.elapsed_seconds, status.elapsed_seconds + 120);
+    assert_eq!(after.revision, status.revision + 2);
+    let mut extra = f.proposal(2, "wait-extra");
+    assert!(f
+        .journal()
+        .prepare_after_permission(extra.clone())
+        .await
+        .is_err());
+    extra.command_id = 3;
+    assert!(f.journal().prepare_after_permission(extra).await.is_err());
+    second.expected_revision = app_application::models::identity::Revision(after.revision);
+    second.causation_id = format!("agent:{}:wait-extra", f.operation.request_id);
+    assert!(f.store.rest(second, 7).await.is_err());
+    assert_eq!(
+        f.store
+            .status(CampaignId(f.operation.request.campaign_id))
+            .await
+            .unwrap()
+            .elapsed_seconds,
+        after.elapsed_seconds
+    );
+    f.store.pool().close().await;
+    std::fs::remove_file(path).unwrap();
+}
+
+#[tokio::test]
+async fn quantified_attacks_do_not_grant_a_second_action_or_advance_the_turn() {
+    use app_application::ports::repositories::RepositoryError;
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    f.operation.request_id = Uuid::new_v4();
+    f.operation.request.player_message =
+        "Атакую отголосок без оружия дважды. Ход не завершаю".into();
+    f.store.claim(f.operation.clone(), f.owner).await.unwrap();
+    f.manifest.scope.request_id = f.operation.request_id;
+    let mut combat = start_combat(&f).await;
+    let hero_position = combat
+        .snapshot
+        .combatants
+        .iter()
+        .find(|actor| actor.character_id.is_some())
+        .unwrap()
+        .position;
+    let target = combat
+        .snapshot
+        .combatants
+        .iter_mut()
+        .find(|actor| actor.character_id.is_none())
+        .unwrap();
+    target.position = app_domain::combat::types::Position {
+        x: hero_position.x + 1,
+        y: hero_position.y,
+    };
+    let target_id = target.id.0;
+    combat.revision += 1;
+    f.store
+        .compare_and_set(combat.revision - 1, combat.clone())
+        .await
+        .unwrap();
+    let attack = HeroCombatIntent::Weapon {
+        target: target_id,
+        weapon_id: "unarmed".into(),
+        mode: app_domain::combat::loadout::WeaponMode::Melee,
+        two_handed: false,
+    };
+    for (position, command) in f.manifest.commands.iter_mut().enumerate() {
+        command.source = CommandSpan::from_quote(
+            &f.operation.request.player_message,
+            "Атакую отголосок без оружия дважды",
+            0,
+        )
+        .unwrap();
+        command.goal = HumanCommandGoal::Exact {
+            action: HumanAction::Combat(attack.clone()),
+        };
+        command.repetition = Some(CommandRepetition {
+            index: position as u16 + 1,
+            total: 2,
+        });
+    }
+    f.manifest.constraints =
+        vec![
+            CommandSpan::from_quote(&f.operation.request.player_message, "Ход не завершаю", 0)
+                .unwrap(),
+        ];
+    f.journal()
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    let intention = |call: &str| HeroIntention {
+        campaign_id: CampaignId(f.operation.request.campaign_id),
+        session_id: app_application::models::identity::SessionId(f.operation.request.session_id),
+        causation_id: format!("agent:{}:{call}", f.operation.request_id),
+        action: attack.clone(),
+    };
+    f.journal()
+        .prepare_after_permission(f.proposal(1, "attack-1"))
+        .await
+        .unwrap();
+    f.store
+        .combat_as_dm(intention("attack-1"), 7)
+        .await
+        .unwrap();
+    let after_first = f.store.get(combat.encounter_id).await.unwrap().unwrap();
+    f.journal()
+        .prepare_after_permission(f.proposal(2, "attack-2"))
+        .await
+        .unwrap();
+    let error = f
+        .store
+        .combat_as_dm(intention("attack-2"), 7)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            error,
+            RepositoryError::Operation {
+                code: "combat_budget_unavailable",
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+    f.store
+        .finish_tool_step(
+            f.operation.request_id,
+            "attack-2",
+            &app_application::agent::tool_dispatch::ToolExecution {
+                result: json!({"error":"combat_budget_unavailable","resolution":"rejected"}),
+                is_error: true,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    f.journal()
+        .record_refusal("attack-2", "combat_budget_unavailable")
+        .await
+        .unwrap();
+    let after_second = f.store.get(combat.encounter_id).await.unwrap().unwrap();
+    assert_eq!(
+        serde_json::to_value(&after_second).unwrap(),
+        serde_json::to_value(&after_first).unwrap()
+    );
+    assert_eq!(
+        after_second.snapshot.current_combatant,
+        combat.snapshot.current_combatant
+    );
+    assert_eq!(after_second.snapshot.round, combat.snapshot.round);
+    let ledger = f.journal().load_current().await.unwrap().unwrap();
+    assert_eq!(ledger.receipts.len(), 2);
+    assert!(ledger
+        .manifest
+        .progress(&ledger.bindings, &ledger.receipts)
+        .unwrap()
+        .iter()
+        .all(|(_, p)| p.closed()));
+    assert!(f
+        .journal()
+        .prepare_after_permission(f.proposal(2, "attack-3"))
+        .await
+        .is_err());
+    assert!(f
+        .store
+        .combat_as_dm(intention("attack-2"), 7)
+        .await
+        .is_err());
+    assert_eq!(
+        f.store
+            .get(combat.encounter_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .revision,
+        after_first.revision
+    );
 }
 
 async fn start_combat(f: &Fixture) -> CombatProjection {

@@ -105,6 +105,50 @@ fn command(quote: &str, occurrence: usize) -> Value {
     json!({"source":{"quote":quote,"occurrence":occurrence},"tool_name":"rest_action","args_json":json!({"kind":"wait","minutes":1}).to_string(),"unresolved":null,"condition":null})
 }
 #[tokio::test]
+async fn quantified_source_expands_only_with_complete_group_and_semantic_count_approval() {
+    let quote = "Жду минуту дважды";
+    let commands = (1..=2)
+        .map(|index| {
+            let mut value = command(quote, 0);
+            value["repetition"] = json!({"index":index,"total":2});
+            value
+        })
+        .collect::<Vec<_>>();
+    let proposal = json!({"commands":commands,"constraints":[]});
+    let p = provider(vec![
+        (proposal.clone(), FinishReason::Stop),
+        (json!({"valid":true}), FinishReason::Stop),
+    ]);
+    let manifest = LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .plan(input(quote))
+        .await
+        .unwrap();
+    assert_eq!(manifest.commands.len(), 2);
+    assert_eq!(manifest.commands[0].source, manifest.commands[1].source);
+    assert_eq!(manifest.commands[1].repetition.as_ref().unwrap().index, 2);
+    assert_eq!(
+        p.requests.lock().unwrap().len(),
+        2,
+        "independent count approval is mandatory"
+    );
+    let p = provider(vec![
+        (proposal.clone(), FinishReason::Stop),
+        (json!({"valid":false}), FinishReason::Stop),
+    ]);
+    assert!(LlmHumanCommandPlanner::new(p, "script".into())
+        .plan(input(quote))
+        .await
+        .is_err());
+    let mut incomplete = proposal;
+    incomplete["commands"].as_array_mut().unwrap().pop();
+    let p = provider(vec![(incomplete, FinishReason::Stop)]);
+    assert!(LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .plan(input(quote))
+        .await
+        .is_err());
+    assert_eq!(p.requests.lock().unwrap().len(), 1);
+}
+#[tokio::test]
 async fn compound_adventure_requires_full_wrapped_arguments_and_preserves_negative_constraint() {
     let text = "Иду на старый причал и осматриваю его. Дальше никуда не иду.";
     let proposal = json!({"commands":[{"source":{"quote":"Иду на старый причал","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"move","location":"quay"}}).to_string(),"unresolved":null,"condition":null},{"source":{"quote":"осматриваю его","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"inspect_quay"}}).to_string(),"unresolved":null,"condition":null}],"constraints":[{"quote":"Дальше никуда не иду","occurrence":0}]});

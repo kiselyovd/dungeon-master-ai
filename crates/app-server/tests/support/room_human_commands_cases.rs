@@ -96,9 +96,23 @@ async fn journal(
     Arc<RoomAgentPorts>,
     HumanCommandManifest,
 ) {
+    journal_source(f, false).await
+}
+async fn journal_source(
+    f: &Fixture,
+    quantified: bool,
+) -> (
+    RoomHumanCommandLedger,
+    Arc<RoomAgentPorts>,
+    HumanCommandManifest,
+) {
     let turn = Uuid::new_v4();
     let ports = f.ports(&f.host, turn).await;
-    let text = "Жду минуту и ещё жду минуту";
+    let text = if quantified {
+        "Жду минуту дважды"
+    } else {
+        "Жду минуту и ещё жду минуту"
+    };
     let input = operation(&ports, text).await;
     let owner = Uuid::new_v4();
     ports.claim(input, owner).await.unwrap();
@@ -137,16 +151,36 @@ async fn journal(
         },
         commands: vec![
             HumanCommand {
+                repetition: quantified.then_some(CommandRepetition { index: 1, total: 2 }),
                 id: 1,
-                source: CommandSpan::from_quote(text, "Жду минуту", 0).unwrap(),
+                source: CommandSpan::from_quote(
+                    text,
+                    if quantified {
+                        text
+                    } else {
+                        "Жду минуту"
+                    },
+                    0,
+                )
+                .unwrap(),
                 goal: HumanCommandGoal::Exact {
                     action: HumanAction::Rest(RestIntent::Wait { minutes: 1 }),
                 },
                 condition: None,
             },
             HumanCommand {
+                repetition: quantified.then_some(CommandRepetition { index: 2, total: 2 }),
                 id: 2,
-                source: CommandSpan::from_quote(text, "жду минуту", 0).unwrap(),
+                source: CommandSpan::from_quote(
+                    text,
+                    if quantified {
+                        text
+                    } else {
+                        "жду минуту"
+                    },
+                    0,
+                )
+                .unwrap(),
                 goal: HumanCommandGoal::Exact {
                     action: HumanAction::Rest(RestIntent::Wait { minutes: 1 }),
                 },
@@ -168,6 +202,63 @@ fn proposal(id: u16, call: &str) -> HumanCommandStepProposal {
         signature: HumanAction::Rest(RestIntent::Wait { minutes: 1 }),
         terminal: true,
     }
+}
+
+#[tokio::test]
+async fn quantified_room_attempts_use_distinct_nonces_and_replay_without_a_third_effect() {
+    let f = fixture().await;
+    let (ledger, ports, manifest) = journal_source(&f, true).await;
+    ledger
+        .save_verified_manifest(manifest.clone())
+        .await
+        .unwrap();
+    let before = f
+        .store
+        .load_current(f.campaign)
+        .await
+        .unwrap()
+        .campaign
+        .revision;
+    let mut nonces = vec![];
+    for (id, call) in [(1, "wait-1"), (2, "wait-2")] {
+        let binding = ledger
+            .prepare_after_permission(proposal(id, call))
+            .await
+            .unwrap();
+        nonces.push(binding.canonical_nonce.unwrap());
+        let request = ToolDispatchRequest {
+            request_id: manifest.scope.request_id.to_string(),
+            tool_call_id: call.into(),
+            campaign_id: f.campaign.0,
+            session_id: f.session.0,
+            command: binding.signature.to_tool(),
+        };
+        assert!(!ports.execute(request.clone()).await.unwrap().is_error);
+        assert!(!ports.execute(request).await.unwrap().is_error);
+    }
+    assert_ne!(nonces[0], nonces[1]);
+    let saved = ledger.load_current().await.unwrap().unwrap();
+    assert_eq!(saved.receipts.len(), 2);
+    assert!(saved
+        .manifest
+        .progress(&saved.bindings, &saved.receipts)
+        .unwrap()
+        .iter()
+        .all(|(_, p)| p.closed()));
+    assert!(ledger
+        .prepare_after_permission(proposal(2, "wait-extra"))
+        .await
+        .is_err());
+    assert_eq!(
+        f.store
+            .load_current(f.campaign)
+            .await
+            .unwrap()
+            .campaign
+            .revision
+            .0,
+        before.0 + 2
+    );
 }
 
 #[tokio::test]

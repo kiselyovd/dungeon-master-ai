@@ -88,6 +88,7 @@ fn compound() -> (String, HumanCommandManifest) {
         scope: scope(),
         commands: vec![
             HumanCommand {
+                repetition: None,
                 id: 1,
                 source: CommandSpan::from_quote(&message, "Иду на причал", 0).unwrap(),
                 goal: HumanCommandGoal::Exact {
@@ -96,6 +97,7 @@ fn compound() -> (String, HumanCommandManifest) {
                 condition: None,
             },
             HumanCommand {
+                repetition: None,
                 id: 2,
                 source: CommandSpan::from_quote(&message, "осматриваю его", 0).unwrap(),
                 goal: HumanCommandGoal::Exact {
@@ -228,6 +230,96 @@ fn compound_progress_uses_confirmed_receipts_not_preparation_or_prose() {
         Err(CommandLedgerError::NotReady)
     );
 }
+
+fn quantified() -> (String, HumanCommandManifest) {
+    let message = "Жду минуту дважды. Дальше не иду".to_string();
+    let mut manifest = compound().1;
+    manifest.commands = (1..=2)
+        .map(|index| HumanCommand {
+            id: index,
+            source: CommandSpan::from_quote(&message, "Жду минуту дважды", 0).unwrap(),
+            goal: HumanCommandGoal::Exact {
+                action: HumanAction::Rest(app_domain::rest::RestIntent::Wait { minutes: 1 }),
+            },
+            condition: None,
+            repetition: Some(CommandRepetition { index, total: 2 }),
+        })
+        .collect();
+    manifest.constraints = vec![CommandSpan::from_quote(&message, "Дальше не иду", 0).unwrap()];
+    (message, manifest)
+}
+
+#[test]
+fn quantified_groups_require_complete_contiguous_ordinals_and_exact_source() {
+    let (message, manifest) = quantified();
+    manifest
+        .validate_structure(&message, &manifest.scope)
+        .unwrap();
+    for change in 0..7 {
+        let mut bad = manifest.clone();
+        match change {
+            0 => {
+                bad.commands.pop();
+            }
+            1 => bad.commands[1].repetition.as_mut().unwrap().index = 1,
+            2 => bad.commands[1].repetition.as_mut().unwrap().total = 3,
+            3 => bad.commands[1].repetition = None,
+            4 => {
+                bad.commands[1].source = CommandSpan::from_quote(&message, "Жду минуту", 0).unwrap()
+            }
+            5 => bad.commands[0].repetition.as_mut().unwrap().index = 0,
+            _ => bad.constraints = vec![bad.commands[0].source.clone()],
+        }
+        assert!(
+            bad.validate_structure(&message, &manifest.scope).is_err(),
+            "change {change}"
+        );
+    }
+    let (_, ordinary) = compound();
+    let wire = serde_json::to_value(&ordinary).unwrap();
+    assert!(wire["commands"][0].get("repetition").is_none());
+    let legacy: HumanCommandManifest = serde_json::from_value(wire).unwrap();
+    assert_eq!(legacy, ordinary);
+}
+
+#[test]
+fn quantified_attempts_have_independent_receipts_and_refusal_is_not_a_retry() {
+    let (_, manifest) = quantified();
+    let first = binding(&manifest, 1, "wait-1");
+    let second = binding(&manifest, 2, "wait-2");
+    assert!(manifest.prepare_binding(&second, &[], &[]).is_err());
+    let first_receipt = performed(&first);
+    manifest
+        .prepare_binding(
+            &second,
+            std::slice::from_ref(&first),
+            std::slice::from_ref(&first_receipt),
+        )
+        .unwrap();
+    let refused = ConfirmedCommandAttempt {
+        binding: second.clone(),
+        outcome: CommandAttemptOutcome::Refused {
+            code: "rest_unsafe".into(),
+        },
+    };
+    let bindings = vec![first, second.clone()];
+    let receipts = vec![first_receipt, refused];
+    assert!(manifest
+        .progress(&bindings, &receipts)
+        .unwrap()
+        .iter()
+        .all(|(_, state)| state.closed()));
+    // Re-delivery of the same attempted command is allowed, a third effect is not.
+    manifest
+        .prepare_binding(&second, &bindings, &receipts)
+        .unwrap();
+    let mut extra = second;
+    extra.step += 1;
+    extra.tool_call_id = "wait-extra".into();
+    assert!(manifest
+        .prepare_binding(&extra, &bindings, &receipts)
+        .is_err());
+}
 #[test]
 fn intermediate_movement_cannot_finish_a_different_destination_or_bypass_pending_step() {
     let (_, mut manifest) = compound();
@@ -311,6 +403,7 @@ fn identical_attack_phrases_remain_distinct_commands() {
     });
     manifest.commands = (0..2)
         .map(|index| HumanCommand {
+            repetition: None,
             id: index as u16 + 1,
             source: CommandSpan::from_quote(message, "Атакую", index).unwrap(),
             goal: HumanCommandGoal::Exact {

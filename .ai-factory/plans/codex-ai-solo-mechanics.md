@@ -670,3 +670,25 @@ Next bounded implementation: quantified repetitions from one source clause,
 with ordered per-attempt bindings/receipts and no duplicate retry or quota
 bypass; then richer conditional/refusal cases and full model/native/LAN proofs.
 Keep the broad goal and acceptance boxes open.
+
+
+Quantified-command continuation:
+- [x] Expand one explicitly quantified source clause into complete ordered
+  per-attempt commands, preserving full source and private ordinal/count metadata.
+- [x] Reject incomplete/mixed/overlapping groups; read legacy manifests without
+  the optional metadata; retain independent count and per-action verification.
+- [x] Preserve original action budgets and refusal/replay semantics. Real SQLite
+  Wait twice survives file-pool reopen/new owner with exactly120 seconds; fighter
+  attack twice resolves once then refuses without projection/turn changes.
+- [x] Room attempts use distinct canonical nonces and repeated delivery creates
+  no additional effect. Independent source/test review has no open finding.
+- [x] Frozen full gates and scoped local checkpoint (948 Rust,1127 frontend;
+  architecture/static checks and all-feature Clippy pass).
+- [ ] Real-model quantity/conditional interpretation and complete session proof.
+No model, native or physical-LAN acceptance is inferred from these protocol tests.
+
+Quantified scope verification:18 solo SQLite,14 protocol,6 planner and the new
+room regression pass; consolidated gates pass with948 Rust and1127 frontend
+checks. Final staged independent review has no actionable finding. All32 original
+source hashes are preserved; only owned files are staged. No frontend behavior
+changed, no dependencies added, no model/default promotion or publication.

@@ -163,11 +163,20 @@ pub struct CommandCondition {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct CommandRepetition {
+    /// One-based position within an explicitly quantified source clause.
+    pub index: u16,
+    pub total: u16,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HumanCommand {
     pub id: u16,
     pub source: CommandSpan,
     pub goal: HumanCommandGoal,
     pub condition: Option<CommandCondition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repetition: Option<CommandRepetition>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -527,13 +536,40 @@ impl HumanCommandManifest {
         }
         let mut ids = BTreeSet::new();
         let mut spans = Vec::new();
-        for command in &self.commands {
+        for (position, command) in self.commands.iter().enumerate() {
+            let repeated_source = if let Some(repetition) = &command.repetition {
+                if repetition.total < 2
+                    || usize::from(repetition.total) > MAX_COMMANDS
+                    || repetition.index == 0
+                    || repetition.index > repetition.total
+                {
+                    return Err(CommandLedgerError::InvalidManifest);
+                }
+                let first = position
+                    .checked_sub(usize::from(repetition.index - 1))
+                    .ok_or(CommandLedgerError::InvalidManifest)?;
+                let group = self
+                    .commands
+                    .get(first..first + usize::from(repetition.total))
+                    .ok_or(CommandLedgerError::InvalidManifest)?;
+                if group.iter().enumerate().any(|(offset, item)| {
+                    item.source != command.source
+                        || item.repetition.as_ref().is_none_or(|r| {
+                            r.total != repetition.total || usize::from(r.index) != offset + 1
+                        })
+                }) {
+                    return Err(CommandLedgerError::InvalidManifest);
+                }
+                repetition.index > 1
+            } else {
+                false
+            };
             if command.id == 0
                 || ids.contains(&command.id)
                 || !command.source.valid(saved_message)
-                || spans
-                    .last()
-                    .is_some_and(|previous: &&CommandSpan| previous.end > command.source.start)
+                || spans.last().is_some_and(|previous: &&CommandSpan| {
+                    previous.end > command.source.start && !repeated_source
+                })
             {
                 return Err(CommandLedgerError::InvalidManifest);
             }
