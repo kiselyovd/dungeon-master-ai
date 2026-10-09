@@ -500,3 +500,42 @@ Evidence: .artifacts/agency-1d1c833/{farewell,npc_only,declared_speech,
 invented_emotion,npc_speech,hero_speech,generation-*,direct-*,source-*}.json,
 budget4096/*.json. Captured original prompts and outputs are preserved. No engine
 writes, user campaigns, defaults or production dependencies changed.
+
+
+Full-draft source-support continuation after ef164fe:
+Fourteen paired controls include the actual farewell, NPC-only control, explicit
+and paraphrased hero speech, new emotion, compound actions/extra promise, refused
+attack/substitute spell, miss, involuntary damage and an NPC compliment.
+Direct/no-thinking exact hero-claim extraction then source-only entailment:11/14;
+misses actual farewell and substitute spell and rejects declared speech. Whole
+source-only draft assessment:11/14, falsely denies NPC-only, involuntary damage
+and NPC compliment. Explicit hero/NPC roster variant:10/14, also falsely allows
+new hero speech and denies requested paraphrase. The earlier4/4 single-claim pilot
+therefore does NOT justify production integration. All three variants rejected.
+Evidence .artifacts/agency-full-ef164fe/{probe*.mjs,*.json}; no new validator,
+runtime mode or model defaults promoted.
+
+Grounding repair: completed EscortTikhonHome disappears from available intentions,
+so its human-readable route meaning was missing after success. A public historical
+route fact now requires Bell package, rescued fact and explicit escort in history.
+It describes the anonymous initiating hero's Archive→Quay→Veresk arrival; later
+movement/current shared scene remain authoritative, and it neither assigns that
+trip to another human nor confirms extra hero speech/emotion. Same text reaches
+DM context and public narration evidence. Legacy NPC-only rescue/preescort restore
+cannot acquire it. Missing action in bounded history means unavailable historical
+proof, not proof the action never occurred.
+Regression RED then GREEN; all19 application lib tests pass. Independent source
+review found no actionable issue. Three frozen successful-context Qwen replays
+with the current source fact produced no new hero speech but remain insufficient
+for full quality acceptance: final prose still adds unsupported world/location
+or reward details. They are context replays, not fresh engine/full-session proof.
+Initial model-loading503 captures route-generation-*.json are excluded; only
+route-generation-ready-*.json have successful responses and Stop endings.
+Full AI-led peaceful/defensive, native/recovery and physical LAN/VPN acceptance
+remain open. Original32 source hashes and unrelated worktree edits preserved.
+
+Historical-route checkpoint final verification:962 Rust and1128 frontend tests
+pass; architecture/static/all-feature Clippy GREEN, final backend build passes.
+Logs .artifacts/agency-full-ef164fe/{gates.log,build.log}. Independent source
+review clean; independent narrative review still FAILS broad acceptance. Owned
+QA model stopped and its port free. No UI layout or transport change in this step.

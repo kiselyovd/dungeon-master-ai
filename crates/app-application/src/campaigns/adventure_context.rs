@@ -4,6 +4,17 @@ use app_domain::adventure::{AdventureState, Ending, Fact, Location};
 const EXAMINED_WARD: &str = "During the confirmed inspection AT THE OLD QUAY (старый причал), fresh tool marks were found ON THE WARD (оберег), where the bell clapper (язык колокола) had been cut off and removed. The tool marks are on the ward itself, not on a wall or railings. The inspection did not locate the removed clapper. / При подтверждённом осмотре НА СТАРОМ ПРИЧАЛЕ было обнаружено: оберег был повреждён; на самом обереге свежие следы инструмента в месте, где срезали и сняли язык колокола. Следы не на стене и не на перилах. Где снятый язык находится, осмотр не установил. This is a discovery at the old quay, not a new inspection at another location. It does not establish an observation of the ward in a different current scene. Only damage to the ward is confirmed; no damage to other river infrastructure is established by this discovery. Flooding is a consequence, not proof of broken gates. No material, plate construction, extra damage, residue or exact tool is confirmed. / Это прежнее открытие на причале, не новый осмотр в другом месте. Подтверждено повреждение оберега, не других сооружений переправы. Затопление не доказывает поломку затворов. Материал, устройство пластин, дополнительные повреждения, налёт и точное орудие не установлены. This historical discovery does not override later confirmed recovery or restoration.";
 const QUAY_UPPER_PATH: &str = "The maintained dry upper path connects the old quay and the archive safely; a failed check never blocks every rescue route. / Сухая верхняя тропа безопасно соединяет старый причал и архив; неудачная проверка не перекрывает все пути спасения.";
 
+const PERSONAL_ESCORT_ROUTE: &str = "The confirmed personal escort took Tikhon and the initiating human hero from the drowned Archive -> old quay -> Veresk, along the maintained dry upper route. This is a historical arrival; subsequent movement and the current shared scene remain authoritative. It does not establish another hero's personal travel, new farewell words, promises, gestures or emotions. / При подтверждённом личном сопровождении Тихон и герой, выполнивший действие, прошли из затопленного архива по сухому верхнему пути через старый причал в Вереск. Это прошлое прибытие; последующие переходы и текущая общая сцена остаются действительными. Оно не подтверждает личный путь другого героя, новые прощальные слова, обещания, жесты или чувства.";
+
+fn personal_escort_route(state: &AdventureState) -> Option<&'static str> {
+    (state.package_id == app_domain::adventure::BELL_ADVENTURE_ID
+        && state.facts.contains(&Fact::TikhonRescued)
+        && state
+            .history
+            .contains(&app_domain::adventure::Action::EscortTikhonHome))
+    .then_some(PERSONAL_ESCORT_ROUTE)
+}
+
 const RESCUE_REWARD: &str = "Exactly ten gold were already granted once to the rescuing PLAYER-CONTROLLED HERO, not to the rescued ferryman or his daughter. No further reward is confirmed. / Ровно десять золотых уже один раз выданы игровому герою, спасшему паромщика, а не самому паромщику или его дочери. Дополнительной награды нет.";
 
 /// Public route aliases and their canonical parameters, never player permission.
@@ -85,6 +96,9 @@ pub fn bell_public_narration_facts(
             false,
         );
     }
+    if let Some(route) = personal_escort_route(state) {
+        add("personal_escort_route", route, false);
+    }
     if state.facts.contains(&Fact::RewardGranted) {
         add("rescue_reward", RESCUE_REWARD, false);
     }
@@ -105,6 +119,7 @@ pub fn bell_public_narration_facts(
 }
 
 pub fn bell_dm_context(state: &AdventureState) -> String {
+    let escort_route = personal_escort_route(state).unwrap_or("");
     let rescued = state.facts.contains(&Fact::TikhonRescued);
     let located = state.facts.contains(&Fact::TikhonLocated);
     let historic_known = state.facts.contains(&Fact::RosterAvailable)
@@ -167,7 +182,7 @@ pub fn bell_dm_context(state: &AdventureState) -> String {
     let public_state = serde_json::to_string(state).expect("typed adventure state serializes");
     let actions = serde_json::to_string(&state.available_actions())
         .expect("typed adventure actions serialize");
-    format!("\n\nAUTHORED ADVENTURE - THE BELL BENEATH THE WATER\nImmutable canon: Veresk is in the Reed March. The missing living ferryman and the historic echo are distinct people. Preserve roster/ledger and ward-cause/flood-consequence distinctions. Invent only nonessential flavor. Do not invent quest items, grant resources, change scene or declare an ending through prose. Engine-confirmed actions/facts below are authoritative. Use adventure_action with an action from the JSON list to confirm the player's intention, then narrate its real result. A successful ToolResult confirms a completed action. Narrate that completed outcome even when the refreshed available-action list no longer offers it; that list governs future choices, not the action just completed. Do not execute an additional intention the player did not choose. API identifiers belong only in tool arguments; translate presentation nouns into the narration language and never print raw identifiers in player prose. Tools withheld by the prepared adventure must not be called or simulated in prose. Unsupported actions require an honest explanation and available alternatives. DM-only knowledge is not automatically player knowledge. Keep narration to a few clear sentences and optional short NPC dialogue, then one open question only while the session is open. A closed session ends with its confirmed epilogue. Do not print a menu of API actions: the UI presents available choices. Never invent new quest objects or family ties.\nConfirmed narration brief: {tikhon} {reward} {historic} {ending_brief} {ward} {turn_style}\nPresentation glossary EN/RU: Veresk=Вереск; old quay=старый причал; drowned archive=затопленный архив; lower belfry=нижняя звонница; memorial roll=памятный список спасённых; land ledger=земельная книга; Tikhon=Тихон; Mila=Мила; Agata=Агата; Leon=Леон; Varden=Варден. recover_roster means retrieve the original memorial roll, NOT restore a grove. recover_ledger means retrieve land-ownership evidence, NOT farming records.\nCurrent public state JSON: {public_state}\nAvailable intentions JSON: {actions}\nRelevant NPC knowledge and canon: {relevant} {route}")
+    format!("\n\nAUTHORED ADVENTURE - THE BELL BENEATH THE WATER\nImmutable canon: Veresk is in the Reed March. The missing living ferryman and the historic echo are distinct people. Preserve roster/ledger and ward-cause/flood-consequence distinctions. Invent only nonessential flavor. Do not invent quest items, grant resources, change scene or declare an ending through prose. Engine-confirmed actions/facts below are authoritative. Use adventure_action with an action from the JSON list to confirm the player's intention, then narrate its real result. A successful ToolResult confirms a completed action. Narrate that completed outcome even when the refreshed available-action list no longer offers it; that list governs future choices, not the action just completed. Do not execute an additional intention the player did not choose. API identifiers belong only in tool arguments; translate presentation nouns into the narration language and never print raw identifiers in player prose. Tools withheld by the prepared adventure must not be called or simulated in prose. Unsupported actions require an honest explanation and available alternatives. DM-only knowledge is not automatically player knowledge. Keep narration to a few clear sentences and optional short NPC dialogue, then one open question only while the session is open. A closed session ends with its confirmed epilogue. Do not print a menu of API actions: the UI presents available choices. Never invent new quest objects or family ties.\nConfirmed narration brief: {tikhon} {reward} {historic} {ending_brief} {ward} {escort_route} {turn_style}\nPresentation glossary EN/RU: Veresk=Вереск; old quay=старый причал; drowned archive=затопленный архив; lower belfry=нижняя звонница; memorial roll=памятный список спасённых; land ledger=земельная книга; Tikhon=Тихон; Mila=Мила; Agata=Агата; Leon=Леон; Varden=Варден. recover_roster means retrieve the original memorial roll, NOT restore a grove. recover_ledger means retrieve land-ownership evidence, NOT farming records.\nCurrent public state JSON: {public_state}\nAvailable intentions JSON: {actions}\nRelevant NPC knowledge and canon: {relevant} {route}")
 }
 
 #[cfg(test)]
@@ -284,5 +299,53 @@ mod ending_tests {
         let context = bell_dm_context(&debt);
         assert!(context.contains("ward has not been examined"));
         assert!(!context.contains("The ward remains damaged"));
+    }
+}
+
+#[cfg(test)]
+mod escort_history_tests {
+    use super::*;
+    use app_domain::adventure::Action;
+
+    #[test]
+    fn completed_personal_escort_keeps_public_route_meaning_after_it_is_unavailable() {
+        let mut before = AdventureState::new();
+        for action in [
+            Action::Move(Location::Quay),
+            Action::Move(Location::Archive),
+            Action::LocateTikhon,
+        ] {
+            before = before.apply(action).unwrap().state;
+        }
+        let legacy = before.apply(Action::RescueTikhon).unwrap().state;
+        let escorted = before.apply(Action::EscortTikhonHome).unwrap().state;
+        assert!(!escorted
+            .available_actions()
+            .contains(&Action::EscortTikhonHome));
+        for state in [&before, &legacy] {
+            assert!(!bell_public_narration_facts(state, false)
+                .iter()
+                .any(|fact| fact.id == "personal_escort_route"));
+            assert!(!bell_dm_context(state).contains("Archive -> old quay -> Veresk"));
+        }
+        let later = escorted
+            .apply(Action::Move(Location::Shrine))
+            .unwrap()
+            .state;
+        let before_read = later.clone();
+        let facts = bell_public_narration_facts(&later, false);
+        let route = facts
+            .iter()
+            .find(|fact| fact.id == "personal_escort_route")
+            .expect("confirmed escort route survives availability refresh");
+        assert!(!route.required);
+        assert!(route.text.contains("initiating human hero"));
+        assert!(route.text.contains("Archive -> old quay -> Veresk"));
+        assert!(route.text.contains("historical arrival"));
+        assert!(bell_dm_context(&later).contains(&route.text));
+        assert_eq!(later, before_read);
+        let mut foreign = later;
+        foreign.package_id = "other".into();
+        assert!(bell_public_narration_facts(&foreign, false).is_empty());
     }
 }

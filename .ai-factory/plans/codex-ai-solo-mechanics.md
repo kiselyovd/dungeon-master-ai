@@ -815,3 +815,20 @@ Agency diagnostics after escort checkpoint:
   distinct obligation. No new production validator until evidence supports it.
 - [ ] Fresh full AI-led peaceful/defensive, native/recovery and physical LAN/VPN
   acceptance remain required. Do not replace them with these focused probes.
+
+
+Full-draft agency follow-up:
+- [x] Test14 paired controls: extraction+source11/14, whole source11/14 and
+  explicit actors10/14. Reject all variants; narrow4/4 pilot does not generalize.
+- [x] Retain canonical personal escort meaning after availability refresh using
+  gated historical public fact, shared between DM and narration evidence. RED/GREEN
+  regression covers legacy/preescort/later movement/foreign package/no mutation.
+  Independent source review clean;19 application lib tests pass.
+- [x] Three successful frozen-context real-Qwen replays: no invented hero speech,
+  but unsupported other facts remain. Exclude initial503 loading responses.
+- [x] Final full gates GREEN:962 Rust,1128 frontend, architecture/static and
+  all-feature Clippy; backend build succeeds. Independent source and real-Qwen
+  replay reviews closed; original32 hashes preserved, isolated QA model stopped.
+  Scoped local checkpoint only; whole-goal acceptance remains open.
+- [ ] Continue fresh full AI-led sessions and remaining native/physical LAN
+  requirements; model quality remains open, with no rejected validator promotion.
