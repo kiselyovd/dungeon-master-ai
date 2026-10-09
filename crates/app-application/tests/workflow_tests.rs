@@ -539,6 +539,55 @@ fn clearing_localized_claims_cannot_upgrade_a_negative_verdict() {
     assert!(!verdict.publishable());
     assert!(NarrationVerdict::verified().publishable());
 }
+
+#[test]
+fn required_discovery_keeps_its_quay_origin_after_later_travel_in_the_same_request() {
+    use app_application::{
+        agent::{intentions::ResolvedPlayerIntention, narration::narration_evidence},
+        models::adventure::{AdventureState, Fact, Location},
+    };
+    let mut state = AdventureState::new();
+    state.location = Location::Archive;
+    state.facts.insert(Fact::WardDamaged);
+    let attempts = vec![
+        ResolvedPlayerIntention {
+            tool_call_id: "inspect".into(),
+            tool_name: "adventure_action".into(),
+            args: json!({"action":{"kind":"inspect_quay"}}),
+            rejected: false,
+            result: json!({}),
+        },
+        ResolvedPlayerIntention {
+            tool_call_id: "move".into(),
+            tool_name: "adventure_action".into(),
+            args: json!({"action":{"kind":"move","location":"archive"}}),
+            rejected: false,
+            result: json!({}),
+        },
+    ];
+    let context = json!({"adventure":{"state":state}});
+    let evidence = narration_evidence(&context, &attempts);
+    let fact = evidence
+        .facts
+        .iter()
+        .find(|f| f.id == "ward_inspection")
+        .unwrap();
+    assert!(fact.required);
+    assert!(fact.text.contains("OLD QUAY"));
+    assert!(fact.text.contains("НА СТАРОМ ПРИЧАЛЕ"));
+    assert!(fact
+        .text
+        .contains("not a new inspection at another location"));
+    assert!(fact.text.contains("No material, plate construction"));
+    assert!(
+        !narration_evidence(&context, &[])
+            .facts
+            .iter()
+            .find(|f| f.id == "ward_inspection")
+            .unwrap()
+            .required
+    );
+}
 #[tokio::test]
 async fn rejected_narration_resumes_confirmed_attempt_without_dispatching_again() {
     let provider = Arc::new(FakeProvider::scripted(vec![

@@ -390,3 +390,54 @@ and backend build passes. Next quality work: supply grounded public references
 for route-qualified intentions, distinguish DM questions from hero actions, and
 reject invented investigative object details. Native/full solo/physicalLAN
 acceptance remains open; no user/default-model settings were changed.
+
+
+Grounded reference episode,3b75a3a plus owned data changes:
+Public route descriptions now explicitly map dry upper-path qualifiers to full
+canonical MoveArchive args. Discovered facts and safe meanings of offered actions
+are also available to both intent phases; no undiscovered NPC outcome/secret is
+added and references do not grant permission. Actual route request now passes:
+revision6→7, oneMoveArchive, Done86.860s. Initial repair relocated the historical
+ward discovery to archive; independent review marks narration FAIL. The actual
+Locate mapping now passes after an offered-action meaning is supplied: one
+LocateTikhon, revision7→8, Done57.839s. Its prose incorrectly damaged the sluice
+instead of the ward; independent narrative acceptance remains FAIL.
+
+Ward fact now explicitly identifies the old-quay discovery, rules out unconfirmed
+material/plate/tool/extra-infrastructure damage, and keeps later observations and
+restoration distinct. Rescue reward text consistently identifies the rescuing
+player-controlled hero rather than the ferryman/daughter. Bell-only presentation
+glossary supplies exact EN/RU object labels to the existing fresh-prose repair.
+A false roster prerequisite in AcknowledgeEcho reference was found by independent
+review and removed; the domain allows acknowledgment without that record.
+
+Legacy rescue request committed once: revision8→9, Tikhon home, Nora stillarchive,
+exactly10gold to Nora; delivery failed after108.112s with wrongrecipient and
+memory/new-route claims. Retry after recipient clarification kept revision9 and
+still failed after27.870s: its prose stated an unconfirmed sluice closure, then
+diagnostics incorrectly required an optional ward discovery. The DM brief was
+itself incorrectly using past closure language whenever ward damage was known;
+that source bug is fixed using the actual LowerSluiceSealed fact, including no
+unexamined cause disclosure on early unfinished endings.
+
+Independent requirement review identifies an additional FAIL: personally
+escorting Tikhon home requires hero travel, which legacy rescue_tikhon does not
+perform. This cannot be closed with NPC-only receipt or patched in narration.
+VERIFY now expressly checks effect sufficiency; a model-only replay of the actual
+wrong manifest produces valid=false. This paired probe is not universal intent
+accuracy, and the old saved binding/receipt remains truthful and unchanged.
+Next canonical capability must preserve old NPC-return and separately represent
+physical escort, with genuine hero arrival and existing replay/once-reward guards.
+Evidence: .artifacts/public-routes-3b75a3a/{build-proof-routes-only.json,
+build-proof-actions.json,build-proof-clarity.json,build-proof.json,captures,
+session-resume-report.json,locate-resume-report.json,remaining-report.json,
+rescue-before-closure-fix-report.json,escort-insufficiency-probe.json}.
+No default-model/reasoning promotion, native/physicalLAN/full-adventure acceptance.
+
+Final grounding checkpoint:18 lib,11 planning and40 workflow groups pass; frozen
+consolidated gates pass (960 Rust,1127 frontend, architecture/static/all-feature
+Clippy), final backend build succeeds. Latest source fixes are not promoted as a
+successful live narrative/physical escort run. Existing real failures and partial
+legacy intent remain documented. Original32 source hashes preserved; isolated QA
+processes stopped. Final-source binary proof: build-proof-final.json; executed
+older-binary evidence retains its separate proofs and captures.

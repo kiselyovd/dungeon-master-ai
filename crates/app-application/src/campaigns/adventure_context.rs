@@ -1,8 +1,56 @@
 //! Shared discovered narration facts and separate private DM context.
 use app_domain::adventure::{AdventureState, Ending, Fact, Location};
 
-const EXAMINED_WARD: &str = "At that inspection, fresh tool marks were found ON THE WARD (оберег), where the bell clapper (язык колокола) had been cut off and removed. The tool marks are on the ward itself, not on a wall or railings. The inspection did not locate the removed clapper. / При осмотре обнаружено: оберег повреждён; на самом обереге свежие следы инструмента в месте, где срезали и сняли язык колокола. Следы не на стене и не на перилах. Где снятый язык находится, осмотр не установил. This historical discovery does not override later confirmed recovery or restoration.";
-const QUAY_UPPER_PATH: &str = "The maintained upper path reaches the archive safely; a failed check never blocks every rescue route. / Верхняя тропа ведёт к архиву безопасно; неудачная проверка не перекрывает все пути спасения.";
+const EXAMINED_WARD: &str = "During the confirmed inspection AT THE OLD QUAY (старый причал), fresh tool marks were found ON THE WARD (оберег), where the bell clapper (язык колокола) had been cut off and removed. The tool marks are on the ward itself, not on a wall or railings. The inspection did not locate the removed clapper. / При подтверждённом осмотре НА СТАРОМ ПРИЧАЛЕ было обнаружено: оберег был повреждён; на самом обереге свежие следы инструмента в месте, где срезали и сняли язык колокола. Следы не на стене и не на перилах. Где снятый язык находится, осмотр не установил. This is a discovery at the old quay, not a new inspection at another location. It does not establish an observation of the ward in a different current scene. Only damage to the ward is confirmed; no damage to other river infrastructure is established by this discovery. Flooding is a consequence, not proof of broken gates. No material, plate construction, extra damage, residue or exact tool is confirmed. / Это прежнее открытие на причале, не новый осмотр в другом месте. Подтверждено повреждение оберега, не других сооружений переправы. Затопление не доказывает поломку затворов. Материал, устройство пластин, дополнительные повреждения, налёт и точное орудие не установлены. This historical discovery does not override later confirmed recovery or restoration.";
+const QUAY_UPPER_PATH: &str = "The maintained dry upper path connects the old quay and the archive safely; a failed check never blocks every rescue route. / Сухая верхняя тропа безопасно соединяет старый причал и архив; неудачная проверка не перекрывает все пути спасения.";
+
+const RESCUE_REWARD: &str = "Exactly ten gold were already granted once to the rescuing PLAYER-CONTROLLED HERO, not to the rescued ferryman or his daughter. No further reward is confirmed. / Ровно десять золотых уже один раз выданы игровому герою, спасшему паромщика, а не самому паромщику или его дочери. Дополнительной награды нет.";
+
+/// Public route aliases and their canonical parameters, never player permission.
+pub fn bell_public_route_references(state: &AdventureState) -> Vec<serde_json::Value> {
+    use app_domain::adventure::Action;
+    if state.package_id != app_domain::adventure::BELL_ADVENTURE_ID {
+        return vec![];
+    }
+    let destination = match state.location {
+        Location::Quay => Location::Archive,
+        Location::Archive => Location::Quay,
+        _ => return vec![],
+    };
+    let action = Action::Move(destination);
+    vec![serde_json::json!({
+        "from":state.location,"to":destination,"description":QUAY_UPPER_PATH,
+        "tool_name":"adventure_action","args":{"action":action},
+        "currently_available":state.available_actions().contains(&action),
+    })]
+}
+
+/// Meanings of currently offered canonical actions, without undiscovered outcomes.
+pub fn bell_public_action_references(state: &AdventureState) -> Vec<serde_json::Value> {
+    use app_domain::adventure::Action;
+    state.available_actions().into_iter().filter_map(|action| {
+        let purpose = match action {
+            Action::Move(_) => return None,
+            Action::InspectQuay => "Inspect the ward at the old quay. / Осмотреть оберег на старом причале.",
+            Action::TalkAgata => "Talk to Agata about the quay and porters. / Поговорить с Агатой о причале и грузчиках.",
+            Action::ConsultLeon => "Consult Leon about the ward and memorial records. / Расспросить Леона об обереге и памятных записях.",
+            Action::NegotiateClapper => "Seek recovery of the missing clapper through negotiation. / Договориться о возвращении пропавшего языка колокола.",
+            Action::RetrieveClapperPublicly => "Seek recovery of the missing clapper through public intervention. / Добиться возвращения языка колокола публичным вмешательством.",
+            Action::RepairClapper => "Repair the recovered clapper. / Починить найденный язык колокола.",
+            Action::LocateTikhon => "Call out or investigate the upper chamber looking for the missing ferryman Tikhon. This establishes no discovery until an engine result. / Окликнуть или разыскать пропавшего паромщика Тихона в верхней комнате; находка подтверждается только результатом действия.",
+            Action::RescueTikhon => "Help the found ferryman return safely home by the upper route. This canonical action does not change the hero's location. / Помочь найденному паромщику безопасно добраться домой по верхнему пути. Это действие не меняет местоположение героя.",
+            Action::RecoverRoster => "Recover the original memorial roll. / Получить оригинал памятного списка спасённых.",
+            Action::RecoverLedger => "Recover the land-ownership ledger. / Получить земельную книгу.",
+            Action::AcknowledgeEcho => "Address and acknowledge the echo. / Обратиться к отголоску и признать его.",
+            Action::RestoreWard => "Restore the ward using the required recovered ritual objects and knowledge. / Восстановить оберег с помощью необходимых найденных предметов и сведений.",
+            Action::SealSluice => "Close the existing lower sluice gates with their built-in mechanism. / Перекрыть нижний шлюз его существующим механизмом.",
+            Action::PublishLedger => "Publish the recovered land ledger in town. / Обнародовать найденную земельную книгу в городе.",
+            Action::Finish => "Record the actual outcome and end the session. / Записать фактический итог и завершить сессию.",
+            Action::StartDefense => "Begin the optional defensive encounter. / Начать защитный бой.",
+        };
+        Some(serde_json::json!({"tool_name":"adventure_action","args":{"action":action},"purpose":purpose,"currently_available":true}))
+    }).collect()
+}
 
 /// Discovered facts only. This must never include scene-scoped DM secrets.
 pub fn bell_public_narration_facts(
@@ -37,7 +85,7 @@ pub fn bell_public_narration_facts(
         );
     }
     if state.facts.contains(&Fact::RewardGranted) {
-        add("rescue_reward", "Exactly ten gold were already granted once for rescue. No additional reward is confirmed.", false);
+        add("rescue_reward", RESCUE_REWARD, false);
     }
     if state.facts.contains(&Fact::RosterAvailable) || state.facts.contains(&Fact::EchoAcknowledged)
     {
@@ -68,7 +116,7 @@ pub fn bell_dm_context(state: &AdventureState) -> String {
         "Tikhon has not been found yet. Describe clues, not a confirmed discovery or rescue. / Тихон ещё не найден: описывай следы, не объявляй находку или спасение."
     };
     let reward = if state.facts.contains(&Fact::RewardGranted) {
-        "Exactly ten gold were already granted once for rescue. Do not grant any more. / За спасение уже выданы ровно десять золотых; дополнительной награды нет."
+        RESCUE_REWARD
     } else {
         "No rescue reward has been granted yet. / Награда за спасение ещё не выдана."
     };
@@ -85,12 +133,12 @@ pub fn bell_dm_context(state: &AdventureState) -> String {
     };
     let ward = if state.facts.contains(&Fact::WardRestored) {
         "The ward is restored. / Оберег восстановлен."
-    } else if state.closed
-        || state.facts.contains(&Fact::WardDamaged)
+    } else if state.facts.contains(&Fact::LowerSluiceSealed) {
+        "The ward remains damaged. The lower sluice is CONFIRMED SEALED, but that did not banish or silence the echo. / Оберег повреждён. Нижний шлюз подтверждённо закрыт, но это не изгнало и не заставило замолчать отголосок."
+    } else if state.facts.contains(&Fact::WardDamaged)
         || state.facts.contains(&Fact::WardUnderstood)
-        || state.facts.contains(&Fact::LowerSluiceSealed)
     {
-        "The ward remains damaged. The echo has not been banished or silenced by closing the sluice. / Оберег повреждён. Закрытие шлюза не изгнало и не заставило замолчать отголосок."
+        "The ward is confirmed damaged. NO sluice closure is confirmed; the river danger and echo remain unresolved. Damage to the ward is not damage to the sluice. / Подтверждено повреждение оберега. Закрытие шлюза НЕ подтверждено; опасность реки и отголосок пока не разрешены. Повреждение оберега не означает поломку шлюза."
     } else {
         "The ward has not been examined by the hero yet. Describe visible surroundings, not a confirmed cause. / Герой ещё не исследовал оберег: описывай окружение, не объявляй причину."
     };
@@ -163,6 +211,18 @@ mod tests {
         assert!(bell_public_narration_facts(&state, false)
             .iter()
             .any(|fact| fact.id == "tikhon_rescued" && fact.text.contains("at home")));
+        state.facts.insert(Fact::RewardGranted);
+        let rewarded = bell_public_narration_facts(&state, false);
+        let reward = rewarded
+            .iter()
+            .find(|fact| fact.id == "rescue_reward")
+            .unwrap();
+        assert!(reward.text.contains("PLAYER-CONTROLLED HERO"));
+        assert!(reward.text.contains("not to the rescued ferryman"));
+        assert!(bell_dm_context(&state).contains(&reward.text));
+        assert!(ward
+            .text
+            .contains("no damage to other river infrastructure"));
         state.package_id = "different-adventure".into();
         assert!(bell_public_narration_facts(&state, true).is_empty());
     }
@@ -206,5 +266,22 @@ mod ending_tests {
         assert!(context.contains("do not call it again"));
         let state = AdventureState::new();
         assert!(!bell_dm_context(&state).contains("The ward remains damaged"));
+    }
+    #[test]
+    fn damage_does_not_claim_sluice_closure_or_reveal_an_unexamined_cause() {
+        let mut state = AdventureState::new();
+        state.location = Location::Archive;
+        state.facts.insert(Fact::WardDamaged);
+        let open = bell_dm_context(&state);
+        assert!(open.contains("NO sluice closure is confirmed"));
+        assert!(!open.contains("CONFIRMED SEALED"));
+        state.facts.insert(Fact::LowerSluiceSealed);
+        assert!(bell_dm_context(&state).contains("CONFIRMED SEALED"));
+        let mut debt = AdventureState::new();
+        debt.closed = true;
+        debt.ending = Some(Ending::UnfinishedDebt);
+        let context = bell_dm_context(&debt);
+        assert!(context.contains("ward has not been examined"));
+        assert!(!context.contains("The ward remains damaged"));
     }
 }

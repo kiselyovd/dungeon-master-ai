@@ -132,3 +132,17 @@ facts, followed by all fresh checks. A second denial terminates the attempt;
 malformed/truncated assessments remain errors. The private decision flag is not
 wire-deserializable, and clearing localized claims cannot promote a denial.
 Confirmed human actions are not repeated during this prose-only transition.
+
+
+Public intention context carries discovered facts, route aliases with complete
+canonical arguments, and public meanings of currently offered actions. These are
+references, not authorization or success evidence; eligibility and the actual
+engine outcome remain distinct. Historical discoveries retain their location
+and do not become new observations in another scene. The Bell label glossary
+translates terms without establishing that an object was found.
+
+Effect sufficiency matters as well as matching a tool name. Legacy
+`rescue_tikhon` returns the NPC but leaves the hero's scene unchanged; it cannot
+alone fulfill personal escort home. A physical escort needs supported canonical
+hero travel/composition. Old receipts and settled bindings must not be relabeled
+or retroactively execute new travel. This capability remains in progress.

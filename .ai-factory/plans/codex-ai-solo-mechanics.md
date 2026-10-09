@@ -732,3 +732,45 @@ scripted decisions are explicit and do not establish model quality. Archive rout
 verification and read-only question interpretation still fail on actual Qwen.
 Next: grounded public route references, DM question/action distinction, factual
 object-detail consistency, then full model/native/separate-device session proof.
+
+
+Grounded references and intent-completeness continuation:
+- [x] Public discovered facts, canonical Quay↔Archive route args and meanings of
+  currently offered actions reach planning and independent semantic checks, with
+  no NPC secrets/outcomes revealed before confirmation and no permission grant.
+- [x] Actual upper-route request executes MoveArchive once (revision6→7,
+  Done86.860s); actual call/search mapping executes LocateTikhon once
+  (revision7→8, Done57.839s). Initial narrative spatial/gate errors stay FAIL.
+- [x] Historical ward discovery explicitly stays at its confirmed old-quay origin;
+  materials/extra damage/tool type remain unknown. Reward explicitly belongs to
+  rescuing human hero, not rescued NPC. Safe Bell glossary reaches prose repair.
+- [x] DM brief no longer claims sluice closure without LowerSluiceSealed or exposes
+  unexamined ward cause just because an unfinished session is closed.
+- [x] Corrected AcknowledgeEcho description: no invented roster prerequisite.
+- [x] Semantic rule requires actual hero travel for personal escort; captured
+  Qwen check now rejects NPC-return-only as complete escort. Existing wrong cached
+  manifest/receipt is not rewritten or counted as full intent completion.
+- [x] Frozen final gates and scoped checkpoint (960 Rust,1127 frontend,
+  architecture/static and all-feature Clippy pass).
+- [ ] Preserve legacy NPC-return; implement separate canonical personal escort
+  that returns both Tikhon and initiating hero to Veresk, with server time/routes,
+  once-reward/replay/authority and snapshots. Add full args/catalog, exact supported
+  intention references, EN/RU choices using existing UI, actor/room integration
+  and browser evidence. Never silently add escort to an old settled receipt.
+- [ ] Fresh real peaceful/defensive full session, native and separate-device LAN.
+
+Physical escort is a verified gap: "Провожу Тихона домой" was mapped to legacy
+NPC-return, which put Tikhon home and granted10gold but left Nora in archive.
+The receipt does not satisfy hero travel. Narration cannot fix this state gap.
+Full session success remains unproven even if that legacy operation later emits
+Done. Subsequent rescue correction still failed (27.870s, revision9 unchanged),
+with an unconfirmed sluice-closure phrase originating in DM context and invalid
+optional-fact omission diagnostics. Source context fixes are recorded separately.
+
+Grounding checkpoint verification:18 lib,11 planner and40 workflow groups pass;
+full gates pass (960 Rust,1127 frontend), final backend build passes. Source review
+closed false Ack prerequisite and unconfirmed closure language; physical escort
+is explicitly unfulfilled by legacy NPC-return. The policy probe rejects that
+incomplete plan before new binding, but does not rewrite old cached wrong intent.
+No model/native/physicalLAN/full-session acceptance is claimed. Owned QA processes
+are stopped; original32 dirty source hashes remain preserved.

@@ -104,6 +104,86 @@ fn provider(replies: Vec<(Value, FinishReason)>) -> Arc<Provider> {
 fn command(quote: &str, occurrence: usize) -> Value {
     json!({"source":{"quote":quote,"occurrence":occurrence},"tool_name":"rest_action","args_json":json!({"kind":"wait","minutes":1}).to_string(),"unresolved":null,"condition":null})
 }
+
+#[tokio::test]
+async fn public_route_parameters_reach_both_checks_without_bypassing_human_permission() {
+    use app_application::{
+        agent::context::public_intention_context,
+        models::adventure::{AdventureProjection, AdventureState, Location},
+    };
+    let mut state = AdventureState::new();
+    state.location = Location::Quay;
+    for permitted in [false, true] {
+        let text = if permitted {
+            "Иду в затопленный архив по сухой верхней тропе."
+        } else {
+            "Иду в затопленный архив по подводному тоннелю."
+        };
+        let mut original = input(text);
+        original.public_context = public_intention_context(
+            Some(&AdventureProjection::from(state.clone())),
+            None,
+            Some("Нора"),
+        );
+        let proposal = json!({"commands":[{"source":{"quote":text,"occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"move","location":"archive"}}).to_string(),"unresolved":null,"condition":null,"repetition":null}],"constraints":[]});
+        let p = provider(vec![
+            (proposal, FinishReason::Stop),
+            (json!({"valid":permitted}), FinishReason::Stop),
+        ]);
+        let result = LlmHumanCommandPlanner::new(p.clone(), "saved-model".into())
+            .plan(original.clone())
+            .await;
+        assert_eq!(result.is_ok(), permitted);
+        let requests = p.requests.lock().unwrap();
+        assert_eq!(requests.len(), 2);
+        for (request, _) in requests.iter() {
+            let ChatMessage::User { parts } = &request.messages[0] else {
+                panic!("quoted input")
+            };
+            let MessagePart::Text { text: payload } = &parts[0] else {
+                panic!("text input")
+            };
+            let payload: Value = serde_json::from_str(payload).unwrap();
+            assert_eq!(payload["player_message"], text);
+            assert_eq!(
+                payload["public_context"]["public_routes"][0]["args"]["action"],
+                json!({"kind":"move","location":"archive"})
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn npc_return_semantic_denial_does_not_complete_a_personal_escort_request() {
+    use app_application::{
+        agent::context::public_intention_context,
+        models::adventure::{AdventureProjection, AdventureState, Fact, Location},
+    };
+    let text = "Провожу Тихона домой по безопасному пути.";
+    let mut state = AdventureState::new();
+    state.location = Location::Archive;
+    state.facts.insert(Fact::TikhonLocated);
+    let mut original = input(text);
+    original.public_context =
+        public_intention_context(Some(&AdventureProjection::from(state)), None, Some("Нора"));
+    let proposal = json!({"commands":[{"source":{"quote":text,"occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"rescue_tikhon"}}).to_string(),"unresolved":null,"condition":null,"repetition":null}],"constraints":[]});
+    let p = provider(vec![
+        (proposal, FinishReason::Stop),
+        (json!({"valid":false}), FinishReason::Stop),
+    ]);
+    assert!(LlmHumanCommandPlanner::new(p.clone(), "saved-model".into())
+        .plan(original)
+        .await
+        .is_err());
+    let requests = p.requests.lock().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1]
+        .0
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("NPC-return-only action"));
+}
 #[tokio::test]
 async fn quantified_source_expands_only_with_complete_group_and_semantic_count_approval() {
     let quote = "Жду минуту дважды";
