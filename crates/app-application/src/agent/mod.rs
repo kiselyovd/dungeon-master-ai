@@ -1,3 +1,4 @@
+pub mod command_planning;
 pub mod commands;
 pub mod context;
 pub mod hero_intentions;

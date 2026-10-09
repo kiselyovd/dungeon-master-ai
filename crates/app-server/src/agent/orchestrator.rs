@@ -70,9 +70,14 @@ pub struct AgentOrchestrator {
     gpu_swap: Option<Arc<crate::local_runtime::registry::ImageGpuSwap>>,
     player_verifier: Option<Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>>,
     narration_verifier: Option<Arc<dyn app_application::agent::narration::NarrationVerifier>>,
+    human_command_owner: Option<Uuid>,
 }
 
 impl AgentOrchestrator {
+    pub fn with_human_command_owner(mut self, owner: Uuid) -> Self {
+        self.human_command_owner = Some(owner);
+        self
+    }
     pub fn with_player_verifier(
         mut self,
         verifier: Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>,
@@ -104,6 +109,7 @@ impl AgentOrchestrator {
             gpu_swap: None,
             player_verifier: None,
             narration_verifier: None,
+            human_command_owner: None,
         }
     }
 
@@ -187,7 +193,7 @@ impl AgentOrchestrator {
                 store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
             }),
         ));
-        let service = Arc::new(AgentTurnService::new(
+        let service = AgentTurnService::new(
             self.provider.clone(),
             Arc::new(LegacyContextAdapter {
                 store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
@@ -216,7 +222,25 @@ impl AgentOrchestrator {
                 player_verifier: self.player_verifier.clone(),
                 narration_verifier: self.narration_verifier.clone(),
             },
-        ));
+        );
+        let service = if let Some(owner) = self.human_command_owner {
+            service.with_human_commands(
+                Arc::new(adapter_sqlite::human_commands::SoloHumanCommandLedger::new(
+                    adapter_sqlite::SqliteStore::new(self.pool.clone()),
+                    Uuid::parse_str(&request_id)?,
+                    owner,
+                )),
+                Arc::new(
+                    app_application::agent::command_planning::LlmHumanCommandPlanner::new(
+                        self.provider.clone(),
+                        self.config.model.clone(),
+                    ),
+                ),
+            )
+        } else {
+            service
+        };
+        let service = Arc::new(service);
         let command = AgentTurnCommand {
             request_id,
             request,

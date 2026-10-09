@@ -19,8 +19,8 @@ a specific refusal guard matches its actual code. The same canonical nonce canno
 close two commands. Exact replay retains its original binding, parameters and
 nonce. Unresolved future targets remain visible and cannot be silently completed.
 
-`HumanCommandLedgerRepository` is an inward-owned private port. Its future
-adapters must derive actor/operation scope from protected storage and current
+`HumanCommandLedgerRepository` is an inward-owned private port. Its SQLite
+adapters derive actor/operation scope from protected storage and current
 authority, validate against the original request, and allocate binding identities
 atomically with tool preparation. Existing tool `command_json` signatures remain
 unchanged. Client history and narration cannot supply completion evidence.
@@ -41,15 +41,52 @@ New-effect transactions reject stale prepared context, durable refusals and
 unbound legacy preparation for turns that already have a manifest. Truly legacy
 turns and manual room commands retain their existing signatures and contracts.
 
-Model manifest generation/verification, trusted future-target
-resolution and replacement of the runtime completion loop are **not wired yet**.
-Legacy unbound operations need conservative recovery; this foundation does not
-make old effects repeatable or claim live session/LAN acceptance.
+The current runtime integration obtains the protected original request, generates
+one ordered manifest and independently checks its meaning before persistence.
+The planner uses closed structured-output schemas; canonical arguments travel as
+a JSON string and still pass the existing typed decoder. Production solo and room
+factories attach the owner-scoped repository when player verification is enabled.
+The shared turn service derives completion from canonical journal progress rather
+than asking the model to reinterpret completed attempts. Every new effect still
+needs semantic permission and an atomic binding. Exact prepared permission is
+reused after current authority/signature/context checks; a recorded refusal can be
+delivered again without a second effect or a fresh permission guess.
+
+Migration0021 adds private clarification and final-narration metadata. An unresolved
+goal can now resolve against current public reference labels and authenticated
+replies, with an independent semantic check. If a choice is still missing, an
+independently checked question is delivered with `agent_needs_input`, rather than
+`agent_done`. Durable delivery sends that terminal only after the incomplete
+operation status commits. Replies refer to the server-generated question UUID
+and resume the original request; they cannot rewrite a resolved/bound goal.
+
+Question metadata and its bound chat message commit atomically. Re-delivery uses
+the same question identity without appending another message. Verified final
+narration and its bound message also commit atomically; a crash before AgentDone
+does not require another provider call. Native transport preserves its encrypted
+outbox and private question marker for needs-input, validates exact original
+request/reply transitions, and clears the outbox only after final completion.
+
+The read-only `/agent/pending` endpoint restores the latest incomplete verified
+solo operation for the current accepted actor/session/restore generation. Active
+room state is excluded. It preserves the original wire history, model, images,
+board and either an unanswered question or an already accepted reply. After an
+uncertain stream outcome the hook rechecks this protected state before starting
+another request. Remount can retry the exact accepted reply and original UUID.
+The endpoint selects running/interrupted operations; it does not track client ACKs
+for operations already marked complete. Checked final text remains in chat history.
+
+This integration is still under full verification.
+Quantified repeated actions, conservative legacy recovery, complete post-change
+gates and real-model/native/separate-device session acceptance remain outstanding.
+Focused SQL/runtime, frontend and production-browser fixture checks do not prove
+a complete live Qwen or physical LAN session.
 
 Focused checks:
 
 ```powershell
 cargo test -p app-application --test human_commands_tests --test workflow_tests
+cargo test -p app-application --test command_planning_tests
 cargo test -p adapter-sqlite --test human_commands --test agent_operations
 cargo test -p app-server --test room_dm_turns
 bun run architecture:check

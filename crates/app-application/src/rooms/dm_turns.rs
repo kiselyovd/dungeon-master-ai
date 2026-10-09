@@ -83,6 +83,8 @@ pub struct RoomDmRunner {
     config: AgentTurnConfig,
     lane: Arc<Mutex<()>>,
     process_owner: Uuid,
+    human_commands: Option<Arc<dyn crate::agent::human_commands::HumanCommandLedgerRepository>>,
+    clarification: Option<crate::agent::human_commands::HumanCommandClarificationReply>,
 }
 impl RoomDmRunner {
     pub fn new(
@@ -98,7 +100,23 @@ impl RoomDmRunner {
             config,
             lane,
             process_owner,
+            human_commands: None,
+            clarification: None,
         }
+    }
+    pub fn with_human_commands(
+        mut self,
+        repository: Arc<dyn crate::agent::human_commands::HumanCommandLedgerRepository>,
+    ) -> Self {
+        self.human_commands = Some(repository);
+        self
+    }
+    pub fn with_clarification_reply(
+        mut self,
+        reply: Option<crate::agent::human_commands::HumanCommandClarificationReply>,
+    ) -> Self {
+        self.clarification = reply;
+        self
     }
     #[tracing::instrument(skip_all,fields(turn_id=%self.ports.turn_id,resume))]
     pub async fn execute(
@@ -106,6 +124,13 @@ impl RoomDmRunner {
         player_message: String,
         resume: bool,
     ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, RepositoryError> {
+        if self
+            .clarification
+            .as_ref()
+            .is_some_and(|reply| !reply.valid() || !resume)
+        {
+            return Err(rejected("human_command_clarification_invalid"));
+        }
         let lane = self
             .lane
             .clone()
@@ -141,6 +166,8 @@ impl RoomDmRunner {
             provider: self.provider.clone(),
             config,
             lane: std::sync::Mutex::new(Some(lane)),
+            human_commands: self.human_commands.clone(),
+            clarification: self.clarification.clone(),
         });
         let receiver = DurableAgentTurns::new(self.ports.clone(), driver, self.process_owner)
             .execute_mode(input, resume)
@@ -153,6 +180,8 @@ struct RoomDmDriver {
     provider: Arc<dyn LlmProvider>,
     config: AgentTurnConfig,
     lane: std::sync::Mutex<Option<OwnedMutexGuard<()>>>,
+    human_commands: Option<Arc<dyn crate::agent::human_commands::HumanCommandLedgerRepository>>,
+    clarification: Option<crate::agent::human_commands::HumanCommandClarificationReply>,
 }
 struct RoomCancellation {
     ports: Arc<RoomAgentPorts>,
@@ -177,11 +206,22 @@ impl RoomDmDriver {
         sender: mpsc::Sender<AgentEvent>,
         cancel: Arc<TurnCancellation>,
     ) -> Result<(), &'static str> {
+        if let Some(reply) = &self.clarification {
+            if messages.is_none() {
+                return Err("human_command_clarification_invalid");
+            }
+            self.human_commands
+                .as_ref()
+                .ok_or("human_command_clarification_unavailable")?
+                .submit_clarification_reply(reply.id, reply.reply.clone())
+                .await
+                .map_err(|_| "human_command_clarification_invalid")?;
+        }
         let cancellation = Arc::new(RoomCancellation {
             ports: self.ports.clone(),
             caller: cancel,
         });
-        let engine = Arc::new(AgentTurnService::new(
+        let engine = AgentTurnService::new(
             self.provider.clone(),
             self.ports.clone(),
             self.ports.clone(),
@@ -190,7 +230,19 @@ impl RoomDmDriver {
             Arc::new(NoopApplicationEventSink),
             cancellation,
             self.config.clone(),
-        ));
+        );
+        let engine = if let Some(repository) = &self.human_commands {
+            engine.with_human_commands(
+                repository.clone(),
+                Arc::new(crate::agent::command_planning::LlmHumanCommandPlanner::new(
+                    self.provider.clone(),
+                    self.config.model.clone(),
+                )),
+            )
+        } else {
+            engine
+        };
+        let engine = Arc::new(engine);
         let mut stream = engine.execute_recovered(
             AgentTurnCommand {
                 request_id: input.request_id.to_string(),

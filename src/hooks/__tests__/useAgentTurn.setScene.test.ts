@@ -1,5 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../api/agentPending', () => ({ getPendingAgentClarification: async () => null }));
+
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { useStore } from '../../state/useStore';
 import { useAgentTurn } from '../useAgentTurn';

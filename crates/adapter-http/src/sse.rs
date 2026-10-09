@@ -82,6 +82,14 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
             "agent_done",
             serde_json::json!({ "total_rounds": total_rounds }),
         ),
+        AgentEvent::AgentNeedsInput {
+            clarification_id,
+            command_id,
+            total_rounds,
+        } => (
+            "agent_needs_input",
+            serde_json::json!({"clarification_id":clarification_id,"command_id":command_id,"total_rounds":total_rounds}),
+        ),
     }
 }
 

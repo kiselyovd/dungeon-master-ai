@@ -228,6 +228,8 @@ pub trait SettingsHttpService: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct AgentTurnHttpCommand {
+    pub clarification:
+        Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
     pub resume: bool,
     pub request_id: Option<Uuid>,
     pub request: AgentTurnRequest,
@@ -236,6 +238,16 @@ pub struct AgentTurnHttpCommand {
 
 #[async_trait]
 pub trait AgentHttpService: Send + Sync {
+    async fn pending_clarification(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        Ok(None)
+    }
     async fn turn(
         &self,
         command: AgentTurnHttpCommand,
@@ -322,6 +334,23 @@ pub struct HttpServices {
 
 #[async_trait]
 pub trait RoomDmHttpService: Send + Sync {
+    async fn turn_with_clarification(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+        clarification: Option<
+            app_application::agent::human_commands::HumanCommandClarificationReply,
+        >,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        if clarification.is_some() {
+            return Err(HttpServiceError::BadRequest {
+                code: "human_command_clarification_unavailable",
+            });
+        }
+        self.turn(subject, request_id, player_message, resume).await
+    }
     async fn turn(
         &self,
         subject: app_application::rooms::RoomSubject,

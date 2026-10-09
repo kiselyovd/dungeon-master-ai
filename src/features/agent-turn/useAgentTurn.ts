@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { streamAgentTurn } from '../../api/agent';
+import { getPendingAgentClarification } from '../../api/agentPending';
 import type { AgentTurnRequest } from '../../api/contracts/agent';
 import { ChatError } from '../../api/errors';
 import { buildBoardSnapshot } from './model/boardSnapshot';
@@ -29,12 +30,25 @@ function awaitPreparation(task: Promise<void> | undefined, signal: AbortSignal):
 }
 
 export function useAgentTurn(ports: AgentTurnPorts) {
-  const pending = useRef<{ signature: string; input: AgentTurnRequest; started: boolean } | null>(
-    null,
-  );
+  const pending = useRef<{
+    signature: string;
+    scopeSignature: string;
+    input: AgentTurnRequest;
+    started: boolean;
+    clarificationId?: string;
+    replayHistoryLength: number;
+  } | null>(null);
+  const probedScopes = useRef(new Set<string>());
+  const probing = useRef(false);
   const send = useCallback(
     async (text: string, images?: Parameters<AgentTurnPorts['chat']['appendUser']>[1]) => {
-      if (!text.trim() || ports.chat.isStreaming() || ports.session.mutationPending?.()) return;
+      if (
+        !text.trim() ||
+        probing.current ||
+        ports.chat.isStreaming() ||
+        ports.session.mutationPending?.()
+      )
+        return;
       const active = ports.session.current();
       if (active === null) {
         ports.chat.setError({ code: 'campaign_required', message: 'campaign_required' });
@@ -43,8 +57,7 @@ export function useAgentTurn(ports: AgentTurnPorts) {
       const { campaignId, sessionId } = active;
       const generation = ports.session.generation?.();
       const signature = JSON.stringify({ campaignId, sessionId, generation, text, images });
-      const replay = pending.current?.signature === signature ? pending.current.input : null;
-      const resume = Boolean(replay && pending.current?.started);
+      const scopeSignature = JSON.stringify({ campaignId, sessionId, generation });
       const isCurrent = () => {
         const current = ports.session.current();
         return (
@@ -53,12 +66,68 @@ export function useAgentTurn(ports: AgentTurnPorts) {
           (generation === undefined || ports.session.generation?.() === generation)
         );
       };
-      ports.chat.clearTurnEvents();
-      if (replay) ports.chat.prepareReplay?.(replay.history.length);
-      const history = structuredClone(ports.chat.history());
-      ports.chat.appendUser(text, images);
       const controller = new AbortController();
       ports.chat.begin(controller);
+      if (!probedScopes.current.has(scopeSignature)) {
+        probing.current = true;
+        let readCompleted = false;
+        try {
+          const restored = await getPendingAgentClarification(
+            campaignId,
+            sessionId,
+            controller.signal,
+          );
+          if (!isCurrent() || controller.signal.aborted) return;
+          probedScopes.current.add(scopeSignature);
+          if (restored)
+            pending.current = {
+              signature:
+                !restored.clarificationId &&
+                text === (restored.input.clarification?.reply ?? restored.input.playerMessage)
+                  ? signature
+                  : '',
+              scopeSignature,
+              input: restored.input,
+              started: true,
+              ...(restored.clarificationId ? { clarificationId: restored.clarificationId } : {}),
+              replayHistoryLength:
+                !restored.clarificationId &&
+                pending.current?.scopeSignature === scopeSignature &&
+                pending.current.input.requestId === restored.input.requestId
+                  ? pending.current.replayHistoryLength
+                  : ports.chat.history().length,
+            };
+          readCompleted = true;
+        } catch (error) {
+          if (isCurrent()) ports.chat.setError(ChatError.from(error).toPayload());
+          return;
+        } finally {
+          probing.current = false;
+          if (!readCompleted && isCurrent()) {
+            ports.chat.finalize();
+            ports.chat.end();
+          }
+        }
+      }
+      const awaited = pending.current;
+      const answering =
+        awaited?.scopeSignature === scopeSignature && awaited.clarificationId
+          ? { input: awaited.input, id: awaited.clarificationId }
+          : null;
+      const replay = answering
+        ? { ...answering.input, clarification: { id: answering.id, reply: text } }
+        : pending.current?.signature === signature
+          ? pending.current.input
+          : null;
+      const resume = Boolean(replay && pending.current?.started);
+      const replayHistoryLength =
+        replay && !answering
+          ? (pending.current?.replayHistoryLength ?? replay.history.length)
+          : ports.chat.history().length;
+      ports.chat.clearTurnEvents();
+      if (replay) ports.chat.prepareReplay?.(replayHistoryLength);
+      const history = structuredClone(ports.chat.history());
+      ports.chat.appendUser(text, images);
       const board = buildBoardSnapshot(ports.combat.boardState(), ports.session.currentSceneName());
       const input: AgentTurnRequest = replay ?? {
         requestId: crypto.randomUUID(),
@@ -69,7 +138,7 @@ export function useAgentTurn(ports: AgentTurnPorts) {
         ...(images && images.length > 0 ? { images: structuredClone(images) } : {}),
         ...(board ? { board } : {}),
       };
-      pending.current = { signature, input, started: resume };
+      pending.current = { signature, scopeSignature, input, started: resume, replayHistoryLength };
       const reducerState = createAgentEventReducerState();
       try {
         await awaitPreparation(ports.prepareProvider?.(), controller.signal);
@@ -80,13 +149,27 @@ export function useAgentTurn(ports: AgentTurnPorts) {
           ...(resume ? { resume: true } : {}),
           signal: controller.signal,
           onEvent: (event) => {
+            const currentPending = pending.current;
+            if (
+              isCurrent() &&
+              !controller.signal.aborted &&
+              event.type === 'agent_needs_input' &&
+              currentPending &&
+              currentPending.input.requestId === input.requestId
+            )
+              currentPending.clarificationId = event.clarificationId;
             if (isCurrent() && !controller.signal.aborted)
               reduceAgentEvent(event, { campaignId }, reducerState, ports);
           },
         });
-        if (isCurrent() && pending.current?.input.requestId === input.requestId)
+        if (
+          isCurrent() &&
+          pending.current?.input.requestId === input.requestId &&
+          !pending.current.clarificationId
+        )
           pending.current = null;
       } catch (error) {
+        probedScopes.current.delete(scopeSignature);
         if (isCurrent()) ports.chat.setError(ChatError.from(error).toPayload());
       } finally {
         if (isCurrent()) {

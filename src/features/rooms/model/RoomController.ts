@@ -220,6 +220,15 @@ export class RoomController {
   async sendDm(text: string) {
     if (!text.trim() || !this.view.state?.own_character) return;
     if (this.view.pending) {
+      if (this.view.pending.kind === 'dm_turn' && this.view.pending.awaiting_clarification) {
+        await this.runDm({
+          ...this.view.pending,
+          resume: true,
+          awaiting_clarification: undefined,
+          clarification: { id: this.view.pending.awaiting_clarification, reply: text },
+        });
+        return;
+      }
       this.patch({ errorCode: 'native_room_action_pending' });
       return;
     }

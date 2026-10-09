@@ -93,6 +93,11 @@ pub struct AgentTurnService {
     cancellation: Arc<dyn CancellationSignal>,
     config: AgentTurnConfig,
     claimed_requests: Mutex<HashSet<String>>,
+    human_commands: Option<DurableHumanCommands>,
+}
+struct DurableHumanCommands {
+    repository: Arc<dyn super::human_commands::HumanCommandLedgerRepository>,
+    planner: Arc<dyn super::command_planning::HumanCommandPlanner>,
 }
 
 impl AgentTurnService {
@@ -117,7 +122,20 @@ impl AgentTurnService {
             cancellation,
             config,
             claimed_requests: Mutex::new(HashSet::new()),
+            human_commands: None,
         }
+    }
+    /// One repository scoped to this operation's authenticated current owner.
+    pub fn with_human_commands(
+        mut self,
+        repository: Arc<dyn super::human_commands::HumanCommandLedgerRepository>,
+        planner: Arc<dyn super::command_planning::HumanCommandPlanner>,
+    ) -> Self {
+        self.human_commands = Some(DurableHumanCommands {
+            repository,
+            planner,
+        });
+        self
     }
 
     pub fn execute(
@@ -177,13 +195,53 @@ impl AgentTurnService {
         self.ensure_not_cancelled()?;
         let request = command.request;
         let user_message = user_message(&request);
+        if let Some(commands) = &self.human_commands {
+            if let Some(saved) = commands
+                .repository
+                .load_current()
+                .await
+                .map_err(|_| AgentTurnError::ToolDispatch("human_command_recovery_failed"))?
+                .and_then(|ledger| ledger.final_narration)
+            {
+                let (scope, message) = commands
+                    .repository
+                    .original_request()
+                    .await
+                    .map_err(|_| AgentTurnError::ToolDispatch("human_command_scope_invalid"))?;
+                if scope.request_id.to_string() != command.request_id
+                    || scope.campaign_id != request.campaign_id
+                    || scope.session_id != request.session_id
+                    || message != request.player_message
+                {
+                    return Err(AgentTurnError::ToolDispatch("human_command_scope_invalid"));
+                }
+                let mut sequence = 0;
+                self.emit(
+                    request.session_id,
+                    &mut sequence,
+                    AgentEvent::TextDelta { text: saved.text },
+                    tx,
+                )
+                .await?;
+                self.emit(
+                    request.session_id,
+                    &mut sequence,
+                    AgentEvent::AgentDone { total_rounds: 0 },
+                    tx,
+                )
+                .await?;
+                return Ok(());
+            }
+        }
         let checkpoint = checkpoint.map(|mut messages| {
             // A whitespace draft is not a completed DM answer, including older checkpoints.
             while matches!(messages.last(),Some(ChatMessage::Assistant {content}) if content.trim().is_empty()) {messages.pop();}
             messages
         }).filter(|messages| !messages.is_empty());
-        if let Some(ChatMessage::Assistant { content }) =
-            checkpoint.as_ref().and_then(|saved| saved.last())
+        if let Some(ChatMessage::Assistant { content }) = checkpoint
+            .as_ref()
+            .filter(|_| self.human_commands.is_none())
+            .and_then(|saved| saved.last())
         {
             let mut sequence = 0;
             self.emit(
@@ -224,6 +282,12 @@ impl AgentTurnService {
         let mut system_prompt =
             append_board(context.system_prompt.clone(), request.board.as_deref());
         let controlled_turn = self.config.player_verifier.is_some();
+        self.initialize_human_commands(
+            &command.request_id,
+            &request,
+            &context.public_intention_context,
+        )
+        .await?;
         let mut resolved_intentions = if controlled_turn {
             checkpoint
                 .as_ref()
@@ -234,7 +298,7 @@ impl AgentTurnService {
             Vec::new()
         };
         let mut player_intention_resolved = false;
-        if controlled_turn && !resolved_intentions.is_empty() {
+        if controlled_turn && (!resolved_intentions.is_empty() || self.human_commands.is_some()) {
             let decision = self
                 .assess_player(
                     &request.player_message,
@@ -295,6 +359,19 @@ impl AgentTurnService {
                 Vec::new()
             };
             let recovering_tools = !tool_calls.is_empty();
+            if !recovering_tools
+                && self
+                    .resolve_pending_command(
+                        request.session_id,
+                        &context.public_intention_context,
+                        total_rounds,
+                        &mut sequence,
+                        tx,
+                    )
+                    .await?
+            {
+                return Ok(());
+            }
             let mut finish_reason = if recovering_tools {
                 FinishReason::ToolUse
             } else {
@@ -307,7 +384,7 @@ impl AgentTurnService {
                     max_tokens: Some(2048),
                     temperature: Some(self.config.temperature),
                     tools: tools.clone(),
-                    system_prompt: Some(system_prompt.clone()),
+                    system_prompt: Some(self.command_system_prompt(&system_prompt).await?),
                     reasoning: self
                         .config
                         .reasoning_enabled
@@ -469,15 +546,27 @@ impl AgentTurnService {
                     })
                 } else {
                     Some(ChatMessage::AssistantWithToolCalls {
-                        content: (!round_text.trim().is_empty()).then_some(round_text.clone()),
+                        content: (!(controlled_turn || self.config.narration_verifier.is_some())
+                            && !round_text.trim().is_empty())
+                        .then_some(round_text.clone()),
                         tool_calls: tool_calls.clone(),
                     })
                 };
                 if let Some(message) = assistant_message {
-                    self.messages
-                        .append(request.session_id, message.clone())
-                        .await
-                        .map_err(|_| AgentTurnError::Persistence)?;
+                    if let (Some(commands), ChatMessage::Assistant { content }) =
+                        (&self.human_commands, &message)
+                    {
+                        commands
+                            .repository
+                            .record_final_narration(content.clone())
+                            .await
+                            .map_err(|_| AgentTurnError::Persistence)?;
+                    } else {
+                        self.messages
+                            .append(request.session_id, message.clone())
+                            .await
+                            .map_err(|_| AgentTurnError::Persistence)?;
+                    }
                     messages.push(message);
                 }
                 if (controlled_turn || self.config.narration_verifier.is_some())
@@ -570,6 +659,11 @@ impl AgentTurnService {
                             })
                             .await
                             .map_err(|error| AgentTurnError::ToolDispatch(error.code))?;
+                        let recorded = if recorded.is_none() {
+                            self.replay_human_refusal(tool_call).await?
+                        } else {
+                            recorded
+                        };
                         if let Some(recorded) = recorded {
                             if let Some(rejected) = super::intentions::recognized_resolution(
                                 recorded.is_error,
@@ -613,15 +707,20 @@ impl AgentTurnService {
                                 media: vec![],
                             });
                         } else {
-                            let decision = self
-                                .assess_player(
+                            let decision = if let Some(prepared) =
+                                self.prepared_human_permission(tool_call).await?
+                            {
+                                prepared
+                            } else {
+                                self.assess_player(
                                     &request.player_message,
                                     Some((tool_call.name.clone(), tool_call.args.clone())),
                                     &resolved_intentions,
                                     &messages,
                                     &context.public_intention_context,
                                 )
-                                .await?;
+                                .await?
+                            };
                             if decision.allowed {
                                 permission = Some(decision);
                             } else {
@@ -652,6 +751,9 @@ impl AgentTurnService {
                 } else {
                     match decode_tool_call(&tool_call.name, &tool_call.args) {
                         Ok(decoded) => {
+                            if permission.is_some() {
+                                self.prepare_human_call(tool_call, &decoded).await?;
+                            }
                             if is_media_tool(&tool_call.name) {
                                 self.runtime
                                     .acquire_for(&tool_call.name)
@@ -693,7 +795,28 @@ impl AgentTurnService {
                                         rejected,
                                     },
                                 );
-                                player_intention_resolved = !decision.further_requested;
+                                if let Some(commands) = &self.human_commands {
+                                    if rejected {
+                                        let code = execution.result["error"].as_str().ok_or(
+                                            AgentTurnError::ToolDispatch(
+                                                "player_resolution_uncertain",
+                                            ),
+                                        )?;
+                                        commands
+                                            .repository
+                                            .record_refusal(&tool_call.id, code)
+                                            .await
+                                            .map_err(|_| {
+                                                AgentTurnError::ToolDispatch(
+                                                    "human_command_outcome_uncertain",
+                                                )
+                                            })?;
+                                    }
+                                    player_intention_resolved =
+                                        self.human_commands_finished().await?;
+                                } else {
+                                    player_intention_resolved = !decision.further_requested;
+                                }
                             }
                             execution
                         }
@@ -909,13 +1032,28 @@ impl AgentTurnService {
         conversation: &[ChatMessage],
         public_context: &Value,
     ) -> Result<super::intentions::PlayerIntentionDecision, AgentTurnError> {
+        if candidate.is_none() && self.human_commands.is_some() {
+            return Ok(super::intentions::PlayerIntentionDecision {
+                allowed: false,
+                further_requested: !self.human_commands_finished().await?,
+            });
+        }
         let verifier = self
             .config
             .player_verifier
             .as_ref()
             .ok_or(AgentTurnError::ToolDispatch("player_verifier_missing"))?;
         let check = super::intentions::PlayerIntentionCheck {
-            player_message: player_message.into(),
+            player_message: if self.human_commands.is_some() {
+                let replies=self.current_human_commands().await?.clarifications.into_iter().filter(|entry|entry.reply.is_some()).map(|entry|json!({"command_id":entry.command_id,"question":entry.question,"reply":entry.reply})).collect::<Vec<_>>();
+                if replies.is_empty() {
+                    player_message.into()
+                } else {
+                    format!("{player_message}\nAuthenticated clarifications from this SAME human for pending commands: {}",json!(replies))
+                }
+            } else {
+                player_message.into()
+            },
             candidate,
             resolved: resolved.to_vec(),
             conversation: conversation.to_vec(),
@@ -928,6 +1066,320 @@ impl AgentTurnService {
             "player intention checked"
         );
         Ok(decision)
+    }
+    async fn initialize_human_commands(
+        &self,
+        request_id: &str,
+        request: &AgentTurnRequest,
+        public_context: &Value,
+    ) -> Result<(), AgentTurnError> {
+        let Some(commands) = &self.human_commands else {
+            return Ok(());
+        };
+        if self.config.player_verifier.is_none() {
+            return Err(AgentTurnError::ToolDispatch("player_verifier_missing"));
+        }
+        let (scope, message) = commands
+            .repository
+            .original_request()
+            .await
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_scope_invalid"))?;
+        if scope.request_id.to_string() != request_id
+            || scope.campaign_id != request.campaign_id
+            || scope.session_id != request.session_id
+            || message != request.player_message
+        {
+            return Err(AgentTurnError::ToolDispatch("human_command_scope_invalid"));
+        }
+        if commands
+            .repository
+            .load_current()
+            .await
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_recovery_failed"))?
+            .is_some()
+        {
+            return Ok(());
+        }
+        let mut tools = self.config.tools.exploration.clone();
+        for tool in &self.config.tools.combat {
+            if !tools.iter().any(|existing| existing.name == tool.name) {
+                tools.push(tool.clone());
+            }
+        }
+        tools.retain(|tool| player_resolution_tool(&tool.name));
+        let input = super::command_planning::CommandPlanningInput {
+            scope,
+            player_message: message,
+            public_context: public_context.clone(),
+            tools,
+        };
+        let manifest = tokio::select! {biased;_ = self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),result=commands.planner.plan(input)=>result.map_err(|_|AgentTurnError::ToolDispatch("human_command_planning_unavailable"))?};
+        commands
+            .repository
+            .save_verified_manifest(manifest)
+            .await
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_manifest_failed"))?;
+        Ok(())
+    }
+    async fn current_human_commands(
+        &self,
+    ) -> Result<super::human_commands::StoredHumanCommandLedger, AgentTurnError> {
+        self.human_commands
+            .as_ref()
+            .ok_or(AgentTurnError::ToolDispatch(
+                "human_command_repository_missing",
+            ))?
+            .repository
+            .load_current()
+            .await
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_recovery_failed"))?
+            .ok_or(AgentTurnError::ToolDispatch(
+                "human_command_manifest_missing",
+            ))
+    }
+    async fn resolve_pending_command(
+        &self,
+        session_id: uuid::Uuid,
+        public_context: &Value,
+        rounds: usize,
+        sequence: &mut u64,
+        tx: &mpsc::Sender<Result<AgentEvent, AgentTurnError>>,
+    ) -> Result<bool, AgentTurnError> {
+        let Some(commands) = &self.human_commands else {
+            return Ok(false);
+        };
+        let ledger = self.current_human_commands().await?;
+        let Some(command_id) = ledger
+            .resolution_command()
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_progress_invalid"))?
+        else {
+            return Ok(false);
+        };
+        let question = if let Some(entry) = ledger
+            .clarifications
+            .last()
+            .filter(|entry| entry.reply.is_none())
+        {
+            commands
+                .repository
+                .record_clarification(entry.command_id, entry.question.clone())
+                .await
+                .map_err(|_| AgentTurnError::Persistence)?
+        } else {
+            let (scope, message) = commands
+                .repository
+                .original_request()
+                .await
+                .map_err(|_| AgentTurnError::ToolDispatch("human_command_scope_invalid"))?;
+            let mut tools = self.config.tools.exploration.clone();
+            for tool in &self.config.tools.combat {
+                if !tools.iter().any(|old| old.name == tool.name) {
+                    tools.push(tool.clone());
+                }
+            }
+            tools.retain(|tool| player_resolution_tool(&tool.name));
+            let input = super::command_planning::CommandResolutionInput {
+                original: super::command_planning::CommandPlanningInput {
+                    scope,
+                    player_message: message,
+                    public_context: public_context.clone(),
+                    tools,
+                },
+                manifest: ledger.manifest,
+                command_id,
+                clarifications: ledger.clarifications,
+            };
+            let result = tokio::select! {biased;_ = self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),result=commands.planner.resolve(input)=>result.map_err(|_|AgentTurnError::ToolDispatch("human_command_resolution_unavailable"))?};
+            match result {
+                super::command_planning::HumanCommandResolution::Resolved(action) => {
+                    commands
+                        .repository
+                        .resolve_verified_goal(command_id, action)
+                        .await
+                        .map_err(|_| {
+                            AgentTurnError::ToolDispatch("human_command_resolution_invalid")
+                        })?;
+                    return Ok(false);
+                }
+                super::command_planning::HumanCommandResolution::NeedsInput(question) => commands
+                    .repository
+                    .record_clarification(command_id, question)
+                    .await
+                    .map_err(|_| {
+                        AgentTurnError::ToolDispatch("human_command_clarification_invalid")
+                    })?,
+            }
+        };
+        self.emit(
+            session_id,
+            sequence,
+            AgentEvent::TextDelta {
+                text: question.question,
+            },
+            tx,
+        )
+        .await?;
+        self.emit(
+            session_id,
+            sequence,
+            AgentEvent::AgentNeedsInput {
+                clarification_id: question.id,
+                command_id,
+                total_rounds: rounds,
+            },
+            tx,
+        )
+        .await?;
+        Ok(true)
+    }
+    async fn human_commands_finished(&self) -> Result<bool, AgentTurnError> {
+        let ledger = self.current_human_commands().await?;
+        let progress = ledger
+            .manifest
+            .progress(&ledger.bindings, &ledger.receipts)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_progress_invalid"))?;
+        Ok(progress.iter().all(|(_, status)| status.closed()))
+    }
+    async fn command_system_prompt(&self, prompt: &str) -> Result<String, AgentTurnError> {
+        if self.human_commands.is_none() {
+            return Ok(prompt.into());
+        }
+        let ledger = self.current_human_commands().await?;
+        let progress = ledger
+            .manifest
+            .progress(&ledger.bindings, &ledger.receipts)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_progress_invalid"))?;
+        let commands=ledger.manifest.commands.iter().zip(progress).map(|(command,(_,status))|json!({"id":command.id,"source":command.source.quote,"goal":command.goal,"condition":command.condition,"status":format!("{status:?}")})).collect::<Vec<_>>();
+        let bindings=ledger.bindings.iter().map(|binding|json!({"command_id":binding.command_id,"tool_call_id":binding.tool_call_id,"action":binding.signature,"terminal":binding.terminal})).collect::<Vec<_>>();
+        Ok(format!("{prompt}\nThe server's durable command ledger below is authoritative progress for this ORIGINAL human message. Perform only the first Ready command, or replay a Prepared call with its SAME tool_call_id and exact action. Finished and NotTriggered commands need no more attempts. NeedsResolution remains unfinished: ask for required clarification rather than silently dropping it or inventing a target. Preserve constraints and conditional branches. Do not reinterpret completed attempts from prose.\n{}",json!({"commands":commands,"constraints":ledger.manifest.constraints,"prepared_bindings":bindings})))
+    }
+    async fn prepare_human_call(
+        &self,
+        call: &ToolCall,
+        decoded: &super::commands::AgentToolCommand,
+    ) -> Result<(), AgentTurnError> {
+        use super::human_commands::*;
+        let Some(commands) = &self.human_commands else {
+            return Ok(());
+        };
+        let ledger = self.current_human_commands().await?;
+        let signature = HumanAction::from_tool(decoded)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_signature_invalid"))?;
+        let (command_id, terminal) = if let Some(binding) = ledger
+            .bindings
+            .iter()
+            .find(|binding| binding.tool_call_id == call.id)
+        {
+            if binding.signature != signature {
+                return Err(AgentTurnError::ToolDispatch(
+                    "human_command_binding_conflict",
+                ));
+            }
+            (binding.command_id, binding.terminal)
+        } else {
+            let progress = ledger
+                .manifest
+                .progress(&ledger.bindings, &ledger.receipts)
+                .map_err(|_| AgentTurnError::ToolDispatch("human_command_progress_invalid"))?;
+            let id = progress
+                .iter()
+                .find(|(_, status)| *status == HumanCommandProgress::Ready)
+                .map(|(id, _)| *id)
+                .ok_or(AgentTurnError::ToolDispatch("human_command_not_ready"))?;
+            let command = ledger
+                .manifest
+                .commands
+                .iter()
+                .find(|command| command.id == id)
+                .ok_or(AgentTurnError::ToolDispatch("human_command_not_ready"))?;
+            let HumanCommandGoal::Exact { action } = &command.goal else {
+                return Err(AgentTurnError::ToolDispatch("human_command_not_ready"));
+            };
+            (id, action.same_mechanics(&signature))
+        };
+        commands
+            .repository
+            .prepare_after_permission(HumanCommandStepProposal {
+                command_id,
+                tool_call_id: call.id.clone(),
+                signature,
+                terminal,
+            })
+            .await
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_binding_failed"))?;
+        Ok(())
+    }
+    async fn prepared_human_permission(
+        &self,
+        call: &ToolCall,
+    ) -> Result<Option<super::intentions::PlayerIntentionDecision>, AgentTurnError> {
+        if self.human_commands.is_none() {
+            return Ok(None);
+        }
+        let ledger = self.current_human_commands().await?;
+        let Some(binding) = ledger
+            .bindings
+            .iter()
+            .find(|binding| binding.tool_call_id == call.id)
+        else {
+            return Ok(None);
+        };
+        let decoded = decode_tool_call(&call.name, &call.args)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_signature_invalid"))?;
+        let signature = super::human_commands::HumanAction::from_tool(&decoded)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_signature_invalid"))?;
+        if binding.signature != signature
+            || ledger
+                .receipts
+                .iter()
+                .any(|receipt| receipt.binding == *binding)
+        {
+            return Err(AgentTurnError::ToolDispatch(
+                "human_command_binding_conflict",
+            ));
+        }
+        // A private preparation was committed only after semantic permission.
+        // load_current has rechecked authority, signature and frozen context.
+        Ok(Some(super::intentions::PlayerIntentionDecision {
+            allowed: true,
+            further_requested: true,
+        }))
+    }
+    async fn replay_human_refusal(
+        &self,
+        call: &ToolCall,
+    ) -> Result<Option<super::tool_dispatch::ToolExecution>, AgentTurnError> {
+        if self.human_commands.is_none() {
+            return Ok(None);
+        }
+        let ledger = self.current_human_commands().await?;
+        let Some(receipt) = ledger
+            .receipts
+            .iter()
+            .find(|receipt| receipt.binding.tool_call_id == call.id)
+        else {
+            return Ok(None);
+        };
+        let decoded = decode_tool_call(&call.name, &call.args)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_signature_invalid"))?;
+        if super::human_commands::HumanAction::from_tool(&decoded)
+            .map_err(|_| AgentTurnError::ToolDispatch("human_command_signature_invalid"))?
+            != receipt.binding.signature
+        {
+            return Err(AgentTurnError::ToolDispatch(
+                "human_command_binding_conflict",
+            ));
+        }
+        let super::human_commands::CommandAttemptOutcome::Refused { code } = &receipt.outcome
+        else {
+            return Ok(None);
+        };
+        Ok(Some(super::tool_dispatch::ToolExecution {
+            result: json!({"error":code}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        }))
     }
     fn ensure_not_cancelled(&self) -> Result<(), AgentTurnError> {
         if self.cancellation.is_cancelled() {
@@ -1025,6 +1477,7 @@ fn agent_event_kind(event: &AgentEvent) -> &'static str {
         AgentEvent::ImageGenerated { .. } => "image_generated",
         AgentEvent::VideoGenerated { .. } => "video_generated",
         AgentEvent::AgentDone { .. } => "agent_done",
+        AgentEvent::AgentNeedsInput { .. } => "agent_needs_input",
     }
 }
 

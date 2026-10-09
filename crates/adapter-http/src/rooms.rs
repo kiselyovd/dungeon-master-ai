@@ -613,6 +613,8 @@ pub fn router_with_dm(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DmTurnRequest {
+    #[serde(default)]
+    clarification: Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
     request_id: Uuid,
     player_message: String,
     #[serde(default)]
@@ -640,11 +642,12 @@ async fn dm_turn(
         });
     }
     let events = dm
-        .turn(
+        .turn_with_clarification(
             verified,
             input.request_id,
             input.player_message,
             input.resume,
+            input.clarification,
         )
         .await?;
     let stream = events

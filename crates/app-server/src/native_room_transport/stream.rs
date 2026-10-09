@@ -39,6 +39,10 @@ fn semantic(operation: &NativeRoomOperation) -> Result<Value, HttpServiceError> 
     let mut value = serde_json::to_value(operation).map_err(|_| invalid())?;
     if matches!(operation, NativeRoomOperation::DmTurn { .. }) {
         value["resume"] = Value::Bool(false);
+        value
+            .as_object_mut()
+            .ok_or_else(invalid)?
+            .remove("awaiting_clarification");
     }
     Ok(value)
 }
@@ -69,10 +73,54 @@ async fn conflict_code(response: reqwest::Response) -> &'static str {
         .flatten()
         .unwrap_or("native_room_state_conflict")
 }
+/// Returns whether a new authenticated reply must replace the native outbox.
+/// Exact retries retain the existing private waiting marker until host delivery.
+fn clarification_transition(
+    pending: &NativeRoomOperation,
+    proposed: &NativeRoomOperation,
+) -> Result<bool, HttpServiceError> {
+    let mut old = semantic(pending)?;
+    let mut new = semantic(proposed)?;
+    if old == new {
+        return Ok(false);
+    }
+    if let (
+        NativeRoomOperation::DmTurn {
+            awaiting_clarification: Some(expected),
+            ..
+        },
+        NativeRoomOperation::DmTurn {
+            clarification: Some(reply),
+            resume: true,
+            ..
+        },
+    ) = (pending, proposed)
+    {
+        old.as_object_mut()
+            .ok_or_else(invalid)?
+            .remove("clarification");
+        new.as_object_mut()
+            .ok_or_else(invalid)?
+            .remove("clarification");
+        if reply.valid() && reply.id == *expected && old == new {
+            return Ok(true);
+        }
+    }
+    Err(HttpServiceError::Conflict {
+        code: "native_room_action_pending",
+    })
+}
 pub(super) async fn open(
     state: AppState,
-    request: NativeRoomTransportRequest,
+    mut request: NativeRoomTransportRequest,
 ) -> Result<BoxStream<'static, Result<Vec<u8>, HttpServiceError>>, HttpServiceError> {
+    if let NativeRoomOperation::DmTurn {
+        awaiting_clarification,
+        ..
+    } = &mut request.operation
+    {
+        *awaiting_clarification = None;
+    }
     if request.room_id.is_nil()
         || request.member_id.is_nil()
         || request.address.port() == 0
@@ -102,6 +150,8 @@ pub(super) async fn open(
             (builder, None, false)
         }
         NativeRoomOperation::DmTurn {
+            clarification,
+            awaiting_clarification: _,
             request_id,
             player_message,
             resume,
@@ -112,20 +162,30 @@ pub(super) async fn open(
             {
                 return Err(invalid());
             }
+            if clarification
+                .as_ref()
+                .is_some_and(|reply| !reply.valid() || !resume)
+            {
+                return Err(invalid());
+            }
             let _lane = OUTBOX_LANE.lock().await;
             let active = Active::acquire(&slot)?;
+            let mut save = true;
             if let Some(raw) = secrets.get(&slot).await.map_err(|_| store_failed())? {
                 let pending: NativeRoomTransportRequest =
                     serde_json::from_str(&raw).map_err(|_| store_failed())?;
-                if pending.room_id != request.room_id
-                    || pending.member_id != request.member_id
-                    || semantic(&pending.operation)? != semantic(&request.operation)?
-                {
+                if pending.room_id != request.room_id || pending.member_id != request.member_id {
                     return Err(HttpServiceError::Conflict {
                         code: "native_room_action_pending",
                     });
                 }
-            } else {
+                save = clarification_transition(&pending.operation, &request.operation)?;
+            } else if clarification.is_some() {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_action_pending",
+                });
+            }
+            if save {
                 secrets
                     .set(
                         &slot,
@@ -134,7 +194,7 @@ pub(super) async fn open(
                     .await
                     .map_err(|_| store_failed())?;
             }
-            (client.post(format!("{base}/dm/turn")).json(&serde_json::json!({"request_id":request_id,"player_message":player_message,"resume":resume})), Some(active), true)
+            (client.post(format!("{base}/dm/turn")).json(&serde_json::json!({"request_id":request_id,"player_message":player_message,"resume":resume,"clarification":clarification})), Some(active), true)
         }
         _ => return Err(invalid()),
     };
@@ -218,7 +278,26 @@ pub(super) async fn open(
             for frame in frames {
                 if dm && frame.terminal {
                     let _lane = OUTBOX_LANE.lock().await;
-                    if secrets.delete(&slot).await.is_err() {
+                    let stored = if let Some(id) = frame.clarification_id {
+                        let mut waiting = request.clone();
+                        if let NativeRoomOperation::DmTurn {
+                            awaiting_clarification,
+                            ..
+                        } = &mut waiting.operation
+                        {
+                            *awaiting_clarification = Some(id);
+                        }
+                        match serde_json::to_string(&waiting) {
+                            Ok(raw) => secrets.set(&slot, &raw).await,
+                            Err(_) => {
+                                let _ = tx.send(Err(store_failed())).await;
+                                return;
+                            }
+                        }
+                    } else {
+                        secrets.delete(&slot).await
+                    };
+                    if stored.is_err() {
                         let _ = tx.send(Err(store_failed())).await;
                         return;
                     }
@@ -243,6 +322,7 @@ pub(super) async fn open(
 struct Frame {
     bytes: Vec<u8>,
     terminal: bool,
+    clarification_id: Option<uuid::Uuid>,
 }
 #[derive(Default)]
 struct Decoder {
@@ -314,6 +394,7 @@ fn parse(bytes: &[u8]) -> Result<Option<Frame>, HttpServiceError> {
             | "tool_call_start"
             | "tool_call_result"
             | "agent_done"
+            | "agent_needs_input"
             | "done"
             | "error"
             | "image_generated"
@@ -322,6 +403,23 @@ fn parse(bytes: &[u8]) -> Result<Option<Frame>, HttpServiceError> {
         return Err(failed());
     }
     let payload: Value = serde_json::from_str(&data.join("\n")).map_err(|_| failed())?;
+    let clarification_id = if event == "agent_needs_input" {
+        let id = payload["clarification_id"]
+            .as_str()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+            .filter(|id| !id.is_nil())
+            .ok_or_else(failed)?;
+        if payload["command_id"]
+            .as_u64()
+            .is_none_or(|id| id == 0 || id > u16::MAX as u64)
+            || payload["total_rounds"].as_u64().is_none()
+        {
+            return Err(failed());
+        }
+        Some(id)
+    } else {
+        None
+    };
     if event == "agent_done"
         && payload
             .get("total_rounds")
@@ -343,13 +441,73 @@ fn parse(bytes: &[u8]) -> Result<Option<Frame>, HttpServiceError> {
     ));
     Ok(Some(Frame {
         bytes: wire.into_bytes(),
-        terminal: event == "agent_done",
+        terminal: event == "agent_done" || clarification_id.is_some(),
+        clarification_id,
     }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_a_reply_to_the_private_question_may_extend_the_exact_pending_turn() {
+        use app_application::agent::human_commands::HumanCommandClarificationReply;
+        let request_id = uuid::Uuid::new_v4();
+        let id = uuid::Uuid::new_v4();
+        let pending = NativeRoomOperation::DmTurn {
+            request_id,
+            player_message: "Атакую врага".into(),
+            resume: false,
+            clarification: None,
+            awaiting_clarification: Some(id),
+        };
+        let retry = NativeRoomOperation::DmTurn {
+            request_id,
+            player_message: "Атакую врага".into(),
+            resume: true,
+            clarification: None,
+            awaiting_clarification: None,
+        };
+        assert!(!clarification_transition(&pending, &retry).unwrap());
+        let mut replied = NativeRoomOperation::DmTurn {
+            request_id,
+            player_message: "Атакую врага".into(),
+            resume: true,
+            clarification: Some(HumanCommandClarificationReply {
+                id,
+                reply: "Левого".into(),
+            }),
+            awaiting_clarification: None,
+        };
+        assert!(clarification_transition(&pending, &replied).unwrap());
+        if let NativeRoomOperation::DmTurn {
+            clarification: Some(reply),
+            ..
+        } = &mut replied
+        {
+            reply.id = uuid::Uuid::new_v4();
+        }
+        assert!(clarification_transition(&pending, &replied).is_err());
+        if let NativeRoomOperation::DmTurn {
+            clarification: Some(reply),
+            player_message,
+            ..
+        } = &mut replied
+        {
+            reply.id = id;
+            *player_message = "Атакую другого героя".into();
+        }
+        assert!(clarification_transition(&pending, &replied).is_err());
+    }
+    #[test]
+    fn needs_input_frame_is_terminal_and_validates_question_identity() {
+        let id = uuid::Uuid::new_v4();
+        let raw=format!("event: agent_needs_input\ndata: {{\"clarification_id\":\"{id}\",\"command_id\":1,\"total_rounds\":1}}\n\n");
+        let frame = parse(raw.as_bytes()).unwrap().unwrap();
+        assert!(frame.terminal);
+        assert_eq!(frame.clarification_id, Some(id));
+        assert!(parse(b"event: agent_needs_input\ndata: {\"clarification_id\":\"fake\",\"command_id\":1,\"total_rounds\":1}\n\n").is_err());
+    }
     #[test]
     fn split_unicode_crlf_and_private_reasoning_are_normalized() {
         let raw="event: reasoning_text\r\ndata: {\"text\":\"private\"}\r\n\r\nevent: text_delta\r\ndata: {\"text\":\"Река\"}\r\n\r\nevent: agent_done\ndata: {\"total_rounds\":1}\n\n";

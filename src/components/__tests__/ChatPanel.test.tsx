@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../api/agentPending', () => ({ getPendingAgentClarification: async () => null }));
+
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { fetchSessionMessages } from '../../api/chat';
 import { ChatError } from '../../api/errors';

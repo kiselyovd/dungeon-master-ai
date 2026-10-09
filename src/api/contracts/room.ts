@@ -128,4 +128,11 @@ export type RoomState = v.InferOutput<typeof RoomStateSchema>;
 export type PublicRoom = v.InferOutput<typeof PublicRoomSchema>;
 export type RoomStreamOperation =
   | { kind: 'subscribe'; after: number | null }
-  | { kind: 'dm_turn'; request_id: string; player_message: string; resume: boolean };
+  | {
+      kind: 'dm_turn';
+      request_id: string;
+      player_message: string;
+      resume: boolean;
+      awaiting_clarification?: string | undefined;
+      clarification?: { id: string; reply: string } | undefined;
+    };

@@ -39,7 +39,10 @@ export function RoomPlay({
   const [text, setText] = useState('');
   const { state, connection } = view;
   const blocked =
-    view.status !== 'connected' || view.busy || view.pending !== null || state?.agent_busy === true;
+    view.status !== 'connected' ||
+    view.busy ||
+    ((view.pending !== null || state?.agent_busy === true) &&
+      !(view.pending?.kind === 'dm_turn' && view.pending.awaiting_clarification));
   return (
     <main className={styles.root}>
       <div className={styles.content}>

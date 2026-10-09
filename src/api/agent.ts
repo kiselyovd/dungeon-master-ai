@@ -22,10 +22,11 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const body = JSON.stringify({
     request_id: opts.requestId ?? crypto.randomUUID(),
     resume: opts.resume ?? false,
+    ...(opts.clarification ? { clarification: opts.clarification } : {}),
     campaign_id: opts.campaignId,
     session_id: opts.sessionId,
     player_message: opts.playerMessage,
-    history: opts.history.map(toAgentWireMessage),
+    history: opts.wireHistory ?? opts.history.map(toAgentWireMessage),
     model: opts.model,
     images: opts.images ?? [],
     ...(opts.board ? { board: opts.board } : {}),
@@ -74,7 +75,12 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
         byteCount,
       });
       if (event.type === 'error') throw new ChatError(event.code, event.message);
-      if (event.type === 'agent_done' || event.type === 'done') terminal = true;
+      if (
+        event.type === 'agent_done' ||
+        event.type === 'done' ||
+        event.type === 'agent_needs_input'
+      )
+        terminal = true;
       opts.onEvent(event);
       if (event.type === 'agent_done') completed = true;
     }

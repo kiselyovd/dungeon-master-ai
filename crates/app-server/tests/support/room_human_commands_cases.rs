@@ -1,4 +1,85 @@
 use super::*;
+
+#[tokio::test]
+async fn room_clarification_is_private_idempotent_and_cannot_rewrite_resolved_goals() {
+    let f = fixture().await;
+    let (ledger, _, mut manifest) = journal(&f).await;
+    manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Длительность ожидания".into(),
+    };
+    ledger
+        .save_verified_manifest(manifest.clone())
+        .await
+        .unwrap();
+    let question = ledger
+        .record_clarification(1, "Сколько минут ждать?".into())
+        .await
+        .unwrap();
+    assert_eq!(
+        ledger
+            .record_clarification(1, question.question.clone())
+            .await
+            .unwrap(),
+        question
+    );
+    assert!(ledger
+        .prepare_after_permission(proposal(1, "too-early"))
+        .await
+        .is_err());
+    assert!(ledger
+        .resolve_verified_goal(1, HumanAction::Rest(RestIntent::Wait { minutes: 1 }))
+        .await
+        .is_err());
+    let guest = f
+        .rooms
+        .authenticate(f.guest.room.room_id, f.guest.member_id, &f.guest.capability)
+        .await
+        .unwrap();
+    let foreign = RoomHumanCommandLedger::new(
+        f.store.as_ref().clone(),
+        guest.lease().clone(),
+        manifest.scope.request_id,
+        Uuid::new_v4(),
+    );
+    assert!(foreign
+        .submit_clarification_reply(question.id, "60".into())
+        .await
+        .is_err());
+    ledger
+        .submit_clarification_reply(question.id, "Одну минуту".into())
+        .await
+        .unwrap();
+    ledger
+        .submit_clarification_reply(question.id, "Одну минуту".into())
+        .await
+        .unwrap();
+    assert!(ledger
+        .submit_clarification_reply(question.id, "Десять".into())
+        .await
+        .is_err());
+    ledger
+        .resolve_verified_goal(1, HumanAction::Rest(RestIntent::Wait { minutes: 1 }))
+        .await
+        .unwrap();
+    assert!(ledger
+        .resolve_verified_goal(1, HumanAction::Rest(RestIntent::Wait { minutes: 10 }))
+        .await
+        .is_err());
+    let saved = ledger.load_current().await.unwrap().unwrap();
+    assert_eq!(saved.manifest.scope, manifest.scope);
+    assert_eq!(
+        saved.manifest.commands[0].source,
+        manifest.commands[0].source
+    );
+    assert_eq!(saved.manifest.commands[1], manifest.commands[1]);
+    assert_eq!(saved.clarifications.len(), 1);
+    ledger
+        .prepare_after_permission(proposal(1, "accepted"))
+        .await
+        .unwrap();
+}
+#[path = "room_command_runtime_cases.rs"]
+mod runtime;
 use adapter_sqlite::room_human_commands::RoomHumanCommandLedger;
 use app_application::{
     agent::{

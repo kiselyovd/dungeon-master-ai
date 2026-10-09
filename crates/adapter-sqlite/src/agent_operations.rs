@@ -94,6 +94,7 @@ impl AgentOperationRepository for SqliteStore {
                     AgentEvent::TextDelta { .. }
                         | AgentEvent::ReasoningText { .. }
                         | AgentEvent::AgentDone { .. }
+                        | AgentEvent::AgentNeedsInput { .. }
                 )
             })
             .collect::<Vec<_>>();

@@ -115,6 +115,7 @@ async fn queued_restore_invalidates_resume_before_it_can_claim_or_execute() {
     queued.notified().await;
     let service = app_server::http_services::agent_http_service(server.state.clone());
     let mut resume = Box::pin(service.turn(AgentTurnHttpCommand {
+        clarification: None,
         resume: true,
         request_id: Some(input.request_id),
         request: input.request,

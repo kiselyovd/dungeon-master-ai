@@ -80,6 +80,10 @@ export const PendingRoomActionSchema = v.variant('kind', [
     request_id: uuid,
     player_message: v.pipe(v.string(), v.minLength(1), v.maxLength(16384)),
     resume: v.boolean(),
+    awaiting_clarification: v.optional(uuid),
+    clarification: v.optional(
+      v.strictObject({ id: uuid, reply: v.pipe(v.string(), v.minLength(1), v.maxLength(4096)) }),
+    ),
   }),
 ]);
 export type RoomAction = v.InferOutput<typeof RoomActionSchema>;

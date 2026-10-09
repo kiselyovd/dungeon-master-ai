@@ -1143,6 +1143,21 @@ impl AppStateAgentHttpService {
 
 #[async_trait]
 impl AgentHttpService for AppStateAgentHttpService {
+    async fn pending_clarification(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        SqliteStore::new(self.state.db().clone())
+            .pending_solo_clarification(campaign_id, session_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "human_command_read_failed",
+            })
+    }
     async fn turn(
         &self,
         command: AgentTurnHttpCommand,
@@ -1178,6 +1193,7 @@ impl AgentHttpService for AppStateAgentHttpService {
         .with_video_provider(video_provider);
         let orchestrator = if let Some(verifier) = player_verifier {
             orchestrator
+                .with_human_command_owner(self.state.process_id())
                 .with_player_verifier(verifier)
                 .with_narration_verifier(Arc::new(
                     app_application::agent::narration::LlmNarrationVerifier::new(
@@ -1190,6 +1206,9 @@ impl AgentHttpService for AppStateAgentHttpService {
         let driver = Arc::new(DurableOrchestratorDriver {
             orchestrator,
             lane: self.state.campaign_lane(command.request.campaign_id),
+            clarification: command.clarification,
+            store: SqliteStore::new(pool.clone()),
+            owner: self.state.process_id(),
         });
         let service = app_application::agent::operations::DurableAgentTurns::new(
             Arc::new(SqliteStore::new(pool)),
@@ -1226,6 +1245,9 @@ impl AgentHttpService for AppStateAgentHttpService {
 struct DurableOrchestratorDriver {
     orchestrator: crate::agent::orchestrator::AgentOrchestrator,
     lane: Arc<tokio::sync::Mutex<()>>,
+    clarification: Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
+    store: SqliteStore,
+    owner: Uuid,
 }
 #[async_trait]
 impl app_application::agent::operations::AgentOperationDriver for DurableOrchestratorDriver {
@@ -1239,6 +1261,14 @@ impl app_application::agent::operations::AgentOperationDriver for DurableOrchest
         events: mpsc::Sender<AgentEvent>,
         cancellation: Arc<app_application::agent::operations::TurnCancellation>,
     ) -> Result<(), &'static str> {
+        if let Some(reply) = &self.clarification {
+            let ledger = adapter_sqlite::human_commands::SoloHumanCommandLedger::new(
+                self.store.clone(),
+                input.request_id,
+                self.owner,
+            );
+            app_application::agent::human_commands::HumanCommandLedgerRepository::submit_clarification_reply(&ledger,reply.id,reply.reply.clone()).await.map_err(|_|"human_command_clarification_invalid")?;
+        }
         self.orchestrator
             .run_recovered(
                 input.request,
@@ -1698,6 +1728,19 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
         player_message: String,
         resume: bool,
     ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        self.turn_with_clarification(subject, request_id, player_message, resume, None)
+            .await
+    }
+    async fn turn_with_clarification(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+        clarification: Option<
+            app_application::agent::human_commands::HumanCommandClarificationReply,
+        >,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
         use app_application::{
             agent::{tools::AgentToolCatalog, turn::AgentTurnConfig},
             rooms::{agent::RoomAgentPorts, dm_turns::RoomDmRunner},
@@ -1720,7 +1763,18 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
                 ),
             ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
         });
-        RoomDmRunner::new(
+        let human_commands = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                adapter_sqlite::room_human_commands::RoomHumanCommandLedger::new(
+                    SqliteStore::new(self.state.db().clone()),
+                    subject.lease().clone(),
+                    request_id,
+                    self.state.process_id(),
+                ),
+            )
+                as Arc<dyn app_application::agent::human_commands::HumanCommandLedgerRepository>
+        });
+        let runner = RoomDmRunner::new(
             Arc::new(RoomAgentPorts::new(self.rooms.clone(), subject, request_id)),
             self.state.provider(),
             AgentTurnConfig {
@@ -1745,34 +1799,41 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
             },
             lane,
             self.state.process_id(),
-        )
-        .execute(player_message, resume)
-        .await
-        .map_err(|error| match error {
-            app_application::ports::repositories::RepositoryError::Operation {
-                code: "room_access_denied",
-                ..
-            } => HttpServiceError::Unauthorized {
-                code: "room_access_denied",
-            },
-            app_application::ports::repositories::RepositoryError::Operation {
-                code:
-                    code @ ("agent_request_mismatch"
-                    | "agent_turn_running"
-                    | "agent_turn_interrupted"
-                    | "agent_turn_superseded"),
-                ..
-            } => HttpServiceError::Conflict { code },
-            app_application::ports::repositories::RepositoryError::Operation {
-                code: "room_dm_request_invalid",
-                ..
-            } => HttpServiceError::BadRequest {
-                code: "room_dm_request_invalid",
-            },
-            _ => HttpServiceError::Internal {
-                code: "room_dm_unavailable",
-            },
-        })
+        );
+        let runner = if let Some(repository) = human_commands {
+            runner.with_human_commands(repository)
+        } else {
+            runner
+        };
+        runner
+            .with_clarification_reply(clarification)
+            .execute(player_message, resume)
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "room_access_denied",
+                    ..
+                } => HttpServiceError::Unauthorized {
+                    code: "room_access_denied",
+                },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_request_mismatch"
+                        | "agent_turn_running"
+                        | "agent_turn_interrupted"
+                        | "agent_turn_superseded"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "room_dm_request_invalid",
+                    ..
+                } => HttpServiceError::BadRequest {
+                    code: "room_dm_request_invalid",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "room_dm_unavailable",
+                },
+            })
     }
 }
 

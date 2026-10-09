@@ -27,6 +27,10 @@ pub fn router(services: HttpServices) -> Router {
         .route("/health", get(routes::health::health))
         .route("/agent/turn", post(routes::agent::post_agent_turn))
         .route(
+            "/agent/pending",
+            get(routes::agent::get_pending_clarification),
+        )
+        .route(
             "/campaigns",
             get(routes::campaigns::get_campaigns).post(routes::campaigns::post_campaign),
         )

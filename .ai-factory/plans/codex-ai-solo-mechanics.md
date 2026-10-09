@@ -565,3 +565,88 @@ frontend, architecture/static checks and Clippy). Independent review closed the
 legacy preparation bypass. This checkpoint provides private room persistence
 and guarded effects; model planning/runtime integration and complete real-model,
 native and separate-device LAN/VPN sessions are still required.
+
+Runtime integration in progress: protected original_request port, independently
+verified structured manifest planner, shared turn service journal initialization,
+atomic binding and canonical progress/completion are implemented. Production solo
+and room factories attach owner-scoped adapters for verified-model requests;
+room planner uses effective saved model. Scripted real-SQLite runtime proves both
+identical commands finish despite false model completion forecast, committed
+effect-before-ToolResult recovery without replan, and exact pending permission
+surviving later interruption and another resume. Review found permission denial
+poisoning, strict schema open-object incompatibility, and impossible clarification
+delivery. First two fixed with regression checks; durable refusal replay added.
+Clarification lifecycle is explicitly OPEN: NeedsResolution must deliver a safe
+question and retain unfinished intent without falsely completing the session.
+Trusted future-target resolution/quantified commands, full post-change gates,
+real Qwen complete sessions and native/separate-device LAN acceptance remain open.
+
+Current focused verification: four structured planner groups and four real SQLite
+room runtime scenarios pass, including pending permission and durable refusal
+replay. Existing 33 workflow and11 pure-ledger groups plus solo journal/operation
+suites pass. Architecture guard and focused Clippy(all targets, warnings denied)
+pass. Independent follow-up closed permission-poisoning and strict-schema findings;
+clarification-delivery finding stays OPEN. Changes remain in progress/uncommitted
+until the explicit unfinished-command clarification lifecycle is implemented.
+
+Clarification lifecycle continuation: migration0021 stores immutable private
+question/reply and verified final-narration records. Current-reference resolution
+and independently checked questions/goals are implemented. Needs-input delivers
+without AgentDone and only after interrupted status commits; HTTP continuation
+claims the same protected operation before accepting a reply. Solo in-memory
+question/reply flow and native encrypted-outbox/private-question transitions are
+wired; the room composer permits the owning player to answer. Questions and finals
+now bind to chat messages atomically, closing lost-question-ACK duplication and
+final-append-before-Done regeneration.16 room metadata/runtime checks and21 focused
+frontend tests pass. Production build and browser fixture question/reply flow pass,
+with visual inspection; focused all-target Clippy passes. Full parallel room run
+had53/54 pass with one departure transport timeout; that exact test passed alone.
+Do not claim full gates yet. New native parser/transition unit run is in progress.
+Independent review's remaining P2: solo reload/remount loses the pending handle.
+Next: protected pending recovery/read and reload regression, native protocol
+acceptance, semantic resolution tests, full frozen gates/review, scoped checkpoint,
+then quantified intentions and real Qwen/native/separate-device session acceptance.
+
+Post-review recovery fixes: immutable question UUID now also binds its transcript
+message; verified final receipt binds its final message. Both commit atomically
+with private metadata. Lost-question-ACK and final-append-before-Done regressions
+pass among16 journal/runtime cases; independent follow-up closed both P2s. Four
+native parser/transition tests pass, focused all-target Clippy and architecture
+guard pass. Solo reload/remount pending recovery remains the one open reviewed
+clarification finding. No frozen full-gate/checkpoint or live/native session claim
+is made until that recovery path and the remaining acceptance work are complete.
+
+Solo pending recovery continuation: protected GET /agent/pending reads only the
+latest incomplete verified operation for current actor/session/timeline, excludes
+room state and older operations, and preserves exact original wire history and
+request parameters. It restores unanswered-question handles and exact accepted
+reply retries, including an interrupted operation with saved final. Uncertain
+stream outcomes trigger a fresh probe, closing lost-NeedsInput and accepted-reply
+remount windows. Independent follow-up closed both P2s; endpoint status semantics
+are running/interrupted, not client-ACK tracking. All16 solo SQL cases,17 room
+journal/runtime cases, HTTP new-server/private-room exclusion and11 API/hook checks
+pass. Production build and2 fixture browser flows (including reload) pass. Unchecked
+ToolUse prose is now omitted from protected transcript; regression passes. Frozen
+full gates are running before checkpoint. Real Qwen complete sessions, quantified
+intentions, native and physical separate-device LAN/VPN acceptance remain active.
+
+Consolidated gate follow-up: biome found one owned API-line formatting issue,
+corrected. Parallel room tests reproduced a departure timeout; deterministic
+delayed-join regression proved the global guest-selection mutex blocked unrelated
+AppState/vault contexts. Selection serialization now belongs to shared AppStateInner:
+clones preserve ordering, independent compositions do not share the mutex. Reviewer
+checked all seven lock sites and archive order; no actionable finding. Corrected
+fixture uses independent rooms/invitations. Focused regression and all58 parallel
+room tests pass. Frozen final consolidated gates are running. User-owned original
+changes remain separate; only the three owned API semantic edits will be staged
+over HEAD for src/api/agent.ts.
+
+Final runtime/clarification collection: consolidated gates pass (938 Rust,1127
+frontend, architecture/static checks and all-feature Clippy). All58 parallel room
+cases pass after scoping the guest selection lane. Production build and2 browser
+fixture scenarios pass, including remount/reload with the exact original operation.
+Independent reviews closed discovered semantic-permission, schema, clarification,
+transcript/final-replay, solo recovery and native lock findings. Original32 file
+hashes preserved. Scoped staging includes only three owned src/api/agent.ts changes;
+inherited transport edits remain unstaged. This checkpoint is runtime integration
+and recovery proof, not complete real-Qwen/native/physical-LAN session acceptance.

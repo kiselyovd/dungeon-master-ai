@@ -8,9 +8,7 @@ use app_application::{
 use futures::StreamExt;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use uuid::Uuid;
-static SELECTION_LANE: Mutex<()> = Mutex::const_new(());
 fn invalid() -> HttpServiceError {
     HttpServiceError::BadRequest {
         code: "native_guest_request_invalid",
@@ -32,7 +30,7 @@ pub(crate) async fn archive_departure(
     capability: &str,
     epoch: u64,
 ) -> Result<(), HttpServiceError> {
-    let _lane = SELECTION_LANE.lock().await;
+    let _lane = state.native_guest_selection_lane().lock_owned().await;
     let secrets = state.secrets_repo();
     let current = secrets
         .get("native:guest-selection")
@@ -175,7 +173,7 @@ impl ClientService {
             .and_then(|body| body["departure_epoch"].as_u64())
             .filter(|epoch| *epoch > 0)
             .ok_or_else(failed)?;
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         *record = self
             .load(record.request.join_id)
             .await?
@@ -456,7 +454,7 @@ impl ClientService {
 #[async_trait::async_trait]
 impl NativeRoomClientHttpService for ClientService {
     async fn saved(&self) -> Result<Vec<NativeGuestRecoveryChoice>, HttpServiceError> {
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         let raw = self
             .state
             .secrets_repo()
@@ -492,7 +490,7 @@ impl NativeRoomClientHttpService for ClientService {
         Ok(choices)
     }
     async fn postpone(&self) -> Result<(), HttpServiceError> {
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         let secrets = self.state.secrets_repo();
         let Some(raw) = secrets
             .get("native:guest-pending-selection")
@@ -563,7 +561,7 @@ impl NativeRoomClientHttpService for ClientService {
                 self.settle_departure(&mut record).await?;
             }
         }
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         let pending = self
             .state
             .secrets_repo()
@@ -610,7 +608,7 @@ impl NativeRoomClientHttpService for ClientService {
         &self,
         request: NativeGuestJoinRequest,
     ) -> Result<NativeGuestConnection, HttpServiceError> {
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         if request.room_id.is_nil()
             || request.join_id.is_nil()
             || request.address.port() == 0
@@ -660,7 +658,7 @@ impl NativeRoomClientHttpService for ClientService {
             });
         }
         self.settle_departure(&mut record).await?;
-        let _lane = SELECTION_LANE.lock().await;
+        let _lane = self.state.native_guest_selection_lane().lock_owned().await;
         let mut record = self
             .load(request.join_id)
             .await?

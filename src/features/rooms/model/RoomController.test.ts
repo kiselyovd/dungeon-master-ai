@@ -27,6 +27,38 @@ function ports(): RoomPorts {
     stream: vi.fn(() => new Promise<void>(() => {})),
   };
 }
+it('answers a private waiting question while retaining the original shared DM turn', async () => {
+  const transport = ports();
+  const waiting = {
+    kind: 'dm_turn' as const,
+    request_id: crypto.randomUUID(),
+    player_message: 'Атакую врага',
+    resume: false,
+    awaiting_clarification: crypto.randomUUID(),
+  };
+  const update = fixture();
+  update.state.agent_busy = true;
+  transport.load = vi.fn().mockResolvedValueOnce(update).mockResolvedValue(fixture());
+  transport.pending = vi.fn().mockResolvedValueOnce(waiting).mockResolvedValue(null);
+  transport.stream = vi.fn(async (options) => {
+    if (options.operation.kind === 'subscribe') return new Promise<void>(() => {});
+    expect(options.operation.request_id).toBe(waiting.request_id);
+    expect(options.operation.player_message).toBe(waiting.player_message);
+    expect(options.operation.resume).toBe(true);
+    expect(options.operation.clarification).toEqual({
+      id: waiting.awaiting_clarification,
+      reply: 'Левого',
+    });
+    options.onEvent({ kind: 'agent', event: { type: 'agent_done', totalRounds: 1 } });
+  });
+  const controller = new RoomController(transport);
+  await controller.activate(connection());
+  await controller.sendDm('Левого');
+  expect(controller.getSnapshot().pending).toBeNull();
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(transport.stream).toHaveBeenCalledTimes(2);
+  controller.leave();
+});
 it('discards a late private snapshot after switching rooms', async () => {
   const transport = ports();
   let resolveOld!: (value: ReturnType<typeof fixture>) => void;

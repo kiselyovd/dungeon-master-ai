@@ -1,6 +1,7 @@
 import type { ChatErrorCode } from '../errors';
 import {
   safeParseAgentDone,
+  safeParseAgentNeedsInput,
   safeParseDone,
   safeParseImageGenerated,
   safeParseReasoningText,
@@ -26,12 +27,14 @@ export type AgentWireMessage =
   | { role: 'assistant' | 'system'; content: string };
 
 export interface AgentTurnRequest {
+  clarification?: { id: string; reply: string };
   requestId?: string;
   resume?: boolean;
   campaignId: string;
   sessionId: string;
   playerMessage: string;
   history: AgentHistoryMessage[];
+  wireHistory?: AgentWireMessage[];
   images?: AgentMessagePart[];
   board?: string;
   model?: string;
@@ -63,6 +66,7 @@ export type AgentEvent =
     }
   | { type: 'video_generated'; dataUrl: string; toolCallId?: string; kind: 'chat' }
   | { type: 'agent_done'; totalRounds: number }
+  | { type: 'agent_needs_input'; clarificationId: string; commandId: number; totalRounds: number }
   | { type: 'done' }
   | { type: 'error'; code: ChatErrorCode; message: string };
 
@@ -84,6 +88,17 @@ export function toAgentWireMessage(message: AgentHistoryMessage): AgentWireMessa
 
 export function decodeAgentEvent(raw: RawAgentEvent): AgentEvent | null {
   switch (raw.event) {
+    case 'agent_needs_input': {
+      const payload = safeParseAgentNeedsInput(raw.data);
+      return payload
+        ? {
+            type: 'agent_needs_input',
+            clarificationId: payload.clarification_id,
+            commandId: payload.command_id,
+            totalRounds: payload.total_rounds,
+          }
+        : null;
+    }
     case 'text_delta': {
       const payload = safeParseText(raw.data);
       return payload ? { type: 'text_delta', text: payload.text } : null;

@@ -33,6 +33,162 @@ struct Fixture {
     operation: AgentOperation,
     manifest: HumanCommandManifest,
 }
+#[tokio::test]
+async fn pending_question_read_preserves_original_request_and_excludes_old_timeline() {
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Место назначения".into(),
+    };
+    let journal = f.journal();
+    journal
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    let question = journal
+        .record_clarification(1, "Какой причал?".into())
+        .await
+        .unwrap();
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let pending = f
+        .store
+        .pending_solo_clarification(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.operation, f.operation);
+    assert_eq!(pending.clarification.as_ref().unwrap().id, question.id);
+    assert_eq!(pending.clarification.as_ref().unwrap().reply, None);
+    sqlx::query("UPDATE sessions SET restore_generation=restore_generation+1 WHERE id=?1")
+        .bind(f.operation.request.session_id.to_string())
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    assert!(f
+        .store
+        .pending_solo_clarification(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id
+        )
+        .await
+        .unwrap()
+        .is_none());
+}
+#[tokio::test]
+async fn pending_question_does_not_resurrect_an_older_operation_after_a_newer_turn() {
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Место назначения".into(),
+    };
+    f.journal()
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    f.journal()
+        .record_clarification(1, "Какой причал?".into())
+        .await
+        .unwrap();
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let mut newer = f.operation.clone();
+    newer.request_id = Uuid::new_v4();
+    newer.request.player_message = "Смотрю на реку".into();
+    f.store.claim(newer, f.owner).await.unwrap();
+    assert!(f
+        .store
+        .pending_solo_clarification(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id
+        )
+        .await
+        .unwrap()
+        .is_none());
+}
+#[tokio::test]
+async fn pending_question_is_not_returned_for_foreign_actor_metadata() {
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Место назначения".into(),
+    };
+    f.journal()
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    f.journal()
+        .record_clarification(1, "Какой причал?".into())
+        .await
+        .unwrap();
+    sqlx::query("UPDATE solo_human_command_manifests SET manifest_json=json_set(manifest_json,'$.scope.actor_id',?2) WHERE request_id=?1").bind(f.operation.request_id.to_string()).bind(Uuid::new_v4().to_string()).execute(f.store.pool()).await.unwrap();
+    assert!(f
+        .store
+        .pending_solo_clarification(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id
+        )
+        .await
+        .unwrap()
+        .is_none());
+}
+#[tokio::test]
+async fn pending_read_keeps_accepted_reply_and_final_receipt_until_completion_ack() {
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Место назначения".into(),
+    };
+    let journal = f.journal();
+    journal
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    let question = journal
+        .record_clarification(1, "Какой причал?".into())
+        .await
+        .unwrap();
+    journal
+        .submit_clarification_reply(question.id, "Старый".into())
+        .await
+        .unwrap();
+    journal
+        .resolve_verified_goal(1, HumanAction::Adventure(Action::Move(Location::Quay)))
+        .await
+        .unwrap();
+    f.manifest.commands[0].goal = HumanCommandGoal::Exact {
+        action: HumanAction::Adventure(Action::Move(Location::Quay)),
+    };
+    for (id, call) in [(1, "move"), (2, "inspect")] {
+        let binding = journal
+            .prepare_after_permission(f.proposal(id, call))
+            .await
+            .unwrap();
+        f.effect(&binding).await;
+    }
+    journal
+        .record_final_narration("Вы осмотрели причал.".into())
+        .await
+        .unwrap();
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let pending = f
+        .store
+        .pending_solo_clarification(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.operation, f.operation);
+    assert_eq!(pending.clarification.unwrap().reply, Some("Старый".into()));
+}
 async fn fixture(pool: SqlitePool) -> Fixture {
     pool::migrate(&pool).await.unwrap();
     let store = SqliteStore::new(pool);

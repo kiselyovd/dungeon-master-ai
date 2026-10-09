@@ -146,6 +146,7 @@ export function reduceAgentEvent(
       recordMedia(event.toolCallId, { kind: 'video', dataUrl: event.dataUrl }, state, ports);
       break;
     case 'agent_done':
+    case 'agent_needs_input':
     case 'done':
     case 'error':
       break;

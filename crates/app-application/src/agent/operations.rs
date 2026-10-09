@@ -207,6 +207,7 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                         }
                     }
                     let mut saw_done = false;
+                    let mut saw_needs_input = false;
                     let mut terminal_event = None;
                     let mut recording_ok = true;
                     let mut disconnected = false;
@@ -227,7 +228,11 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                         }
                         sequence += 1;
                         saw_done |= matches!(event, AgentEvent::AgentDone { .. });
-                        if matches!(event, AgentEvent::AgentDone { .. }) {
+                        saw_needs_input |= matches!(event, AgentEvent::AgentNeedsInput { .. });
+                        if matches!(
+                            event,
+                            AgentEvent::AgentDone { .. } | AgentEvent::AgentNeedsInput { .. }
+                        ) {
                             terminal_event = Some(event);
                             continue;
                         }
@@ -242,7 +247,11 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                     let finished = repository.finish(request_id, owner, complete).await;
                     if finished.is_err() {
                         tracing::error!(%request_id,code="agent_operation_finish_failed");
-                    } else if complete && !disconnected {
+                    } else if recording_ok
+                        && succeeded
+                        && (saw_done || saw_needs_input)
+                        && !disconnected
+                    {
                         if let Some(event) = terminal_event {
                             let _ = sender.send(event).await;
                         }

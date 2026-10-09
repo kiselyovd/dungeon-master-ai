@@ -87,6 +87,29 @@ pub struct RoomHumanCommandLedger {
     owner_id: Uuid,
 }
 impl RoomHumanCommandLedger {
+    async fn update_metadata<T: Send>(
+        &self,
+        change: impl FnOnce(&mut StoredHumanCommandLedger) -> Result<T, CommandLedgerError> + Send,
+    ) -> Result<T, RepositoryError> {
+        let mut tx = self
+            .store
+            .pool()
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| error("human_command_begin_failed"))?;
+        let (scope, message) = self.guard(&mut tx).await?;
+        let mut ledger = self
+            .load(&mut tx, &scope, &message)
+            .await?
+            .ok_or_else(|| error("human_command_manifest_missing"))?;
+        let result =
+            change(&mut ledger).map_err(|_| error("human_command_clarification_invalid"))?;
+        crate::human_command_clarifications::persist(&mut tx, &message, &ledger).await?;
+        tx.commit()
+            .await
+            .map_err(|_| error("human_command_commit_failed"))?;
+        Ok(result)
+    }
     pub fn new(store: SqliteStore, lease: RoomLease, turn_id: Uuid, owner_id: Uuid) -> Self {
         Self {
             store,
@@ -244,11 +267,17 @@ impl RoomHumanCommandLedger {
         manifest
             .progress(&bindings, &receipts)
             .map_err(|_| error("human_command_binding_invalid"))?;
-        Ok(Some(StoredHumanCommandLedger {
+        let ledger = StoredHumanCommandLedger {
             manifest,
             bindings,
             receipts,
-        }))
+            clarifications: crate::human_command_clarifications::load(tx, scope).await?,
+            final_narration: crate::human_command_clarifications::load_final(tx, scope).await?,
+        };
+        ledger
+            .validate_clarifications()
+            .map_err(|_| error("human_command_data_invalid"))?;
+        Ok(Some(ledger))
     }
     async fn check_pending_context(
         &self,
@@ -316,6 +345,53 @@ impl RoomHumanCommandLedger {
 }
 #[async_trait::async_trait]
 impl HumanCommandLedgerRepository for RoomHumanCommandLedger {
+    async fn record_final_narration(
+        &self,
+        text: String,
+    ) -> Result<HumanCommandFinalNarration, RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_final(text))
+            .await
+    }
+    async fn record_clarification(
+        &self,
+        id: u16,
+        question: String,
+    ) -> Result<HumanCommandClarification, RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_question(id, question))
+            .await
+    }
+    async fn submit_clarification_reply(
+        &self,
+        id: Uuid,
+        reply: String,
+    ) -> Result<(), RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_reply(id, reply))
+            .await
+    }
+    async fn resolve_verified_goal(
+        &self,
+        id: u16,
+        action: HumanAction,
+    ) -> Result<(), RepositoryError> {
+        self.update_metadata(move |ledger| ledger.resolve_goal(id, action))
+            .await
+    }
+    async fn record_refusal(&self, tool_id: &str, code: &str) -> Result<(), RepositoryError> {
+        self.record_definitive_refusal(tool_id, code).await
+    }
+    async fn original_request(&self) -> Result<(CommandScope, String), RepositoryError> {
+        let mut tx = self
+            .store
+            .pool()
+            .begin()
+            .await
+            .map_err(|_| error("human_command_begin_failed"))?;
+        let input = self.guard(&mut tx).await?;
+        tx.commit()
+            .await
+            .map_err(|_| error("human_command_commit_failed"))?;
+        Ok(input)
+    }
     async fn load_current(&self) -> Result<Option<StoredHumanCommandLedger>, RepositoryError> {
         let mut tx = self
             .store
@@ -365,6 +441,8 @@ impl HumanCommandLedgerRepository for RoomHumanCommandLedger {
             manifest,
             bindings: vec![],
             receipts: vec![],
+            clarifications: vec![],
+            final_narration: None,
         })
     }
     async fn prepare_after_permission(

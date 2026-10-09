@@ -57,7 +57,7 @@ export async function streamRoom(options: RoomStreamOptions): Promise<void> {
         const event = decodeAgentEvent(raw);
         if (!event || event.type === 'reasoning_text')
           throw new RoomStreamError('native_room_stream_invalid');
-        if (event.type === 'agent_done') terminal = true;
+        if (event.type === 'agent_done' || event.type === 'agent_needs_input') terminal = true;
         options.onEvent({ kind: 'agent', event });
         if (event.type === 'error') throw new RoomStreamError('native_room_dm_failed');
       }

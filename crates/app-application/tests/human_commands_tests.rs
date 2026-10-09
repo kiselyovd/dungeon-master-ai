@@ -12,6 +12,64 @@ use app_domain::{
 };
 use uuid::Uuid;
 
+#[test]
+fn clarification_keeps_scope_source_and_unfinished_intent_until_verified_resolution() {
+    let (message, mut manifest) = compound();
+    manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "Выбранное игроком место назначения".into(),
+    };
+    let original = manifest.clone();
+    let mut ledger = StoredHumanCommandLedger {
+        manifest,
+        bindings: vec![],
+        receipts: vec![],
+        clarifications: vec![],
+        final_narration: None,
+    };
+    let question = ledger
+        .record_question(1, "Какой причал вы имеете в виду?".into())
+        .unwrap();
+    assert_eq!(ledger.resolution_command().unwrap(), Some(1));
+    assert_eq!(
+        ledger
+            .record_question(1, question.question.clone())
+            .unwrap(),
+        question
+    );
+    assert!(ledger.record_question(2, "Другой вопрос".into()).is_err());
+    assert!(ledger
+        .resolve_goal(1, HumanAction::Adventure(Action::Move(Location::Quay)))
+        .is_err());
+    assert!(ledger
+        .record_reply(Uuid::new_v4(), "Старый".into())
+        .is_err());
+    ledger
+        .record_reply(question.id, "Старый причал".into())
+        .unwrap();
+    ledger
+        .record_reply(question.id, "Старый причал".into())
+        .unwrap();
+    assert!(ledger.record_reply(question.id, "Архив".into()).is_err());
+    ledger
+        .resolve_goal(1, HumanAction::Adventure(Action::Move(Location::Quay)))
+        .unwrap();
+    assert_eq!(ledger.manifest.scope, original.scope);
+    assert_eq!(
+        ledger.manifest.commands[0].source,
+        original.commands[0].source
+    );
+    assert_eq!(ledger.manifest.commands[1], original.commands[1]);
+    assert_eq!(ledger.manifest.constraints, original.constraints);
+    ledger
+        .manifest
+        .validate_structure(&message, &original.scope)
+        .unwrap();
+    assert!(ledger.record_question(1, "Повторить путь?".into()).is_err());
+    assert!(ledger
+        .resolve_goal(1, HumanAction::Adventure(Action::Move(Location::Archive)))
+        .is_err());
+}
+
 fn scope() -> CommandScope {
     CommandScope {
         request_id: Uuid::new_v4(),

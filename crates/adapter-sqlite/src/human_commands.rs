@@ -188,6 +188,108 @@ fn error(code: &'static str) -> RepositoryError {
         code,
     }
 }
+impl SqliteStore {
+    /// Read only the latest solo operation in the current accepted actor/timeline.
+    /// Room-owned state is available solely through authenticated room services.
+    pub async fn pending_solo_clarification(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<Option<PendingHumanCommandClarification>, RepositoryError> {
+        let mut tx = self
+            .pool()
+            .begin()
+            .await
+            .map_err(|_| error("human_command_begin_failed"))?;
+        let current =
+            crate::campaign_state::load_in_transaction(&mut tx, CampaignId(campaign_id)).await?;
+        if current.session_id.0 != session_id || current.character_id.is_none() {
+            return Ok(None);
+        }
+        let room: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM coop_rooms WHERE campaign_id=?1 AND active=1)",
+        )
+        .bind(campaign_id.to_string())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| error("human_command_read_failed"))?;
+        if room {
+            return Ok(None);
+        }
+        let row=sqlx::query("SELECT o.request_id,o.request_json,o.status,o.restore_generation,m.manifest_json,m.clarifications_json,m.final_narration_json FROM agent_turn_operations o LEFT JOIN solo_human_command_manifests m ON m.request_id=o.request_id WHERE o.campaign_id=?1 AND o.session_id=?2 ORDER BY o.updated_at DESC,o.created_at DESC,o.rowid DESC LIMIT 1").bind(campaign_id.to_string()).bind(session_id.to_string()).fetch_optional(&mut *tx).await.map_err(|_|error("human_command_read_failed"))?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        if !matches!(
+            row.get::<String, _>("status").as_str(),
+            "running" | "interrupted"
+        ) {
+            return Ok(None);
+        }
+        let generation: i64 =
+            sqlx::query_scalar("SELECT restore_generation FROM sessions WHERE id=?1")
+                .bind(session_id.to_string())
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|_| error("human_command_read_failed"))?;
+        if generation != row.get::<i64, _>("restore_generation") {
+            return Ok(None);
+        }
+        let Some(raw) = row.get::<Option<String>, _>("manifest_json") else {
+            return Ok(None);
+        };
+        let manifest: HumanCommandManifest =
+            serde_json::from_str(&raw).map_err(|_| error("human_command_data_invalid"))?;
+        let operation: AgentOperation = serde_json::from_str(&row.get::<String, _>("request_json"))
+            .map_err(|_| error("human_command_data_invalid"))?;
+        let scope = CommandScope {
+            request_id: operation.request_id,
+            campaign_id,
+            session_id,
+            actor_id: current
+                .character_id
+                .ok_or_else(|| error("human_command_actor_required"))?,
+            authority: CommandAuthority::Solo {
+                restore_generation: u64::try_from(generation)
+                    .map_err(|_| error("human_command_data_invalid"))?,
+            },
+        };
+        if operation.request_id.to_string() != row.get::<String, _>("request_id")
+            || operation.request.campaign_id != campaign_id
+            || operation.request.session_id != session_id
+            || manifest.scope != scope
+        {
+            return Ok(None);
+        }
+        manifest
+            .validate_structure(&operation.request.player_message, &scope)
+            .map_err(|_| error("human_command_manifest_invalid"))?;
+        let questions: Vec<HumanCommandClarification> = serde_json::from_str(
+            &row.get::<Option<String>, _>("clarifications_json")
+                .ok_or_else(|| error("human_command_data_invalid"))?,
+        )
+        .map_err(|_| error("human_command_data_invalid"))?;
+        let clarification = questions.last().cloned();
+        if clarification.as_ref().is_some_and(|clarification| {
+            clarification.id.is_nil()
+                || clarification.question.trim().is_empty()
+                || !manifest.commands.iter().any(|command| {
+                    command.id == clarification.command_id
+                        && (clarification.reply.is_some()
+                            || matches!(command.goal, HumanCommandGoal::NeedsResolution { .. }))
+                })
+        }) {
+            return Err(error("human_command_data_invalid"));
+        }
+        tx.commit()
+            .await
+            .map_err(|_| error("human_command_commit_failed"))?;
+        Ok(Some(PendingHumanCommandClarification {
+            operation,
+            clarification,
+        }))
+    }
+}
 
 async fn guard_operation(
     tx: &mut Transaction<'_, Sqlite>,
@@ -343,11 +445,17 @@ async fn load_ledger(
     manifest
         .progress(&bindings, &receipts)
         .map_err(|_| error("human_command_binding_invalid"))?;
-    Ok(Some(StoredHumanCommandLedger {
+    let ledger = StoredHumanCommandLedger {
         manifest,
         bindings,
         receipts,
-    }))
+        clarifications: crate::human_command_clarifications::load(tx, scope).await?,
+        final_narration: crate::human_command_clarifications::load_final(tx, scope).await?,
+    };
+    ledger
+        .validate_clarifications()
+        .map_err(|_| error("human_command_data_invalid"))?;
+    Ok(Some(ledger))
 }
 #[derive(Clone)]
 pub struct SoloHumanCommandLedger {
@@ -356,6 +464,28 @@ pub struct SoloHumanCommandLedger {
     owner_id: Uuid,
 }
 impl SoloHumanCommandLedger {
+    async fn update_metadata<T: Send>(
+        &self,
+        change: impl FnOnce(&mut StoredHumanCommandLedger) -> Result<T, CommandLedgerError> + Send,
+    ) -> Result<T, RepositoryError> {
+        let mut tx = self
+            .store
+            .pool()
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| error("human_command_begin_failed"))?;
+        let (scope, message) = guard_operation(&mut tx, self.request_id, self.owner_id).await?;
+        let mut ledger = load_ledger(&mut tx, &scope, &message)
+            .await?
+            .ok_or_else(|| error("human_command_manifest_missing"))?;
+        let result =
+            change(&mut ledger).map_err(|_| error("human_command_clarification_invalid"))?;
+        crate::human_command_clarifications::persist(&mut tx, &message, &ledger).await?;
+        tx.commit()
+            .await
+            .map_err(|_| error("human_command_commit_failed"))?;
+        Ok(result)
+    }
     pub fn new(store: SqliteStore, request_id: Uuid, owner_id: Uuid) -> Self {
         Self {
             store,
@@ -366,6 +496,64 @@ impl SoloHumanCommandLedger {
 }
 #[async_trait::async_trait]
 impl HumanCommandLedgerRepository for SoloHumanCommandLedger {
+    async fn record_final_narration(
+        &self,
+        text: String,
+    ) -> Result<HumanCommandFinalNarration, RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_final(text))
+            .await
+    }
+    async fn record_clarification(
+        &self,
+        id: u16,
+        question: String,
+    ) -> Result<HumanCommandClarification, RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_question(id, question))
+            .await
+    }
+    async fn submit_clarification_reply(
+        &self,
+        id: Uuid,
+        reply: String,
+    ) -> Result<(), RepositoryError> {
+        self.update_metadata(move |ledger| ledger.record_reply(id, reply))
+            .await
+    }
+    async fn resolve_verified_goal(
+        &self,
+        id: u16,
+        action: HumanAction,
+    ) -> Result<(), RepositoryError> {
+        self.update_metadata(move |ledger| ledger.resolve_goal(id, action))
+            .await
+    }
+    async fn record_refusal(&self, tool_id: &str, code: &str) -> Result<(), RepositoryError> {
+        let ledger = self
+            .load_current()
+            .await?
+            .ok_or_else(|| error("human_command_manifest_missing"))?;
+        if ledger.receipts.iter().any(|receipt| {
+            receipt.binding.tool_call_id == tool_id
+                && receipt.outcome == (CommandAttemptOutcome::Refused { code: code.into() })
+        }) {
+            Ok(())
+        } else {
+            Err(error("human_command_outcome_uncertain"))
+        }
+    }
+    async fn original_request(&self) -> Result<(CommandScope, String), RepositoryError> {
+        let mut tx = self
+            .store
+            .pool()
+            .begin()
+            .await
+            .map_err(|_| error("human_command_begin_failed"))?;
+        let input = guard_operation(&mut tx, self.request_id, self.owner_id).await?;
+        tx.commit()
+            .await
+            .map_err(|_| error("human_command_commit_failed"))?;
+        Ok(input)
+    }
     async fn load_current(&self) -> Result<Option<StoredHumanCommandLedger>, RepositoryError> {
         let mut tx = self
             .store
@@ -429,6 +617,8 @@ impl HumanCommandLedgerRepository for SoloHumanCommandLedger {
             manifest,
             bindings: vec![],
             receipts: vec![],
+            clarifications: vec![],
+            final_narration: None,
         })
     }
     async fn prepare_after_permission(

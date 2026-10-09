@@ -56,4 +56,9 @@ pub enum AgentEvent {
     AgentDone {
         total_rounds: usize,
     },
+    AgentNeedsInput {
+        clarification_id: Uuid,
+        command_id: u16,
+        total_rounds: usize,
+    },
 }

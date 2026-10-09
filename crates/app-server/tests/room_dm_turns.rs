@@ -37,6 +37,8 @@ use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
 #[path = "support/room_human_commands_cases.rs"]
 mod human_command_cases;
+#[path = "support/native_guest_selection_cases.rs"]
+mod native_guest_selection_cases;
 struct Fixture {
     store: Arc<SqliteStore>,
     rooms: Arc<RoomService>,
@@ -1716,6 +1718,8 @@ async fn native_stream_forwards_shared_dm_and_updates_with_private_credentials()
         member_id: f.guest.member_id,
         capability: f.guest.capability.expose().into(),
         operation: NativeRoomOperation::DmTurn {
+            clarification: None,
+            awaiting_clarification: None,
             request_id: Uuid::new_v4(),
             player_message: "Осматриваюсь".into(),
             resume: false,
@@ -1809,6 +1813,8 @@ async fn native_stream_disconnect_preserves_pending_through_conflict_then_resume
         member_id: f.guest.member_id,
         capability: f.guest.capability.expose().into(),
         operation: NativeRoomOperation::DmTurn {
+            clarification: None,
+            awaiting_clarification: None,
             request_id: turn,
             player_message: "Жду продолжения".into(),
             resume: false,
@@ -1848,6 +1854,8 @@ async fn native_stream_disconnect_preserves_pending_through_conflict_then_resume
     assert_eq!(pending["request_id"], serde_json::json!(turn));
     assert_eq!(pending["player_message"], "Жду продолжения");
     request.operation = NativeRoomOperation::DmTurn {
+        clarification: None,
+        awaiting_clarification: None,
         request_id: turn,
         player_message: "Жду продолжения".into(),
         resume: true,
@@ -1922,6 +1930,8 @@ async fn native_stream_restore_releases_superseded_pending_and_allows_new_turn()
         member_id: f.guest.member_id,
         capability: f.guest.capability.expose().into(),
         operation: NativeRoomOperation::DmTurn {
+            clarification: None,
+            awaiting_clarification: None,
             request_id: turn,
             player_message: "Жду продолжения".into(),
             resume: false,
@@ -1964,6 +1974,8 @@ async fn native_stream_restore_releases_superseded_pending_and_allows_new_turn()
         .await
         .unwrap();
     request.operation = NativeRoomOperation::DmTurn {
+        clarification: None,
+        awaiting_clarification: None,
         request_id: turn,
         player_message: "Жду продолжения".into(),
         resume: true,
@@ -1978,6 +1990,8 @@ async fn native_stream_restore_releases_superseded_pending_and_allows_new_turn()
     read.operation = NativeRoomOperation::PendingAction {};
     assert!(service.execute(read.clone()).await.unwrap().body.is_none());
     request.operation = NativeRoomOperation::DmTurn {
+        clarification: None,
+        awaiting_clarification: None,
         request_id: Uuid::new_v4(),
         player_message: "Новый ход после восстановления".into(),
         resume: false,

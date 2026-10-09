@@ -16,6 +16,10 @@ pub enum NativeRoomOperation {
         after: Option<u64>,
     },
     DmTurn {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        clarification: Option<crate::agent::human_commands::HumanCommandClarificationReply>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        awaiting_clarification: Option<Uuid>,
         request_id: Uuid,
         player_message: String,
         resume: bool,

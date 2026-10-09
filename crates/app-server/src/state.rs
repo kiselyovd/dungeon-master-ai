@@ -29,6 +29,7 @@ pub struct AppState {
 }
 
 struct AppStateInner {
+    native_guest_selection_lane: Arc<tokio::sync::Mutex<()>>,
     player_verification_enabled: std::sync::atomic::AtomicBool,
     campaign_lanes: Mutex<HashMap<uuid::Uuid, Weak<tokio::sync::Mutex<()>>>>,
     process_id: uuid::Uuid,
@@ -98,6 +99,7 @@ impl AppState {
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
+                native_guest_selection_lane: Arc::new(tokio::sync::Mutex::new(())),
                 player_verification_enabled: std::sync::atomic::AtomicBool::new(false),
                 campaign_lanes: Mutex::new(HashMap::new()),
                 process_id: uuid::Uuid::new_v4(),
@@ -135,6 +137,9 @@ impl AppState {
 
     pub fn process_id(&self) -> uuid::Uuid {
         self.inner.process_id
+    }
+    pub(crate) fn native_guest_selection_lane(&self) -> Arc<tokio::sync::Mutex<()>> {
+        self.inner.native_guest_selection_lane.clone()
     }
     pub fn campaign_lane(&self, id: uuid::Uuid) -> Arc<tokio::sync::Mutex<()>> {
         let mut lanes = self

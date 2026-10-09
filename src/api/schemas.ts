@@ -87,6 +87,15 @@ export const ToolCallResultSchema = v.object({
 export const AgentDoneSchema = v.object({
   total_rounds: v.number(),
 });
+export const AgentNeedsInputSchema = v.object({
+  clarification_id: v.pipe(v.string(), v.uuid()),
+  command_id: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  total_rounds: v.pipe(v.number(), v.integer(), v.minValue(0)),
+});
+export function safeParseAgentNeedsInput(data: unknown) {
+  const result = v.safeParse(AgentNeedsInputSchema, data);
+  return result.success ? result.output : null;
+}
 
 export type ToolCallStartPayload = v.InferOutput<typeof ToolCallStartSchema>;
 export type ToolCallResultPayload = v.InferOutput<typeof ToolCallResultSchema>;

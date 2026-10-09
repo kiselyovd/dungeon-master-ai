@@ -1,5 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
+
+vi.mock('../../../api/agentPending', () => ({ getPendingAgentClarification: async () => null }));
+
 import { streamAgentTurn } from '../../../api/agent';
 import { actInAdventure } from '../../../api/campaigns';
 import type { CampaignStateResponse } from '../../../api/contracts/campaignState';

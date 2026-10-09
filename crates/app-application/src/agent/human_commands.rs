@@ -122,7 +122,7 @@ impl HumanAction {
             _ => Err(CommandLedgerError::SignatureMismatch),
         }
     }
-    fn same_mechanics(&self, other: &Self) -> bool {
+    pub fn same_mechanics(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Dice(a), Self::Dice(b)) => {
                 a.dice == b.dice
@@ -209,6 +209,211 @@ pub struct StoredHumanCommandLedger {
     pub manifest: HumanCommandManifest,
     pub bindings: Vec<PreparedCommandBinding>,
     pub receipts: Vec<ConfirmedCommandAttempt>,
+    pub clarifications: Vec<HumanCommandClarification>,
+    pub final_narration: Option<HumanCommandFinalNarration>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HumanCommandFinalNarration {
+    pub id: Uuid,
+    pub text: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingHumanCommandClarification {
+    pub operation: super::operations::AgentOperation,
+    pub clarification: Option<HumanCommandClarification>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HumanCommandClarification {
+    pub id: Uuid,
+    pub command_id: u16,
+    pub question: String,
+    pub reply: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HumanCommandClarificationReply {
+    pub id: Uuid,
+    pub reply: String,
+}
+impl HumanCommandClarificationReply {
+    pub fn valid(&self) -> bool {
+        !self.id.is_nil() && !self.reply.trim().is_empty() && self.reply.len() <= 4096
+    }
+}
+impl StoredHumanCommandLedger {
+    pub fn record_final(
+        &mut self,
+        text: String,
+    ) -> Result<HumanCommandFinalNarration, CommandLedgerError> {
+        if text.trim().is_empty()
+            || text.len() > 65536
+            || !self
+                .manifest
+                .progress(&self.bindings, &self.receipts)?
+                .iter()
+                .all(|(_, status)| status.closed())
+        {
+            return Err(CommandLedgerError::NotReady);
+        }
+        if let Some(saved) = &self.final_narration {
+            return if saved.text == text {
+                Ok(saved.clone())
+            } else {
+                Err(CommandLedgerError::BindingConflict)
+            };
+        }
+        let saved = HumanCommandFinalNarration {
+            id: Uuid::new_v4(),
+            text,
+        };
+        self.final_narration = Some(saved.clone());
+        Ok(saved)
+    }
+    pub fn resolution_command(&self) -> Result<Option<u16>, CommandLedgerError> {
+        Ok(self
+            .manifest
+            .progress(&self.bindings, &self.receipts)?
+            .into_iter()
+            .find(|(_, status)| *status == HumanCommandProgress::NeedsResolution)
+            .map(|(id, _)| id))
+    }
+    pub fn validate_clarifications(&self) -> Result<(), CommandLedgerError> {
+        if let Some(saved) = &self.final_narration {
+            if saved.id.is_nil()
+                || saved.text.trim().is_empty()
+                || saved.text.len() > 65536
+                || !self
+                    .manifest
+                    .progress(&self.bindings, &self.receipts)?
+                    .iter()
+                    .all(|(_, status)| status.closed())
+            {
+                return Err(CommandLedgerError::InvalidManifest);
+            }
+        }
+        let mut ids = BTreeSet::new();
+        for entry in &self.clarifications {
+            if entry.id.is_nil()
+                || !ids.insert(entry.id)
+                || entry.question.trim().is_empty()
+                || entry.question.chars().count() > 1600
+                || entry
+                    .reply
+                    .as_ref()
+                    .is_some_and(|reply| reply.trim().is_empty() || reply.len() > 4096)
+                || !self
+                    .manifest
+                    .commands
+                    .iter()
+                    .any(|command| command.id == entry.command_id)
+            {
+                return Err(CommandLedgerError::InvalidManifest);
+            }
+        }
+        // Only the latest question may await input. Earlier replies remain
+        // immutable evidence of what this same human actually clarified.
+        if self
+            .clarifications
+            .iter()
+            .rev()
+            .skip(1)
+            .any(|entry| entry.reply.is_none())
+        {
+            return Err(CommandLedgerError::InvalidManifest);
+        }
+        if let Some(entry) = self
+            .clarifications
+            .last()
+            .filter(|entry| entry.reply.is_none())
+        {
+            if self.resolution_command()? != Some(entry.command_id) {
+                return Err(CommandLedgerError::InvalidManifest);
+            }
+        }
+        Ok(())
+    }
+    pub fn record_question(
+        &mut self,
+        command_id: u16,
+        question: String,
+    ) -> Result<HumanCommandClarification, CommandLedgerError> {
+        if question.trim().is_empty() || question.chars().count() > 1600 {
+            return Err(CommandLedgerError::InvalidManifest);
+        }
+        if self.resolution_command()? != Some(command_id) {
+            return Err(CommandLedgerError::NotReady);
+        }
+        if let Some(last) = self
+            .clarifications
+            .last()
+            .filter(|entry| entry.reply.is_none())
+        {
+            return if last.command_id == command_id && last.question == question {
+                Ok(last.clone())
+            } else {
+                Err(CommandLedgerError::BindingConflict)
+            };
+        }
+        let entry = HumanCommandClarification {
+            id: Uuid::new_v4(),
+            command_id,
+            question,
+            reply: None,
+        };
+        self.clarifications.push(entry.clone());
+        self.validate_clarifications()?;
+        Ok(entry)
+    }
+    pub fn record_reply(&mut self, id: Uuid, reply: String) -> Result<(), CommandLedgerError> {
+        if reply.trim().is_empty() || reply.len() > 4096 {
+            return Err(CommandLedgerError::InvalidManifest);
+        }
+        let entry = self
+            .clarifications
+            .iter_mut()
+            .find(|entry| entry.id == id)
+            .ok_or(CommandLedgerError::BindingConflict)?;
+        if let Some(old) = &entry.reply {
+            return if *old == reply {
+                Ok(())
+            } else {
+                Err(CommandLedgerError::BindingConflict)
+            };
+        }
+        entry.reply = Some(reply);
+        self.validate_clarifications()
+    }
+    /// Semantic resolution must be independently verified first. Previously
+    /// bound/completed goals cannot be rewritten by a clarification.
+    pub fn resolve_goal(
+        &mut self,
+        command_id: u16,
+        action: HumanAction,
+    ) -> Result<(), CommandLedgerError> {
+        if self.resolution_command()? != Some(command_id)
+            || self
+                .bindings
+                .iter()
+                .any(|binding| binding.command_id == command_id)
+            || self
+                .clarifications
+                .last()
+                .is_some_and(|entry| entry.reply.is_none())
+        {
+            return Err(CommandLedgerError::NotReady);
+        }
+        let command = self
+            .manifest
+            .commands
+            .iter_mut()
+            .find(|command| command.id == command_id)
+            .ok_or(CommandLedgerError::NotReady)?;
+        command.goal = HumanCommandGoal::Exact { action };
+        self.manifest.progress(&self.bindings, &self.receipts)?;
+        Ok(())
+    }
 }
 #[derive(Debug, Clone)]
 pub struct HumanCommandStepProposal {
@@ -221,6 +426,10 @@ pub struct HumanCommandStepProposal {
 /// room subject. No client history or model output may provide receipt outcomes.
 #[async_trait::async_trait]
 pub trait HumanCommandLedgerRepository: Send + Sync {
+    /// Protected original text and authority; never supplied by model/history.
+    async fn original_request(
+        &self,
+    ) -> Result<(CommandScope, String), crate::ports::repositories::RepositoryError>;
     /// Recheck current authority/timeline and canonical receipt signatures before
     /// returning progress, including recovery of effect-before-transcript gaps.
     async fn load_current(
@@ -240,6 +449,32 @@ pub trait HumanCommandLedgerRepository: Send + Sync {
         &self,
         proposal: HumanCommandStepProposal,
     ) -> Result<PreparedCommandBinding, crate::ports::repositories::RepositoryError>;
+    /// Settle only a recognized engine refusal, never a permission denial or
+    /// uncertain transport failure. Canonical effects still outrank metadata.
+    async fn record_refusal(
+        &self,
+        tool_id: &str,
+        code: &str,
+    ) -> Result<(), crate::ports::repositories::RepositoryError>;
+    async fn record_clarification(
+        &self,
+        command_id: u16,
+        question: String,
+    ) -> Result<HumanCommandClarification, crate::ports::repositories::RepositoryError>;
+    async fn record_final_narration(
+        &self,
+        text: String,
+    ) -> Result<HumanCommandFinalNarration, crate::ports::repositories::RepositoryError>;
+    async fn submit_clarification_reply(
+        &self,
+        id: Uuid,
+        reply: String,
+    ) -> Result<(), crate::ports::repositories::RepositoryError>;
+    async fn resolve_verified_goal(
+        &self,
+        command_id: u16,
+        action: HumanAction,
+    ) -> Result<(), crate::ports::repositories::RepositoryError>;
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HumanCommandProgress {
