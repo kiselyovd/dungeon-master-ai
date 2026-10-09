@@ -650,3 +650,23 @@ transcript/final-replay, solo recovery and native lock findings. Original32 file
 hashes preserved. Scoped staging includes only three owned src/api/agent.ts changes;
 inherited transport edits remain unstaged. This checkpoint is runtime integration
 and recovery proof, not complete real-Qwen/native/physical-LAN session acceptance.
+
+Live human-command continuation,2026-10-09: strict coupled planner schema and
+full adventure argument examples fix two real malformed Qwen proposals without
+relaxing the independent manifest/per-action checks. Actual move+inspect with a
+negative movement constraint committed exactly once. Separate publication
+classification, presentation and required-fact coverage avoid a reproduced false
+invented-mechanism diagnosis; inconsistent negative diagnostics cannot publish.
+36 workflow and5 planning groups pass; independent source review has no open
+finding. Frozen gates pass (942 Rust,1127 frontend, architecture/static, Clippy).
+
+Real backend-restart resume: thinking-off narration still fails; thinking-on
+finishes in71.936s, replays original effects and only creates one new quick save
+(revision4→5). Independent semantic review accepts agency/minimal discovery but
+flags gender and unclear clue phrasing. Next archive request is rejected by
+manifest verification before effects; schema/route-context probes remain failed.
+No default-model/reasoning promotion and no full Qwen session acceptance.
+Next bounded implementation: quantified repetitions from one source clause,
+with ordered per-attempt bindings/receipts and no duplicate retry or quota
+bypass; then richer conditional/refusal cases and full model/native/LAN proofs.
+Keep the broad goal and acceptance boxes open.

@@ -261,3 +261,44 @@ bindings rather than repeatedly guessing whether a recorded effect occurred.
 Keep direct execution, real compounds/conditionals and final independent review;
 no confirmation UI or one-action cap. Legacy unbound history must never silently
 authorize or manufacture a new effect. Native/physicalLAN/full-goal remain open.
+
+Human-command live evaluation, 2026-10-09 (HEAD a76db0c plus owned changes):
+strict planner schemas now couple Exact versus NeedsResolution fields, the prompt
+specifies full adventure arguments, and the catalog contains only the four typed
+human action tools. Qwen thinking-off parsed and executed move quay + inspect
+quay exactly once while retaining the no-further-movement constraint. Initial
+inner-argument and mixed-null proposals were rejected before effects.
+
+The diagnostic-list checker falsely classified a canonical ward description as
+an invented mechanism. Publication now separates a strict faithful boolean from
+presentation and per-required-fact coverage. Negative classification cannot be
+overridden by empty or cleared diagnostics; malformed/truncated checks fail
+closed. No canon was changed. Independent source review found no actionable
+issue. Small paired probes are calibration only, not universal model accuracy.
+Thinking-on controls reject wrong object, water wall, new hero action/emotion,
+recovery, reward and healing; its omission false acceptance is caught by the
+separate required-fact coverage check. Internal planning fails presentation.
+
+Executable SHA256 45affc7f6bf4cceecd739496732aeb1f944999182e594d97a2ecd5aa489557f6
+resumed the original request after a real backend restart. Thinking-off still
+failed delivery (8.616s). Thinking-on delivered a verified correction and Done
+(71.936s); move/inspect receipts were replayed, not executed again. Adventure
+history, location and inventory stayed unchanged. A new quick_save alone advanced
+revision4 to5. Independent semantic review accepts minimal discovery/agency for
+this episode but flags masculine address to Nora and weak clue phrasing.
+
+Complete rescue/ending acceptance remains FAIL: the next request to enter the
+archive along the dry upper path was rejected by manifest verification before
+any effect (22.501s, revision5 unchanged). Adding public-route facts and schemas
+in isolated probes did not resolve this rejection; those experimental inputs
+were not added to production. Do not infer complete playability from one Done.
+No model/default reasoning preference was promoted. Quantified commands, native
+AI-led sessions and physical separate-device LAN/VPN acceptance remain open.
+Evidence: .artifacts/qwen9b/human-a76db0c/{build-proof.json,captures,
+compound-v3-report.json,resume-off-report.json,resume-thinking-report.json,
+continuation-report.json,thinking-*.json,gates.log}.
+
+Focused36 workflow and5 planning groups pass. Frozen consolidated gates pass:
+942 Rust tests,1127 frontend tests, architecture/static checks and all-feature
+Clippy. Backend build passes. This backend-only scope has no new browser/native
+acceptance. User-owned source changes remain separate.

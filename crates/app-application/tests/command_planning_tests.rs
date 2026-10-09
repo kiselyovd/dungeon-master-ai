@@ -105,6 +105,33 @@ fn command(quote: &str, occurrence: usize) -> Value {
     json!({"source":{"quote":quote,"occurrence":occurrence},"tool_name":"rest_action","args_json":json!({"kind":"wait","minutes":1}).to_string(),"unresolved":null,"condition":null})
 }
 #[tokio::test]
+async fn compound_adventure_requires_full_wrapped_arguments_and_preserves_negative_constraint() {
+    let text = "Иду на старый причал и осматриваю его. Дальше никуда не иду.";
+    let proposal = json!({"commands":[{"source":{"quote":"Иду на старый причал","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"move","location":"quay"}}).to_string(),"unresolved":null,"condition":null},{"source":{"quote":"осматриваю его","occurrence":0},"tool_name":"adventure_action","args_json":json!({"action":{"kind":"inspect_quay"}}).to_string(),"unresolved":null,"condition":null}],"constraints":[{"quote":"Дальше никуда не иду","occurrence":0}]});
+    let p = provider(vec![
+        (proposal.clone(), FinishReason::Stop),
+        (json!({"valid":true}), FinishReason::Stop),
+    ]);
+    let manifest = LlmHumanCommandPlanner::new(p, "script".into())
+        .plan(input(text))
+        .await
+        .unwrap();
+    assert_eq!(manifest.commands.len(), 2);
+    assert_eq!(manifest.constraints.len(), 1);
+    let mut bad = proposal;
+    bad["commands"][0]["args_json"] = json!(json!({"kind":"move","location":"quay"}).to_string());
+    let p = provider(vec![(bad, FinishReason::Stop)]);
+    assert!(LlmHumanCommandPlanner::new(p.clone(), "script".into())
+        .plan(input(text))
+        .await
+        .is_err());
+    assert_eq!(
+        p.requests.lock().unwrap().len(),
+        1,
+        "bad arguments never reach semantic approval or execution"
+    );
+}
+#[tokio::test]
 async fn compound_plan_preserves_repeated_commands_and_prohibition_and_is_independently_checked() {
     let text = "Жду минуту, жду минуту. Ход не заканчиваю";
     let p = provider(vec![

@@ -445,7 +445,7 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
         narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationVerifier,
     };
     for (text, reason, valid) in [
-        (r#"{"violations":[]}"#, FinishReason::Stop, true),
+        (r#"{"violations":[]}"#, FinishReason::Stop, false),
         (
             r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
             FinishReason::Stop,
@@ -493,13 +493,16 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
         ),
         (r#"{"violations":[]}"#, FinishReason::Length, false),
     ] {
-        let mut rounds = vec![vec![
-            ChatChunk::ThinkingDelta {
-                text: "PRIVATE_CHECK_REASONING".into(),
-            },
-            ChatChunk::TextDelta { text: text.into() },
-            ChatChunk::Done { reason },
-        ]];
+        let mut rounds = vec![
+            narration_round(r#"{"faithful":false}"#),
+            vec![
+                ChatChunk::ThinkingDelta {
+                    text: "PRIVATE_CHECK_REASONING".into(),
+                },
+                ChatChunk::TextDelta { text: text.into() },
+                ChatChunk::Done { reason },
+            ],
+        ];
         if valid && text.contains("required_discovery_omitted") {
             rounds.push(narration_round(r#"{"conveyed":false}"#));
         }
@@ -532,6 +535,151 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
     }
 }
 
+#[tokio::test]
+async fn faithful_narration_still_requires_each_discovery_and_complete_typed_verdict() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    for (decision, terminal, coverage, expected) in [
+        (
+            r#"{"faithful":true}"#,
+            FinishReason::Stop,
+            Some(true),
+            Some(0),
+        ),
+        (
+            r#"{"faithful":true}"#,
+            FinishReason::Stop,
+            Some(false),
+            Some(1),
+        ),
+        (r#"{"faithful":"yes"}"#, FinishReason::Stop, None, None),
+        (
+            r#"{"faithful":true,"extra":1}"#,
+            FinishReason::Stop,
+            None,
+            None,
+        ),
+        (r#"{"faithful":true}"#, FinishReason::Length, None, None),
+        ("", FinishReason::Stop, None, None),
+    ] {
+        let mut rounds = vec![vec![
+            ChatChunk::TextDelta {
+                text: decision.into(),
+            },
+            ChatChunk::Done { reason: terminal },
+        ]];
+        if let Some(conveyed) = coverage {
+            rounds.push(narration_round(r#"{"narration":true}"#));
+            rounds.push(narration_round(&json!({"conveyed":conveyed}).to_string()));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "ward_inspection".into(),
+            text: "Fresh tool marks on the ward where the clapper was removed.".into(),
+            required: true,
+        });
+        let result = LlmNarrationVerifier::new(provider.clone())
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю оберег".into(),
+                draft: "На обереге свежие следы инструмента там, где сняли язык колокола.".into(),
+                evidence,
+            })
+            .await;
+        assert_eq!(
+            result.ok().map(|v| v.violations.len()),
+            expected,
+            "{decision}"
+        );
+        assert!(provider
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|r| r.tools.is_empty() && r.model == "saved-A"));
+    }
+}
+
+#[tokio::test]
+async fn negative_faithfulness_cannot_be_overridden_by_cleared_diagnostics() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        narration_round(r#"{"faithful":false}"#),
+        narration_round(
+            r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+        ),
+        narration_round(r#"{"conveyed":true}"#),
+    ]));
+    let mut evidence = narration_evidence(&json!({}), &[]);
+    evidence.facts.push(NarrationFact {
+        id: "discovery".into(),
+        text: "Confirmed discovery".into(),
+        required: true,
+    });
+    assert!(LlmNarrationVerifier::new(provider)
+        .assess(NarrationCheck {
+            model: "saved-A".into(),
+            player_message: "Осматриваю".into(),
+            draft: "Улика обнаружена, и герой сам ушёл в архив.".into(),
+            evidence,
+        })
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn faithful_facts_do_not_publish_internal_planning_or_ignore_a_second_discovery() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+        NarrationViolationCode,
+    };
+    for narration in [false, true] {
+        let mut rounds = vec![
+            narration_round(r#"{"faithful":true}"#),
+            narration_round(&json!({"narration":narration}).to_string()),
+        ];
+        if narration {
+            rounds.push(narration_round(r#"{"conveyed":true}"#));
+            rounds.push(narration_round(r#"{"conveyed":false}"#));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        for id in ["first", "second"] {
+            evidence.facts.push(NarrationFact {
+                id: id.into(),
+                text: format!("Confirmed {id} discovery"),
+                required: true,
+            });
+        }
+        let verdict = LlmNarrationVerifier::new(provider)
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю".into(),
+                draft: "Нужно написать об обнаруженной улике, затем задать вопрос.".into(),
+                evidence,
+            })
+            .await
+            .unwrap();
+        assert_eq!(verdict.violations.len(), 1);
+        if narration {
+            assert_eq!(verdict.violations[0].fact_id, "second");
+            assert!(matches!(
+                verdict.violations[0].code,
+                NarrationViolationCode::RequiredDiscoveryOmitted
+            ));
+        } else {
+            assert!(matches!(
+                verdict.violations[0].code,
+                NarrationViolationCode::NonNarrationText
+            ));
+        }
+    }
+}
+
 #[test]
 fn narration_repair_rejects_prose_planning_empty_or_extra_fields() {
     use app_application::agent::narration::parse_repair;
@@ -559,6 +707,7 @@ async fn positive_discovery_coverage_can_clear_only_reported_omissions() {
     for conveyed in [false, true] {
         let first = json!({"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Стрела летит"}]});
         let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
             narration_round(&first.to_string()),
             narration_round(&json!({"conveyed":conveyed}).to_string()),
         ]));
@@ -585,12 +734,12 @@ async fn positive_discovery_coverage_can_clear_only_reported_omissions() {
         let requests = provider.requests.lock().unwrap();
         assert_eq!(
             requests.len(),
-            2,
+            3,
             "duplicate omission should reuse coverage"
         );
-        assert_eq!(requests[1].model, "saved-A");
-        assert!(requests[1].tools.is_empty());
-        let payload = serde_json::to_string(&requests[1].messages).unwrap();
+        assert_eq!(requests[2].model, "saved-A");
+        assert!(requests[2].tools.is_empty());
+        let payload = serde_json::to_string(&requests[2].messages).unwrap();
         assert!(!payload.contains("PRIVATE_UNRELATED_HISTORY"));
         assert!(!payload.contains("public_context"));
     }
@@ -607,6 +756,7 @@ async fn incomplete_or_malformed_discovery_coverage_never_accepts_the_draft() {
         ("", FinishReason::Stop),
     ] {
         let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
             narration_round(
                 r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
             ),

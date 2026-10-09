@@ -1106,7 +1106,7 @@ impl AgentTurnService {
                 tools.push(tool.clone());
             }
         }
-        tools.retain(|tool| player_resolution_tool(&tool.name));
+        tools.retain(|tool| human_planning_tool(&tool.name));
         let input = super::command_planning::CommandPlanningInput {
             scope,
             player_message: message,
@@ -1177,7 +1177,7 @@ impl AgentTurnService {
                     tools.push(tool.clone());
                 }
             }
-            tools.retain(|tool| player_resolution_tool(&tool.name));
+            tools.retain(|tool| human_planning_tool(&tool.name));
             let input = super::command_planning::CommandResolutionInput {
                 original: super::command_planning::CommandPlanningInput {
                     scope,
@@ -1542,6 +1542,12 @@ fn player_intention_tool(name: &str) -> bool {
 }
 fn player_resolution_tool(name: &str) -> bool {
     player_intention_tool(name) || name == "roll_dice"
+}
+fn human_planning_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "adventure_action" | "combat_action" | "rest_action" | "roll_dice"
+    )
 }
 fn resolved_player_intentions(
     messages: &[ChatMessage],
