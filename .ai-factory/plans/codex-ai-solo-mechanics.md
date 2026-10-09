@@ -752,7 +752,7 @@ Grounded references and intent-completeness continuation:
   manifest/receipt is not rewritten or counted as full intent completion.
 - [x] Frozen final gates and scoped checkpoint (960 Rust,1127 frontend,
   architecture/static and all-feature Clippy pass).
-- [ ] Preserve legacy NPC-return; implement separate canonical personal escort
+- [x] Preserve legacy NPC-return; implement separate canonical personal escort
   that returns both Tikhon and initiating hero to Veresk, with server time/routes,
   once-reward/replay/authority and snapshots. Add full args/catalog, exact supported
   intention references, EN/RU choices using existing UI, actor/room integration
@@ -774,3 +774,31 @@ is explicitly unfulfilled by legacy NPC-return. The policy probe rejects that
 incomplete plan before new binding, but does not rewrite old cached wrong intent.
 No model/native/physicalLAN/full-session acceptance is claimed. Owned QA processes
 are stopped; original32 dirty source hashes remain preserved.
+
+
+Personal escort implementation:
+- [x] Separate EscortTikhonHome/escort_tikhon_home preserves legacy NPC-only
+  RescueTikhon while taking both the human hero and ferryman home to Town.
+- [x] Domain guards require Archive/found/notrescued/noactivefight/open session;
+  two route segments cost600seconds. Same once-reward/immutable replay path.
+- [x] Canonical full args, Valibot, action meaning and EN/RU choices agree.
+  Existing controls/styles are reused; the legacy label accurately means staying.
+- [x] Domain, SQL bothbranches identity/stale/replay/time/map/restore/rollback,
+  roomguest bothbranches rollback/replay/otherheroSheet checks and UIpanel pass.
+- [x] Locally served production-root browser completes realHTTP/SQLite peaceful
+  route with personalescort, verifies immediateTown/mapremoved/10gold, finishes
+  and reloads ending. Screenshot checked; backend/frontend builds pass.
+- [x] Targeted realQwen selects newescort from original phrase, independent
+  manifest/candidate checks pass, oneeffect, revision5→6, Town and10gold, clock1500
+  from900 setup+600escort. This follows3 fixtureAPIsetupactions, notfullAI play.
+- [x] Final frozen gates: 961 Rust and 1128 frontend tests, architecture/static
+  and all-feature Clippy pass. All four affected production-browser scenarios
+  pass, including legacy rescue, snapshot recovery and defensive ending.
+- [x] Final independent staged review: no code findings; corrected one stale
+  documentation status. Scoped local checkpoint; original32 hashes preserved
+  and owned isolated QA processes stopped.
+- [ ] Full fresh AI-led solo peaceful/defensive and native/separate-device LAN.
+Narrative agency still FAIL: Qwen added unrequested farewell speech despite a
+positive fidelity verdict. A separate agency-boolean probe failed its paired
+controls and is not incorporated into production. Do not promote this model or
+claim whole-goal acceptance from correct escort mechanics.

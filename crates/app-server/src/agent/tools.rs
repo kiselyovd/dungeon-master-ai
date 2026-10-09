@@ -31,7 +31,7 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
         description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
         parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"oneOf":[
             {"type":"object","additionalProperties":false,"required":["kind","location"],"properties":{"kind":{"type":"string","const":"move"},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}},
-            {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]}}}
+            {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","escort_tikhon_home","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]}}}
         ]}}}),
     });
     if availability.image {

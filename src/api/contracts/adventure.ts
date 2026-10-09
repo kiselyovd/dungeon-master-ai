@@ -16,6 +16,7 @@ export const AdventureActionSchema = v.variant('kind', [
       'repair_clapper',
       'locate_tikhon',
       'rescue_tikhon',
+      'escort_tikhon_home',
       'recover_roster',
       'recover_ledger',
       'acknowledge_echo',

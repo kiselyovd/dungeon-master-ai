@@ -38,6 +38,7 @@ pub fn bell_public_action_references(state: &AdventureState) -> Vec<serde_json::
             Action::RetrieveClapperPublicly => "Seek recovery of the missing clapper through public intervention. / Добиться возвращения языка колокола публичным вмешательством.",
             Action::RepairClapper => "Repair the recovered clapper. / Починить найденный язык колокола.",
             Action::LocateTikhon => "Call out or investigate the upper chamber looking for the missing ferryman Tikhon. This establishes no discovery until an engine result. / Окликнуть или разыскать пропавшего паромщика Тихона в верхней комнате; находка подтверждается только результатом действия.",
+            Action::EscortTikhonHome => "Personally escort Tikhon home by the maintained dry upper route through the quay to Veresk. The HUMAN HERO also arrives in town. / Лично проводить Тихона домой по сухому верхнему пути через причал в Вереск. Игровой герой тоже прибывает в город.",
             Action::RescueTikhon => "Help the found ferryman return safely home by the upper route. This canonical action does not change the hero's location. / Помочь найденному паромщику безопасно добраться домой по верхнему пути. Это действие не меняет местоположение героя.",
             Action::RecoverRoster => "Recover the original memorial roll. / Получить оригинал памятного списка спасённых.",
             Action::RecoverLedger => "Recover the land-ownership ledger. / Получить земельную книгу.",

@@ -441,3 +441,34 @@ successful live narrative/physical escort run. Existing real failures and partia
 legacy intent remain documented. Original32 source hashes preserved; isolated QA
 processes stopped. Final-source binary proof: build-proof-final.json; executed
 older-binary evidence retains its separate proofs and captures.
+
+
+Canonical personal escort checkpoint (050f0ad plus owned implementation): separate
+escort_tikhon_home takes the hero to Town as well as returning Tikhon, while
+legacy rescue keeps Archive. Guarded route cost600s and once-reward share the
+existing transactional/replay path; no migration or production dependency added.
+SQL identity/stale/replay/time/map/restore/rollback runs both variants. Roomguest
+runs both with rollback/replay and no other hero-sheet change. Production browser
+with realHTTP/SQLite selects escort, confirms Town/mapremoved/10gold, completes
+peaceful ending and reloads it. This is manual UI/engine proof, not AI narration.
+
+Targeted Qwen with THREE canonical fixture setup actions (MoveQuay, MoveArchive,
+LocateTikhon) then original "Провожу Тихона домой по безопасному пути": model
+selected new escort, separate checks approved, one canonical effect revision5→6,
+Town, exactly10gold and clock1500 (900 setup+600escort), Done46.506s. Full AI session
+is not proved. Independent review passes selection/physical intent and FAILS
+agency in prose: "Вы передали ему последние слова" invents hero speech. The
+future-choice menu also deviates from the intended one-question style.
+
+A separate agency boolean correctly flags invented emotion and accepts declared
+speech, but falsely accepts the unrequested farewell and rejects the NPC-only
+control. This probe is rejected, not a new production validator or override.
+No model/default promotion. Evidence .artifacts/escort-050f0ad/{build-proof.json,
+compound-report.json,captures,model-sql-proof.json,choices.png,browser-final.log,
+agency-probe-*.json,gates-final.log}. UI fixture controls only native environment;
+campaign state/actions come from the isolated real server and SQLite.
+
+Escort frozen verification: consolidated gates GREEN (961 Rust, 1128 frontend;
+architecture/static/all-feature Clippy). All four affected production-browser
+scenarios pass, including legacy rescue, snapshot recovery and defensive ending.
+Evidence: .artifacts/escort-050f0ad/browser-all.log and gates-final.log.

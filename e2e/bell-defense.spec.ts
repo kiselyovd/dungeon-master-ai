@@ -144,7 +144,7 @@ test('a complete authored defensive route persists its map and reaches a rescued
   await expect(page.getByRole('dialog', { name: 'The Bell Beneath the Water' })).toContainText(
     'The passage is held.',
   );
-  await act(page, 'Escort Tikhon home along the safe route');
+  await act(page, 'Help Tikhon return home while staying in the archive');
   await act(page, 'Go to Lower belfry');
   await act(page, 'Seal the lower sluice and close the crossing');
   await act(page, 'Go to Flooded archive');

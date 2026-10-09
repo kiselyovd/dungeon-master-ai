@@ -63,3 +63,37 @@ it('keeps ambiguous failure recoverable without issuing a different intent', asy
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry last action' }));
   expect(retry).toHaveBeenCalledOnce();
 });
+
+it('distinguishes personal escort from helping the NPC return alone', async () => {
+  await i18n.changeLanguage('ru');
+  const action = vi.fn();
+  render(
+    <AdventurePanel
+      open
+      onClose={vi.fn()}
+      pending={false}
+      error={false}
+      onAction={action}
+      onRetry={vi.fn()}
+      retryRequired={false}
+      projection={{
+        state: {
+          package_id: 'bell-beneath-water',
+          location: 'archive',
+          facts: ['ferry_route', 'tikhon_located'],
+          ending: null,
+          closed: false,
+          history: [],
+        },
+        available_actions: [{ kind: 'rescue_tikhon' }, { kind: 'escort_tikhon_home' }],
+      }}
+    />,
+  );
+  expect(
+    screen.getByRole('button', { name: 'Помочь Тихону вернуться домой, оставаясь в архиве' }),
+  ).toBeVisible();
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: 'Лично проводить Тихона домой в Вереск' }));
+  expect(action).toHaveBeenCalledExactlyOnceWith({ kind: 'escort_tikhon_home' });
+});

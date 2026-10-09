@@ -64,6 +64,7 @@ pub enum Action {
     RepairClapper,
     LocateTikhon,
     RescueTikhon,
+    EscortTikhonHome,
     RecoverRoster,
     RecoverLedger,
     AcknowledgeEcho,
@@ -78,7 +79,7 @@ impl Action {
     pub fn elapsed_seconds(self) -> u64 {
         match self {
             Self::Finish | Self::StartDefense => 0,
-            Self::ConsultLeon | Self::RepairClapper => 600,
+            Self::ConsultLeon | Self::RepairClapper | Self::EscortTikhonHome => 600,
             _ => 300,
         }
     }
@@ -187,6 +188,7 @@ impl AdventureState {
                 );
                 offer(LocateTikhon, !has(TikhonLocated));
                 offer(RescueTikhon, has(TikhonLocated) && !has(TikhonRescued));
+                offer(EscortTikhonHome, has(TikhonLocated) && !has(TikhonRescued));
                 offer(RecoverRoster, has(TikhonLocated) && !has(RosterAvailable));
                 offer(RecoverLedger, has(TikhonRescued) && !has(LedgerRecovered));
             }
@@ -239,8 +241,11 @@ impl AdventureState {
             LocateTikhon => {
                 state.facts.insert(TikhonLocated);
             }
-            RescueTikhon => {
+            RescueTikhon | EscortTikhonHome => {
                 state.facts.insert(TikhonRescued);
+                if action == EscortTikhonHome {
+                    state.location = Location::Town;
+                }
                 if state.facts.insert(RewardGranted) {
                     gold_reward = 10;
                 }

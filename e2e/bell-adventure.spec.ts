@@ -78,6 +78,15 @@ async function openAdventure(page: Page, request: APIRequestContext) {
   const click = async (name: string) => {
     const button = dialog.getByRole('button', { name, exact: true });
     await expect(button).toBeEnabled();
+    if (name === 'Personally escort Tikhon home to Veresk') {
+      await expect(
+        dialog.getByRole('button', {
+          name: 'Help Tikhon return home while staying in the archive',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.screenshot({ path: '.artifacts/escort-050f0ad/choices.png', fullPage: true });
+    }
     const response = page.waitForResponse(
       (response) =>
         response.url().endsWith('/adventure/actions') && response.request().method() === 'POST',
@@ -87,6 +96,16 @@ async function openAdventure(page: Page, request: APIRequestContext) {
     await expect(dialog.getByText('Confirming your action…')).toHaveCount(0);
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     await expect(dialog.locator('ol li').last()).toHaveText(name);
+    if (name === 'Personally escort Tikhon home to Veresk') {
+      const state = await (await request.get(`${base}/campaigns/${campaign.id}/state`)).json();
+      expect(state.projection.adventure.state.location).toBe('town');
+      expect(state.projection.adventure.map).toBeUndefined();
+      expect(
+        state.projection.character.inventory.filter(
+          (item: { id: string }) => item.id === 'bell-rescue-gold',
+        ),
+      ).toEqual([{ id: 'bell-rescue-gold', name: 'Gold pieces', kind: 'coin', count: 10 }]);
+    }
   };
   return { base, campaign, hero, dialog, click };
 }
@@ -101,9 +120,7 @@ test('production UI completes the real authored peaceful route and reloads its e
     'Inspect the ward and river tracks',
     'Go to Flooded archive',
     'Call for Tikhon in the upper chamber',
-    'Escort Tikhon home along the safe route',
-    'Go to Old quay',
-    'Go to Veresk',
+    'Personally escort Tikhon home to Veresk',
     'Go to Town shrine',
     'Ask Leon about the ward and roster',
     'Go to Veresk',
@@ -147,7 +164,7 @@ test('sealed and unresolved outcomes remain distinct in the real production UI',
     'Go to Old quay',
     'Go to Flooded archive',
     'Call for Tikhon in the upper chamber',
-    'Escort Tikhon home along the safe route',
+    'Help Tikhon return home while staying in the archive',
     'Take the optional land ledger',
     'Go to Lower belfry',
     'Seal the lower sluice and close the crossing',
@@ -190,7 +207,7 @@ test('real snapshot restore rewinds adventure facts and reward, then permits a f
   const checkpoint = await saved.json();
   await page.reload();
   await page.getByRole('button', { name: 'Adventure', exact: true }).click();
-  await click('Escort Tikhon home along the safe route');
+  await click('Help Tikhon return home while staying in the archive');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Saves', exact: true }).click();
   await page.getByRole('button', { name: /Before rescue/ }).click();
@@ -203,9 +220,9 @@ test('real snapshot restore rewinds adventure facts and reward, then permits a f
   expect((await restoreResponse).status()).toBe(200);
   await page.getByRole('button', { name: 'Adventure', exact: true }).click();
   await expect(
-    dialog.getByRole('button', { name: 'Escort Tikhon home along the safe route' }),
+    dialog.getByRole('button', { name: 'Help Tikhon return home while staying in the archive' }),
   ).toBeEnabled();
-  await click('Escort Tikhon home along the safe route');
+  await click('Help Tikhon return home while staying in the archive');
   const current = await (await request.get(`${base}/campaigns/${campaign.id}/state`)).json();
   expect(
     current.projection.character.inventory.filter(

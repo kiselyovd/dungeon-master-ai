@@ -6,7 +6,7 @@ use app_application::models::campaign_state::CommitCampaignCharacter;
 use app_application::models::session::CampaignSeed;
 use app_application::models::snapshot::{CreateSnapshotRecord, RestoreSnapshotRecord};
 use app_application::ports::repositories::{
-    AdventureRepository, CampaignStateRepository, SnapshotRepository,
+    AdventureRepository, CampaignStateRepository, RestRepository, SnapshotRepository,
 };
 use serde_json::json;
 use sqlx::SqlitePool;
@@ -15,6 +15,10 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn adventure_is_authoritative_retry_safe_and_restored_with_its_reward() {
+    rescue_contract(Action::RescueTikhon).await;
+    rescue_contract(Action::EscortTikhonHome).await;
+}
+async fn rescue_contract(rescue_action: Action) {
     let db = SqlitePool::connect("sqlite::memory:").await.unwrap();
     pool::migrate(&db).await.unwrap();
     let store = Arc::new(SqliteStore::new(db));
@@ -93,9 +97,25 @@ async fn adventure_is_authoritative_retry_safe_and_restored_with_its_reward() {
         character_id: hero,
         expected_revision: checkpoint.snapshot.revision,
         causation_id: "rescue".into(),
-        action: Action::RescueTikhon,
+        action: rescue_action,
     };
+    let clock_before = store.status(campaign.id).await.unwrap().elapsed_seconds;
     current = store.act(rescue.clone()).await.unwrap();
+    let clock_after = store.status(campaign.id).await.unwrap().elapsed_seconds;
+    assert_eq!(clock_after, clock_before + rescue_action.elapsed_seconds());
+    let adventure = current.projection.adventure.as_ref().unwrap();
+    assert_eq!(
+        adventure.state.location,
+        if rescue_action == Action::EscortTikhonHome {
+            Location::Town
+        } else {
+            Location::Archive
+        }
+    );
+    assert_eq!(
+        adventure.map.is_none(),
+        rescue_action == Action::EscortTikhonHome
+    );
     assert_eq!(current.projection.character["inventory"][0]["count"], 10);
     assert!(current
         .projection
@@ -108,6 +128,10 @@ async fn adventure_is_authoritative_retry_safe_and_restored_with_its_reward() {
     assert_eq!(
         store.act(rescue).await.unwrap().projection.character["inventory"][0]["count"],
         10
+    );
+    assert_eq!(
+        store.status(campaign.id).await.unwrap().elapsed_seconds,
+        clock_after
     );
     let mut wrong = AdventureCommand {
         campaign_id: campaign.id,
@@ -162,7 +186,7 @@ async fn adventure_is_authoritative_retry_safe_and_restored_with_its_reward() {
             character_id: hero,
             expected_revision: before_failure.campaign.revision,
             causation_id: "rollback-rescue".into(),
-            action: Action::RescueTikhon,
+            action: rescue_action,
         })
         .await;
     assert!(failed.is_err());

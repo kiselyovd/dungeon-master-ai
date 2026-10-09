@@ -16,6 +16,26 @@ fn rescue(state: &mut AdventureState) {
 }
 
 #[test]
+fn personal_escort_returns_hero_home_and_legacy_help_stays_in_archive() {
+    let mut initial = AdventureState::new();
+    assert!(initial.apply(Action::EscortTikhonHome).is_err());
+    act(&mut initial, Action::Move(Location::Quay));
+    act(&mut initial, Action::Move(Location::Archive));
+    act(&mut initial, Action::LocateTikhon);
+    assert_eq!(Action::EscortTikhonHome.elapsed_seconds(), 600);
+    let legacy = initial.apply(Action::RescueTikhon).unwrap();
+    assert_eq!(legacy.state.location, Location::Archive);
+    let escort = initial.apply(Action::EscortTikhonHome).unwrap();
+    assert_eq!(escort.state.location, Location::Town);
+    assert_eq!(escort.gold_reward, 10);
+    assert!(escort.state.facts.contains(&Fact::TikhonRescued));
+    assert!(escort.state.apply(Action::EscortTikhonHome).is_err());
+    assert!(escort.state.apply(Action::RescueTikhon).is_err());
+    let active = initial.apply(Action::StartDefense).unwrap().state;
+    assert!(active.apply(Action::EscortTikhonHome).is_err());
+}
+
+#[test]
 fn peaceful_ending_is_reachable_without_ledger_or_forced_rolls() {
     let mut state = AdventureState::new();
     rescue(&mut state);

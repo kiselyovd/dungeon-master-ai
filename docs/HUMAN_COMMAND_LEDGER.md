@@ -145,4 +145,14 @@ Effect sufficiency matters as well as matching a tool name. Legacy
 `rescue_tikhon` returns the NPC but leaves the hero's scene unchanged; it cannot
 alone fulfill personal escort home. A physical escort needs supported canonical
 hero travel/composition. Old receipts and settled bindings must not be relabeled
-or retroactively execute new travel. This capability remains in progress.
+or retroactively execute new travel. Canonical personal escort is implemented
+below; full AI-led session acceptance remains open.
+
+
+Personal escort now uses separate `escort_tikhon_home`: it confirms the initiating
+hero and Tikhon arriving in Veresk via the safe upper path/quay, advances two
+route segments (600 seconds), clears the archive map and grants the existing
+rescue reward once. Legacy `rescue_tikhon` retains NPC-only return and Archive
+location; old receipts are never relabeled as travel. Both use the same identity,
+combat/lifecycle, revision, transaction, rollback, snapshot and receipt guards.
+UI and public canonical references explicitly distinguish the two intentions.

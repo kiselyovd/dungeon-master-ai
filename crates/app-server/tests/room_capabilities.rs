@@ -661,6 +661,10 @@ async fn party_long_rest_updates_all_heroes_once_and_receipt_failure_rolls_back_
 
 #[tokio::test]
 async fn guest_reward_failure_rolls_back_shared_flags_inventory_clock_and_changes() {
+    guest_reward_contract(app_application::models::adventure::Action::RescueTikhon).await;
+    guest_reward_contract(app_application::models::adventure::Action::EscortTikhonHome).await;
+}
+async fn guest_reward_contract(rescue_action: app_application::models::adventure::Action) {
     use app_application::{
         models::{
             adventure::{Action, Location},
@@ -713,7 +717,7 @@ async fn guest_reward_failure_rolls_back_shared_flags_inventory_clock_and_change
     let rescue = RoomAdventureCommand {
         request_id: "rescue".into(),
         expected_revision: before.revision,
-        action: Action::RescueTikhon,
+        action: rescue_action,
     };
     sqlx::raw_sql("CREATE TRIGGER fail_reward_receipt BEFORE INSERT ON room_world_receipts BEGIN SELECT RAISE(ABORT,'synthetic_reward_failure'); END;").execute(store.pool()).await.unwrap();
     assert!(service.adventure(&guest, rescue.clone()).await.is_err());
@@ -730,6 +734,30 @@ async fn guest_reward_failure_rolls_back_shared_flags_inventory_clock_and_change
     service.adventure(&guest, rescue.clone()).await.unwrap();
     let after = store.party(before.campaign_id).await.unwrap().unwrap();
     let status = service.rest_status(&guest).await.unwrap();
+    assert_eq!(
+        store
+            .load_current(before.campaign_id)
+            .await
+            .unwrap()
+            .projection
+            .adventure
+            .unwrap()
+            .state
+            .location,
+        if rescue_action == Action::EscortTikhonHome {
+            Location::Town
+        } else {
+            Location::Archive
+        }
+    );
+    for (id, sheet) in &before.characters {
+        if *id != status.character_id {
+            assert_eq!(
+                &after.characters[id], sheet,
+                "other hero sheet must stay unchanged"
+            );
+        }
+    }
     assert_eq!(
         after.characters[&status.character_id]["inventory"][0]["count"],
         10
