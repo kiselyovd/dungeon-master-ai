@@ -122,3 +122,13 @@ arguments are checked before any source span, so mixed source/argument errors
 cannot trigger this retry. The fresh proposal passes the same exact quote,
 structure and independent semantic checks. Malformed/truncated replies, invalid
 arguments and a negative semantic decision do not receive unbounded retries.
+
+
+Narration publication now distinguishes a verified decision from an unlocalized
+negative decision. Valid negative fidelity plus valid empty/cleared diagnostics
+remains non-publishable, without inventing a fact ID or offending quotation. It
+can use the existing one tool-free prose correction from confirmed public
+facts, followed by all fresh checks. A second denial terminates the attempt;
+malformed/truncated assessments remain errors. The private decision flag is not
+wire-deserializable, and clearing localized claims cannot promote a denial.
+Confirmed human actions are not repeated during this prose-only transition.

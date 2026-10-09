@@ -262,7 +262,7 @@ impl app_application::agent::narration::NarrationVerifier for ResumeNarrationChe
         if models.len() == 1 {
             return Err(app_application::agent::narration::NarrationError);
         }
-        Ok(app_application::agent::narration::NarrationVerdict { violations: vec![] })
+        Ok(app_application::agent::narration::NarrationVerdict::verified())
     }
 }
 #[tokio::test]

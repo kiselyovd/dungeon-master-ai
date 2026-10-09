@@ -707,7 +707,7 @@ Model/source-planning continuation:
   invented feeling and confirms diagnostic false omission.
 - [x] Frozen final gates and scoped checkpoint (951 Rust,1127 frontend,
   architecture/static and all-feature Clippy pass).
-- [ ] Explicit non-publishable negative-without-diagnostics verdict → one existing
+- [x] Explicit non-publishable negative-without-diagnostics verdict → one existing
   prose correction → full fresh checks; errors/second refusal stay fail-closed,
   no fabricated localized claim or repeated game effect.
 - [ ] Complete real solo peaceful/defensive, native and separate-device LAN proofs.
@@ -717,3 +717,18 @@ checks pass (951 Rust,1127 frontend). Independent review closed argument/source
 ordering and confirms the next narration gap. Actual quantity and compound
 mechanics are evidenced separately from failed compound delivery. Owned QA
 backend/model/proxy are stopped; original32 source hashes remain protected.
+
+
+Unlocalized assessment verification:39 workflow groups and frozen full gates pass
+(954 Rust,1127 frontend, architecture/static/all-feature Clippy). Internal private
+verified decision cannot be supplied by wire data or upgraded by clearing claims.
+Valid unlocalized denial gets only one tool-free correction and fresh checks;
+malformed checks/second denial stay errors. Independent source review has no issue.
+Real restart resume delivers Done in36.938s at unchanged revision6, but bypasses
+this new branch and independent narrative review finds invented investigative
+clues. The controlled-provider HTTP/SQLite fixture exercises this branch in79.479s:
+0toolsteps,1boundfinal, no bad history and no state change except chat. Its four
+scripted decisions are explicit and do not establish model quality. Archive route
+verification and read-only question interpretation still fail on actual Qwen.
+Next: grounded public route references, DM question/action distinction, factual
+object-detail consistency, then full model/native/separate-device session proof.

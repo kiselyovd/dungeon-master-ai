@@ -997,12 +997,13 @@ impl AgentTurnService {
                 _=self.cancellation.cancelled()=>return Err(AgentTurnError::Cancelled),
                 verdict=verifier.assess(check.clone())=>verdict.map_err(|_|AgentTurnError::Runtime("narration_verification_unavailable"))?,
             };
-            if verdict.violations.is_empty() {
+            if verdict.publishable() {
                 return Ok(check.draft);
             }
             tracing::warn!(
                 error_code = "narration_unfaithful",
                 violations = verdict.violations.len(),
+                unverified = verdict.is_unverified(),
                 attempt,
                 "DM narration withheld"
             );

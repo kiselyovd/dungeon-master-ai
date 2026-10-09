@@ -350,3 +350,43 @@ Source-repair checkpoint gates pass:951 Rust and1127 frontend, architecture/stat
 checks and all-feature Clippy; final backend build passes. Original32 dirty source
 hashes preserved, owned evaluation processes stopped. No browser/native/physical
 LAN/full-adventure acceptance is inferred from these backend and model episodes.
+
+
+Unlocalized negative checkpoint (8d7f569 plus owned changes): publication requires
+an internal verified decision, not merely an empty violations list. A validated
+negative without localized claims can receive exactly one fresh tool-free prose
+correction and full reassessment. No fabricated fact/quote is generated. The
+model diagnostics deserialize into a separate closed type; the internal decision
+cannot be injected by wire data or promoted by clearing claims.39 workflow groups
+cover empty/cleared diagnostics, second denial/no third generation, corrupted/
+truncated replies, absent bad text/history/private data and unchanged dispatcher
+count. Independent source review has no actionable finding.
+
+Executable ff30325b7b4f6aa63292732c3b879c0bf4112e9bbbe355debb629e63155ffe81
+resumed the old quay request and delivered Done in36.938s, revision6 unchanged,
+replaying prior receipts. This draft passed immediately, so it did NOT exercise
+the new unlocalized branch. Independent review passes mechanics/agency/discovery
+but FAILS story quality: rust from a blade and bent copper plates are unsupported
+investigation/repair clues. The automated positive verdict missed them; no model
+promotion is justified. The next archive/upper-route request again failed
+manifest verification before effects (21.036s, revision6 unchanged). A normal
+read-only question was also misclassified as an inspection and rejected.
+
+A separate controlled-provider HTTP/SQLite fixture explicitly supplied four
+expected decisions: empty read-only plan, semantic approval, negative fidelity,
+empty diagnostics. Real Qwen generated the one fresh correction, then its new
+fidelity/presentation decisions ran normally. Done in79.479s; no tool steps,
+revision6 unchanged, one bound final message matching the delivered text, operation
+complete, all state except chat unchanged and the discarded draft absent from
+history. Current campaign clock720 seconds includes the previously committed
+travel; the fixture does not change it. This is recovery/adapter proof with
+controlled decisions, not actual intent extraction or overall model accuracy.
+Evidence: .artifacts/unlocalized-8d7f569/{build-proof.json,session-resume-report.json,
+captures,continuation-report.json,fault-live-report.json,fault2-live-report.json,
+fault2-sql-proof.json,fault2-captures,gates.log}.
+
+Full gates pass (954 Rust,1127 frontend, architecture/static/all-feature Clippy)
+and backend build passes. Next quality work: supply grounded public references
+for route-qualified intentions, distinguish DM questions from hero actions, and
+reject invented investigative object details. Native/full solo/physicalLAN
+acceptance remains open; no user/default-model settings were changed.

@@ -231,22 +231,20 @@ impl app_application::agent::narration::NarrationVerifier for DraftFixtureVerifi
         };
         let bad = check.draft.contains("воды") || check.draft.contains("летит");
         self.checks.lock().unwrap().push(check.clone());
-        Ok(NarrationVerdict {
-            violations: if bad {
-                vec![NarrationViolation {
-                    fact_id: check
-                        .evidence
-                        .facts
-                        .iter()
-                        .find(|fact| fact.id.starts_with("blocked_shot:"))
-                        .map(|fact| fact.id.clone())
-                        .unwrap_or_else(|| "public_state".into()),
-                    code: NarrationViolationCode::InventedMechanism,
-                    quote: check.draft.clone(),
-                }]
-            } else {
-                vec![]
-            },
+        Ok(if bad {
+            NarrationVerdict::rejected(vec![NarrationViolation {
+                fact_id: check
+                    .evidence
+                    .facts
+                    .iter()
+                    .find(|fact| fact.id.starts_with("blocked_shot:"))
+                    .map(|fact| fact.id.clone())
+                    .unwrap_or_else(|| "public_state".into()),
+                code: NarrationViolationCode::InventedMechanism,
+                quote: check.draft.clone(),
+            }])
+        } else {
+            NarrationVerdict::verified()
         })
     }
 }
@@ -254,7 +252,7 @@ fn narrated_service(
     provider: Arc<FakeProvider>,
     messages: Arc<FakeMessages>,
     dispatcher: Arc<FakeToolDispatcher>,
-    checker: Arc<DraftFixtureVerifier>,
+    checker: Arc<dyn app_application::agent::narration::NarrationVerifier>,
 ) -> Arc<AgentTurnService> {
     let mut settings = config();
     settings.system_prompt = "PRIVATE_DM_SECRET".into();
@@ -378,6 +376,169 @@ async fn narration_correction_is_prose_only_and_bad_drafts_never_publish() {
         .iter()
         .any(|fact| fact.id.starts_with("blocked_shot:") && fact.required));
 }
+
+#[tokio::test]
+async fn unlocalized_negative_allows_only_one_checked_prose_correction_without_new_effects() {
+    use app_application::agent::narration::LlmNarrationVerifier;
+    for cleared in [false, true] {
+        for accepted in [false, true] {
+            let bad = "Ты чувствуешь страх и стреляешь снова.";
+            let good = "Препятствие перекрывает линию атаки. Выстрел не выполнен. Что делаешь?";
+            let provider = Arc::new(FakeProvider::scripted(vec![
+                agency_round(agency_tool(
+                    "shot",
+                    "combat_action",
+                    json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+                )),
+                narration_round(bad),
+                narration_repair_round(good),
+            ]));
+            let mut checks = vec![narration_round(r#"{"faithful":false}"#)];
+            if cleared {
+                checks.push(narration_round(r#"{"violations":[{"fact_id":"blocked_shot:shot","code":"required_discovery_omitted","quote":""}]}"#));
+                checks.push(narration_round(r#"{"conveyed":true}"#));
+            } else {
+                checks.push(narration_round(r#"{"violations":[]}"#));
+            }
+            if accepted {
+                checks.extend([
+                    narration_round(r#"{"faithful":true}"#),
+                    narration_round(r#"{"narration":true}"#),
+                    narration_round(r#"{"conveyed":true}"#),
+                ]);
+            } else {
+                checks.extend([
+                    narration_round(r#"{"faithful":false}"#),
+                    narration_round(r#"{"violations":[]}"#),
+                ]);
+            }
+            let checker_provider = Arc::new(FakeProvider::scripted(checks));
+            let dispatcher = refused_shot_dispatcher();
+            let messages = Arc::new(FakeMessages::default());
+            let events = narrated_service(
+                provider.clone(),
+                messages.clone(),
+                dispatcher.clone(),
+                Arc::new(LlmNarrationVerifier::new(checker_provider)),
+            )
+            .execute(command("unlocalized-narration"))
+            .collect::<Vec<_>>()
+            .await;
+            assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                accepted,
+                "{events:?}"
+            );
+            assert!(!format!("{events:?}").contains(bad));
+            let final_texts = events
+                .iter()
+                .filter_map(|event| match event {
+                    Ok(AgentEvent::TextDelta { text }) => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(final_texts, if accepted { vec![good] } else { vec![] });
+            let saved = messages.values.lock().unwrap();
+            assert!(!saved
+                .iter()
+                .any(|message| matches!(message,ChatMessage::Assistant {content} if content==bad)));
+            assert_eq!(
+                saved.iter().any(
+                    |message| matches!(message,ChatMessage::Assistant {content} if content==good)
+                ),
+                accepted
+            );
+            let requests = provider.requests.lock().unwrap();
+            assert_eq!(
+                requests.len(),
+                3,
+                "one correction, never a third generation after a second refusal"
+            );
+            assert!(requests[2].tools.is_empty());
+            let ChatMessage::User { parts } = &requests[2].messages[0] else {
+                panic!("repair data")
+            };
+            let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+                panic!("text data")
+            };
+            let input: serde_json::Value = serde_json::from_str(text).unwrap();
+            assert_eq!(input["unverified"], true);
+            assert_eq!(
+                input["rejected_claims"],
+                json!([]),
+                "no invented localization"
+            );
+            assert!(!text.contains(bad));
+            assert!(!text.contains("PRIVATE_DM_SECRET"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn malformed_or_truncated_diagnostics_never_enable_generic_correction() {
+    use app_application::agent::narration::LlmNarrationVerifier;
+    for (diagnostics, reason) in [
+        (r#"{"violations":[],"unverified":true}"#, FinishReason::Stop),
+        (r#"{"violations":[]}"#, FinishReason::Length),
+        ("bad JSON", FinishReason::Stop),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "shot",
+                "combat_action",
+                json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+            )),
+            narration_round("Ты чувствуешь страх."),
+        ]));
+        let checker = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
+            vec![
+                ChatChunk::TextDelta {
+                    text: diagnostics.into(),
+                },
+                ChatChunk::Done { reason },
+            ],
+        ]));
+        let dispatcher = refused_shot_dispatcher();
+        let events = narrated_service(
+            provider.clone(),
+            Arc::new(FakeMessages::default()),
+            dispatcher.clone(),
+            Arc::new(LlmNarrationVerifier::new(checker)),
+        )
+        .execute(command("invalid-diagnostics"))
+        .collect::<Vec<_>>()
+        .await;
+        assert!(matches!(events.last(), Some(Err(_))));
+        assert!(!events.iter().any(|e| matches!(
+            e,
+            Ok(AgentEvent::TextDelta { .. } | AgentEvent::AgentDone { .. })
+        )));
+        assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            provider.requests.lock().unwrap().len(),
+            2,
+            "no correction on malformed assessment"
+        );
+    }
+}
+
+#[test]
+fn clearing_localized_claims_cannot_upgrade_a_negative_verdict() {
+    use app_application::agent::narration::{
+        NarrationVerdict, NarrationViolation, NarrationViolationCode,
+    };
+    let mut verdict = NarrationVerdict::rejected(vec![NarrationViolation {
+        fact_id: "public_state".into(),
+        code: NarrationViolationCode::UnconfirmedEffect,
+        quote: "claim".into(),
+    }]);
+    verdict.violations.clear();
+    assert!(verdict.is_unverified());
+    assert!(!verdict.publishable());
+    assert!(NarrationVerdict::verified().publishable());
+}
 #[tokio::test]
 async fn rejected_narration_resumes_confirmed_attempt_without_dispatching_again() {
     let provider = Arc::new(FakeProvider::scripted(vec![
@@ -445,7 +606,7 @@ async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
         narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationVerifier,
     };
     for (text, reason, valid) in [
-        (r#"{"violations":[]}"#, FinishReason::Stop, false),
+        (r#"{"violations":[]}"#, FinishReason::Stop, true),
         (
             r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
             FinishReason::Stop,
@@ -620,7 +781,7 @@ async fn negative_faithfulness_cannot_be_overridden_by_cleared_diagnostics() {
         text: "Confirmed discovery".into(),
         required: true,
     });
-    assert!(LlmNarrationVerifier::new(provider)
+    let verdict = LlmNarrationVerifier::new(provider)
         .assess(NarrationCheck {
             model: "saved-A".into(),
             player_message: "Осматриваю".into(),
@@ -628,7 +789,10 @@ async fn negative_faithfulness_cannot_be_overridden_by_cleared_diagnostics() {
             evidence,
         })
         .await
-        .is_err());
+        .unwrap();
+    assert!(!verdict.publishable());
+    assert!(verdict.is_unverified());
+    assert!(verdict.violations.is_empty(), "no fabricated localization");
 }
 
 #[tokio::test]
