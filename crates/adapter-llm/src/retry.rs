@@ -95,6 +95,9 @@ impl RetryableProvider {
 
 #[async_trait]
 impl LlmProvider for RetryableProvider {
+    fn execution_origin(&self) -> Option<String> {
+        self.inner.execution_origin()
+    }
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
         self.stream_with_schema(req, None).await
     }

@@ -11,6 +11,7 @@ interface Props {
   invitation?: string;
   onRefreshInvitation?: (() => void) | undefined;
   battle?: ReactNode;
+  recoveryNotice?: ReactNode;
   view: RoomView;
   onLeave: () => void;
   onReconnect: () => void;
@@ -25,6 +26,7 @@ export function RoomPlay({
   invitation,
   onRefreshInvitation,
   battle,
+  recoveryNotice,
   onLeave,
   onReconnect,
   onRetry,
@@ -36,6 +38,7 @@ export function RoomPlay({
   const { t } = useTranslation('rooms');
   const { t: ta } = useTranslation('adventure');
   const { t: tc } = useTranslation('character');
+  const { t: te } = useTranslation('errors');
   const [text, setText] = useState('');
   const { state, connection } = view;
   const blocked =
@@ -59,8 +62,17 @@ export function RoomPlay({
             <Button onClick={onReconnect}>{t('reconnect')}</Button>
           </section>
         )}
-        {view.errorCode && <p role="alert">{t('error')}</p>}
-        {view.pending && (
+        {view.errorCode && (
+          <p role="alert">
+            {view.errorCode === 'native_room_original_environment_changed'
+              ? te('agent_original_environment_changed')
+              : view.errorCode === 'native_room_original_environment_unavailable'
+                ? te('agent_original_environment_unavailable')
+                : t('error')}
+          </p>
+        )}
+        {recoveryNotice}
+        {view.pending && (view.pending.kind !== 'dm_turn' || !recoveryNotice) && (
           <Button disabled={view.busy || view.status !== 'connected'} onClick={onRetry}>
             {t('retry')}
           </Button>

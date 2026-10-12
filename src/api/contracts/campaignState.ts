@@ -4,7 +4,7 @@ import { CampaignSchema } from './campaign';
 
 const MessageSchema = v.object({
   role: v.string(),
-  content: v.optional(v.string()),
+  content: v.optional(v.nullable(v.string())),
   parts: v.optional(
     v.array(
       v.object({

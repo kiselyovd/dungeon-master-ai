@@ -120,6 +120,17 @@ impl RoomRepository for crate::SqliteStore {
     ) -> Result<app_application::agent::operations::OperationClaim, RepositoryError> {
         crate::room_dm_turns::claim(self, lease, input, owner, resume).await
     }
+    async fn bind_room_dm_environment(
+        &self,
+        lease: &RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        environment: &app_application::agent::operations::ExecutionEnvironment,
+        resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        crate::room_dm_turns::bind_environment(self, lease, turn, owner, environment, resuming)
+            .await
+    }
     async fn append_room_dm_event(
         &self,
         lease: &RoomLease,

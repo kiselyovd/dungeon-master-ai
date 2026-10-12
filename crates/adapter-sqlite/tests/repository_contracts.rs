@@ -132,7 +132,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 22);
+    assert_eq!(migration_count, 23);
     for table in ["agent_turn_operations", "room_dm_turns"] {
         let actor_columns: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name='actor_id'")

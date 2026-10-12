@@ -2,6 +2,7 @@ import {
   type KeyboardEvent,
   type ClipboardEvent as ReactClipboardEvent,
   type DragEvent as ReactDragEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useState,
@@ -49,11 +50,21 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
 
 type MergedItem = { kind: 'message'; item: ChatMessage } | { kind: 'event'; item: ChatStreamEvent };
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  controller?: Pick<ReturnType<typeof useAgentTurn>, 'send' | 'cancel'>;
+  recoveryNotice?: ReactNode;
+  recoveryBlocked?: boolean;
+}
+export function ChatPanel({
+  controller,
+  recoveryNotice,
+  recoveryBlocked = false,
+}: ChatPanelProps = {}) {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
   const { t: tTools } = useTranslation('tools');
-  const { send, cancel } = useAgentTurn();
+  const fallbackController = useAgentTurn();
+  const { send, cancel } = controller ?? fallbackController;
   const messages = useStore((s) => s.chat.messages);
   const truncateTo = useStore((s) => s.chat.truncateTo);
   const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
@@ -134,7 +145,7 @@ export function ChatPanel() {
     setStaged((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const canSend = !isStreaming && !campaignMutation && draft.trim().length > 0;
+  const canSend = !isStreaming && !campaignMutation && !recoveryBlocked && draft.trim().length > 0;
 
   // Build a retry handler for a finalized assistant bubble identified by its
   // message id. Clicking Retry must:
@@ -371,6 +382,7 @@ export function ChatPanel() {
         )}
       </div>
 
+      {recoveryNotice}
       <div className={styles.composer}>
         <div className={styles.composerCol}>
           {stagingError !== null && (

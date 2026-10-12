@@ -37,8 +37,27 @@ pub enum ToolStepClaim {
     Completed(super::tool_dispatch::ToolExecution),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecutionEnvironment {
+    /// Opaque secret-free provider origin digest; never a credential or URL.
+    pub provider: Option<String>,
+    pub model: String,
+}
+
 #[async_trait]
 pub trait AgentOperationRepository: Send + Sync {
+    async fn bind_environment(
+        &self,
+        _request: Uuid,
+        _owner: Uuid,
+        _environment: &ExecutionEnvironment,
+        _resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        Err(RepositoryError::Operation {
+            operation: "agent_environment",
+            code: "agent_original_environment_unavailable",
+        })
+    }
     async fn resume(
         &self,
         _input: AgentOperation,
@@ -123,6 +142,7 @@ pub struct DurableAgentTurns<R, D> {
     repository: Arc<R>,
     driver: Arc<D>,
     owner: Uuid,
+    environment: Option<ExecutionEnvironment>,
 }
 impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
     DurableAgentTurns<R, D>
@@ -132,7 +152,12 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
             repository,
             driver,
             owner,
+            environment: None,
         }
+    }
+    pub fn with_environment(mut self, environment: ExecutionEnvironment) -> Self {
+        self.environment = Some(environment);
+        self
     }
     pub async fn execute(
         &self,
@@ -176,6 +201,23 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                 })
             }
             claim @ (OperationClaim::Started | OperationClaim::Resuming { .. }) => {
+                if let Some(environment) = &self.environment {
+                    if let Err(error) = self
+                        .repository
+                        .bind_environment(
+                            input.request_id,
+                            self.owner,
+                            environment,
+                            matches!(&claim, OperationClaim::Resuming { .. }),
+                        )
+                        .await
+                    {
+                        self.repository
+                            .finish(input.request_id, self.owner, false)
+                            .await?;
+                        return Err(error);
+                    }
+                }
                 let (recovered_messages, recovered_events) = match claim {
                     OperationClaim::Resuming { messages, events } => (Some(messages), events),
                     _ => (None, vec![]),

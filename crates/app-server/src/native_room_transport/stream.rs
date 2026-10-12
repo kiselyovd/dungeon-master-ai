@@ -64,6 +64,12 @@ async fn conflict_code(response: reqwest::Response) -> &'static str {
             }
             "agent_turn_running" => Some("native_room_turn_running"),
             "agent_turn_interrupted" => Some("native_room_turn_interrupted"),
+            "agent_original_environment_changed" => {
+                Some("native_room_original_environment_changed")
+            }
+            "agent_original_environment_unavailable" => {
+                Some("native_room_original_environment_unavailable")
+            }
             _ => None,
         }
     };

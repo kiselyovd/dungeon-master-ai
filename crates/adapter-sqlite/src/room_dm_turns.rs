@@ -41,6 +41,41 @@ fn valid_row(
     }
     Ok(())
 }
+pub(crate) async fn bind_environment(
+    store: &SqliteStore,
+    lease: &RoomLease,
+    turn: Uuid,
+    owner: Uuid,
+    environment: &app_application::agent::operations::ExecutionEnvironment,
+    resuming: bool,
+) -> Result<(), RepositoryError> {
+    let mut tx = store
+        .pool
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+        .map_err(|_| error("room_dm_begin_failed"))?;
+    guard(&mut tx, lease).await?;
+    let reset = timeline(&mut tx, lease, turn).await?;
+    let found = row(&mut tx, lease, turn)
+        .await?
+        .ok_or_else(|| error("agent_turn_superseded"))?;
+    valid_row(&found, lease, reset)?;
+    if found.get::<String, _>("process_owner") != owner.to_string()
+        || found.get::<String, _>("status") != "running"
+    {
+        return Err(error("agent_turn_superseded"));
+    }
+    if resuming {
+        crate::agent_environment::validate(&found, environment)?;
+    } else {
+        sqlx::query("UPDATE room_dm_turns SET execution_provider=?4,execution_model=?5 WHERE room_id=?1 AND member_id=?2 AND turn_id=?3 AND execution_model IS NULL")
+            .bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).bind(&environment.provider).bind(&environment.model).execute(&mut *tx).await.map_err(|_| error("room_dm_write_failed"))?;
+    }
+    tx.commit()
+        .await
+        .map_err(|_| error("room_dm_commit_failed"))?;
+    Ok(())
+}
 async fn events(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     lease: &RoomLease,

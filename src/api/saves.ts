@@ -138,7 +138,12 @@ export function parseMessage(value: unknown): SessionMessageWire {
     invalidResponse('message.role');
   }
   const parsed: SessionMessageWire = { role };
-  if (message.content !== undefined)
+  // Assistant tool envelopes legitimately serialize absent narration as null.
+  // They stay non-renderable; public user/assistant text remains strict.
+  if (
+    message.content !== undefined &&
+    !(role === 'assistant_with_tool_calls' && message.content === null)
+  )
     parsed.content = stringField(message.content, 'message.content');
   if (message.parts !== undefined) {
     if (!Array.isArray(message.parts)) invalidResponse('message.parts');

@@ -100,6 +100,47 @@ describe('SettingsModal', () => {
     const banner = await screen.findByTestId('settings-save-error');
     expect(banner).toHaveTextContent(/network down/i);
     expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+    expect(screen.getByLabelText(/Model/i)).toHaveValue('qwen3-1.7b');
+  });
+
+  it('keeps all edits inactive until ACK and submits only once', async () => {
+    const { postSettingsV2 } = await import('../../api/settings');
+    let acknowledge!: () => void;
+    vi.mocked(postSettingsV2).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    render(<SettingsModal open={true} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/API key/i), { target: { value: 'fixture-key' } });
+    fireEvent.change(screen.getByLabelText(/Model/i), { target: { value: 'model-b' } });
+    fireEvent.click(screen.getByRole('tab', { name: /Image/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Enable/i }));
+    expect(useStore.getState().settings.imageEnabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    const form = document.getElementById('settings-form');
+    if (!form) throw new Error('settings form missing');
+    fireEvent.submit(form);
+    expect(postSettingsV2).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Save/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Cancel/i })).toBeDisabled();
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+    useStore.getState().settings.setChatPanelWidth(600);
+    await act(async () => acknowledge());
+    expect(useStore.getState().settings.providers['openai-compat']?.model).toBe('model-b');
+    expect(useStore.getState().settings.imageEnabled).toBe(false);
+    expect(useStore.getState().settings.chatPanelWidth).toBe(600);
+  });
+
+  it('cancel discards preference edits without writing settings', async () => {
+    const { postSettingsV2 } = await import('../../api/settings');
+    render(<SettingsModal open={true} onClose={vi.fn()} initialTab="image" />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /Enable/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+    expect(useStore.getState().settings.imageEnabled).toBe(true);
+    expect(postSettingsV2).not.toHaveBeenCalled();
   });
 
   it('blocks save and surfaces validation when api key is missing', async () => {

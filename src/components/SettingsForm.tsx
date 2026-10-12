@@ -1,6 +1,11 @@
-import { type KeyboardEvent, useState } from 'react';
+import { createContext, type KeyboardEvent, useContext, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageEntryForPreset, VIDEO_CATALOG } from '../api/providers-catalog';
+import {
+  preferenceDraft,
+  type SettingsPreferences,
+  type SettingsSubmission,
+} from '../features/settings/model/draft';
 import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
 import type { ModelId } from '../state/localMode';
 import {
@@ -30,13 +35,16 @@ const PROVIDER_KINDS: readonly ProviderKind[] = ['openai-compat', 'local-mistral
 export type Tab = 'chat' | 'local-llm' | 'image' | 'video' | 'behavior';
 const TAB_ORDER: readonly Tab[] = ['chat', 'local-llm', 'image', 'video', 'behavior'];
 
-export interface SettingsSubmission {
-  provider: ProviderConfig;
-  uiLanguage: 'en' | 'ru';
-  narrationLanguage: 'en' | 'ru';
-  systemPrompt: string;
-  temperature: number;
-  replicateApiKey: string;
+export type { SettingsSubmission } from '../features/settings/model/draft';
+
+const PreferencesContext = createContext<{
+  value: SettingsPreferences;
+  change: (patch: Partial<SettingsPreferences>) => void;
+} | null>(null);
+function usePreferences() {
+  const draft = useContext(PreferencesContext);
+  if (!draft) throw new Error('settings draft unavailable');
+  return draft;
 }
 
 interface SettingsFormProps {
@@ -89,6 +97,8 @@ export function SettingsForm({
   const [activeKind, setActiveKind] = useState<ProviderKind>(slice.activeProvider);
   const [drafts, setDrafts] = useState<DraftState>(() => initialDrafts(slice));
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [preferences, setPreferences] = useState(() => preferenceDraft(slice));
   const [errors, setErrors] = useState<DraftErrors>({});
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -104,6 +114,7 @@ export function SettingsForm({
   };
 
   const onSave = async () => {
+    if (submittingRef.current) return;
     const result = buildConfig(activeKind, drafts, localModeSelection);
     if (!result.ok) {
       // If the validation error lives in the Chat tab, surface it by
@@ -113,6 +124,7 @@ export function SettingsForm({
       return;
     }
     setErrors({});
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await onSubmit({
@@ -122,215 +134,234 @@ export function SettingsForm({
         systemPrompt: drafts.systemPrompt,
         temperature: drafts.temperature,
         replicateApiKey: drafts.replicateApiKey,
+        preferences,
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
 
   return (
-    <form
-      id={formId}
-      className={styles.form}
-      onSubmit={(e) => {
-        e.preventDefault();
-        void onSave();
+    <PreferencesContext.Provider
+      value={{
+        value: preferences,
+        change: (patch) => setPreferences((prev) => ({ ...prev, ...patch })),
       }}
     >
-      <div className={styles.tabNav} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          id="settings-tab-chat"
-          aria-controls="settings-panel-chat"
-          aria-selected={activeTab === 'chat'}
-          tabIndex={activeTab === 'chat' ? 0 : -1}
-          onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'chat' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('chat')}
-        >
-          {t('tab_chat')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="settings-tab-local-llm"
-          aria-controls="settings-panel-local-llm"
-          aria-selected={activeTab === 'local-llm'}
-          tabIndex={activeTab === 'local-llm' ? 0 : -1}
-          onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'local-llm' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('local-llm')}
-        >
-          {t('tab_local_llm')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="settings-tab-image"
-          aria-controls="settings-panel-image"
-          aria-selected={activeTab === 'image'}
-          tabIndex={activeTab === 'image' ? 0 : -1}
-          onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'image' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('image')}
-        >
-          {t('tab_image')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="settings-tab-video"
-          aria-controls="settings-panel-video"
-          aria-selected={activeTab === 'video'}
-          tabIndex={activeTab === 'video' ? 0 : -1}
-          onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'video' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('video')}
-        >
-          {t('tab_video')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="settings-tab-behavior"
-          aria-controls="settings-panel-behavior"
-          aria-selected={activeTab === 'behavior'}
-          tabIndex={activeTab === 'behavior' ? 0 : -1}
-          onKeyDown={onTabKeyDown}
-          className={`${styles.tab} ${activeTab === 'behavior' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('behavior')}
-        >
-          {t('tab_behavior')}
-        </button>
-      </div>
+      <form
+        id={formId}
+        className={styles.form}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void onSave();
+        }}
+      >
+        <fieldset disabled={submitting} className={styles.draftFields}>
+          <div className={styles.tabNav} role="tablist">
+            <button
+              type="button"
+              role="tab"
+              id="settings-tab-chat"
+              aria-controls="settings-panel-chat"
+              aria-selected={activeTab === 'chat'}
+              tabIndex={activeTab === 'chat' ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              className={`${styles.tab} ${activeTab === 'chat' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              {t('tab_chat')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="settings-tab-local-llm"
+              aria-controls="settings-panel-local-llm"
+              aria-selected={activeTab === 'local-llm'}
+              tabIndex={activeTab === 'local-llm' ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              className={`${styles.tab} ${activeTab === 'local-llm' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('local-llm')}
+            >
+              {t('tab_local_llm')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="settings-tab-image"
+              aria-controls="settings-panel-image"
+              aria-selected={activeTab === 'image'}
+              tabIndex={activeTab === 'image' ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              className={`${styles.tab} ${activeTab === 'image' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('image')}
+            >
+              {t('tab_image')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="settings-tab-video"
+              aria-controls="settings-panel-video"
+              aria-selected={activeTab === 'video'}
+              tabIndex={activeTab === 'video' ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              className={`${styles.tab} ${activeTab === 'video' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('video')}
+            >
+              {t('tab_video')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="settings-tab-behavior"
+              aria-controls="settings-panel-behavior"
+              aria-selected={activeTab === 'behavior'}
+              tabIndex={activeTab === 'behavior' ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              className={`${styles.tab} ${activeTab === 'behavior' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('behavior')}
+            >
+              {t('tab_behavior')}
+            </button>
+          </div>
 
-      {activeTab === 'chat' && (
-        <div role="tabpanel" id="settings-panel-chat" aria-labelledby="settings-tab-chat">
-          <ErrorBoundary level="section">
-            <Field label={t('provider_label')}>
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={activeKind}
-                  onChange={setActiveKind}
-                  ariaLabel={t('provider_label')}
-                  options={PROVIDER_KINDS.map((kind) => ({
-                    value: kind,
-                    label: t(
-                      `provider_${kind.replace('-', '_')}` as
-                        | 'provider_openai_compat'
-                        | 'provider_local_mistralrs',
-                    ),
-                  }))}
-                />
-              )}
-            </Field>
-
-            {activeKind === 'openai-compat' && (
-              <OpenaiCompatFields
-                draft={drafts['openai-compat']}
-                errors={errors}
-                onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
-              />
-            )}
-
-            {activeKind === 'local-mistralrs' && (
+          {activeTab === 'chat' && (
+            <div role="tabpanel" id="settings-panel-chat" aria-labelledby="settings-tab-chat">
               <ErrorBoundary level="section">
-                {/* Unified provider block: the local model + runtime controls
+                <Field label={t('provider_label')}>
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      value={activeKind}
+                      onChange={setActiveKind}
+                      ariaLabel={t('provider_label')}
+                      options={PROVIDER_KINDS.map((kind) => ({
+                        value: kind,
+                        label: t(
+                          `provider_${kind.replace('-', '_')}` as
+                            | 'provider_openai_compat'
+                            | 'provider_local_mistralrs',
+                        ),
+                      }))}
+                    />
+                  )}
+                </Field>
+
+                {activeKind === 'openai-compat' && (
+                  <OpenaiCompatFields
+                    draft={drafts['openai-compat']}
+                    errors={errors}
+                    onChange={(d) => setDrafts((prev) => ({ ...prev, 'openai-compat': d }))}
+                  />
+                )}
+
+                {activeKind === 'local-mistralrs' && (
+                  <ErrorBoundary level="section">
+                    {/* Unified provider block: the local model + runtime controls
                     live inline here when the local provider is selected, so the
                     user configures the chosen provider in one place instead of
                     hunting for a separate tab. */}
+                    <LocalLlmTab />
+                  </ErrorBoundary>
+                )}
+
+                <ReasoningSection activeKind={activeKind} drafts={drafts} />
+
+                {onRequestCharacterRecreate && (
+                  <section className={styles.characterSection}>
+                    <h3>{t('character_section_title')}</h3>
+                    <button
+                      type="button"
+                      className="dm-onboarding-btn dm-onboarding-btn-secondary"
+                      onClick={() => onRequestCharacterRecreate()}
+                    >
+                      {t('recreate_character')}
+                    </button>
+                  </section>
+                )}
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {activeTab === 'local-llm' && (
+            <div
+              role="tabpanel"
+              id="settings-panel-local-llm"
+              aria-labelledby="settings-tab-local-llm"
+            >
+              <ErrorBoundary level="section">
                 <LocalLlmTab />
               </ErrorBoundary>
-            )}
-
-            <ReasoningSection activeKind={activeKind} drafts={drafts} />
-
-            {onRequestCharacterRecreate && (
-              <section className={styles.characterSection}>
-                <h3>{t('character_section_title')}</h3>
-                <button
-                  type="button"
-                  className="dm-onboarding-btn dm-onboarding-btn-secondary"
-                  onClick={() => onRequestCharacterRecreate()}
-                >
-                  {t('recreate_character')}
-                </button>
-              </section>
-            )}
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {activeTab === 'local-llm' && (
-        <div role="tabpanel" id="settings-panel-local-llm" aria-labelledby="settings-tab-local-llm">
-          <ErrorBoundary level="section">
-            <LocalLlmTab />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {activeTab === 'image' && (
-        <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
-          <ErrorBoundary level="section">
-            <ImageTab
-              replicateApiKey={drafts.replicateApiKey}
-              onReplicateApiKeyChange={(replicateApiKey) =>
-                setDrafts((prev) => ({ ...prev, replicateApiKey }))
-              }
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {activeTab === 'video' && (
-        <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
-          <ErrorBoundary level="section">
-            <VideoTab />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {activeTab === 'behavior' && (
-        <div role="tabpanel" id="settings-panel-behavior" aria-labelledby="settings-tab-behavior">
-          <ErrorBoundary level="section">
-            <ModelTab
-              draft={{
-                systemPrompt: drafts.systemPrompt,
-                temperature: drafts.temperature,
-              }}
-              onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
-            />
-            <div className={styles.languages}>
-              <Field label={t('language_ui_label')}>
-                {({ id }) => (
-                  <LanguageSelect
-                    id={id}
-                    value={drafts.uiLanguage}
-                    onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
-                  />
-                )}
-              </Field>
-              <Field label={t('language_narration_label')}>
-                {({ id }) => (
-                  <LanguageSelect
-                    id={id}
-                    value={drafts.narrationLanguage}
-                    onChange={(narrationLanguage) =>
-                      setDrafts((prev) => ({ ...prev, narrationLanguage }))
-                    }
-                  />
-                )}
-              </Field>
             </div>
-            <BehaviorExtras />
-          </ErrorBoundary>
-        </div>
-      )}
+          )}
 
-      <input type="submit" hidden disabled={submitting} />
-    </form>
+          {activeTab === 'image' && (
+            <div role="tabpanel" id="settings-panel-image" aria-labelledby="settings-tab-image">
+              <ErrorBoundary level="section">
+                <ImageTab
+                  replicateApiKey={drafts.replicateApiKey}
+                  onReplicateApiKeyChange={(replicateApiKey) =>
+                    setDrafts((prev) => ({ ...prev, replicateApiKey }))
+                  }
+                />
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {activeTab === 'video' && (
+            <div role="tabpanel" id="settings-panel-video" aria-labelledby="settings-tab-video">
+              <ErrorBoundary level="section">
+                <VideoTab />
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {activeTab === 'behavior' && (
+            <div
+              role="tabpanel"
+              id="settings-panel-behavior"
+              aria-labelledby="settings-tab-behavior"
+            >
+              <ErrorBoundary level="section">
+                <ModelTab
+                  draft={{
+                    systemPrompt: drafts.systemPrompt,
+                    temperature: drafts.temperature,
+                  }}
+                  onChange={(patch) => setDrafts((prev) => ({ ...prev, ...patch }))}
+                />
+                <div className={styles.languages}>
+                  <Field label={t('language_ui_label')}>
+                    {({ id }) => (
+                      <LanguageSelect
+                        id={id}
+                        value={drafts.uiLanguage}
+                        onChange={(uiLanguage) => setDrafts((prev) => ({ ...prev, uiLanguage }))}
+                      />
+                    )}
+                  </Field>
+                  <Field label={t('language_narration_label')}>
+                    {({ id }) => (
+                      <LanguageSelect
+                        id={id}
+                        value={drafts.narrationLanguage}
+                        onChange={(narrationLanguage) =>
+                          setDrafts((prev) => ({ ...prev, narrationLanguage }))
+                        }
+                      />
+                    )}
+                  </Field>
+                </div>
+                <BehaviorExtras />
+              </ErrorBoundary>
+            </div>
+          )}
+
+          <input type="submit" hidden disabled={submitting} />
+        </fieldset>
+      </form>
+    </PreferencesContext.Provider>
   );
 }
 
@@ -438,8 +469,7 @@ function ModelTab({
   onChange: (patch: Partial<ModelDraft>) => void;
 }) {
   const { t } = useTranslation('settings');
-  const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
-  const setSceneTransitionsEnabled = useStore((s) => s.settings.setSceneTransitionsEnabled);
+  const { value: preferences, change } = usePreferences();
   return (
     <>
       <Field label={t('system_prompt_label')} helper={t('system_prompt_helper')}>
@@ -474,8 +504,8 @@ function ModelTab({
             <input
               {...p}
               type="checkbox"
-              checked={sceneTransitionsEnabled}
-              onChange={(e) => setSceneTransitionsEnabled(e.target.checked)}
+              checked={preferences.sceneTransitionsEnabled}
+              onChange={(e) => change({ sceneTransitionsEnabled: e.target.checked })}
             />
             <span>{t('scene_transitions_toggle')}</span>
           </label>
@@ -578,11 +608,12 @@ function ImageTab({
   onReplicateApiKeyChange: (key: string) => void;
 }) {
   const { t } = useTranslation('settings');
-  const enabled = useStore((s) => s.settings.imageEnabled);
-  const preset = useStore((s) => s.settings.imagePreset);
-  const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
-  const setImageEnabled = useStore((s) => s.settings.setImageEnabled);
-  const setImagePreset = useStore((s) => s.settings.setImagePreset);
+  const { value, change } = usePreferences();
+  const {
+    imageEnabled: enabled,
+    imagePreset: preset,
+    licenseRestrictedMode: licenseRestricted,
+  } = value;
 
   const activeEntry = imageEntryForPreset(preset);
   const activeIsBlocked =
@@ -596,7 +627,7 @@ function ImageTab({
         <input
           type="checkbox"
           checked={enabled}
-          onChange={(e) => setImageEnabled(e.target.checked)}
+          onChange={(e) => change({ imageEnabled: e.target.checked })}
         />
         <span>{t('image_enable')}</span>
       </label>
@@ -617,7 +648,7 @@ function ImageTab({
                 value={p.id}
                 checked={preset === p.id}
                 disabled={isBlocked}
-                onChange={() => setImagePreset(p.id)}
+                onChange={() => change({ imagePreset: p.id })}
               />
               <span>
                 {t(`image_preset_${p.id.replace('-', '_')}` as const)}
@@ -648,11 +679,12 @@ const VIDEO_MODES = ['prerecorded', 'live', 'race'] as const;
 
 function VideoTab() {
   const { t } = useTranslation('settings');
-  const enabled = useStore((s) => s.settings.videoEnabled);
-  const mode = useStore((s) => s.settings.videoMode);
-  const licenseRestricted = useStore((s) => s.settings.licenseRestrictedMode);
-  const setVideoEnabled = useStore((s) => s.settings.setVideoEnabled);
-  const setVideoMode = useStore((s) => s.settings.setVideoMode);
+  const { value, change } = usePreferences();
+  const {
+    videoEnabled: enabled,
+    videoMode: mode,
+    licenseRestrictedMode: licenseRestricted,
+  } = value;
 
   // Video v1 has exactly one provider (local-ltx-video). If its license is
   // non-OSS and restriction is on, disable the enable toggle and show a banner.
@@ -672,7 +704,7 @@ function VideoTab() {
           type="checkbox"
           checked={enabled}
           disabled={videoProviderBlocked}
-          onChange={(e) => setVideoEnabled(e.target.checked)}
+          onChange={(e) => change({ videoEnabled: e.target.checked })}
         />
         <span>{t('video_enable')}</span>
       </label>
@@ -685,7 +717,7 @@ function VideoTab() {
               name="video-mode"
               value={m}
               checked={mode === m}
-              onChange={() => setVideoMode(m)}
+              onChange={() => change({ videoMode: m })}
             />
             <span>{t(`video_mode_${m}` as const)}</span>
           </label>
@@ -703,7 +735,7 @@ function ReasoningSection({
   drafts: DraftState;
 }) {
   const { t } = useTranslation('settings');
-  const slice = useStore((s) => s.settings);
+  const { value: slice, change } = usePreferences();
 
   const modelId = activeKind === 'openai-compat' ? drafts['openai-compat'].model : '';
 
@@ -716,7 +748,7 @@ function ReasoningSection({
         <input
           type="checkbox"
           checked={slice.reasoningEnabled}
-          onChange={(e) => slice.setReasoningEnabled(e.target.checked)}
+          onChange={(e) => change({ reasoningEnabled: e.target.checked })}
         />
         <span>{t('reasoning_enable_label')}</span>
       </label>
@@ -724,7 +756,7 @@ function ReasoningSection({
         {t('reasoning_budget_label')}
         <Select
           value={slice.reasoningBudget}
-          onChange={slice.setReasoningBudget}
+          onChange={(reasoningBudget) => change({ reasoningBudget })}
           disabled={!slice.reasoningEnabled || !caps.reasoning}
           ariaLabel={t('reasoning_budget_label')}
           options={[
@@ -741,17 +773,17 @@ function ReasoningSection({
 
 function BehaviorExtras() {
   const { t } = useTranslation('settings');
-  const licenseRestrictedMode = useStore((s) => s.settings.licenseRestrictedMode);
-  const setLicenseRestrictedMode = useStore((s) => s.settings.setLicenseRestrictedMode);
-  const agentMaxRounds = useStore((s) => s.settings.agentMaxRounds);
-  const setAgentMaxRounds = useStore((s) => s.settings.setAgentMaxRounds);
+  const {
+    value: { licenseRestrictedMode, agentMaxRounds },
+    change,
+  } = usePreferences();
   return (
     <section className={styles.section}>
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
           checked={licenseRestrictedMode}
-          onChange={(e) => setLicenseRestrictedMode(e.target.checked)}
+          onChange={(e) => change({ licenseRestrictedMode: e.target.checked })}
         />
         <span>{t('license_restricted_mode')}</span>
       </label>
@@ -763,7 +795,7 @@ function BehaviorExtras() {
             min={1}
             max={32}
             value={agentMaxRounds}
-            onChange={(e) => setAgentMaxRounds(Number(e.target.value) || 8)}
+            onChange={(e) => change({ agentMaxRounds: Number(e.target.value) || 8 })}
           />
         )}
       </Field>

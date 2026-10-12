@@ -1,14 +1,18 @@
+import type { AgentRecoveryProjection } from '../../../api/contracts/agentRecovery';
 import type { RoomState, RoomUpdate } from '../../../api/contracts/room';
 import type { PendingRoomAction, RoomAction } from '../../../api/contracts/roomOperations';
 import type { RoomStreamOptions } from '../../../api/roomStream';
 import type { RoomConnection } from '../../../api/rooms';
 export interface RoomPorts {
+  recovery?(roomId: string, memberId: string): Promise<AgentRecoveryProjection | null>;
   load(roomId: string): Promise<RoomUpdate>;
   pending(roomId: string): Promise<PendingRoomAction | null>;
   act(roomId: string, action: RoomAction): Promise<void>;
   stream(options: RoomStreamOptions): Promise<void>;
 }
 export interface RoomView {
+  recovery: AgentRecoveryProjection | null;
+  recoveryStatus: 'idle' | 'loading' | 'ready' | 'error';
   timelineReset: number;
   connection: RoomConnection | null;
   state: RoomState | null;
@@ -32,6 +36,8 @@ function characterSignature(character: Record<string, unknown>) {
 }
 function empty(): RoomView {
   return {
+    recovery: null,
+    recoveryStatus: 'idle',
     timelineReset: 0,
     connection: null,
     state: null,
@@ -161,6 +167,22 @@ export class RoomController {
     if (!this.current(generation) || reset !== this.timelineReset) return;
     this.apply(update, generation);
     this.patch({ pending });
+    if (pending?.kind !== 'dm_turn' || !this.ports.recovery) {
+      this.patch({ recovery: null, recoveryStatus: 'ready' });
+      return;
+    }
+    const currentTimeline = this.timelineReset;
+    this.patch({ recoveryStatus: 'loading' });
+    try {
+      const recovery = await this.ports.recovery(connection.room.room_id, connection.member_id);
+      if (!this.current(generation) || currentTimeline !== this.timelineReset) return;
+      if (recovery && recovery.scope.request_id !== pending.request_id)
+        throw new Error('agent_recovery_scope_mismatch');
+      this.patch({ recovery, recoveryStatus: 'ready' });
+    } catch {
+      if (this.current(generation) && currentTimeline === this.timelineReset)
+        this.patch({ recovery: null, recoveryStatus: 'error' });
+    }
   }
   async reconnect() {
     const connection = this.view.connection;

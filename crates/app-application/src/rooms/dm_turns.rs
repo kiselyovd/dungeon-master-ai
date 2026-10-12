@@ -24,6 +24,21 @@ fn rejected(code: &'static str) -> RepositoryError {
 }
 #[async_trait::async_trait]
 impl AgentOperationRepository for RoomAgentPorts {
+    async fn bind_environment(
+        &self,
+        request: Uuid,
+        owner: Uuid,
+        environment: &crate::agent::operations::ExecutionEnvironment,
+        resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        if request != self.turn_id {
+            return Err(rejected("agent_request_mismatch"));
+        }
+        self.rooms
+            .rooms
+            .bind_room_dm_environment(self.subject.lease(), request, owner, environment, resuming)
+            .await
+    }
     async fn claim(
         &self,
         input: AgentOperation,
@@ -85,6 +100,7 @@ pub struct RoomDmRunner {
     process_owner: Uuid,
     human_commands: Option<Arc<dyn crate::agent::human_commands::HumanCommandLedgerRepository>>,
     clarification: Option<crate::agent::human_commands::HumanCommandClarificationReply>,
+    environment: Option<crate::agent::operations::ExecutionEnvironment>,
 }
 impl RoomDmRunner {
     pub fn new(
@@ -102,7 +118,15 @@ impl RoomDmRunner {
             process_owner,
             human_commands: None,
             clarification: None,
+            environment: None,
         }
+    }
+    pub fn with_environment(
+        mut self,
+        environment: crate::agent::operations::ExecutionEnvironment,
+    ) -> Self {
+        self.environment = Some(environment);
+        self
     }
     pub fn with_human_commands(
         mut self,
@@ -169,9 +193,11 @@ impl RoomDmRunner {
             human_commands: self.human_commands.clone(),
             clarification: self.clarification.clone(),
         });
-        let receiver = DurableAgentTurns::new(self.ports.clone(), driver, self.process_owner)
-            .execute_mode(input, resume)
-            .await?;
+        let mut turns = DurableAgentTurns::new(self.ports.clone(), driver, self.process_owner);
+        if let Some(environment) = &self.environment {
+            turns = turns.with_environment(environment.clone());
+        }
+        let receiver = turns.execute_mode(input, resume).await?;
         Ok(authorized_delivery(self.ports.clone(), receiver))
     }
 }

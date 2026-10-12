@@ -180,5 +180,47 @@ export function useAgentTurn(ports: AgentTurnPorts) {
     },
     [ports],
   );
-  return { send, cancel: ports.chat.abort };
+  const prepareRecovery = useCallback(
+    (input: AgentTurnRequest, clarificationId?: string) => {
+      const active = ports.session.current();
+      if (
+        !active ||
+        active.campaignId !== input.campaignId ||
+        active.sessionId !== input.sessionId ||
+        ports.chat.isStreaming()
+      )
+        return false;
+      const generation = ports.session.generation?.();
+      const scopeSignature = JSON.stringify({
+        campaignId: input.campaignId,
+        sessionId: input.sessionId,
+        generation,
+      });
+      pending.current = {
+        signature: JSON.stringify({
+          campaignId: input.campaignId,
+          sessionId: input.sessionId,
+          generation,
+          text: input.clarification?.reply ?? input.playerMessage,
+          images: input.images,
+        }),
+        scopeSignature,
+        input,
+        started: true,
+        replayHistoryLength: input.history.length,
+        ...(clarificationId ? { clarificationId } : {}),
+      };
+      probedScopes.current.add(scopeSignature);
+      return true;
+    },
+    [ports],
+  );
+  const resumeFrom = useCallback(
+    async (input: AgentTurnRequest, clarificationId?: string, reply?: string) => {
+      if (prepareRecovery(input, clarificationId))
+        await send(reply ?? input.clarification?.reply ?? input.playerMessage, input.images);
+    },
+    [prepareRecovery, send],
+  );
+  return { send, cancel: ports.chat.abort, prepareRecovery, resumeFrom };
 }

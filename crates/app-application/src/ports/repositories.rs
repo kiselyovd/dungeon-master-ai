@@ -86,6 +86,19 @@ pub trait PartyRepository: Send + Sync {
 
 #[async_trait]
 pub trait RoomRepository: Send + Sync {
+    async fn bind_room_dm_environment(
+        &self,
+        _lease: &crate::models::room::RoomLease,
+        _turn: Uuid,
+        _owner: Uuid,
+        _environment: &crate::agent::operations::ExecutionEnvironment,
+        _resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        Err(RepositoryError::Operation {
+            operation: "room_environment",
+            code: "agent_original_environment_unavailable",
+        })
+    }
     async fn room_dm_request(
         &self,
         lease: &crate::models::room::RoomLease,

@@ -1,4 +1,5 @@
 pub mod adventure;
+mod agent_environment;
 pub mod agent_operations;
 pub mod agent_recovery;
 mod agent_replay;

@@ -96,15 +96,69 @@ Focused application, SQLite, real room HTTP and renderer-contract tests verify
 these boundaries. This establishes read/projection behavior; proactive production
 UI, actual Tauri lifecycle and real-model session acceptance remain separate.
 
+## Settings repair and original execution environment
+
+Settings controls edit a private in-memory draft. One backend acknowledgement
+applies the complete provider and preference replacement in one store update.
+Rejected or timed-out acknowledgements retain the draft and leave active settings
+unchanged; a backend generation change invalidates the acknowledgement. Duplicate
+Save is guarded synchronously. Cancel discards preference edits; native runtime
+Start/Stop remain explicit immediate actions. Provider secrets continue through
+the existing Stronghold persistence adapter.
+
+Migration `0023_agent_execution_environment.sql` captures the effective model and
+an opaque provider-origin digest before inference. The digest excludes URL
+credentials, query parameters and fragments; it never stores a key or raw URL.
+Local runtime identity uses its hosted model rather than its temporary port.
+Planning, permission checking and narration share one provider/config snapshot.
+On an interrupted resume the original model and origin must match before the
+driver runs. A mismatch returns `agent_original_environment_changed`; restoring
+the original configuration permits an exact-ID continuation. Model changes apply
+to future requests. Completed delivery replay does not require inference.
+
+Legacy incomplete records without reconstructable origin metadata return
+`agent_original_environment_unavailable`. They cannot be migrated silently to a
+different model. Room transport retains its encrypted pending outbox on both
+conflicts, and exposes the corresponding `native_room_original_environment_*`
+codes. Hosts can open AI settings from the room recovery notice; guests retain
+their request while the host repairs the provider. Confirmed receipts survive.
+
 ## Current limits
 
 `running` and `interrupted` are explicit states. Incomplete operations require
-an explicit continuation. HTTP running-request subscription, persisted renderer
-recovery after reload, wider cancellation/effect ordering and legacy mutation
-recovery remain ongoing work. These primitives do not establish a completed
+an explicit continuation. HTTP running-request subscription, wider
+cancellation/effect ordering and legacy mutation recovery remain ongoing work.
+The renderer probes canonical recovery before fresh mutations and preserves
+unsent text during continuation. These primitives do not establish a completed
 recoverable solo/co-op session or live-model acceptance.
 
 ## Recorded evidence
+
+- 2026-10-12 isolated Tauri proof used a freshly built backend and production
+  frontend, an independent QA app identifier and a file-backed SQLite database.
+  Fixture provisioning used supported campaign/character APIs and isolated
+  nonsecret returning-player preferences; character creation UX was not tested
+  by that provisioning. The protocol fixture confirmed two compound actions,
+  then interrupted narration. A cold native restart retained the exact request
+  UUID. Continuing left HP at 12, inventory unchanged, action receipts at two,
+  and world time at 600 seconds; public delivery added one assistant message and
+  retained a newly typed unsent draft. The clean repetition used three main
+  provider rounds and seven structured checks. No uncaught WebView exceptions.
+  Sanitized counts/screenshots are under `.artifacts/product-uiux/native/`.
+- The native run exposed two real defects: Pixi's default dynamic shader paths
+  were incompatible with the desktop CSP, and a nullable internal tool-message
+  content field prevented cold campaign loading. Pixi's existing static polyfill
+  (`pixi.js/unsafe-eval`) now keeps the original CSP intact; see the
+  [official v8 guide](https://pixijs.com/8.x/guides/migrations/v8). A production
+  browser regression runs the real VTT under the actual desktop CSP. Campaign
+  decoding now accepts null narration on internal tool envelopes while keeping
+  public message validation strict, and never renders those envelopes.
+- The native smoke passed eight checks after the fixes. Deterministic protocol,
+  native lifecycle/persistence, and real-model semantic acceptance are separate
+  evidence. Runtime binaries were available; model weights were not located in
+  checked project/default/Hugging Face caches. A weights path was requested for
+  the remaining real-model follow-up; no live-model pass is claimed. The Python
+  image sidecar is an empty debug placeholder in this QA build.
 
 - SQLite tests: completed replay after reopening, changed-payload rejection,
   running-owner safety, disconnect before any model event and failed completion

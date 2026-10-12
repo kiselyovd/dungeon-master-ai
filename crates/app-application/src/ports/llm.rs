@@ -36,6 +36,13 @@ pub trait LlmProvider: Send + Sync {
 
     fn name(&self) -> &'static str;
 
+    /// Private stable execution origin. Consumers remove URL credentials and
+    /// hash it before durable storage. Never log this value. None makes interrupted replay
+    /// unavailable, rather than guessing that an unrelated endpoint is equivalent.
+    fn execution_origin(&self) -> Option<String> {
+        None
+    }
+
     fn capabilities_for_model(&self, model_id: &str) -> Capabilities;
 
     fn active_model(&self) -> &str;

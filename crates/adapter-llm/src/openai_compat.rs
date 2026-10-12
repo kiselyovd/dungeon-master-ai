@@ -27,6 +27,7 @@ pub struct OpenAICompatProvider {
     client: Client,
     default_model: String,
     capabilities_override: Option<Capabilities>,
+    execution_origin: String,
 }
 
 impl OpenAICompatProvider {
@@ -34,6 +35,7 @@ impl OpenAICompatProvider {
     /// `http://localhost:1234` and `http://localhost:1234/v1` are accepted -
     /// genai's OpenAI adapter appends the suffix it needs.
     pub fn new(base_url: String, api_key: String) -> Self {
+        let execution_origin = base_url.clone();
         let endpoint_url = Arc::new(base_url);
         let key = Arc::new(api_key);
 
@@ -59,6 +61,7 @@ impl OpenAICompatProvider {
             client,
             default_model: String::new(),
             capabilities_override: None,
+            execution_origin,
         }
     }
 
@@ -137,6 +140,9 @@ impl OpenAICompatProvider {
 
 #[async_trait]
 impl LlmProvider for OpenAICompatProvider {
+    fn execution_origin(&self) -> Option<String> {
+        Some(self.execution_origin.clone())
+    }
     async fn stream_chat(&self, req: ChatRequest) -> Result<ChunkStream, LlmError> {
         self.stream_with_schema(req, None).await
     }

@@ -39,6 +39,12 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
   await page.route('**/agent/pending?*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
   );
+  await page.route('**/agent/recovery?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.route('**/agent/recovery-input?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
   pipeBrowserConsole(page);
 
   const effectiveSeed = { ...seed };

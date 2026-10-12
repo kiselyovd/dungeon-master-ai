@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks 1-3 verified, checkpoint 1 ready; Task 4 proactive recovery UI is next.
+Status: in progress; Tasks 1-5 verified; Task 6 deterministic native/SQLite proof verified, real-model follow-up awaits a weights path; checkpoint 1 committed (92142a6). Independent Task 7 pilot preparation may proceed under the checkpoint policy.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -251,7 +251,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG scope IDs, revision, phase and recovery classification; INFO operation completion; WARN unknown/stale state; ERROR projection failure. Never log command text or private ledgers.
 
-- [ ] **Task 4: Probe and present recoverable requests proactively** (depends on 3)
+- [x] **Task 4: Probe and present recoverable requests proactively** (depends on 3)
 
   **Files / ownership:** src/features/agent-turn/useAgentTurn.ts; src/features/rooms/model/RoomController.ts; proposed src/features/recovery/{useRecovery,RecoveryPanel}.tsx; src/app/{App,RoomExperience}.tsx; src/locales/{en,ru}/{errors,chat,rooms}.json.
 
@@ -261,7 +261,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG safe transitions and probe duration; INFO successful resume; WARN unreachable canonical state; ERROR terminal boundary failure. No continuous polling console spam.
 
-- [ ] **Task 5: Keep runtime/settings repair atomic and preserve player input** (depends on 3, 4)
+- [x] **Task 5: Keep runtime/settings repair atomic and preserve player input** (depends on 3, 4)
 
   **Files / ownership:** src/components/{SettingsModal,SettingsForm,ChatPanel}.tsx; proposed src/features/settings/useSettings.ts; src/api/settings.ts; src/features/rooms/RoomPlay.tsx; src/state/settings.ts; relevant settings/recovery tests.
 
@@ -270,6 +270,8 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
   **Verification / acceptance:** Deferred/rejected settings ACK, backend restart, double Save, cancel, provider repair then resume, and campaign/room switch regressions. Secret values never enter ordinary workspace persistence. The recovery action retains request identity and does not reroll or duplicate resource spending. Test pending model A plus active model B, unavailable original runtime/configuration and a legacy pending record lacking reconstructable provider details. Preserve original receipts/request identity throughout.
 
   **Logging:** DEBUG config revision/generation and elapsed time; INFO confirmed configuration; WARN timed-out ACK; ERROR safe boundary code. Do not include URLs with secrets, keys, settings bodies or player drafts.
+
+  **Implementation evidence (2026-10-12):** All preference/provider fields are staged, a deferred ACK commits once, rejected Save retains edits, Cancel discards preferences, and duplicate submits are guarded. Original execution origin/effective model are durably bound before inference for solo and rooms (migration 0023); original environment conflicts preserve recovery and legacy unknown origin is blocked. Hosts can repair settings within their room. Three real HTTP environment/recomposition regressions plus the room host-model regression pass; 40 focused settings tests, all 1153 frontend tests and nine production-browser scenarios pass. Full consolidated gate passed in `.artifacts/product-uiux/checkpoint-2-verified-gates.log`; the tested worktree includes preserved inherited changes. No native UI/model acceptance is claimed by this task.
 
 - [ ] **Task 6: Prove recovery with real persistence and native restart** (depends on 2, 3, 4, 5)
 
@@ -280,6 +282,8 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
   **Verification / acceptance:** Exact HP, slots, clock, movement and reward counts are unchanged on resumed delivery. Host/guest permissions and current timeline survive restart. Record a separate real-model repetition with installed approved models; semantic failures remain open in codex-ai-solo-mechanics.md rather than being concealed by UI success.
 
   **Logging:** DEBUG canonical IDs/revisions and effect counts; INFO each accepted checkpoint; WARN model-quality failure; ERROR recovery mismatch. Evidence is sanitized and explicitly classified by test layer.
+
+  **Implementation evidence (2026-10-12):** A fresh Tauri production frontend/backend and isolated file-backed QA profile completed a clean interruption/restart/resume cycle. Request `8da06776-faab-40ad-a954-e3136716cebc` retained two compound-action receipts, 600 seconds, HP 12 and inventory; only one assistant message was added on continuation and the unsent draft survived. Native smoke 8/8 and the actual-CSP browser regression pass. Native proof exposed/fixed Pixi static-CSP initialization and nullable internal tool-message decoding (27 focused API/root checks). Existing real SQLite/application/Stronghold room regressions cover effect boundaries, clarification, actor/timeline replacement and receipt replay. This checkbox remains open for the requested real-model repetition: no approved weights were found in checked paths; a path was requested. Independent visual production is authorized by the checkpoint policy above and does not assert semantic model acceptance. Final artifacts: `.artifacts/product-uiux/native/{interrupted-proof,resumed-proof}.json`.
 
 ### Visual foundation
 
@@ -741,3 +745,5 @@ Next authorized workflow is `$aif-implement` when requested. Start at Task 1 usi
 - 2026-10-12 Task 2: fixture outbox is persisted before DM streaming, retained across errors and reconciled on terminal/clarification frames. Controller regressions cover before/after committed state, definitive rejection and unavailable pending reads. Focused Vitest 19/19, production co-op browser 8/8, native transport integration 17/17 and native parser unit tests 4/4 pass; TypeScript passes. Browser uses IPC fixtures; native integration proves supported service/storage boundaries, not actual Tauri UI or real-model quality. Rust uses the installed 1.96.0 toolchain explicitly because cargo is absent from the default PATH.
 - 2026-10-12 Task 3: versioned player progress and owner-only continuation input are implemented for solo and authenticated native rooms. Canonical read does not repair delivery; hidden fields are excluded. Additive migration 0022 captures actor before planning and rejects replacement-hero resume. Focused projection 7/7, SQLite human-command contracts 22/22, authenticated real HTTP recovery, renderer parsing/native scope tests and production browser 21/21 pass. Full consolidated gates passed, including all Rust workspace tests and 173 frontend files/1146 tests; production build passes. Actual Tauri UI/model/physical LAN acceptance remains in Task 6/44.
 - 2026-10-12 verification environment: preserved 115.87GiB target cache relocated from this worktree's C target to D:/codex-builds/dmai-uiux-20261012/target with a junction restoring the original path after C filled. Final full gates use installed Rust 1.96.0, CARGO_PROFILE_TEST_DEBUG=0 (Windows PDB limit), TEMP/TMP on the owned D directory, RUST_LOG=info (telemetry smoke requires INFO), and DMAI_SKIP_SIDECAR_BUILD=1 (unit gates only; real native checks rebuild sidecar separately). Three equivalent Clippy boolean expressions were simplified; no lint exception or test assertion was removed. New migration count/actor columns are asserted. Evidence: .artifacts/product-uiux/checkpoint-1-verified-gates.log and checkpoint-1-browser.
+- 2026-10-12 checkpoint 1 committed as 92142a6. Full gates: 976 Rust tests and 1146 frontend tests pass; production build and browser 21/21 pass. Explicit owned-only patches for inherited-dirty route/turn/workflow/room-test files validated against HEAD. All original unrelated changes remain unstaged. No push/publication or real-model/Tauri-UI completion claim.
+- 2026-10-12 Task 4: proactive solo read plus original-input hydration, shared recovery notice, exact-ID continuation and unsent-draft retention are wired into the production root. Native-room controller reads public progress for its durable DM request; app composition provides the same notice through a ReactNode slot without sibling feature imports. Delayed scopes/mixed snapshots/unavailable reads are guarded; configured VITE_RECOVERY_TRACE=1 emits only safe scope/phase IDs. Actual-root regression passes, focused UI/controller tests pass, production build and architecture pass; production-browser proactive/room coverage 10/10 passes. Actual Tauri/model restart proof remains Task 6. One inherited room-failure test label now expects Continue answer; preserve its pre-existing uncommitted test body when staging checkpoint 2.

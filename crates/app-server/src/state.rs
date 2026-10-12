@@ -134,6 +134,18 @@ impl AppState {
             .chat
             .clone()
     }
+    /// One coherent configuration for planning, checking and narration.
+    pub fn agent_environment(&self) -> (Arc<dyn LlmProvider>, AgentConfig) {
+        let snapshot = self
+            .inner
+            .settings_runtime
+            .read()
+            .expect("settings runtime lock poisoned");
+        (
+            snapshot.registry.chat.clone(),
+            snapshot.agent_config.clone(),
+        )
+    }
 
     pub fn process_id(&self) -> uuid::Uuid {
         self.inner.process_id

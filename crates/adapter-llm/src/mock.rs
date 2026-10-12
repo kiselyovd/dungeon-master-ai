@@ -70,6 +70,9 @@ impl MockProvider {
 
 #[async_trait]
 impl LlmProvider for MockProvider {
+    fn execution_origin(&self) -> Option<String> {
+        Some("deterministic-mock-v1".into())
+    }
     async fn stream_chat(&self, _req: ChatRequest) -> Result<ChunkStream, LlmError> {
         let mut all_chunks: Vec<ChatChunk> = self
             .thinking_chunks

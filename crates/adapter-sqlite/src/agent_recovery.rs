@@ -50,7 +50,7 @@ impl SqliteStore {
         if room {
             return Ok(None);
         }
-        let row = sqlx::query("SELECT request_id,request_json,status,owner_id,restore_generation,actor_id FROM agent_turn_operations WHERE campaign_id=?1 AND session_id=?2 ORDER BY updated_at DESC,created_at DESC,rowid DESC LIMIT 1")
+        let row = sqlx::query("SELECT request_id,request_json,status,owner_id,restore_generation,actor_id,execution_model FROM agent_turn_operations WHERE campaign_id=?1 AND session_id=?2 ORDER BY updated_at DESC,created_at DESC,rowid DESC LIMIT 1")
             .bind(campaign.to_string()).bind(session.to_string()).fetch_optional(&mut *tx).await.map_err(|_| error("agent_recovery_read_failed"))?;
         let Some(row) = row else { return Ok(None) };
         let status: String = row.get("status");
@@ -94,7 +94,10 @@ impl SqliteStore {
                 .await?;
         let running =
             status == "running" && row.get::<String, _>("owner_id") == process_owner.to_string();
-        let projection = project_recovery(scope, input.model, running, ledger.as_ref())
+        let original_model = row
+            .get::<Option<String>, _>("execution_model")
+            .or(input.model);
+        let projection = project_recovery(scope, original_model, running, ledger.as_ref())
             .map_err(|_| error("agent_recovery_data_invalid"))?;
         tx.commit()
             .await
@@ -115,7 +118,7 @@ impl SqliteStore {
             .await
             .map_err(|_| error("agent_recovery_read_failed"))?;
         crate::room_agent::guard(&mut tx, lease).await?;
-        let row = sqlx::query("SELECT turn_id,request_json,status,process_owner,room_epoch,reset_cursor,actor_id FROM room_dm_turns WHERE room_id=?1 AND member_id=?2 ORDER BY rowid DESC LIMIT 1")
+        let row = sqlx::query("SELECT turn_id,request_json,status,process_owner,room_epoch,reset_cursor,actor_id,execution_model FROM room_dm_turns WHERE room_id=?1 AND member_id=?2 ORDER BY rowid DESC LIMIT 1")
             .bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).fetch_optional(&mut *tx).await.map_err(|_| error("agent_recovery_read_failed"))?;
         let Some(row) = row else { return Ok(None) };
         let status: String = row.get("status");
@@ -167,7 +170,10 @@ impl SqliteStore {
             .await?;
         let running = status == "running"
             && row.get::<String, _>("process_owner") == process_owner.to_string();
-        let projection = project_recovery(scope, input.model, running, ledger.as_ref())
+        let original_model = row
+            .get::<Option<String>, _>("execution_model")
+            .or(input.model);
+        let projection = project_recovery(scope, original_model, running, ledger.as_ref())
             .map_err(|_| error("agent_recovery_data_invalid"))?;
         tx.commit()
             .await

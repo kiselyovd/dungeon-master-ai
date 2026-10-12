@@ -146,9 +146,11 @@ async function installRoomStub(
             return {
               status: 200,
               body:
-                operation?.kind === 'pending_action'
-                  ? JSON.parse(window.localStorage.getItem(outboxKey) ?? 'null')
-                  : snapshot,
+                operation?.kind === 'agent_recovery'
+                  ? null
+                  : operation?.kind === 'pending_action'
+                    ? JSON.parse(window.localStorage.getItem(outboxKey) ?? 'null')
+                    : snapshot,
             };
           if (command === 'stream_room')
             return await new Promise<void>((resolve) =>

@@ -45,6 +45,21 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     throw ChatError.from(error);
   }
   if (!response.ok || !response.body) {
+    if (response.status === 409) {
+      const failure: unknown = await response.json().catch(() => null);
+      if (failure && typeof failure === 'object' && 'error' in failure) {
+        const detail = failure.error;
+        if (
+          detail &&
+          typeof detail === 'object' &&
+          'code' in detail &&
+          (detail.code === 'agent_original_environment_changed' ||
+            detail.code === 'agent_original_environment_unavailable')
+        ) {
+          throw new ChatError(detail.code, detail.code);
+        }
+      }
+    }
     throw new ChatError('http_error', `HTTP ${response.status}`);
   }
 

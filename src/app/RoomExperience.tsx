@@ -17,7 +17,10 @@ import {
   stopHostRoom,
 } from '../api/rooms';
 import { CharacterWizard } from '../components/CharacterWizard';
+import { RecoveryPanel } from '../components/RecoveryPanel';
+import { SettingsModal } from '../components/SettingsModal';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
+import { toRecoveryView } from '../features/recovery/model/recovery';
 import { RoomHome } from '../features/rooms/RoomHome';
 import { RoomPlay } from '../features/rooms/RoomPlay';
 import { useRoom } from '../features/rooms/useRoom';
@@ -42,6 +45,7 @@ function ConnectedRoom({
   const [refreshingInvitation, setRefreshingInvitation] = useState(false);
   const [invitationError, setInvitationError] = useState(false);
   const [wizard, setWizard] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closingError, setClosingError] = useState(false);
   const confirmedDeparture = useRef<string | null>(null);
@@ -69,7 +73,46 @@ function ConnectedRoom({
   }
   return (
     <>
+      {connection.kind === 'host' && (
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          initialTab="chat"
+        />
+      )}
       <RoomPlay
+        recoveryNotice={
+          view.recovery || view.recoveryStatus === 'error' || view.pending?.kind === 'dm_turn' ? (
+            <RecoveryPanel
+              view={
+                view.recovery
+                  ? toRecoveryView(view.recovery)
+                  : view.pending?.kind === 'dm_turn'
+                    ? {
+                        requestId: view.pending.request_id,
+                        actorId: '',
+                        model: null,
+                        phase: view.pending.awaiting_clarification
+                          ? 'needs_input'
+                          : 'progress_unknown',
+                        action: view.pending.awaiting_clarification ? 'clarify' : 'resume',
+                        progressKnown: false,
+                        totalCommands: null,
+                        finishedCommands: null,
+                        performedAttempts: null,
+                        refusedAttempts: null,
+                        clarificationId: view.pending.awaiting_clarification ?? null,
+                      }
+                    : null
+              }
+              status={view.recoveryStatus === 'idle' ? 'ready' : view.recoveryStatus}
+              busy={view.busy}
+              onResume={() => void controller.retryPending()}
+              onRetry={() => void controller.reconnect()}
+              {...(connection.kind === 'host' ? { onConfigure: () => setSettingsOpen(true) } : {})}
+            />
+          ) : null
+        }
         invitation={invitation}
         onRefreshInvitation={
           connection.kind === 'host'

@@ -1,7 +1,9 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
+import { getPendingAgentRecoveryInput } from '../api/agentPending';
+import { fetchAgentRecovery } from '../api/agentRecovery';
 import { ActionBar } from '../components/ActionBar';
 import { CharacterSheet } from '../components/CharacterSheet';
 import { CharacterWizard } from '../components/CharacterWizard';
@@ -16,6 +18,7 @@ import { NpcMemoryGrid } from '../components/NpcMemoryGrid';
 import { Onboarding } from '../components/Onboarding';
 import { PreflightModal } from '../components/PreflightModal';
 import { ProviderMigrationBanner } from '../components/ProviderMigrationBanner';
+import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SavesScreen } from '../components/SavesScreen';
 import { ScenePill } from '../components/ScenePill';
 import { SceneTransitionOverlay } from '../components/SceneTransitionOverlay';
@@ -37,6 +40,7 @@ import { canCast } from '../features/combat/model/spellAvailability';
 import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
+import { type RecoveryPorts, useRecovery } from '../features/recovery/useRecovery';
 import { RestDialog } from '../features/rest/RestDialog';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
@@ -238,7 +242,9 @@ function App() {
   const activeProviderConfig = useStore((s) => s.settings.providers[s.settings.activeProvider]);
   const combatActive = useStore((s) => s.combat.active);
   // ActionBar posts combat-action intents to the DM through the agent turn. [F1]
-  const { send: sendAgentTurn } = useAgentTurn();
+  const agentTurn = useAgentTurn();
+  const sendAgentTurn = agentTurn.send;
+  const agentStreaming = useStore((s) => s.chat.isStreaming);
   const combatTokens = useStore((s) => s.combat.tokens);
   const combatOrder = useStore((s) => s.combat.initiativeOrder);
   const combatRound = useStore((s) => s.combat.round);
@@ -416,6 +422,39 @@ function App() {
             }
           : null,
       });
+
+  const recoveryPorts = useMemo<RecoveryPorts>(
+    () => ({
+      projection: (scope, signal) => fetchAgentRecovery(scope.campaignId, scope.sessionId, signal),
+      input: (scope, signal) =>
+        getPendingAgentRecoveryInput(scope.campaignId, scope.sessionId, signal),
+      prepare: agentTurn.prepareRecovery,
+      resume: agentTurn.resumeFrom,
+    }),
+    [agentTurn.prepareRecovery, agentTurn.resumeFrom],
+  );
+  const recovery = useRecovery(
+    !roomOpen && campaignRoute.kind === 'game-table' && pcCharacterId
+      ? {
+          campaignId: campaignRoute.campaignId,
+          sessionId: campaignRoute.sessionId,
+          actorId: pcCharacterId,
+          generation: sessionGeneration,
+        }
+      : null,
+    recoveryPorts,
+    agentStreaming,
+  );
+  const recoveryNotice = (
+    <RecoveryPanel
+      view={recovery.view}
+      status={recovery.status}
+      busy={agentStreaming}
+      onResume={() => void recovery.resume()}
+      onRetry={() => void recovery.retry()}
+      onConfigure={() => setSettingsOpen(true)}
+    />
+  );
 
   if (!hydrated) {
     return (
@@ -656,7 +695,11 @@ function App() {
 
         <ErrorBoundary level="section">
           <main className="dm-vtt-panel">
-            <VttCanvas onMoveToken={(id, x, y) => void combatCommands.move(id, x, y)} />
+            <VttCanvas
+              onMoveToken={
+                recovery.blocked ? undefined : (id, x, y) => void combatCommands.move(id, x, y)
+              }
+            />
             {combatActive && (
               <InitiativeTracker
                 tokens={combatTokens}
@@ -665,7 +708,7 @@ function App() {
                 activeTokenId={currentTurnId}
               />
             )}
-            {showActionBar && (
+            {showActionBar && !recovery.blocked && (
               <ActionBar
                 pending={combatCommands.pending}
                 onAttack={
@@ -726,7 +769,11 @@ function App() {
 
           <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
             <ChatResizer />
-            <ChatPanel />
+            <ChatPanel
+              controller={agentTurn}
+              recoveryNotice={recoveryNotice}
+              recoveryBlocked={recovery.blocked && !recovery.clarifying}
+            />
           </aside>
         </ErrorBoundary>
 
@@ -778,7 +825,7 @@ function App() {
             open={characterSheetOpen}
             onClose={() => setCharacterSheetOpen(false)}
             onRest={
-              pcCharacterId
+              pcCharacterId && !recovery.blocked
                 ? () => {
                     setCharacterSheetOpen(false);
                     setRestScope(currentRestScope);
@@ -794,7 +841,7 @@ function App() {
               open={adventureOpen}
               onClose={closeAdventure}
               projection={adventureFeature.projection}
-              pending={adventureFeature.pending}
+              pending={adventureFeature.pending || recovery.blocked}
               error={adventureFeature.error}
               retryRequired={adventureFeature.retryRequired}
               onAction={(action) => void adventureFeature.perform(action)}
@@ -817,7 +864,7 @@ function App() {
               }}
             />
           )}
-          {showPreflight && (
+          {showPreflight && !settingsOpen && (
             <PreflightModal
               status={preflightStatus as Exclude<PreflightStatus, 'ok'>}
               onFinishSetup={() => {

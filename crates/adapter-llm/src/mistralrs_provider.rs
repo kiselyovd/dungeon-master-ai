@@ -47,6 +47,10 @@ impl MistralrsLocalProvider {
 
 #[async_trait]
 impl LlmProvider for MistralrsLocalProvider {
+    // Native runtime ports change after restart. The hosted model is the identity.
+    fn execution_origin(&self) -> Option<String> {
+        Some(format!("local-mistralrs:{}", self.model))
+    }
     fn name(&self) -> &'static str {
         "local-mistralrs"
     }

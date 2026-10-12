@@ -1190,11 +1190,14 @@ impl AgentHttpService for AppStateAgentHttpService {
         &self,
         command: AgentTurnHttpCommand,
     ) -> Result<mpsc::Receiver<AgentEvent>, HttpServiceError> {
-        let provider = self.state.provider();
-        let mut config = self.state.agent_config();
+        let (provider, mut config) = self.state.agent_environment();
         if let Some(model) = &command.model {
             config.model = model.clone();
         }
+        let environment = crate::providers::execution_environment::environment(
+            provider.as_ref(),
+            config.model.clone(),
+        );
         let retriever = self.state.srd_retriever();
         let image_provider = self.state.image_provider();
         let video_provider = self.state.video_provider();
@@ -1211,7 +1214,7 @@ impl AgentHttpService for AppStateAgentHttpService {
             ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
         });
         let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
-            provider,
+            provider.clone(),
             pool.clone(),
             config,
             retriever,
@@ -1224,9 +1227,7 @@ impl AgentHttpService for AppStateAgentHttpService {
                 .with_human_command_owner(self.state.process_id())
                 .with_player_verifier(verifier)
                 .with_narration_verifier(Arc::new(
-                    app_application::agent::narration::LlmNarrationVerifier::new(
-                        self.state.provider(),
-                    ),
+                    app_application::agent::narration::LlmNarrationVerifier::new(provider.clone()),
                 ))
         } else {
             orchestrator
@@ -1242,7 +1243,8 @@ impl AgentHttpService for AppStateAgentHttpService {
             Arc::new(SqliteStore::new(pool)),
             driver,
             self.state.process_id(),
-        );
+        )
+        .with_environment(environment);
         service
             .execute_mode(
                 app_application::agent::operations::AgentOperation {
@@ -1261,6 +1263,12 @@ impl AgentHttpService for AppStateAgentHttpService {
                         | "agent_turn_interrupted"
                         | "agent_turn_superseded"
                         | "agent_turn_recovery_unavailable"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_original_environment_changed"
+                        | "agent_original_environment_unavailable"),
                     ..
                 } => HttpServiceError::Conflict { code },
                 _ => HttpServiceError::Internal {
@@ -1785,7 +1793,11 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
             agent::{tools::AgentToolCatalog, turn::AgentTurnConfig},
             rooms::{agent::RoomAgentPorts, dm_turns::RoomDmRunner},
         };
-        let config = self.state.agent_config();
+        let (provider, config) = self.state.agent_environment();
+        let environment = crate::providers::execution_environment::environment(
+            provider.as_ref(),
+            config.model.clone(),
+        );
         let lane = self.state.campaign_lane(subject.lease().campaign_id().0);
         let tools = AgentToolCatalog {
             exploration: crate::agent::tools::tools_for_phase(config.tool_availability, false),
@@ -1798,7 +1810,7 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
         let player_verifier = self.state.player_verification_enabled().then(|| {
             Arc::new(
                 app_application::agent::intentions::LlmPlayerIntentionVerifier::new(
-                    self.state.provider(),
+                    provider.clone(),
                     config.model.clone(),
                 ),
             ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
@@ -1816,7 +1828,7 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
         });
         let runner = RoomDmRunner::new(
             Arc::new(RoomAgentPorts::new(self.rooms.clone(), subject, request_id)),
-            self.state.provider(),
+            provider.clone(),
             AgentTurnConfig {
                 model: config.model,
                 system_prompt,
@@ -1831,7 +1843,7 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
                 narration_verifier: self.state.player_verification_enabled().then(|| {
                     Arc::new(
                         app_application::agent::narration::LlmNarrationVerifier::new(
-                            self.state.provider(),
+                            provider.clone(),
                         ),
                     )
                         as Arc<dyn app_application::agent::narration::NarrationVerifier>
@@ -1839,7 +1851,8 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
             },
             lane,
             self.state.process_id(),
-        );
+        )
+        .with_environment(environment);
         let runner = if let Some(repository) = human_commands {
             runner.with_human_commands(repository)
         } else {
@@ -1862,6 +1875,12 @@ impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
                         | "agent_turn_running"
                         | "agent_turn_interrupted"
                         | "agent_turn_superseded"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_original_environment_changed"
+                        | "agent_original_environment_unavailable"),
                     ..
                 } => HttpServiceError::Conflict { code },
                 app_application::ports::repositories::RepositoryError::Operation {

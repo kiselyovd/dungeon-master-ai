@@ -272,6 +272,9 @@ struct Provider {
 }
 #[async_trait::async_trait]
 impl LlmProvider for Provider {
+    fn execution_origin(&self) -> Option<String> {
+        Some("room-dm-deterministic-fixture-v1".into())
+    }
     async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError> {
         assert!(request
             .system_prompt
@@ -1965,6 +1968,81 @@ async fn native_stream_disconnect_preserves_pending_through_conflict_then_resume
         .unwrap()
         .contains("event: agent_done"));
     assert!(service.execute(read).await.unwrap().body.is_none());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    server.abort();
+}
+
+#[tokio::test]
+async fn room_resume_blocks_changed_host_model_without_inference_or_erasing_pending() {
+    let f = fixture().await;
+    let provider = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let mut config = state.agent_config();
+    config.model = "original-model".into();
+    state.set_agent_config(config.clone());
+    let dm = app_server::http_services::room_dm_http_service(state.clone(), f.rooms.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            adapter_http::rooms::router_with_dm(f.rooms.clone(), dm),
+        )
+        .await
+        .unwrap()
+    });
+    let client = reqwest::Client::new();
+    let url = format!("http://{address}/rooms/{}/dm/turn", f.guest.room.room_id);
+    let turn = Uuid::new_v4();
+    let mut body = json!({"request_id":turn,"player_message":"Осматриваюсь"});
+    let send = |body: serde_json::Value| {
+        client
+            .post(&url)
+            .bearer_auth(f.guest.capability.expose())
+            .header("x-room-member-id", f.guest.member_id.to_string())
+            .json(&body)
+            .send()
+    };
+    let response = send(body.clone()).await.unwrap();
+    provider.started.notified().await;
+    drop(response);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let status: String =
+                sqlx::query_scalar("SELECT status FROM room_dm_turns WHERE turn_id=?1")
+                    .bind(turn.to_string())
+                    .fetch_one(state.db())
+                    .await
+                    .unwrap();
+            if status == "interrupted" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    config.model = "different-model".into();
+    state.set_agent_config(config.clone());
+    body["resume"] = json!(true);
+    let rejected = send(body.clone()).await.unwrap();
+    assert_eq!(rejected.status(), 409);
+    assert_eq!(
+        rejected.json::<serde_json::Value>().await.unwrap()["error"]["code"],
+        "agent_original_environment_changed"
+    );
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    config.model = "original-model".into();
+    state.set_agent_config(config);
+    let response = send(body).await.unwrap();
+    assert_eq!(response.status(), 200);
+    provider.started.notified().await;
+    provider.release.notify_one();
+    assert!(response.text().await.unwrap().contains("event: agent_done"));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
     server.abort();
 }

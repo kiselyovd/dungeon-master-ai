@@ -1,7 +1,10 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getPendingAgentRecoveryInput } from '../../api/agentPending';
+import { fetchAgentRecovery } from '../../api/agentRecovery';
 import i18n from '../../i18n';
+import { parseApiKey, parseBaseUrl } from '../../state/providers';
 import { useStore } from '../../state/useStore';
 import App from '../App';
 
@@ -9,6 +12,15 @@ const windowActions = vi.hoisted(() => ({
   close: vi.fn(async () => {}),
   minimize: vi.fn(async () => {}),
   toggleMaximize: vi.fn(async () => {}),
+}));
+vi.mock('../../api/agentRecovery', () => ({ fetchAgentRecovery: vi.fn(async () => null) }));
+vi.mock('../../api/agentPending', () => ({
+  getPendingAgentRecoveryInput: vi.fn(async () => null),
+  getPendingAgentClarification: vi.fn(async () => null),
+}));
+vi.mock('../../api/chat', () => ({ fetchSessionMessages: vi.fn(async () => []) }));
+vi.mock('../../components/VttCanvas', () => ({
+  VttCanvas: () => <div data-testid="production-vtt" />,
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -58,6 +70,8 @@ vi.mock('../../api/roomStream', () => ({ streamRoom: vi.fn(() => new Promise<voi
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  vi.mocked(fetchAgentRecovery).mockResolvedValue(null);
+  vi.mocked(getPendingAgentRecoveryInput).mockResolvedValue(null);
   useStore.setState(useStore.getInitialState());
   useStore.setState((state) => ({
     onboarding: { ...state.onboarding, completed: true },
@@ -68,6 +82,73 @@ beforeEach(async () => {
 
 describe('production application root', () => {
   afterEach(() => vi.restoreAllMocks());
+  it('shows confirmed recovery before a new turn and preserves an unsent draft', async () => {
+    const campaignId = '11111111-1111-4111-8111-111111111111';
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const actorId = '33333333-3333-4333-8333-333333333333';
+    const requestId = '44444444-4444-4444-8444-444444444444';
+    vi.spyOn(useStore.persist, 'hasHydrated').mockReturnValue(true);
+    useStore.getState().pc.applyPreset('fighter');
+    useStore.getState().session.activate(campaignId, sessionId);
+    const baseUrl = parseBaseUrl('http://localhost:31415/v1');
+    const apiKey = parseApiKey('fixture-value');
+    if (!baseUrl || !apiKey) throw new Error('valid fixture provider required');
+    useStore.setState((state) => ({
+      pc: { ...state.pc, characterId: actorId },
+      settings: {
+        ...state.settings,
+        activeProvider: 'openai-compat',
+        providers: {
+          ...state.settings.providers,
+          'openai-compat': {
+            kind: 'openai-compat',
+            baseUrl,
+            model: 'fixture',
+            apiKey,
+          },
+        },
+      },
+    }));
+    useStore.getState().campaigns.setActive({
+      id: campaignId,
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      title: 'Хроника',
+      premise: 'История',
+      revision: 1,
+      last_session_id: sessionId,
+      created_at: '2026-10-12T00:00:00Z',
+      updated_at: '2026-10-12T00:00:00Z',
+      seed: { kind: 'collaborative', answers: {} },
+    });
+    vi.mocked(fetchAgentRecovery).mockResolvedValue({
+      schema_version: 1,
+      scope: {
+        request_id: requestId,
+        campaign_id: campaignId,
+        session_id: sessionId,
+        actor_id: actorId,
+        authority: { kind: 'solo', restore_generation: 0 },
+      },
+      model: 'fixture',
+      phase: 'narration_pending',
+      allowed_action: 'resume',
+      progress_known: true,
+      commands: [{ command_id: 1, state: 'finished' }],
+      confirmed_effects: [],
+      clarification: null,
+    });
+    vi.mocked(getPendingAgentRecoveryInput).mockResolvedValue({
+      input: { requestId, campaignId, sessionId, playerMessage: 'Исходное действие', history: [] },
+    });
+    render(<App />);
+    await screen.findByRole('button', { name: 'Продолжить ответ' });
+    expect(screen.getByText('Завершено шагов: 1 из 1')).toBeInTheDocument();
+    const draft = screen.getByRole('textbox', { name: 'Что ты делаешь?' });
+    await userEvent.type(draft, 'Новый черновик');
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled();
+    expect(draft).toHaveValue('Новый черновик');
+  });
 
   it('does not mount state-writing game views before native persistence hydration finishes', async () => {
     let finish = () => {};

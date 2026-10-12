@@ -17,6 +17,31 @@ fn rejected(code: &'static str) -> RepositoryError {
 
 #[async_trait]
 impl AgentOperationRepository for SqliteStore {
+    async fn bind_environment(
+        &self,
+        request: Uuid,
+        owner: Uuid,
+        environment: &app_application::agent::operations::ExecutionEnvironment,
+        resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_agent_environment"))?;
+        let row = sqlx::query("SELECT execution_provider,execution_model FROM agent_turn_operations WHERE request_id=?1 AND owner_id=?2 AND status='running'")
+            .bind(request.to_string()).bind(owner.to_string()).fetch_optional(&mut *tx).await.map_err(|_| repository_error("read_agent_environment"))?.ok_or_else(|| rejected("agent_turn_superseded"))?;
+        if resuming {
+            super::agent_environment::validate(&row, environment)?;
+        } else {
+            sqlx::query("UPDATE agent_turn_operations SET execution_provider=?3,execution_model=?4 WHERE request_id=?1 AND owner_id=?2 AND execution_model IS NULL")
+                .bind(request.to_string()).bind(owner.to_string()).bind(&environment.provider).bind(&environment.model).execute(&mut *tx).await.map_err(|_| repository_error("write_agent_environment"))?;
+        }
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_agent_environment"))?;
+        Ok(())
+    }
     async fn resume(
         &self,
         input: AgentOperation,

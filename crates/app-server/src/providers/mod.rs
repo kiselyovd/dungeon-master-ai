@@ -15,3 +15,4 @@ pub use catalog::{
     VIDEO_CATALOG,
 };
 pub use registry::ProviderRegistry;
+pub(crate) mod execution_environment;

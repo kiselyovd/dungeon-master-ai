@@ -1,3 +1,5 @@
+// Pixi's static shader/uniform paths support the desktop CSP without eval.
+import 'pixi.js/unsafe-eval';
 import { Application, extend } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
@@ -36,7 +38,7 @@ interface Props {
   /** Optional override; when omitted the count is derived from the container height. */
   heightCells?: number;
   cellSize?: number;
-  onMoveToken?: (id: string, x: number, y: number) => void;
+  onMoveToken?: ((id: string, x: number, y: number) => void) | undefined;
 }
 
 /** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */

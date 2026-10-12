@@ -175,10 +175,13 @@ async fn hallucinated_scene_mutation_is_rejected_for_an_authored_campaign() {
 #[tokio::test]
 async fn resume_after_committed_action_finishes_narration_without_repeating_effect_or_user_message()
 {
-    use app_application::agent::operations::{AgentOperation, AgentOperationRepository};
+    use app_application::agent::operations::{
+        AgentOperation, AgentOperationRepository, ExecutionEnvironment,
+    };
     use app_application::models::adventure::{Action, AdventureIntent, Location};
     use app_application::models::chat::{ChatMessage, ToolCall};
     use app_application::ports::repositories::AdventureRepository;
+    use sha2::{Digest, Sha256};
     let (pool, campaign) = fixture().await;
     let store = SqliteStore::new(pool.clone());
     let id = Uuid::new_v4();
@@ -196,6 +199,24 @@ async fn resume_after_committed_action_finishes_narration_without_repeating_effe
         model: None,
     };
     store.claim(input.clone(), owner).await.unwrap();
+    // This fixture constructs a modern interrupted operation directly. Legacy
+    // origin-less operations are separately asserted to remain blocked.
+    let provider = Sha256::digest(b"mock:deterministic-mock-v1")
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    store
+        .bind_environment(
+            id,
+            owner,
+            &ExecutionEnvironment {
+                provider: Some(provider),
+                model: AgentConfig::default().model,
+            },
+            false,
+        )
+        .await
+        .unwrap();
     store
         .append_turn_message(
             id,
