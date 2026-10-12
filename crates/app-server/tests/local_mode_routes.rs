@@ -10,6 +10,41 @@ use app_server::test_support::TestServer;
 use reqwest::Client;
 use serde_json::json;
 
+struct NativeFixture;
+#[async_trait::async_trait]
+impl app_application::ports::runtime::RuntimeControl for NativeFixture {
+    async fn start(
+        &self,
+        _: app_application::models::local_models::RuntimeStartRequest,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        self.status().await
+    }
+    async fn stop(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        self.status().await
+    }
+    async fn status(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        Ok(app_application::models::local_models::RuntimeStatus {
+            state: app_application::models::local_models::RuntimeState::Running,
+            model_id: Some("qwen3_5_2b".into()),
+            llm_port: Some(37000),
+            ..Default::default()
+        })
+    }
+}
+
 #[tokio::test]
 async fn config_round_trips_via_post_then_get() {
     let server = TestServer::start().await;
@@ -65,6 +100,9 @@ async fn download_cancel_returns_204_even_when_idle() {
 #[tokio::test]
 async fn local_mistralrs_provider_swap_via_settings() {
     let server = TestServer::start().await;
+    server
+        .state
+        .set_runtime_control(std::sync::Arc::new(NativeFixture));
     let client = Client::new();
     // POST /settings/v2 shape: nested with chat.providers["local-mistralrs"]
     let body = json!({

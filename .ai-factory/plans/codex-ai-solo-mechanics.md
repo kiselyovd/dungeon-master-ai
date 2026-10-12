@@ -848,3 +848,16 @@ Fresh-session planning continuation:
   full AI-led peaceful/defensive/native/recovery and physical LAN stay required.
 - [ ] Inspect explicit delivery of planning failure to player: these captured HTTP
   streams close with only keepalive, while backend records planning_unavailable.
+
+2026-10-12 product UI/recovery repetition on the current worktree:
+Installed Qwen3.5-9B Q4_K_M was located through the earlier project session and
+verified under `D:/lmstudio/models/lmstudio-community/Qwen3.5-9B-GGUF/`.
+Fresh native build, existing llama-server, supported API campaign provisioning,
+unchanged semantic checks and reasoning budget1024. The compound Quay move/inspect
+request failed before effects; cold restart and same-UUID continuation failed
+again. Revision2, HP12, inventory, zero gameplay receipts/time and unsent text
+were preserved. Player received agent_turn_failed and proactive continuation.
+The scheduled transport cut was never reached. This is safe recovery retention,
+not successful real-model narration after effects or full session acceptance.
+Evidence: `.artifacts/product-uiux/real-model/` (sanitized restart counts, native
+screenshots and binary provenance). No model defaults or validators overridden.

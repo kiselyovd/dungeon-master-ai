@@ -1524,6 +1524,8 @@ fn safe_provider_error_code(error: &crate::ports::llm::LlmError) -> &'static str
         LlmError::AuthFailure => "authentication",
         LlmError::Network(_) => "network",
         LlmError::Provider(_) => "provider",
+        LlmError::RuntimeUnavailable => "native_runtime_unavailable",
+        LlmError::RuntimeChanged => "native_runtime_changed",
         LlmError::InvalidResponse(code) => match code.as_str() {
             "provider_output_truncated" => "provider_output_truncated",
             "provider_output_filtered" => "provider_output_filtered",

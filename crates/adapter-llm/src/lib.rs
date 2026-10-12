@@ -4,6 +4,7 @@ pub mod embeddings;
 mod genai_common;
 pub mod mistralrs_provider;
 pub mod mock;
+pub mod native_runtime;
 pub mod openai_compat;
 pub mod provider;
 pub mod retry;

@@ -12,6 +12,41 @@ use axum::extract::State;
 use axum::Json;
 use serde_json::json;
 
+struct NativeFixture;
+#[async_trait::async_trait]
+impl app_application::ports::runtime::RuntimeControl for NativeFixture {
+    async fn start(
+        &self,
+        _: app_application::models::local_models::RuntimeStartRequest,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        self.status().await
+    }
+    async fn stop(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        self.status().await
+    }
+    async fn status(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        Ok(app_application::models::local_models::RuntimeStatus {
+            state: app_application::models::local_models::RuntimeState::Running,
+            model_id: Some("qwen3_5_4b".into()),
+            llm_port: Some(8765),
+            ..Default::default()
+        })
+    }
+}
+
 fn cfg_with(
     license_restricted: bool,
     chat: serde_json::Value,
@@ -134,6 +169,7 @@ async fn license_unrestricted_keeps_all_providers() {
 #[tokio::test]
 async fn license_restricted_filters_non_oss_image_silently() {
     let state = new_test_state().await;
+    state.set_runtime_control(std::sync::Arc::new(NativeFixture));
     // local-mistralrs chat (OSS Apache 2.0 (Qwen)) + replicate image (non-OSS "varies per model")
     // + restricted = chat survives and the incompatible primary is replaced
     // by the OSS bundled catalog.
@@ -161,6 +197,7 @@ async fn license_restricted_filters_non_oss_image_silently() {
 #[tokio::test]
 async fn license_restricted_with_video_enabled_filters_ltx() {
     let state = new_test_state().await;
+    state.set_runtime_control(std::sync::Arc::new(NativeFixture));
     // local-mistralrs chat (OSS) + local-sdxl-lightning image (OSS but build_image_provider
     // fails without sidecar) - so we disable image here and just test video filtering.
     // Video=enabled + LTX-Video (non-OSS OpenRAIL-M) + restricted -> video=None, warning=true.

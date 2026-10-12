@@ -1,4 +1,6 @@
 {
+  "chat_runtime_unavailable": "Start the selected local model, then save again. Your changes are kept here.",
+  "chat_runtime_model_changed": "A different local model is running. Start the model selected in Chat or change the selection before saving.",
   "title": "Settings",
   "tab_chat": "Chat",
   "tab_local_llm": "Local LLM",

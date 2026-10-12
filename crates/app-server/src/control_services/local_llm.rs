@@ -234,7 +234,7 @@ fn system_catalog() -> Vec<SystemEntry> {
 
 /// Map a wire id (e.g. `"qwen3.5-4b"`) back onto a `ModelId`. Returns `None`
 /// for unknown ids; the route turns that into a 400.
-fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
+pub(crate) fn model_id_for_wire(wire_id: &str) -> Option<ModelId> {
     match wire_id {
         "qwen3-8b" => Some(ModelId::Qwen3_8b),
         "qwen3.5-0.8b" => Some(ModelId::Qwen3_5_0_8b),

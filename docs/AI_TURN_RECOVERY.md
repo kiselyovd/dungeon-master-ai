@@ -108,8 +108,18 @@ the existing Stronghold persistence adapter.
 
 Migration `0023_agent_execution_environment.sql` captures the effective model and
 an opaque provider-origin digest before inference. The digest excludes URL
-credentials, query parameters and fragments; it never stores a key or raw URL.
+credentials, recognized credential query parameters and fragments; it never
+stores a key or raw URL. Configured paths, their trailing slash and other routing
+parameters remain distinct execution origins.
 Local runtime identity uses its hosted model rather than its temporary port.
+Native local settings require a trusted running-model identity, including the
+full custom repository/file/projection specification. Matching filenames from
+different repositories are not the same model. Each local inference call checks
+the owner's current runtime; it binds the `default` alias to the verified model
+and reads its current port. Restarting the same model can change ports, while a
+stop or a different model prevents outgoing inference. The client cannot make
+an old model name describe another physically loaded model merely by changing
+its local port. Failed native configuration keeps the frontend draft intact.
 Planning, permission checking and narration share one provider/config snapshot.
 On an interrupted resume the original model and origin must match before the
 driver runs. A mismatch returns `agent_original_environment_changed`; restoring
@@ -155,10 +165,20 @@ recoverable solo/co-op session or live-model acceptance.
   public message validation strict, and never renders those envelopes.
 - The native smoke passed eight checks after the fixes. Deterministic protocol,
   native lifecycle/persistence, and real-model semantic acceptance are separate
-  evidence. Runtime binaries were available; model weights were not located in
-  checked project/default/Hugging Face caches. A weights path was requested for
-  the remaining real-model follow-up; no live-model pass is claimed. The Python
-  image sidecar is an empty debug placeholder in this QA build.
+  evidence. The installed weights were subsequently found through the prior
+  project session under the LM Studio model directory and verified on disk.
+  The Python image sidecar is an empty debug placeholder in this QA build.
+- The separate real-model repetition used installed Qwen3.5-9B Q4_K_M with the
+  existing `llama-server` runtime, a fresh native build and a new QA campaign.
+  Both the first attempt and cold-restart continuation failed before gameplay
+  effects. Request `aadb1bd0-916e-4ab9-8566-433d5adb4d02` survived unchanged; HP 12,
+  inventory, revision 2, zero receipts and zero elapsed seconds remained equal.
+  Continuation preserved the new unsent draft and emitted `agent_turn_failed`;
+  there were no uncaught WebView exceptions. The one-shot transport cut was never
+  reached. This proves retention for this failure, not successful Qwen delivery
+  after committed effects. Real-model semantic acceptance and that further
+  recovery repetition remain open. Sanitized evidence and binary hashes are
+  under `.artifacts/product-uiux/real-model/`.
 
 - SQLite tests: completed replay after reopening, changed-payload rejection,
   running-owner safety, disconnect before any model event and failed completion

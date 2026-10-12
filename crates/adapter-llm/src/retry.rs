@@ -35,6 +35,7 @@ pub fn is_retryable(err: &LlmError) -> bool {
         LlmError::Provider(_) => true,
         LlmError::AuthFailure => false,
         LlmError::InvalidResponse(_) => false,
+        LlmError::RuntimeUnavailable | LlmError::RuntimeChanged => false,
     }
 }
 
@@ -95,6 +96,9 @@ impl RetryableProvider {
 
 #[async_trait]
 impl LlmProvider for RetryableProvider {
+    async fn verify_execution_environment(&self) -> Result<(), LlmError> {
+        self.inner.verify_execution_environment().await
+    }
     fn execution_origin(&self) -> Option<String> {
         self.inner.execution_origin()
     }

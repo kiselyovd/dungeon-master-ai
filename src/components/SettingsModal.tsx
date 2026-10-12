@@ -40,7 +40,10 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setSubmitError(
-        message === 'backend_configuration_changed' || message === 'provider_configuration_timeout'
+        message === 'backend_configuration_changed' ||
+          message === 'provider_configuration_timeout' ||
+          message === 'chat_runtime_unavailable' ||
+          message === 'chat_runtime_model_changed'
           ? t(message)
           : message,
       );

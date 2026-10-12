@@ -9,6 +9,113 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 
+struct NativeControl(app_application::models::local_models::RuntimeStatus);
+#[async_trait]
+impl app_application::ports::runtime::RuntimeControl for NativeControl {
+    async fn start(
+        &self,
+        _: app_application::models::local_models::RuntimeStartRequest,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        Ok(self.0.clone())
+    }
+    async fn stop(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        Ok(self.0.clone())
+    }
+    async fn status(
+        &self,
+    ) -> Result<
+        app_application::models::local_models::RuntimeStatus,
+        app_application::ports::runtime::RuntimeError,
+    > {
+        Ok(self.0.clone())
+    }
+}
+fn bind_running_runtime(server: &TestServer, body: &Value) {
+    let model = &body["chat"]["providers"]["local-mistralrs"]["model_id"];
+    if model.is_null() {
+        return;
+    }
+    let id = model
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| model.to_string());
+    server.state.set_runtime_control(Arc::new(NativeControl(
+        app_application::models::local_models::RuntimeStatus {
+            state: app_application::models::local_models::RuntimeState::Running,
+            model_id: Some(id),
+            llm_port: Some(9876),
+            ..Default::default()
+        },
+    )));
+}
+
+#[tokio::test]
+async fn local_settings_refuse_an_unavailable_or_different_native_model_without_committing() {
+    use app_application::models::local_models::{RuntimeState, RuntimeStatus};
+    for status in [
+        RuntimeStatus::default(),
+        RuntimeStatus {
+            state: RuntimeState::Running,
+            model_id: Some("qwen3_5_9b".into()),
+            llm_port: Some(9876),
+            ..Default::default()
+        },
+    ] {
+        let server = TestServer::start().await;
+        server
+            .state
+            .set_runtime_control(Arc::new(NativeControl(status)));
+        let mut body = baseline();
+        body["chat"]["active_provider_id"] = json!("local-mistralrs");
+        body["chat"]["providers"] =
+            json!({"local-mistralrs":{"model_id":"qwen3_5_4b","port":9876}});
+        let revision = server.state.settings_revision();
+        let response = reqwest::Client::new()
+            .post(server.url("/settings/v2"))
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+        assert_eq!(server.state.settings_revision(), revision);
+        assert_eq!(server.state.provider().name(), "mock");
+    }
+}
+#[tokio::test]
+async fn identical_filenames_in_different_repositories_are_different_native_models() {
+    use app_application::models::local_models::{RuntimeState, RuntimeStatus};
+    let server = TestServer::start().await;
+    let actual = json!({"custom":{"hf_repo":"owner/model-b","gguf_filename":"model.gguf","mmproj_filename":null}});
+    server
+        .state
+        .set_runtime_control(Arc::new(NativeControl(RuntimeStatus {
+            state: RuntimeState::Running,
+            model_id: Some(actual.to_string()),
+            llm_port: Some(9876),
+            ..Default::default()
+        })));
+    let mut body = baseline();
+    body["chat"]["active_provider_id"] = json!("local-mistralrs");
+    body["chat"]["providers"] = json!({"local-mistralrs":{"model_id":{"custom":{"hf_repo":"owner/model-a","gguf_filename":"model.gguf","mmproj_filename":null}},"port":9876}});
+    let revision = server.state.settings_revision();
+    let response = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&body)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 400);
+    assert_eq!(server.state.settings_revision(), revision);
+}
+
 struct FailingSecrets {
     values: RwLock<HashMap<String, String>>,
     writes: AtomicUsize,
@@ -371,6 +478,7 @@ async fn post_settings_v2_rebuilds_local_mistralrs_provider() {
     body["chat"]["providers"] = json!({
         "local-mistralrs": { "model_id": "qwen3_5_4b", "port": 9876 }
     });
+    bind_running_runtime(&server, &body);
     let res = reqwest::Client::new()
         .post(server.url("/settings/v2"))
         .json(&body)
@@ -405,6 +513,7 @@ async fn post_settings_v2_rebuilds_local_mistralrs_with_custom_mmproj_model() {
             "port": 9876
         }
     });
+    bind_running_runtime(&server, &body);
     let res = reqwest::Client::new()
         .post(server.url("/settings/v2"))
         .json(&body)
@@ -437,6 +546,7 @@ async fn post_settings_v2_rebuilds_local_mistralrs_with_custom_no_mmproj() {
             "port": 9876
         }
     });
+    bind_running_runtime(&server, &body);
     let res = reqwest::Client::new()
         .post(server.url("/settings/v2"))
         .json(&body)
@@ -464,6 +574,7 @@ async fn post_settings_v2_rejects_local_mistralrs_custom_missing_gguf_filename()
             "port": 9876
         }
     });
+    bind_running_runtime(&server, &body);
     let res = reqwest::Client::new()
         .post(server.url("/settings/v2"))
         .json(&body)
@@ -507,6 +618,7 @@ async fn post_settings_v2_sets_agent_model_to_local_gemma_repo_id() {
     body["chat"]["providers"] = json!({
         "local-mistralrs": { "model_id": "gemma4_e2b", "port": 9876 }
     });
+    bind_running_runtime(&server, &body);
     let res = reqwest::Client::new()
         .post(server.url("/settings/v2"))
         .json(&body)

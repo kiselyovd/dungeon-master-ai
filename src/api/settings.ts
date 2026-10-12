@@ -255,7 +255,10 @@ function writeSettings(
         const parsed = (await resp.json().catch(() => ({}) as BackendError)) as BackendError;
         throw new ChatError(
           'provider_error',
-          parsed.error?.message ?? `POST /settings/v2 HTTP ${resp.status}`,
+          parsed.error?.code === 'chat_runtime_unavailable' ||
+            parsed.error?.code === 'chat_runtime_model_changed'
+            ? parsed.error.code
+            : (parsed.error?.message ?? `POST /settings/v2 HTTP ${resp.status}`),
         );
       }
       await discardResponseBody(resp);

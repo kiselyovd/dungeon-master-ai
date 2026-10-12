@@ -73,7 +73,54 @@ impl SettingsFactory<PreparedRuntimeSettings> for ServerSettingsFactory {
             }
         };
         let restricted = cfg.behavior.license_restricted_mode;
-        let (chat, model, mut mutations) = build_chat_provider(&cfg.chat, restricted)?;
+        let (mut chat, model, mut mutations) = build_chat_provider(&cfg.chat, restricted)?;
+        if cfg.chat.active_provider_id == "local-mistralrs" {
+            let control = self.state.runtime_control();
+            let status = control
+                .status()
+                .await
+                .map_err(|_| "chat_runtime_unavailable")?;
+            if !matches!(
+                status.state,
+                app_application::models::local_models::RuntimeState::Running
+                    | app_application::models::local_models::RuntimeState::Degraded
+            ) || status.llm_port.is_none()
+            {
+                return Err("chat_runtime_unavailable");
+            }
+            let runtime_id = status.model_id.ok_or("chat_runtime_unavailable")?;
+            let slice: LocalMistralrsSlice = serde_json::from_value(
+                cfg.chat
+                    .providers
+                    .get("local-mistralrs")
+                    .cloned()
+                    .ok_or("chat_provider_config_missing")?,
+            )
+            .map_err(|_| "chat_provider_config_invalid")?;
+            let identity = serde_json::to_string(&slice.model_id)
+                .map_err(|_| "chat_provider_config_invalid")?;
+            if runtime_model_identity(&self.state, &runtime_id).as_deref()
+                != Some(identity.as_str())
+            {
+                return Err("chat_runtime_model_changed");
+            }
+            // Native reports the real loaded model and chooses the current port.
+            // A stale client port can never redirect the `default` alias.
+            chat = Arc::new(
+                adapter_llm::native_runtime::NativeRuntimeMistralProvider::new(
+                    control,
+                    runtime_id,
+                    model.clone(),
+                    identity,
+                ),
+            );
+            chat.verify_execution_environment()
+                .await
+                .map_err(|error| match error {
+                    app_llm::LlmError::RuntimeChanged => "chat_runtime_model_changed",
+                    _ => "chat_runtime_unavailable",
+                })?;
+        }
         agent_cfg.model = model.clone();
         let auto_unload = matches!(
             self.state.local_mode_config().vram_strategy,
@@ -181,6 +228,32 @@ pub(crate) fn mistralrs_wire_model(manifest: &ModelManifest) -> String {
         ModelKind::AutoIsq { .. } => manifest.hf_repo.to_string(),
         _ => manifest.hf_filename.to_string(),
     }
+}
+
+fn runtime_model_identity(state: &AppState, id: &str) -> Option<String> {
+    let parsed = serde_json::from_value::<ModelId>(serde_json::Value::String(id.into()))
+        .ok()
+        .or_else(|| serde_json::from_str::<ModelId>(id).ok())
+        .or_else(|| crate::control_services::local_llm::model_id_for_wire(id));
+    if let Some(parsed) = parsed {
+        return serde_json::to_string(&parsed).ok();
+    }
+    let file =
+        crate::hf::manifest::load_or_init(&crate::control_services::hf::user_manifest_path(state))
+            .ok()?;
+    let entry = file
+        .entries
+        .into_iter()
+        .find(|entry| entry.system.id == id)?;
+    if entry.system.hf_filename.is_empty() {
+        return None;
+    }
+    serde_json::to_string(&ModelId::Custom {
+        hf_repo: entry.system.hf_repo,
+        gguf_filename: entry.system.hf_filename,
+        mmproj_filename: None,
+    })
+    .ok()
 }
 
 #[derive(Debug, Deserialize)]

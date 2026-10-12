@@ -62,6 +62,7 @@ export function ChatPanel({
 }: ChatPanelProps = {}) {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tSettings } = useTranslation('settings');
   const { t: tTools } = useTranslation('tools');
   const fallbackController = useAgentTurn();
   const { send, cancel } = controller ?? fallbackController;
@@ -377,7 +378,13 @@ export function ChatPanel({
             data-testid="chat-error"
             data-error-code={lastError.code}
           >
-            {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
+            {tErrors(lastError.code as ChatErrorCode, {
+              message:
+                lastError.message === 'chat_runtime_unavailable' ||
+                lastError.message === 'chat_runtime_model_changed'
+                  ? tSettings(lastError.message)
+                  : lastError.message,
+            })}
           </div>
         )}
       </div>

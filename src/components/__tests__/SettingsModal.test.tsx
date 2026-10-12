@@ -143,6 +143,20 @@ describe('SettingsModal', () => {
     expect(postSettingsV2).not.toHaveBeenCalled();
   });
 
+  it('explains a real running-model mismatch and retains the configured draft', async () => {
+    const { postSettingsV2 } = await import('../../api/settings');
+    vi.mocked(postSettingsV2).mockRejectedValueOnce(new Error('chat_runtime_model_changed'));
+    render(<SettingsModal open={true} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/API key/i), { target: { value: 'fixture-key' } });
+    fireEvent.change(screen.getByLabelText(/Model/i), { target: { value: 'model-a' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    expect(await screen.findByTestId('settings-save-error')).toHaveTextContent(
+      /different local model/i,
+    );
+    expect(screen.getByLabelText(/Model/i)).toHaveValue('model-a');
+    expect(useStore.getState().settings.providers['openai-compat']).toBeNull();
+  });
+
   it('blocks save and surfaces validation when api key is missing', async () => {
     const user = userEvent.setup();
     const { postSettingsV2 } = await import('../../api/settings');

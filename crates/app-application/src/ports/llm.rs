@@ -16,12 +16,19 @@ pub enum LlmError {
     Network(String),
     #[error("invalid response: {0}")]
     InvalidResponse(String),
+    #[error("native model runtime unavailable")]
+    RuntimeUnavailable,
+    #[error("native model runtime changed")]
+    RuntimeChanged,
 }
 
 pub type ChunkStream = BoxStream<'static, Result<ChatChunk, LlmError>>;
 
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
+    async fn verify_execution_environment(&self) -> Result<(), LlmError> {
+        Ok(())
+    }
     async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError>;
 
     /// Request structured output where supported. Callers must still validate

@@ -1034,6 +1034,9 @@ impl SettingsHttpService for AppStateSettingsHttpService {
             ),
         );
         let result = update.execute(config).await.map_err(|error| match error {
+            SettingsUpdateError::Prepare {
+                code: code @ ("chat_runtime_unavailable" | "chat_runtime_model_changed"),
+            } => HttpServiceError::BadRequest { code },
             SettingsUpdateError::Prepare { .. } => HttpServiceError::BadRequest {
                 code: "settings_prepare_failed",
             },
