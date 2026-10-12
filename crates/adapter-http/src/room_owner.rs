@@ -161,7 +161,9 @@ pub fn transport_router(
         Router::new()
             .route("/native/room-client/execute", post(execute_room))
             .route("/native/room-client/stream", post(stream_room))
-            .layer(DefaultBodyLimit::max(9 * 1024 * 1024))
+            .layer(DefaultBodyLimit::max(
+                crate::routes::media_assets::MAX_UPLOAD_BODY_BYTES + 16 * 1024,
+            ))
             .layer(Extension(service)),
         token,
     )

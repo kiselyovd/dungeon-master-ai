@@ -55,6 +55,8 @@ pub struct ToolDispatchRequest {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GeneratedAgentMedia {
     Image {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_ref: Option<Box<crate::models::media_asset::MediaReference>>,
         mime_type: String,
         data_b64: String,
         kind: String,

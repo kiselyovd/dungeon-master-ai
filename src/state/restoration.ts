@@ -89,6 +89,7 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
         currentScene: projection.scene,
         adventure: projection.adventure ?? null,
         mapImageUrl: null,
+        mapMediaRef: projection.mapMediaRef ?? null,
       },
       chat: {
         ...state.chat,

@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import type { Campaign } from '../api/contracts/campaign';
 import type { CampaignStateResponse } from '../api/contracts/campaignState';
 import { DefenseChoiceSchema } from '../api/contracts/defense';
+import { MediaReferenceSchema } from '../api/contracts/mediaAsset';
 import type { RestoreSaveResponse, SessionMessageWire } from '../api/saves';
 import { parseMessage } from '../api/saves';
 import { parseCombatProjection } from '../features/combat/model/combatProjection';
@@ -16,6 +17,7 @@ export const RESTORE_MESSAGE_LIMIT = 20;
 const RENDERABLE_ROLES = new Set<string>(['user', 'assistant', 'system']);
 
 export interface RestoredSessionProjection {
+  mapMediaRef?: import('../api/contracts/mediaAsset').MediaReference | null;
   adventure?: import('../api/contracts/adventure').AdventureProjection | null;
   preserveDraft?: boolean;
   campaign?: Campaign;
@@ -72,6 +74,7 @@ export function buildCampaignState(state: CampaignStateResponse): RestoredSessio
       ruleset_id: 'srd-5.2.1',
       projection: {
         ...state.projection,
+        map_media_ref: state.projection.map_media_ref ?? null,
         adventure: state.projection.adventure ?? null,
         messages: state.projection.messages.map(parseMessage),
       },
@@ -130,6 +133,7 @@ export function buildRestoredSession(input: {
       restoredMessage(message, `rehydrated-${input.saveId}-${index}`, index),
     ),
     pc: parsePcPatch(projection.character),
+    mapMediaRef: projection.map_media_ref ?? null,
     combat: projection.combat === null ? null : parseCombat(projection.combat),
     scene: projection.scene === null ? null : parseScene(projection.scene),
     journal: projection.journal.map(parseJournal),
@@ -278,6 +282,7 @@ function parsePcPatch(value: unknown): Partial<PcData> {
     'background',
     'alignment',
     'portraitUrl',
+    'portraitAssetId',
   ] as const;
   for (const key of nullableStrings) {
     const candidate = input[key];
@@ -286,6 +291,18 @@ function parsePcPatch(value: unknown): Partial<PcData> {
         throw new RestoreValidationError('restore_pc_invalid');
       }
       output[key] = candidate;
+    }
+  }
+  if (input.portraitMediaRef !== undefined) {
+    if (input.portraitMediaRef === null) output.portraitMediaRef = null;
+    else {
+      const parsed = v.safeParse(MediaReferenceSchema, input.portraitMediaRef);
+      if (
+        !parsed.success ||
+        (parsed.output.source === 'owned' && parsed.output.category !== 'portrait')
+      )
+        throw new RestoreValidationError('restore_pc_invalid');
+      output.portraitMediaRef = parsed.output;
     }
   }
   const numbers = [

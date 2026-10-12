@@ -29,6 +29,7 @@ import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
 import { DefenseChoiceSchema } from '../api/contracts/defense';
+import { MediaReferenceSchema } from '../api/contracts/mediaAsset';
 import { withTimeout } from '../lib/withTimeout';
 import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema } from './charCreationSchema';
@@ -66,6 +67,7 @@ const KEY_SYSTEM_PROMPT = 'system_prompt';
 const KEY_TEMPERATURE = 'temperature';
 const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
+const KEY_READING_FONT_SIZE = 'reading_font_size';
 const KEY_SCENE_TRANSITIONS_ENABLED = 'scene_transitions_enabled';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
@@ -314,6 +316,8 @@ const PcSchema = v.object({
   skillProfs: SkillProfSchema,
   inventory: v.array(InventoryItemSchema),
   portraitUrl: v.optional(v.nullable(v.string())),
+  portraitAssetId: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(160)))),
+  portraitMediaRef: v.optional(v.nullable(MediaReferenceSchema)),
 });
 
 export interface PersistedSettings {
@@ -335,6 +339,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       tempRaw,
       replicateRaw,
       chatWidthRaw,
+      readingSizeRaw,
       sceneTransitionsRaw,
       campaignRaw,
       sessionIdRaw,
@@ -363,6 +368,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_TEMPERATURE),
       getSecretSafe(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.get(KEY_READING_FONT_SIZE),
       settingsStore.get(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
@@ -392,6 +398,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const tempParsed = v.safeParse(TemperatureSchema, tempRaw);
     const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
     const chatWidthParsed = v.safeParse(ChatPanelWidthSchema, chatWidthRaw);
+    const readingSizeParsed = v.safeParse(v.picklist([16, 17, 18]), readingSizeRaw);
     const sceneTransitionsParsed = v.safeParse(SceneTransitionsEnabledSchema, sceneTransitionsRaw);
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
@@ -424,6 +431,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !tempParsed.success &&
       !replicateParsed.success &&
       !chatWidthParsed.success &&
+      !readingSizeParsed.success &&
       !sceneTransitionsParsed.success &&
       !campaignParsed.success &&
       !sessionIdParsed.success &&
@@ -460,6 +468,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (tempParsed.success) settings.temperature = tempParsed.output;
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
+    if (readingSizeParsed.success) settings.readingFontSize = readingSizeParsed.output;
     if (sceneTransitionsParsed.success) {
       settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;
     }
@@ -564,6 +573,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.chatPanelWidth !== undefined) {
       settingsWrites.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
     }
+    if (settings.readingFontSize !== undefined) {
+      settingsWrites.push(settingsStore.set(KEY_READING_FONT_SIZE, settings.readingFontSize));
+    }
     if (settings.sceneTransitionsEnabled !== undefined) {
       settingsWrites.push(
         settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
@@ -647,6 +659,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_SYSTEM_PROMPT),
       settingsStore.delete(KEY_TEMPERATURE),
       settingsStore.delete(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.delete(KEY_READING_FONT_SIZE),
       settingsStore.delete(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { InferOutput } from 'valibot';
 import type { BattleMap } from '../../api/contracts/battleMap';
+import type { MediaReference } from '../../api/contracts/mediaAsset';
 import type { HeroIntentSchema } from '../../api/contracts/roomOperations';
 import type { PlayerTokenPresentation } from '../../components/CombatToken';
 import { InitiativeTracker } from '../../components/InitiativeTracker';
@@ -12,6 +13,7 @@ import { SpellCastDialog } from './SpellCastDialog';
 import { WeaponAttackDialog } from './WeaponAttackDialog';
 
 interface Props {
+  mapMediaRef?: MediaReference | null;
   timelineReset?: number;
   raw: unknown;
   map: BattleMap | null;
@@ -24,6 +26,7 @@ interface Props {
   ) => Promise<boolean>;
 }
 export function RoomCombatPanel({
+  mapMediaRef,
   raw,
   map,
   player,
@@ -59,6 +62,8 @@ export function RoomCombatPanel({
       >
         <VttCanvas
           presentation={{
+            mapMediaRef: mapMediaRef ?? null,
+            mediaScope: player.mediaScope ?? null,
             active,
             tokens,
             map: arena ?? null,

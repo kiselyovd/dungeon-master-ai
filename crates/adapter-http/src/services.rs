@@ -54,6 +54,23 @@ impl IntoResponse for HttpServiceError {
 pub trait MediaHttpService: Send + Sync {
     async fn generate_image(&self, prompt: ImagePrompt) -> Result<ImageBytes, HttpServiceError>;
     async fn generate_video(&self, prompt: VideoPrompt) -> Result<VideoStream, HttpServiceError>;
+    async fn register_asset(
+        &self,
+        _owner: app_application::models::media_asset::MediaOwner,
+        _category: app_application::models::media_asset::MediaCategory,
+        _origin: app_application::models::media_asset::MediaOrigin,
+        _mime_type: &str,
+        _bytes: Vec<u8>,
+    ) -> Result<app_application::models::media_asset::MediaReference, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn read_asset(
+        &self,
+        _asset_id: Uuid,
+        _scope: app_application::models::media_asset::MediaReadScope,
+    ) -> Result<app_application::models::media_asset::OwnedMediaAsset, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +86,12 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn migrate_portrait(
+        &self,
+        _command: app_application::media_assets::migrate_portrait::MigratePortrait,
+    ) -> Result<crate::routes::campaigns::PortraitMigrationResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn recovery_status(
         &self,
         _id: Uuid,

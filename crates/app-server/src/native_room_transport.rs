@@ -66,6 +66,28 @@ fn wire(operation: &NativeRoomOperation) -> Result<WireOperation, HttpServiceErr
         AgentRecovery {} => ("dm/recovery".into(), None),
         Updates { after } => (format!("updates?after={after}"), None),
         Party {} => ("party".into(), None),
+        MediaAsset { asset_id } if !asset_id.is_nil() => (format!("media/assets/{asset_id}"), None),
+        MediaAsset { .. } => return Err(invalid()),
+        UploadPortrait {
+            asset_id,
+            mime_type,
+            data_b64,
+        } => {
+            if asset_id.is_nil()
+                || !matches!(
+                    mime_type.as_str(),
+                    "image/png" | "image/jpeg" | "image/webp"
+                )
+                || data_b64.len()
+                    > app_application::models::media_asset::MAX_MEDIA_ASSET_BYTES.div_ceil(3) * 4
+            {
+                return Err(invalid());
+            };
+            (
+                "media/assets".into(),
+                Some(json!({"asset_id":asset_id,"mime_type":mime_type,"data_b64":data_b64})),
+            )
+        }
         OwnProposal {} => ("character-proposals/own".into(), None),
         PendingProposals {} => ("character-proposals".into(), None),
         RestStatus {} => ("rest".into(), None),
@@ -218,7 +240,15 @@ impl NativeRoomTransportHttpService for Transport {
         }
         let operation = wire(&request.operation)?;
         let serialized = serde_json::to_string(&request).map_err(|_| invalid())?;
-        if serialized.len() > 9 * 1024 * 1024 {
+        let request_limit = if matches!(
+            request.operation,
+            NativeRoomOperation::UploadPortrait { .. }
+        ) {
+            adapter_http::routes::media_assets::MAX_UPLOAD_BODY_BYTES + 16 * 1024
+        } else {
+            9 * 1024 * 1024
+        };
+        if serialized.len() > request_limit {
             return Err(invalid());
         }
         // One pending mutation per participant. Reads can still refresh state while

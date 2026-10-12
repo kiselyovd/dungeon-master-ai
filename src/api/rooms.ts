@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import * as v from 'valibot';
 import { parseAgentRecovery } from './contracts/agentRecovery';
+import { MAX_MEDIA_BYTES, MediaReferenceSchema, parseMediaReference } from './contracts/mediaAsset';
 import { RecoveryReceiptSchema } from './contracts/recovery';
 import { ProposalSummarySchema, PublicRoomSchema, RoomUpdateSchema } from './contracts/room';
 import {
@@ -146,6 +147,50 @@ async function execute(roomId: string, operation: unknown): Promise<unknown> {
   }
   return result.output.body;
 }
+export async function loadRoomMediaAsset(roomId: string, assetId: string) {
+  const schema = v.strictObject({
+    media_ref: MediaReferenceSchema,
+    data_b64: v.pipe(
+      v.string(),
+      v.maxLength(Math.ceil(MAX_MEDIA_BYTES / 3) * 4),
+      v.regex(/^[A-Za-z0-9+/]*={0,2}$/),
+    ),
+  });
+  const result = v.safeParse(
+    schema,
+    await execute(roomId, { kind: 'media_asset', asset_id: assetId }),
+  );
+  if (
+    !result.success ||
+    result.output.media_ref.source !== 'owned' ||
+    result.output.media_ref.asset_id !== assetId
+  )
+    return invalid();
+  return result.output;
+}
+export async function uploadRoomPortrait(
+  roomId: string,
+  assetId: string,
+  mimeType: string,
+  dataB64: string,
+) {
+  const result = parseMediaReference(
+    await execute(roomId, {
+      kind: 'upload_portrait',
+      asset_id: assetId,
+      mime_type: mimeType,
+      data_b64: dataB64,
+    }),
+  );
+  if (
+    result.source !== 'owned' ||
+    result.asset_id !== assetId ||
+    result.category !== 'portrait' ||
+    result.origin !== 'uploaded'
+  )
+    return invalid();
+  return result;
+}
 export async function loadRoom(roomId: string) {
   const parsed = v.safeParse(RoomUpdateSchema, await execute(roomId, { kind: 'state' }));
   if (!parsed.success || parsed.output.state.room.room_id !== roomId) return invalid();
@@ -205,10 +250,21 @@ const combatReceipt = v.strictObject({
   receipt_revision: integer,
   receipt_events: v.array(v.unknown()),
 });
-export async function sendRoomAction(roomId: string, action: RoomAction): Promise<void> {
+export async function sendRoomAction(roomId: string, action: RoomAction): Promise<unknown> {
   const input = v.safeParse(RoomActionSchema, action);
   if (!input.success) throw new RoomClientError('native_room_operation_invalid');
   const body = await execute(roomId, input.output);
+  if (action.kind === 'upload_portrait') {
+    const result = parseMediaReference(body);
+    if (
+      result.source !== 'owned' ||
+      result.asset_id !== action.asset_id ||
+      result.category !== 'portrait' ||
+      result.origin !== 'uploaded'
+    )
+      return invalid();
+    return result;
+  }
   const schema =
     action.kind === 'leave'
       ? departureReceipt

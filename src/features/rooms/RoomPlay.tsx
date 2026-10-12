@@ -225,12 +225,12 @@ export function RoomPlay({
                 <h2>{t('dm')}</h2>
                 <div className={styles.messages}>
                   {state.messages.map((message) => (
-                    <article key={message.id} className={styles.message}>
+                    <article key={message.id} className={styles.message} data-role={message.role}>
                       {message.text}
                     </article>
                   ))}
                   {view.dmText && (
-                    <article className={styles.message} aria-live="polite">
+                    <article className={styles.message} data-role="assistant" aria-live="polite">
                       {view.dmText}
                     </article>
                   )}

@@ -24,6 +24,16 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}/join", post(join_room))
         .route("/rooms/{room_id}/leave", post(leave_room))
         .route("/rooms/{room_id}/party", get(own_party))
+        .route(
+            "/rooms/{room_id}/media/assets",
+            post(upload_portrait).layer(DefaultBodyLimit::max(
+                crate::routes::media_assets::MAX_UPLOAD_BODY_BYTES,
+            )),
+        )
+        .route(
+            "/rooms/{room_id}/media/assets/{asset_id}",
+            get(public_media_asset),
+        )
         .route("/rooms/{room_id}/state", get(room_state))
         .route("/rooms/{room_id}/updates", get(room_updates))
         .route("/rooms/{room_id}/events", get(room_events))
@@ -65,6 +75,53 @@ async fn no_store(request: axum::extract::Request, next: Next) -> Response {
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RoomPortraitUpload {
+    asset_id: Uuid,
+    mime_type: String,
+    data_b64: String,
+}
+async fn upload_portrait(
+    State(service): State<Arc<RoomService>>,
+    Path(room): Path<Uuid>,
+    headers: HeaderMap,
+    Json(body): Json<RoomPortraitUpload>,
+) -> Result<Json<app_application::models::media_asset::MediaReference>, HttpServiceError> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let subject = subject(&service, room, &headers).await?;
+    let limit = app_application::models::media_asset::MAX_MEDIA_ASSET_BYTES;
+    if body.data_b64.len() > limit.div_ceil(3) * 4 {
+        return Err(HttpServiceError::PayloadTooLarge {
+            code: "media_asset_too_large",
+        });
+    };
+    let bytes = STANDARD
+        .decode(body.data_b64)
+        .map_err(|_| HttpServiceError::BadRequest {
+            code: "media_asset_invalid",
+        })?;
+    service
+        .upload_portrait(&subject, body.asset_id, &body.mime_type, bytes)
+        .await
+        .map(Json)
+        .map_err(crate::routes::media_assets::media_asset_error)
+}
+async fn public_media_asset(
+    State(service): State<Arc<RoomService>>,
+    Path((room, id)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, HttpServiceError> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let subject = subject(&service, room, &headers).await?;
+    let asset = service
+        .public_asset(&subject, id)
+        .await
+        .map_err(crate::routes::media_assets::media_asset_error)?;
+    Ok(Json(
+        serde_json::json!({"media_ref":asset.reference,"data_b64":STANDARD.encode(asset.bytes)}),
+    ))
 }
 fn room_error(error: RoomError) -> HttpServiceError {
     match error {

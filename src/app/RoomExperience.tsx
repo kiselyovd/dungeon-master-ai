@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchCampaignState } from '../api/campaigns';
 import type { CampaignSummary } from '../api/contracts/campaign';
+import { parseMediaReference } from '../api/contracts/mediaAsset';
+import { encodeMedia, readMedia } from '../api/mediaAssets';
 import {
   type GuestRecoveryChoice,
   type HostRoomRequest,
@@ -20,6 +22,7 @@ import { CharacterWizard } from '../components/CharacterWizard';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SettingsModal } from '../components/SettingsModal';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
+import { RoomPortraitTransfer } from '../features/media/model/RoomPortraitTransfer';
 import { toRecoveryView } from '../features/recovery/model/recovery';
 import { RoomHome } from '../features/rooms/RoomHome';
 import { RoomPlay } from '../features/rooms/RoomPlay';
@@ -39,6 +42,24 @@ function ConnectedRoom({
   onBack: () => void | Promise<void>;
 }) {
   const { view, controller } = useRoom(roomPorts, connection);
+  const portraitTransfer = useMemo(
+    () =>
+      new RoomPortraitTransfer({
+        read: readMedia,
+        encode: encodeMedia,
+        upload: (action) => controller.perform(action),
+      }),
+    [controller],
+  );
+  async function submitCharacter(character: Record<string, unknown>) {
+    const prepared = await portraitTransfer.prepare(
+      character,
+      connection.room.room_id,
+      useStore.getState().charCreation.mediaDraftId ?? null,
+      controller.getSnapshot().pending,
+    );
+    await controller.submitCharacter(prepared);
+  }
   const [invitation, setInvitation] = useState(
     connection.kind === 'host' ? connection.invitation : '',
   );
@@ -146,6 +167,7 @@ function ConnectedRoom({
         battle={
           view.state && (
             <RoomCombatPanel
+              mapMediaRef={view.state.map_media_ref ?? null}
               raw={view.state.combat}
               timelineReset={view.timelineReset}
               map={view.state.adventure?.map ?? null}
@@ -160,6 +182,22 @@ function ConnectedRoom({
                 portraitUrl:
                   typeof view.state.own_character?.portraitUrl === 'string'
                     ? view.state.own_character.portraitUrl
+                    : null,
+                portraitAssetId:
+                  typeof view.state.own_character?.portraitAssetId === 'string'
+                    ? view.state.own_character.portraitAssetId
+                    : null,
+                portraitMediaRef: view.state.own_character?.portraitMediaRef
+                  ? parseMediaReference(view.state.own_character.portraitMediaRef)
+                  : null,
+                mediaScope:
+                  view.status === 'connected'
+                    ? {
+                        kind: 'room',
+                        room_id: connection.room.room_id,
+                        member_id: connection.member_id,
+                        epoch: view.state.room.epoch ?? connection.room.epoch ?? 1,
+                      }
                     : null,
               }}
               disabled={
@@ -198,10 +236,11 @@ function ConnectedRoom({
       {wizard && (
         <CharacterWizard
           mode="initial"
+          draftScope={{ kind: 'room', roomId: connection.room.room_id }}
           onClose={() => setWizard(false)}
           completeSoloOnboarding={false}
           allowCancel
-          onCommitCharacter={(character) => controller.submitCharacter(character)}
+          onCommitCharacter={submitCharacter}
         />
       )}
     </>

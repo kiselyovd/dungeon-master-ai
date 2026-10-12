@@ -40,6 +40,12 @@ export interface ChatPort {
   addToolStart(id: string, toolName: string, args: unknown, round: number): void;
   settleTool(id: string, result: unknown, isError: boolean): void;
   attachImage(id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource): void;
+  attachMedia?(
+    id: string,
+    reference: import('../../../api/contracts/mediaAsset').MediaReference,
+    kind: 'map' | 'chat',
+    source: ImageSource,
+  ): void;
   attachVideo(id: string, dataUrl: string): void;
 }
 
@@ -47,6 +53,12 @@ export interface ToolLogPort {
   addPending(id: string, toolName: string, args: unknown, round: number): void;
   settle(id: string, result: unknown, isError: boolean, handledBy: string): void;
   attachImage(id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource): void;
+  attachMedia?(
+    id: string,
+    reference: import('../../../api/contracts/mediaAsset').MediaReference,
+    kind: 'map' | 'chat',
+    source: ImageSource,
+  ): void;
 }
 
 export interface JournalPort {
@@ -80,6 +92,7 @@ export interface SessionPort {
   currentSceneName(): string | undefined;
   setScene(title: string): void;
   setMapImage(dataUrl: string): void;
+  setMapMedia?(reference: import('../../../api/contracts/mediaAsset').MediaReference): void;
 }
 
 export interface CombatProjectionPort {

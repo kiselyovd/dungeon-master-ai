@@ -57,6 +57,10 @@ function snapshotDraft(s: ReturnType<typeof useStore.getState>): CharacterDraft 
     name: s.charCreation.name,
     alignment: s.charCreation.alignment,
     portraitUrl: s.charCreation.portraitUrl,
+    portraitAssetId: s.charCreation.portraitAssetId ?? null,
+    portraitMediaRef: s.charCreation.portraitMediaRef ?? null,
+    mediaDraftId: s.charCreation.mediaDraftId ?? null,
+    draftScope: s.charCreation.draftScope ?? null,
     portraitPrompt: s.charCreation.portraitPrompt,
   };
 }

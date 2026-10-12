@@ -40,6 +40,7 @@ import { canCast } from '../features/combat/model/spellAvailability';
 import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
+import { useLegacyCampaignPortrait } from '../features/media/useLegacyCampaignPortrait';
 import { type RecoveryPorts, useRecovery } from '../features/recovery/useRecovery';
 import { RestDialog } from '../features/rest/RestDialog';
 import { useSaves } from '../features/saves/useSaves';
@@ -237,6 +238,7 @@ function App() {
   const { t: tCampaigns } = useTranslation('campaigns');
   const { t: tSettings } = useTranslation('settings');
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
+  const readingFontSize = useStore((s) => s.settings.readingFontSize);
   const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
   const activeProvider = useStore((s) => s.settings.activeProvider);
   const activeProviderConfig = useStore((s) => s.settings.providers[s.settings.activeProvider]);
@@ -445,7 +447,9 @@ function App() {
     recoveryPorts,
     agentStreaming,
   );
+  useLegacyCampaignPortrait(hydrated && !roomOpen && !recovery.blocked);
   const recoveryNotice = (
+    // Recovery must settle before an automatic appearance migration can write.
     <RecoveryPanel
       view={recovery.view}
       status={recovery.status}
@@ -459,7 +463,7 @@ function App() {
   if (!hydrated) {
     return (
       <ErrorBoundary level="top">
-        <AppShell>
+        <AppShell readingFontSize={readingFontSize}>
           <SplashOverlay />
         </AppShell>
       </ErrorBoundary>
@@ -469,7 +473,7 @@ function App() {
   if (roomOpen) {
     return (
       <ErrorBoundary level="top">
-        <AppShell>
+        <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
             language={uiLanguage}
             campaignTitle={tCampaigns('coop')}
@@ -494,7 +498,7 @@ function App() {
     return (
       <ErrorBoundary level="top">
         <ProviderMigrationBanner />
-        <AppShell>
+        <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
             language={uiLanguage}
             {...(campaignsFeature.active?.title
@@ -565,7 +569,7 @@ function App() {
   return (
     <ErrorBoundary level="top">
       <ProviderMigrationBanner />
-      <AppShell>
+      <AppShell readingFontSize={readingFontSize}>
         <header className="dm-titlebar" data-tauri-drag-region>
           <div className="dm-titlebar-left">
             <div className="dm-app-mark">

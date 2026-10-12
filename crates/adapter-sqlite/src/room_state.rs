@@ -163,6 +163,7 @@ async fn state(
         messages,
         combat,
         scene: current.projection.scene,
+        map_media_ref: current.projection.map_media_ref,
         adventure: current.projection.adventure,
         clock: current.projection.adventuring.unwrap_or_default(),
         journal: current.projection.journal,

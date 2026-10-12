@@ -40,6 +40,7 @@ run() {
 
 # --- static checks (fast: no Rust compile) ---------------------------------
 run "architecture"         bun run architecture:check
+run "visual assets"       bun run assets:check
 run "cargo fmt --check"   cargo fmt --all -- --check
 run "biome ci"            bunx biome ci .
 run "tsc (typecheck)"     bun run typecheck

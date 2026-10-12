@@ -57,6 +57,14 @@
   background: var(--color-bg-overlay);
   border-radius: var(--radius-sm);
 }
+
+.message[data-role="assistant"] {
+  font-family: var(--font-narrative);
+  font-size: var(--text-reading);
+  line-height: var(--leading-relaxed);
+  max-width: 65ch;
+  font-optical-sizing: auto;
+}
 .meta {
   color: var(--color-fg-muted);
   font-size: var(--text-sm);

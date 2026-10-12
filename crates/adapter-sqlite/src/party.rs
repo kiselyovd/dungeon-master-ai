@@ -428,6 +428,14 @@ pub(crate) async fn enroll_in_transaction(
         if !within_character_budget(&sheet) {
             return Err(error("character_too_large"));
         }
+        crate::media_assets::bind_portrait(
+            tx,
+            command.campaign_id.0,
+            command.character_id,
+            &sheet,
+            Some(command.member_id),
+        )
+        .await?;
         sqlx::query("INSERT INTO party_characters(campaign_id,member_id,character_id,character_json) VALUES(?1,?2,?3,?4)").bind(command.campaign_id.0.to_string()).bind(command.member_id.to_string()).bind(command.character_id.to_string()).bind(sheet.to_string()).execute(&mut **tx).await.map_err(|_|error("party_write_failed"))?;
         crate::campaigns::advance_session_revision(
             tx,

@@ -125,6 +125,8 @@ export function ReviewTab({
       speedFt: sheet.speedFt ?? 30,
       proficiencyBonus: sheet.proficiencyBonus,
       portraitUrl: draft.portraitUrl,
+      portraitAssetId: draft.portraitAssetId ?? null,
+      portraitMediaRef: draft.portraitMediaRef ?? null,
       inventory,
       savingThrowProfs: Object.fromEntries(
         Object.entries(sheet.savingThrows).map(([key, value]) => [key, value.proficient]),
@@ -163,7 +165,7 @@ export function ReviewTab({
       <h2>{t('review_title')}</h2>
 
       <div className="dm-wizard-card" style={{ cursor: 'default', marginBottom: 16 }}>
-        <h3 style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>
           {draft.name || t('placeholder_hero')}
         </h3>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>

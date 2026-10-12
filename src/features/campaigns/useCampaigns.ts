@@ -99,10 +99,13 @@ export function useCampaigns() {
         useStore.getState().restoration.apply({
           ...buildCampaignState(state),
           preserveDraft:
-            state.character_id === null &&
-            before.session.activeCampaignId === campaignId &&
-            before.session.activeSessionId === state.session_id &&
-            before.pc.heroClass === null,
+            before.charCreation.draftScope?.kind === 'room' ||
+            (before.session.activeCampaignId === campaignId &&
+              before.session.activeSessionId === state.session_id &&
+              ((state.character_id === null && before.pc.heroClass === null) ||
+                (before.charCreation.draftScope?.kind === 'campaign' &&
+                  before.charCreation.draftScope.campaignId === campaignId &&
+                  before.charCreation.draftScope.characterId === state.character_id))),
         });
         characterRetry.current = null;
         return state.campaign;

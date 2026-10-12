@@ -30,6 +30,16 @@ export const HeroIntentSchema = v.variant('kind', [
 ]);
 const actionOptions = [
   v.strictObject({
+    kind: v.literal('upload_portrait'),
+    asset_id: uuid,
+    mime_type: v.picklist(['image/png', 'image/jpeg', 'image/webp']),
+    data_b64: v.pipe(
+      v.string(),
+      v.maxLength(Math.ceil((8 * 1024 * 1024) / 3) * 4),
+      v.regex(/^[A-Za-z0-9+/]*={0,2}$/),
+    ),
+  }),
+  v.strictObject({
     kind: v.literal('leave'),
     request_id: nonce,
     expected_epoch: v.pipe(integer, v.minValue(1)),

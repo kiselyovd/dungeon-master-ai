@@ -86,6 +86,45 @@ impl RoomService {
             return Err(RoomError::InvalidInput);
         }
         command.character["characterId"] = serde_json::json!(command.character_id);
+        if command
+            .character
+            .get("portraitMediaRef")
+            .is_none_or(serde_json::Value::is_null)
+            && command
+                .character
+                .get("portraitAssetId")
+                .is_none_or(|value| value.is_null() || value.as_str() == Some(""))
+        {
+            if let (Some(assets), Some(url)) = (
+                &self.media_assets,
+                command
+                    .character
+                    .get("portraitUrl")
+                    .and_then(serde_json::Value::as_str),
+            ) {
+                use crate::models::media_asset::*;
+                match assets
+                    .migrate_inline_as(
+                        command.proposal_id,
+                        MediaOwner::RoomMember {
+                            campaign_id: subject.lease.campaign_id().0,
+                            member_id: subject.lease.member_id(),
+                        },
+                        MediaCategory::Portrait,
+                        url,
+                    )
+                    .await
+                {
+                    Ok(reference) => {
+                        command.character["portraitMediaRef"] = serde_json::json!(reference);
+                        command.character["portraitUrl"] = serde_json::Value::Null;
+                    }
+                    Err(error) => {
+                        tracing::warn!(?error,proposal_id=%command.proposal_id,"unresolved legacy portrait retained")
+                    }
+                }
+            }
+        }
         self.rooms
             .submit_character_proposal(&subject.lease, command)
             .await

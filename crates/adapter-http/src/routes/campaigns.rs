@@ -9,6 +9,37 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::services::{HttpServiceError, HttpServices};
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortraitMigrationRequest {
+    pub character_id: Uuid,
+    pub expected_revision: Revision,
+    pub request_id: Uuid,
+}
+#[derive(Serialize)]
+pub struct PortraitMigrationResponse {
+    pub state: CampaignStateResponse,
+    pub changed: bool,
+    pub retained: bool,
+}
+pub async fn migrate_portrait(
+    Extension(services): Extension<HttpServices>,
+    Path(campaign): Path<Uuid>,
+    Json(body): Json<PortraitMigrationRequest>,
+) -> Result<Json<PortraitMigrationResponse>, HttpServiceError> {
+    services
+        .campaign
+        .migrate_portrait(
+            app_application::media_assets::migrate_portrait::MigratePortrait {
+                campaign_id: CampaignId(campaign),
+                character_id: body.character_id,
+                expected_revision: body.expected_revision,
+                request_id: body.request_id,
+            },
+        )
+        .await
+        .map(Json)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]

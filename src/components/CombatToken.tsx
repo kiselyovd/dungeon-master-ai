@@ -6,8 +6,12 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
 import { TOKEN_ART } from '../assets/livingTabletop';
+import { portraitAssetUrl } from '../assets/visualCatalog';
 import { isDeadToken, isIncapacitatedToken } from '../features/combat/model/selectors';
+import { useMediaImage } from '../features/media/useMediaImage';
+import { legacyPortraitUrl } from '../lib/heroPortraits';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
 
@@ -17,6 +21,9 @@ export interface PlayerTokenPresentation {
   characterId: string | null;
   heroClass: string | null;
   portraitUrl: string | null;
+  portraitAssetId?: string | null;
+  portraitMediaRef?: MediaReference | null;
+  mediaScope?: MediaScope | null;
 }
 
 interface Props {
@@ -90,6 +97,18 @@ export function CombatToken({
   const storedHeroClass = useStore((s) => s.pc.heroClass);
   const pcHeroClass = playerPresentation ? playerPresentation.heroClass : storedHeroClass;
   const storedPortrait = useStore((s) => s.pc.portraitUrl);
+  const storedPortraitAsset = useStore((s) => s.pc.portraitAssetId);
+  const storedMedia = useStore((s) => s.pc.portraitMediaRef);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const portraitMediaRef = playerPresentation ? playerPresentation.portraitMediaRef : storedMedia;
+  const mediaScope = playerPresentation
+    ? (playerPresentation.mediaScope ?? null)
+    : campaignId
+      ? { kind: 'campaign' as const, campaign_id: campaignId }
+      : null;
+  const portraitAssetId = playerPresentation
+    ? playerPresentation.portraitAssetId
+    : storedPortraitAsset;
   const pcPortraitUrl = playerPresentation ? playerPresentation.portraitUrl : storedPortrait;
   const originLeft = token.x * cellSize;
   const originTop = token.y * cellSize;
@@ -103,6 +122,7 @@ export function CombatToken({
   const isPcToken = pcCharacterId
     ? token.characterId === pcCharacterId
     : !playerPresentation && pcName !== null && token.name === pcName;
+  const media = useMediaImage(isPcToken ? portraitMediaRef : null, mediaScope, 'portrait');
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for
@@ -114,7 +134,15 @@ export function CombatToken({
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The PC's own token prefers the generated/selected portrait over class art (E4).
   const portraitSrc = isPcToken
-    ? (pcPortraitUrl ?? (pcHeroClass !== null ? (CLASS_TOKEN[pcHeroClass] ?? null) : null))
+    ? portraitMediaRef
+      ? media.url
+      : portraitAssetId
+        ? portraitAssetUrl(portraitAssetId)
+        : pcPortraitUrl
+          ? legacyPortraitUrl(pcPortraitUrl)
+          : pcHeroClass !== null
+            ? (CLASS_TOKEN[pcHeroClass] ?? null)
+            : null
     : null;
 
   const dragRef = useRef<DragSession | null>(null);
@@ -373,7 +401,7 @@ export function CombatToken({
               background: 'var(--color-bg-deep)',
               border: '1px solid var(--color-border-strong)',
               fontSize: 'var(--text-xs)',
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'var(--font-body)',
               letterSpacing: 'var(--tracking-mono)',
               display: 'flex',
               alignItems: 'center',

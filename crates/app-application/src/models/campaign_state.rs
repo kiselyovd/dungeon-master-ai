@@ -63,6 +63,7 @@ pub fn valid_character_document(value: &Value) -> bool {
             .is_some_and(|n| (min..=max).contains(&n))
     };
     value.is_object()
+        && value.get("portraitMediaRef").is_none_or(|reference| reference.is_null() || serde_json::from_value::<super::media_asset::MediaReference>(reference.clone()).is_ok_and(|reference| reference.valid() && !matches!(reference, super::media_asset::MediaReference::Owned { category, .. } if category != super::media_asset::MediaCategory::Portrait)))
         && text("name")
         && text("heroClass")
         && integer("level", 1, 20)

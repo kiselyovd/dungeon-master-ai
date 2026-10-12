@@ -75,6 +75,7 @@ export const useStore = create<AppState>()(
           temperature: state.settings.temperature,
           replicateApiKey: state.settings.replicateApiKey,
           chatPanelWidth: state.settings.chatPanelWidth,
+          readingFontSize: state.settings.readingFontSize,
           sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
           discoveredCatalogs: state.settings.discoveredCatalogs,
           // M7-DM additions (now persisted)
@@ -127,6 +128,8 @@ export const useStore = create<AppState>()(
           skillProfs: state.pc.skillProfs,
           inventory: state.pc.inventory,
           portraitUrl: state.pc.portraitUrl,
+          portraitAssetId: state.pc.portraitAssetId ?? null,
+          portraitMediaRef: state.pc.portraitMediaRef ?? null,
         },
         charCreation: {
           rulesetId: state.charCreation.rulesetId,
@@ -154,6 +157,10 @@ export const useStore = create<AppState>()(
           name: state.charCreation.name,
           alignment: state.charCreation.alignment,
           portraitUrl: state.charCreation.portraitUrl,
+          portraitAssetId: state.charCreation.portraitAssetId ?? null,
+          portraitMediaRef: state.charCreation.portraitMediaRef ?? null,
+          mediaDraftId: state.charCreation.mediaDraftId ?? null,
+          draftScope: state.charCreation.draftScope ?? null,
           portraitPrompt: state.charCreation.portraitPrompt,
           activeTab: state.charCreation.activeTab,
         },

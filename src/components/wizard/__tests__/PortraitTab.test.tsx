@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../i18n';
 import { useStore } from '../../../state/useStore';
@@ -13,6 +13,43 @@ beforeEach(() => {
 });
 
 describe('PortraitTab', () => {
+  it('uses the backend bundled portrait identity and never stores its data URL', async () => {
+    useStore.getState().settings.setImageEnabled(true);
+    useStore.getState().settings.setImagePreset('balanced');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              source: 'bundled',
+              asset_id: 'portrait-fighter-01-v2',
+              url: 'data:image/webp;base64,not-persisted',
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+    render(<PortraitTab />);
+    fireEvent.click(screen.getByRole('button', { name: /^Generate$/i }));
+    await screen.findByAltText(/Character portrait/i);
+    expect(useStore.getState().charCreation.portraitAssetId).toBe('hero.fighter.01.v2');
+    expect(useStore.getState().charCreation.portraitUrl).toBeNull();
+    vi.unstubAllGlobals();
+  });
+  it('selects an offline built-in identity without persisting image bytes or changing the hero name', () => {
+    useStore.getState().settings.setImageEnabled(false);
+    useStore.getState().charCreation.setDraftField('classId', 'fighter');
+    useStore.getState().charCreation.setDraftField('name', 'My existing hero');
+    render(<PortraitTab />);
+    const choice = screen.getByRole('radio', { name: 'Look 2' });
+    fireEvent.click(choice);
+    const draft = useStore.getState().charCreation;
+    expect(draft.portraitAssetId).toBe('hero.fighter.01.v2');
+    expect(draft.portraitUrl).toBeNull();
+    expect(draft.name).toBe('My existing hero');
+    useStore.getState().settings.setImageEnabled(true);
+  });
   it('renders empty state with prompt builder', () => {
     render(<PortraitTab />);
     expect(screen.getByText(/no portrait yet/i)).toBeInTheDocument();

@@ -6,6 +6,7 @@ pub mod chat;
 pub mod combat;
 pub mod identity;
 pub mod local_models;
+pub mod media_asset;
 pub mod party;
 pub mod rest;
 pub mod room;

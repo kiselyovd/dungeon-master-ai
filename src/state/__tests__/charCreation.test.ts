@@ -14,6 +14,21 @@ function buildStore() {
 }
 
 describe('charCreation slice', () => {
+  it('retains an edit draft for the same actor regardless of field order and resets for another scope', () => {
+    const store = buildStore();
+    const campaignId = 'deb3a4e3-5ed9-4f59-9a8b-890c4f87291d';
+    const characterId = 'a2843520-2a22-4d82-b34d-33ae04389f41';
+    store.getState().charCreation.bindScope({ kind: 'campaign', campaignId, characterId });
+    store.getState().charCreation.setDraftField('name', 'Preserved');
+    store.getState().charCreation.setDraftField('portraitAssetId', 'hero.fighter.01.v2');
+    store.getState().charCreation.bindScope({ characterId, campaignId, kind: 'campaign' });
+    expect(store.getState().charCreation.name).toBe('Preserved');
+    expect(store.getState().charCreation.portraitAssetId).toBe('hero.fighter.01.v2');
+    store.getState().charCreation.bindScope({ kind: 'room', roomId: campaignId });
+    expect(store.getState().charCreation.name).toBe('');
+    expect(store.getState().charCreation.portraitAssetId).toBeNull();
+    expect(store.getState().charCreation.draftScope).toEqual({ kind: 'room', roomId: campaignId });
+  });
   it('starts with empty draft and class as active tab', () => {
     const s = buildStore().getState().charCreation;
     expect(s.rulesetId).toBe(CURRENT_CHARACTER_RULESET_ID);

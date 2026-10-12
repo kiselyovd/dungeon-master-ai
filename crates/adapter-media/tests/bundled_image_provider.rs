@@ -59,12 +59,42 @@ fn catalog_is_unique_valid_and_has_complete_scene_coverage() {
         match asset.category {
             BundledAssetCategory::Map => assert!(asset.id.starts_with("map-")),
             BundledAssetCategory::Illustration => assert!(asset.id.starts_with("illustration-")),
+            BundledAssetCategory::Portrait => assert!(asset.id.starts_with("portrait-")),
         }
         assert_eq!(&asset.bytes[..4], b"RIFF");
         assert_eq!(&asset.bytes[8..12], b"WEBP");
-        assert!(asset.width >= 1024 && asset.height >= 576);
+        if asset.category == BundledAssetCategory::Portrait {
+            assert!(asset.width >= 512 && asset.width == asset.height);
+        } else {
+            assert!(asset.width >= 1024 && asset.height >= 576);
+        }
         assert!(asset.bytes.len() <= 512 * 1024);
         assert!(!asset.keywords.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn character_portrait_never_selects_a_map_or_scene_even_with_scenic_keywords() {
+    let provider = BundledImageProvider::new();
+    for content in [
+        "fighter in a tavern",
+        "wizard in forest",
+        "cleric in temple",
+        "rogue near ruins",
+    ] {
+        let image = provider
+            .generate(prompt(content, "character_portrait"))
+            .await
+            .unwrap();
+        let ImageSource::Bundled { asset_id } = image.source else {
+            panic!("bundled portrait expected")
+        };
+        let asset = bundled_assets()
+            .iter()
+            .find(|asset| asset.id == asset_id)
+            .unwrap();
+        assert_eq!(asset.category, BundledAssetCategory::Portrait);
+        assert_eq!(asset.width, asset.height);
     }
 }
 

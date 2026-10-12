@@ -139,6 +139,14 @@ impl CampaignStateRepository for SqliteStore {
             document["combatResources"] = resources.clone();
         }
         document["characterId"] = json!(command.character_id);
+        crate::media_assets::bind_portrait(
+            &mut tx,
+            command.campaign_id.0,
+            command.character_id,
+            &document,
+            None,
+        )
+        .await?;
         persist_character(&mut tx, command.campaign_id, command.character_id, document).await?;
         let state = load_in_transaction(&mut tx, command.campaign_id).await?;
         sqlx::query("INSERT INTO character_commits (campaign_id, causation_id, request_json, state_json) VALUES (?1, ?2, ?3, ?4)")

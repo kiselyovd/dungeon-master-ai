@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Compendium, fetchCompendium } from '../api/srd';
-import type { CharacterDraft, WizardTab } from '../state/charCreation';
+import { useLegacyDraftPortrait } from '../features/media/useLegacyDraftPortrait';
+import type { CharacterDraft, CharacterDraftScope, WizardTab } from '../state/charCreation';
 import { useStore } from '../state/useStore';
 import { WizardLiveSheet } from './WizardLiveSheet';
 import { AbilitiesTab } from './wizard/AbilitiesTab';
@@ -19,6 +20,7 @@ import { SpellsTab } from './wizard/SpellsTab';
 export type CharacterWizardMode = 'initial' | 'edit';
 
 export interface CharacterWizardProps {
+  draftScope?: CharacterDraftScope;
   allowCancel?: boolean;
   completeSoloOnboarding?: boolean;
   onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
@@ -74,12 +76,24 @@ export function CharacterWizard({
   onCommitCharacter,
   allowCancel,
   completeSoloOnboarding = true,
+  draftScope,
 }: CharacterWizardProps) {
+  useLegacyDraftPortrait();
   const { t } = useTranslation('wizard');
   const { t: tc } = useTranslation('common');
   const activeTab = useStore((s) => s.charCreation.activeTab);
   const setActiveTab = useStore((s) => s.charCreation.setActiveTab);
   const draft = useStore((s) => s.charCreation);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const characterId = useStore((s) => s.pc.characterId);
+  const scopeKey = JSON.stringify(
+    draftScope ??
+      (campaignId ? { kind: 'campaign', campaignId, characterId: characterId ?? null } : null),
+  );
+  useEffect(() => {
+    const scope = JSON.parse(scopeKey) as CharacterDraftScope | null;
+    if (scope) useStore.getState().charCreation.bindScope(scope);
+  }, [scopeKey]);
   const [compendium, setCompendium] = useState<Compendium | null>(null);
   const [compendiumError, setCompendiumError] = useState<string | null>(null);
 

@@ -44,6 +44,7 @@ pub async fn build_state(settings: &config::Settings) -> anyhow::Result<AppState
     init_db(&pool).await.context("run migrations")?;
     let state = AppState::new(llm, settings.default_model.clone(), pool);
     state.enable_player_verification();
+    compose_media_assets(&state);
 
     if let Some(control) = adapter_media::LoopbackRuntimeControl::from_env()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?
@@ -58,6 +59,18 @@ pub async fn build_state(settings: &config::Settings) -> anyhow::Result<AppState
     configure_secrets(&state)?;
     configure_embeddings(&state).await;
     Ok(state)
+}
+
+fn compose_media_assets(state: &AppState) -> Arc<app_application::media_assets::MediaAssets> {
+    if let Some(assets) = state.media_assets() {
+        return assets;
+    }
+    let assets = Arc::new(app_application::media_assets::MediaAssets::new(
+        Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone())),
+        Arc::new(adapter_media::asset_codec::RasterContentInspector),
+    ));
+    state.set_media_assets(assets.clone());
+    assets
 }
 
 fn configure_secrets(state: &AppState) -> anyhow::Result<()> {
@@ -140,13 +153,17 @@ pub fn build_room_router(
 
 /// Compose native-only control when the Tauri process supplied its private token.
 pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow::Result<Router> {
+    let media_assets = compose_media_assets(&state);
     let store = Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone()));
-    let rooms = Arc::new(app_application::rooms::RoomService::new(
-        store.clone(),
-        store,
-        state.secrets_repo(),
-        Arc::new(app_application::rooms::SystemRoomClock),
-    ));
+    let rooms = Arc::new(
+        app_application::rooms::RoomService::new(
+            store.clone(),
+            store.clone(),
+            state.secrets_repo(),
+            Arc::new(app_application::rooms::SystemRoomClock),
+        )
+        .with_media_assets(media_assets),
+    );
     let listener = Arc::new(crate::room_listener::RoomTcpListener::new(
         state.clone(),
         rooms.clone(),

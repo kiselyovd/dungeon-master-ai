@@ -21,7 +21,7 @@ export function ScenePill({ scene }: ScenePillProps) {
     <div className="dm-scene-pill" role="status" aria-live="polite">
       <Icons.Compass size={12} />
       <span>{scene.name}</span>
-      <span className="dm-scene-pill-step dm-mono">
+      <span className="dm-scene-pill-step dm-numeric">
         {'· '}
         {t('scene_step', { count: scene.stepCounter })}
       </span>

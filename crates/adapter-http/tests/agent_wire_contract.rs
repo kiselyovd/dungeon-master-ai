@@ -15,6 +15,7 @@ fn maps_every_agent_event_to_the_stable_sse_wire_contract() {
         ),
         (
             AgentEvent::ImageGenerated {
+                media_ref: None,
                 tool_call_id: "img-1".into(),
                 round: 1,
                 mime_type: "image/png".into(),
@@ -37,6 +38,7 @@ fn maps_every_agent_event_to_the_stable_sse_wire_contract() {
         ),
         (
             AgentEvent::ImageGenerated {
+                media_ref: None,
                 tool_call_id: "img-2".into(),
                 round: 1,
                 mime_type: "image/webp".into(),

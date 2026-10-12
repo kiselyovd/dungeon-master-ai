@@ -78,7 +78,7 @@ export function ClassTab({ compendium }: ClassTabProps) {
               setDraftField('subclassId', null);
             }}
           >
-            <div style={{ fontFamily: 'Cinzel, serif', color: '#fff', fontSize: 16 }}>
+            <div style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: 16 }}>
               {c.name_key
                 ? i18n.t(c.name_key, {
                     ns: 'character',
@@ -113,7 +113,7 @@ export function ClassTab({ compendium }: ClassTabProps) {
                 className={`dm-wizard-card${subclassId === sc.id ? ' is-selected' : ''}`}
                 onClick={() => setDraftField('subclassId', sc.id)}
               >
-                <div style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>
+                <div style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>
                   {lang === 'ru' ? sc.name_ru : sc.name_en}
                 </div>
               </button>

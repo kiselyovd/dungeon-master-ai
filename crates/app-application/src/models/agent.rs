@@ -39,6 +39,8 @@ pub enum AgentEvent {
         text: String,
     },
     ImageGenerated {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_ref: Option<Box<super::media_asset::MediaReference>>,
         tool_call_id: String,
         round: usize,
         mime_type: String,

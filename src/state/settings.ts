@@ -23,6 +23,13 @@ export interface ProvidersMap {
 export const MIN_CHAT_WIDTH = 360;
 export const MAX_CHAT_WIDTH = 640;
 export const DEFAULT_CHAT_WIDTH = 480;
+export const READING_FONT_SIZES = [16, 17, 18] as const;
+export type ReadingFontSize = (typeof READING_FONT_SIZES)[number];
+export const DEFAULT_READING_FONT_SIZE: ReadingFontSize = 17;
+
+export function readingFontSize(value: number): ReadingFontSize {
+  return READING_FONT_SIZES.find((size) => size === value) ?? DEFAULT_READING_FONT_SIZE;
+}
 
 /**
  * Runtime app state for the settings slice. FLAT shape, canonical for every
@@ -46,6 +53,8 @@ export interface SettingsData {
   // P3.21 - chat panel width (px). Clamped to [MIN_CHAT_WIDTH, MAX_CHAT_WIDTH]
   // by setChatPanelWidth and by the persistStorage sanitiser on load.
   chatPanelWidth: number;
+  /** Device-local reading preference; never sent to the campaign or model. */
+  readingFontSize: ReadingFontSize;
   /** Play scene-transition video clips when the active scene changes. */
   sceneTransitionsEnabled: boolean;
 
@@ -83,6 +92,7 @@ export interface SettingsActions {
   setTemperature: (temp: number) => void;
   setReplicateApiKey: (key: string | null) => void;
   setChatPanelWidth: (width: number) => void;
+  setReadingFontSize: (size: number) => void;
   setSceneTransitionsEnabled: (enabled: boolean) => void;
 
   // M7-DM
@@ -182,6 +192,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     temperature: 0.7,
     replicateApiKey: null,
     chatPanelWidth: DEFAULT_CHAT_WIDTH,
+    readingFontSize: DEFAULT_READING_FONT_SIZE,
     sceneTransitionsEnabled: true,
 
     // M7-DM defaults
@@ -233,6 +244,9 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
       set((s) => ({
         settings: { ...s.settings, chatPanelWidth: clampChatWidth(width) },
       })),
+
+    setReadingFontSize: (size) =>
+      set((s) => ({ settings: { ...s.settings, readingFontSize: readingFontSize(size) } })),
 
     setSceneTransitionsEnabled: (sceneTransitionsEnabled) =>
       set((s) => ({ settings: { ...s.settings, sceneTransitionsEnabled } })),

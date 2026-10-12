@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { AdventureProjectionSchema } from './adventure';
 import { CampaignSchema } from './campaign';
+import { MediaReferenceSchema } from './mediaAsset';
 
 const MessageSchema = v.object({
   role: v.string(),
@@ -25,6 +26,7 @@ export const CampaignStateSchema = v.object({
   session_id: v.pipe(v.string(), v.uuid()),
   character_id: v.nullable(v.pipe(v.string(), v.uuid())),
   projection: v.object({
+    map_media_ref: v.optional(v.nullable(MediaReferenceSchema)),
     adventure: v.optional(v.nullable(AdventureProjectionSchema)),
     messages: v.array(MessageSchema),
     character: v.record(v.string(), v.unknown()),

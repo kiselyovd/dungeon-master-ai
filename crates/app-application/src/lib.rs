@@ -3,6 +3,7 @@
 pub mod agent;
 pub mod campaigns;
 pub mod combat;
+pub mod media_assets;
 pub mod models;
 pub mod ports;
 pub mod rest;

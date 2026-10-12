@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AdventureProjection } from '../api/contracts/adventure';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 
 /**
  * Persistent pointer to a backend-owned campaign aggregate and its active
@@ -44,6 +45,7 @@ export interface SessionData {
    * lands in localStorage; it repaints on the next `generate_image`. [M11]
    */
   mapImageUrl: string | null;
+  mapMediaRef?: MediaReference | null;
 }
 
 export interface SessionActions {
@@ -62,6 +64,7 @@ export interface SessionActions {
   incrementScene: () => void;
   /** Set or clear the VTT map background image (data URL). */
   setMapImage: (dataUrl: string | null) => void;
+  setMapMedia: (reference: MediaReference | null) => void;
 }
 
 export interface SessionSlice {
@@ -96,6 +99,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     loadError: null,
     currentScene: null,
     mapImageUrl: null,
+    mapMediaRef: null,
 
     activate: (campaignId, sessionId) =>
       set((s) => ({
@@ -126,6 +130,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
           currentScene: null,
           adventure: null,
           mapImageUrl: null,
+          mapMediaRef: null,
           loadError: null,
           transitionGeneration: s.session.transitionGeneration + 1,
         },
@@ -152,9 +157,11 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
       }));
     },
 
+    setMapMedia: (reference) =>
+      set((s) => ({ session: { ...s.session, mapImageUrl: null, mapMediaRef: reference } })),
     setMapImage: (dataUrl) =>
       set((s) => ({
-        session: { ...s.session, mapImageUrl: dataUrl },
+        session: { ...s.session, mapImageUrl: dataUrl, mapMediaRef: null },
       })),
   },
 });

@@ -14,6 +14,7 @@ mod hero_intentions;
 mod human_command_clarifications;
 pub mod human_commands;
 pub mod journal;
+pub mod media_assets;
 pub mod messages;
 pub mod npcs;
 pub mod party;

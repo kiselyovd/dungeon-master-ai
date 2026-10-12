@@ -22,6 +22,7 @@ function baseSettings(): SettingsData {
     temperature: 0.7,
     replicateApiKey: null,
     chatPanelWidth: 480,
+    readingFontSize: 17,
     sceneTransitionsEnabled: true,
     imageEnabled: true,
     imagePreset: 'balanced',

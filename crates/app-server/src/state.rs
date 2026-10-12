@@ -50,6 +50,7 @@ struct AppStateInner {
     runtime_control: RwLock<Arc<dyn RuntimeControl>>,
     models_dir: RwLock<PathBuf>,
     secrets_repo: RwLock<Arc<dyn SecretsRepo>>,
+    media_assets: RwLock<Option<Arc<app_application::media_assets::MediaAssets>>>,
 }
 
 pub struct PreparedRuntimeSettings {
@@ -118,6 +119,7 @@ impl AppState {
                 runtime_control: RwLock::new(Arc::new(UnavailableRuntimeControl)),
                 models_dir: RwLock::new(models_dir),
                 secrets_repo: RwLock::new(secrets),
+                media_assets: RwLock::new(None),
             }),
         }
     }
@@ -149,6 +151,20 @@ impl AppState {
 
     pub fn process_id(&self) -> uuid::Uuid {
         self.inner.process_id
+    }
+    pub fn set_media_assets(&self, assets: Arc<app_application::media_assets::MediaAssets>) {
+        *self
+            .inner
+            .media_assets
+            .write()
+            .expect("media asset slot poisoned") = Some(assets);
+    }
+    pub fn media_assets(&self) -> Option<Arc<app_application::media_assets::MediaAssets>> {
+        self.inner
+            .media_assets
+            .read()
+            .expect("media asset slot poisoned")
+            .clone()
     }
     pub(crate) fn native_guest_selection_lane(&self) -> Arc<tokio::sync::Mutex<()>> {
         self.inner.native_guest_selection_lane.clone()

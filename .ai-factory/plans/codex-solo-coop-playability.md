@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks 1-5 verified; Task 6 deterministic native/SQLite proof verified, real-model follow-up awaits a weights path; checkpoint 1 committed (92142a6). Independent Task 7 pilot preparation may proceed under the checkpoint policy.
+Status: in progress; Tasks 1-5 and 7-11 verified. Full gates at the visual-foundations checkpoint: 996 Rust and 1169 frontend tests passed, with production-browser and freshly packaged Tauri media/font/frame proof. Checkpoint 3 is ready for a scoped local commit; inherited changes remain separate. Task 12 copy audit is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -283,11 +283,11 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG canonical IDs/revisions and effect counts; INFO each accepted checkpoint; WARN model-quality failure; ERROR recovery mismatch. Evidence is sanitized and explicitly classified by test layer.
 
-  **Implementation evidence (2026-10-12):** A fresh Tauri production frontend/backend and isolated file-backed QA profile completed a clean interruption/restart/resume cycle. Request `8da06776-faab-40ad-a954-e3136716cebc` retained two compound-action receipts, 600 seconds, HP 12 and inventory; only one assistant message was added on continuation and the unsent draft survived. Native smoke 8/8 and the actual-CSP browser regression pass. Native proof exposed/fixed Pixi static-CSP initialization and nullable internal tool-message decoding (27 focused API/root checks). Existing real SQLite/application/Stronghold room regressions cover effect boundaries, clarification, actor/timeline replacement and receipt replay. This checkbox remains open for the requested real-model repetition: no approved weights were found in checked paths; a path was requested. Independent visual production is authorized by the checkpoint policy above and does not assert semantic model acceptance. Final artifacts: `.artifacts/product-uiux/native/{interrupted-proof,resumed-proof}.json`.
+  **Implementation evidence (2026-10-12):** A fresh Tauri production frontend/backend and isolated file-backed QA profile completed a clean interruption/restart/resume cycle. Request `8da06776-faab-40ad-a954-e3136716cebc` retained two compound-action receipts, 600 seconds, HP 12 and inventory; only one assistant message was added on continuation and the unsent draft survived. Native smoke 8/8 and the actual-CSP browser regression pass. Native proof exposed/fixed Pixi static-CSP initialization and nullable internal tool-message decoding (27 focused API/root checks). Existing real SQLite/application/Stronghold room regressions cover effect boundaries, clarification, actor/timeline replacement and receipt replay. Installed Qwen3.5-9B weights were recovered from the prior session and verified at the LM Studio path. A fresh native real-model attempt and cold continuation retained UUID `aadb1bd0-916e-4ab9-8566-433d5adb4d02`, revision 2, HP 12, inventory, zero receipts/time and the unsent draft, with no uncaught errors. Both model attempts failed before effects and the intended transport cut was not reached. This checkbox remains open for successful real-model recovery after committed effects; semantic quality stays open in `codex-ai-solo-mechanics.md`. Independent visual production is authorized by the checkpoint policy above. Artifacts: `.artifacts/product-uiux/native/{interrupted-proof,resumed-proof}.json` and `.artifacts/product-uiux/real-model/{runtime-provenance,real-model-restart-proof}.json`.
 
 ### Visual foundation
 
-- [ ] **Task 7: Define the evolved art direction and prove a small integrated pilot** (depends on 1)
+- [x] **Task 7: Define the evolved art direction and prove a small integrated pilot** (depends on 1)
 
   **Files / ownership:** docs/visual/LIVING_TABLETOP_ASSETS.md; proposed docs/visual/PRODUCT_UIUX.md; src/styles/{theme,fonts,materials}.css only after pilot selection; .artifacts/product-uiux/ visual specimens. Proposed nonshipping e2e/fixtures/visual-pilot specimen, using current authoritative map data.
 
@@ -297,7 +297,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO pilot asset IDs and selected versions; DEBUG dimensions, alpha, bytes and measured surface contrast; WARN rejected candidates. Tool prompts/reference IDs belong in the asset manifest, never production logs.
 
-- [ ] **Task 8: Create stable visual references and fix semantic portrait fallback** (depends on 7)
+  **Implementation evidence (2026-10-12):** Four distinct generated masters selected: oak, fighter identity 01, matching transparent whole miniature, and geometry-referenced Archive skin. Versioned workspace WebP derivatives total 683274 bytes; body/secondary/gold contrast is 14.42/9.50/8.54. Miniature corners have alpha 0; 61.5% of its pixels are fully transparent and the figure has nonzero margins on all sides. The nonshipping specimen reuses actual AppShell/Button/Icons/tokens, validates full viewport coverage and shows 32/48/64px silhouettes. Four RU/EN browser scenarios pass at 960x640 and 1280x800; production build passes and excludes the fixture. Current domain geometry was confirmed directly in `bell_archive_map`. The selected brief is `docs/visual/PRODUCT_UIUX.md`; production consumer wiring remains Task 8/18/30.
+
+- [x] **Task 8: Create stable visual references and fix semantic portrait fallback** (depends on 7)
 
   **Files / ownership:** src/assets/livingTabletop.ts; proposed src/assets/visualCatalog.ts and docs/visual/asset-manifest.json; src/lib/heroPortraits.ts; src/components/wizard/PortraitTab.tsx; crates/adapter-media/src/image/{bundled,resilient}.rs and media tests; application/media contracts only as required.
 
@@ -307,7 +309,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG selection category/asset ID and fallback reason; INFO chosen provenance; WARN unavailable reference; ERROR semantic mismatch. Prompts, private portrait uploads and image bytes are excluded from runtime logs.
 
-- [ ] **Task 9: Persist generated and uploaded media through bounded owned references** (depends on 8)
+  **Implementation evidence (2026-10-12):** A 53-entry manifest and category-aware runtime catalog preserve legacy IDs, explicit portrait identities and matched miniature references. `portraitAssetId` survives draft/preferences/campaign projection; unknown assigned identities remain unavailable instead of silently changing faces. Offline native-radio selection and backend bundled portrait responses persist IDs, not image bytes. Five native portrait resources keep fallback out of scenery/map categories; malformed/signature/source mismatch cases fail safely. Eleven focused media tests, eleven identity/portrait UI tests, production build and the production-root offline portrait browser scenario pass. `assets:check` verifies bytes/hashes/header dimensions/alpha/pairs/provenance and is included in consolidated gates. Full gate `.artifacts/product-uiux/task-8-verified-full-gates.log` passed with 175 frontend files/1159 tests. The related native alias audit verifies real loaded model identity (including custom repo/file/mmproj), rejects unavailable/different-runtime settings, and rebinds same-model ports before inference; its real HTTP adapter checks send zero requests on mismatch. Real-model semantic acceptance remains open under Task 6. Generated/uploaded URL durability is explicitly Task 9.
+
+- [x] **Task 9: Persist generated and uploaded media through bounded owned references** (depends on 8)
 
   **Files / ownership:** Proposed app-application media asset models/ports/use cases; adapter-media durable content store and authorized HTTP/native lookup; adapter-sqlite reference metadata/migration as needed; src/api media reference schemas, src/state/{pc,campaignProjection}.ts, wizard/portrait and room public asset adapters; media persistence/native tests.
 
@@ -317,7 +321,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG reference/hash/ownership IDs, sizes and migration status; INFO durable asset registration/migration; WARN retained unresolved legacy media; ERROR unauthorized/corrupt reference. No image bytes, full local paths, private portrait source URLs or provider output in logs.
 
-- [ ] **Task 10: Upgrade bilingual typography and the existing token hierarchy** (depends on 7)
+  **Execution evidence (2026-10-12):** `.artifacts/product-uiux/task-9-verified-full-gates.log` reports all gates passed (996 Rust / 1167 frontend tests). Three production-browser media scenarios passed in `task-9-final-browser.log`. Fresh packaged Tauri with an isolated profile preserves both owned image hashes across cold restart and renders the portrait from scoped bytes; `media-native/cold-proof.json` and `build-provenance.json` record the native result. Seven real SQLite media tests cover reopen, authorization/revocation, corruption, near-limit legacy input, portable bytes, atomic map selection/snapshot and failed migration rollback. Native media QA uses a debug Python placeholder and synthetic provider configuration; it does not establish GPU media generation or real-model semantic readiness.
+
+- [x] **Task 10: Upgrade bilingual typography and the existing token hierarchy** (depends on 7)
 
   **Files / ownership:** public/fonts/ and retained license files; src/styles/{fonts,theme,globals}.css; src/ui shared primitives; typography/root/browser tests.
 
@@ -327,7 +333,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO selected families/version/source; DEBUG payload and loading metrics; WARN missing glyph or fallback. No new production font package or CDN dependency.
 
-- [ ] **Task 11: Produce and integrate 12 materials and four scalable frame kits** (depends on 7, 8, 10)
+  **Execution evidence (2026-10-12):** Manrope 4.504 and Literata 3.103, 12 verified local WOFF2 subsets (503376 bytes), real italic and RU/EN coverage; OFL licenses and `docs/visual/font-manifest.json` ship with the app. Existing type roles upgraded centrally, 26 unused tracked fonts archived/removed after 464-source consumer inventory. Device-local 16/17/18px reading preference persists and applies to narration/journal; room narration uses the same role. `task-10-full-frontend.log`: 179 files / 1169 tests passed; `task-10-room-focused.log`: 39 passed after the room role change. Production build, architecture guard and Biome check pass (seven existing warnings). `task-10-browser-reviewed.log`: four production-root RU/EN checks at 960/1280 pass with real local glyph inspection, keyboard reading-size selection, cold reload, reachable input and CLS <0.1; captures compared with the original UI audit. Native media proof precedes these font changes; refreshed native visual verification belongs to the material checkpoint.
+
+- [x] **Task 11: Produce and integrate 12 materials and four scalable frame kits** (depends on 7, 8, 10)
 
   **Files / ownership:** src/assets/living-tabletop/v2/ proposed final assets; src/styles/{materials,living-tabletop,character,saves}.css; src/ui/{Button,Field,Modal}.module.css; visual manifest and asset/browser tests.
 
@@ -336,6 +344,8 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
   **Verification / acceptance:** Inspect every selected master at full resolution, 2x2 tile repetition and actual UI sizes; no visible seams, halos, blurry edges or text baked into art. Test transparency/high-contrast fallbacks, resizing and keyboard focus. Every production kit has an actual consumer.
 
   **Logging:** INFO approved asset/version and consumer; DEBUG dimensions, repetition/alpha checks and byte budgets; WARN visual reject. Do not add runtime logs for decorative rendering.
+
+  **Execution evidence (2026-10-12):** Twelve material masters (including pilot oak) and four transparent frame kits have real consumers through the existing CSS roles. Fifteen new built-in generation jobs/prompts and consumer bindings are recorded in `docs/visual/material-provenance.json`; selected derivatives add 2254748 bytes within existing budgets. All 16 assets were visually reviewed in the nonshipping repeat/alpha/stretch specimen; actual sheet, journal, campaign and forced-colors/focus browser scenarios passed at 960/1280. Fresh Tauri proof validates local Literata/Manrope glyphs, painted panel/portrait layers and surviving owned media; `materials/native-proof.json` records binary hash and CSS font weights. The variable Manrope font exposes an internal ExtraLight family name in WebView metadata while the rendered CSS weight is 400. `.artifacts/product-uiux/checkpoint-3-full-gates-verified.log`: all gates passed (996 Rust / 1169 frontend). The first gate exposed obsolete material filename expectations and a transient cancellation-fixture race; the existing assertions were updated, cancellation passed alone, and the repeat full Rust suite passed without altering that test. Native QA does not prove GPU image generation or real-model semantics. Validation uses the actual inherited dirty worktree; the checkpoint stages only owned deltas.
 
 ### Entry and settings
 

@@ -79,6 +79,16 @@ impl RoomCharacterProposal {
                 hp: self.character["hp"].as_i64()? as i32,
                 max_hp: self.character["hpMax"].as_i64()? as i32,
                 ac: self.character["ac"].as_i64()? as i32,
+                portrait_asset_id: self
+                    .character
+                    .get("portraitAssetId")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                portrait_media_ref: self
+                    .character
+                    .get("portraitMediaRef")
+                    .filter(|v| !v.is_null())
+                    .and_then(|v| serde_json::from_value(v.clone()).ok()),
             },
         })
     }

@@ -20,12 +20,12 @@
 
 import { type ReactElement, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMediaImage } from '../features/media/useMediaImage';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
-import { HERO_PORTRAIT } from '../lib/heroPortraits';
+import { resolveHeroPortrait } from '../lib/heroPortraits';
 import {
   type AbilityScores,
   abilityMod,
-  type HeroClassId,
   type SavingThrowProf,
   type SkillProf,
   savingThrowMod,
@@ -94,6 +94,12 @@ function inventoryIcon(slug: string | undefined): IconComponent {
 export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
   const { t } = useTranslation('character');
   const pc = useStore((s) => s.pc);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const media = useMediaImage(
+    open ? pc.portraitMediaRef : null,
+    campaignId ? { kind: 'campaign', campaign_id: campaignId } : null,
+    'portrait',
+  );
   const resetOnboarding = useStore((s) => s.onboarding.reset);
   const { isClosing, triggerClose } = useClosingAnimation(onClose);
 
@@ -173,11 +179,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
   // Resolved (non-null) character snapshot - safe to render the full sheet.
   const portraitInitial = pc.name.charAt(0).toUpperCase();
   // A user-generated/selected portrait wins over the hardcoded class art (E4).
-  const portraitSrc =
-    pc.portraitUrl ??
-    (pc.heroClass !== null
-      ? (HERO_PORTRAIT[pc.heroClass as HeroClassId | 'paladin'] ?? null)
-      : null);
+  const portraitSrc = media.url ?? resolveHeroPortrait(pc);
   const className =
     pc.heroClass !== null
       ? t(`catalog.classes.${pc.heroClass}`, {
@@ -261,7 +263,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
             <div className="dm-char-xp-bar">
               <div className="dm-char-xp-fill" style={{ width: `${xpPct}%` }} />
             </div>
-            <span className="dm-char-xp-text dm-mono">
+            <span className="dm-char-xp-text dm-numeric">
               {t('experience_value', { xp: pc.experience, next: pc.experienceNext })}
             </span>
           </div>
@@ -276,7 +278,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
               </h3>
               <div className="dm-stat-row">
                 <span>{t('stat_hp')}</span>
-                <span className={`dm-mono${hpLow ? ' dm-stat-hp-low' : ''}`}>
+                <span className={`dm-numeric${hpLow ? ' dm-stat-hp-low' : ''}`}>
                   {pc.hp} / {pc.hpMax}
                 </span>
               </div>
@@ -288,19 +290,19 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
               </div>
               <div className="dm-stat-row">
                 <span>{t('stat_ac')}</span>
-                <span className="dm-mono">{pc.ac}</span>
+                <span className="dm-numeric">{pc.ac}</span>
               </div>
               <div className="dm-stat-row">
                 <span>{t('stat_initiative')}</span>
-                <span className="dm-mono">{formatMod(pc.initiative)}</span>
+                <span className="dm-numeric">{formatMod(pc.initiative)}</span>
               </div>
               <div className="dm-stat-row">
                 <span>{t('stat_speed')}</span>
-                <span className="dm-mono">{t('stat_speed_value', { ft: pc.speedFt })}</span>
+                <span className="dm-numeric">{t('stat_speed_value', { ft: pc.speedFt })}</span>
               </div>
               <div className="dm-stat-row">
                 <span>{t('stat_proficiency')}</span>
-                <span className="dm-mono">{formatMod(pc.proficiencyBonus)}</span>
+                <span className="dm-numeric">{formatMod(pc.proficiencyBonus)}</span>
               </div>
             </div>
 
@@ -314,7 +316,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
                 return (
                   <div key={a} className="dm-stat-row">
                     <span>{t(`save_${a}` as 'save_str')}</span>
-                    <span className="dm-mono">
+                    <span className="dm-numeric">
                       {formatMod(mod)}
                       {prof ? ' ⚪' : ''}
                     </span>
@@ -334,8 +336,8 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
                 {ABILITY_ORDER.map((a) => (
                   <div key={a} className="dm-ability">
                     <span className="dm-ability-name">{t(`ability_${a}` as 'ability_str')}</span>
-                    <span className="dm-ability-mod dm-mono">{formatMod(abilityMods[a])}</span>
-                    <span className="dm-ability-score dm-mono">{pc.abilities[a]}</span>
+                    <span className="dm-ability-mod dm-numeric">{formatMod(abilityMods[a])}</span>
+                    <span className="dm-ability-score dm-numeric">{pc.abilities[a]}</span>
                   </div>
                 ))}
               </div>
@@ -355,7 +357,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
                         <span className="dm-skill-prof" aria-hidden="true" />
                         {t(`skill_${key}` as 'skill_acrobatics')}
                       </span>
-                      <span className="dm-mono">{formatMod(mod)}</span>
+                      <span className="dm-numeric">{formatMod(mod)}</span>
                     </div>
                   );
                 })}
@@ -373,7 +375,7 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
                     <div key={item.id} className="dm-inv-item">
                       <Icon size={14} />
                       <span className="dm-inv-item-name">{item.name}</span>
-                      <span className="dm-inv-item-count dm-mono">x{item.count}</span>
+                      <span className="dm-inv-item-count dm-numeric">x{item.count}</span>
                     </div>
                   );
                 })}

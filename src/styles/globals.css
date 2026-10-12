@@ -50,12 +50,13 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-display);
   color: var(--color-accent);
   font-weight: 600;
 }
 
 button {
+  font-size: var(--text-sm);
   font-family: var(--font-body);
   background: var(--color-bg-raised);
   color: var(--color-fg-primary);

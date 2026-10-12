@@ -14,9 +14,11 @@ import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
 import type { ChatMessage, ChatStreamEvent, MessagePart, StagedImage } from '../state/chat';
+import { READING_FONT_SIZES } from '../state/settings';
 import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
+import { Select } from '../ui/Select';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
@@ -43,6 +45,7 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
     handledBy: 'engine',
   };
   if (event.imageDataUrl !== undefined) entry.imageDataUrl = event.imageDataUrl;
+  if (event.imageMediaRef !== undefined) entry.imageMediaRef = event.imageMediaRef;
   if (event.imageKind !== undefined) entry.imageKind = event.imageKind;
   if (event.imageSource !== undefined) entry.imageSource = event.imageSource;
   return entry;
@@ -67,6 +70,8 @@ export function ChatPanel({
   const fallbackController = useAgentTurn();
   const { send, cancel } = controller ?? fallbackController;
   const messages = useStore((s) => s.chat.messages);
+  const readingSize = useStore((s) => s.settings.readingFontSize);
+  const setReadingSize = useStore((s) => s.settings.setReadingFontSize);
   const truncateTo = useStore((s) => s.chat.truncateTo);
   const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
   const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
@@ -293,6 +298,13 @@ export function ChatPanel({
           <Icons.Sparkle size={14} />
           <span>{t('header_title')}</span>
         </span>
+        <Select
+          className={styles.readingSize ?? ''}
+          ariaLabel={t('reading_size')}
+          value={String(readingSize)}
+          options={READING_FONT_SIZES.map((size) => ({ value: String(size), label: `${size}px` }))}
+          onChange={(size) => setReadingSize(Number(size))}
+        />
       </div>
 
       <div

@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { AdventureProjectionSchema } from './adventure';
 import { CampaignSeedSchema } from './campaign';
+import { MediaReferenceSchema } from './mediaAsset';
 import { PublicHeroRecoverySchema } from './recovery';
 
 const uuid = v.pipe(v.string(), v.uuid());
@@ -39,6 +40,8 @@ export const PublicActorSchema = v.strictObject({
   hp: integer,
   max_hp: integer,
   ac: integer,
+  portrait_asset_id: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(128)))),
+  portrait_media_ref: v.optional(v.nullable(MediaReferenceSchema)),
 });
 export const ProposalSummarySchema = v.strictObject({
   proposal_id: uuid,
@@ -68,6 +71,7 @@ export const RoomStateSchema = v.pipe(
     ),
     combat: v.nullable(v.unknown()),
     scene: v.nullable(v.unknown()),
+    map_media_ref: v.optional(v.nullable(MediaReferenceSchema)),
     adventure: v.nullable(AdventureProjectionSchema),
     clock: v.strictObject({ elapsed_seconds: integer }),
     journal: v.array(v.unknown()),

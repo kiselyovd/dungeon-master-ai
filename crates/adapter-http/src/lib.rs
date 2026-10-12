@@ -61,6 +61,10 @@ pub fn router(services: HttpServices) -> Router {
         )
         .route("/chat", post(routes::chat::chat))
         .route(
+            "/campaigns/{campaign_id}/media/portrait/migrate",
+            post(routes::campaigns::migrate_portrait),
+        )
+        .route(
             "/campaigns/{campaign_id}/adventure/actions",
             post(routes::campaigns::post_adventure_action),
         )
@@ -114,6 +118,16 @@ pub fn router(services: HttpServices) -> Router {
         )
         .route("/settings/v2", post(routes::settings::post_settings_v2))
         .route("/image/generate", post(routes::image::post_image_generate))
+        .route(
+            "/media/assets",
+            post(routes::media_assets::upload_asset).layer(DefaultBodyLimit::max(
+                routes::media_assets::MAX_UPLOAD_BODY_BYTES,
+            )),
+        )
+        .route(
+            "/media/assets/{asset_id}",
+            get(routes::media_assets::read_asset),
+        )
         .route("/video/generate", post(routes::video::post_video_generate))
         .route(
             "/local-llm/manifest",

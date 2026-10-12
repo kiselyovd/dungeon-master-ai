@@ -9,6 +9,7 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
             ("reasoning_text", serde_json::json!({ "text": text }))
         }
         AgentEvent::ImageGenerated {
+            media_ref,
             tool_call_id,
             round,
             mime_type,
@@ -31,6 +32,10 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
             if let Some(asset_id) = asset_id {
                 payload["asset_id"] = serde_json::Value::String(asset_id);
             }
+            if let Some(reference) = media_ref {
+                payload["media_ref"] =
+                    serde_json::to_value(reference).expect("media reference serializable")
+            };
             ("image_generated", payload)
         }
         AgentEvent::TextDelta { text } => ("text_delta", serde_json::json!({ "text": text })),

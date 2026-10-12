@@ -577,6 +577,8 @@ pub(crate) async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        map_media_ref: crate::media_assets::current_map(transaction, campaign_id.0, session_id.0)
+            .await?,
         shared_message_indices,
         party: crate::party::capture_snapshot(transaction, campaign_id, &character).await?,
         adventuring: crate::rest::read_clock(transaction, session_id).await?,
@@ -772,6 +774,15 @@ async fn apply_projection(
         }
     }
     restore_scene(transaction, snapshot).await?;
+    crate::media_assets::select_map(
+        transaction,
+        snapshot.campaign_id.0,
+        snapshot.session_id.0,
+        snapshot.projection.map_media_ref.as_ref(),
+        "snapshot-restored",
+        true,
+    )
+    .await?;
     restore_journal(transaction, snapshot).await?;
     restore_npcs(transaction, snapshot).await?;
     crate::adventure::persist(

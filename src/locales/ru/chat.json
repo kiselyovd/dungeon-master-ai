@@ -14,6 +14,7 @@
   "remove_image": "Удалить изображение",
   "attachment_lightbox_close": "Закрыть",
   "header_title": "Приключение",
+  "reading_size": "Размер текста для чтения",
   "header_meta": "СЦЕНА {{scene}} · ХОД {{turn}}",
   "hint_keyboard": "Enter - отправить · Shift+Enter - новая строка",
   "welcome_title": "Новое приключение",

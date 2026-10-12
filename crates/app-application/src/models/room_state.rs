@@ -20,6 +20,8 @@ pub struct PublicRoomMessage {
 }
 #[derive(Clone, Serialize)]
 pub struct RoomState {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub map_media_ref: Option<super::media_asset::MediaReference>,
     pub campaign: super::session::CampaignDetail,
     pub room: PublicRoom,
     pub title: String,

@@ -44,6 +44,10 @@ pub struct PublicPartyActor {
     pub hp: i32,
     pub max_hp: i32,
     pub ac: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portrait_asset_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portrait_media_ref: Option<super::media_asset::MediaReference>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PartyView {
@@ -151,6 +155,14 @@ impl PartyState {
                 hp: sheet["hp"].as_i64().ok_or(PartyError::InvalidIdentity)? as i32,
                 max_hp: sheet["hpMax"].as_i64().ok_or(PartyError::InvalidIdentity)? as i32,
                 ac: sheet["ac"].as_i64().ok_or(PartyError::InvalidIdentity)? as i32,
+                portrait_asset_id: sheet
+                    .get("portraitAssetId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                portrait_media_ref: sheet
+                    .get("portraitMediaRef")
+                    .filter(|v| !v.is_null())
+                    .and_then(|v| serde_json::from_value(v.clone()).ok()),
             });
         }
         Ok(PartyView {

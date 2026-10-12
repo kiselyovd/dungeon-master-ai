@@ -50,7 +50,7 @@ export function AuthoredMap({ map, cellSize }: { map: BattleMap; cellSize: numbe
             dominantBaseline="middle"
             fill="var(--color-fg-primary)"
             fontSize={12}
-            fontFamily="var(--font-mono)"
+            fontFamily="var(--font-body)"
           >
             {t('authored.exit')}
           </text>

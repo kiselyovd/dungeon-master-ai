@@ -1271,6 +1271,7 @@ async fn agent_turn_orders_media_before_tool_result_and_persists_each_role() {
             is_error: false,
             handled_by: "image-provider".into(),
             media: vec![GeneratedAgentMedia::Image {
+                media_ref: None,
                 mime_type: "image/png".into(),
                 data_b64: "AA==".into(),
                 kind: "map".into(),

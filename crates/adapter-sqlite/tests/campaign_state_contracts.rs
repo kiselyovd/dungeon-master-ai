@@ -275,6 +275,14 @@ async fn migration_backfills_the_explicitly_restored_hero_without_rewriting_hist
         .execute(store.pool())
         .await
         .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0024_owned_media_assets.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0025_current_map_media.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
     assert_eq!(
         store
             .load_current(campaign.id)
@@ -421,6 +429,14 @@ async fn migration_skips_incomplete_sheets_and_selects_a_complete_older_candidat
         .await
         .unwrap();
     sqlx::raw_sql(include_str!("../migrations/0017_solo_recovery.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0024_owned_media_assets.sql"))
+        .execute(store.pool())
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../migrations/0025_current_map_media.sql"))
         .execute(store.pool())
         .await
         .unwrap();

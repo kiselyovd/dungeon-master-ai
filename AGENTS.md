@@ -73,6 +73,12 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | `src-tauri/src/commands/rooms.rs` | Native host-room commands and private credential/lifecycle state; renderer responses omit capability. |
 | `sidecar/app.py` | FastAPI image/video sidecar application and process entry point. |
 | `scripts/gates.sh` | Consolidated local and CI quality gate. |
+| `scripts/check-visual-assets.ts` | Stable visual manifest, bytes, header and portrait-pair verification. |
+| `src/assets/visualCatalog.ts` | Versioned visual identities and category-aware reference resolution. |
+| `crates/app-application/src/media_assets.rs` | Owned media registration, verified lookup and portable reference use cases. |
+| `crates/adapter-sqlite/src/media_assets.rs` | Immutable image bytes, ownership, actor bindings and selected map persistence. |
+| `src/features/media/` | Scoped image resources and non-destructive portrait migration. |
+| `crates/adapter-llm/src/native_runtime.rs` | Trusted native model identity and current-port binding for the default alias. |
 | `package.json` | Bun frontend scripts and JavaScript dependency manifest. |
 | `Cargo.toml` | Rust workspace membership and shared dependencies. |
 

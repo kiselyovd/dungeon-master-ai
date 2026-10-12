@@ -30,6 +30,14 @@ pub enum NativeRoomOperation {
         after: u64,
     },
     Party {},
+    MediaAsset {
+        asset_id: Uuid,
+    },
+    UploadPortrait {
+        asset_id: Uuid,
+        mime_type: String,
+        data_b64: String,
+    },
     OwnProposal {},
     PendingProposals {},
     RestStatus {},

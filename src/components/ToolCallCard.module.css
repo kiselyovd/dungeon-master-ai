@@ -3,7 +3,7 @@
   border: 1px solid var(--color-border-accent);
   border-radius: var(--radius-md);
   padding: var(--space-3);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   transition: border-color var(--t-base);
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMediaImage } from '../features/media/useMediaImage';
 import type { ToolLogEntry } from '../state/toolLog';
+import { useStore } from '../state/useStore';
 import styles from './ToolCallCard.module.css';
 
 interface Props {
@@ -19,11 +21,17 @@ export function ToolCallCard({ entry, label }: Props) {
     result,
     isError,
     round,
-    imageDataUrl,
+    imageDataUrl: legacyImageUrl,
     imageKind,
     imageSource,
     videoDataUrl,
   } = entry;
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const media = useMediaImage(
+    entry.imageMediaRef,
+    campaignId ? { kind: 'campaign', campaign_id: campaignId } : null,
+  );
+  const imageDataUrl = entry.imageMediaRef ? media.url : legacyImageUrl;
   const pending = result === null;
   const { t } = useTranslation('agent');
   const isImageTool = IMAGE_TOOLS.has(toolName);

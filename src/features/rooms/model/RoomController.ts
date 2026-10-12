@@ -7,7 +7,7 @@ export interface RoomPorts {
   recovery?(roomId: string, memberId: string): Promise<AgentRecoveryProjection | null>;
   load(roomId: string): Promise<RoomUpdate>;
   pending(roomId: string): Promise<PendingRoomAction | null>;
-  act(roomId: string, action: RoomAction): Promise<void>;
+  act(roomId: string, action: RoomAction): Promise<unknown>;
   stream(options: RoomStreamOptions): Promise<void>;
 }
 export interface RoomView {
@@ -198,8 +198,9 @@ export class RoomController {
     const roomId = this.view.connection.room.room_id;
     this.patch({ busy: true, pending: action, errorCode: null });
     try {
-      await this.ports.act(roomId, action);
+      const response = await this.ports.act(roomId, action);
       if (this.current(generation)) await this.refresh(generation);
+      if (this.current(generation)) return response;
     } catch (error) {
       if (this.current(generation)) {
         this.patch({ errorCode: errorCode(error) });

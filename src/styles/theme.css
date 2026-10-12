@@ -72,18 +72,15 @@
   --radius-pill: 9999px;
 
   /* Typography */
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* Cinzel is Latin-only (no Cyrillic glyphs). Philosopher fills in for
-     Cyrillic headings - its @font-face in fonts.css covers only the cyrillic
-     and cyrillic-ext unicode-ranges, so the browser picks it up only when it
-     needs a Cyrillic glyph, leaving Latin headings on Cinzel. PT Serif /
-     Georgia stay as system-level backstops. */
-  --font-display: "Cinzel", "Philosopher", "PT Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-narrative: var(--font-display);
   --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
 
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-reading: 17px;
   --text-lg: 18px;
   --text-xl: 24px;
   --text-2xl: 32px;
@@ -93,7 +90,7 @@
   --leading-normal: 1.5;
   --leading-relaxed: 1.7;
 
-  --tracking-display: 0.04em;
+  --tracking-display: 0.01em;
   --tracking-mono: -0.01em;
 
   /* Motion */
@@ -104,7 +101,7 @@
 
   /* Layout constants */
   --header-height: 40px;
-  --statusbar-height: 24px;
+  --statusbar-height: 28px;
   --chat-width: 480px;
 
   /* Z-index registry. All top-level overlays use these tiers. */

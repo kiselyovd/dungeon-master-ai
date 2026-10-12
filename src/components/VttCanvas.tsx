@@ -12,14 +12,18 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BattleMap } from '../api/contracts/battleMap';
+import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
 import { KEY_ART } from '../assets/livingTabletop';
 import type { CombatToken } from '../features/combat/model/types';
+import { useMediaImage } from '../features/media/useMediaImage';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { AuthoredMap } from './AuthoredMap';
 import { CombatOverlay } from './CombatOverlay';
 import type { PlayerTokenPresentation } from './CombatToken';
 export interface VttPresentation {
+  mapMediaRef?: MediaReference | null;
+  mediaScope?: MediaScope | null;
   active: boolean;
   tokens: CombatToken[];
   map: BattleMap | null;
@@ -75,6 +79,18 @@ export function VttCanvas({
   const storedRevision = useStore((s) => s.combat.revision);
   const storedAoe = useStore((s) => s.combat.aoeTemplates);
   const storedImage = useStore((s) => s.session.mapImageUrl);
+  const storedMedia = useStore((s) => s.session.mapMediaRef);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const reference = presentation ? presentation.mapMediaRef : storedMedia;
+  const media = useMediaImage(
+    reference,
+    presentation
+      ? (presentation.mediaScope ?? null)
+      : campaignId
+        ? { kind: 'campaign', campaign_id: campaignId }
+        : null,
+    'map',
+  );
   const combatActive = presentation ? presentation.active : storedActive;
   const arena = presentation ? presentation.map : combatActive ? authored?.map : adventureMap;
   const tokens = presentation
@@ -85,7 +101,7 @@ export function VttCanvas({
   const currentTurnId = presentation ? presentation.currentTurnId : storedTurn;
   const combatRevision = presentation ? presentation.revision : storedRevision;
   const aoeTemplates = presentation ? [] : storedAoe;
-  const mapImageUrl = presentation ? null : storedImage;
+  const mapImageUrl = reference ? media.url : presentation ? null : storedImage;
   const hasMap = mapImageUrl !== null || Boolean(arena);
   const [showGrid, setShowGrid] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -485,7 +501,7 @@ export function VttCanvas({
                     y={measureCurrent.y - 8}
                     fill="var(--color-fg-primary)"
                     fontSize={12}
-                    fontFamily="var(--font-mono)"
+                    fontFamily="var(--font-body)"
                   >
                     {measureDistanceFt} ft
                   </text>

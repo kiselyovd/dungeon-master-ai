@@ -31,7 +31,7 @@ export function RaceTab({ compendium }: RaceTabProps) {
               setDraftField('subraceId', null);
             }}
           >
-            <div style={{ fontFamily: 'Cinzel, serif', color: '#fff', fontSize: 16 }}>
+            <div style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: 16 }}>
               {r.name_key
                 ? i18n.t(r.name_key, {
                     ns: 'character',

@@ -16,6 +16,7 @@ enum Outcome {
     Degraded,
     Auth,
     Cancelled,
+    Malformed,
 }
 
 struct ScriptedProvider {
@@ -46,12 +47,22 @@ impl ImageProvider for ScriptedProvider {
         self.calls.fetch_add(1, Ordering::SeqCst);
         match self.outcome {
             Outcome::Generated => Ok(ImageBytes {
-                data: vec![1],
+                data: adapter_media::image::bundled_assets()
+                    .iter()
+                    .find(|asset| asset.id == "illustration-tavern")
+                    .unwrap()
+                    .bytes
+                    .to_vec(),
                 mime_type: "image/webp".into(),
                 source: ImageSource::Generated,
             }),
             Outcome::Bundled => Ok(ImageBytes {
-                data: vec![2],
+                data: adapter_media::image::bundled_assets()
+                    .iter()
+                    .find(|asset| asset.id == "illustration-tavern")
+                    .unwrap()
+                    .bytes
+                    .to_vec(),
                 mime_type: "image/webp".into(),
                 source: ImageSource::Bundled {
                     asset_id: "illustration-tavern".into(),
@@ -63,6 +74,11 @@ impl ImageProvider for ScriptedProvider {
             Outcome::Degraded => Err(ImageError::Degraded { code: "degraded" }),
             Outcome::Auth => Err(ImageError::Auth),
             Outcome::Cancelled => Err(ImageError::Cancelled),
+            Outcome::Malformed => Ok(ImageBytes {
+                data: vec![1, 2, 3],
+                mime_type: "image/webp".into(),
+                source: ImageSource::Generated,
+            }),
         }
     }
 
@@ -163,4 +179,51 @@ fn bundled_only_provider_remains_zero_cost() {
     let (fallback, _) = ScriptedProvider::new(Outcome::Bundled, 0, 0.0);
     assert_eq!(fallback.estimated_seconds(), 0);
     assert_eq!(fallback.cost_per_image(), 0.0);
+}
+
+#[tokio::test]
+async fn unavailable_malformed_or_wrong_category_primary_returns_an_actual_portrait() {
+    for outcome in [Outcome::Provider, Outcome::Malformed, Outcome::Bundled] {
+        let (primary, _) = ScriptedProvider::new(outcome, 0, 0.0);
+        let fallback = Arc::new(adapter_media::image::BundledImageProvider::new());
+        let provider = ResilientImageProvider::new(primary, fallback);
+        let image = provider
+            .generate(ImagePrompt {
+                content_prompt: "wizard in a tavern".into(),
+                style_preset: "character_portrait".into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let ImageSource::Bundled { asset_id } = image.source else {
+            panic!("portrait fallback expected")
+        };
+        let asset = adapter_media::image::bundled_assets()
+            .iter()
+            .find(|asset| asset.id == asset_id)
+            .unwrap();
+        assert_eq!(
+            asset.category,
+            adapter_media::image::BundledAssetCategory::Portrait
+        );
+        assert_eq!(image.data, asset.bytes);
+    }
+}
+
+#[tokio::test]
+async fn a_scenery_fallback_cannot_be_accepted_for_a_portrait() {
+    let (primary, _) = ScriptedProvider::new(Outcome::Provider, 0, 0.0);
+    let (fallback, _) = ScriptedProvider::new(Outcome::Bundled, 0, 0.0);
+    let provider = ResilientImageProvider::new(primary, fallback);
+    assert!(matches!(
+        provider
+            .generate(ImagePrompt {
+                style_preset: "character_portrait".into(),
+                ..Default::default()
+            })
+            .await,
+        Err(ImageError::Degraded {
+            code: "bundled_fallback_invalid"
+        })
+    ));
 }

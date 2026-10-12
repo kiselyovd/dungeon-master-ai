@@ -59,7 +59,7 @@ export function CharFab({ onOpen, onOpenWizard }: CharFabProps) {
       >
         <Icons.User size={14} />
         <span className="dm-char-fab-name">{name}</span>
-        <span className="dm-char-fab-hp dm-mono">
+        <span className="dm-char-fab-hp dm-numeric">
           {hp}/{hpMax}
         </span>
       </button>

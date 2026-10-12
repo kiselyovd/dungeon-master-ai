@@ -61,7 +61,8 @@
 
 .eyebrow,
 .counter {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   color: var(--color-accent-soft);
 }
@@ -114,7 +115,8 @@
   flex: 0 0 auto;
   border: 1px solid currentColor;
   border-radius: var(--radius-pill);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
 }
 

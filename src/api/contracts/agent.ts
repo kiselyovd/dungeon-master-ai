@@ -11,6 +11,7 @@ import {
   safeParseToolCallStart,
   safeParseVideoGenerated,
 } from '../schemas';
+import type { MediaReference } from './mediaAsset';
 
 export type AgentMessagePart =
   | { type: 'text'; text: string }
@@ -59,6 +60,7 @@ export type AgentEvent =
     }
   | {
       type: 'image_generated';
+      mediaRef?: MediaReference;
       dataUrl: string;
       toolCallId?: string;
       kind: 'map' | 'chat';
@@ -138,7 +140,8 @@ export function decodeAgentEvent(raw: RawAgentEvent): AgentEvent | null {
       if (!payload) return null;
       return {
         type: 'image_generated',
-        dataUrl: `data:${payload.mime_type};base64,${payload.image_b64}`,
+        dataUrl: payload.media_ref ? '' : `data:${payload.mime_type};base64,${payload.image_b64}`,
+        ...(payload.media_ref ? { mediaRef: payload.media_ref } : {}),
         ...(payload.tool_call_id ? { toolCallId: payload.tool_call_id } : {}),
         kind: payload.kind === 'map' ? 'map' : 'chat',
         source:

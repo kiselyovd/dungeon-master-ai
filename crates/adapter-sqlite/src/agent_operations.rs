@@ -250,11 +250,13 @@ impl AgentOperationRepository for SqliteStore {
                     for media in execution.media {
                         let event = match media {
                             GeneratedAgentMedia::Image {
+                                media_ref,
                                 mime_type,
                                 data_b64,
                                 kind,
                                 source,
                             } => AgentEvent::ImageGenerated {
+                                media_ref,
                                 tool_call_id: id.clone(),
                                 round,
                                 mime_type,
@@ -547,6 +549,38 @@ impl SqliteStore {
         let changed=sqlx::query("UPDATE agent_tool_steps SET result_json=?3 WHERE request_id=?1 AND tool_call_id=?2 AND result_json IS NULL").bind(request_id.to_string()).bind(tool_call_id).bind(raw).execute(&mut *tx).await.map_err(|_|repository_error("finish_tool_checkpoint"))?;
         if changed.rows_affected() != 1 {
             return Err(rejected("agent_tool_checkpoint_conflict"));
+        }
+        for media in &result.media {
+            if let app_application::agent::tool_dispatch::GeneratedAgentMedia::Image {
+                media_ref: Some(reference),
+                kind,
+                ..
+            } = media
+            {
+                if kind != "map" || result.is_error {
+                    continue;
+                }
+                let op=sqlx::query("SELECT a.campaign_id,a.session_id,a.restore_generation,a.status,s.restore_generation AS current_generation,s.revision FROM agent_turn_operations a JOIN sessions s ON s.id=a.session_id WHERE a.request_id=?1").bind(request_id.to_string()).fetch_one(&mut *tx).await.map_err(|_|repository_error("media_scope_read_failed"))?;
+                if op.get::<i64, _>("restore_generation") != op.get::<i64, _>("current_generation")
+                    || op.get::<String, _>("status") != "running"
+                {
+                    return Err(rejected("media_scope_changed"));
+                };
+                let campaign = Uuid::parse_str(&op.get::<String, _>("campaign_id"))
+                    .map_err(|_| rejected("media_scope_invalid"))?;
+                let session = Uuid::parse_str(&op.get::<String, _>("session_id"))
+                    .map_err(|_| rejected("media_scope_invalid"))?;
+                crate::media_assets::select_map(
+                    &mut tx,
+                    campaign,
+                    session,
+                    Some(reference),
+                    &request_id.to_string(),
+                    false,
+                )
+                .await?;
+                crate::campaigns::advance_session_revision(&mut tx,app_application::models::identity::CampaignId(campaign),app_application::models::identity::SessionId(session),app_application::models::identity::Revision(op.get::<i64,_>("revision") as u64),"map_media_selected",&format!("media:{request_id}:{tool_call_id}")).await?;
+            }
         }
         tx.commit()
             .await

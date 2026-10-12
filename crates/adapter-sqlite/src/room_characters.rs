@@ -117,6 +117,14 @@ pub(crate) async fn submit(
     }) {
         return Err(error("room_character_conflict"));
     }
+    crate::media_assets::bind_portrait(
+        &mut tx,
+        room.campaign_id.0,
+        command.character_id,
+        &command.character,
+        Some(lease.member_id()),
+    )
+    .await?;
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM room_character_proposals WHERE room_id=?1 AND member_id=?2",
     )

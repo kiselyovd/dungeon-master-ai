@@ -26,9 +26,10 @@
   border: 1px solid transparent;
   padding: 6px 12px;
   color: var(--color-text-muted);
-  font-family: "Cinzel", serif;
-  letter-spacing: 0.1em;
-  font-size: 11px;
+  font-family: var(--font-body);
+  letter-spacing: normal;
+  font-size: var(--text-sm);
+  white-space: nowrap;
   cursor: pointer;
   border-radius: 4px;
 }
@@ -68,16 +69,16 @@
   font-size: 11px;
   color: var(--color-text-muted);
   letter-spacing: 0.08em;
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
 }
 
 .dm-wizard-nav-btn {
   background: transparent;
   border: 1px solid rgba(212, 175, 55, 0.4);
   color: var(--color-accent);
-  font-family: "Cinzel", serif;
-  letter-spacing: 0.1em;
-  font-size: 11px;
+  font-family: var(--font-body);
+  letter-spacing: normal;
+  font-size: var(--text-sm);
   padding: 6px 14px;
   cursor: pointer;
   border-radius: 3px;
@@ -118,7 +119,7 @@
   margin-bottom: 16px;
 }
 .dm-wizard-live-name {
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   color: #fff;
   font-size: 16px;
 }
@@ -194,7 +195,7 @@
   background: linear-gradient(180deg, #d4af37 0%, #b8923a 100%);
   border: none;
   color: #14101a;
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   letter-spacing: 0.1em;
   padding: 8px 16px;
   cursor: pointer;
@@ -241,7 +242,7 @@
   border: 1px solid rgba(212, 175, 55, 0.3);
   color: var(--color-accent);
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;

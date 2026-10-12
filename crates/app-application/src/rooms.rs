@@ -143,6 +143,7 @@ pub struct RoomService {
     rooms: Arc<dyn RoomRepository>,
     secrets: Arc<dyn SecretsStore>,
     clock: Arc<dyn RoomClock>,
+    media_assets: Option<Arc<crate::media_assets::MediaAssets>>,
 }
 impl RoomService {
     pub fn new(
@@ -156,7 +157,58 @@ impl RoomService {
             rooms,
             secrets,
             clock,
+            media_assets: None,
         }
+    }
+    pub fn with_media_assets(mut self, assets: Arc<crate::media_assets::MediaAssets>) -> Self {
+        self.media_assets = Some(assets);
+        self
+    }
+    pub async fn upload_portrait(
+        &self,
+        subject: &RoomSubject,
+        id: Uuid,
+        mime_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<
+        crate::models::media_asset::MediaReference,
+        crate::models::media_asset::MediaAssetError,
+    > {
+        use crate::models::media_asset::*;
+        let _lane = ROOM_MUTATION.lock().await;
+        let room = self
+            .authorized_room(subject)
+            .await
+            .map_err(|_| MediaAssetError::Denied)?;
+        let assets = self.media_assets.as_ref().ok_or(MediaAssetError::Storage)?;
+        assets
+            .register_as(
+                id,
+                MediaOwner::RoomMember {
+                    campaign_id: room.campaign_id.0,
+                    member_id: subject.lease.member_id(),
+                },
+                MediaCategory::Portrait,
+                MediaOrigin::Uploaded,
+                mime_type,
+                bytes,
+            )
+            .await
+    }
+    pub async fn public_asset(
+        &self,
+        subject: &RoomSubject,
+        id: Uuid,
+    ) -> Result<
+        crate::models::media_asset::OwnedMediaAsset,
+        crate::models::media_asset::MediaAssetError,
+    > {
+        use crate::models::media_asset::*;
+        self.media_assets
+            .as_ref()
+            .ok_or(MediaAssetError::Storage)?
+            .read(id, &MediaReadScope::Room(subject.lease.clone()))
+            .await
     }
     async fn read_secret(&self, key: &str) -> Result<RoomSecret, RoomError> {
         let value = self

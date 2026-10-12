@@ -1,4 +1,10 @@
 {
+  "portrait_library": "Choose a portrait",
+  "portrait_upload": "Upload portrait",
+  "portrait_retry": "Retry image",
+  "portrait_upload_failed": "Could not save this image. Your previous portrait is still selected.",
+  "portrait_unavailable": "No suitable portrait is available. Choose a look from the collection or try again.",
+  "portrait_variant": "Look {{number}}",
   "compendium_error_title": "Could not load character data",
   "compendium_error_body": "The SRD compendium (classes, races, spells, equipment) failed to load. Check that the local backend is running and try again.",
   "compendium_retry": "Retry",

@@ -11,6 +11,7 @@ use super::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageS
 pub enum BundledAssetCategory {
     Map,
     Illustration,
+    Portrait,
 }
 
 impl BundledAssetCategory {
@@ -18,6 +19,7 @@ impl BundledAssetCategory {
         match self {
             Self::Map => "map",
             Self::Illustration => "illustration",
+            Self::Portrait => "portrait",
         }
     }
 }
@@ -48,6 +50,51 @@ macro_rules! asset {
 }
 
 static ASSETS: &[BundledAsset] = &[
+    BundledAsset {
+        id: "portrait-fighter-legacy-v1",
+        category: BundledAssetCategory::Portrait,
+        keywords: &["fighter", "warrior", "paladin", "воин", "паладин"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-wizard-legacy-v1",
+        category: BundledAssetCategory::Portrait,
+        keywords: &["wizard", "mage", "волшебник", "маг"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-wizard-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-rogue-legacy-v1",
+        category: BundledAssetCategory::Portrait,
+        keywords: &["rogue", "thief", "плут", "вор"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-rogue-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-cleric-legacy-v1",
+        category: BundledAssetCategory::Portrait,
+        keywords: &["cleric", "priest", "жрец"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-cleric-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-fighter-01-v2",
+        category: BundledAssetCategory::Portrait,
+        keywords: &["fighter", "warrior", "воин"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-01-v2.webp"),
+        width: 512,
+        height: 512,
+    },
     asset!(
         "map-tavern-interior",
         BundledAssetCategory::Map,
@@ -168,11 +215,7 @@ pub fn bundled_image_provider() -> Arc<dyn ImageProvider> {
 #[async_trait]
 impl ImageProvider for BundledImageProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
-        let category = if prompt.style_preset.eq_ignore_ascii_case("map") {
-            BundledAssetCategory::Map
-        } else {
-            BundledAssetCategory::Illustration
-        };
+        let category = category_for_style(&prompt.style_preset);
         let normalized_prompt = normalize(&prompt.content_prompt);
         let input_hash = fnv1a64(&format!(
             "{}\0{}\0{}",
@@ -234,9 +277,24 @@ fn select_asset(
             candidates.push(asset);
         }
     }
+    if candidates.is_empty() {
+        return None;
+    }
     candidates
         .get((input_hash as usize) % candidates.len())
         .copied()
+}
+
+pub(crate) fn category_for_style(style: &str) -> BundledAssetCategory {
+    if style.eq_ignore_ascii_case("map") {
+        BundledAssetCategory::Map
+    } else if style.eq_ignore_ascii_case("character_portrait")
+        || style.eq_ignore_ascii_case("portrait")
+    {
+        BundledAssetCategory::Portrait
+    } else {
+        BundledAssetCategory::Illustration
+    }
 }
 
 fn normalize(value: &str) -> String {

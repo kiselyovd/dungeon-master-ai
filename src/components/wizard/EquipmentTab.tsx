@@ -578,7 +578,7 @@ function GoldMode({
           const canAfford = gold >= entry.costGp;
           return (
             <div key={entry.id} className="dm-wizard-card" style={{ cursor: 'default' }}>
-              <div style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>{name}</div>
+              <div style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>{name}</div>
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
                 {entry.costGp.toFixed(2)} {t('gp')} - {entry.weightLb} {t('lb')}
               </div>

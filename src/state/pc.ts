@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 
 /**
  * Player character (PC) slice (M5 P2.14). Stores the canonical character
@@ -99,6 +100,9 @@ export interface PcData {
   inventory: InventoryItem[];
   /** Generated/selected portrait (data URL or http(s)); null falls back to class art. */
   portraitUrl: string | null;
+  /** Immutable built-in portrait identity. Missing means legacy/default selection. */
+  portraitAssetId?: string | null;
+  portraitMediaRef?: MediaReference | null;
 }
 
 /**
@@ -140,6 +144,8 @@ export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
   'skillProfs',
   'inventory',
   'portraitUrl',
+  'portraitAssetId',
+  'portraitMediaRef',
 ]);
 
 export interface PcActions {
@@ -348,6 +354,8 @@ function presetToData(klass: HeroClassId): Omit<PcData, 'heroClass'> & { heroCla
     // Preset heroes have no generated portrait; CharacterSheet falls back to
     // the class art via HERO_PORTRAIT.
     portraitUrl: null,
+    portraitAssetId: null,
+    portraitMediaRef: null,
   };
 }
 
@@ -390,6 +398,8 @@ const EMPTY_PC: PcData = {
   skillProfs: {},
   inventory: [],
   portraitUrl: null,
+  portraitAssetId: null,
+  portraitMediaRef: null,
 };
 
 export function emptyPcData(): PcData {

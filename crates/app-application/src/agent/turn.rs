@@ -840,11 +840,13 @@ impl AgentTurnService {
                 for media in execution.media {
                     let event = match media {
                         GeneratedAgentMedia::Image {
+                            media_ref,
                             mime_type,
                             data_b64,
                             kind,
                             source,
                         } => AgentEvent::ImageGenerated {
+                            media_ref,
                             tool_call_id: tool_call.id.clone(),
                             round: total_rounds,
                             mime_type,

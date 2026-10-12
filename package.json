@@ -26,6 +26,8 @@
     "e2e:tauri:play": "bun scripts/tauri-cdp-play.ts",
     "e2e:tauri:campaign": "bun scripts/tauri-cdp-campaign.ts",
     "architecture:check": "bun scripts/check-architecture.ts",
+    "assets:check": "bun scripts/check-visual-assets.ts",
+    "assets:catalog": "bun scripts/build-visual-catalog.ts",
     "gates": "bun scripts/run-bash.ts scripts/gates.sh",
     "gates:fast": "bun scripts/run-bash.ts scripts/gates.sh --fast",
     "dev:all": "bun scripts/dev-all.ts",

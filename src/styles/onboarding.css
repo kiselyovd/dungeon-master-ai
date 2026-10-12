@@ -568,7 +568,8 @@
 }
 
 .dm-hero-card-stat-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-fg-primary);

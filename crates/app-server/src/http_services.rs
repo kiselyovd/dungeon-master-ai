@@ -78,6 +78,33 @@ impl AppStateMediaHttpService {
 
 #[async_trait]
 impl MediaHttpService for AppStateMediaHttpService {
+    async fn register_asset(
+        &self,
+        owner: app_application::models::media_asset::MediaOwner,
+        category: app_application::models::media_asset::MediaCategory,
+        origin: app_application::models::media_asset::MediaOrigin,
+        mime_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<app_application::models::media_asset::MediaReference, HttpServiceError> {
+        self.state
+            .media_assets()
+            .ok_or(HttpServiceError::NotFound)?
+            .register(owner, category, origin, mime_type, bytes)
+            .await
+            .map_err(media_asset_http_error)
+    }
+    async fn read_asset(
+        &self,
+        id: Uuid,
+        scope: app_application::models::media_asset::MediaReadScope,
+    ) -> Result<app_application::models::media_asset::OwnedMediaAsset, HttpServiceError> {
+        self.state
+            .media_assets()
+            .ok_or(HttpServiceError::NotFound)?
+            .read(id, &scope)
+            .await
+            .map_err(media_asset_http_error)
+    }
     async fn generate_image(&self, prompt: ImagePrompt) -> Result<ImageBytes, HttpServiceError> {
         let provider = self
             .state
@@ -98,6 +125,12 @@ impl MediaHttpService for AppStateMediaHttpService {
                 code: "video_generation_failed",
             })
     }
+}
+
+fn media_asset_http_error(
+    error: app_application::models::media_asset::MediaAssetError,
+) -> HttpServiceError {
+    adapter_http::routes::media_assets::media_asset_error(error)
 }
 
 fn image_http_error(error: ImageError) -> HttpServiceError {
@@ -142,6 +175,78 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn migrate_portrait(
+        &self,
+        command: app_application::media_assets::migrate_portrait::MigratePortrait,
+    ) -> Result<adapter_http::routes::campaigns::PortraitMigrationResponse, HttpServiceError> {
+        use app_application::ports::repositories::CampaignStateRepository;
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let current = repository
+            .load_current(command.campaign_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "media_asset_storage_unavailable",
+            })?;
+        let room_active: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM coop_rooms WHERE campaign_id=?1 AND active=1)",
+        )
+        .bind(command.campaign_id.0.to_string())
+        .fetch_one(self.state.db())
+        .await
+        .map_err(|_| HttpServiceError::Internal {
+            code: "media_asset_storage_unavailable",
+        })?;
+        let pending = repository
+            .solo_agent_recovery(
+                command.campaign_id.0,
+                current.session_id.0,
+                self.state.process_id(),
+            )
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "media_asset_storage_unavailable",
+            })?;
+        if room_active || pending.is_some() {
+            return Err(HttpServiceError::Conflict {
+                code: "media_migration_pending",
+            });
+        };
+        let migrated =
+            app_application::media_assets::migrate_portrait::MigrateCampaignPortrait::new(
+                self.state
+                    .media_assets()
+                    .ok_or(HttpServiceError::NotFound)?,
+                repository,
+            )
+            .execute(command)
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Conflict { .. } => {
+                    HttpServiceError::Conflict {
+                        code: "media_migration_scope_changed",
+                    }
+                }
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "media_asset_denied",
+                    ..
+                } => HttpServiceError::Unauthorized {
+                    code: "media_asset_denied",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "media_asset_storage_unavailable",
+                },
+            })?;
+        Ok(adapter_http::routes::campaigns::PortraitMigrationResponse {
+            state: campaign_state_response(migrated.state)?,
+            changed: migrated.changed,
+            retained: migrated.retained,
+        })
+    }
     async fn recovery_status(
         &self,
         id: Uuid,
@@ -1224,6 +1329,7 @@ impl AgentHttpService for AppStateAgentHttpService {
             image_provider,
         )
         .with_gpu_swap(gpu_swap)
+        .with_media_assets(self.state.media_assets())
         .with_video_provider(video_provider);
         let orchestrator = if let Some(verifier) = player_verifier {
             orchestrator

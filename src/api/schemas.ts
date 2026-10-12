@@ -7,6 +7,7 @@
  */
 
 import * as v from 'valibot';
+import { MediaReferenceSchema } from './contracts/mediaAsset';
 import type { ChatErrorCode } from './errors';
 
 const KNOWN_CODES = [
@@ -128,6 +129,7 @@ export function safeParseReasoningText(data: unknown): ReasoningTextPayload | nu
 }
 
 export const ImageGeneratedSchema = v.object({
+  media_ref: v.optional(MediaReferenceSchema),
   tool_call_id: v.optional(v.string()),
   round: v.optional(v.number()),
   mime_type: v.string(),

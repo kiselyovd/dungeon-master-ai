@@ -45,6 +45,8 @@ export function useAgentTurn() {
           useStore.getState().chat.settleToolCallEvent(id, result, isError),
         attachImage: (id, dataUrl, kind, source) =>
           useStore.getState().chat.attachStreamEventImage(id, dataUrl, kind, source),
+        attachMedia: (id, reference, kind, source) =>
+          useStore.getState().chat.attachStreamEventMedia(id, reference, kind, source),
         attachVideo: (id, dataUrl) => useStore.getState().chat.attachStreamEventVideo(id, dataUrl),
       },
       toolLog: {
@@ -54,6 +56,8 @@ export function useAgentTurn() {
           useStore.getState().toolLog.settle(id, result, isError, handledBy),
         attachImage: (id, dataUrl, kind, source) =>
           useStore.getState().toolLog.attachImage(id, dataUrl, kind, source),
+        attachMedia: (id, reference, kind, source) =>
+          useStore.getState().toolLog.attachMedia(id, reference, kind, source),
       },
       journal: {
         append: (entry) =>
@@ -105,6 +109,7 @@ export function useAgentTurn() {
         setScene: (title) =>
           useStore.getState().session.setCurrentScene({ name: title, stepCounter: 0 }),
         setMapImage: (dataUrl) => useStore.getState().session.setMapImage(dataUrl),
+        setMapMedia: (reference) => useStore.getState().session.setMapMedia(reference),
       },
       combat: {
         boardState: () => useStore.getState().combat,

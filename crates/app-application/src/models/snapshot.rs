@@ -10,6 +10,8 @@ pub const SNAPSHOT_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotProjection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub map_media_ref: Option<super::media_asset::MediaReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shared_message_indices: Vec<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -28,7 +30,7 @@ pub struct SnapshotProjection {
 
 impl SnapshotProjection {
     pub fn is_complete(&self) -> bool {
-        self.shared_message_indices
+        self.map_media_ref.as_ref().is_none_or(|reference|reference.valid() && !matches!(reference,super::media_asset::MediaReference::Owned{category,..} if *category!=super::media_asset::MediaCategory::Map)) && self.shared_message_indices
             .iter()
             .copied()
             .collect::<std::collections::BTreeSet<_>>()

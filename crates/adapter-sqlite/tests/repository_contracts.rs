@@ -132,7 +132,25 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 23);
+    assert_eq!(migration_count, 25);
+    for table in [
+        "media_content",
+        "media_assets",
+        "media_bindings",
+        "current_map_media",
+    ] {
+        let present: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
+        )
+        .bind(table)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+        assert!(
+            present,
+            "media ownership and selected references must be migrated: {table}"
+        );
+    }
     for table in ["agent_turn_operations", "room_dm_turns"] {
         let actor_columns: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name='actor_id'")

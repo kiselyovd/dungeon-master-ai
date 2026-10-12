@@ -61,6 +61,7 @@ impl Default for AgentConfig {
 }
 
 pub struct AgentOrchestrator {
+    media_assets: Option<Arc<app_application::media_assets::MediaAssets>>,
     provider: Arc<dyn LlmProvider>,
     pool: SqlitePool,
     config: AgentConfig,
@@ -110,11 +111,19 @@ impl AgentOrchestrator {
             player_verifier: None,
             narration_verifier: None,
             human_command_owner: None,
+            media_assets: None,
         }
     }
 
     pub fn with_video_provider(mut self, video_provider: Option<Arc<dyn VideoProvider>>) -> Self {
         self.video_provider = video_provider;
+        self
+    }
+    pub fn with_media_assets(
+        mut self,
+        assets: Option<Arc<app_application::media_assets::MediaAssets>>,
+    ) -> Self {
+        self.media_assets = assets;
         self
     }
 
@@ -165,6 +174,7 @@ impl AgentOrchestrator {
             combat: tools_for_phase(self.config.tool_availability, true),
         };
         let legacy_tools = Arc::new(LegacyToolAdapter {
+            media_assets: self.media_assets.clone(),
             store: adapter_sqlite::SqliteStore::new(self.pool.clone()),
             image_provider: self.image_provider.clone(),
             video_provider: self.video_provider.clone(),
@@ -354,6 +364,7 @@ impl AgentContextPort for LegacyContextAdapter {
 }
 
 struct LegacyToolAdapter {
+    media_assets: Option<Arc<app_application::media_assets::MediaAssets>>,
     store: adapter_sqlite::SqliteStore,
     image_provider: Option<Arc<dyn ImageProvider>>,
     video_provider: Option<Arc<dyn VideoProvider>>,
@@ -521,7 +532,7 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
         let mut media = Vec::new();
         if !is_error {
             if let Some(map) = result.as_object_mut() {
-                if let Some(serde_json::Value::String(data_b64)) = map.remove("image_b64") {
+                if let Some(serde_json::Value::String(mut data_b64)) = map.remove("image_b64") {
                     let source = match map
                         .remove("source")
                         .and_then(|value| value.as_str().map(str::to_owned))
@@ -537,14 +548,71 @@ impl ToolCapabilityHandler for LegacyToolAdapter {
                             ImageSource::Generated
                         }
                     };
+                    let mime = map
+                        .get("mime_type")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("image/png")
+                        .to_owned();
+                    let kind = image_kind(&tool_name).unwrap_or("chat").to_owned();
+                    let media_ref = if let Some(assets) = &self.media_assets {
+                        use app_application::models::media_asset::*;
+                        let reference = match &source {
+                            ImageSource::Bundled { asset_id } => MediaReference::Bundled {
+                                asset_id: asset_id.clone(),
+                                version: asset_id
+                                    .rsplit_once("-v")
+                                    .and_then(|(_, version)| version.parse::<u16>().ok())
+                                    .filter(|version| *version > 0)
+                                    .unwrap_or(1),
+                            },
+                            ImageSource::Generated => {
+                                use base64::Engine;
+                                let bytes = base64::engine::general_purpose::STANDARD
+                                    .decode(&data_b64)
+                                    .map_err(|_| ToolDispatchError {
+                                        code: "media_asset_invalid",
+                                    })?;
+                                assets
+                                    .register(
+                                        MediaOwner::Campaign {
+                                            campaign_id: request.campaign_id,
+                                            actor_id: None,
+                                        },
+                                        if kind == "map" {
+                                            MediaCategory::Map
+                                        } else {
+                                            MediaCategory::Illustration
+                                        },
+                                        MediaOrigin::Generated,
+                                        &mime,
+                                        bytes,
+                                    )
+                                    .await
+                                    .map_err(|_| ToolDispatchError {
+                                        code: "media_asset_storage_unavailable",
+                                    })?
+                            }
+                        };
+                        data_b64.clear();
+                        map.insert(
+                            "media_ref".into(),
+                            serde_json::to_value(&reference).map_err(|_| ToolDispatchError {
+                                code: "media_asset_invalid",
+                            })?,
+                        );
+                        Some(Box::new(reference))
+                    } else {
+                        None
+                    };
                     media.push(GeneratedAgentMedia::Image {
+                        media_ref,
                         mime_type: map
                             .get("mime_type")
                             .and_then(serde_json::Value::as_str)
                             .unwrap_or("image/png")
                             .to_string(),
                         data_b64,
-                        kind: image_kind(&tool_name).unwrap_or("chat").to_string(),
+                        kind,
                         source,
                     });
                 }

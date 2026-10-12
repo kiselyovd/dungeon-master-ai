@@ -1,5 +1,6 @@
 //! Outbound media, model-distribution, and local-runtime adapters.
 
+pub mod asset_codec;
 pub mod hf;
 pub mod image;
 pub mod local_runtime;

@@ -9,6 +9,7 @@ import * as v from 'valibot';
 import { backendUrl } from './client';
 import { parseAdventureProjection } from './contracts/adventure';
 import { type CampaignStateResponse, CampaignStateSchema } from './contracts/campaignState';
+import { parseMediaReference } from './contracts/mediaAsset';
 import { ChatError } from './errors';
 import { discardResponseBody } from './response';
 
@@ -50,6 +51,7 @@ export interface RestoreSaveResponse {
   schema_version: 1;
   ruleset_id: 'srd-5.2.1';
   projection: {
+    map_media_ref?: import('./contracts/mediaAsset').MediaReference | null;
     adventure?: import('./contracts/adventure').AdventureProjection | null;
     messages: SessionMessageWire[];
     character: unknown;
@@ -294,6 +296,8 @@ export async function restoreSave(
     schema_version: 1,
     ruleset_id: 'srd-5.2.1',
     projection: {
+      map_media_ref:
+        projection.map_media_ref == null ? null : parseMediaReference(projection.map_media_ref),
       messages: projection.messages.map(parseMessage),
       adventure: parseAdventureProjection(projection.adventure),
       character: projection.character,

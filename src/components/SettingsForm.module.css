@@ -44,7 +44,7 @@
 
 .localHeading {
   margin: var(--space-3) 0 var(--space-1);
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-display);
 }
@@ -105,8 +105,8 @@
 .localCustomAddButton {
   align-self: flex-start;
   padding: var(--space-1) var(--space-3);
-  font-family: "Cinzel", serif;
-  font-size: var(--text-xs, 11px);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
@@ -123,7 +123,7 @@
   border-bottom: 2px solid transparent;
   color: var(--color-fg-secondary);
   cursor: pointer;
-  font-family: "Cinzel", serif;
+  font-family: var(--font-body);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-display);
   padding: var(--space-2) var(--space-3);
@@ -190,7 +190,7 @@
 }
 
 .fieldset legend {
-  font-family: "Cinzel", serif;
+  font-family: var(--font-display);
   font-size: var(--text-xs, 11px);
   letter-spacing: var(--tracking-display);
   color: var(--color-fg-secondary);
