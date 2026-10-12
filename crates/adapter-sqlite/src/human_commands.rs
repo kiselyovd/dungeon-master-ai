@@ -196,6 +196,25 @@ impl SqliteStore {
         campaign_id: Uuid,
         session_id: Uuid,
     ) -> Result<Option<PendingHumanCommandClarification>, RepositoryError> {
+        self.pending_solo_operation(campaign_id, session_id, false)
+            .await
+    }
+
+    pub async fn solo_recovery_input(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<Option<PendingHumanCommandClarification>, RepositoryError> {
+        self.pending_solo_operation(campaign_id, session_id, true)
+            .await
+    }
+
+    async fn pending_solo_operation(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+        include_unplanned: bool,
+    ) -> Result<Option<PendingHumanCommandClarification>, RepositoryError> {
         let mut tx = self
             .pool()
             .begin()
@@ -216,7 +235,7 @@ impl SqliteStore {
         if room {
             return Ok(None);
         }
-        let row=sqlx::query("SELECT o.request_id,o.request_json,o.status,o.restore_generation,m.manifest_json,m.clarifications_json,m.final_narration_json FROM agent_turn_operations o LEFT JOIN solo_human_command_manifests m ON m.request_id=o.request_id WHERE o.campaign_id=?1 AND o.session_id=?2 ORDER BY o.updated_at DESC,o.created_at DESC,o.rowid DESC LIMIT 1").bind(campaign_id.to_string()).bind(session_id.to_string()).fetch_optional(&mut *tx).await.map_err(|_|error("human_command_read_failed"))?;
+        let row=sqlx::query("SELECT o.request_id,o.request_json,o.status,o.restore_generation,o.actor_id,m.manifest_json,m.clarifications_json,m.final_narration_json FROM agent_turn_operations o LEFT JOIN solo_human_command_manifests m ON m.request_id=o.request_id WHERE o.campaign_id=?1 AND o.session_id=?2 ORDER BY o.updated_at DESC,o.created_at DESC,o.rowid DESC LIMIT 1").bind(campaign_id.to_string()).bind(session_id.to_string()).fetch_optional(&mut *tx).await.map_err(|_|error("human_command_read_failed"))?;
         let Some(row) = row else {
             return Ok(None);
         };
@@ -235,13 +254,32 @@ impl SqliteStore {
         if generation != row.get::<i64, _>("restore_generation") {
             return Ok(None);
         }
-        let Some(raw) = row.get::<Option<String>, _>("manifest_json") else {
+        let operation: AgentOperation = serde_json::from_str(&row.get::<String, _>("request_json"))
+            .map_err(|_| error("human_command_data_invalid"))?;
+        if row.get::<Option<String>, _>("actor_id") != current.character_id.map(|id| id.to_string())
+        {
             return Ok(None);
+        }
+        if operation.request_id.to_string() != row.get::<String, _>("request_id")
+            || operation.request.campaign_id != campaign_id
+            || operation.request.session_id != session_id
+        {
+            return Err(error("human_command_scope_invalid"));
+        }
+        let Some(raw) = row.get::<Option<String>, _>("manifest_json") else {
+            if !include_unplanned {
+                return Ok(None);
+            }
+            tx.commit()
+                .await
+                .map_err(|_| error("human_command_commit_failed"))?;
+            return Ok(Some(PendingHumanCommandClarification {
+                operation,
+                clarification: None,
+            }));
         };
         let manifest: HumanCommandManifest =
             serde_json::from_str(&raw).map_err(|_| error("human_command_data_invalid"))?;
-        let operation: AgentOperation = serde_json::from_str(&row.get::<String, _>("request_json"))
-            .map_err(|_| error("human_command_data_invalid"))?;
         let scope = CommandScope {
             request_id: operation.request_id,
             campaign_id,
@@ -355,6 +393,23 @@ async fn load_ledger(
     scope: &CommandScope,
     message: &str,
 ) -> Result<Option<StoredHumanCommandLedger>, RepositoryError> {
+    load_ledger_mode(tx, scope, message, true).await
+}
+
+pub(crate) async fn read_ledger(
+    tx: &mut Transaction<'_, Sqlite>,
+    scope: &CommandScope,
+    message: &str,
+) -> Result<Option<StoredHumanCommandLedger>, RepositoryError> {
+    load_ledger_mode(tx, scope, message, false).await
+}
+
+async fn load_ledger_mode(
+    tx: &mut Transaction<'_, Sqlite>,
+    scope: &CommandScope,
+    message: &str,
+    repair_delivery: bool,
+) -> Result<Option<StoredHumanCommandLedger>, RepositoryError> {
     let raw: Option<String> = sqlx::query_scalar(
         "SELECT manifest_json FROM solo_human_command_manifests WHERE request_id=?1",
     )
@@ -432,7 +487,9 @@ async fn load_ledger(
                     check_success: result.result["success"].as_bool(),
                 }
             };
-            crate::agent_replay::repair_checkpoint(tx, &request, &result).await?;
+            if repair_delivery {
+                crate::agent_replay::repair_checkpoint(tx, &request, &result).await?;
+            }
             receipts.push(ConfirmedCommandAttempt {
                 binding: binding.clone(),
                 outcome,

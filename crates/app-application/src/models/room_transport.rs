@@ -25,6 +25,7 @@ pub enum NativeRoomOperation {
         resume: bool,
     },
     PendingAction {},
+    AgentRecovery {},
     Updates {
         after: u64,
     },

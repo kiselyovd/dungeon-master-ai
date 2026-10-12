@@ -190,7 +190,7 @@ impl RoomHumanCommandLedger {
             Ok((None, None, state.campaign.revision.0))
         }
     }
-    async fn load(
+    pub(crate) async fn load(
         &self,
         tx: &mut Transaction<'_, Sqlite>,
         scope: &CommandScope,

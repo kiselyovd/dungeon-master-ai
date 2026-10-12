@@ -25,7 +25,41 @@ async function installRoomStub(
       const install = (value: Internals) => {
         const original = value.invoke.bind(value);
         const streams = new Map<string, () => void>();
+        const outboxKey = `dmai-e2e-room-outbox:${snapshot.state.room.room_id}`;
         value.invoke = async (command, args = {}) => {
+          const operation = args.operation as Record<string, unknown> | undefined;
+          if (command === 'stream_room' && operation?.kind === 'dm_turn') {
+            window.localStorage.setItem(outboxKey, JSON.stringify(operation));
+            const channel = args.onChunk as { onmessage: (packet: { bytes: number[] }) => void };
+            const onMessage = channel.onmessage.bind(channel);
+            const decoder = new TextDecoder();
+            let received = '';
+            channel.onmessage = (packet) => {
+              received += decoder.decode(Uint8Array.from(packet.bytes), { stream: true });
+              let boundary = received.indexOf('\n\n');
+              while (boundary !== -1) {
+                const frame = received.slice(0, boundary);
+                received = received.slice(boundary + 2);
+                const event = frame.match(/^event: (.+)$/m)?.[1];
+                const data = frame.match(/^data: (.+)$/m)?.[1];
+                if (data && (event === 'agent_done' || event === 'agent_needs_input')) {
+                  const payload = JSON.parse(data) as Record<string, unknown>;
+                  if (event === 'agent_done') window.localStorage.removeItem(outboxKey);
+                  else {
+                    window.localStorage.setItem(
+                      outboxKey,
+                      JSON.stringify({
+                        ...operation,
+                        awaiting_clarification: payload.clarification_id,
+                      }),
+                    );
+                  }
+                }
+                boundary = received.indexOf('\n\n');
+              }
+              onMessage(packet);
+            };
+          }
           if (command === 'recover_host_room')
             return {
               room: snapshot.state.room,
@@ -112,7 +146,9 @@ async function installRoomStub(
             return {
               status: 200,
               body:
-                (args.operation as { kind: string }).kind === 'pending_action' ? null : snapshot,
+                operation?.kind === 'pending_action'
+                  ? JSON.parse(window.localStorage.getItem(outboxKey) ?? 'null')
+                  : snapshot,
             };
           if (command === 'stream_room')
             return await new Promise<void>((resolve) =>

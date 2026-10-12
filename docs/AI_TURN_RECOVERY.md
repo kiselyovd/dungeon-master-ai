@@ -1,5 +1,7 @@
 # AI turn delivery and recovery
 
+[Back to README](../README.md)
+
 The renderer gives every new turn a UUID `request_id`. A failed transport retry
 retains the original request body, history, board and ID. It replaces its
 incomplete local narration, rather than appending a second user message.
@@ -49,6 +51,51 @@ authority merely because an old operation record looks stale. Only after the OS
 lock is acquired does startup mark abandoned running operations interrupted.
 The lock-file's presence and a changed owner UUID alone are not liveness proof.
 
+## Read-only player progress
+
+`GET /agent/recovery?campaign_id=<uuid>&session_id=<uuid>` reads the latest
+unfinished solo operation for the current accepted character and restored
+timeline. An active cooperative campaign is excluded from this solo endpoint.
+`GET /rooms/{room_id}/dm/recovery` authenticates membership and reads only that
+member's current operation. The renderer uses the registered native room
+operation `agent_recovery`; credentials and destination remain native-owned.
+
+The version-1 projection carries scope/request identity, the pinned model,
+confirmed attempt outcomes, command progress and a permitted continuation:
+
+| Phase | Meaning | Next action |
+|---|---|---|
+| `running` | The current process still owns delivery | Wait |
+| `progress_unknown` | No validated human-command ledger is available | Resume the original request; do not infer zero effects |
+| `actions_pending` | Some canonical command attempts remain unfinished | Resume |
+| `needs_input` | A stored clarification awaits its owner's reply | Clarify using its original identity |
+| `narration_pending` | Command attempts closed; final narration is not recorded | Resume narration |
+| `delivery_pending` | Verified final narration is recorded but delivery is incomplete | Replay delivery |
+
+The projection copies no original request text, history, source spans, private
+questions/targets, tool JSON, model reasoning, final narration, biography or
+credentials. A refusal is distinct from a performed effect. Unknown progress
+has no invented completion counters. The projection grants no mutation authority;
+actual continuation still validates the original request and current engine scope.
+
+Canonical receipt inspection is read-only, including the effect-before-transcript
+case. It does not repair tool delivery or append messages; repair remains part of
+the authorized resume path. Restored timelines and mismatched actor metadata
+cannot supply old progress. An unavailable/missing endpoint is an error, not
+evidence that no pending request exists.
+
+Migration `0022_agent_actor_scope.sql` captures the original character when a
+new operation is claimed, before model planning. Existing protected manifests
+provide the only legacy backfill. A replacement hero cannot resume the old
+operation. The additive owner-only `/agent/recovery-input` endpoint supplies
+the original request for a validated manifest-free interruption; it is used for
+continuation, never rendered as public progress. `/agent/pending` preserves its
+previous verified-manifest contract.
+
+Focused application, SQLite, real room HTTP and renderer-contract tests verify
+these boundaries. This establishes read/projection behavior; proactive production
+UI, actual Tauri lifecycle and real-model session acceptance remain separate.
+
 ## Current limits
 
 `running` and `interrupted` are explicit states. Incomplete operations require
@@ -82,3 +129,9 @@ recoverable solo/co-op session or live-model acceptance.
   and fixtures relying on empty provider EOF; both were corrected.
 - Validation describes the complete attached worktree, including preserved
   inherited changes. Scoped checkpoints exclude unrelated baseline edits.
+
+## See Also
+
+- [Campaign continuation](CAMPAIGN_STATE.md)
+- [Durable human commands](HUMAN_COMMAND_LEDGER.md)
+- [Native cooperative acceptance](COOP_ACCEPTANCE.md)

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import * as v from 'valibot';
+import { parseAgentRecovery } from './contracts/agentRecovery';
 import { RecoveryReceiptSchema } from './contracts/recovery';
 import { ProposalSummarySchema, PublicRoomSchema, RoomUpdateSchema } from './contracts/room';
 import {
@@ -156,6 +157,22 @@ export async function loadPendingRoomAction(roomId: string) {
   const parsed = v.safeParse(PendingRoomActionSchema, body);
   if (!parsed.success) return invalid();
   return parsed.output;
+}
+export async function loadRoomAgentRecovery(roomId: string, memberId: string) {
+  const body = await execute(roomId, { kind: 'agent_recovery' });
+  try {
+    const result = parseAgentRecovery(body);
+    if (
+      result &&
+      (result.scope.authority.kind !== 'room' ||
+        result.scope.authority.room_id !== roomId ||
+        result.scope.authority.member_id !== memberId)
+    )
+      return invalid();
+    return result;
+  } catch {
+    return invalid();
+  }
 }
 const worldReceipt = v.strictObject({
   receipt_revision: integer,

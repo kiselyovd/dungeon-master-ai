@@ -47,6 +47,92 @@ struct Fixture {
     campaign: CampaignId,
     session: SessionId,
 }
+#[tokio::test]
+async fn room_recovery_read_is_owner_scoped_and_does_not_invoke_the_model() {
+    let f = fixture().await;
+    let provider = Arc::new(Provider {
+        hold: true,
+        ..Default::default()
+    });
+    let host_state =
+        app_server::AppState::new(provider.clone(), "fixture".into(), f.store.pool().clone());
+    let dm = app_server::http_services::room_dm_http_service(host_state, f.rooms.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = adapter_http::rooms::router_with_dm(f.rooms.clone(), dm);
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let client = reqwest::Client::new();
+    let url = format!("http://{address}/rooms/{}", f.guest.room.room_id);
+    let request_id = Uuid::new_v4();
+    let response = client
+        .post(format!("{url}/dm/turn"))
+        .bearer_auth(f.guest.capability.expose())
+        .header("x-room-member-id", f.guest.member_id.to_string())
+        .json(&json!({"request_id":request_id,"player_message":"PRIVATE_INPUT","resume":false}))
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        provider.started.notified(),
+    )
+    .await
+    .unwrap();
+    let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages")
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    let recovered: serde_json::Value = client
+        .get(format!("{url}/dm/recovery"))
+        .bearer_auth(f.guest.capability.expose())
+        .header("x-room-member-id", f.guest.member_id.to_string())
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(recovered["scope"]["request_id"], json!(request_id));
+    assert_eq!(
+        recovered["scope"]["authority"]["member_id"],
+        json!(f.guest.member_id)
+    );
+    assert_eq!(recovered["allowed_action"], "wait");
+    assert!(!recovered.to_string().contains("PRIVATE_INPUT"));
+    let host: serde_json::Value = client
+        .get(format!("{url}/dm/recovery"))
+        .bearer_auth(f.host.capability.expose())
+        .header("x-room-member-id", f.host.member_id.to_string())
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(host.is_null());
+    let foreign = client
+        .get(format!("{url}/dm/recovery"))
+        .bearer_auth(f.guest.capability.expose())
+        .header("x-room-member-id", f.host.member_id.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(foreign.status(), reqwest::StatusCode::UNAUTHORIZED);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages")
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert_eq!(after, before);
+    drop(response);
+    server.abort();
+}
 impl Fixture {
     async fn ports(&self, member: &RoomGrant, turn: Uuid) -> Arc<RoomAgentPorts> {
         Arc::new(RoomAgentPorts::new(

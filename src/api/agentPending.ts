@@ -49,14 +49,31 @@ export async function getPendingAgentClarification(
   sessionId: string,
   signal?: AbortSignal,
 ): Promise<{ input: AgentTurnRequest; clarificationId?: string } | null> {
+  return readPendingInput(campaignId, sessionId, signal, '/agent/pending');
+}
+
+export async function getPendingAgentRecoveryInput(
+  campaignId: string,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<{ input: AgentTurnRequest; clarificationId?: string } | null> {
+  return readPendingInput(campaignId, sessionId, signal, '/agent/recovery-input');
+}
+
+async function readPendingInput(
+  campaignId: string,
+  sessionId: string,
+  signal: AbortSignal | undefined,
+  path: string,
+): Promise<{ input: AgentTurnRequest; clarificationId?: string } | null> {
   const url = await backendUrl(
-    `/agent/pending?campaign_id=${encodeURIComponent(campaignId)}&session_id=${encodeURIComponent(sessionId)}`,
+    `${path}?campaign_id=${encodeURIComponent(campaignId)}&session_id=${encodeURIComponent(sessionId)}`,
   );
   const response = await fetch(url, {
     headers: { accept: 'application/json' },
     ...(signal ? { signal } : {}),
   });
-  if (response.status === 404) {
+  if (response.status === 404 && path === '/agent/pending') {
     await discardResponseBody(response);
     return null;
   }

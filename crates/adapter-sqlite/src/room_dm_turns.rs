@@ -105,6 +105,7 @@ pub(crate) async fn claim(
         .map_err(|_| error("room_dm_begin_failed"))?;
     guard(&mut tx, lease).await?;
     let reset = timeline(&mut tx, lease, turn).await?;
+    let (_, _, actor, _) = crate::room_world::context(&mut tx, lease).await?;
     let result = if let Some(row) = row(&mut tx, lease, turn).await? {
         valid_row(&row, lease, reset)?;
         if row.get::<String, _>("request_json") != raw {
@@ -115,6 +116,11 @@ pub(crate) async fn claim(
             "running" => OperationClaim::Running,
             "interrupted" if !resume => OperationClaim::Interrupted,
             "interrupted" => {
+                if row.get::<Option<String>, _>("actor_id").as_deref()
+                    != Some(actor.to_string().as_str())
+                {
+                    return Err(error("agent_turn_superseded"));
+                }
                 let messages = checkpoint(&mut tx, lease, turn)
                     .await?
                     .into_iter()
@@ -147,7 +153,7 @@ pub(crate) async fn claim(
         if busy {
             return Err(error("agent_turn_running"));
         }
-        sqlx::query("INSERT INTO room_dm_turns(room_id,member_id,turn_id,campaign_id,room_epoch,reset_cursor,process_owner,status,request_json) VALUES(?1,?2,?3,?4,?5,?6,?7,'running',?8)").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).bind(lease.campaign_id().0.to_string()).bind(lease.epoch() as i64).bind(reset).bind(owner.to_string()).bind(raw).execute(&mut *tx).await.map_err(|_|error("room_dm_write_failed"))?;
+        sqlx::query("INSERT INTO room_dm_turns(room_id,member_id,turn_id,campaign_id,room_epoch,reset_cursor,process_owner,status,request_json,actor_id) VALUES(?1,?2,?3,?4,?5,?6,?7,'running',?8,?9)").bind(lease.room_id().to_string()).bind(lease.member_id().to_string()).bind(turn.to_string()).bind(lease.campaign_id().0.to_string()).bind(lease.epoch() as i64).bind(reset).bind(owner.to_string()).bind(raw).bind(actor.to_string()).execute(&mut *tx).await.map_err(|_|error("room_dm_write_failed"))?;
         OperationClaim::Started
     };
     tx.commit()

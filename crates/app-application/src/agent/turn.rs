@@ -546,8 +546,9 @@ impl AgentTurnService {
                     })
                 } else {
                     Some(ChatMessage::AssistantWithToolCalls {
-                        content: (!(controlled_turn || self.config.narration_verifier.is_some())
-                            && !round_text.trim().is_empty())
+                        content: (!(controlled_turn
+                            || self.config.narration_verifier.is_some()
+                            || round_text.trim().is_empty()))
                         .then_some(round_text.clone()),
                         tool_calls: tool_calls.clone(),
                     })

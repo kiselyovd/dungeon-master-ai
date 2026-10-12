@@ -1143,6 +1143,34 @@ impl AppStateAgentHttpService {
 
 #[async_trait]
 impl AgentHttpService for AppStateAgentHttpService {
+    async fn recovery_input(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        SqliteStore::new(self.state.db().clone())
+            .solo_recovery_input(campaign_id, session_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
+    async fn recovery(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        SqliteStore::new(self.state.db().clone())
+            .solo_agent_recovery(campaign_id, session_id, self.state.process_id())
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
     async fn pending_clarification(
         &self,
         campaign_id: Uuid,
@@ -1721,6 +1749,18 @@ struct AppStateRoomDmHttpService {
 }
 #[async_trait]
 impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
+    async fn recovery(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        SqliteStore::new(self.state.db().clone())
+            .room_agent_recovery(subject.lease(), self.state.process_id())
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
     async fn turn(
         &self,
         subject: app_application::rooms::RoomSubject,

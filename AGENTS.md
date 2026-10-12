@@ -61,6 +61,8 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | `crates/app-bootstrap/src/wiring.rs` | Constructs concrete adapters and HTTP services. |
 | `crates/app-bootstrap/src/room_listener.rs` | Native-controlled, room-scoped public TCP transport lifecycle inside the backend process. |
 | `crates/app-application/src/lib.rs` | Public use-case, model, and port surface. |
+| `crates/app-application/src/agent/recovery.rs` | Safe player progress derived from validated command receipts; excludes private ledger content. |
+| `crates/adapter-sqlite/src/agent_recovery.rs` | Read-only solo/member recovery with current actor and timeline guards. |
 | `crates/app-domain/src/lib.rs` | Public surface of the deterministic game-domain crate. |
 | `crates/app-domain/src/rest.rs` | Deterministic rest, Hit Point Dice and game-time rules. |
 | `crates/app-application/src/rest.rs` | Scoped rest use case and accepted-character resource mapping. |

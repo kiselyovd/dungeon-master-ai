@@ -238,6 +238,28 @@ pub struct AgentTurnHttpCommand {
 
 #[async_trait]
 pub trait AgentHttpService: Send + Sync {
+    async fn recovery_input(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
+    async fn recovery(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
     async fn pending_clarification(
         &self,
         _campaign_id: Uuid,
@@ -334,6 +356,15 @@ pub struct HttpServices {
 
 #[async_trait]
 pub trait RoomDmHttpService: Send + Sync {
+    async fn recovery(
+        &self,
+        _subject: app_application::rooms::RoomSubject,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
     async fn turn_with_clarification(
         &self,
         subject: app_application::rooms::RoomSubject,

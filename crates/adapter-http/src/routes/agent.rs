@@ -17,6 +17,42 @@ pub struct AgentPendingQuery {
     campaign_id: Uuid,
     session_id: Uuid,
 }
+pub async fn get_recovery(
+    Extension(services): Extension<HttpServices>,
+    Query(input): Query<AgentPendingQuery>,
+) -> Result<Json<Option<app_application::agent::recovery::AgentRecoveryProjection>>, HttpServiceError>
+{
+    if input.campaign_id.is_nil() || input.session_id.is_nil() {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    Ok(Json(
+        services
+            .agent
+            .recovery(input.campaign_id, input.session_id)
+            .await?,
+    ))
+}
+pub async fn get_recovery_input(
+    Extension(services): Extension<HttpServices>,
+    Query(input): Query<AgentPendingQuery>,
+) -> Result<
+    Json<Option<app_application::agent::human_commands::PendingHumanCommandClarification>>,
+    HttpServiceError,
+> {
+    if input.campaign_id.is_nil() || input.session_id.is_nil() {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    Ok(Json(
+        services
+            .agent
+            .recovery_input(input.campaign_id, input.session_id)
+            .await?,
+    ))
+}
 pub async fn get_pending_clarification(
     Extension(services): Extension<HttpServices>,
     Query(input): Query<AgentPendingQuery>,

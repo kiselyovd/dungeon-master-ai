@@ -5,6 +5,7 @@ import {
   joinRoom,
   loadPendingRoomAction,
   loadRoom,
+  loadRoomAgentRecovery,
   recoverGuestRoom,
   recoverHostRoom,
   sendRoomAction,
@@ -13,6 +14,37 @@ import {
 const mocked = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocked.invoke }));
 beforeEach(() => mocked.invoke.mockReset());
+it('reads recovery through native without accepting another member projection', async () => {
+  const roomId = wire.state.room.room_id;
+  const memberId = '11111111-1111-4111-8111-111111111111';
+  const recovery = {
+    schema_version: 1,
+    scope: {
+      request_id: '22222222-2222-4222-8222-222222222222',
+      campaign_id: wire.state.room.campaign_id,
+      session_id: wire.state.room.session_id,
+      actor_id: '33333333-3333-4333-8333-333333333333',
+      authority: { kind: 'room', room_id: roomId, member_id: memberId, epoch: 1, reset_cursor: 0 },
+    },
+    model: null,
+    phase: 'progress_unknown',
+    allowed_action: 'resume',
+    progress_known: false,
+    commands: [],
+    confirmed_effects: [],
+    clarification: null,
+  };
+  mocked.invoke.mockResolvedValueOnce({ status: 200, body: recovery });
+  expect(await loadRoomAgentRecovery(roomId, memberId)).toEqual(recovery);
+  expect(mocked.invoke).toHaveBeenCalledWith('room_operation', {
+    roomId,
+    operation: { kind: 'agent_recovery' },
+  });
+  mocked.invoke.mockResolvedValueOnce({ status: 200, body: recovery });
+  await expect(
+    loadRoomAgentRecovery(roomId, '44444444-4444-4444-8444-444444444444'),
+  ).rejects.toMatchObject({ code: 'native_room_response_invalid' });
+});
 it('decodes the current room using the real serialized wire snapshot', async () => {
   mocked.invoke.mockImplementation(async (command) =>
     command === 'room_operation' ? { status: 200, body: wire } : undefined,

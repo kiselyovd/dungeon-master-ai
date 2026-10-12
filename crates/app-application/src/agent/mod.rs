@@ -6,6 +6,7 @@ pub mod human_commands;
 pub mod intentions;
 pub mod narration;
 pub mod operations;
+pub mod recovery;
 pub mod tool_decoder;
 pub mod tool_dispatch;
 pub mod tools;

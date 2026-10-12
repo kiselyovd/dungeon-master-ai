@@ -604,6 +604,7 @@ pub fn router_with_dm(
     router(service.clone()).merge(
         Router::new()
             .route("/rooms/{room_id}/dm/turn", post(dm_turn))
+            .route("/rooms/{room_id}/dm/recovery", get(dm_recovery))
             .layer(axum::Extension(dm))
             .layer(DefaultBodyLimit::max(32 * 1024))
             .layer(middleware::from_fn(no_store))
@@ -619,6 +620,16 @@ struct DmTurnRequest {
     player_message: String,
     #[serde(default)]
     resume: bool,
+}
+async fn dm_recovery(
+    State(service): State<Arc<RoomService>>,
+    axum::Extension(dm): axum::Extension<Arc<dyn crate::services::RoomDmHttpService>>,
+    Path(room): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<Option<app_application::agent::recovery::AgentRecoveryProjection>>, HttpServiceError>
+{
+    let verified = subject(&service, room, &headers).await?;
+    Ok(Json(dm.recovery(verified).await?))
 }
 async fn dm_turn(
     State(service): State<Arc<RoomService>>,

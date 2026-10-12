@@ -29,7 +29,7 @@ impl AgentOperationRepository for SqliteStore {
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_agent_resume"))?;
-        let row=sqlx::query("SELECT request_json,status,restore_generation,checkpoint_version FROM agent_turn_operations WHERE request_id=?1")
+        let row=sqlx::query("SELECT request_json,status,restore_generation,checkpoint_version,actor_id FROM agent_turn_operations WHERE request_id=?1")
             .bind(input.request_id.to_string()).fetch_optional(&mut *tx).await.map_err(|_|repository_error("read_agent_resume"))?;
         let Some(row) = row else {
             drop(tx);
@@ -57,6 +57,15 @@ impl AgentOperationRepository for SqliteStore {
                 .await
                 .map_err(|_| repository_error("read_agent_timeline"))?;
         if generation.unwrap_or(0) != row.get::<i64, _>("restore_generation") {
+            return Err(rejected("agent_turn_superseded"));
+        }
+        let actor: Option<String> =
+            sqlx::query_scalar("SELECT character_id FROM campaign_characters WHERE campaign_id=?1")
+                .bind(input.request.campaign_id.to_string())
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|_| repository_error("read_agent_actor"))?;
+        if actor != row.get::<Option<String>, _>("actor_id") {
             return Err(rejected("agent_turn_superseded"));
         }
         let messages: Vec<String> = sqlx::query_scalar(
@@ -329,7 +338,7 @@ impl AgentOperationRepository for SqliteStore {
             }
         } else {
             let now = chrono::Utc::now().to_rfc3339();
-            sqlx::query("INSERT INTO agent_turn_operations(request_id,campaign_id,session_id,request_json,owner_id,status,created_at,updated_at,checkpoint_version,restore_generation) VALUES(?1,?2,?3,?4,?5,'running',?6,?6,1,COALESCE((SELECT restore_generation FROM sessions WHERE id=?3),0))")
+            sqlx::query("INSERT INTO agent_turn_operations(request_id,campaign_id,session_id,request_json,owner_id,status,created_at,updated_at,checkpoint_version,restore_generation,actor_id) VALUES(?1,?2,?3,?4,?5,'running',?6,?6,1,COALESCE((SELECT restore_generation FROM sessions WHERE id=?3),0),(SELECT character_id FROM campaign_characters WHERE campaign_id=?2))")
                 .bind(input.request_id.to_string()).bind(input.request.campaign_id.to_string()).bind(input.request.session_id.to_string()).bind(encoded).bind(owner.to_string()).bind(now)
                 .execute(&mut *tx).await.map_err(|_|repository_error("insert_agent_operation"))?;
             OperationClaim::Started

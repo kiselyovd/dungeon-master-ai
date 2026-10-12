@@ -34,6 +34,217 @@ struct Fixture {
     manifest: HumanCommandManifest,
 }
 #[tokio::test]
+async fn recovery_reads_canonical_effect_without_repairing_transcript() {
+    use app_application::agent::recovery::{RecoveryCommandState, RecoveryPhase};
+    let f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    let journal = f.journal();
+    journal
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    let binding = journal
+        .prepare_after_permission(f.proposal(1, "travel"))
+        .await
+        .unwrap();
+    f.effect(&binding).await;
+    let view = f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(view.phase, RecoveryPhase::Running);
+    assert_eq!(view.commands[0].state, RecoveryCommandState::Finished);
+    assert_eq!(view.confirmed_effects.len(), 1);
+    let result: Option<String> =
+        sqlx::query_scalar("SELECT result_json FROM agent_tool_steps WHERE tool_call_id='travel'")
+            .fetch_one(f.store.pool())
+            .await
+            .unwrap();
+    assert!(
+        result.is_none(),
+        "a read must not repair/append delivery metadata"
+    );
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let view = f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(view.phase, RecoveryPhase::ActionsPending);
+    assert_eq!(view.confirmed_effects.len(), 1);
+    sqlx::query("UPDATE sessions SET restore_generation=restore_generation+1 WHERE id=?1")
+        .bind(f.operation.request.session_id.to_string())
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    assert!(f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner
+        )
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn recovery_rejects_changed_actor_and_redacts_a_private_waiting_question() {
+    use app_application::agent::recovery::RecoveryPhase;
+    let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {
+        description: "PRIVATE_TARGET".into(),
+    };
+    let journal = f.journal();
+    journal
+        .save_verified_manifest(f.manifest.clone())
+        .await
+        .unwrap();
+    journal
+        .record_clarification(1, "PRIVATE_QUESTION".into())
+        .await
+        .unwrap();
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let value = f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(value.phase, RecoveryPhase::NeedsInput);
+    assert!(value.clarification.is_some());
+    let encoded = serde_json::to_string(&value).unwrap();
+    assert!(!encoded.contains("PRIVATE_QUESTION"));
+    assert!(!encoded.contains("PRIVATE_TARGET"));
+    sqlx::query("UPDATE solo_human_command_manifests SET manifest_json=json_set(manifest_json,'$.scope.actor_id',?2) WHERE request_id=?1")
+        .bind(f.operation.request_id.to_string()).bind(Uuid::new_v4().to_string()).execute(f.store.pool()).await.unwrap();
+    assert!(f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner
+        )
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn recovery_preserves_unknown_legacy_state_and_excludes_completed_latest_turn() {
+    use app_application::agent::recovery::RecoveryPhase;
+    let f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let view = f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            Uuid::new_v4(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(view.phase, RecoveryPhase::ProgressUnknown);
+    assert!(!view.progress_known);
+    let mut newer = f.operation.clone();
+    newer.request_id = Uuid::new_v4();
+    f.store.claim(newer.clone(), f.owner).await.unwrap();
+    f.store
+        .append_event(
+            newer.request_id,
+            f.owner,
+            0,
+            app_application::models::agent::AgentEvent::AgentDone { total_rounds: 0 },
+        )
+        .await
+        .unwrap();
+    f.store
+        .finish(newer.request_id, f.owner, true)
+        .await
+        .unwrap();
+    assert!(f
+        .store
+        .solo_agent_recovery(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+            f.owner
+        )
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn manifest_free_recovery_is_bound_to_the_original_actor() {
+    let f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
+    f.store
+        .finish(f.operation.request_id, f.owner, false)
+        .await
+        .unwrap();
+    let pending = f
+        .store
+        .solo_recovery_input(
+            f.operation.request.campaign_id,
+            f.operation.request.session_id,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.operation.request_id, f.operation.request_id);
+    assert!(pending.clarification.is_none());
+    assert!(
+        f.store
+            .pending_solo_clarification(
+                f.operation.request.campaign_id,
+                f.operation.request.session_id
+            )
+            .await
+            .unwrap()
+            .is_none(),
+        "legacy endpoint retains its verified-manifest contract"
+    );
+    sqlx::query("UPDATE campaign_characters SET character_id=?2 WHERE campaign_id=?1")
+        .bind(f.operation.request.campaign_id.to_string())
+        .bind(Uuid::new_v4().to_string())
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    let result = f.store.resume(f.operation.clone(), Uuid::new_v4()).await;
+    assert!(matches!(
+        result,
+        Err(
+            app_application::ports::repositories::RepositoryError::Operation {
+                code: "agent_turn_superseded",
+                ..
+            }
+        )
+    ));
+}
+#[tokio::test]
 async fn pending_question_read_preserves_original_request_and_excludes_old_timeline() {
     let mut f = fixture(SqlitePool::connect("sqlite::memory:").await.unwrap()).await;
     f.manifest.commands[0].goal = HumanCommandGoal::NeedsResolution {

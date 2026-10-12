@@ -26,6 +26,11 @@ pub fn router(services: HttpServices) -> Router {
     let router = Router::new()
         .route("/health", get(routes::health::health))
         .route("/agent/turn", post(routes::agent::post_agent_turn))
+        .route("/agent/recovery", get(routes::agent::get_recovery))
+        .route(
+            "/agent/recovery-input",
+            get(routes::agent::get_recovery_input),
+        )
         .route(
             "/agent/pending",
             get(routes::agent::get_pending_clarification),

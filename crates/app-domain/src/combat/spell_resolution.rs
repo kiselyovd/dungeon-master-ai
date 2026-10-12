@@ -36,10 +36,10 @@ impl CombatResolver {
         } else if slot_level < rule.level
             || slot_level > 9
             || actor.budget.spell_slot_used
-            || !casting
+            || casting
                 .slots
                 .get(&slot_level)
-                .is_some_and(|slots| slots.remaining > 0)
+                .is_none_or(|slots| slots.remaining == 0)
         {
             return Err(ValidationError::SpellSlotUnavailable);
         }

@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { expect, it, vi } from 'vitest';
 import wire from '../../../api/__fixtures__/roomUpdate.json';
 import { RoomUpdateSchema } from '../../../api/contracts/room';
+import type { PendingRoomAction } from '../../../api/contracts/roomOperations';
 import type { RoomConnection } from '../../../api/rooms';
 import { RoomController, type RoomPorts } from './RoomController';
 
@@ -27,6 +28,78 @@ function ports(): RoomPorts {
     stream: vi.fn(() => new Promise<void>(() => {})),
   };
 }
+it.each([
+  false,
+  true,
+])('recovers a failed DM delivery after committed=%s without a new request', async (committed) => {
+  const transport = ports();
+  const canonical = fixture();
+  let durable: Extract<PendingRoomAction, { kind: 'dm_turn' }> | null = null;
+  let failedRequest: Extract<PendingRoomAction, { kind: 'dm_turn' }> | null = null;
+  let attempts = 0;
+  transport.load = vi.fn(async () => structuredClone(canonical));
+  transport.pending = vi.fn(async () => durable);
+  transport.stream = vi.fn(async (options) => {
+    if (options.operation.kind === 'subscribe') return new Promise<void>(() => {});
+    attempts++;
+    if (attempts === 1) {
+      durable = structuredClone(options.operation);
+      failedRequest = structuredClone(durable);
+      if (committed) {
+        canonical.state.revision++;
+        canonical.head++;
+        canonical.cursor = canonical.head;
+      }
+      throw { code: 'native_room_dm_failed' };
+    }
+    expect(options.operation).toEqual({ ...failedRequest, resume: true });
+    durable = null;
+    options.onEvent({ kind: 'agent', event: { type: 'agent_done', totalRounds: 1 } });
+  });
+  const controller = new RoomController(transport);
+  await controller.activate(connection());
+  await controller.sendDm('Осматриваю оберег.');
+  const afterFailure = controller.getSnapshot();
+  expect(afterFailure.pending).toEqual(failedRequest);
+  expect(afterFailure.errorCode).toBe('native_room_dm_failed');
+  expect(afterFailure.busy).toBe(false);
+  await controller.retryPending();
+  expect(controller.getSnapshot().pending).toBeNull();
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(controller.getSnapshot().state?.revision).toBe(afterFailure.state?.revision);
+  expect(attempts).toBe(2);
+  controller.leave();
+});
+
+it('does not invent recoverable pending after a definitive native rejection', async () => {
+  const transport = ports();
+  transport.stream = vi.fn(async (options) => {
+    if (options.operation.kind === 'subscribe') return new Promise<void>(() => {});
+    throw { code: 'native_room_access_denied' };
+  });
+  const controller = new RoomController(transport);
+  await controller.activate(connection());
+  await controller.sendDm('Осматриваю оберег.');
+  expect(controller.getSnapshot().pending).toBeNull();
+  expect(controller.getSnapshot().errorCode).toBe('native_room_access_denied');
+  await controller.retryPending();
+  expect(transport.stream).toHaveBeenCalledTimes(2);
+  controller.leave();
+});
+
+it('blocks a fresh DM request while canonical pending cannot be read', async () => {
+  const transport = ports();
+  transport.pending = vi.fn(async () => {
+    throw { code: 'native_room_store_failed' };
+  });
+  const controller = new RoomController(transport);
+  await controller.activate(connection());
+  await controller.sendDm('Новый ход');
+  expect(controller.getSnapshot().status).toBe('disconnected');
+  expect(controller.getSnapshot().errorCode).toBe('native_room_store_failed');
+  expect(transport.stream).not.toHaveBeenCalled();
+  controller.leave();
+});
 it('answers a private waiting question while retaining the original shared DM turn', async () => {
   const transport = ports();
   const waiting = {

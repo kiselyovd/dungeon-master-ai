@@ -117,6 +117,15 @@ python -m pytest sidecar/tests -q
 
 Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --fast` (seconds), **pre-push** runs the full `gates.sh`. Bypass once with `--no-verify`.
 
+## Documentation
+
+| Topic | Guide |
+|---|---|
+| Campaign continuation and saves | [Campaign state](docs/CAMPAIGN_STATE.md) |
+| Durable requests and safe recovery reads | [AI turn recovery](docs/AI_TURN_RECOVERY.md) |
+| Human intentions and confirmed effects | [Human command ledger](docs/HUMAN_COMMAND_LEDGER.md) |
+| Native co-op evidence and limits | [Co-op acceptance](docs/COOP_ACCEPTANCE.md) |
+
 ## Build
 
 ```bash

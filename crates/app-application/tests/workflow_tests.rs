@@ -2895,7 +2895,7 @@ async fn raw_npc_effects_require_source_authorization_without_consuming_a_hero_a
                 dispatcher.calls.load(Ordering::SeqCst),
                 usize::from(allowed)
             );
-            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error,..}) if *is_error==!allowed)));
+            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error,..}) if *is_error != allowed)));
         }
     }
 }

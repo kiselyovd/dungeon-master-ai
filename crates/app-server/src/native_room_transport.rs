@@ -63,6 +63,7 @@ fn wire(operation: &NativeRoomOperation) -> Result<WireOperation, HttpServiceErr
             )
         }
         State {} => ("state".into(), None),
+        AgentRecovery {} => ("dm/recovery".into(), None),
         Updates { after } => (format!("updates?after={after}"), None),
         Party {} => ("party".into(), None),
         OwnProposal {} => ("character-proposals/own".into(), None),
