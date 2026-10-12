@@ -14,11 +14,18 @@ interface Props {
   onRequestCharacterRecreate?: () => void;
   /** Optional tab to focus on open. Forwarded to SettingsForm.initialTab. */
   initialTab?: SettingsTab;
+  agentTurnInFlight?: boolean;
 }
 
 const FORM_ID = 'settings-form';
 
-export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initialTab }: Props) {
+export function SettingsModal({
+  open,
+  onClose,
+  onRequestCharacterRecreate,
+  initialTab,
+  agentTurnInFlight = false,
+}: Props) {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
 
@@ -34,6 +41,7 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
   }, [open, isClosing]);
 
   const onSubmit = async (submission: SettingsSubmission) => {
+    if (agentTurnInFlight) return;
     setSubmitError(null);
     try {
       if (!(await save(submission))) return;
@@ -67,7 +75,12 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
           <Button onClick={triggerClose} disabled={busy}>
             {tCommon('cancel')}
           </Button>
-          <Button variant="primary" type="submit" form={FORM_ID} disabled={busy}>
+          <Button
+            variant="primary"
+            type="submit"
+            form={FORM_ID}
+            disabled={busy || agentTurnInFlight}
+          >
             {tCommon('save')}
           </Button>
         </>
@@ -89,6 +102,7 @@ export function SettingsModal({ open, onClose, onRequestCharacterRecreate, initi
         </div>
       )}
       <SettingsForm
+        agentTurnInFlight={agentTurnInFlight}
         formId={FORM_ID}
         onSubmit={onSubmit}
         {...(onRequestCharacterRecreate ? { onRequestCharacterRecreate } : {})}

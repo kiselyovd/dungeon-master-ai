@@ -33,10 +33,25 @@ beforeEach(async () => {
 });
 
 describe('CampaignHome', () => {
+  it('shows current place and actual timestamps rather than a revision posing as a chapter', () => {
+    const known = campaigns[0];
+    if (!known) throw new Error('campaign fixture missing');
+    render(
+      <CampaignHome
+        campaigns={[{ ...known, current_location: { kind: 'authored', location: 'archive' } }]}
+        loading={false}
+        onContinue={vi.fn()}
+        onNew={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Затопленный архив')).toBeVisible();
+    expect(screen.getByText(/^Сохранено:/)).toBeVisible();
+    expect(screen.queryByText(/Глава|srd-5\.2\.1/i)).not.toBeInTheDocument();
+  });
   it('turns an empty library into a clear invitation', () => {
     render(<CampaignHome campaigns={[]} loading={false} onContinue={vi.fn()} onNew={vi.fn()} />);
-    expect(screen.getByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
-    expect(screen.getByText('Здесь появятся истории, которые вы начнёте.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Кампаний пока нет' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Новая кампания' })).toBeVisible();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

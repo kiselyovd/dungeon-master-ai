@@ -29,6 +29,9 @@ fn fallback_error_class(error: &ImageError) -> Option<&'static str> {
 
 #[async_trait]
 impl ImageProvider for ResilientImageProvider {
+    fn needs_native_runtime(&self) -> bool {
+        self.primary.needs_native_runtime()
+    }
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         let primary = self
             .primary

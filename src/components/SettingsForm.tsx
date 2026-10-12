@@ -10,7 +10,6 @@ import { useDiscoverProvider } from '../hooks/useDiscoverProvider';
 import type { ModelId } from '../state/localMode';
 import {
   assertNeverProvider,
-  DEFAULT_LOCAL_CONTEXT_WINDOW,
   type LocalMistralRsConfig,
   OPENROUTER_BASE_URL,
   type OpenaiCompatConfig,
@@ -29,6 +28,7 @@ import { LicenseRestrictedBanner } from './LicenseRestrictedBanner';
 import { ModelSelector } from './ModelSelector';
 import styles from './SettingsForm.module.css';
 import { LocalLlmTab } from './settings/LocalLlmTab';
+import { CollapsibleCard } from './settings/local-llm/CollapsibleCard';
 
 const PROVIDER_KINDS: readonly ProviderKind[] = ['openai-compat', 'local-mistralrs'];
 
@@ -56,6 +56,7 @@ interface SettingsFormProps {
   onRequestCharacterRecreate?: () => void;
   /** Optional tab to select on mount; falls back to 'chat'. */
   initialTab?: Tab;
+  agentTurnInFlight?: boolean;
 }
 
 /**
@@ -79,14 +80,18 @@ export function SettingsForm({
   formId,
   onRequestCharacterRecreate,
   initialTab,
+  agentTurnInFlight = false,
 }: SettingsFormProps) {
   const { t } = useTranslation('settings');
   const slice = useStore((s) => s.settings);
+  const soloBusy = useStore((s) => s.chat.isStreaming);
+  const modelLocked = soloBusy || agentTurnInFlight;
   // Read the live ModelId from the localMode slice at submit time. We read
   // from getState() rather than subscribing because the selection only
   // matters at the moment Save fires, and a subscription here would force
   // every form rerender to also rebuild on unrelated download progress.
   const localModeSelection = useStore((s) => s.localMode.selectedLlm);
+  const localContextWindow = useStore((s) => s.localMode.contextWindow);
 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'chat');
   // Drafts and activeKind are seeded once from the slice on mount and live
@@ -114,8 +119,8 @@ export function SettingsForm({
   };
 
   const onSave = async () => {
-    if (submittingRef.current) return;
-    const result = buildConfig(activeKind, drafts, localModeSelection);
+    if (submittingRef.current || modelLocked) return;
+    const result = buildConfig(activeKind, drafts, localModeSelection, localContextWindow);
     if (!result.ok) {
       // If the validation error lives in the Chat tab, surface it by
       // switching back to that tab so the inline message is visible.
@@ -157,7 +162,8 @@ export function SettingsForm({
           void onSave();
         }}
       >
-        <fieldset disabled={submitting} className={styles.draftFields}>
+        {modelLocked && <p role="status">{t('model_turn_locked')}</p>}
+        <fieldset disabled={submitting || modelLocked} className={styles.draftFields}>
           <div className={styles.tabNav} role="tablist">
             <button
               type="button"
@@ -262,11 +268,13 @@ export function SettingsForm({
                     live inline here when the local provider is selected, so the
                     user configures the chosen provider in one place instead of
                     hunting for a separate tab. */}
-                    <LocalLlmTab />
+                    <LocalLlmTab agentTurnInFlight={modelLocked} />
                   </ErrorBoundary>
                 )}
 
-                <ReasoningSection activeKind={activeKind} drafts={drafts} />
+                <CollapsibleCard title={t('advanced')}>
+                  <ReasoningSection activeKind={activeKind} drafts={drafts} />
+                </CollapsibleCard>
 
                 {onRequestCharacterRecreate && (
                   <section className={styles.characterSection}>
@@ -291,7 +299,7 @@ export function SettingsForm({
               aria-labelledby="settings-tab-local-llm"
             >
               <ErrorBoundary level="section">
-                <LocalLlmTab />
+                <LocalLlmTab agentTurnInFlight={modelLocked} />
               </ErrorBoundary>
             </div>
           )}
@@ -353,7 +361,9 @@ export function SettingsForm({
                     )}
                   </Field>
                 </div>
-                <BehaviorExtras />
+                <CollapsibleCard title={t('advanced')}>
+                  <BehaviorExtras />
+                </CollapsibleCard>
               </ErrorBoundary>
             </div>
           )}
@@ -383,6 +393,7 @@ function OpenaiCompatFields({
   onChange: (d: OpenaiCompatDraft) => void;
 }) {
   const { t } = useTranslation('settings');
+  const [checked, setChecked] = useState<{ fingerprint: string; source: string } | null>(null);
   const discovery = useDiscoverProvider({
     providerId: 'openai-compat',
     baseUrl: draft.baseUrl,
@@ -422,13 +433,23 @@ function OpenaiCompatFields({
             onChange={(model) => onChange({ ...draft, model })}
             models={discovery.models}
             status={discovery.status}
-            error={discovery.error}
-            onDiscover={discovery.discover}
+            error={discovery.error ? t('connection_failed') : null}
+            discoverLabel={t('test_connection')}
+            onDiscover={async () => {
+              const fingerprint = JSON.stringify(draft);
+              const source = await discovery.discover();
+              if (source) setChecked({ fingerprint, source });
+            }}
             lastCachedAt={discovery.lastCachedAt}
             placeholder="qwen3-1.7b"
           />
         )}
       </Field>
+      {checked?.fingerprint === JSON.stringify(draft) && (
+        <p role="status">
+          {t(checked.source === 'discovered-api' ? 'model_list_received' : 'catalog_only')}
+        </p>
+      )}
     </>
   );
 }
@@ -472,18 +493,20 @@ function ModelTab({
   const { value: preferences, change } = usePreferences();
   return (
     <>
-      <Field label={t('system_prompt_label')} helper={t('system_prompt_helper')}>
-        {(p) => (
-          <textarea
-            {...p}
-            value={draft.systemPrompt}
-            onChange={(e) => onChange({ systemPrompt: e.target.value })}
-            placeholder={t('system_prompt_placeholder')}
-            rows={6}
-            className={styles.fullWidth}
-          />
-        )}
-      </Field>
+      <CollapsibleCard title={t('advanced_prompt')}>
+        <Field label={t('system_prompt_label')} helper={t('system_prompt_helper')}>
+          {(p) => (
+            <textarea
+              {...p}
+              value={draft.systemPrompt}
+              onChange={(e) => onChange({ systemPrompt: e.target.value })}
+              placeholder={t('system_prompt_placeholder')}
+              rows={6}
+              className={styles.fullWidth}
+            />
+          )}
+        </Field>
+      </CollapsibleCard>
       <Field label={`${t('temperature_label')}: ${draft.temperature.toFixed(1)}`}>
         {(p) => (
           <input
@@ -561,6 +584,7 @@ function buildConfig(
   kind: ProviderKind,
   drafts: DraftState,
   localSelectedLlm: ModelId,
+  localContextWindow: number,
 ): BuildResult {
   switch (kind) {
     case 'openai-compat': {
@@ -575,13 +599,19 @@ function buildConfig(
       return { ok: true, config: { kind: 'openai-compat', baseUrl, apiKey, model } };
     }
     case 'local-mistralrs': {
+      if (
+        !Number.isInteger(localContextWindow) ||
+        localContextWindow < 512 ||
+        localContextWindow > 65536
+      )
+        return { ok: false, errors: { model: 'context_window_invalid' } };
       // The selected ModelId lives in the localMode slice. We stash it in
       // `modelPath` and let the API boundary translate it to the wire shape
       // (model_id + port) when posting to /settings.
       const config: LocalMistralRsConfig = {
         kind: 'local-mistralrs',
         modelPath: localSelectedLlm,
-        contextWindow: DEFAULT_LOCAL_CONTEXT_WINDOW,
+        contextWindow: localContextWindow,
       };
       return { ok: true, config };
     }

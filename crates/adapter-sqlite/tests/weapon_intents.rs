@@ -43,6 +43,7 @@ async fn fixture_with_pool(
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Weapons".into(),
             premise: "Bridge".into(),
             seed: CampaignSeed::Collaborative {

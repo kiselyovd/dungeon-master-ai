@@ -96,6 +96,7 @@ function ConnectedRoom({
     <>
       {connection.kind === 'host' && (
         <SettingsModal
+          agentTurnInFlight={view.busy || Boolean(view.state?.agent_busy)}
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           initialTab="chat"

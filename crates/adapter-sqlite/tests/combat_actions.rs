@@ -133,6 +133,7 @@ async fn restore_advances_combat_revision_and_rejects_pre_restore_intentions() {
     let (store, encounter, actor, _) = fixture().await;
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Bell".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {
@@ -213,6 +214,7 @@ async fn restore_without_combat_or_with_another_encounter_invalidates_old_receip
         let (store, encounter, actor, _) = fixture().await;
         let campaign = CreateCampaign::new(store.clone())
             .execute(CreateCampaignCommand {
+                request_id: None,
                 title: "Bell".into(),
                 premise: "Ferry".into(),
                 seed: CampaignSeed::Bundled {

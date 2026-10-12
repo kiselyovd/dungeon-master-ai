@@ -29,11 +29,76 @@ async fn store() -> SqliteStore {
     SqliteStore::new(pool)
 }
 
+#[tokio::test]
+async fn campaign_library_reports_public_current_location_without_mutating_gameplay() {
+    use app_application::models::adventure::{AdventureState, Location};
+    use app_application::models::session::CampaignLocation;
+    let store = store().await;
+    let (id, _) = campaign(&store, 1).await;
+    SceneRepository::set_current(
+        &store,
+        SceneRecord {
+            id: Uuid::new_v4(),
+            campaign_id: id.0,
+            name: "Public hall".into(),
+            description: "fixture scene description".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let initial = CampaignRepository::get(&store, id).await.unwrap().unwrap();
+    let canonical =
+        app_application::ports::repositories::CampaignStateRepository::load_current(&store, id)
+            .await
+            .unwrap();
+    assert_eq!(canonical.campaign, initial);
+    let summaries = CampaignRepository::list(&store).await.unwrap();
+    assert_eq!(
+        summaries[0].current_location,
+        Some(CampaignLocation::Scene {
+            title: "Public hall".into()
+        })
+    );
+    let adventure = AdventureState {
+        location: Location::Archive,
+        ..AdventureState::default()
+    };
+    sqlx::query("INSERT INTO campaign_adventures(campaign_id,state_json) VALUES(?1,?2)")
+        .bind(id.0.to_string())
+        .bind(serde_json::to_string(&adventure).unwrap())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let summaries = CampaignRepository::list(&store).await.unwrap();
+    assert_eq!(
+        summaries[0].current_location,
+        Some(CampaignLocation::Authored {
+            location: Location::Archive
+        })
+    );
+    let public = serde_json::to_value(&summaries[0]).unwrap();
+    assert!(public.get("facts").is_none());
+    assert!(public.get("description").is_none());
+    assert_eq!(
+        CampaignRepository::get(&store, id).await.unwrap().unwrap(),
+        initial
+    );
+    sqlx::query("UPDATE campaign_adventures SET state_json=json_set(state_json,'$.location','unknown_location') WHERE campaign_id=?1")
+        .bind(id.0.to_string()).execute(store.pool()).await.unwrap();
+    assert!(CampaignRepository::list(&store).await.unwrap()[0]
+        .current_location
+        .is_none());
+    let retained:String=sqlx::query_scalar("SELECT json_extract(state_json,'$.location') FROM campaign_adventures WHERE campaign_id=?1")
+        .bind(id.0.to_string()).fetch_one(store.pool()).await.unwrap();
+    assert_eq!(retained, "unknown_location");
+}
+
 async fn campaign(store: &SqliteStore, revision: u64) -> (CampaignId, SessionId) {
     let campaign_id = CampaignId(Uuid::new_v4());
     let session_id = SessionId(Uuid::new_v4());
     let now = 1_700_000_000_000;
     let initial = InitialCampaign {
+        opening_scene: None,
         detail: CampaignDetail {
             id: campaign_id,
             schema_version: 1,

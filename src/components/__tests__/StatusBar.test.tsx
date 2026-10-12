@@ -5,7 +5,7 @@ import '../../i18n';
 import { StatusBar } from '../StatusBar';
 
 describe('StatusBar modality indicators', () => {
-  it('renders the image preset when image is enabled', () => {
+  it('shows the enabled preference and keeps preset/model identifiers out of play', () => {
     render(
       <StatusBar
         provider="Anthropic"
@@ -14,7 +14,8 @@ describe('StatusBar modality indicators', () => {
         video={{ enabled: false, label: 'off' }}
       />,
     );
-    expect(screen.getByText(/balanced/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Image settings' })).toHaveTextContent('On');
+    expect(screen.queryByText(/balanced|haiku|Anthropic/i)).not.toBeInTheDocument();
   });
 
   it('renders "off" when image is disabled', () => {
@@ -30,7 +31,7 @@ describe('StatusBar modality indicators', () => {
     expect(offs.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders the video mode when video is enabled', () => {
+  it('shows the enabled video preference without pipeline mode names', () => {
     render(
       <StatusBar
         provider="Anthropic"
@@ -39,7 +40,8 @@ describe('StatusBar modality indicators', () => {
         video={{ enabled: true, label: 'live' }}
       />,
     );
-    expect(screen.getByText(/live/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Video settings' })).toHaveTextContent('On');
+    expect(screen.queryByText(/^live$/i)).not.toBeInTheDocument();
   });
 
   it('calls onOpenSettings with "image" tab when image pill clicked', async () => {
@@ -53,7 +55,7 @@ describe('StatusBar modality indicators', () => {
         onOpenSettings={onOpen}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: /image gen settings/i }));
+    await userEvent.click(screen.getByRole('button', { name: /image settings/i }));
     expect(onOpen).toHaveBeenCalledWith('image');
   });
 
@@ -68,7 +70,7 @@ describe('StatusBar modality indicators', () => {
         onOpenSettings={onOpen}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: /video gen settings/i }));
+    await userEvent.click(screen.getByRole('button', { name: /video settings/i }));
     expect(onOpen).toHaveBeenCalledWith('video');
   });
 
@@ -83,7 +85,7 @@ describe('StatusBar modality indicators', () => {
         onOpenSettings={onOpen}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: /chat provider settings/i }));
+    await userEvent.click(screen.getByRole('button', { name: /dungeon master settings/i }));
     expect(onOpen).toHaveBeenCalledWith('chat');
   });
 });

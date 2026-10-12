@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { useStore } from '../../state/useStore';
 import '../../i18n';
 import { ToolCallCard } from '../ToolCallCard';
 
@@ -20,9 +22,10 @@ const settledEntry = {
 };
 
 describe('ToolCallCard', () => {
-  it('renders tool name', () => {
+  it('renders a localized action instead of a machine tool name', () => {
     render(<ToolCallCard entry={pendingEntry} />);
-    expect(screen.getByText('roll_dice')).toBeInTheDocument();
+    expect(screen.getByText('Dice roll')).toBeInTheDocument();
+    expect(screen.queryByText('roll_dice')).not.toBeInTheDocument();
   });
 
   it('shows pending status when result is null', () => {
@@ -32,19 +35,33 @@ describe('ToolCallCard', () => {
 
   it('shows success status when result is present', () => {
     render(<ToolCallCard entry={settledEntry} />);
-    expect(screen.getByText(/success/i)).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
   });
 
   it('shows error status for is_error entries', () => {
     render(<ToolCallCard entry={{ ...settledEntry, isError: true, result: { error: 'bad' } }} />);
-    // Badge label after i18n: "Error". JSON pre still contains "error": "bad".
-    // Use exact match on the capitalized badge text.
     expect(screen.getByText('Error')).toBeInTheDocument();
+    expect(screen.queryByText('bad')).not.toBeInTheDocument();
   });
 
-  it('renders args and result as text', () => {
+  it('shows the confirmed mechanical number and hides arbitrary args/result bodies', () => {
     render(<ToolCallCard entry={settledEntry} />);
-    expect(screen.getByText(/1d20/)).toBeInTheDocument();
-    expect(screen.getByText(/18/)).toBeInTheDocument();
+    expect(screen.getByText('Roll: 18')).toBeInTheDocument();
+    expect(screen.queryByText(/1d20/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/"rolls"/)).not.toBeInTheDocument();
+  });
+
+  it('opens the existing inspector on explicit request', async () => {
+    useStore.getState().toolLog.close();
+    render(<ToolCallCard entry={settledEntry} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Action technical details' }));
+    expect(useStore.getState().toolLog.isOpen).toBe(true);
+    useStore.getState().toolLog.close();
+  });
+
+  it('does not turn an error with no result into a pending action', () => {
+    render(<ToolCallCard entry={{ ...pendingEntry, isError: true }} />);
+    expect(screen.getByText('Error')).toBeInTheDocument();
+    expect(screen.queryByTestId('tool-pending-indicator')).not.toBeInTheDocument();
   });
 });

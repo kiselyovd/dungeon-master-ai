@@ -42,6 +42,7 @@ fn hero(name: &str) -> serde_json::Value {
 async fn campaign(store: Arc<SqliteStore>) -> app_application::models::session::CampaignDetail {
     CreateCampaign::new(store)
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Media storage".into(),
             premise: "Bounded proof".into(),
             seed: CampaignSeed::Bundled {

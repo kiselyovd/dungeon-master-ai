@@ -139,7 +139,7 @@ describe('ChatStep - local-only preset', () => {
 
     // "Model ready" text visible (from i18n key chat_local_already_exists).
     await waitFor(() => {
-      expect(screen.getByText(/model ready|already installed|ready/i)).toBeInTheDocument();
+      expect(screen.getByText(/model found/i)).toBeInTheDocument();
     });
 
     // Continue button is enabled.
@@ -166,7 +166,7 @@ describe('ChatStep - local-only preset', () => {
     const { onNext } = setup('local-only');
 
     await waitFor(() => {
-      expect(screen.getByText(/model ready|already installed|ready/i)).toBeInTheDocument();
+      expect(screen.getByText(/model found/i)).toBeInTheDocument();
     });
 
     const user = userEvent.setup();

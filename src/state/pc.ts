@@ -329,7 +329,9 @@ export const PRESETS: Record<HeroClassId, ClassPreset> = {
   cleric: CLERIC_PRESET,
 };
 
-function presetToData(klass: HeroClassId): Omit<PcData, 'heroClass'> & { heroClass: string } {
+export function presetToData(
+  klass: HeroClassId,
+): Omit<PcData, 'heroClass'> & { heroClass: string } {
   const preset = PRESETS[klass];
   return {
     heroClass: klass,

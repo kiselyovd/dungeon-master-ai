@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import type { CampaignSummary } from '../../api/contracts/campaign';
+import { useStore } from '../../state/useStore';
 import { Icons } from '../../ui/Icons';
 import styles from './CampaignHome.module.css';
 import { CampaignHeroCard } from './components/CampaignHeroCard';
+import { CampaignProgress } from './components/CampaignProgress';
 
 interface CampaignHomeProps {
   errorCode?: string | null;
@@ -22,6 +24,7 @@ export function CampaignHome({
   onRetry,
 }: CampaignHomeProps) {
   const { t } = useTranslation('campaigns');
+  const visits = useStore((state) => state.settings.campaignVisits);
   const [latest, ...archive] = campaigns;
 
   return (
@@ -30,9 +33,7 @@ export function CampaignHome({
       <span className="dm-ambient-dust" aria-hidden="true" />
       <div className={styles.content}>
         <header className={styles.intro}>
-          <span className={styles.eyebrow}>{t('library_eyebrow')}</span>
           <h1>{t('home_title')}</h1>
-          <p>{t('home_subtitle')}</p>
         </header>
         {errorCode && (
           <section role="alert" className={styles.empty}>
@@ -54,7 +55,7 @@ export function CampaignHome({
           <CampaignHeroCard
             campaign={latest}
             continueLabel={t('continue_campaign')}
-            revisionLabel={t('revision')}
+            visitedAt={visits[latest.id]}
             onContinue={onContinue}
             disabled={loading}
           />
@@ -62,7 +63,6 @@ export function CampaignHome({
           <section className={styles.empty} aria-live="polite">
             <Icons.BookOpen size={28} />
             <h2>{loading ? t('loading') : t('empty_title')}</h2>
-            <p>{loading ? t('loading_hint') : t('empty_body')}</p>
           </section>
         )}
 
@@ -91,9 +91,7 @@ export function CampaignHome({
                     <strong>{campaign.title}</strong>
                     <small>{campaign.premise}</small>
                   </span>
-                  <span className={styles.archiveRevision}>
-                    {t('revision')} {campaign.revision}
-                  </span>
+                  <CampaignProgress campaign={campaign} visitedAt={visits[campaign.id]} />
                   <Icons.ChevronRight size={14} />
                 </button>
               ))}

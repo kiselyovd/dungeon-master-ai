@@ -44,6 +44,8 @@ pub async fn migrate_portrait(
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateCampaignRequest {
+    #[serde(default)]
+    pub request_id: Option<Uuid>,
     pub schema_version: u16,
     pub ruleset_id: String,
     pub title: String,
@@ -75,6 +77,8 @@ pub struct CampaignSummaryResponse {
     pub last_session_id: Uuid,
     pub revision: u64,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_location: Option<app_application::models::session::CampaignLocation>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -265,6 +269,7 @@ pub fn validate_create_campaign(
         });
     }
     Ok(CreateCampaignCommand {
+        request_id: request.request_id,
         title: request.title,
         premise: request.premise,
         seed: request.seed,

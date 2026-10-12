@@ -25,6 +25,32 @@ const streamAgentTurnMock = vi.mocked(streamAgentTurn);
 const fetchSessionMessagesMock = vi.mocked(fetchSessionMessages);
 
 describe('ChatPanel', () => {
+  it('opens setup before dispatch and retains the unsent text', async () => {
+    const configure = vi.fn();
+    const send = vi.fn();
+    render(
+      <ChatPanel needsSetup onRequireSetup={configure} controller={{ send, cancel: vi.fn() }} />,
+    );
+    const composer = screen.getByPlaceholderText('What do you do?');
+    await userEvent.type(composer, 'Unsent adventure action');
+    await userEvent.click(screen.getByRole('button', { name: 'Configure Dungeon Master' }));
+    expect(configure).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
+    expect(composer).toHaveValue('Unsent adventure action');
+  });
+  it('keeps private model reasoning out of the player chat', () => {
+    useStore.setState((state) => ({
+      chat: {
+        ...state.chat,
+        isStreaming: true,
+        streamingReasoning: 'fixture private model reasoning',
+        streamingReasoningTokens: 120,
+      },
+    }));
+    render(<ChatPanel />);
+    expect(screen.queryByText(/fixture private model reasoning/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show reasoning/i })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
     useStore
@@ -364,7 +390,7 @@ describe('ChatPanel', () => {
               sequenceIndex: 0,
               status: 'success',
               args: { target: 'goblin', amount: 5 },
-              result: { hp: 42 },
+              result: { new_hp: 42 },
               isError: false,
               round: 1,
             },
@@ -376,7 +402,7 @@ describe('ChatPanel', () => {
       const card = screen.getByTestId('tool-call-card-call_settled');
       expect(card).toHaveAttribute('data-status', 'success');
       // The card must render the actual result value in the DOM.
-      expect(card).toHaveTextContent('"hp": 42');
+      expect(card).toHaveTextContent('Hit points remaining: 42');
     });
 
     it('(c) tool card appears between assistant text bubbles ordered by sequenceIndex', () => {

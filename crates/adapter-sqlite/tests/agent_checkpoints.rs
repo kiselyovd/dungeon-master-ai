@@ -167,6 +167,7 @@ async fn a_restored_timeline_rejects_an_old_interrupted_turn() {
     let store = std::sync::Arc::new(SqliteStore::new(db));
     let campaign = app_application::campaigns::CreateCampaign::new(store.clone())
         .execute(app_application::campaigns::CreateCampaignCommand {
+            request_id: None,
             title: "Bell".into(),
             premise: "Ferry".into(),
             seed: app_application::models::session::CampaignSeed::Bundled {

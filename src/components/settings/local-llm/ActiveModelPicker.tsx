@@ -22,8 +22,8 @@ export function ActiveModelPicker({
   }
 
   return (
-    <fieldset disabled={disabled}>
-      <legend className="sr-only">{t('choose_active_model')}</legend>
+    <fieldset disabled={disabled} className={styles.group}>
+      <legend className={styles.legend}>{t('choose_active_model')}</legend>
       {installedModels.map((m) => (
         <label key={m.id} className={styles.option}>
           <input

@@ -1,6 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { commitCampaignCharacter, fetchCampaignState } from '../../../api/campaigns';
+import {
+  commitCampaignCharacter,
+  createCampaign,
+  fetchCampaignState,
+} from '../../../api/campaigns';
 import type { CampaignStateResponse } from '../../../api/contracts/campaignState';
 import { useStore } from '../../../state/useStore';
 import { useCampaigns } from '../useCampaigns';
@@ -41,6 +45,82 @@ beforeEach(() => {
 });
 
 describe('campaign transitions', () => {
+  it('reuses the durable creation request after an unknown response and component remount', async () => {
+    const id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const canonical = state(id);
+    canonical.session_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    canonical.campaign.last_session_id = canonical.session_id;
+    const input = {
+      title: `Road-${crypto.randomUUID()}`,
+      premise: 'Rain',
+      seed: { kind: 'collaborative' as const, answers: {} },
+    };
+    vi.mocked(createCampaign)
+      .mockRejectedValueOnce(new Error('unknown ACK'))
+      .mockResolvedValue(canonical.campaign);
+    vi.mocked(fetchCampaignState).mockResolvedValue(canonical);
+    const first = renderHook(() => useCampaigns());
+    await act(async () => {
+      expect(await first.result.current.create(input)).toBeNull();
+    });
+    const original = vi.mocked(createCampaign).mock.calls[0]?.[0];
+    if (!original) throw new Error('creation request fixture missing');
+    first.unmount();
+    const cold = renderHook(() => useCampaigns());
+    await act(async () => {
+      expect(await cold.result.current.create(input)).toEqual(canonical.campaign);
+    });
+    expect(vi.mocked(createCampaign).mock.calls[1]?.[0]).toEqual(original);
+    expect(original.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+  it('preserves a campaign-scoped hero draft when backing out to the library and reopening', async () => {
+    useStore
+      .getState()
+      .charCreation.bindScope({ kind: 'campaign', campaignId: 'A', characterId: null });
+    useStore.getState().charCreation.setDraftField('name', 'Mira draft');
+    const hook = renderHook(() => useCampaigns());
+    await act(async () => {
+      await hook.result.current.clear(true);
+    });
+    vi.mocked(fetchCampaignState).mockResolvedValue(state('A'));
+    await act(async () => {
+      await hook.result.current.activate('A');
+    });
+    expect(useStore.getState().charCreation.name).toBe('Mira draft');
+    expect(useStore.getState().pc.heroClass).toBeNull();
+  });
+  it('records visits only for the latest successful activation', async () => {
+    const first = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const latest = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    let finishFirst: (value: CampaignStateResponse) => void = () => {};
+    const firstResponse = new Promise<CampaignStateResponse>((resolve) => {
+      finishFirst = resolve;
+    });
+    vi.mocked(fetchCampaignState).mockImplementation(async (id) =>
+      id === first ? firstResponse : state(id),
+    );
+    const { result } = renderHook(() => useCampaigns());
+    let older: Promise<unknown> = Promise.resolve();
+    act(() => {
+      older = result.current.activate(first);
+    });
+    await act(async () => {
+      await result.current.activate(latest);
+    });
+    await act(async () => {
+      finishFirst(state(first));
+      await older;
+    });
+    const visits = useStore.getState().settings.campaignVisits;
+    expect(visits[first]).toBeUndefined();
+    expect(visits[latest]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(useStore.getState().campaigns.active?.revision).toBe(1);
+    vi.mocked(fetchCampaignState).mockRejectedValue(new Error('fixture failed read'));
+    await act(async () => {
+      await result.current.activate(first);
+    });
+    expect(useStore.getState().settings.campaignVisits[first]).toBeUndefined();
+  });
   it('retains the unfinished wizard draft only when resuming its exact active session', async () => {
     useStore.getState().session.activate('A', 'session-A');
     useStore.getState().charCreation.setDraftField('classId', 'wizard');

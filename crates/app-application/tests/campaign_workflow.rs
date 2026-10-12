@@ -61,6 +61,7 @@ async fn creation_commits_one_srd_521_aggregate_and_list_returns_it() {
 
     let detail = create
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Серебряная долина".into(),
             premise: "Древняя дорога проснулась".into(),
             seed: CampaignSeed::Collaborative { answers: answers() },

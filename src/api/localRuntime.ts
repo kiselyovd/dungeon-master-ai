@@ -10,7 +10,9 @@
  * Mirrors `src/api/localLlm.ts` (the `/local-llm/*` client).
  */
 
+import * as v from 'valibot';
 import { backendUrl } from './client';
+import { ChatError } from './errors';
 import { discardResponseBody } from './response';
 
 export type ModelId =
@@ -32,12 +34,14 @@ export type RuntimeState =
 
 /** Wire shape of `GET /local/runtime/status` (backend `RegistrySnapshot`). */
 export interface LocalRuntimeSnapshot {
+  model_id?: string | null;
   llm: RuntimeState;
   image: RuntimeState;
 }
 
 /** Wire shape of `POST /local-mode/config` (backend `LocalModeConfig`). */
 export interface LocalModeConfigWire {
+  context_window?: number;
   selected_llm: ModelId;
   vram_strategy: VramStrategy;
 }
@@ -63,12 +67,40 @@ async function responseError(res: Response, method: string, path: string): Promi
 /** GET /local/runtime/status - snapshot of both sidecar runtimes. */
 export async function fetchLocalRuntimeStatus(): Promise<LocalRuntimeSnapshot> {
   const url = await backendUrl('/local/runtime/status');
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw await responseError(res, 'GET', '/local/runtime/status');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw await responseError(res, 'GET', '/local/runtime/status');
+    }
+    const parsed = v.safeParse(
+      v.object({
+        llm: runtimeStateSchema,
+        image: runtimeStateSchema,
+        model_id: v.optional(v.nullable(v.string())),
+      }),
+      await res.json(),
+    );
+    if (!parsed.success) throw new ChatError('invalid_response', 'runtime_status_invalid');
+    return {
+      llm: parsed.output.llm,
+      image: parsed.output.image,
+      ...(parsed.output.model_id !== undefined ? { model_id: parsed.output.model_id } : {}),
+    };
+  } finally {
+    clearTimeout(timer);
   }
-  return (await res.json()) as LocalRuntimeSnapshot;
 }
+const runtimeStateSchema = v.variant('state', [
+  v.object({ state: v.literal('off') }),
+  v.object({ state: v.literal('starting') }),
+  v.object({
+    state: v.literal('ready'),
+    port: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(65535)),
+  }),
+  v.object({ state: v.literal('failed'), reason: v.string() }),
+]);
 
 /** POST /local/runtime/start - spawn the LLM (+ optional image) sidecars. */
 export async function startLocalRuntimes(): Promise<void> {

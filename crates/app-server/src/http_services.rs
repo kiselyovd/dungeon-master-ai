@@ -557,6 +557,7 @@ fn campaign_summary_response(
         last_session_id: summary.last_session_id.0,
         revision: summary.revision.0,
         updated_at: campaign_timestamp(summary.updated_at_epoch_ms)?,
+        current_location: summary.current_location,
     })
 }
 
@@ -1730,8 +1731,16 @@ impl LocalControlHttpService for AppStateLocalControlHttpService {
                     .runtime_control()
                     .start(RuntimeStartRequest {
                         model_id,
-                        enable_image: media_enabled,
-                        enable_video: media_enabled,
+                        enable_image: media_enabled
+                            && self
+                                .state
+                                .image_provider()
+                                .is_some_and(|provider| provider.needs_native_runtime()),
+                        enable_video: media_enabled
+                            && self
+                                .state
+                                .video_provider()
+                                .is_some_and(|provider| provider.needs_native_runtime()),
                         llm_args,
                         weights_dir: Some(self.state.models_dir().to_string_lossy().into_owned()),
                     })
@@ -1846,7 +1855,7 @@ fn runtime_wire_status(status: &RuntimeStatus) -> Value {
             }
         }
     };
-    json!({ "llm": llm, "image": image })
+    json!({ "llm": llm, "image": image, "model_id": status.model_id })
 }
 
 pub fn local_control_http_service(state: AppState) -> Arc<dyn LocalControlHttpService> {

@@ -151,6 +151,7 @@ async fn fixture() -> Fixture {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "DM lane".into(),
             premise: "Road".into(),
             seed: CampaignSeed::Collaborative {
@@ -2776,6 +2777,7 @@ async fn opening_authored_defeat_uses_combat_clock_and_synchronizes_rescue_witho
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Opening defeat".into(),
             premise: "Archive".into(),
             seed: CampaignSeed::Bundled {

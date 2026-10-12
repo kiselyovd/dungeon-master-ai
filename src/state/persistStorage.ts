@@ -31,8 +31,9 @@ import type { PersistStorage, StorageValue } from 'zustand/middleware';
 import { DefenseChoiceSchema } from '../api/contracts/defense';
 import { MediaReferenceSchema } from '../api/contracts/mediaAsset';
 import { withTimeout } from '../lib/withTimeout';
+import { campaignVisits } from './campaignVisits';
 import type { CharacterDraft, WizardTab } from './charCreation';
-import { CharCreationDraftSchema } from './charCreationSchema';
+import { CharCreationDraftSchema, StrictCharCreationDraftSchema } from './charCreationSchema';
 import type { OnboardingData } from './onboarding';
 import { PC_DATA_KEYS, type PcData } from './pc';
 import { LocalMistralRsConfigSchema, OpenaiCompatConfigSchema } from './providers';
@@ -68,11 +69,14 @@ const KEY_TEMPERATURE = 'temperature';
 const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
 const KEY_READING_FONT_SIZE = 'reading_font_size';
+const KEY_CAMPAIGN_VISITS = 'campaign_visits';
 const KEY_SCENE_TRANSITIONS_ENABLED = 'scene_transitions_enabled';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
 const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
+const KEY_ONBOARDING_VERSION = 'onboarding_version';
+const KEY_ONBOARDING_ENTRY = 'onboarding_entry';
 const KEY_HERO_CLASS = 'hero_class';
 const KEY_PC = 'pc';
 const KEY_CHAR_CREATION_DRAFT = 'char_creation_draft';
@@ -92,6 +96,13 @@ const KEY_AGENT_MAX_ROUNDS = 'agent_max_rounds';
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
+
+/** Disk barrier before committing a campaign sheet; uses the existing draft
+ * surface and drops methods/unknown fields through the data schema. */
+export async function persistCharacterDraft(draft: CharacterDraft & { activeTab: WizardTab }) {
+  await settingsStore.set(KEY_CHAR_CREATION_DRAFT, v.parse(StrictCharCreationDraftSchema, draft));
+  await settingsStore.save();
+}
 
 /** Preserve pre-campaign sheets independently of the active PC. No credentials
  * or actions are copied, and a failed backup prevents the destructive transition. */
@@ -340,11 +351,13 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       replicateRaw,
       chatWidthRaw,
       readingSizeRaw,
+      visitsRaw,
       sceneTransitionsRaw,
       campaignRaw,
       sessionIdRaw,
       sceneRaw,
       onboardingRaw,
+      onboardingEntryRaw,
       heroClassRaw,
       pcRaw,
       charCreationRaw,
@@ -369,11 +382,13 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       getSecretSafe(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
       settingsStore.get(KEY_READING_FONT_SIZE),
+      settingsStore.get(KEY_CAMPAIGN_VISITS),
       settingsStore.get(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
       settingsStore.get(KEY_CURRENT_SCENE),
       settingsStore.get(KEY_ONBOARDING_COMPLETED),
+      settingsStore.get(KEY_ONBOARDING_ENTRY),
       settingsStore.get(KEY_HERO_CLASS),
       settingsStore.get(KEY_PC),
       settingsStore.get(KEY_CHAR_CREATION_DRAFT),
@@ -399,11 +414,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
     const chatWidthParsed = v.safeParse(ChatPanelWidthSchema, chatWidthRaw);
     const readingSizeParsed = v.safeParse(v.picklist([16, 17, 18]), readingSizeRaw);
+    const visits = campaignVisits(visitsRaw);
     const sceneTransitionsParsed = v.safeParse(SceneTransitionsEnabledSchema, sceneTransitionsRaw);
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
     const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
     const onboardingParsed = v.safeParse(OnboardingCompletedSchema, onboardingRaw);
+    const onboardingEntryParsed = v.safeParse(
+      v.picklist(['adventure', 'guest']),
+      onboardingEntryRaw,
+    );
     const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
     const pcParsed = v.safeParse(PcSchema, pcRaw);
     const charCreationParsed = v.safeParse(CharCreationDraftSchema, charCreationRaw);
@@ -432,11 +452,13 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !replicateParsed.success &&
       !chatWidthParsed.success &&
       !readingSizeParsed.success &&
+      Object.keys(visits).length === 0 &&
       !sceneTransitionsParsed.success &&
       !campaignParsed.success &&
       !sessionIdParsed.success &&
       !sceneParsed.success &&
       !onboardingParsed.success &&
+      !onboardingEntryParsed.success &&
       !heroClassParsed.success &&
       !pcParsed.success &&
       !charCreationParsed.success &&
@@ -469,6 +491,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
     if (readingSizeParsed.success) settings.readingFontSize = readingSizeParsed.output;
+    if (visitsRaw !== undefined && visitsRaw !== null) settings.campaignVisits = visits;
     if (sceneTransitionsParsed.success) {
       settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;
     }
@@ -495,6 +518,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (sceneParsed.success) session.currentScene = sceneParsed.output as CurrentScene | null;
 
     const onboarding: Partial<OnboardingData> = {};
+    onboarding.version = 2;
+    onboarding.entry = onboardingEntryParsed.success
+      ? onboardingEntryParsed.output
+      : onboardingParsed.success && onboardingParsed.output
+        ? 'adventure'
+        : null;
     if (onboardingParsed.success) onboarding.completed = onboardingParsed.output;
 
     // PC: prefer the full `pc` JSON entry; fall back to the legacy
@@ -576,6 +605,9 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (settings.readingFontSize !== undefined) {
       settingsWrites.push(settingsStore.set(KEY_READING_FONT_SIZE, settings.readingFontSize));
     }
+    if (settings.campaignVisits !== undefined) {
+      settingsWrites.push(settingsStore.set(KEY_CAMPAIGN_VISITS, settings.campaignVisits));
+    }
     if (settings.sceneTransitionsEnabled !== undefined) {
       settingsWrites.push(
         settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
@@ -593,6 +625,10 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (onboarding.completed !== undefined) {
       settingsWrites.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
     }
+    if (onboarding.version !== undefined)
+      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_VERSION, onboarding.version));
+    if (onboarding.entry !== undefined)
+      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_ENTRY, onboarding.entry));
     // PC: partialize always sends the whole `pc` slice, so the full JSON
     // entry and the legacy `hero_class` scalar are written together
     // (atomic) or not at all (audit F6). They live in the same flush
@@ -660,11 +696,14 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_TEMPERATURE),
       settingsStore.delete(KEY_CHAT_PANEL_WIDTH),
       settingsStore.delete(KEY_READING_FONT_SIZE),
+      settingsStore.delete(KEY_CAMPAIGN_VISITS),
       settingsStore.delete(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
       settingsStore.delete(KEY_CURRENT_SCENE),
       settingsStore.delete(KEY_ONBOARDING_COMPLETED),
+      settingsStore.delete(KEY_ONBOARDING_VERSION),
+      settingsStore.delete(KEY_ONBOARDING_ENTRY),
       settingsStore.delete(KEY_HERO_CLASS),
       settingsStore.delete(KEY_PC),
       settingsStore.delete(KEY_CHAR_CREATION_DRAFT),

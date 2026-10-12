@@ -582,3 +582,37 @@
   margin-top: var(--space-1);
   line-height: 1.3;
 }
+
+.dm-entry-card {
+  gap: var(--space-5);
+}
+
+.dm-entry-surface {
+  grid-column: 1 / -1;
+  grid-row: 2 / -1;
+}
+
+.dm-entry-card .dm-onboarding-header {
+  justify-content: space-between;
+}
+
+.dm-entry-card .dm-onboarding-hero {
+  height: 180px;
+  flex: none;
+}
+
+.dm-entry-card .dm-onboarding-title {
+  margin: 0;
+}
+
+.dm-entry-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-height: 680px) {
+  .dm-entry-card .dm-onboarding-hero {
+    height: 120px;
+  }
+}

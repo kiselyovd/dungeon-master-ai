@@ -15,6 +15,7 @@ async fn campaign(
 ) -> app_application::models::session::CampaignDetail {
     CreateCampaign::new(store)
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: title.into(),
             premise: "Bridge".into(),
             seed: CampaignSeed::Collaborative {

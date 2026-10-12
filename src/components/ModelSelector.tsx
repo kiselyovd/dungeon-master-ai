@@ -24,6 +24,7 @@ export interface ModelSelectorProps {
   onDiscover: () => void;
   lastCachedAt: string | null;
   placeholder?: string;
+  discoverLabel?: string;
   /**
    * When provided, the Custom HF repo section renders an "Add custom Hugging
    * Face model" button that opens CustomHfRepoModal; the saved payload is
@@ -59,6 +60,7 @@ export function ModelSelector({
   onDiscover,
   lastCachedAt,
   placeholder,
+  discoverLabel: actionLabel,
   onCustomSave,
 }: ModelSelectorProps) {
   const { t } = useTranslation('settings');
@@ -82,7 +84,7 @@ export function ModelSelector({
 
   const isLoading = status === 'loading';
   const isError = status === 'error';
-  const discoverLabel = isLoading ? t('discovering') : t('discover_models');
+  const discoverLabel = isLoading ? t('discovering') : (actionLabel ?? t('discover_models'));
 
   return (
     <div className={styles.root}>
@@ -158,22 +160,18 @@ export function ModelSelector({
         </Section>
       ) : null}
 
-      <Section label={t('section_custom_hf')}>
-        {onCustomSave ? (
-          <>
-            <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
-            <button
-              type="button"
-              className={styles.discoverButton}
-              onClick={() => setCustomModalOpen(true)}
-            >
-              {t('model_selector_custom_add_button')}
-            </button>
-          </>
-        ) : (
+      {onCustomSave ? (
+        <Section label={t('section_custom_hf')}>
           <p className={styles.placeholderHelper}>{t('model_selector_custom_helper')}</p>
-        )}
-      </Section>
+          <button
+            type="button"
+            className={styles.discoverButton}
+            onClick={() => setCustomModalOpen(true)}
+          >
+            {t('model_selector_custom_add_button')}
+          </button>
+        </Section>
+      ) : null}
       {onCustomSave ? (
         <CustomHfRepoModal
           open={customModalOpen}

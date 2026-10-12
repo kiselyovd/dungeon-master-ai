@@ -53,7 +53,7 @@ describe('SettingsForm D8 - 5-tab decomposition', () => {
   it('renders all 5 tabs in the tab strip', () => {
     render(<SettingsForm onSubmit={() => {}} />);
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
-    expect(tabs).toEqual(['Chat', 'Local LLM', 'Image', 'Video', 'Behavior']);
+    expect(tabs).toEqual(['Chat', 'Model on this computer', 'Image', 'Video', 'Behavior']);
   });
 
   it('defaults to the Chat tab being selected', () => {
@@ -67,11 +67,12 @@ describe('SettingsForm D8 - 5-tab decomposition', () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
 
-    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
+    await user.click(screen.getByRole('tab', { name: /Model on this computer/i }));
 
     // The LocalLlmTab content: runtime controls + VRAM strategy select.
-    expect(screen.getByRole('button', { name: /start runtimes/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /VRAM strategy/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start model/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
+    expect(screen.getByRole('combobox', { name: /Graphics memory/i })).toBeInTheDocument();
   });
 
   it('shows the language selects in the Behavior panel', async () => {
@@ -93,10 +94,14 @@ describe('SettingsForm D8 - 5-tab decomposition', () => {
     expect(screen.getByLabelText(/Replicate API key/i)).toBeInTheDocument();
   });
 
-  it('respects the initialTab prop', () => {
+  it('respects the initialTab prop and keeps advanced instructions collapsed', async () => {
     render(<SettingsForm onSubmit={() => {}} initialTab="behavior" />);
     expect(screen.getByRole('tab', { name: /Behavior/i })).toHaveAttribute('aria-selected', 'true');
     // The Behavior panel hosts the system prompt field.
+    expect(screen.queryByLabelText(/System prompt/i)).toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Advanced: Dungeon Master instructions/ }),
+    );
     expect(screen.getByLabelText(/System prompt/i)).toBeInTheDocument();
   });
 });

@@ -5,7 +5,12 @@ import { type CharCreationSlice, createCharCreationSlice } from './charCreation'
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
 import { createJournalSlice, type JournalSlice } from './journal';
-import { createLocalModeSlice, type LocalModeSlice } from './localMode';
+import {
+  ALL_MODEL_IDS,
+  createLocalModeSlice,
+  type LocalModeSlice,
+  type ModelId,
+} from './localMode';
 import { createNpcSlice, type NpcSlice } from './npc';
 import { createOnboardingSlice, type OnboardingSlice } from './onboarding';
 import { createPcSlice, type PcSlice } from './pc';
@@ -76,6 +81,7 @@ export const useStore = create<AppState>()(
           replicateApiKey: state.settings.replicateApiKey,
           chatPanelWidth: state.settings.chatPanelWidth,
           readingFontSize: state.settings.readingFontSize,
+          campaignVisits: state.settings.campaignVisits,
           sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
           discoveredCatalogs: state.settings.discoveredCatalogs,
           // M7-DM additions (now persisted)
@@ -97,6 +103,8 @@ export const useStore = create<AppState>()(
         },
         onboarding: {
           completed: state.onboarding.completed,
+          version: state.onboarding.version,
+          entry: state.onboarding.entry,
         },
         pc: {
           ...(state.pc.defense ? { defense: state.pc.defense } : {}),
@@ -177,8 +185,23 @@ export const useStore = create<AppState>()(
         const persistedSettings = applyProviderMigration(
           applyD8Migration(persisted.settings ?? {}),
         );
+        const savedLocal = persistedSettings.providers?.['local-mistralrs'];
         return {
           ...currentState,
+          localMode: {
+            ...currentState.localMode,
+            ...(savedLocal && ALL_MODEL_IDS.includes(savedLocal.modelPath as ModelId)
+              ? {
+                  selectedLlm: savedLocal.modelPath as ModelId,
+                  contextWindow:
+                    Number.isInteger(savedLocal.contextWindow) &&
+                    savedLocal.contextWindow >= 512 &&
+                    savedLocal.contextWindow <= 65536
+                      ? savedLocal.contextWindow
+                      : 8192,
+                }
+              : {}),
+          },
           settings: {
             ...currentState.settings,
             ...persistedSettings,

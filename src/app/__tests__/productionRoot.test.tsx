@@ -90,6 +90,7 @@ describe('production application root', () => {
     vi.spyOn(useStore.persist, 'hasHydrated').mockReturnValue(true);
     useStore.getState().pc.applyPreset('fighter');
     useStore.getState().session.activate(campaignId, sessionId);
+    useStore.getState().session.setCurrentScene({ name: 'First scene', stepCounter: 0 });
     const baseUrl = parseBaseUrl('http://localhost:31415/v1');
     const apiKey = parseApiKey('fixture-value');
     if (!baseUrl || !apiKey) throw new Error('valid fixture provider required');
@@ -162,14 +163,14 @@ describe('production application root', () => {
     expect(container.querySelector('.dm-chat-panel')).toBeNull();
     expect(loadError).not.toHaveBeenCalled();
     await act(async () => finish());
-    expect(await screen.findByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
   });
   it('renders the Russian campaign home as the real production root', async () => {
     const { container } = render(<App />);
 
     expect(await screen.findByText('DUNGEON MASTER AI')).toBeInTheDocument();
     expect(screen.getByTestId('brand-crest').querySelector('svg')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Новая кампания' })).toBeVisible();
     expect(screen.queryByText(/создать комнату|join room/i)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Что ты делаешь?')).not.toBeInTheDocument();
@@ -202,7 +203,7 @@ describe('production application root', () => {
     render(<App />);
 
     await user.click(await screen.findByRole('button', { name: 'EN' }));
-    expect(await screen.findByRole('heading', { name: 'Your chronicles' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Your adventures' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'New campaign' })).toBeVisible();
   });
 });
@@ -227,15 +228,16 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   expect(useStore.getState().pc.heroClass).toBeNull();
 });
 
-it('lets a first-boot guest join without configuring a provider or completing solo onboarding', async () => {
+it('lets a first-boot guest join without configuring a provider or creating a solo hero', async () => {
   const user = userEvent.setup();
   useStore.setState((state) => ({ onboarding: { ...state.onboarding, completed: false } }));
   const before = structuredClone(useStore.getState().settings.providers);
   render(<App />);
-  await user.click(await screen.findByRole('button', { name: 'Подключиться к игре' }));
+  await user.click(await screen.findByRole('button', { name: 'Присоединиться к игре' }));
   expect(screen.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
-  expect(useStore.getState().onboarding.completed).toBe(false);
+  expect(useStore.getState().onboarding).toMatchObject({ completed: true, entry: 'guest' });
   await user.click(screen.getByRole('button', { name: 'Назад к кампаниям' }));
-  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(useStore.getState().settings.providers).toEqual(before);
 });

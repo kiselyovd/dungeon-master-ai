@@ -29,7 +29,7 @@ impl CampaignRepository for SqliteStore {
         validate_initial(&campaign)?;
         let mut transaction = self
             .pool
-            .begin()
+            .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_campaign_create"))?;
         sqlx::query(
@@ -62,6 +62,12 @@ impl CampaignRepository for SqliteStore {
         .await
         .map_err(|_| repository_error("insert_campaign_session"))?;
         insert_event(&mut transaction, &campaign.event).await?;
+        if let Some(scene) = &campaign.opening_scene {
+            sqlx::query("INSERT INTO scenes(id,campaign_id,title,subtitle,mode,image_prompt,created_at) VALUES(?1,?2,?3,?4,'exploration',NULL,?5)")
+                .bind(scene.id.to_string()).bind(scene.campaign_id.to_string())
+                .bind(&scene.name).bind(&scene.description).bind(chrono::Utc::now().to_rfc3339())
+                .execute(&mut *transaction).await.map_err(|_|repository_error("insert_opening_scene"))?;
+        }
         if let CampaignSeed::Bundled { adventure_id } = &campaign.detail.seed {
             if adventure_id != app_application::models::adventure::BELL_ADVENTURE_ID {
                 return Err(repository_error("adventure_package_unknown"));
@@ -84,7 +90,11 @@ impl CampaignRepository for SqliteStore {
     async fn list(&self) -> Result<Vec<CampaignSummary>, RepositoryError> {
         let rows = sqlx::query(
             "SELECT c.id, c.schema_version, c.ruleset_id, c.title, c.premise, \
-                    c.updated_at, s.id AS session_id, s.revision \
+                    c.updated_at, s.id AS session_id, s.revision, \
+                    (SELECT json_extract(a.state_json, '$.location') \
+                     FROM campaign_adventures a WHERE a.campaign_id = c.id) AS authored_location, \
+                    (SELECT scene.title FROM scenes scene WHERE scene.campaign_id = c.id \
+                     ORDER BY scene.created_at DESC, scene.id DESC LIMIT 1) AS scene_title \
              FROM campaigns c \
              JOIN sessions s ON s.id = ( \
                  SELECT latest.id FROM sessions latest \
@@ -107,7 +117,7 @@ impl CampaignRepository for SqliteStore {
         let row = sqlx::query(
             "SELECT c.id, c.schema_version, c.ruleset_id, c.title, c.premise, \
                     c.created_at, c.updated_at, s.id AS session_id, s.revision, \
-                    e.payload_json \
+                    e.payload_json, NULL AS authored_location, NULL AS scene_title \
              FROM campaigns c \
              JOIN sessions s ON s.id = ( \
                  SELECT latest.id FROM sessions latest \
@@ -134,7 +144,11 @@ fn validate_initial(campaign: &InitialCampaign) -> Result<(), RepositoryError> {
         && campaign.session.revision == detail.revision
         && campaign.event.revision == detail.revision
         && campaign.event.kind.as_str() == "campaign_created";
-    if valid {
+    let scene_valid = campaign
+        .opening_scene
+        .as_ref()
+        .is_none_or(|scene| scene.campaign_id == detail.id.0 && !scene.name.trim().is_empty());
+    if valid && scene_valid {
         Ok(())
     } else {
         Err(repository_error("validate_initial_campaign"))
@@ -217,6 +231,12 @@ pub(crate) async fn advance_session_revision(
 }
 
 fn map_summary(row: &sqlx::sqlite::SqliteRow) -> Result<CampaignSummary, RepositoryError> {
+    let mut summary = map_summary_base(row)?;
+    summary.current_location = map_location(row)?;
+    Ok(summary)
+}
+
+fn map_summary_base(row: &sqlx::sqlite::SqliteRow) -> Result<CampaignSummary, RepositoryError> {
     Ok(CampaignSummary {
         id: CampaignId(parse_uuid(column(row, "id")?, "decode_campaign_id")?),
         schema_version: parse_schema(column(row, "schema_version")?)?,
@@ -229,11 +249,34 @@ fn map_summary(row: &sqlx::sqlite::SqliteRow) -> Result<CampaignSummary, Reposit
         )?),
         revision: parse_revision(column(row, "revision")?)?,
         updated_at_epoch_ms: parse_epoch(column(row, "updated_at")?)?,
+        current_location: None,
     })
 }
 
+fn map_location(
+    row: &sqlx::sqlite::SqliteRow,
+) -> Result<Option<app_application::models::session::CampaignLocation>, RepositoryError> {
+    use app_application::models::adventure::Location;
+    use app_application::models::session::CampaignLocation;
+    let authored: Option<String> = column(row, "authored_location")?;
+    if let Some(location) = authored {
+        return match serde_json::from_value::<Location>(serde_json::Value::String(location)) {
+            Ok(location) => Ok(Some(CampaignLocation::Authored { location })),
+            Err(_) => {
+                let campaign_id: String = column(row, "id")?;
+                tracing::warn!(%campaign_id, code = "library_location_invalid", "retained unavailable campaign location");
+                Ok(None)
+            }
+        };
+    }
+    let title: Option<String> = column(row, "scene_title")?;
+    Ok(title
+        .filter(|title| !title.trim().is_empty())
+        .map(|title| CampaignLocation::Scene { title }))
+}
+
 pub(crate) fn map_detail(row: sqlx::sqlite::SqliteRow) -> Result<CampaignDetail, RepositoryError> {
-    let summary = map_summary(&row)?;
+    let summary = map_summary_base(&row)?;
     let payload: serde_json::Value = serde_json::from_str(&column::<String>(&row, "payload_json")?)
         .map_err(|_| repository_error("decode_campaign_event_payload"))?;
     let seed = serde_json::from_value::<CampaignSeed>(

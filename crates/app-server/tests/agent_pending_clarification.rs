@@ -22,6 +22,7 @@ async fn pending_http_read_recovers_original_request_on_a_new_server_without_mut
     let store = SqliteStore::new(pool.clone());
     let campaign = CreateCampaign::new(Arc::new(store.clone()))
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Read pending".into(),
             premise: "Quay".into(),
             seed: CampaignSeed::Bundled {

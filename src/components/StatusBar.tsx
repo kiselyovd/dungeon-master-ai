@@ -7,13 +7,13 @@ export type SettingsTab = 'chat' | 'image' | 'video';
 
 export interface ModalityIndicator {
   enabled: boolean;
-  /** Short label rendered in the pill, e.g. "balanced", "live", "off". */
-  label: string;
+  /** Retained for callers; implementation details are shown in Settings. */
+  label?: string;
 }
 
 interface Props {
-  provider: string;
-  model: string;
+  provider?: string;
+  model?: string;
   status?: ProviderStatus;
   savedAgo?: { minutes: number } | 'now' | null;
   image: ModalityIndicator;
@@ -22,8 +22,6 @@ interface Props {
 }
 
 export function StatusBar({
-  provider,
-  model,
   status = 'connected',
   savedAgo = null,
   image,
@@ -60,10 +58,15 @@ export function StatusBar({
         title={t('chat_provider_settings')}
       >
         <span className={`${styles.dot} ${dotClass}`} />
-        <span className={styles.label}>{t('provider')}:</span>
-        <span className={styles.value}>{provider}</span>
-        <Icons.Cpu size={11} />
-        <span className={styles.valueMono}>{model}</span>
+        <span className={styles.value}>
+          {t(
+            status === 'connected'
+              ? 'dm_configured'
+              : status === 'loading'
+                ? 'dm_configuring'
+                : 'dm_configure',
+          )}
+        </span>
       </button>
 
       <div className={styles.divider} />
@@ -77,7 +80,7 @@ export function StatusBar({
       >
         <Icons.Image size={11} />
         <span className={styles.label}>{t('image_modality')}:</span>
-        <span className={styles.value}>{image.label}</span>
+        <span className={styles.value}>{t(image.enabled ? 'modality_on' : 'modality_off')}</span>
       </button>
 
       <div className={styles.divider} />
@@ -90,7 +93,7 @@ export function StatusBar({
         title={t('video_gen_settings')}
       >
         <span className={styles.label}>{t('video_modality')}:</span>
-        <span className={styles.value}>{video.label}</span>
+        <span className={styles.value}>{t(video.enabled ? 'modality_on' : 'modality_off')}</span>
       </button>
 
       <div className={styles.spacer} />

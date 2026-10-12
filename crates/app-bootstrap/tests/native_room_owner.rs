@@ -17,6 +17,7 @@ async fn native_owner_opens_a_real_scoped_room_and_rejects_other_callers() {
     let store = Arc::new(SqliteStore::new(db.clone()));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Native host".into(),
             premise: "Road".into(),
             seed: CampaignSeed::Collaborative {
@@ -357,6 +358,7 @@ async fn occupied_port_closes_partial_room_and_does_not_publish_later_solo_chat(
     let store = Arc::new(SqliteStore::new(db.clone()));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Failed native host".into(),
             premise: "Road".into(),
             seed: CampaignSeed::Collaborative {

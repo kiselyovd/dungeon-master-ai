@@ -6,11 +6,16 @@ import {
   fetchCampaigns,
 } from '../../api/campaigns';
 import type { CreateCampaignInput } from '../../api/contracts/campaign';
-import type { CommitCharacterRequest } from '../../api/contracts/campaignState';
 import { ChatError } from '../../api/errors';
+import {
+  acknowledgeCampaignCharacter,
+  acknowledgeCampaignCreation,
+  prepareCampaignCharacter,
+  prepareCampaignCreation,
+} from '../../state/campaignPreparation';
 import { buildCampaignState } from '../../state/campaignProjection';
 import { PC_DATA_KEYS, type PcData } from '../../state/pc';
-import { preserveLegacyCharacter } from '../../state/persistStorage';
+import { persistCharacterDraft, preserveLegacyCharacter } from '../../state/persistStorage';
 import { useStore } from '../../state/useStore';
 
 export function useCampaigns() {
@@ -19,11 +24,6 @@ export function useCampaigns() {
   const loading = useStore((state) => state.campaigns.loading);
   const errorCode = useStore((state) => state.campaigns.errorCode);
   const controller = useRef<AbortController | null>(null);
-  const characterRetry = useRef<{
-    campaignId: string;
-    document: string;
-    request: CommitCharacterRequest;
-  } | null>(null);
   const begin = useCallback(() => {
     controller.current?.abort();
     const next = new AbortController();
@@ -100,6 +100,9 @@ export function useCampaigns() {
           ...buildCampaignState(state),
           preserveDraft:
             before.charCreation.draftScope?.kind === 'room' ||
+            (before.charCreation.draftScope?.kind === 'campaign' &&
+              before.charCreation.draftScope.campaignId === campaignId &&
+              before.charCreation.draftScope.characterId === state.character_id) ||
             (before.session.activeCampaignId === campaignId &&
               before.session.activeSessionId === state.session_id &&
               ((state.character_id === null && before.pc.heroClass === null) ||
@@ -107,7 +110,7 @@ export function useCampaigns() {
                   before.charCreation.draftScope.campaignId === campaignId &&
                   before.charCreation.draftScope.characterId === state.character_id))),
         });
-        characterRetry.current = null;
+        useStore.getState().settings.recordCampaignVisit(campaignId);
         return state.campaign;
       } catch (error) {
         if (current(operation.generation))
@@ -126,19 +129,22 @@ export function useCampaigns() {
       try {
         await preserveLegacy();
         if (!current(operation.generation)) return null;
-        const campaign = await createCampaignRequest(input);
+        const attempt = await prepareCampaignCreation(input);
+        if (!current(operation.generation)) return null;
+        const campaign = await createCampaignRequest(attempt);
         if (!current(operation.generation)) return null;
         const state = await fetchCampaignState(campaign.id, operation.signal);
         if (!current(operation.generation)) return null;
         if (state.campaign.id !== campaign.id)
           throw new ChatError('invalid_response', 'campaign identity mismatch');
+        await acknowledgeCampaignCreation(attempt.requestId);
+        if (!current(operation.generation)) return null;
         useStore.getState().restoration.apply(buildCampaignState(state));
         const store = useStore.getState();
         store.campaigns.replaceList([
           state.campaign,
           ...store.campaigns.list.filter((item) => item.id !== campaign.id),
         ]);
-        characterRetry.current = null;
         return state.campaign;
       } catch (error) {
         if (current(operation.generation))
@@ -155,21 +161,21 @@ export function useCampaigns() {
     async (character: Record<string, unknown>) => {
       const active = useStore.getState().campaigns.active;
       if (!active) throw new ChatError('campaign_required', 'campaign_required');
-      const document = JSON.stringify(character);
-      const existing = characterRetry.current;
-      const request =
-        existing?.campaignId === active.id && existing.document === document
-          ? existing.request
-          : {
-              sessionId: active.last_session_id,
-              characterId: useStore.getState().pc.characterId ?? crypto.randomUUID(),
-              expectedRevision: active.revision,
-              causationId: `character-${crypto.randomUUID()}`,
-              character,
-            };
-      characterRetry.current = { campaignId: active.id, document, request };
       const operation = begin();
       try {
+        await persistCharacterDraft(useStore.getState().charCreation);
+        if (!current(operation.generation)) throw new ChatError('aborted', 'aborted');
+        const canonical = await fetchCampaignState(active.id, operation.signal);
+        if (!current(operation.generation)) throw new ChatError('aborted', 'aborted');
+        if (canonical.campaign.id !== active.id || canonical.session_id !== active.last_session_id)
+          throw new ChatError('invalid_response', 'character scope mismatch');
+        const request = await prepareCampaignCharacter(active.id, {
+          sessionId: active.last_session_id,
+          characterId: canonical.character_id,
+          expectedRevision: canonical.campaign.revision,
+          character,
+        });
+        if (!current(operation.generation)) throw new ChatError('aborted', 'aborted');
         const state = await commitCampaignCharacter(active.id, request, operation.signal);
         if (!current(operation.generation)) throw new ChatError('aborted', 'aborted');
         if (
@@ -178,8 +184,9 @@ export function useCampaigns() {
           state.session_id !== request.sessionId
         )
           throw new ChatError('invalid_response', 'character identity mismatch');
+        await acknowledgeCampaignCharacter(active.id, request.causationId);
+        if (!current(operation.generation)) throw new ChatError('aborted', 'aborted');
         useStore.getState().restoration.apply(buildCampaignState(state));
-        characterRetry.current = null;
       } finally {
         if (current(operation.generation)) useStore.getState().campaigns.setLoading(false);
       }
@@ -187,20 +194,22 @@ export function useCampaigns() {
     [begin, current],
   );
 
-  const clear = useCallback(async () => {
-    const operation = begin();
-    try {
-      await preserveLegacy();
-      if (!current(operation.generation)) return;
-      characterRetry.current = null;
-      useStore.getState().restoration.clear();
-    } catch (error) {
-      if (current(operation.generation))
-        useStore.getState().campaigns.setErrorCode(ChatError.from(error).code);
-    } finally {
-      if (current(operation.generation)) useStore.getState().campaigns.setLoading(false);
-    }
-  }, [begin, current, preserveLegacy]);
+  const clear = useCallback(
+    async (preserveDraft = false) => {
+      const operation = begin();
+      try {
+        await preserveLegacy();
+        if (!current(operation.generation)) return;
+        useStore.getState().restoration.clear(preserveDraft);
+      } catch (error) {
+        if (current(operation.generation))
+          useStore.getState().campaigns.setErrorCode(ChatError.from(error).code);
+      } finally {
+        if (current(operation.generation)) useStore.getState().campaigns.setLoading(false);
+      }
+    },
+    [begin, current, preserveLegacy],
+  );
   return {
     campaigns,
     active,

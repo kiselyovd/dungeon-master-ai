@@ -19,19 +19,18 @@ test('empty campaign library owns the Russian production root and opens creation
   await page.goto('/');
 
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
-  await expect(page.getByText('Здесь появятся истории, которые вы начнёте.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
   await expect(page.locator('.dm-vtt-panel')).toHaveCount(0);
   await expect(page.getByPlaceholder('Что ты делаешь?')).toHaveCount(0);
   await expect(page.getByText(/Anthropic|Claude|join room|создать комнату/i)).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Новая кампания' }).click();
   await expect(page.getByRole('heading', { name: 'С чего начнётся история?' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: /Придумать вместе/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /Готовое приключение/ })).toBeChecked();
 
   await page.getByRole('button', { name: 'Назад' }).click();
   await page.getByRole('button', { name: 'EN' }).click();
-  await expect(page.getByRole('heading', { name: 'Your chronicles' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your adventures' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New campaign' })).toBeVisible();
 });
 
@@ -82,6 +81,8 @@ test('latest campaign is primary and continue uses its backend identity', async 
 
   await expect(page.getByRole('heading', { name: campaign.title })).toBeVisible();
   await page.getByRole('button', { name: 'Продолжить кампанию' }).click();
+  await expect(page.getByRole('heading', { name: 'Герой этого приключения' })).toBeVisible();
+  await page.getByRole('button', { name: 'Создать своего героя' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('tablist')).toBeVisible();
 });

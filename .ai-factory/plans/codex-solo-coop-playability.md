@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks 1-5 and 7-11 verified. Full gates at the visual-foundations checkpoint: 996 Rust and 1169 frontend tests passed, with production-browser and freshly packaged Tauri media/font/frame proof. Checkpoint 3 is ready for a scoped local commit; inherited changes remain separate. Task 12 copy audit is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
+Status: in progress; Tasks 1-5 and 7-15 verified. Checkpoint 3 is committed as 6037356; inherited changes remain separate. Task 12 adds actual library location/save/visit metadata, public action outcomes and concise bilingual copy; full gates passed with RUST_LOG=info (997 Rust / 1177 frontend tests). Entry, campaign preparation and readiness are verified; checkpoint 4 is ready for its owned local commit. Shared table work (Task 16) is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -349,7 +349,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
 ### Entry and settings
 
-- [ ] **Task 12: Rewrite visible copy and replace technical or misleading metadata** (depends on 10)
+- [x] **Task 12: Rewrite visible copy and replace technical or misleading metadata** (depends on 10)
 
   **Files / ownership:** src/locales/{en,ru}/{common,campaigns,onboarding,settings,local_mode,chat,rooms,agent,combat,adventure}.json; CampaignHome/CampaignHeroCard, StatusBar, ToolCallCard and their consumer tests.
 
@@ -359,7 +359,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO locale audit counts in verification only; WARN missing/stale key; no production logging for copy-only rendering.
 
-- [ ] **Task 13: Shorten first launch and preserve direct guest entry** (depends on 4, 10, 12)
+  **Execution evidence (2026-10-12):** `docs/visual/PRODUCT_COPY.md` documents actual public metadata and rendering boundaries. Library location reads canonical authored/scene state without mutation; opened history is separate device-local metadata, recorded after current ACK only. Ordinary cards hide raw JSON/rounds and model reasoning; explicit details reach the real shell inspector. Footer reports configuration rather than asserting successful inference. Model-found/process-running labels and memory choices no longer claim universal readiness, offline operation or fixed 16GB requirements. Canonical identity labels use RU/EN catalogs without changing stored values. Nineteen locale catalogs have matching logical keys (1146 English leaves plus legitimate RU plural forms). Two production-browser RU/EN scenarios verify outcome masking, real inspector opening and history after restart. Readonly SQLite contracts 11/11 and transition regressions pass. `task-12-full-gates-info.log`: all gates passed (997 Rust / 1177 frontend); explicit INFO logging is required by the telemetry smoke test, whereas inherited RUST_LOG=warn intentionally filters its event. Native entry/configuration verification is grouped with Tasks 13-15; successful real-model semantics are not inferred from these fixture checks.
+
+- [x] **Task 13: Shorten first launch and preserve direct guest entry** (depends on 4, 10, 12)
 
   **Files / ownership:** src/components/Onboarding.tsx and onboarding/{presets,steps}/*; src/state/onboarding.ts and persistence migration; src/features/campaigns/model/{route,types}.ts; src/app/App.tsx; onboarding routing/root/e2e tests.
 
@@ -369,7 +371,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG route/onboarding version and completion transition; INFO completed setup; WARN retained legacy draft. No personal input or provider secrets in logs.
 
-- [ ] **Task 14: Make campaign creation perform real steps and commit heroes in scope** (depends on 12, 13)
+  **Execution evidence (2026-10-12):** Version-2 first choice offers adventure/guest, retains legacy PC/drafts, restores saved guest navigation and does not create a global hero. Entry now mounts a quiet surface without a game map/chat or global provider preflight. Missing chat setup is gated before dispatch, preserving unsent text/attachments and opening the proper tab. Native controls and header language remain available. `docs/visual/FIRST_ENTRY.md` records migration and readiness boundaries. Six RU/EN production browser scenarios at 960/1280 pass, including guest restart; captured real-root/composer/migration tests 37/37, full frontend 183 files / 1175 tests, production build, architecture and Biome pass. A transient NUL-filled dist/log artifact was rejected, direct rebuild produced an HTML file with zero NUL bytes, and browser verification was repeated on that build. Native entry/creation/setup proof remains the grouped checkpoint with Tasks 14-15.
+
+- [x] **Task 14: Make campaign creation perform real steps and commit heroes in scope** (depends on 12, 13)
 
   **Files / ownership:** src/features/campaigns/{CampaignCreate,CampaignHome}.tsx; existing character wizard/review, campaign controllers and contracts; proposed campaign-scoped visual/preset picker; src/locales/{en,ru}/{campaigns,wizard,adventure}.json.
 
@@ -379,7 +383,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG creation phase, campaign ID and revision; INFO confirmed campaign/hero readiness; WARN retriable preparation; ERROR initialization failure. No private backstory or world secrets logged.
 
-- [ ] **Task 15: Expose simple AI/media readiness with advanced settings on demand** (depends on 5, 10, 12, 13)
+**Execution evidence (2026-10-12):** Prepared/custom source choices now create actual initialized campaigns and go directly to a scoped hero picker or the existing full wizard. Creation identities/drafts and character attempt IDs/hash/original revision survive interruption without repeated portrait bytes; disk ACK precedes dispatch, and canonical scope controls readiness. Concurrent/lost creation ACK leaves one campaign/session/event/scene, rollback retains no half-campaign, and all four exact production hero fixtures commit/replay through SQLite (3/3). Focused root/preparation tests 31/31 and the full frontend suite pass. Fourteen production-browser scenarios pass, including RU/EN at 960/1280, Back, rejected hero, lost create/hero ACK and cold reload. Screenshots confirm fixed reachable footer controls. Documentation: `docs/visual/CAMPAIGN_PREPARATION.md`. Native acceptance for Tasks 12-15 remains the grouped checkpoint; no successful model inference is implied.
+
+- [x] **Task 15: Expose simple AI/media readiness with advanced settings on demand** (depends on 5, 10, 12, 13)
 
   **Files / ownership:** src/components/{SettingsForm,SettingsModal,LocalModeModal,StatusBar}.tsx; components/settings/*; provider/runtime/download hooks; EN/RU settings/local_mode locales and focused e2e.
 
@@ -388,6 +394,8 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
   **Verification / acceptance:** Changing source does not lose per-provider drafts; errors preserve data; model switches during active turns stay gated. Missing model, slow start, failed download, offline catalog and denied permission are actionable. Runtime start occurs only through existing native ownership; no unrequested large model download or provider promotion.
 
   **Logging:** DEBUG safe readiness/download state and elapsed time; INFO confirmed runtime transition; WARN slow/unavailable runtime; ERROR stable safe code. Never log API keys or full provider responses.
+
+**Execution evidence (2026-10-12):** One local model surface serves Settings and the shortcut window, with authoritative install/loaded-ID status and retry/check actions. Unknown status does not retain a running claim; model changes and Save are gated during solo/room turns. Advanced sections hold actual native context arguments (512-65536, --max-seq-len verified against the installed CLI), reasoning, instructions, memory and agent limits. Cloud checks distinguish live model lists from unverified curated fallback, mask provider error bodies and discard stale replies. Local media declares its native requirement through application ports; disabled/bundled/cloud media does not start with chat. Full gate `checkpoint-4-qualified-full-gates.log` passes: 1002 Rust / 189 files and 1195 frontend tests, clippy, architecture and assets. Fourteen production-browser preparation/settings scenarios plus nine final scenarios pass, including the current scoped Settings-to-wizard callback. Fresh isolated Tauri build/entry/cancel/settings/cold SQLite proof retains the same campaign/session/actor, revision 2, HP 12, AC 18, built-in portrait ID and one character receipt. All four actual native portraits decode before the accepted art screenshot; the earlier pre-decode image was rejected. Native source/QA artifact paths are `.artifacts/product-uiux/entry-native/`; no model/media inference was started. The native profile later received a separate owned art-test campaign; the one-campaign cold comparison predates that addition. Windows SDK sidecar copying requires closing the QA process before Cargo gates; after normal Close all gates pass. Debug Python placeholder is not GPU/packaged-release proof. Custom HF download records remain managed but the legacy preset start bridge is not advertised as supporting arbitrary custom IDs. Docs: `docs/visual/MODEL_READINESS.md`.
 
 ### Shared game table
 

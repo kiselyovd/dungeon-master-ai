@@ -219,6 +219,7 @@ async fn fixture(hp: i32, ac: i32) -> (Arc<SqliteStore>, AdventureCommand) {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Defense".into(),
             premise: "Archive".into(),
             seed: CampaignSeed::Bundled {

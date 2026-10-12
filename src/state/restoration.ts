@@ -15,7 +15,7 @@ import type { ToolLogSlice } from './toolLog';
 export interface RestorationSlice {
   restoration: {
     apply: (projection: RestoredSessionProjection) => void;
-    clear: () => void;
+    clear: (preserveDraft?: boolean) => void;
   };
 }
 
@@ -35,7 +35,7 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
   set,
   get,
 ) => {
-  const apply = (input: RestoredSessionProjection | null) => {
+  const apply = (input: RestoredSessionProjection | null, preserveDraft = false) => {
     const projection = input ?? {
       campaignId: '',
       sessionId: '',
@@ -46,6 +46,7 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
       combat: null,
       journal: [],
       npcs: [],
+      preserveDraft,
     };
     get().chat.abortController?.abort();
     set((state) => ({
@@ -118,5 +119,5 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
       },
     }));
   };
-  return { restoration: { apply, clear: () => apply(null) } };
+  return { restoration: { apply, clear: (preserveDraft = false) => apply(null, preserveDraft) } };
 };

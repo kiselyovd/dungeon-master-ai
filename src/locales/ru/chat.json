@@ -5,8 +5,8 @@
   "placeholder": "Что ты делаешь?",
   "send": "Отправить",
   "stop": "Стоп",
-  "thinking": "AI думает...",
-  "no_api_key": "Укажи свой API-ключ Anthropic в настройках, чтобы начать.",
+  "thinking": "Мастер готовит ответ…",
+  "no_api_key": "Выберите модель в настройках мастера.",
   "attach_image": "Прикрепить изображение",
   "image_too_large": "Изображение больше 5 МБ",
   "image_unsupported": "Поддерживаются только PNG, JPEG и WebP",
@@ -18,7 +18,7 @@
   "header_meta": "СЦЕНА {{scene}} · ХОД {{turn}}",
   "hint_keyboard": "Enter - отправить · Shift+Enter - новая строка",
   "welcome_title": "Новое приключение",
-  "welcome_text": "Напиши ниже, чтобы начать. Опиши действие, задай вопрос или поговори с миром.",
+  "welcome_text": "Опишите действие, задайте вопрос или заговорите с персонажем.",
   "bubble_user_label": "Игрок: {{preview}}",
   "bubble_assistant_label": "Ведущий: {{preview}}",
   "bubble_system_label": "Система: {{preview}}",
@@ -65,5 +65,6 @@
   "recovery_progress": "Завершено шагов: {{done}} из {{total}}",
   "recovery_continue": "Продолжить ответ",
   "recovery_check_retry": "Проверить ещё раз",
-  "recovery_settings": "Настройки ИИ"
+  "recovery_settings": "Настройки ИИ",
+  "configure_dm": "Настроить мастера"
 }

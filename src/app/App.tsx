@@ -1,7 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useShallow } from 'zustand/react/shallow';
 import { getPendingAgentRecoveryInput } from '../api/agentPending';
 import { fetchAgentRecovery } from '../api/agentRecovery';
 import { ActionBar } from '../components/ActionBar';
@@ -16,7 +15,6 @@ import { JournalViewer } from '../components/JournalViewer';
 import { LocalModeModal } from '../components/LocalModeModal';
 import { NpcMemoryGrid } from '../components/NpcMemoryGrid';
 import { Onboarding } from '../components/Onboarding';
-import { PreflightModal } from '../components/PreflightModal';
 import { ProviderMigrationBanner } from '../components/ProviderMigrationBanner';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SavesScreen } from '../components/SavesScreen';
@@ -32,6 +30,7 @@ import { VttCanvas } from '../components/VttCanvas';
 import { AdventurePanel } from '../features/adventure/AdventurePanel';
 import { useAdventure } from '../features/adventure/useAdventure';
 import { CampaignCreate } from '../features/campaigns/CampaignCreate';
+import { CampaignHeroChoice } from '../features/campaigns/CampaignHeroChoice';
 import { CampaignHome } from '../features/campaigns/CampaignHome';
 import { resolveAppRoute } from '../features/campaigns/model/route';
 import { useCampaigns } from '../features/campaigns/useCampaigns';
@@ -41,14 +40,15 @@ import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
 import { useLegacyCampaignPortrait } from '../features/media/useLegacyCampaignPortrait';
+import { useFirstEntry } from '../features/onboarding/useFirstEntry';
 import { type RecoveryPorts, useRecovery } from '../features/recovery/useRecovery';
 import { RestDialog } from '../features/rest/RestDialog';
 import { useSaves } from '../features/saves/useSaves';
 import { useHydrated } from '../hooks/useHydrated';
+import { useLocalRuntimeStatus } from '../hooks/useLocalRuntimeStatus';
 import { useUpdater } from '../hooks/useUpdater';
-import type { PreflightInput, PreflightStatus } from '../lib/preflight';
+import { selectedLocalModelIsRunning } from '../state/localMode';
 // useSession is mounted inside ChatPanel so the retry-bar can call refetch.
-import { isPreflightDismissed, runPreflight } from '../lib/preflight';
 import { loadRestOutbox } from '../state/restOutbox';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
@@ -233,10 +233,13 @@ function CampaignTitleBar({
 
 function App() {
   const [roomOpen, setRoomOpen] = useState(false);
+  const [customHeroCampaign, setCustomHeroCampaign] = useState<string | null>(null);
   const { t } = useTranslation('common');
   const { t: tAdventure } = useTranslation('adventure');
   const { t: tCampaigns } = useTranslation('campaigns');
   const { t: tSettings } = useTranslation('settings');
+  const firstEntry = useStore((state) => state.onboarding.entry);
+  const localChatReady = useStore((state) => selectedLocalModelIsRunning(state.localMode));
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
   const readingFontSize = useStore((s) => s.settings.readingFontSize);
   const chatPanelWidth = useStore((s) => s.settings.chatPanelWidth);
@@ -283,6 +286,13 @@ function App() {
   // the store still holds slice defaults (onboarding.completed === false), which
   // would flash the Onboarding modal on every launch. (Audit blocker 1.)
   const hydrated = useHydrated();
+  useLocalRuntimeStatus(
+    hydrated &&
+      onboardingCompleted &&
+      firstEntry !== 'guest' &&
+      !roomOpen &&
+      activeProvider === 'local-mistralrs',
+  );
   const campaignsFeature = useCampaigns();
   const adventureFeature = useAdventure();
   const [adventureOpen, setAdventureOpen] = useState(false);
@@ -295,29 +305,9 @@ function App() {
   }, [persistedCampaignId, pcCharacterId, currentRestScope]);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
   const [campaignCreateOpen, setCampaignCreateOpen] = useState(false);
-  const [campaignNeedsHero, setCampaignNeedsHero] = useState<string | null>(null);
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
-  // useShallow prevents re-renders when the object identity changes but values
-  // are the same (Zustand v5 uses Object.is by default).
-  const preflightSettings = useStore(
-    useShallow(
-      (s): PreflightInput => ({
-        activeProvider: s.settings.activeProvider,
-        providers: s.settings.providers,
-        imageEnabled: s.settings.imageEnabled,
-        imagePreset: s.settings.imagePreset,
-        replicateApiKey: s.settings.replicateApiKey,
-        videoEnabled: s.settings.videoEnabled,
-        videoMode: s.settings.videoMode,
-      }),
-    ),
-  );
-  // A local flag lets the user dismiss for this session without a dontAskAgain
-  // checkbox click. It is reset when the component unmounts (app reload).
-  const [preflightDismissedThisSession, setPreflightDismissedThisSession] = useState(false);
-
   const pcHeroClass = useStore((s) => s.pc.heroClass);
   const savesOpen = useStore((s) => s.saves.isOpen);
   const lastQuickSaveAt = useStore((s) => s.saves.lastQuickSaveAt);
@@ -343,6 +333,8 @@ function App() {
     enabled: hydrated && !roomOpen,
   });
 
+  useFirstEntry(hydrated, firstEntry, () => setRoomOpen(true));
+
   const { pending: pendingUpdate, dismiss: dismissUpdate } = useUpdater();
 
   const handleOpenChatSettings = useCallback(() => {
@@ -365,6 +357,8 @@ function App() {
       | 'provider_openai_compat'
       | 'provider_local_mistralrs',
   );
+  const needsModelSetup =
+    activeProvider === 'local-mistralrs' ? !localChatReady : activeProviderConfig === null;
   const providerStatus = activeProviderConfig === null ? 'error' : 'connected';
   const modelLabel = getProviderModel(useStore.getState());
   const imageEnabled = useStore((s) => s.settings.imageEnabled);
@@ -383,18 +377,14 @@ function App() {
     savedAgo = mins < 1 ? 'now' : { minutes: mins };
   }
 
-  // Compute preflight status - only relevant after onboarding is completed.
-  const preflightStatus: PreflightStatus = onboardingCompleted
-    ? runPreflight(preflightSettings)
-    : 'ok';
-  const showPreflight =
-    onboardingCompleted &&
-    preflightStatus !== 'ok' &&
-    !preflightDismissedThisSession &&
-    !isPreflightDismissed(preflightStatus);
-
   useEffect(() => {
-    if (hydrated && onboardingCompleted && campaignsFeature.active === null) {
+    if (
+      hydrated &&
+      onboardingCompleted &&
+      !roomOpen &&
+      firstEntry !== 'guest' &&
+      campaignsFeature.active === null
+    ) {
       if (persistedCampaignId) {
         void campaignsFeature.activate(persistedCampaignId);
       } else {
@@ -408,6 +398,8 @@ function App() {
     hydrated,
     onboardingCompleted,
     persistedCampaignId,
+    roomOpen,
+    firstEntry,
   ]);
 
   const campaignRoute = campaignCreateOpen
@@ -419,8 +411,12 @@ function App() {
           ? {
               id: campaignsFeature.active.id,
               sessionId: campaignsFeature.active.last_session_id,
-              heroReady: pcHeroClass !== null && campaignsFeature.active.id !== campaignNeedsHero,
-              worldReady: pcHeroClass !== null,
+              heroReady: pcHeroClass !== null,
+              worldReady:
+                campaignsFeature.active.seed.kind === 'bundled'
+                  ? useStore.getState().session.adventure?.state.package_id ===
+                    campaignsFeature.active.seed.adventure_id
+                  : Boolean(currentScene),
             }
           : null,
       });
@@ -484,9 +480,10 @@ function App() {
           <RoomExperience
             campaigns={campaignsFeature.campaigns}
             onBack={() =>
-              exitRoomToLocalCampaign(persistedCampaignId, campaignsFeature.activate, () =>
-                setRoomOpen(false),
-              )
+              exitRoomToLocalCampaign(persistedCampaignId, campaignsFeature.activate, () => {
+                setRoomOpen(false);
+                useStore.getState().onboarding.chooseEntry('adventure');
+              })
             }
           />
         </AppShell>
@@ -494,7 +491,34 @@ function App() {
     );
   }
 
-  if (onboardingCompleted && campaignRoute.kind !== 'game-table') {
+  if (!onboardingCompleted) {
+    return (
+      <ErrorBoundary level="top">
+        <AppShell readingFontSize={readingFontSize}>
+          <CampaignTitleBar
+            language={uiLanguage}
+            onLanguageChange={setUiLanguage}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <main className="dm-entry-surface dm-surface-oak" />
+          <Onboarding
+            hideLanguage
+            onJoinRoom={() => setRoomOpen(true)}
+            onComplete={() => setCampaignCreateOpen(true)}
+          />
+          <AppOverlays>
+            <SettingsModal
+              open={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              initialTab={settingsInitialTab}
+            />
+          </AppOverlays>
+        </AppShell>
+      </ErrorBoundary>
+    );
+  }
+
+  if (campaignRoute.kind !== 'game-table') {
     return (
       <ErrorBoundary level="top">
         <ProviderMigrationBanner />
@@ -519,11 +543,28 @@ function App() {
                 const campaign = await campaignsFeature.create(input);
                 if (campaign) {
                   useStore.getState().charCreation.resetDraft();
-                  setCampaignNeedsHero(campaign.id);
                   setCampaignCreateOpen(false);
-                }
+                } else throw new Error('campaign_preparation_failed');
               }}
             />
+          ) : campaignRoute.kind === 'character-create' ? (
+            <CampaignHeroChoice
+              campaignId={campaignRoute.campaignId}
+              pending={campaignsFeature.loading}
+              onCommit={campaignsFeature.commitCharacter}
+              onCustom={() => setCustomHeroCampaign(campaignRoute.campaignId)}
+              onBack={() => void campaignsFeature.clear(true)}
+            />
+          ) : campaignRoute.kind === 'world-preparation' ? (
+            <main className="dm-entry-surface">
+              <p>{tCampaigns('world_not_ready')}</p>
+              <button type="button" onClick={() => setCampaignCreateOpen(true)}>
+                {tCampaigns('source_bundled')}
+              </button>
+              <button type="button" onClick={() => void campaignsFeature.clear(true)}>
+                {tCampaigns('back_library')}
+              </button>
+            </main>
           ) : (
             <CampaignHome
               errorCode={campaignsFeature.errorCode}
@@ -545,21 +586,26 @@ function App() {
               open={settingsOpen}
               onClose={() => setSettingsOpen(false)}
               initialTab={settingsInitialTab}
-              onRequestCharacterRecreate={() => {
-                setSettingsOpen(false);
-                if (campaignsFeature.active) {
-                  setCampaignNeedsHero(campaignsFeature.active.id);
-                }
-              }}
+              {...(campaignRoute.kind === 'character-create'
+                ? {
+                    onRequestCharacterRecreate: () => {
+                      setSettingsOpen(false);
+                      setCustomHeroCampaign(campaignRoute.campaignId);
+                    },
+                  }
+                : {})}
             />
-            {campaignRoute.kind === 'character-create' && (
-              <CharacterWizard
-                mode="initial"
-                onClose={() => setCampaignNeedsHero(null)}
-                onOpenImageSettings={handleOpenImageSettings}
-                hidden={settingsOpen}
-              />
-            )}
+            {campaignRoute.kind === 'character-create' &&
+              customHeroCampaign === campaignRoute.campaignId && (
+                <CharacterWizard
+                  mode="initial"
+                  allowCancel
+                  onClose={() => setCustomHeroCampaign(null)}
+                  onCommitCharacter={campaignsFeature.commitCharacter}
+                  onOpenImageSettings={handleOpenImageSettings}
+                  hidden={settingsOpen}
+                />
+              )}
           </AppOverlays>
         </AppShell>
       </ErrorBoundary>
@@ -615,7 +661,7 @@ function App() {
             <button
               type="button"
               className="dm-btn-tb"
-              onClick={campaignsFeature.clear}
+              onClick={() => void campaignsFeature.clear()}
               aria-label={tCampaigns('back_library')}
               title={tCampaigns('back_library')}
             >
@@ -774,6 +820,14 @@ function App() {
           <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
             <ChatResizer />
             <ChatPanel
+              needsSetup={needsModelSetup}
+              onRequireSetup={() => {
+                if (activeProvider === 'local-mistralrs') {
+                  setSettingsInitialTab('local-llm');
+                  setSettingsOpen(true);
+                } else handleOpenChatSettings();
+              }}
+              onInspect={() => setInspectorOpen(true)}
               controller={agentTurn}
               recoveryNotice={recoveryNotice}
               recoveryBlocked={recovery.blocked && !recovery.clarifying}
@@ -850,38 +904,6 @@ function App() {
               retryRequired={adventureFeature.retryRequired}
               onAction={(action) => void adventureFeature.perform(action)}
               onRetry={() => void adventureFeature.retry()}
-            />
-          )}
-          {hydrated && !onboardingCompleted && (
-            <Onboarding
-              onJoinRoom={() => setRoomOpen(true)}
-              onExitToWizard={() => setWizardReopen(true)}
-              onComplete={(preset) => {
-                // The manual preset configures nothing, so it would land on the
-                // blocking PreflightModal (missing_chat). Route the user straight
-                // to the Chat settings tab instead and skip the blocking modal
-                // for this session. [E2]
-                if (preset === 'manual') {
-                  setPreflightDismissedThisSession(true);
-                  handleOpenChatSettings();
-                }
-              }}
-            />
-          )}
-          {showPreflight && !settingsOpen && (
-            <PreflightModal
-              status={preflightStatus as Exclude<PreflightStatus, 'ok'>}
-              onFinishSetup={() => {
-                setPreflightDismissedThisSession(true);
-                if (preflightStatus === 'missing_chat') {
-                  handleOpenChatSettings();
-                } else if (preflightStatus === 'missing_image') {
-                  handleOpenImageSettings();
-                } else {
-                  handleOpenVideoSettings();
-                }
-              }}
-              onDismiss={() => setPreflightDismissedThisSession(true)}
             />
           )}
           {wizardReopen && (

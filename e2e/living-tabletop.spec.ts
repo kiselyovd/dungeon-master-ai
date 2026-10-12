@@ -71,12 +71,12 @@ test('onboarding welcome and four class portraits use living-tabletop art', asyn
     'src',
     /onboarding.*\.webp/,
   );
-  await page.getByRole('button', { name: /Continue/i }).click();
-  await page.getByRole('radio', { name: /Skip setup/i }).click();
-  await page.getByRole('button', { name: /Continue/i }).click();
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose hero', exact: true }).click();
 
   for (const role of ['fighter', 'wizard', 'rogue', 'cleric']) {
-    await expect(page.locator(`img[src*="hero-${role}"]`)).toBeVisible();
+    const card = page.getByRole('radio', { name: new RegExp(role, 'i') });
+    await expect(card.locator('img')).toBeVisible();
   }
 });
 

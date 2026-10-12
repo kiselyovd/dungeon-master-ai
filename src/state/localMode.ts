@@ -58,7 +58,10 @@ export interface LocalModeData {
   selectedLlm: ModelId;
   customLlmOverride: CustomModelDescriptor | null;
   vramStrategy: VramStrategy;
+  contextWindow: number;
   runtime: { llm: RuntimeState; image: RuntimeState };
+  runtimeStatusKnown: boolean;
+  runtimeModelId: string | null;
   downloads: Record<ModelId, DownloadState>;
 }
 
@@ -68,9 +71,24 @@ export interface LocalModeSlice {
     selectModel: (id: ModelId) => void;
     setCustomLlmOverride: (desc: CustomModelDescriptor | null) => void;
     setVramStrategy: (s: VramStrategy) => void;
-    setRuntimeStatus: (snap: { llm: RuntimeState; image: RuntimeState }) => void;
+    setContextWindow: (value: number) => void;
+    setRuntimeStatus: (snap: {
+      llm: RuntimeState;
+      image: RuntimeState;
+      model_id?: string | null;
+    }) => void;
+    markRuntimeStatusUnknown: () => void;
     setDownloadState: (id: ModelId, s: DownloadState) => void;
   };
+}
+
+export function selectedLocalModelIsRunning(state: LocalModeData): boolean {
+  return (
+    state.runtimeStatusKnown &&
+    state.runtime.llm.state === 'ready' &&
+    state.runtimeModelId === state.selectedLlm &&
+    state.customLlmOverride === null
+  );
 }
 
 const idleDownloads = (): Record<ModelId, DownloadState> =>
@@ -85,14 +103,30 @@ export const createLocalModeSlice: StateCreator<AppState, [], [], LocalModeSlice
     selectedLlm: 'gemma4_e2b',
     customLlmOverride: null,
     vramStrategy: 'auto-swap',
+    contextWindow: 8192,
     runtime: { llm: { state: 'off' }, image: { state: 'off' } },
+    runtimeStatusKnown: false,
+    runtimeModelId: null,
     downloads: idleDownloads(),
     setEnabled: (v) => set((s) => ({ localMode: { ...s.localMode, enabled: v } })),
-    selectModel: (id) => set((s) => ({ localMode: { ...s.localMode, selectedLlm: id } })),
+    selectModel: (id) =>
+      set((s) => ({ localMode: { ...s.localMode, selectedLlm: id, runtimeStatusKnown: false } })),
     setCustomLlmOverride: (desc) =>
       set((s) => ({ localMode: { ...s.localMode, customLlmOverride: desc } })),
     setVramStrategy: (vs) => set((s) => ({ localMode: { ...s.localMode, vramStrategy: vs } })),
-    setRuntimeStatus: (snap) => set((s) => ({ localMode: { ...s.localMode, runtime: snap } })),
+    setContextWindow: (value) =>
+      set((s) => ({ localMode: { ...s.localMode, contextWindow: value } })),
+    setRuntimeStatus: (snap) =>
+      set((s) => ({
+        localMode: {
+          ...s.localMode,
+          runtime: { llm: snap.llm, image: snap.image },
+          runtimeStatusKnown: true,
+          runtimeModelId: snap.model_id ?? null,
+        },
+      })),
+    markRuntimeStatusUnknown: () =>
+      set((s) => ({ localMode: { ...s.localMode, runtimeStatusKnown: false } })),
     setDownloadState: (id, ds) =>
       set((s) => ({
         localMode: {

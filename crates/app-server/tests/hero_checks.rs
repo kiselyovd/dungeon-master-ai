@@ -16,6 +16,7 @@ async fn actual_dm_check_reads_saved_hero_and_rejects_foreign_identity_and_model
     let store = Arc::new(adapter_sqlite::SqliteStore::new(pool));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Checks".into(),
             premise: "A ferry".into(),
             seed: CampaignSeed::Collaborative {

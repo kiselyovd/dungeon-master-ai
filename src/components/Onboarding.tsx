@@ -1,188 +1,72 @@
-import { Fragment, useId, useState } from 'react';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { KEY_ART } from '../assets/livingTabletop';
+import type { OnboardingEntry } from '../state/onboarding';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui/Button';
+import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
-import type { PresetId, Step } from './onboarding/presets';
-import { computeSteps, DEFAULT_PRESET } from './onboarding/presets';
-import { ChatStep } from './onboarding/steps/ChatStep';
-import { HeroStep } from './onboarding/steps/HeroStep';
-import { ImageStep } from './onboarding/steps/ImageStep';
-import { PresetStep } from './onboarding/steps/PresetStep';
-import { VideoStep } from './onboarding/steps/VideoStep';
-import { WelcomeStep } from './onboarding/steps/WelcomeStep';
-
-/**
- * First-run Onboarding wizard (P2.12 E1). Six steps: Welcome, Preset,
- * Chat, Image (optional), Video (optional), Hero.
- *
- * Mounted by `App.tsx` over the entire UI when `state.onboarding.completed`
- * is `false`. After the Hero step finalizes we flip the flag and dismount.
- * CharacterWizard is then mounted by App.tsx (condition: !pc.heroClass) to
- * let the user create their hero.
- *
- * The step sequence is computed from `computeSteps(preset)` so optional steps
- * (image, video) are inserted or removed based on the user's preset choice.
- * Before a preset is chosen the default sequence is used for the stepper.
- *
- * Public prop contract: only `onComplete?: () => void` - unchanged from the
- * prior 2-step implementation so App.tsx does not need any edits.
- */
 
 interface OnboardingProps {
   onJoinRoom?: () => void;
-  /**
-   * Optional callback invoked after finalization, with the preset the user
-   * completed. App.tsx uses the preset to route the `manual` preset straight
-   * to Settings (it configures nothing, so it would otherwise land on the
-   * blocking PreflightModal). [E2]
-   */
-  onComplete?: (preset: PresetId) => void;
-  /**
-   * Called when the user chooses "Build from scratch" on the hero step.
-   * App.tsx uses this to open CharacterWizard in initial mode.
-   */
-  onExitToWizard?: () => void;
+  onComplete?: (entry: OnboardingEntry) => void;
+  hideLanguage?: boolean;
 }
 
-export function Onboarding({ onComplete, onExitToWizard, onJoinRoom }: OnboardingProps) {
+/** First choice records navigation intent only. Model/media setup and hero
+ * creation belong to their real campaign or room context. */
+export function Onboarding({ onComplete, onJoinRoom, hideLanguage = false }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
-  const { t: tCommon } = useTranslation('common');
-  const { t: tRooms } = useTranslation('rooms');
+  const { t: tc } = useTranslation('common');
   const titleId = useId();
-
-  const [preset, setPreset] = useState<PresetId>(DEFAULT_PRESET);
-  const [stepIndex, setStepIndex] = useState(0);
-
-  const steps = computeSteps(preset);
-  const currentStep = steps[stepIndex];
-  const totalSteps = steps.length;
-
-  const completeOnboarding = useStore((s) => s.onboarding.complete);
-  const uiLanguage = useStore((s) => s.settings.uiLanguage);
-  const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
-
-  const next = (): void => {
-    if (stepIndex < steps.length - 1) {
-      setStepIndex((i) => i + 1);
-    } else {
-      finalize();
-    }
-  };
-
-  const back = (): void => {
-    if (stepIndex > 0) {
-      setStepIndex((i) => i - 1);
-    }
-  };
-
-  const finalize = (): void => {
-    completeOnboarding();
-    // "Build from scratch" leaves no hero class applied: open the full
-    // CharacterWizard so the user can build a custom character. Picking a class
-    // card sets pc.heroClass, so this is skipped for the preset path.
-    if (!useStore.getState().pc.heroClass) {
-      onExitToWizard?.();
-    }
-    onComplete?.(preset);
-  };
-
-  // Step label lookup: each step maps to an i18n key.
-  // Record<Step, ...> ensures a compile error if a new Step variant is added
-  // without updating this map.
-  const stepLabelKey: Record<Step, string> = {
-    welcome: 'step_welcome',
-    preset: 'step_pick_preset',
-    chat: 'step_connect_ai',
-    image: 'step_image',
-    video: 'step_video',
-    hero: 'step_create_hero',
-  };
-
-  const stepLabels = steps.map((s) => t(stepLabelKey[s]));
-
-  // Counter text uses the step_counter key with {{current}} and {{total}}.
-  const counterText = t('step_counter', { current: stepIndex + 1, total: totalSteps });
-
+  const language = useStore((state) => state.settings.uiLanguage);
+  const setLanguage = useStore((state) => state.settings.setUiLanguage);
+  const choose = useStore((state) => state.onboarding.chooseEntry);
   return (
     <div className="dm-onboarding">
       <div
-        className="dm-onboarding-card dm-vignette"
+        className="dm-onboarding-card dm-entry-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-label={t('dialog_label')}
       >
         <div className="dm-onboarding-header">
-          <div className="dm-onboarding-heading-context">
-            <div className="dm-onboarding-counter" aria-live="polite">
-              {counterText}
-            </div>
-            <div className="dm-onboarding-current-step">{stepLabels[stepIndex]}</div>
-          </div>
-          <div className="dm-onboarding-lang">
+          <Icons.Crest size={26} />
+          {!hideLanguage && (
             <LanguageSegmentedControl
-              value={uiLanguage}
-              onChange={setUiLanguage}
-              ariaLabel={tCommon('language')}
+              value={language}
+              onChange={setLanguage}
+              ariaLabel={tc('language')}
             />
-          </div>
+          )}
         </div>
-
-        <ol className="dm-onboarding-steps" aria-label={t('stepper_label')}>
-          {stepLabels.map((label, i) => (
-            <Fragment key={label}>
-              <li
-                className={`dm-onboarding-step${i === stepIndex ? ' is-active' : ''}${i < stepIndex ? ' is-done' : ''}`}
-                aria-current={i === stepIndex ? 'step' : undefined}
-              >
-                <span className="dm-onboarding-step-dot" aria-hidden="true" />
-                <span>{label}</span>
-              </li>
-              {i < stepLabels.length - 1 && (
-                <span className="dm-onboarding-step-line" aria-hidden="true" />
-              )}
-            </Fragment>
-          ))}
-        </ol>
-
-        <div className="dm-onboarding-body">
-          {currentStep === 'welcome' && <WelcomeStep titleId={titleId} onNext={next} />}
-          {currentStep === 'welcome' && onJoinRoom && (
-            <section>
-              <p>{tRooms('first_boot_hint')}</p>
-              <button
-                type="button"
-                className="dm-onboarding-btn dm-onboarding-btn-secondary"
-                onClick={onJoinRoom}
-              >
-                {tRooms('first_boot_join')}
-              </button>
-            </section>
-          )}
-          {currentStep === 'preset' && (
-            <PresetStep
-              titleId={titleId}
-              preset={preset}
-              onPresetChange={(p) => {
-                setPreset(p);
-                // Re-clamp the step index when preset changes shrink the sequence.
-                setStepIndex((i) => {
-                  const newSteps = computeSteps(p);
-                  return Math.min(i, newSteps.length - 1);
-                });
-              }}
-              onBack={back}
-              onNext={next}
-            />
-          )}
-          {currentStep === 'chat' && (
-            <ChatStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-          )}
-          {currentStep === 'image' && (
-            <ImageStep titleId={titleId} preset={preset} onBack={back} onNext={next} />
-          )}
-          {currentStep === 'video' && <VideoStep titleId={titleId} onBack={back} onNext={next} />}
-          {currentStep === 'hero' && <HeroStep titleId={titleId} onBack={back} onNext={next} />}
+        <div className="dm-onboarding-hero" data-art-direction="living-tabletop">
+          <img src={KEY_ART.onboarding} alt="" data-testid="onboarding-hero-art" />
+        </div>
+        <h1 id={titleId} className="dm-onboarding-title">
+          {t('entry_title')}
+        </h1>
+        <div className="dm-entry-actions">
+          <Button
+            variant="primary"
+            onClick={() => {
+              choose('adventure');
+              onComplete?.('adventure');
+            }}
+          >
+            <Icons.BookOpen size={18} />
+            {t('entry_adventure')}
+          </Button>
+          <Button
+            onClick={() => {
+              choose('guest');
+              onJoinRoom?.();
+            }}
+            disabled={!onJoinRoom}
+          >
+            <Icons.User size={18} />
+            {t('entry_join')}
+          </Button>
         </div>
       </div>
     </div>

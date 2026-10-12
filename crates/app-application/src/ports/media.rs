@@ -61,6 +61,9 @@ pub enum ImageError {
 
 #[async_trait]
 pub trait ImageProvider: Send + Sync {
+    fn needs_native_runtime(&self) -> bool {
+        false
+    }
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError>;
     fn estimated_seconds(&self) -> u32;
     fn cost_per_image(&self) -> f32;
@@ -148,6 +151,9 @@ pub enum VideoError {
 
 #[async_trait]
 pub trait VideoProvider: Send + Sync {
+    fn needs_native_runtime(&self) -> bool {
+        false
+    }
     async fn generate(&self, prompt: VideoPrompt) -> Result<VideoStream, VideoError>;
     fn capabilities(&self) -> VideoCapabilities;
 }

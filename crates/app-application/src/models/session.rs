@@ -21,6 +21,17 @@ pub enum CampaignSeed {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CampaignLocation {
+    Authored {
+        location: super::adventure::Location,
+    },
+    Scene {
+        title: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CampaignSummary {
     pub id: CampaignId,
     pub schema_version: u16,
@@ -30,6 +41,8 @@ pub struct CampaignSummary {
     pub last_session_id: SessionId,
     pub revision: Revision,
     pub updated_at_epoch_ms: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_location: Option<CampaignLocation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,6 +70,7 @@ impl From<&CampaignDetail> for CampaignSummary {
             last_session_id: detail.last_session_id,
             revision: detail.revision,
             updated_at_epoch_ms: detail.updated_at_epoch_ms,
+            current_location: None,
         }
     }
 }
@@ -112,4 +126,6 @@ pub struct InitialCampaign {
     pub detail: CampaignDetail,
     pub session: CampaignSession,
     pub event: CampaignEvent,
+    #[serde(default)]
+    pub opening_scene: Option<super::campaign::SceneRecord>,
 }

@@ -1,6 +1,6 @@
 {
   "tool_pending": "Pending...",
-  "tool_success": "Success",
+  "tool_success": "Done",
   "tool_error": "Error",
   "round_label": "Round {{round}}",
   "inspector_title": "Tool-call inspector",
@@ -14,8 +14,17 @@
   "drawing_illustration": "Painting the scene...",
   "drawing_video": "Generating video...",
   "map_updated": "Map updated",
-  "image_alt": "Generated image",
+  "image_alt": "Image",
   "image_open": "Open image",
   "image_source_bundled": "From the built-in collection",
-  "video_alt": "Generated video"
+  "video_alt": "Video",
+  "tool_action": "Dungeon Master action",
+  "inspect_action": "Action technical details",
+  "outcome_dice": "Roll: {{total}}",
+  "outcome_hit_points": "Hit points remaining: {{hp}}",
+  "outcome_done": "Action completed",
+  "outcome_failed": "Action not completed",
+  "image_unavailable": "Image unavailable",
+  "image_retry": "Load again",
+  "image_loading": "Loading image…"
 }

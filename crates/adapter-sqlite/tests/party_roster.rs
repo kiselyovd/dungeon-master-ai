@@ -21,6 +21,7 @@ async fn fixture_with_pool(db: sqlx::SqlitePool) -> (Arc<SqliteStore>, Initializ
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Party".into(),
             premise: "Two heroes".into(),
             seed: CampaignSeed::Bundled {

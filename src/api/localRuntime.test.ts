@@ -24,6 +24,12 @@ function mockFetch(response: Partial<Response>): ReturnType<typeof vi.fn> {
 }
 
 describe('localRuntime API client', () => {
+  it('rejects malformed running snapshots rather than claiming readiness', async () => {
+    mockFetch({
+      json: async () => ({ llm: { state: 'ready', port: 0 }, image: { state: 'off' } }),
+    });
+    await expect(fetchLocalRuntimeStatus()).rejects.toMatchObject({ code: 'invalid_response' });
+  });
   beforeEach(() => {
     setBackendPortForTesting(PORT);
   });
@@ -36,7 +42,9 @@ describe('localRuntime API client', () => {
     const snap = { llm: { state: 'ready', port: 1 }, image: { state: 'off' } };
     const fn = mockFetch({ ok: true, status: 200, json: async () => snap });
     const result = await fetchLocalRuntimeStatus();
-    expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/status`);
+    expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/status`, {
+      signal: expect.any(AbortSignal),
+    });
     expect(result).toEqual(snap);
   });
 

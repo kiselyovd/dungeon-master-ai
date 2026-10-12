@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { recordCampaignVisit } from './campaignVisits';
 import type { DiscoveredCatalog, DiscoveredCatalogsMap } from './discoveredCatalogs';
 import type {
   LocalMistralRsConfig,
@@ -55,6 +56,7 @@ export interface SettingsData {
   chatPanelWidth: number;
   /** Device-local reading preference; never sent to the campaign or model. */
   readingFontSize: ReadingFontSize;
+  campaignVisits: Record<string, string>;
   /** Play scene-transition video clips when the active scene changes. */
   sceneTransitionsEnabled: boolean;
 
@@ -93,6 +95,7 @@ export interface SettingsActions {
   setReplicateApiKey: (key: string | null) => void;
   setChatPanelWidth: (width: number) => void;
   setReadingFontSize: (size: number) => void;
+  recordCampaignVisit: (campaignId: string) => void;
   setSceneTransitionsEnabled: (enabled: boolean) => void;
 
   // M7-DM
@@ -193,6 +196,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     replicateApiKey: null,
     chatPanelWidth: DEFAULT_CHAT_WIDTH,
     readingFontSize: DEFAULT_READING_FONT_SIZE,
+    campaignVisits: {},
     sceneTransitionsEnabled: true,
 
     // M7-DM defaults
@@ -247,6 +251,14 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setReadingFontSize: (size) =>
       set((s) => ({ settings: { ...s.settings, readingFontSize: readingFontSize(size) } })),
+
+    recordCampaignVisit: (campaignId) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          campaignVisits: recordCampaignVisit(s.settings.campaignVisits, campaignId),
+        },
+      })),
 
     setSceneTransitionsEnabled: (sceneTransitionsEnabled) =>
       set((s) => ({ settings: { ...s.settings, sceneTransitionsEnabled } })),

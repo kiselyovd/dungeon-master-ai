@@ -128,6 +128,7 @@ export async function createCampaign(input: CreateCampaignInput): Promise<Campai
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       schema_version: CAMPAIGN_SCHEMA_VERSION,
+      ...(input.requestId ? { request_id: input.requestId } : {}),
       ruleset_id: CAMPAIGN_RULESET_ID,
       title: input.title,
       premise: input.premise,

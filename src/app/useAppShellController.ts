@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { initBackendListener } from '../api/client';
 import i18n from '../i18n';
 
-export type SettingsTab = 'chat' | 'image' | 'video';
+export type SettingsTab = 'chat' | 'local-llm' | 'image' | 'video' | 'behavior';
 
 export function useAppShellController(input: {
   uiLanguage: string;

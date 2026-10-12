@@ -15,6 +15,7 @@ async fn dm_intention_replay_returns_current_state_without_repeating_or_rewindin
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Bell".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {

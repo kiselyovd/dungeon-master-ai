@@ -55,6 +55,9 @@ impl LocalImageSidecarProvider {
 
 #[async_trait]
 impl ImageProvider for LocalImageSidecarProvider {
+    fn needs_native_runtime(&self) -> bool {
+        true
+    }
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         // backend_preset is propagated to the Python dispatcher so it picks the
         // right backend slot (fast=SDXL-Turbo, balanced=SDXL-Lightning,

@@ -6,6 +6,25 @@ import '../../i18n';
 import { useStore } from '../../state/useStore';
 import { LocalModeModal } from '../LocalModeModal';
 
+vi.mock('../../api/localLlm', () => ({
+  fetchLocalLlmManifest: vi.fn(async () => ({
+    system: [
+      {
+        id: 'qwen3.5-4b',
+        display_name: 'Qwen3.5-4B',
+        hf_repo: 'fixture/model',
+        hf_filename: 'model.gguf',
+        arch: 'qwen3',
+        quant: 'q4',
+        size_gb: 3,
+        license: 'apache-2.0',
+      },
+    ],
+    user: [],
+    installed_ids: ['qwen3.5-4b'],
+    download_states: {},
+  })),
+}));
 const TEST_PORT = 49999;
 
 describe('LocalModeModal runtime controls', () => {
@@ -14,6 +33,7 @@ describe('LocalModeModal runtime controls', () => {
   beforeEach(() => {
     setBackendPortForTesting(TEST_PORT);
     useStore.setState(useStore.getInitialState());
+    useStore.getState().localMode.selectModel('qwen3_5_4b');
   });
 
   afterEach(() => {
@@ -29,10 +49,12 @@ describe('LocalModeModal runtime controls', () => {
     const user = userEvent.setup();
     render(<LocalModeModal open={true} onClose={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: /start runtimes/i }));
+    const start = screen.getByRole('button', { name: /start model/i });
+    await waitFor(() => expect(start).toBeEnabled());
+    await user.click(start);
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/failed to start/i);
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not start/i);
     });
   });
 
@@ -44,7 +66,8 @@ describe('LocalModeModal runtime controls', () => {
     const user = userEvent.setup();
     render(<LocalModeModal open={true} onClose={vi.fn()} />);
 
-    const button = screen.getByRole('button', { name: /start runtimes/i });
+    const button = screen.getByRole('button', { name: /start model/i });
+    await waitFor(() => expect(button).toBeEnabled());
     await user.click(button);
 
     await waitFor(() => {
@@ -61,10 +84,10 @@ describe('LocalModeModal runtime controls', () => {
     const user = userEvent.setup();
     const { rerender } = render(<LocalModeModal open={true} onClose={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: /start runtimes/i }));
+    await user.click(screen.getByRole('button', { name: /start model/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/failed to start/i);
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not start/i);
     });
 
     // Close the modal while the reset timer is still pending.
@@ -74,7 +97,7 @@ describe('LocalModeModal runtime controls', () => {
     // Reopen the modal: the error chip must not flash back from stale state.
     rerender(<LocalModeModal open={true} onClose={vi.fn()} />);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('button', { name: /start runtimes/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /start model/i })).toHaveAttribute(
       'data-status',
       'idle',
     );

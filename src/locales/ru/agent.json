@@ -1,6 +1,6 @@
 {
   "tool_pending": "Выполняется...",
-  "tool_success": "Успех",
+  "tool_success": "Готово",
   "tool_error": "Ошибка",
   "round_label": "Раунд {{round}}",
   "inspector_title": "Инспектор вызовов",
@@ -14,8 +14,17 @@
   "drawing_illustration": "Рисую сцену...",
   "drawing_video": "Рисую видео...",
   "map_updated": "Карта обновлена",
-  "image_alt": "Сгенерированное изображение",
+  "image_alt": "Изображение",
   "image_open": "Открыть изображение",
   "image_source_bundled": "Из встроенной коллекции",
-  "video_alt": "Сгенерированное видео"
+  "video_alt": "Видео",
+  "tool_action": "Действие мастера",
+  "inspect_action": "Технические детали действия",
+  "outcome_dice": "Бросок: {{total}}",
+  "outcome_hit_points": "Осталось хитов: {{hp}}",
+  "outcome_done": "Действие выполнено",
+  "outcome_failed": "Действие не выполнено",
+  "image_unavailable": "Изображение недоступно",
+  "image_retry": "Загрузить ещё раз",
+  "image_loading": "Загрузка изображения…"
 }

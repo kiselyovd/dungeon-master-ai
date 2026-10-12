@@ -132,5 +132,16 @@
     "roll": "Death saving throw: {{roll}}",
     "retry": "Retry the same request",
     "error": "Recovery could not be confirmed. Retry the request or refresh the state."
+  },
+  "alignments": {
+    "lawful_good": "Lawful Good",
+    "lawful_neutral": "Lawful Neutral",
+    "lawful_evil": "Lawful Evil",
+    "neutral_good": "Neutral Good",
+    "true_neutral": "True Neutral",
+    "neutral_evil": "Neutral Evil",
+    "chaotic_good": "Chaotic Good",
+    "chaotic_neutral": "Chaotic Neutral",
+    "chaotic_evil": "Chaotic Evil"
   }
 }

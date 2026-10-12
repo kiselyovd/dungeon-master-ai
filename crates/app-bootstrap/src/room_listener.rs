@@ -232,6 +232,7 @@ mod tests {
     async fn create(store: Arc<SqliteStore>, rooms: &RoomService, title: &str) -> CreatedRoom {
         let campaign = CreateCampaign::new(store.clone())
             .execute(CreateCampaignCommand {
+                request_id: None,
                 title: title.into(),
                 premise: "Road".into(),
                 seed: CampaignSeed::Collaborative {

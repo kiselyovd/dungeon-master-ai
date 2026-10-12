@@ -24,6 +24,7 @@ async fn rescue_contract(rescue_action: Action) {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Bell".into(),
             premise: "Missing ferry".into(),
             seed: CampaignSeed::Bundled {

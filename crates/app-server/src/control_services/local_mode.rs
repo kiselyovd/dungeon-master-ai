@@ -21,6 +21,8 @@ use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalModeConfig {
+    #[serde(default = "default_context_window")]
+    pub context_window: u32,
     pub selected_llm: ModelId,
     pub vram_strategy: VramStrategy,
 }
@@ -28,6 +30,7 @@ pub struct LocalModeConfig {
 impl Default for LocalModeConfig {
     fn default() -> Self {
         Self {
+            context_window: default_context_window(),
             // Gemma 4 E2B (AutoIsq) is the default: the deprecated mistralrs-server
             // build we ship SEGFAULTS loading a GGUF model unless stdout is a real
             // TTY (verified live), and the backend always pipes it - so GGUF models
@@ -55,6 +58,7 @@ pub async fn post_config(
     State(state): State<AppState>,
     Json(cfg): Json<LocalModeConfig>,
 ) -> Result<Json<LocalModeConfig>, AppError> {
+    validate_context_window(cfg.context_window)?;
     state.set_local_mode_config(cfg.clone());
     Ok(Json(cfg))
 }
@@ -85,7 +89,24 @@ pub async fn delete_download(
 /// models select the file via `--format gguf` and must be downloaded first.
 /// Shared by `runtime_start` and the Auto-Swap restart path so the two never
 /// drift on how the LLM is launched.
+fn default_context_window() -> u32 {
+    8192
+}
+fn validate_context_window(value: u32) -> Result<(), AppError> {
+    if (512..=65536).contains(&value) {
+        Ok(())
+    } else {
+        Err(AppError::BadRequest("context_window_invalid".into()))
+    }
+}
 pub fn build_llm_spawn_args(state: &AppState, port: u16) -> Result<Vec<String>, AppError> {
+    let context = state.local_mode_config().context_window;
+    validate_context_window(context)?;
+    let mut args = build_base_spawn_args(state, port)?;
+    args.extend(["--max-seq-len".into(), context.to_string()]);
+    Ok(args)
+}
+fn build_base_spawn_args(state: &AppState, port: u16) -> Result<Vec<String>, AppError> {
     let cfg = state.local_mode_config();
     let model = manifest_for(&cfg.selected_llm)
         .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;

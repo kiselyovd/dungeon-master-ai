@@ -405,6 +405,7 @@ async fn fixture(pool: SqlitePool) -> Fixture {
     let store = SqliteStore::new(pool);
     let campaign = CreateCampaign::new(Arc::new(store.clone()))
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Commands".into(),
             premise: "Inspect quay".into(),
             seed: CampaignSeed::Bundled {

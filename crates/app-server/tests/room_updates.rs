@@ -33,6 +33,7 @@ async fn fixture(
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Updates".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {
@@ -465,6 +466,7 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Shared".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {

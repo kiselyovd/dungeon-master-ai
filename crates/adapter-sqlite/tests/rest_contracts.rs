@@ -25,6 +25,7 @@ async fn fixture_with_seed(seed: CampaignSeed) -> (Arc<SqliteStore>, RestCommand
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Rest".into(),
             premise: "Town".into(),
             seed,

@@ -53,6 +53,7 @@ async fn fixture(db: sqlx::SqlitePool) -> (Arc<SqliteStore>, CreateLocalRoom) {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Room".into(),
             premise: "Two devices".into(),
             seed: CampaignSeed::Bundled {
@@ -328,6 +329,7 @@ async fn revoked_leases_and_foreign_encounters_cannot_read_or_commit_room_combat
     let (grant, guest, host, encounter, _) = group_fight(&store, &service, &created).await;
     let other = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Other".into(),
             premise: "Private other room".into(),
             seed: CampaignSeed::Bundled {

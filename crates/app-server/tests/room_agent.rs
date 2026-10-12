@@ -138,6 +138,7 @@ async fn room_dm_knows_the_party_and_resolves_only_the_verified_players_intentio
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Room agent".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {
@@ -604,6 +605,7 @@ async fn collaborative_dm_reasoning_never_becomes_player_visible() {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Collaborative DM".into(),
             premise: "Road".into(),
             seed: CampaignSeed::Collaborative {
@@ -705,6 +707,7 @@ async fn room_skill_check_is_owner_scoped_replay_safe_and_transactional() {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Room agent".into(),
             premise: "Ferry".into(),
             seed: CampaignSeed::Bundled {

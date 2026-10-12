@@ -6,59 +6,48 @@
   "step_image": "Настройка изображений",
   "step_video": "Настройка видео",
   "step_counter": "Шаг {{current}} из {{total}}",
-
   "next": "Далее",
   "back": "Назад",
   "skip": "Пропустить",
   "begin": "Начать игру",
-
   "preset_recommended": "Рекомендуется",
-
-  "preset_local_only_name": "Только локально",
-  "preset_local_only_desc": "Всё работает на вашем устройстве. Приватно, оффлайн, без подписок.",
+  "preset_local_only_name": "На компьютере",
+  "preset_local_only_desc": "Скачайте модель для чата и изображений.",
   "preset_local_only_providers": "Qwen3.5-4B + SDXL-Turbo",
   "preset_local_only_download": "~6.5 ГБ загрузка",
-
   "preset_cloud_cinematic_name": "Облако и кино",
-  "preset_cloud_cinematic_desc": "OpenRouter (Claude / GPT) + Replicate FLUX-Pro + Kling. Лучшее качество.",
+  "preset_cloud_cinematic_desc": "Чат, изображения и видео через выбранные сервисы. Потребуются API-ключи; оплата по их тарифам.",
   "preset_cloud_cinematic_providers": "OpenRouter + FLUX-Pro + Kling",
-
   "preset_hybrid_name": "Гибрид",
-  "preset_hybrid_desc": "Облачный чат, локальные изображения. Баланс качества и стоимости.",
+  "preset_hybrid_desc": "Чат через сервер, изображения на компьютере.",
   "preset_hybrid_providers": "OpenRouter + SDXL-Lightning",
   "preset_hybrid_download": "~3.4 ГБ загрузка",
-
   "preset_text_only_name": "Только текст",
   "preset_text_only_desc": "Чистое повествование, без изображений и видео. Выберите любой чат-провайдер.",
   "preset_text_only_providers": "Только чат-провайдер",
-
   "preset_manual_name": "Пропустить настройку",
   "preset_manual_desc": "Выберите героя сейчас; провайдеров настройте позже в Настройках.",
   "preset_manual_providers": "Настроить позже",
-
   "preset_step_tag": "Выберите конфигурацию",
   "preset_step_title": "Выберите пресет",
   "preset_step_desc": "Выберите начальную конфигурацию. Всё можно изменить позже в Настройках.",
-
   "step1_tag": "Шаг 1 - Здравствуй, путник",
   "step1_title": "Сядь поближе к огню",
   "step1_desc": "Твой Гейм-Мастер ждёт за столом. Расскажет историю, поведёт сюжет, бросит за тебя кости. Компания не нужна - нужно только желание играть.",
-
   "chat_step_tag": "Подключение AI",
   "chat_step_title": "Выбери провайдера чата",
-  "chat_local_desc": "Загрузите Qwen3.5-4B Q4_K_M (~2.5 ГБ) для запуска AI локально. Приватно, оффлайн, без API-расходов.",
+  "chat_local_desc": "Скачайте модель и запустите её для игры на этом компьютере.",
   "chat_local_download_cta": "Загрузить Qwen3.5-4B Q4_K_M (~2.5 ГБ)",
   "chat_local_starting": "Проверка установленных моделей...",
   "chat_local_downloading": "Загрузка модели...",
   "chat_local_downloading_progress": "Загрузка... {{percent}}%",
-  "chat_local_download_done": "Модель готова - загрузка завершена.",
-  "chat_local_already_exists": "Модель готова - уже установлена.",
+  "chat_local_download_done": "Модель скачана",
+  "chat_local_already_exists": "Модель найдена",
   "chat_local_download_failed": "Ошибка загрузки. Попробуйте ещё раз.",
   "chat_local_add_hf_token": "Добавить токен HuggingFace",
   "chat_cloud_desc": "Настрой OpenAI-совместимого облачного провайдера (рекомендуем OpenRouter), чтобы запустить Мастера.",
   "chat_text_only_desc": "Настрой OpenAI-совместимого облачного провайдера или пропусти, чтобы настроить позже.",
   "retry": "Повторить",
-
   "image_step_tag": "Настройка изображений",
   "image_step_title": "Выберите провайдер изображений",
   "image_step_desc": "Генерация сцен вместе с приключением. Это можно изменить позже в Настройках.",
@@ -72,7 +61,6 @@
   "image_cpu_offload_enabled": "Выгрузка на ЦП включается автоматически, чтобы освободить видеопамять для LLM при одновременной загрузке обеих моделей.",
   "replicate_key_label": "API-ключ Replicate",
   "replicate_key_hint": "Получить ключ: replicate.com - используется для генерации изображений FLUX-Pro.",
-
   "video_step_tag": "Настройка видео",
   "video_step_title": "Включить генерацию видео",
   "video_step_desc": "Генерация коротких кинематографических клипов при смене сцен. Работает через Kling и Replicate.",
@@ -81,9 +69,7 @@
   "video_key_missing_hint": "Для включения генерации видео необходим API-ключ Replicate. Вернитесь на шаг настройки изображений и введите ключ.",
   "video_skip": "Пропустить",
   "video_enable_cta": "Включить видео",
-
   "step_hero_title": "Создай героя",
-
   "cloud_base_url_label": "Базовый URL",
   "cloud_base_url_placeholder": "https://openrouter.ai/api/v1",
   "cloud_base_url_hint": "Рекомендуем OpenRouter (один ключ, 100+ моделей). Подойдёт любой OpenAI-совместимый endpoint.",
@@ -92,15 +78,15 @@
   "cloud_api_key_hint": "Получить ключ OpenRouter: openrouter.ai/keys",
   "cloud_model_label": "Модель",
   "cloud_model_placeholder": "напр. anthropic/claude-3.5-sonnet",
-
   "class_fighter_name": "Воин",
   "class_wizard_name": "Волшебник",
   "class_rogue_name": "Плут",
   "class_cleric_name": "Жрец",
-
   "hero_step_tag": "Кто ты?",
   "hero_build_from_scratch": "Создать вручную (расширенный режим)",
-
   "dialog_label": "Первый запуск",
-  "stepper_label": "Прогресс онбординга"
+  "stepper_label": "Прогресс онбординга",
+  "entry_title": "Ваше следующее приключение",
+  "entry_adventure": "Начать приключение",
+  "entry_join": "Присоединиться к игре"
 }

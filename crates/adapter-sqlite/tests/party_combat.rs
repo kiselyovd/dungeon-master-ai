@@ -43,6 +43,7 @@ async fn fixture_with_party_size(
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Party combat".into(),
             premise: "Same-name heroes".into(),
             seed: CampaignSeed::Bundled {

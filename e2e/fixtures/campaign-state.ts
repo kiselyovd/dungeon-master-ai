@@ -4,7 +4,19 @@ import type { CampaignSeed } from '../../src/api/contracts/campaign';
 import type { CampaignStateResponse } from '../../src/api/contracts/campaignState';
 import { emptyPcData, type HeroClassId, PRESETS } from '../../src/state/pc';
 
-export async function mockCampaignState(page: Page, seed: Record<string, unknown>): Promise<void> {
+export interface CampaignFixtureFailures {
+  creationAckOnce?: boolean;
+  characterAckOnce?: boolean;
+  characterRejectOnce?: boolean;
+}
+export async function mockCampaignState(
+  page: Page,
+  seed: Record<string, unknown>,
+  failures: CampaignFixtureFailures = {},
+): Promise<void> {
+  let creationAckLost = false;
+  let characterAckLost = false;
+  let characterRejected = false;
   const states = new Map<string, CampaignStateResponse>();
   const receipts = new Map<string, { signature: string; state: CampaignStateResponse }>();
   const makeState = (
@@ -34,7 +46,22 @@ export async function mockCampaignState(page: Page, seed: Record<string, unknown
       character: {} as Record<string, unknown>,
       messages: [],
       combat: null,
-      scene: null,
+      scene:
+        source.kind === 'collaborative' ? { title, subtitle: premise, mode: 'exploration' } : null,
+      adventure:
+        source.kind === 'bundled'
+          ? {
+              state: {
+                package_id: 'bell-beneath-water',
+                location: 'town',
+                facts: [],
+                ending: null,
+                closed: false,
+                history: [],
+              },
+              available_actions: [{ kind: 'move', location: 'quay' }],
+            }
+          : null,
       journal: [],
       npcs: [],
     },
@@ -74,9 +101,27 @@ export async function mockCampaignState(page: Page, seed: Record<string, unknown
         route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
       if (path === '/campaigns' && request.method() === 'POST') {
         const input = request.postDataJSON();
-        const state = makeState(randomUUID(), randomUUID(), input.title, input.premise, input.seed);
-        state.campaign.revision = 1;
-        states.set(state.campaign.id, state);
+        const campaignId = input.request_id ?? randomUUID();
+        let state = states.get(campaignId);
+        if (
+          state &&
+          (state.campaign.title !== input.title ||
+            state.campaign.premise !== input.premise ||
+            JSON.stringify(state.campaign.seed) !== JSON.stringify(input.seed))
+        ) {
+          await reply({ error: { code: 'create_request_changed' } }, 409);
+          return;
+        }
+        if (!state) {
+          state = makeState(campaignId, randomUUID(), input.title, input.premise, input.seed);
+          state.campaign.revision = 1;
+          states.set(state.campaign.id, state);
+        }
+        if (failures.creationAckOnce && !creationAckLost) {
+          creationAckLost = true;
+          await route.abort('failed');
+          return;
+        }
         await reply(state.campaign, 201);
         return;
       }
@@ -90,6 +135,11 @@ export async function mockCampaignState(page: Page, seed: Record<string, unknown
         return;
       }
       if (parts[3] === 'character' && request.method() === 'PUT') {
+        if (failures.characterRejectOnce && !characterRejected) {
+          characterRejected = true;
+          await reply({ error: { code: 'character_invalid' } }, 422);
+          return;
+        }
         const input = request.postDataJSON();
         const key = `${id}:${input.causation_id}`;
         const signature = JSON.stringify(input);
@@ -112,6 +162,11 @@ export async function mockCampaignState(page: Page, seed: Record<string, unknown
         state.projection.character = { ...input.character, characterId: input.character_id };
         state.campaign.revision += 1;
         receipts.set(key, { signature, state: structuredClone(state) });
+        if (failures.characterAckOnce && !characterAckLost) {
+          characterAckLost = true;
+          await route.abort('failed');
+          return;
+        }
         await reply(state);
         return;
       }

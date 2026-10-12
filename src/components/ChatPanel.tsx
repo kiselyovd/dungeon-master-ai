@@ -22,7 +22,6 @@ import { Select } from '../ui/Select';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
-import { ReasoningPill } from './ReasoningPill';
 import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
 
@@ -57,11 +56,17 @@ interface ChatPanelProps {
   controller?: Pick<ReturnType<typeof useAgentTurn>, 'send' | 'cancel'>;
   recoveryNotice?: ReactNode;
   recoveryBlocked?: boolean;
+  onInspect?: (() => void) | undefined;
+  needsSetup?: boolean;
+  onRequireSetup?: (() => void) | undefined;
 }
 export function ChatPanel({
   controller,
   recoveryNotice,
   recoveryBlocked = false,
+  onInspect,
+  needsSetup = false,
+  onRequireSetup,
 }: ChatPanelProps = {}) {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
@@ -85,8 +90,6 @@ export function ChatPanel({
   // paperclip is hidden and paste/drag of image files is rejected with a hint
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
-  const streamingReasoning = useStore((s) => s.chat.streamingReasoning);
-  const streamingReasoningTokens = useStore((s) => s.chat.streamingReasoningTokens);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -151,7 +154,11 @@ export function ChatPanel({
     setStaged((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const canSend = !isStreaming && !campaignMutation && !recoveryBlocked && draft.trim().length > 0;
+  const canSend =
+    !isStreaming &&
+    !campaignMutation &&
+    !recoveryBlocked &&
+    (draft.trim().length > 0 || needsSetup);
 
   // Build a retry handler for a finalized assistant bubble identified by its
   // message id. Clicking Retry must:
@@ -199,6 +206,10 @@ export function ChatPanel({
 
   const onSend = async () => {
     if (!canSend) return;
+    if (needsSetup) {
+      onRequireSetup?.();
+      return;
+    }
     const text = draft;
     setDraft('');
     // Convert staged images to wire MessageParts (strip the data-URL prefix to
@@ -338,6 +349,7 @@ export function ChatPanel({
                 key={entry.item.id}
                 entry={streamEventToLogEntry(entry.item)}
                 label={toolLabel}
+                onInspect={onInspect}
               />
             );
           }
@@ -367,11 +379,6 @@ export function ChatPanel({
         )}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
-            <ReasoningPill
-              text={streamingReasoning ?? ''}
-              isStreaming={isStreaming && streamingReasoning === null}
-              totalTokens={streamingReasoningTokens}
-            />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
                 <TypingIndicator />
@@ -444,10 +451,10 @@ export function ChatPanel({
               className={styles.sendBtn}
               onClick={() => void onSend()}
               disabled={!canSend}
-              aria-label={t('send')}
+              aria-label={t(needsSetup ? 'configure_dm' : 'send')}
             >
               <Icons.Send size={14} />
-              <span>{t('send')}</span>
+              <span>{t(needsSetup ? 'configure_dm' : 'send')}</span>
             </button>
           )}
         </div>

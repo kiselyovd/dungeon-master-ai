@@ -25,6 +25,7 @@ async fn spell_resources_commit_replay_and_restore_with_the_hero() {
     let store = Arc::new(SqliteStore::new(db));
     let campaign = CreateCampaign::new(store.clone())
         .execute(CreateCampaignCommand {
+            request_id: None,
             title: "Magic".into(),
             premise: "Bridge".into(),
             seed: CampaignSeed::Collaborative {

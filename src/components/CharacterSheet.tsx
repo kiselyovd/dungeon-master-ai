@@ -92,7 +92,7 @@ function inventoryIcon(slug: string | undefined): IconComponent {
 }
 
 export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
-  const { t } = useTranslation('character');
+  const { t, i18n } = useTranslation('character');
   const pc = useStore((s) => s.pc);
   const campaignId = useStore((s) => s.session.activeCampaignId);
   const media = useMediaImage(
@@ -187,10 +187,12 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
         })
       : '';
   const speciesName =
-    pc.race !== null ? t(`catalog.species.${pc.race}`, { defaultValue: pc.race }) : '';
+    pc.race !== null
+      ? t(`catalog.species.${pc.race.toLowerCase()}`, { defaultValue: pc.race })
+      : '';
   const backgroundName =
     pc.background !== null
-      ? t(`catalog.backgrounds.${pc.background}`, { defaultValue: pc.background })
+      ? t(`catalog.backgrounds.${pc.background.toLowerCase()}`, { defaultValue: pc.background })
       : '';
   const meta =
     pc.subclass !== null
@@ -207,7 +209,11 @@ export function CharacterSheet({ open, onClose, onRest }: CharacterSheetProps) {
         });
   const bgLine = t('meta_background_alignment', {
     background: backgroundName,
-    alignment: pc.alignment ?? '',
+    alignment: pc.alignment
+      ? i18n.t(`character:alignments.${pc.alignment.toLowerCase().replaceAll(' ', '_')}`, {
+          defaultValue: pc.alignment,
+        })
+      : '',
   });
 
   const xpPct =

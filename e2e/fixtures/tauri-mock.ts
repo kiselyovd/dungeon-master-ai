@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { mockCampaignState } from './campaign-state';
+import { type CampaignFixtureFailures, mockCampaignState } from './campaign-state';
 
 /**
  * Seed the renderer with a fake `__TAURI_INTERNALS__` that satisfies the
@@ -35,7 +35,11 @@ export function pipeBrowserConsole(page: Page): void {
   });
 }
 
-export async function mockTauri(page: Page, seed: Record<string, unknown> = {}): Promise<void> {
+export async function mockTauri(
+  page: Page,
+  seed: Record<string, unknown> = {},
+  failures: CampaignFixtureFailures = {},
+): Promise<void> {
   await page.route('**/agent/pending?*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
   );
@@ -60,7 +64,7 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
   await page.route('**/settings/v2', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   );
-  await mockCampaignState(page, effectiveSeed);
+  await mockCampaignState(page, effectiveSeed, failures);
 
   // SplashOverlay polls /health every 250ms and only dismisses once it gets
   // a 200 OK (or after a 30-second timeout). Return a benign 200 so the

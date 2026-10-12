@@ -23,6 +23,7 @@ function baseSettings(): SettingsData {
     replicateApiKey: null,
     chatPanelWidth: 480,
     readingFontSize: 17,
+    campaignVisits: {},
     sceneTransitionsEnabled: true,
     imageEnabled: true,
     imagePreset: 'balanced',
