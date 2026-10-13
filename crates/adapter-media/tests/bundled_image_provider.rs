@@ -18,6 +18,42 @@ fn prompt(content: &str, style: &str) -> ImagePrompt {
 }
 
 #[tokio::test]
+async fn all_eight_map_identities_return_their_packaged_pixels_and_export_optional_wire_fixture() {
+    use base64::Engine;
+    let provider = BundledImageProvider::new();
+    let mut wire = Vec::new();
+    for (id, content) in [
+        ("map-tavern-interior", "tavern interior"),
+        ("map-forest-crossing", "forest crossing"),
+        ("map-ruined-courtyard", "ruined courtyard"),
+        ("map-cave-chamber", "cave chamber"),
+        ("map-dungeon-hall", "dungeon hall"),
+        ("map-temple-floor", "temple floor"),
+        ("map-village-square", "village square"),
+        ("map-tower-chamber", "tower chamber"),
+    ] {
+        let image = provider.generate(prompt(content, "map")).await.unwrap();
+        assert_eq!(
+            image.source,
+            ImageSource::Bundled {
+                asset_id: id.into()
+            }
+        );
+        let asset = bundled_assets()
+            .iter()
+            .find(|asset| asset.id == id)
+            .unwrap();
+        assert_eq!(image.data, asset.bytes);
+        assert_eq!((asset.width, asset.height), (1280, 720));
+        assert!(image.data.len() <= 512 * 1024);
+        wire.push(serde_json::json!({"id":id,"prompt":content,"image_b64":base64::engine::general_purpose::STANDARD.encode(&image.data)}));
+    }
+    if let Ok(path) = std::env::var("DMAI_EXPORT_BUNDLED_MAPS") {
+        std::fs::write(path, serde_json::to_vec(&wire).unwrap()).unwrap();
+    }
+}
+
+#[tokio::test]
 async fn selects_the_same_asset_for_normalized_prompt_variants() {
     let provider = BundledImageProvider::new();
     let first = provider

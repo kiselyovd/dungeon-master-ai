@@ -108,6 +108,7 @@ fn returning_hero_uses_a_free_cell_without_refreshing_spent_budgets() {
     enemy.position = Position { x: 1, y: 0 };
     let mut projection = CombatProjection::empty(Uuid::new_v4(), 0);
     projection.authored = Some(AuthoredEncounter {
+        map_skin_asset_id: None,
         kind: AuthoredEncounterKind::BellArchiveDefense,
         outcome: None,
         map: BattleMap {

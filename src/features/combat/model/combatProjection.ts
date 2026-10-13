@@ -16,6 +16,11 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
     if (
       !isRecord(authored) ||
       authored.kind !== 'bell_archive_defense' ||
+      !(
+        authored.map_skin_asset_id === undefined ||
+        authored.map_skin_asset_id === null ||
+        (typeof authored.map_skin_asset_id === 'string' && authored.map_skin_asset_id.length <= 160)
+      ) ||
       !v.safeParse(BattleMapSchema, authored.map).success ||
       !(
         authored.outcome === null ||

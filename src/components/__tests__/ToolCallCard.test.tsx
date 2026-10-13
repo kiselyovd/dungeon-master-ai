@@ -22,6 +22,25 @@ const settledEntry = {
 };
 
 describe('ToolCallCard', () => {
+  it('full image preview closes with Escape and restores keyboard focus', async () => {
+    const user = userEvent.setup();
+    render(
+      <ToolCallCard
+        entry={{
+          ...settledEntry,
+          toolName: 'generate_illustration',
+          imageKind: 'chat',
+          imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }}
+      />,
+    );
+    const opener = screen.getByRole('button', { name: 'Open image' });
+    await user.click(opener);
+    expect(screen.getByRole('dialog', { name: 'Image' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Image' })).toBeNull();
+    expect(opener).toHaveFocus();
+  });
   it('renders a localized action instead of a machine tool name', () => {
     render(<ToolCallCard entry={pendingEntry} />);
     expect(screen.getByText('Dice roll')).toBeInTheDocument();

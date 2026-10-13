@@ -99,6 +99,24 @@ async fn rescue_contract(rescue_action: Action) {
         .unwrap()
         .public_npcs
         .clone();
+    let saved_scene_asset = current
+        .projection
+        .adventure
+        .as_ref()
+        .unwrap()
+        .scene_asset_id
+        .clone();
+    assert_eq!(saved_scene_asset.as_deref(), Some("scene.bell.archive.v2"));
+    assert_eq!(
+        current
+            .projection
+            .adventure
+            .as_ref()
+            .unwrap()
+            .map_skin_asset_id
+            .as_deref(),
+        Some("map.bell_archive.v2")
+    );
     assert!(discovered_portraits.iter().any(|npc| npc.id == "tikhon"));
     assert!(!discovered_portraits.iter().any(|npc| npc.id == "savely"));
     let rescue = AdventureCommand {
@@ -166,6 +184,25 @@ async fn rescue_contract(rescue_action: Action) {
         .await
         .unwrap();
     let restored = store.load_current(campaign.id).await.unwrap();
+    assert_eq!(
+        restored
+            .projection
+            .adventure
+            .as_ref()
+            .unwrap()
+            .map_skin_asset_id
+            .as_deref(),
+        Some("map.bell_archive.v2")
+    );
+    assert_eq!(
+        restored
+            .projection
+            .adventure
+            .as_ref()
+            .unwrap()
+            .scene_asset_id,
+        saved_scene_asset
+    );
     assert_eq!(
         restored.projection.adventure.as_ref().unwrap().public_npcs,
         discovered_portraits

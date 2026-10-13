@@ -101,6 +101,9 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | NPC portraits | `docs/visual/NPC_PORTRAITS.md` | Stable generic identities, authored public reveal and portrait QA. |
 | Opponent miniatures | `docs/visual/OPPONENT_MINIATURES.md` | Explicit public bindings, alpha bounds, tactical anchors and visual QA. |
 | Key and save art | `docs/visual/KEY_SAVE_ART.md` | Generic atmosphere, full-frame previews, fallback and crop verification. |
+| Bell scene paintings | `docs/visual/BELL_SCENES.md` | Public current-location bindings, shared preview and restore evidence. |
+| Map skins | `docs/visual/MAP_SKINS.md` | Explicit geometry-calibrated bindings, neutral rejection and layer validation. |
+| Offline illustrations | `docs/visual/OFFLINE_ILLUSTRATIONS.md` | Stable scenic fallback categories, provenance and shared full-view behavior. |
 
 ## AI Context Files
 

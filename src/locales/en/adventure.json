@@ -85,5 +85,10 @@
     "held": "The passage is held. Tikhon can now be escorted; the ward still needs repair.",
     "retreated": "You retreated to the quay along the dry route. Tikhon remains in the upper archive room; the rescue can continue.",
     "defeated": "Mila and Agata found you and brought you to town an hour later. You have 1 HP; spent resources remain spent. The adventure continues."
-  }
+  },
+  "scene_current": "Current scene: {{location}}",
+  "scene_open": "Open painting: {{location}}",
+  "scene_preview": "Scene painting",
+  "scene_close": "Close painting",
+  "scene_unavailable": "Painting unavailable"
 }

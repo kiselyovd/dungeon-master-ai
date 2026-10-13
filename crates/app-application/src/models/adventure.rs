@@ -8,6 +8,11 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AdventureProjection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub map_skin_asset_id: Option<String>,
+    /// Atmosphere for the current public location, never tactical geometry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scene_asset_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub map: Option<app_domain::combat::geometry::BattleMap>,
     pub state: AdventureState,
     pub available_actions: Vec<Action>,
@@ -69,6 +74,20 @@ impl From<AdventureState> for AdventureProjection {
             .copied()
             .collect();
         Self {
+            map_skin_asset_id: (state.package_id == BELL_ADVENTURE_ID
+                && state.location == Location::Archive)
+                .then(|| "map.bell_archive.v2".into()),
+            scene_asset_id: (state.package_id == BELL_ADVENTURE_ID).then(|| {
+                let location = match state.location {
+                    Location::Town => "town",
+                    Location::Quay => "quay",
+                    Location::Shrine => "shrine",
+                    Location::Warehouse => "warehouse",
+                    Location::Archive => "archive",
+                    Location::Belfry => "belfry",
+                };
+                format!("scene.bell.{location}.v2")
+            }),
             public_npcs: public_npcs(&state),
             map: if state.location == Location::Archive {
                 Some(app_domain::combat::geometry::bell_archive_map())
@@ -103,6 +122,44 @@ pub struct AdventureIntent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn current_scene_art_is_public_location_bound_and_legacy_optional() {
+        for (location, id) in [
+            (Location::Town, "town"),
+            (Location::Quay, "quay"),
+            (Location::Shrine, "shrine"),
+            (Location::Warehouse, "warehouse"),
+            (Location::Archive, "archive"),
+            (Location::Belfry, "belfry"),
+        ] {
+            let mut state = AdventureState::new();
+            state.location = location;
+            let projection = AdventureProjection::from(state);
+            assert_eq!(
+                projection.scene_asset_id,
+                Some(format!("scene.bell.{id}.v2"))
+            );
+            assert_eq!(projection.map.is_some(), location == Location::Archive);
+            assert_eq!(
+                projection.map_skin_asset_id.as_deref(),
+                if location == Location::Archive {
+                    Some("map.bell_archive.v2")
+                } else {
+                    None
+                }
+            );
+            let mut value = serde_json::to_value(&projection).unwrap();
+            value.as_object_mut().unwrap().remove("scene_asset_id");
+            value.as_object_mut().unwrap().remove("map_skin_asset_id");
+            let legacy: AdventureProjection = serde_json::from_value(value).unwrap();
+            assert_eq!(legacy.scene_asset_id, None);
+            assert_eq!(legacy.map_skin_asset_id, None);
+        }
+        let mut unknown = AdventureState::new();
+        unknown.package_id = "another-package".into();
+        assert_eq!(AdventureProjection::from(unknown).scene_asset_id, None);
+    }
 
     #[test]
     fn authored_portraits_reveal_only_confirmed_people() {

@@ -8,6 +8,7 @@ import { ActionBar } from '../../components/ActionBar';
 import type { ActorVisualMap } from '../../components/actorVisuals';
 import type { PlayerTokenPresentation } from '../../components/CombatToken';
 import { InitiativeTracker } from '../../components/InitiativeTracker';
+import type { SceneArtworkPresentation } from '../../components/SceneArtwork';
 import { VttCanvas } from '../../components/VttCanvas';
 import { parseCombatProjection, projectionTokens } from './model/combatProjection';
 import { canCast } from './model/spellAvailability';
@@ -16,6 +17,8 @@ import { useCombatSelection } from './useCombatSelection';
 import { WeaponAttackDialog } from './WeaponAttackDialog';
 
 interface Props {
+  mapSkinAssetId?: string | null;
+  sceneArtwork?: SceneArtworkPresentation | null;
   actorVisuals?: ActorVisualMap | undefined;
   mapMediaRef?: MediaReference | null;
   timelineReset?: number;
@@ -30,6 +33,8 @@ interface Props {
   ) => Promise<boolean>;
 }
 export function RoomCombatPanel({
+  mapSkinAssetId,
+  sceneArtwork,
   actorVisuals,
   mapMediaRef,
   raw,
@@ -59,7 +64,7 @@ export function RoomCombatPanel({
       ? onAction(projection.encounter_id, projection.revision, action)
       : Promise.resolve(false);
   if (raw !== null && !projection) return <p role="alert">{t('invalid_projection')}</p>;
-  if (!arena && !active) return null;
+  if (!arena && !active && !sceneArtwork) return null;
   return (
     <section
       aria-label={t('map_controls')}
@@ -83,6 +88,10 @@ export function RoomCombatPanel({
           selectedTokenId={selection.selectedId}
           onSelectToken={selection.select}
           presentation={{
+            mapSkinAssetId: active
+              ? (projection?.authored?.map_skin_asset_id ?? null)
+              : (mapSkinAssetId ?? null),
+            sceneArtwork: sceneArtwork ?? null,
             actorVisuals,
             mapMediaRef: mapMediaRef ?? null,
             mediaScope: player.mediaScope ?? null,

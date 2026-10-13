@@ -317,7 +317,14 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     },
     session_id: SESSION_ID,
     character_id: null,
-    projection: { messages: [], character: {}, combat: null, scene: null, journal: [], npcs: [] },
+    projection: {
+      messages: [],
+      character: {},
+      combat: null,
+      scene: { title: 'Opening table', subtitle: null, mode: 'exploration' },
+      journal: [],
+      npcs: [],
+    },
   };
   await page.route(
     /^https?:\/\/[^/]+\/campaigns(?:\/[^/?]+(?:\/(?:state|character))?)?(?:\?|$)/,
@@ -644,9 +651,21 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await sendChat(page, 'Begin the moonlit tavern encounter.');
     await expect(page.getByText('Moonlight spills across the tavern floor.')).toBeVisible();
     await expect(page.getByText('Moonlit Tavern', { exact: true })).toBeVisible();
-    await expect(page.getByTestId('dm-vtt-map-bg')).toBeVisible();
+    await page.getByRole('button', { name: 'Open painting: Scene painting', exact: true }).click();
+    await expect(page.getByTestId('scene-art-preview').locator('img')).toBeVisible();
+    await page.getByRole('button', { name: 'Close painting', exact: true }).click();
+    await expect(page.locator('.dm-vtt-world img[data-asset-id="decorative-scene"]')).toHaveCount(
+      0,
+    );
     await expect(page.getByTestId('tool-call-card-illustration-1').getByRole('img')).toBeVisible();
-    await expect(page.getByText('From the built-in collection')).toHaveCount(2);
+    await expect(page.getByTestId('tool-call-card-map-1')).toHaveAttribute(
+      'data-image-source',
+      'bundled',
+    );
+    await expect(page.getByTestId('tool-call-card-illustration-1')).toHaveAttribute(
+      'data-image-source',
+      'bundled',
+    );
     await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toBeVisible();
     await expect(page.getByRole('toolbar', { name: 'Combat actions' })).toBeVisible();
   });
@@ -726,12 +745,12 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
 
   await test.step('inspect NPC and journal projections', async () => {
     await page.getByRole('button', { name: 'NPCs', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'NPC Memory' })).toContainText('Mira Vale');
-    await page.getByRole('button', { name: 'Close NPC memory' }).click();
+    await expect(page.getByRole('region', { name: 'NPC Memory' })).toContainText('Mira Vale');
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Journal', exact: true }).click();
-    const journal = page.getByRole('dialog', { name: "Bard's Journal" });
+    const journal = page.getByRole('region', { name: "Bard's Journal" });
     await expect(journal).toContainText('A hidden path was revealed.');
-    await page.getByRole('button', { name: 'Close journal' }).click();
+    await page.keyboard.press('Escape');
   });
 
   await test.step('quick-save, mutate, restore, and reload without persisted media', async () => {
@@ -745,22 +764,22 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await expect(saves).toBeVisible();
     await saves.getByRole('button', { name: /Load|Загрузить/ }).click();
     await expect(saves).toHaveCount(0);
-    await expect(page.locator('.dm-scene-pill')).toContainText('Moonlit Tavern');
+    await expect(page.locator('.dm-scene-pill, .dm-table-scene')).toContainText('Moonlit Tavern');
     await expect(page.getByText('The scout is wounded; Aria remains ready.')).toBeVisible();
-    await expect(page.getByTestId('dm-vtt-map-bg')).toHaveCount(0);
+    await expect(page.locator('img[data-asset-id="decorative-scene"]')).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole('button', { name: /Aria/i })).toBeVisible();
-    await expect(page.getByTestId('dm-vtt-map-bg')).toHaveCount(0);
+    await expect(page.locator('img[data-asset-id="decorative-scene"]')).toHaveCount(0);
     await expect(page.locator('[data-testid^="tool-call-card-"] img')).toHaveCount(0);
     await page.getByRole('button', { name: 'NPCs', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'NPC Memory' })).toContainText('Mira Vale');
-    await page.getByRole('button', { name: 'Close NPC memory' }).click();
+    await expect(page.getByRole('region', { name: 'NPC Memory' })).toContainText('Mira Vale');
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Journal', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: "Bard's Journal" })).toContainText(
+    await expect(page.getByRole('region', { name: "Bard's Journal" })).toContainText(
       'A hidden path was revealed.',
     );
-    await page.getByRole('button', { name: 'Close journal' }).click();
+    await page.keyboard.press('Escape');
     const persisted = await page.evaluate(() => {
       const values: string[] = [];
       for (let index = 0; index < localStorage.length; index += 1) {

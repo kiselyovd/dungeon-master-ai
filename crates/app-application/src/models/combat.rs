@@ -62,6 +62,8 @@ pub enum AuthoredEncounterKind {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthoredEncounter {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub map_skin_asset_id: Option<String>,
     pub kind: AuthoredEncounterKind,
     pub map: app_domain::combat::geometry::BattleMap,
     pub outcome: Option<app_domain::adventure::DefenseOutcome>,
@@ -134,6 +136,16 @@ mod appearance_tests {
         );
         let mut legacy = encoded;
         legacy.as_object_mut().unwrap().remove("appearances");
+        legacy["authored"]
+            .as_object_mut()
+            .unwrap()
+            .remove("map_skin_asset_id");
+        assert!(serde_json::from_value::<CombatProjection>(legacy.clone())
+            .unwrap()
+            .authored
+            .unwrap()
+            .map_skin_asset_id
+            .is_none());
         assert!(serde_json::from_value::<CombatProjection>(legacy)
             .unwrap()
             .appearances

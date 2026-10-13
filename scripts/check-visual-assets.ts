@@ -52,7 +52,10 @@ const heroes=JSON.parse(await readFile('docs/visual/hero-provenance.json','utf8'
 const npcs=JSON.parse(await readFile('docs/visual/npc-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
 const opponents=JSON.parse(await readFile('docs/visual/opponent-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
 const keySave=JSON.parse(await readFile('docs/visual/key-save-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
-provenance.assets.push(...materials.assets,...heroes.assets,...npcs.assets,...opponents.assets,...keySave.assets);
+const bellScenes=JSON.parse(await readFile('docs/visual/bell-scene-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
+const maps=JSON.parse(await readFile('docs/visual/map-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
+const illustrations=JSON.parse(await readFile('docs/visual/illustration-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
+provenance.assets.push(...materials.assets,...heroes.assets,...npcs.assets,...opponents.assets,...keySave.assets,...bellScenes.assets,...maps.assets,...illustrations.assets);
 for(const asset of manifest.assets.filter(asset=>asset.source==='builtin_imagegen')) {
   if(!provenance.assets.some(entry=>entry.assetId===asset.id&&entry.generationId))throw new Error(`missing_visual_provenance:${asset.id}`);
   if(asset.category==='frame' && !asset.alpha)throw new Error(`frame_alpha_missing:${asset.id}`);

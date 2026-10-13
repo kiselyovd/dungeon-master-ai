@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks1-5 and7-26 verified. Checkpoint6 committed376c8d7. Checkpoint7 Tasks25-26 verified and uncommitted; Task27 opponents is next. Task6 real-model after-effects recovery remains open.
+Status: in progress; Tasks1-5 and7-31 verified. Checkpoint7 committed81f2448. Checkpoint8 Tasks29-31 full/browser/native verification passed; local checkpoint commit pending. Task32 motion is next. Task6 real-model after-effects recovery remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -537,7 +537,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO selected key/save asset IDs; DEBUG crop/payload/readiness metrics; WARN unreadable composition. No campaign content embedded in generic artwork.
 
-- [ ] **Task 29: Produce six Bell location paintings and use them during exploration** (depends on 8, 9, 17, 20)
+- [x] **Task 29: Produce six Bell location paintings and use them during exploration** (depends on 8, 9, 17, 20)
 
   **Files / ownership:** Proposed town/quay/shrine/warehouse/archive/belfry scene assets; visual catalog; shared scene viewport and authored adventure public mapping.
 
@@ -547,7 +547,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO current public location/asset version; DEBUG load/crop metrics; WARN unavailable visual. No private world canon in runtime logs.
 
-- [ ] **Task 30: Upgrade eight bundled maps and add the exact Archive tactical skin** (depends on 8, 9, 17, 18, 29)
+- [x] **Task 30: Upgrade eight bundled maps and add the exact Archive tactical skin** (depends on 8, 9, 17, 18, 29)
 
   **Files / ownership:** crates/adapter-media/assets/bundled/maps/*; bundled registry; src/components/{AuthoredMap,VttCanvas}.tsx; proposed map visual reference/calibration contract and map/e2e tests.
 
@@ -557,7 +557,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG map/geometry hashes, calibration and layer state; INFO selected skin; WARN missing/misaligned art; ERROR contract mismatch. No prompts or image bytes logged.
 
-- [ ] **Task 31: Upgrade eight bundled scene illustrations and verify their offline fallback** (depends on 8, 9, 19, 25, 26, 28, 29, 30)
+- [x] **Task 31: Upgrade eight bundled scene illustrations and verify their offline fallback** (depends on 8, 9, 19, 25, 26, 28, 29, 30)
 
   **Files / ownership:** crates/adapter-media/assets/bundled/illustrations/*; image bundled/resilient providers; ToolCallCard, portrait fallback and visual catalog tests.
 
@@ -785,3 +785,15 @@ Next authorized workflow is `$aif-implement` when requested. Start at Task 1 usi
 - 2026-10-13 Checkpoint7 integrated gatesPASS:1011Rust tests,204files1282frontend tests, static/clippy/assets/typechecks. Initial smoke-log test was filtered by inherited RUST_LOG=warn; exact reproduction with info and full corrected gates pass, no production logging change. Fresh backend built; TauriQA build and real warm/cold acceptance pending.
 
 - 2026-10-13 Checkpoint7 nativePASS: fresh debugTauri exe/backend/frontend hashes retained in checkpoint-7-native/build-provenance.json; real first entry/Bell creation,8 offline-seeded public generic NPC fullviews and device assignment persistence,6 namedBell faces reached through canonical UI actions,2 authoredWaterEcho miniatures,4 current-state snapshots via realHTTP and UIcategory views. Normalclose/coldrestart afterofflinegeneric-role changes retainedall8faces,6publicidentities,2bindings and canonicalrev15/HP12/AC18/characterhash. UncaughtJSexceptions0, localLLM/image statesoff. EmptyDEBUGimage-sidecar was never invoked; no GPU/live-model/physicalLAN/releaseclaim. QAapp closed normally; no owned processes remain. Localownedcheckpointcommit pending.
+
+- 2026-10-13 Task29: six publicBell locationpaintings1234548bytes, explicit optionalcurrent-location scene_asset_id, shared non-tactical stage/fullpreview and location-bound catalogue check. No actor/rule/tacticalgeometry inferred frompaint. Archivearena unchanged, paintingpreview reachable. Previewbehindchat defect reproduced onrealroot, fixed viaexistingModal bodyportal; scopechangesclosestalepreviews and future/mismatchedID staysneutral. Application4tests, actualSQLitecheckpointrestore, authenticatedhost/guest/rejoin16roomsetups, focused19UItests, productionbuild/finalfastgatesPASS. Real-backend production browser6RU/EN x960/1280/1920 scenarios traverseall6 viaUI and realsave/restorePASS; additionalRU960 failed-image request/fallback/closePASS. Allsources/prompts/jobs/current-consumer screens retained; all6actualviews inspected. Selectedmasters84,catalogue133entries17409463bytes. Ownbackend/tests stopped; checkpoint8 full/native/localcommit groupedafterTasks30-31.
+
+- 2026-10-14 Task30: eight stablebundledmapIDs upgraded1280x720/2408582bytes, originalpixelsretainedunderlegacyIDs and512KiBcontractunchanged. ExistingArchivepilot map.bell_archive.v2 boundbyexplicitpublicskinID+exactgeometry12x8/wall6exceptrow3/exit1,3; mismatch/imagefailure stayneutralvector, noart-derivedcollision. Uncalibratedmapmedia nowshareddecorativescene/fullpreview, activeunmappedcombatusesneutralgrid. Focused19UI/calibration testsPASS, actualpackagedprovider5testsPASS inclall8wireexports. Productionbrowserall8image-eventfallbackconsumersPASS and scopedownedmediareloadPASS (stalefixtureopening-scene corrected). Actualbackend3DPRcases1/1.5/2PASS throughzoom/fit/layers, 10ftruler, realhero drag+server5ftmovementcost and reload. Stroke-boundhalf-pixel measurement correctedtoSVGgeometrycoordinates, no weakenedalignment. All8actualviews+Archivecaptureinspected. Publiclegacy9modeltestsPASS; skinSQLitecheckpointrestore pendingcollection. Build/fastgatesPASS. Selectedmasters92,catalogue141entries19818045bytes. Native/fullcheckpoint8+localcommit groupedafterTask31.
+
+- 2026-10-14 Task30 closing gates: actualskinSQLitecheckpointrestorePASS, public/legacy9modelchecksPASS; finalactualbackendDPR1/1.5/2 geometry/ruler/movement/reloadcases3PASS. Ownbackend49940 andalltest/build/imagehandles stopped/terminal. Sourceall8fullconsumerimages+ArchiveDPRcaptureviewed. Checkpoint8 native/full/localcommit andTask31 remain pending; fullgoalactive.
+
+- 2026-10-14 Task31 provider/browser: eight new1280x720 scenic illustrations2064188bytes, stable IDs/order/512KiB limit, original pixels retained as explicit legacy entries. Exact jobs/prompts/master hashes and inspected full-view captures retained. Real resilient-provider tests cover8x5 failure outcomes and packaged-byte/category equality; existing authentication/cancel and portrait separation pass. Actual exported fallback bytes render through production chat consumers; all8 full views inspected. Old lightbox Escape defect reproduced and fixed using common Modal/Button/body portal with focus return and stale-image closure. Focused ToolCallCard8tests and production buildPASS. Catalogue149entries21882233bytes, selectednewmasters100; final master/consumer coverage audit remains Tasks43-44. Native acceptance pending before Task31 closure.
+
+- 2026-10-14 Checkpoint8 integration: full campaign journeyPASS after stale initial scene/provenance/dialog fixture updates to the current prepared scene and shared context regions; authoritative movement/heal/attack/save/restore assertions retained. All8 maps, all8 illustrations and owned-media reload browserPASS. Actual-backend repeat7PASS initially, with two960 reduced-motion modal checks failing. Scoped Modal CSS explicitly disables animations under reduced motion; bothRU/EN960 real-backend cases nowPASS, including all6 transitions, actualrestore and missing-image fallback. FinalfastgatesPASS. Original38dirtytracked files match checkpoint7 baseline;5untracked source tests preserved. Fullgates/native/localownedcommit pending, goalACTIVE.
+
+- 2026-10-14 Checkpoint8 acceptancePASS: fullgates1014Rust/207frontendfiles1292tests, finalfastgates/buildPASS, completecampaign journey and actualbackend scenes/restore/missing-art/DPRcalibrationPASS. FreshTauri ownprofile art20261014 verifies6canonicalscenes, missing-artstatus/close, Archivecalibratedskin/twoWaterEcho sprites, all8illustrations+8maps fromactualbackend fallback with exactpackagedbytes throughfixturechat delivery, category-correctportrait, Escape/focus/fullviews andcoldsameSQLite revision13/HP12/heroHash/skin. RuntimeLLM/imageoff, JSexceptions0; allownedprocessesclosed. Harness repairs: page-targetCDP, focus beforecontrolactivation, CORSpreflight and nativebridgereadiness; screenshots waitforanimationend. Source/API/native/model layers remain distinct. All16settlednativefullviews inspected. Task31checked; selectednewmasters100/globalcoverageaudit stillTasks43-44. Localownedcheckpointcommit next; Task32 then.

@@ -62,6 +62,7 @@ pub fn bell_defense(encounter_id: Uuid) -> CombatProjection {
         .collect::<Vec<_>>();
     CombatProjection {
         authored: Some(AuthoredEncounter {
+            map_skin_asset_id: Some("map.bell_archive.v2".into()),
             kind: AuthoredEncounterKind::BellArchiveDefense,
             map: bell_archive_map(),
             outcome: None,

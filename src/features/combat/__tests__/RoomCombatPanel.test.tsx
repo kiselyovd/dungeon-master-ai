@@ -22,6 +22,27 @@ vi.mock('../WeaponAttackDialog', () => ({
   ),
 }));
 const ownId = '11111111-1111-4111-8111-111111111111';
+it('non-tactical public room scenes use the same painting presentation', () => {
+  render(
+    <RoomCombatPanel
+      raw={null}
+      map={null}
+      player={player}
+      disabled
+      onAction={vi.fn()}
+      sceneArtwork={{ assetId: 'scene.bell.town.v2', location: 'town' }}
+    />,
+  );
+  expect(vtt.render).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      presentation: expect.objectContaining({
+        active: false,
+        map: null,
+        sceneArtwork: { assetId: 'scene.bell.town.v2', location: 'town' },
+      }),
+    }),
+  );
+});
 const otherId = '22222222-2222-4222-8222-222222222222';
 const ownCharacter = '33333333-3333-4333-8333-333333333333';
 function actor(id: string, character_id: string | null) {

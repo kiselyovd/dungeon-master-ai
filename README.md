@@ -129,6 +129,9 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Stable NPC faces and public reveal | [NPC portraits](docs/visual/NPC_PORTRAITS.md) |
 | Public opponent art and tactical anchors | [Opponent miniatures](docs/visual/OPPONENT_MINIATURES.md) |
 | Startup, library and save paintings | [Key and save art](docs/visual/KEY_SAVE_ART.md) |
+| Canonical current-location atmosphere | [Bell scene paintings](docs/visual/BELL_SCENES.md) |
+| Map artwork and exact tactical calibration | [Map skins](docs/visual/MAP_SKINS.md) |
+| Bundled scenic images and fallback behavior | [Offline illustrations](docs/visual/OFFLINE_ILLUSTRATIONS.md) |
 
 ## Build
 

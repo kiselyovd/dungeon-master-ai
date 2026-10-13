@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { publicToolOutcome } from '../features/agent-turn/model/publicToolOutcome';
 import { useMediaImage } from '../features/media/useMediaImage';
 import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui/Button';
 import { Icons } from '../ui/Icons';
+import { Modal } from '../ui/Modal';
 import styles from './ToolCallCard.module.css';
 
 interface Props {
@@ -44,7 +47,11 @@ export function ToolCallCard({ entry, label, onInspect }: Props) {
   const isVideoTool = VIDEO_TOOLS.has(toolName);
 
   const [flashing, setFlashing] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  useEffect(
+    () => setLightboxSrc((current) => (current === imageDataUrl ? current : null)),
+    [imageDataUrl],
+  );
 
   useEffect(() => {
     // Image and video tools never show the text result block.
@@ -124,7 +131,7 @@ export function ToolCallCard({ entry, label, onInspect }: Props) {
             <button
               type="button"
               className={styles.thumbButton}
-              onClick={() => setLightboxOpen(true)}
+              onClick={() => setLightboxSrc(imageDataUrl ?? null)}
               aria-label={t('image_open')}
             >
               <img
@@ -163,17 +170,18 @@ export function ToolCallCard({ entry, label, onInspect }: Props) {
         </div>
       )}
 
-      {lightboxOpen && imageDataUrl && (
-        <div
-          className={styles.lightbox}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('image_alt')}
-          onClick={() => setLightboxOpen(false)}
-          onKeyDown={(e) => e.key === 'Escape' && setLightboxOpen(false)}
+      {createPortal(
+        <Modal
+          open={Boolean(imageDataUrl) && lightboxSrc === imageDataUrl}
+          title={t('image_alt')}
+          onClose={() => setLightboxSrc(null)}
+          footer={<Button onClick={() => setLightboxSrc(null)}>{t('image_close')}</Button>}
         >
-          <img src={imageDataUrl} alt={t('image_alt')} className={styles.lightboxImg} />
-        </div>
+          {imageDataUrl && (
+            <img src={imageDataUrl} alt={t('image_alt')} className={styles.lightboxImg} />
+          )}
+        </Modal>,
+        document.body,
       )}
     </div>
   );

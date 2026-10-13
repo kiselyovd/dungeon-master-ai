@@ -100,6 +100,64 @@ fn prompt() -> ImagePrompt {
 }
 
 #[tokio::test]
+async fn actual_offline_fallback_covers_all_eight_illustrations_without_category_crossing() {
+    use adapter_media::image::BundledImageProvider;
+    use base64::Engine;
+    let categories = [
+        ("illustration-tavern", "tavern"),
+        ("illustration-village", "village"),
+        ("illustration-forest-road", "forest road"),
+        ("illustration-ruins", "ruins"),
+        ("illustration-cave", "cave"),
+        ("illustration-dungeon", "dungeon"),
+        ("illustration-temple", "temple"),
+        ("illustration-wizard-tower", "wizard tower"),
+    ];
+    let mut wire = Vec::new();
+    for outcome in [
+        Outcome::Provider,
+        Outcome::Network,
+        Outcome::Timeout,
+        Outcome::Degraded,
+        Outcome::Malformed,
+    ] {
+        for (id, content) in categories {
+            let (primary, calls) = ScriptedProvider::new(outcome, 0, 0.0);
+            let provider =
+                ResilientImageProvider::new(primary, Arc::new(BundledImageProvider::new()));
+            let image = provider
+                .generate(ImagePrompt {
+                    content_prompt: content.into(),
+                    style_preset: "classic".into(),
+                    ..ImagePrompt::default()
+                })
+                .await
+                .unwrap();
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                image.source,
+                ImageSource::Bundled {
+                    asset_id: id.into()
+                }
+            );
+            let asset = adapter_media::image::bundled_assets()
+                .iter()
+                .find(|asset| asset.id == id)
+                .unwrap();
+            assert_eq!(image.data, asset.bytes);
+            assert_eq!((asset.width, asset.height), (1280, 720));
+            assert!(image.data.len() <= 512 * 1024);
+            if matches!(outcome, Outcome::Degraded) {
+                wire.push(serde_json::json!({"id":id,"prompt":content,"image_b64":base64::engine::general_purpose::STANDARD.encode(&image.data)}));
+            }
+        }
+    }
+    if let Ok(path) = std::env::var("DMAI_EXPORT_BUNDLED_ILLUSTRATIONS") {
+        std::fs::write(path, serde_json::to_vec(&wire).unwrap()).unwrap();
+    }
+}
+
+#[tokio::test]
 async fn generated_success_skips_fallback_and_keeps_primary_estimates() {
     let (primary, primary_calls) = ScriptedProvider::new(Outcome::Generated, 41, 0.07);
     let (fallback, fallback_calls) = ScriptedProvider::new(Outcome::Bundled, 0, 0.0);

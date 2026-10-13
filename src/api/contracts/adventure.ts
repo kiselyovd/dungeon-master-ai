@@ -28,6 +28,8 @@ export const AdventureActionSchema = v.variant('kind', [
   }),
 ]);
 export const AdventureProjectionSchema = v.object({
+  map_skin_asset_id: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(160)))),
+  scene_asset_id: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(160)))),
   map: v.optional(v.nullable(BattleMapSchema)),
   state: v.object({
     package_id: v.literal('bell-beneath-water'),

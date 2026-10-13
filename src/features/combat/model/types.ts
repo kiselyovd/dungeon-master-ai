@@ -82,6 +82,7 @@ export interface CombatToken {
 export interface CombatProjectionDto {
   appearances?: Record<string, string>;
   authored?: {
+    map_skin_asset_id?: string | null;
     kind: 'bell_archive_defense';
     map: BattleMap;
     outcome: 'active' | 'held' | 'retreated' | 'defeated' | null;

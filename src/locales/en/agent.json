@@ -26,5 +26,6 @@
   "outcome_failed": "Action not completed",
   "image_unavailable": "Image unavailable",
   "image_retry": "Load again",
-  "image_loading": "Loading image…"
+  "image_loading": "Loading image…",
+  "image_close": "Close image"
 }

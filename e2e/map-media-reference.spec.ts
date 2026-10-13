@@ -53,7 +53,7 @@ test('production tabletop resolves the same persisted map after reload without i
       },
       messages: [],
       combat: null,
-      scene: null,
+      scene: { title: 'Map reference fixture', subtitle: 'Map lookup', mode: 'exploration' },
       adventure: null,
       journal: [],
       npcs: [],
@@ -76,7 +76,9 @@ test('production tabletop resolves the same persisted map after reload without i
     return route.fulfill({ status: 200, contentType: 'image/webp', body: bytes });
   });
   await page.goto('/');
-  const image = page.getByTestId('dm-vtt-map-bg');
+  const image = page.getByTestId('current-scene-art').locator('img');
+  await expect(page.getByTestId('authored-map')).toHaveCount(0);
+  await expect(page.locator('.dm-vtt-controls')).toBeHidden();
   await expect(image).toHaveAttribute('src', /^blob:/);
   await expect
     .poll(() =>

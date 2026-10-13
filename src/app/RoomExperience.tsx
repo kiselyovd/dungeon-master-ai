@@ -315,6 +315,15 @@ function ConnectedRoom({
           battle={
             view.state && (
               <RoomCombatPanel
+                mapSkinAssetId={view.state.adventure?.map_skin_asset_id ?? null}
+                sceneArtwork={
+                  view.state.adventure?.scene_asset_id
+                    ? {
+                        assetId: view.state.adventure.scene_asset_id,
+                        location: view.state.adventure.state.location,
+                      }
+                    : null
+                }
                 actorVisuals={Object.fromEntries(
                   view.state.actors.map((actor) => [
                     actor.character_id,

@@ -150,6 +150,14 @@ async fn both_room_participants_keep_all_explicit_hero_identities_without_privat
             let host_public = serde_json::to_value(&host_update.state).unwrap();
             let guest_public = serde_json::to_value(&guest_update.state).unwrap();
             assert_eq!(
+                host_public["adventure"]["scene_asset_id"],
+                "scene.bell.town.v2"
+            );
+            assert_eq!(
+                host_public["adventure"]["scene_asset_id"],
+                guest_public["adventure"]["scene_asset_id"]
+            );
+            assert_eq!(
                 host_public["adventure"]["public_npcs"],
                 guest_public["adventure"]["public_npcs"]
             );
@@ -188,6 +196,21 @@ async fn both_room_participants_keep_all_explicit_hero_identities_without_privat
             let host_public = serde_json::to_value(&host_update.state).unwrap();
             let guest_public = serde_json::to_value(&guest_update.state).unwrap();
             let appearances = host_public["combat"]["appearances"].as_object().unwrap();
+            let rejoined = rooms
+                .authenticate(room, guest.member_id, &guest.capability)
+                .await
+                .unwrap();
+            let rejoined_public =
+                serde_json::to_value(rooms.initial_updates(&rejoined, None).await.unwrap().state)
+                    .unwrap();
+            assert_eq!(
+                rejoined_public["adventure"]["scene_asset_id"],
+                "scene.bell.archive.v2"
+            );
+            assert_eq!(
+                rejoined_public["adventure"]["scene_asset_id"],
+                host_public["adventure"]["scene_asset_id"]
+            );
             assert_eq!(appearances.len(), 2);
             assert_eq!(
                 host_public["combat"]["appearances"],

@@ -23,7 +23,14 @@ import { AuthoredMap } from './AuthoredMap';
 import type { ActorVisualMap } from './actorVisuals';
 import { CombatOverlay } from './CombatOverlay';
 import type { PlayerTokenPresentation } from './CombatToken';
+import {
+  DecorativeSceneArtwork,
+  SceneArtwork,
+  type SceneArtworkPresentation,
+} from './SceneArtwork';
 export interface VttPresentation {
+  mapSkinAssetId?: string | null;
+  sceneArtwork?: SceneArtworkPresentation | null;
   actorVisuals?: ActorVisualMap | undefined;
   mapMediaRef?: MediaReference | null;
   mediaScope?: MediaScope | null;
@@ -82,6 +89,12 @@ export function VttCanvas({
   const storedTokens = useStore((s) => s.combat.tokens);
   const authored = useStore((s) => s.combat.authored);
   const adventureMap = useStore((s) => s.session.adventure?.map);
+  const storedAdventure = useStore((s) => s.session.adventure);
+  const scenery = presentation
+    ? presentation.sceneArtwork
+    : storedAdventure?.scene_asset_id
+      ? { assetId: storedAdventure.scene_asset_id, location: storedAdventure.state.location }
+      : null;
   const storedTurn = useStore((s) => s.combat.currentTurnId);
   const storedRevision = useStore((s) => s.combat.revision);
   const storedAoe = useStore((s) => s.combat.aoeTemplates);
@@ -100,6 +113,11 @@ export function VttCanvas({
   );
   const combatActive = presentation ? presentation.active : storedActive;
   const arena = presentation ? presentation.map : combatActive ? authored?.map : adventureMap;
+  const mapSkinAssetId = presentation
+    ? presentation.mapSkinAssetId
+    : combatActive
+      ? authored?.map_skin_asset_id
+      : storedAdventure?.map_skin_asset_id;
   const tokens = presentation
     ? presentation.tokens
     : !combatActive && (authored || storedEncounterId)
@@ -109,7 +127,7 @@ export function VttCanvas({
   const combatRevision = presentation ? presentation.revision : storedRevision;
   const aoeTemplates = presentation ? [] : storedAoe;
   const mapImageUrl = reference ? media.url : presentation ? null : storedImage;
-  const hasMap = mapImageUrl !== null || Boolean(arena);
+  const hasMap = Boolean(arena);
   const [showGrid, setShowGrid] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showSceneImage, setShowSceneImage] = useState(true);
@@ -220,15 +238,13 @@ export function VttCanvas({
 
   // The scene image is shown only when one exists AND its layer is enabled.
   // drawGrid paints the dark backdrop whenever the image is not visible.
-  const showMapImage = mapImageUrl !== null && showSceneImage && !arena;
 
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
       g.clear();
-      // With a visible map image behind the canvas we paint nothing opaque so
-      // the scene art shows through; only the grid lines (drawn below) overlay
-      // it. When no image is visible we fill the dark backdrop ourselves.
-      if (!showMapImage && !arena) {
+      // A supplied arena owns its floor. Unmapped combat uses a neutral grid;
+      // decorative media never supplies terrain or collision.
+      if (!arena) {
         g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
       }
       if (!showGrid) return;
@@ -263,7 +279,6 @@ export function VttCanvas({
       gridHeight,
       arena,
       showGrid,
-      showMapImage,
     ],
   );
 
@@ -418,21 +433,16 @@ export function VttCanvas({
         style={{ cursor: isPanning ? 'grabbing' : measureMode ? 'crosshair' : 'grab' }}
       >
         <div className="dm-vtt-world" style={worldStyle}>
-          {arena && <AuthoredMap map={arena} cellSize={cellSize} />}
-          {showMapImage && (
-            <img
-              src={mapImageUrl ?? undefined}
-              alt=""
-              className="dm-vtt-map-bg"
-              data-testid="dm-vtt-map-bg"
+          {arena && (
+            <AuthoredMap
+              map={arena}
+              cellSize={cellSize}
+              skinAssetId={mapSkinAssetId ?? null}
+              showSkin={showSceneImage}
             />
           )}
-          {/* The canvas is always transparent; the dark backdrop is painted by
-              drawGrid's rect fill (skipped when a map image is present so the
-              art shows through). backgroundAlpha is an init-only Pixi option, so
-              a constant 0 avoids the "opaque clear hides the map" reactivity bug.
-              Keying on hasMap forces a renderer re-init if the map toggles, so a
-              late-arriving image is never occluded by a stale opaque clear. */}
+          {/* Only authoritative arena geometry shares the tactical canvas.
+              Uncalibrated raster media is rendered as a separate scene preview. */}
           <Application
             key={hasMap ? 'vtt-map' : 'vtt-grid'}
             width={width}
@@ -522,7 +532,11 @@ export function VttCanvas({
         )}
       </div>
 
-      {isEmpty && (
+      {scenery && <SceneArtwork presentation={scenery} stage={isEmpty} />}
+      {!scenery && mapImageUrl && (!combatActive || showSceneImage) && (
+        <DecorativeSceneArtwork src={mapImageUrl} stage={isEmpty} />
+      )}
+      {isEmpty && !scenery && !mapImageUrl && (
         <div className="dm-vtt-empty" aria-live="polite" data-art-direction="living-tabletop">
           <DecorativeImage
             src={KEY_ART.vttEmpty}
@@ -534,12 +548,21 @@ export function VttCanvas({
         </div>
       )}
 
-      <div className="dm-vtt-scale" aria-hidden="true">
+      <div
+        className="dm-vtt-scale"
+        aria-hidden="true"
+        style={{ display: isEmpty && (scenery || mapImageUrl) ? 'none' : undefined }}
+      >
         <div className="dm-vtt-scale-bar" />
         <span>{t('map_scale_5ft')}</span>
       </div>
 
-      <div className="dm-vtt-controls" role="toolbar" aria-label={t('map_controls')}>
+      <div
+        className="dm-vtt-controls"
+        role="toolbar"
+        aria-label={t('map_controls')}
+        style={{ display: isEmpty && (scenery || mapImageUrl) ? 'none' : undefined }}
+      >
         <button
           type="button"
           className="dm-vtt-ctrl"
@@ -601,7 +624,7 @@ export function VttCanvas({
         </button>
       </div>
 
-      {layersOpen && (
+      {layersOpen && !(isEmpty && (scenery || mapImageUrl)) && (
         <div className="dm-vtt-layers" role="menu" aria-label={t('map_layers')}>
           <label className="dm-vtt-layer-row">
             <input type="checkbox" checked={showGrid} onChange={() => setShowGrid((v) => !v)} />
@@ -611,7 +634,7 @@ export function VttCanvas({
             <input
               type="checkbox"
               checked={showSceneImage}
-              disabled={!hasMap}
+              disabled={!hasMap && !mapImageUrl}
               onChange={() => setShowSceneImage((v) => !v)}
             />
             <span>{t('layer_scene')}</span>
