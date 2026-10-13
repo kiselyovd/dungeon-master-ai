@@ -76,7 +76,7 @@ test('onboarding welcome and four class portraits use living-tabletop art', asyn
 
   for (const role of ['fighter', 'wizard', 'rogue', 'cleric']) {
     const card = page.getByRole('radio', { name: new RegExp(role, 'i') });
-    await expect(card.locator('img')).toBeVisible();
+    await expect(card.locator('..').locator('img')).toBeVisible();
   }
 });
 
@@ -105,7 +105,10 @@ test('NPC, save, and combat scene use their semantic images', async ({ page }) =
     'src',
     /npc-innkeeper.*\.webp/,
   );
-  await page.getByRole('dialog').getByRole('button', { name: /close/i }).first().click();
+  await page
+    .getByRole('complementary', { name: 'Adventure', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
 
   await page.getByRole('button', { name: 'Saves', exact: true }).click();
   await expect(page.locator('.dm-save-thumb[data-tag="exploration"] img').first()).toHaveAttribute(

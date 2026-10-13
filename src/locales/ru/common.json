@@ -1,4 +1,7 @@
 {
+  "hero": "Герой",
+  "scene": "Сцена",
+  "context_unavailable": "Не удалось прочитать контекст. Переподключитесь, чтобы обновить его.",
   "app_title": "Dungeon Master AI",
   "error_title": "Что-то пошло не так",
   "error_reload": "Перезагрузить",

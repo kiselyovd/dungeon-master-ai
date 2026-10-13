@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NPC_ART } from '../assets/livingTabletop';
+import { visualAsset } from '../assets/visualCatalog';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { DISPOSITIONS, type Disposition, type NpcRecord } from '../state/npc';
+import { npcAppearance } from '../state/npcAppearance';
+import { ContextSurface } from './ContextSurface';
 import styles from './NpcMemoryGrid.module.css';
 
 type NpcArchetype =
@@ -54,11 +57,13 @@ function npcArchetype(npc: Pick<NpcRecord, 'id' | 'role'>): NpcArchetype {
   for (const [pattern, archetype] of ROLE_KEYWORD_MAP) {
     if (pattern.test(npc.role)) return archetype;
   }
-  const idx = hash(npc.id) % ARCHETYPE_ORDER.length;
+  // Preserve the original eight-way assignment when the production catalog expands.
+  const idx = hash(npc.id) % 8;
   return ARCHETYPE_ORDER[idx] ?? 'peasant';
 }
 
 interface Props {
+  embedded?: boolean;
   npcs: NpcRecord[];
   onClose: () => void;
 }
@@ -70,7 +75,7 @@ const DISPOSITION_COLORS: Record<Disposition, string> = {
   unknown: 'var(--color-fg-muted)',
 };
 
-export function NpcMemoryGrid({ npcs, onClose }: Props) {
+export function NpcMemoryGrid({ npcs, onClose, embedded = false }: Props) {
   const { t } = useTranslation('npc');
   const containerRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
@@ -78,8 +83,8 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   const { isClosing, triggerClose } = useClosingAnimation(onClose);
 
   useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
+    if (!embedded) containerRef.current?.focus();
+  }, [embedded]);
 
   const filtered = npcs.filter((n) => {
     const matchSearch =
@@ -90,17 +95,12 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   });
 
   return (
-    <div
-      className={styles.overlay}
-      data-state={isClosing ? 'closing' : 'open'}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('title')}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          triggerClose();
-        }
-      }}
+    <ContextSurface
+      embedded={embedded}
+      label={t('title')}
+      className={embedded ? styles.embedded : styles.overlay}
+      state={isClosing ? 'closing' : 'open'}
+      onEscape={triggerClose}
     >
       <div className={styles.container} tabIndex={-1} ref={containerRef}>
         <div className={styles.header}>
@@ -153,18 +153,33 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </ContextSurface>
   );
 }
 
 function NpcCard({ npc }: { npc: NpcRecord }) {
   const { t } = useTranslation('npc');
   const archetype = npcArchetype(npc);
+  const key = `${npc.campaign_id}:${npc.id}`;
+  const [assigned, setAssigned] = useState<{ key: string; id: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void npcAppearance(key, `npc.${archetype}.legacy.v1`)
+      .then((id) => {
+        if (alive) setAssigned({ key, id });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [key, archetype]);
+  const assetId = assigned?.key === key ? assigned.id : `npc.${archetype}.legacy.v1`;
   return (
     <article className={styles.card}>
       <div className={styles.cardBanner}>
         <img
-          src={ARCHETYPE_PORTRAIT[archetype]}
+          src={visualAsset(assetId)?.uri ?? ARCHETYPE_PORTRAIT[archetype]}
+          data-asset-id={assetId}
           alt=""
           className={styles.cardPortrait}
           data-archetype={archetype}

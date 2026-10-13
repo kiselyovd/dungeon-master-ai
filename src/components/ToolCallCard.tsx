@@ -63,7 +63,7 @@ export function ToolCallCard({ entry, label, onInspect }: Props) {
 
   return (
     <div
-      className={`${styles.card} ${isError ? styles.cardError : ''} ${flashing ? styles.cardFlash : ''}`}
+      className={`${styles.card} ${!isImageTool && !isVideoTool ? styles.compact : ''} ${isError ? styles.cardError : ''} ${flashing ? styles.cardFlash : ''}`}
       data-testid={`tool-call-card-${entry.id}`}
       data-tool-name={toolName}
       data-status={statusLabel}

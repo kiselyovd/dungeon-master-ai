@@ -30,5 +30,10 @@ export function useStickyScroll(thresholdPx = 100) {
     setShouldScroll(true);
   }, []);
 
-  return { ref, onScroll, scrollToBottom, shouldScroll, reset };
+  const jumpToBottom = useCallback(() => {
+    setShouldScroll(true);
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, []);
+
+  return { ref, onScroll, scrollToBottom, shouldScroll, reset, jumpToBottom };
 }

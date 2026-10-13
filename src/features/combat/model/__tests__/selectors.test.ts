@@ -6,4 +6,6 @@ it('an NPC sharing the hero name is not the owned character', () => {
   const hero = { ...npc, id: 'hero-token', characterId: 'hero-character' };
   expect(isPlayerToken(npc, 'hero-character', 'Mira')).toBe(false);
   expect(isPlayerToken(hero, 'hero-character', 'Mira')).toBe(true);
+  expect(isPlayerToken(npc, null, 'Mira')).toBe(false);
+  expect(isPlayerToken(hero, null, 'Mira')).toBe(false);
 });

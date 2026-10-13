@@ -1,4 +1,9 @@
 {
+  "context_backstory": "История героя",
+  "context_ideals": "Идеалы",
+  "context_bonds": "Привязанности",
+  "context_flaws": "Слабости",
+  "context_full_sheet": "Полный лист персонажа",
   "title": "Лист персонажа",
   "close_aria": "Закрыть лист персонажа",
   "fab_aria": "Открыть лист персонажа {{name}}",

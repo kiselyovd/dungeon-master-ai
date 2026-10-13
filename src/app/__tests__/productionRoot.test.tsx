@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPendingAgentRecoveryInput } from '../../api/agentPending';
 import { fetchAgentRecovery } from '../../api/agentRecovery';
+import { fetchCampaigns } from '../../api/campaigns';
 import i18n from '../../i18n';
 import { parseApiKey, parseBaseUrl } from '../../state/providers';
 import { useStore } from '../../state/useStore';
@@ -82,6 +83,53 @@ beforeEach(async () => {
 
 describe('production application root', () => {
   afterEach(() => vi.restoreAllMocks());
+  it('keeps local chat setup gated when the process runs but provider configuration is unconfirmed', async () => {
+    vi.spyOn(useStore.persist, 'hasHydrated').mockReturnValue(true);
+    vi.mocked(fetchAgentRecovery).mockResolvedValue(null);
+    useStore.getState().pc.applyPreset('fighter');
+    useStore
+      .getState()
+      .session.activate(
+        '11111111-1111-4111-8111-111111111111',
+        '22222222-2222-4222-8222-222222222222',
+      );
+    useStore.getState().session.setCurrentScene({ name: 'First scene', stepCounter: 0 });
+    useStore.getState().campaigns.setActive({
+      id: '11111111-1111-4111-8111-111111111111',
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      title: 'Campaign',
+      premise: 'Opening',
+      revision: 1,
+      last_session_id: '22222222-2222-4222-8222-222222222222',
+      created_at: '2026-10-12T00:00:00Z',
+      updated_at: '2026-10-12T00:00:00Z',
+      seed: { kind: 'collaborative', answers: {} },
+    });
+    useStore.setState((state) => ({
+      pc: { ...state.pc, characterId: '33333333-3333-4333-8333-333333333333' },
+      settings: {
+        ...state.settings,
+        activeProvider: 'local-mistralrs',
+        providers: { ...state.settings.providers, 'local-mistralrs': null },
+      },
+    }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          llm: { state: 'ready', port: 34567 },
+          image: { state: 'off' },
+          model_id: 'gemma4_e2b',
+        }),
+        { status: 200 },
+      ),
+    );
+    render(<App />);
+    expect(await screen.findByRole('button', { name: 'Настроить мастера' })).toBeVisible();
+    const surface = document.querySelector('[data-game-table]');
+    expect(surface).toHaveAttribute('data-table-mode', 'solo');
+    expect(surface).toHaveAttribute('data-table-readiness', 'needs_model');
+  });
   it('shows confirmed recovery before a new turn and preserves an unsent draft', async () => {
     const campaignId = '11111111-1111-4111-8111-111111111111';
     const sessionId = '22222222-2222-4222-8222-222222222222';
@@ -219,7 +267,7 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   await user.type(screen.getByLabelText('Приглашение'), 'fixture-invitation');
   await user.click(screen.getByRole('button', { name: 'Подключиться' }));
   expect(await screen.findByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Герои игроков' })).toBeVisible();
+  expect(screen.getByRole('group', { name: 'Герои игроков' })).toBeVisible();
   expect(screen.getAllByText('Tara', { exact: false }).length).toBeGreaterThan(0);
   expect(screen.getByLabelText('Что делает ваш герой?')).toBeEnabled();
   await user.keyboard('{Control>}{Shift>}S{/Shift}{/Control}');
@@ -240,4 +288,35 @@ it('lets a first-boot guest join without configuring a provider or creating a so
   expect(await screen.findByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(useStore.getState().settings.providers).toEqual(before);
+});
+
+it('loads the host campaign catalog when entering co-op from a cold restored solo table', async () => {
+  vi.spyOn(useStore.persist, 'hasHydrated').mockReturnValue(true);
+  const id = crypto.randomUUID();
+  const sessionId = crypto.randomUUID();
+  const campaign = {
+    id,
+    schema_version: 1 as const,
+    ruleset_id: 'srd-5.2.1' as const,
+    title: 'Cold host campaign',
+    premise: 'Opening',
+    revision: 1,
+    last_session_id: sessionId,
+    created_at: '2026-10-13T00:00:00Z',
+    updated_at: '2026-10-13T00:00:00Z',
+    seed: { kind: 'collaborative' as const, answers: {} },
+  };
+  useStore.getState().pc.applyPreset('fighter');
+  useStore.getState().session.activate(id, sessionId);
+  useStore.getState().campaigns.setActive(campaign);
+  useStore.setState((state) => ({ pc: { ...state.pc, characterId: crypto.randomUUID() } }));
+  vi.mocked(fetchCampaigns).mockResolvedValueOnce([campaign]);
+  render(<App />);
+  expect(useStore.getState().campaigns.list).toEqual([]);
+  await userEvent.click(await screen.findByRole('button', { name: 'Совместная игра' }));
+  await waitFor(() => expect(fetchCampaigns).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.getByRole('option', { name: 'Cold host campaign' })).toHaveValue(id),
+  );
+  expect(screen.getByRole('button', { name: 'Создать комнату' })).toBeEnabled();
 });

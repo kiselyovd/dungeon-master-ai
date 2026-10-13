@@ -11,11 +11,20 @@ pub struct AdventureProjection {
     pub map: Option<app_domain::combat::geometry::BattleMap>,
     pub state: AdventureState,
     pub available_actions: Vec<Action>,
+    /// Explicit objectives offered by the current public scene. No future or
+    /// private-canon objective is inferred by a presentation adapter.
+    #[serde(default)]
+    pub public_goals: Vec<Action>,
 }
 
 impl From<AdventureState> for AdventureProjection {
     fn from(state: AdventureState) -> Self {
         let available_actions = state.available_actions();
+        let public_goals = available_actions
+            .iter()
+            .filter(|action| !matches!(action, Action::Move(_) | Action::Finish))
+            .copied()
+            .collect();
         Self {
             map: if state.location == Location::Archive {
                 Some(app_domain::combat::geometry::bell_archive_map())
@@ -24,6 +33,7 @@ impl From<AdventureState> for AdventureProjection {
             },
             state,
             available_actions,
+            public_goals,
         }
     }
 }
@@ -44,4 +54,23 @@ pub struct AdventureIntent {
     pub session_id: SessionId,
     pub causation_id: String,
     pub action: Action,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_goals_only_offer_current_scene_actions() {
+        let projection = AdventureProjection::from(AdventureState::new());
+        assert!(!projection.public_goals.is_empty());
+        assert!(projection.public_goals.iter().all(|goal| {
+            projection.available_actions.contains(goal)
+                && !matches!(goal, Action::Move(_) | Action::Finish)
+        }));
+        assert!(!projection.public_goals.contains(&Action::RecoverLedger));
+        let mut closed = projection.state;
+        closed.closed = true;
+        assert!(AdventureProjection::from(closed).public_goals.is_empty());
+    }
 }

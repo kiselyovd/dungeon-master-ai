@@ -189,7 +189,8 @@ test('production co-op root joins a guest and preserves its own hero', async ({ 
   await page.getByLabel('Приглашение').fill('fixture-invitation');
   await page.getByRole('button', { name: 'Подключиться' }).click();
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Герои игроков' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Герои игроков' })).toBeVisible();
+  await expect(page.locator('[data-game-table]')).toHaveAttribute('data-table-mode', 'guest');
   await expect(page.getByLabel('Что делает ваш герой?')).toBeEnabled();
   await expect(page.getByText('Tara', { exact: true })).toBeVisible();
   await page.screenshot({
@@ -202,13 +203,14 @@ test('production co-op root joins a guest and preserves its own hero', async ({ 
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+  await page.getByRole('button', { name: 'Комната', exact: true }).click();
   await page.getByRole('button', { name: 'Покинуть комнату' }).click();
   expect(
     await page.evaluate(
       () => (window as unknown as { __confirmedLeave?: { kind: string } }).__confirmedLeave?.kind,
     ),
   ).toBe('leave');
-  await expect(page.getByRole('heading', { name: 'Ваши хроники' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
 });
 
 test('production room battle renders actual server map and gates the next human turn', async ({
@@ -237,12 +239,12 @@ test('production room battle renders actual server map and gates the next human 
   await expect(page.getByRole('button', { name: 'Закончить ход' })).toBeDisabled();
 });
 
-test('a clean guest enters co-op before model onboarding and returns to setup', async ({
+test('a clean guest enters co-op directly and returns to the campaign library', async ({
   page,
 }) => {
   await installRoomStub(page, wire, false);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Подключиться к игре' }).click();
+  await page.getByRole('button', { name: 'Присоединиться к игре' }).click();
   await expect(page.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
   await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
   await page.getByLabel('Код комнаты').fill(wire.state.room.room_id);
@@ -250,8 +252,9 @@ test('a clean guest enters co-op before model onboarding and returns to setup', 
   await page.getByLabel('Приглашение').fill('fixture-invitation');
   await page.getByRole('button', { name: 'Подключиться' }).click();
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  await page.getByRole('button', { name: 'Комната', exact: true }).click();
   await page.getByRole('button', { name: 'Покинуть комнату' }).click();
-  await expect(page.getByRole('button', { name: 'Подключиться к игре' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ваши приключения' })).toBeVisible();
 });
 
 test('guest restores its native selection without entering invitation again', async ({ page }) => {
@@ -271,6 +274,8 @@ test('host recovers a saved room from the production screen without creation inp
   await page.getByRole('button', { name: 'Совместная игра' }).click();
   await page.getByRole('button', { name: 'Восстановить комнату', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Мастер игры · ИИ' })).toBeVisible();
+  await expect(page.locator('[data-game-table]')).toHaveAttribute('data-table-mode', 'host');
+  await page.getByRole('button', { name: 'Комната', exact: true }).click();
   await page.getByRole('button', { name: 'Обновить приглашение' }).click({ timeout: 5000 });
   await expect(page.getByRole('textbox', { name: 'Приглашение' })).toHaveValue('fixture');
 });
@@ -289,14 +294,23 @@ test('production recovery controls aid a dying hero and confirm waiting using re
   await page.goto('/');
   await page.getByRole('button', { name: 'Совместная игра' }).click();
   await page.getByRole('button', { name: 'Восстановить комнату', exact: true }).click();
+  await page.getByRole('button', { name: 'Приключение', exact: true }).click();
+  await page.getByRole('tab', { name: 'Герой', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Помощь раненым героям' })).toBeVisible();
   await page.getByRole('button', { name: 'Попытаться помочь' }).click();
   await expect(page.getByText('Tara · Стабилен, без сознания')).toBeVisible();
   await page.getByRole('button', { name: 'Дождаться восстановления' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Дождаться восстановления' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Дождаться восстановления', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('dialog', { name: 'Дождаться восстановления', exact: true })
+    .getByRole('button', { name: 'Дождаться восстановления' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Помощь раненым героям' })).not.toBeVisible();
-  await expect(page.getByText('Tara · ОЗ 1/12 · КД 14')).toBeVisible();
+  await expect(
+    page.getByText('Tara', { exact: true }).locator('..').getByText('ОЗ 1/12 · КД 14'),
+  ).toBeVisible();
 });
 
 test('production room table omits a withdrawn human without hiding the remaining turn', async ({
@@ -340,3 +354,275 @@ test('production room table omits a withdrawn human without hiding the remaining
     mask: [page.locator('[data-room-invitation]')],
   });
 });
+
+for (const role of ['host', 'guest'] as const) {
+  for (const language of ['ru', 'en'] as const) {
+    for (const width of [960, 1280, 1920]) {
+      test(`persistent table ${role} ${language} ${width}: scene, composer, resizing and private room controls`, async ({
+        page,
+      }) => {
+        test.setTimeout(60_000);
+        const height = width === 960 ? 640 : width === 1280 ? 800 : 1080;
+        await page.setViewportSize({ width, height });
+        const active = JSON.parse(
+          readFileSync(
+            new URL('../src/api/__fixtures__/roomCombatUpdate.json', import.meta.url),
+            'utf8',
+          ),
+        ) as RoomUpdate;
+        await installRoomStub(page, active);
+        await page.goto('/');
+        await page.getByRole('button', { name: 'Совместная игра' }).click();
+        await page
+          .getByRole('button', {
+            name: role === 'host' ? 'Восстановить комнату' : 'Восстановить подключение гостя',
+            exact: true,
+          })
+          .click();
+        if (language === 'en') await page.getByRole('button', { name: 'EN', exact: true }).click();
+        const composer = page.getByLabel(
+          language === 'en' ? 'What does your hero do?' : 'Что делает ваш герой?',
+        );
+        await expect(composer).toBeVisible();
+        const box = await composer.boundingBox();
+        expect(box && box.y + box.height).toBeLessThanOrEqual(height);
+        await expect(page.locator('[data-table-layout]')).toHaveAttribute(
+          'data-table-layout',
+          'persistent',
+        );
+        await expect(page.locator('[data-table-layout]')).toHaveAttribute('data-mode', role);
+        await expect(page.getByTestId('authored-map')).toBeVisible();
+        expect(
+          await page.evaluate(
+            () =>
+              document.documentElement.scrollWidth <= window.innerWidth &&
+              document.documentElement.scrollHeight <= window.innerHeight,
+          ),
+        ).toBe(true);
+        await expect(page.locator('[data-room-invitation]')).toHaveCount(0);
+        const divider = page.getByRole('separator');
+        const before = Number(await divider.getAttribute('aria-valuenow'));
+        await divider.focus();
+        await divider.press('ArrowLeft');
+        await expect(divider).toHaveAttribute('aria-valuenow', String(before + 16));
+        await composer.fill('Unsent scoped draft');
+        const room = page.getByRole('button', {
+          name: language === 'en' ? 'Room' : 'Комната',
+          exact: true,
+        });
+        await room.click();
+        await expect(
+          page.getByRole('dialog', { name: language === 'en' ? 'Room' : 'Комната', exact: true }),
+        ).toBeVisible();
+        if (role === 'host') await expect(page.locator('[data-room-invitation]')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(room).toBeFocused();
+        await expect(composer).toHaveValue('Unsent scoped draft');
+        await page.screenshot({
+          path: `.artifacts/product-uiux/table-${role}-${language}-${width}.png`,
+          animations: 'disabled',
+        });
+      });
+    }
+  }
+}
+test('public same-name actors retain distinct portrait-miniature pairs and cell hit targets', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const snapshot = JSON.parse(
+    readFileSync(new URL('../src/api/__fixtures__/roomCombatUpdate.json', import.meta.url), 'utf8'),
+  ) as RoomUpdate;
+  if (snapshot.state.actors.length < 2) throw Error('public actors fixture missing');
+  const first = snapshot.state.actors[0];
+  const second = snapshot.state.actors[1];
+  if (!first || !second) throw Error('public actors missing');
+  first.portrait_asset_id = 'hero.fighter.01.v2';
+  second.portrait_asset_id = 'hero.rogue.legacy.v1';
+  await installRoomStub(page, snapshot);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+  const mini = page.locator('[data-asset-id="miniature.fighter.01.v2"]');
+  const other = page.locator('[data-asset-id="miniature.rogue.legacy.v1"]');
+  await expect(mini).toHaveCount(1);
+  await expect(other).toHaveCount(1);
+  await expect
+    .poll(() =>
+      mini
+        .locator('img')
+        .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 512),
+    )
+    .toBe(true);
+  await expect(mini).toHaveCSS('pointer-events', 'none');
+  const cell = mini.locator('..');
+  const before = await cell.boundingBox();
+  const figure = await mini.boundingBox();
+  expect(before?.width).toBeCloseTo(30, 0);
+  expect(figure && before && figure.height > before.height).toBe(true);
+  await page.screenshot({
+    path: '.artifacts/product-uiux/whole-miniatures-room.png',
+    animations: 'disabled',
+  });
+  await page.getByRole('button', { name: 'Приблизить', exact: true }).click();
+  const after = await cell.boundingBox();
+  expect(after?.width).toBeGreaterThan(before?.width ?? 0);
+  expect(await cell.getAttribute('style')).toContain('width: 30px');
+  await expect(mini).toHaveCount(1);
+  await expect(other).toHaveCount(1);
+  await cell.focus();
+  await cell.press('Space');
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.dm-init-summary').click();
+  await expect(page.locator('.dm-init-list [aria-pressed="true"]')).toHaveCount(1);
+  await page.locator('.dm-init-summary').click();
+  // Exercise actual production cells at 48 and 64 screen pixels through the
+  // existing continuous wheel zoom. The authored grid remains 30 world pixels.
+  let currentSize = after?.width ?? 36;
+  for (const screenSize of [48, 64]) {
+    const canvas = page.locator('.dm-vtt-canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw Error('map viewport unavailable');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -Math.log(screenSize / currentSize) / Math.log(1.0015));
+    await expect
+      .poll(async () => Math.round((await cell.boundingBox())?.width ?? 0))
+      .toBe(screenSize);
+    const scaledFigure = await mini.boundingBox();
+    const scaledCell = await cell.boundingBox();
+    expect(scaledFigure && scaledCell && scaledFigure.height > scaledCell.height).toBe(true);
+    expect(await cell.getAttribute('style')).toContain('width: 30px');
+    await expect(cell).toHaveAttribute('aria-pressed', 'true');
+    await page.screenshot({
+      path: `.artifacts/product-uiux/whole-miniatures-room-${screenSize}.png`,
+      animations: 'disabled',
+    });
+    currentSize = screenSize;
+  }
+});
+
+test('room narration preserves reading position and restores a scoped draft after cold reload', async ({
+  page,
+}) => {
+  const snapshot = structuredClone(wire);
+  snapshot.state.messages = Array.from({ length: 30 }, (_, index) => ({
+    id: `12345678-1234-4234-8234-${String(index).padStart(12, '0')}`,
+    role: index % 2 === 0 ? 'user' : 'assistant',
+    text: `Публичное сообщение ${index}.\n\n${'Длинное повествование о речном городе и знакомых героях. '.repeat(12)}`,
+    truncated: index === 1,
+  }));
+  await installRoomStub(page, snapshot);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+  const history = page.getByTestId('chat-history');
+  await expect(history.getByText('Начало сообщения опущено.')).toBeAttached();
+  await history.evaluate((node) => {
+    node.scrollTop = 0;
+    node.dispatchEvent(new Event('scroll'));
+  });
+  await expect(page.getByRole('button', { name: 'К последнему сообщению' })).toBeVisible();
+  const composer = page.getByRole('textbox', { name: 'Что делает ваш герой?' });
+  await composer.fill('Первая строка');
+  await composer.press('Shift+Enter');
+  await composer.press('a');
+  const draft = await composer.inputValue();
+  expect(draft).toContain('\n');
+  await page.getByRole('button', { name: 'Комната', exact: true }).click();
+  await page.keyboard.press('Escape');
+  expect(await history.evaluate((node) => node.scrollTop)).toBe(0);
+  await expect(composer).toHaveValue(draft);
+  await page.getByRole('button', { name: 'К последнему сообщению' }).click();
+  expect(await history.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem('dmai-e2e-store:conversation-drafts.json')),
+    )
+    .toContain(draft.split('\n')[0]);
+  await page.reload();
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+  await expect(page.getByRole('textbox', { name: 'Что делает ваш герой?' })).toHaveValue(draft);
+  await page.screenshot({
+    path: '.artifacts/product-uiux/room-conversation-draft.png',
+    animations: 'disabled',
+  });
+});
+
+for (const width of [960, 1280, 1920]) {
+  test(`guest context stays public and leaves the composer reachable at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 960 ? 640 : 800 });
+    const snapshot = structuredClone(wire);
+    const campaignId = snapshot.state.room.campaign_id;
+    if (!snapshot.state.own_character) throw Error('own hero fixture missing');
+    snapshot.state.own_character.backstory = 'Личная история гостя';
+    if (snapshot.state.adventure)
+      snapshot.state.adventure.public_goals = snapshot.state.adventure.available_actions.filter(
+        (action) => action.kind !== 'move' && action.kind !== 'finish',
+      );
+    snapshot.state.journal = [
+      {
+        id: 'journal-public',
+        campaign_id: campaignId,
+        chapter: null,
+        entry_html: '<p>Подтверждённая заметка.</p>',
+        created_at: '2026-10-13T00:00:00Z',
+      },
+    ];
+    snapshot.state.npcs = [
+      {
+        id: 'npc-known-one',
+        campaign_id: campaignId,
+        name: 'Знакомая Мира',
+        role: 'Innkeeper',
+        disposition: 'friendly',
+        trust: 10,
+        facts: [{ text: 'Открытая встреча в таверне.', created_at: '2026-10-13T00:00:00Z' }],
+        updated_at: '2026-10-13T00:00:00Z',
+        hidden: 'НЕПУБЛИЧНЫЙ СЕКРЕТ',
+      },
+    ];
+    await installRoomStub(page, snapshot);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Совместная игра' }).click();
+    await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+    const composer = page.getByRole('textbox', { name: 'Что делает ваш герой?' });
+    await composer.fill('Сохранённый ввод рядом с журналом');
+    const trigger = page.getByRole('button', { name: 'Приключение', exact: true });
+    await trigger.click();
+    const pane = page.getByRole('complementary', { name: 'Приключение', exact: true });
+    await expect(pane).toBeVisible();
+    await page.getByRole('tab', { name: 'Герой', exact: true }).click();
+    await expect(pane.getByText('Личная история гостя')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Что делает ваш герой?' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Журнал', exact: true }).click();
+    await expect(pane.getByText('Подтверждённая заметка.')).toBeVisible();
+    await expect(composer).toHaveValue('Сохранённый ввод рядом с журналом');
+    await page.getByRole('tab', { name: 'NPC', exact: true }).click();
+    await expect(pane.getByText('Знакомая Мира')).toBeVisible();
+    await expect(pane.locator('[data-asset-id="npc.innkeeper.legacy.v1"]')).toHaveCount(1);
+    await expect(page.getByText('НЕПУБЛИЧНЫЙ СЕКРЕТ')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Развернуть панель' }).click();
+    await expect(page.getByRole('dialog', { name: 'NPC', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(composer).toHaveValue('Сохранённый ввод рядом с журналом');
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <= innerWidth &&
+          document.documentElement.scrollHeight <= innerHeight,
+      ),
+    ).toBe(true);
+    await trigger.click();
+    await page.getByRole('tab', { name: 'Журнал', exact: true }).click();
+    await page.screenshot({
+      path: `.artifacts/product-uiux/context-guest-${width}.png`,
+      animations: 'disabled',
+    });
+  });
+}

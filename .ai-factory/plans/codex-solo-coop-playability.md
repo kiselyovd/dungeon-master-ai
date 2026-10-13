@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks 1-5 and 7-15 verified. Checkpoint 3 is committed as 6037356; inherited changes remain separate. Task 12 adds actual library location/save/visit metadata, public action outcomes and concise bilingual copy; full gates passed with RUST_LOG=info (997 Rust / 1177 frontend tests). Entry, campaign preparation and readiness are verified; checkpoint 4 is ready for its owned local commit. Shared table work (Task 16) is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
+Status: in progress; Tasks 1-5 and 7-17 verified. Checkpoint 3 is committed as 6037356; inherited changes remain separate. Task 12 adds actual library location/save/visit metadata, public action outcomes and concise bilingual copy; full gates passed with RUST_LOG=info (997 Rust / 1177 frontend tests). Entry, campaign preparation and readiness are verified; Checkpoint 4 is committed as a564432; inherited source remains separate. Task 16 shared presentation contracts/adapters are verified; persistent layout (Task 17) is verified; actor/combat presentation (Task 18) is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -399,7 +399,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
 ### Shared game table
 
-- [ ] **Task 16: Define shared presentation ports with separate solo and room adapters** (depends on 3, 4, 8, 9)
+- [x] **Task 16: Define shared presentation ports with separate solo and room adapters** (depends on 3, 4, 8, 9)
 
   **Files / ownership:** Proposed src/features/game-table/model/{types,layout}.ts and feature tests; src/app/{App,RoomExperience}.tsx; proposed src/app/GameTableExperience.tsx; existing agent/combat/adventure/room API projections.
 
@@ -409,7 +409,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG safe adapter scope/revision; INFO scope switch; WARN incompatible projection; ERROR validation failure. Shared props contain only player-visible data.
 
-- [ ] **Task 17: Replace the scrolling co-op page with one persistent table layout** (depends on 10, 11, 16)
+**Execution evidence (2026-10-12):** Shared presentation types and context expose public actors, appearance references, explicit exploration/tactical scenes, conversation/outcomes, recovery/readiness and availability. Pure app adapters bind solo and room controller snapshots without exposing private sheets/proposals/invitations/system messages or raw tool payloads. Stable scope keys distinguish timeline/epoch/encounter changes while keeping mounted drafts through revision/restore updates. Existing chat width limits are reused. The actual production solo/host/guest composition supplies role-bound UI ports to the same scope surface; controllers retain all commands/transport/receipts and existing attachment handling. Local compose now requires confirmed configuration plus matching runtime. Five focused files / 17 tests, full frontend 193 files / 1205 tests, architecture/fast gates and production build pass. Fifteen production-browser solo/guest/host preparation/room scenarios pass; stale first-entry/library copy in a legacy fixture was updated to the verified Task 13 flow. UI layout remains the subsequent task. Docs: `docs/visual/SHARED_TABLE.md`; repository entry-point map updated. Native visual acceptance is grouped with the substantial layout/control changes in Tasks 17-20, and successful model/physical LAN play is still separate.
+
+- [x] **Task 17: Replace the scrolling co-op page with one persistent table layout** (depends on 10, 11, 16)
 
   **Files / ownership:** Proposed src/features/game-table/{GameTable,TableHeader,PartyStrip,SidePanel}.tsx and CSS Modules; src/styles/shell.css; src/app composition; RoomPlay.tsx and existing ChatResizer; production-root and browser smoke tests.
 
@@ -419,7 +421,9 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG layout preference/version and scope changes only; INFO layout reset; WARN invalid persisted sizes. No logs on every pointer movement or React render.
 
-- [ ] **Task 18: Unify combat interaction and public visual identity for every actor** (depends on 8, 9, 16, 17)
+**Execution evidence (2026-10-13):** Both production roles use the same bounded scene/conversation columns and compact public party strip, supplied by existing controllers through app-owned slots. Scene/composer stay simultaneously reachable; chat/history/notifications scroll locally. Room credentials/refresh/departure are in Room, approvals/authored actions/rest/wounded help in Adventure. Existing resizer/preferences/material/font tokens are reused, secondary titlebar labels collapse at narrow width. Nested modal keyboard/backdrop handling is scoped to the top dialog with focus return and stable callbacks during snapshot updates. Administrative failures remain in their open modal and no duplicate alert is emitted behind it. Focused root/controller and modal tests pass, full frontend 193 files / 1206 tests and fast/architecture/assets/build pass. Twenty-nine production-browser flows include solo/host/guest, RU/EN at 960x640, 1280x800, 1920x1080, real map/composer/document bounds, keyboard resize, hidden invitations, focus return and unsent-draft retention. Legacy fixture assertions follow the explicit new drawer/party-group interactions without removing server receipt/HP/turn checks. Actual minimum-width screenshot reviewed. `docs/visual/SHARED_TABLE.md` records the delivered layout. Combat/miniature/context polish remains Tasks 18-20; fresh Tauri UI is grouped with their checkpoint, and physical LAN/model semantics remain separate.
+
+- [x] **Task 18: Unify combat interaction and public visual identity for every actor** (depends on 8, 9, 16, 17)
 
   **Files / ownership:** src/components/{VttCanvas,CombatToken,CombatOverlay,InitiativeTracker,ActionBar}.tsx; src/features/combat/{RoomCombatPanel,WeaponAttackDialog,SpellCastDialog}.tsx and model/{types,combatProjection}.ts; additive application/public actor visual fields if required.
 
@@ -429,7 +433,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG actor/encounter IDs and selected intent; INFO canonical command result; WARN rejected/stale action. No client-authoritative mechanics or private actor sheet copied to other players.
 
-- [ ] **Task 19: Make conversation and confirmed outcomes readable and recoverable** (depends on 4, 10, 12, 17)
+- [x] **Task 19: Make conversation and confirmed outcomes readable and recoverable** (depends on 4, 10, 12, 17)
 
   **Files / ownership:** src/components/{ChatPanel,MessageBubble,ToolCallCard,TypingIndicator}.tsx; src/features/rooms/RoomPlay.tsx; shared game-table chat presentation; agent-turn reducers and public room message mapping.
 
@@ -439,7 +443,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG stream identity, byte count and terminal classification; INFO final delivery; WARN interruption; ERROR safe failure code. No text/reasoning/base64 in logs.
 
-- [ ] **Task 20: Put discovered facts, goals, journal, NPCs and hero context within reach** (depends on 12, 16, 17, 19)
+- [x] **Task 20: Put discovered facts, goals, journal, NPCs and hero context within reach** (depends on 12, 16, 17, 19)
 
   **Files / ownership:** src/features/adventure/AdventurePanel.tsx; src/components/{JournalViewer,NpcMemoryGrid,CharacterSheet,SavesScreen}.tsx; proposed game-table context panels and existing public projections; locales and root/e2e tests.
 

@@ -23,6 +23,33 @@ function Harness({ onClose }: { onClose: () => void }) {
 }
 
 describe('Modal', () => {
+  it('keeps nested confirmation focus and Escape scoped to the top dialog', async () => {
+    const parentClose = vi.fn();
+    function Nested() {
+      const [child, setChild] = useState(false);
+      return (
+        <Modal open title="Parent" onClose={parentClose}>
+          <button type="button" onClick={() => setChild(true)}>
+            Open confirmation
+          </button>
+          <Modal open={child} title="Confirmation" onClose={() => setChild(false)}>
+            <button type="button">Confirm first</button>
+            <button type="button">Confirm last</button>
+          </Modal>
+        </Modal>
+      );
+    }
+    render(<Nested />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Open confirmation' }));
+    expect(screen.getByRole('button', { name: 'Confirm first' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Confirm last' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Confirmation' })).toBeNull();
+    expect(parentClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Open confirmation' })).toHaveFocus();
+  });
   it('does not render when closed', () => {
     render(<Modal open={false} onClose={() => {}} title="hidden" />);
     expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();

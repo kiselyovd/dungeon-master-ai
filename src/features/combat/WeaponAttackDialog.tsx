@@ -5,6 +5,7 @@ import { Select } from '../../ui/Select';
 import type { CombatToken } from './model/types';
 
 interface Props {
+  initialTargetId?: string | null | undefined;
   disabled?: boolean;
   actor: CombatToken;
   targets: CombatToken[];
@@ -16,30 +17,57 @@ interface Props {
     twoHanded: boolean,
   ) => Promise<boolean>;
 }
-export function WeaponAttackDialog({ actor, targets, onClose, onAttack, disabled = false }: Props) {
+export function WeaponAttackDialog({
+  actor,
+  targets,
+  onClose,
+  onAttack,
+  disabled = false,
+  initialTargetId,
+}: Props) {
   const { t } = useTranslation('combat');
   const loadout = actor.loadout;
+  const eligibleTargets = targets.filter(
+    (candidate) => candidate.id !== actor.id && candidate.hp > 0,
+  );
   const [weapon, setWeapon] = useState(loadout?.default_weapon ?? 'unarmed');
-  const [target, setTarget] = useState(targets[0]?.id ?? '');
+  const [target, setTarget] = useState(
+    eligibleTargets.find((candidate) => candidate.id === initialTargetId)?.id ??
+      eligibleTargets[0]?.id ??
+      '',
+  );
   const [mode, setMode] = useState<'default' | 'melee' | 'thrown' | 'ranged'>('default');
   const [twoHanded, setTwoHanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const profile = loadout?.attacks.find((attack) => attack.weapon_id === weapon);
-  const available =
-    !disabled &&
-    profile &&
-    (weapon === 'unarmed' || (loadout?.quantities[weapon] ?? 0) > 0) &&
-    (!profile.ammunition || (loadout?.arrows ?? 0) > 0) &&
-    !(loadout?.shield && (profile.two_handed || twoHanded));
+  const selectedTarget = targets.find(
+    (candidate) => candidate.id === target && candidate.id !== actor.id && candidate.hp > 0,
+  );
+  const reason = disabled
+    ? 'action_turn_unavailable'
+    : !selectedTarget
+      ? 'action_target_unavailable'
+      : !profile || (weapon !== 'unarmed' && (loadout?.quantities[weapon] ?? 0) <= 0)
+        ? 'action_equipment_unavailable'
+        : profile.ammunition && (loadout?.arrows ?? 0) <= 0
+          ? 'action_ammunition_unavailable'
+          : loadout?.shield && (profile.two_handed || twoHanded)
+            ? 'action_shield_conflict'
+            : null;
+  const available = reason === null;
   const attack = async () => {
     if (!profile || !target || busy || !available) return;
     setBusy(true);
     setError(false);
-    const accepted = await onAttack(target, weapon, mode, twoHanded);
-    setBusy(false);
-    if (accepted) onClose();
-    else setError(true);
+    try {
+      if (await onAttack(target, weapon, mode, twoHanded)) onClose();
+      else setError(true);
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Modal
@@ -68,7 +96,7 @@ export function WeaponAttackDialog({ actor, targets, onClose, onAttack, disabled
             id={id}
             value={target}
             disabled={busy}
-            options={targets.map((target) => ({
+            options={eligibleTargets.map((target) => ({
               value: target.id,
               label: `${target.displayNameKey ? t(target.displayNameKey, { defaultValue: target.name }) : target.name} (${target.hp}/${target.maxHp})`,
             }))}
@@ -76,6 +104,7 @@ export function WeaponAttackDialog({ actor, targets, onClose, onAttack, disabled
           />
         )}
       </Field>
+      {reason && <p role="status">{t(reason)}</p>}
       <Field label={t('weapon_equipment')}>
         {({ id }) => (
           <Select
@@ -143,7 +172,6 @@ export function WeaponAttackDialog({ actor, targets, onClose, onAttack, disabled
         </p>
       )}
       {profile?.ammunition && <p>{t('weapon_arrows', { count: loadout?.arrows ?? 0 })}</p>}
-      {!available && <p role="status">{t('weapon_unavailable')}</p>}
       {error && <p role="alert">{t('weapon_rejected')}</p>}
     </Modal>
   );

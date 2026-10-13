@@ -7,15 +7,12 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
-import { TOKEN_ART } from '../assets/livingTabletop';
-import { portraitAssetUrl } from '../assets/visualCatalog';
 import { isDeadToken, isIncapacitatedToken } from '../features/combat/model/selectors';
 import { useMediaImage } from '../features/media/useMediaImage';
 import { legacyPortraitUrl } from '../lib/heroPortraits';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
-
-const CLASS_TOKEN: Partial<Record<string, string>> = TOKEN_ART;
+import { type ActorVisualPresentation, actorBuiltinAppearance } from './actorVisuals';
 
 export interface PlayerTokenPresentation {
   characterId: string | null;
@@ -27,6 +24,9 @@ export interface PlayerTokenPresentation {
 }
 
 interface Props {
+  selected?: boolean | undefined;
+  onSelect?: ((id: string) => void) | undefined;
+  actorVisual?: ActorVisualPresentation | undefined;
   playerPresentation?: PlayerTokenPresentation;
   revision?: number;
   token: TokenData;
@@ -81,6 +81,9 @@ function conditionColor(condition: string): string {
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
 export function CombatToken({
+  selected,
+  onSelect,
+  actorVisual,
   token,
   cellSize,
   zoom = 1,
@@ -93,7 +96,6 @@ export function CombatToken({
   const displayName = token.displayNameKey
     ? t(token.displayNameKey, { defaultValue: token.name })
     : token.name;
-  const pcName = useStore((s) => s.pc.name);
   const storedHeroClass = useStore((s) => s.pc.heroClass);
   const pcHeroClass = playerPresentation ? playerPresentation.heroClass : storedHeroClass;
   const storedPortrait = useStore((s) => s.pc.portraitUrl);
@@ -119,10 +121,26 @@ export function CombatToken({
   const incapacitated = isIncapacitatedToken(token);
   const storedCharacterId = useStore((s) => s.pc.characterId);
   const pcCharacterId = playerPresentation ? playerPresentation.characterId : storedCharacterId;
-  const isPcToken = pcCharacterId
-    ? token.characterId === pcCharacterId
-    : !playerPresentation && pcName !== null && token.name === pcName;
-  const media = useMediaImage(isPcToken ? portraitMediaRef : null, mediaScope, 'portrait');
+  const isPcToken = Boolean(pcCharacterId && token.characterId === pcCharacterId);
+  const visual: ActorVisualPresentation | null =
+    actorVisual ??
+    (isPcToken
+      ? {
+          characterId: pcCharacterId ?? null,
+          heroClass: pcHeroClass,
+          portraitAssetId: portraitAssetId ?? null,
+          portraitMediaRef: portraitMediaRef ?? null,
+          portraitUrl: pcPortraitUrl,
+          mediaScope,
+        }
+      : null);
+  const builtin = visual ? actorBuiltinAppearance(visual) : null;
+  const media = useMediaImage(
+    visual?.portraitMediaRef ?? null,
+    visual?.mediaScope ?? null,
+    'portrait',
+  );
+  const miniatureSrc = builtin?.miniature ?? null;
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for
@@ -133,17 +151,9 @@ export function CombatToken({
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The PC's own token prefers the generated/selected portrait over class art (E4).
-  const portraitSrc = isPcToken
-    ? portraitMediaRef
-      ? media.url
-      : portraitAssetId
-        ? portraitAssetUrl(portraitAssetId)
-        : pcPortraitUrl
-          ? legacyPortraitUrl(pcPortraitUrl)
-          : pcHeroClass !== null
-            ? (CLASS_TOKEN[pcHeroClass] ?? null)
-            : null
-    : null;
+  const portraitSrc = visual?.portraitMediaRef
+    ? media.url
+    : (builtin?.portrait ?? (visual?.portraitUrl ? legacyPortraitUrl(visual.portraitUrl) : null));
 
   const dragRef = useRef<DragSession | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -158,7 +168,7 @@ export function CombatToken({
   }, []);
 
   const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       // Primary button only; right/middle/aux clicks must not start a drag
       // so the canvas context menu and middle-pan can layer on later.
       if (event.button !== 0) return;
@@ -187,7 +197,7 @@ export function CombatToken({
   );
 
   const onPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
       // Screen-px delta -> world px: the token lives inside the zoom-scaled
@@ -201,7 +211,7 @@ export function CombatToken({
   );
 
   const onPointerEnd = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
       try {
@@ -293,15 +303,46 @@ export function CombatToken({
             width: cellSize,
             height: cellSize,
             borderRadius: '50%',
-            background: 'var(--color-bg-raised)',
+            background: miniatureSrc ? 'transparent' : 'var(--color-bg-raised)',
             border: '2px dashed var(--color-accent)',
             opacity: 0.3,
             pointerEvents: 'none',
           }}
         />
       )}
-      <div
+      <button
         data-testid={`combat-token-${token.id}`}
+        type="button"
+        data-selected={selected ? 'true' : undefined}
+        tabIndex={onSelect ? 0 : -1}
+        aria-disabled={!onSelect}
+        aria-label={t('token_aria', {
+          name: displayName,
+          hp: token.hp,
+          maxHp: token.maxHp,
+          ac: token.ac,
+        })}
+        aria-pressed={Boolean(selected)}
+        onClick={
+          onSelect
+            ? (event) => {
+                event.stopPropagation();
+                onSelect(token.id);
+              }
+            : undefined
+        }
+        onKeyDown={
+          onSelect
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect(token.id);
+                }
+              }
+            : undefined
+        }
+        title={displayName}
         data-active={token.isActive ? 'true' : undefined}
         data-dead={isDead ? 'true' : undefined}
         data-downed={token.hp <= 0 && !isDead ? 'true' : undefined}
@@ -310,11 +351,17 @@ export function CombatToken({
         onPointerUp={draggable ? onPointerEnd : undefined}
         onPointerCancel={draggable ? onPointerEnd : undefined}
         style={{
+          padding: 0,
+          border: 0,
+          background: 'transparent',
+          textAlign: 'inherit',
           position: 'absolute',
           left: currentLeft,
           top: currentTop,
           width: cellSize,
           height: cellSize,
+          outline: selected ? '2px solid var(--color-accent-soft)' : undefined,
+          outlineOffset: selected ? 2 : undefined,
           // Animate model-driven and drop-committed moves (left/top change when
           // isDragging=false). Suppress transition during live drag so the token
           // tracks the pointer with zero lag. [W1.7a]
@@ -328,46 +375,92 @@ export function CombatToken({
               ? 'token-pulse 1.6s ease-in-out infinite'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
-          zIndex: isDragging ? 10 : undefined,
+          zIndex: isDragging ? 10000 : Math.round(token.y * 10 + 10),
           touchAction: 'none',
           filter: isDead ? 'grayscale(100%)' : undefined,
           opacity: isDead ? 0.7 : undefined,
         }}
       >
+        {miniatureSrc && (
+          <div
+            data-testid={`miniature-${token.id}`}
+            data-asset-id={builtin?.miniatureId ?? ''}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: cellSize * 0.08,
+              width: cellSize * 1.65,
+              height: cellSize * 2.15,
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          >
+            <img
+              src={miniatureSrc}
+              alt=""
+              draggable={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center bottom',
+                filter: 'drop-shadow(0 4px 3px rgba(0,0,0,.5))',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+        )}
         <div
           style={{
             width: cellSize - 4,
             height: cellSize - 4,
             borderRadius: '50%',
-            background: 'var(--color-bg-raised)',
+            background: miniatureSrc ? 'transparent' : 'var(--color-bg-raised)',
+            marginTop: miniatureSrc ? cellSize * 0.2 : undefined,
             // PC active turn: thicker gold ring + outer glow ring to make it
             // unmistakable at a glance. Enemy/NPC active: standard accent ring.
             // [W1.7b]
             border:
               token.isActive && isPcToken
-                ? '3px solid var(--color-accent)'
+                ? `${miniatureSrc ? 1 : 3}px solid var(--color-accent)`
                 : token.isActive
                   ? '2px solid var(--color-accent)'
                   : '1px solid var(--color-border-subtle)',
             boxShadow:
               token.isActive && isPcToken
-                ? '0 0 0 2px var(--color-accent), var(--glow-accent)'
+                ? miniatureSrc
+                  ? 'var(--glow-accent)'
+                  : '0 0 0 2px var(--color-accent), var(--glow-accent)'
                 : token.isActive
                   ? 'var(--glow-accent)'
                   : undefined,
             position: 'relative',
+            zIndex: 3,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 'var(--text-xs)',
             color: 'var(--color-fg-primary)',
-            overflow: 'hidden',
-            backgroundImage: portraitSrc !== null ? `url(${portraitSrc})` : undefined,
+            overflow: miniatureSrc ? 'visible' : 'hidden',
+            backgroundImage:
+              !miniatureSrc && portraitSrc !== null ? `url(${portraitSrc})` : undefined,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
         >
-          {portraitSrc === null && displayName.charAt(0).toUpperCase()}
+          {!miniatureSrc && portraitSrc === null && (
+            <svg
+              aria-hidden="true"
+              width={cellSize * 0.65}
+              height={cellSize * 0.65}
+              viewBox="0 0 32 32"
+              style={{ pointerEvents: 'none' }}
+            >
+              <circle cx="16" cy="9" r="5" fill="var(--color-accent-soft)" />
+              <path d="M10 15h12l3 12H7z" fill="var(--color-fg-muted)" />
+            </svg>
+          )}
 
           {isDead && (
             <div
@@ -394,7 +487,7 @@ export function CombatToken({
             style={{
               position: 'absolute',
               top: -4,
-              right: -4,
+              right: miniatureSrc ? -cellSize * 0.25 : -4,
               width: 18,
               height: 18,
               borderRadius: '50%',
@@ -503,7 +596,7 @@ export function CombatToken({
             {t('your_turn')}
           </div>
         )}
-      </div>
+      </button>
     </>
   );
 }

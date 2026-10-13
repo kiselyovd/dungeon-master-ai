@@ -9,6 +9,11 @@
   "initiative_tracker": "Инициатива",
   "round": "Раунд {{round}}",
   "action": "Действие",
+  "action_pending": "Действие завершается",
+  "casting_unavailable_short": "Нет доступного заклинания",
+  "retreat_exit_short": "Дойдите до сухого выхода",
+  "movement_exhausted": "Движение исчерпано",
+  "slot_budget": "Ур. {{level}}: {{remaining}}/{{maximum}}",
   "bonus_action": "Бонус",
   "reaction": "Реакция",
   "move": "Движение",
@@ -137,5 +142,11 @@
   },
   "invalid_projection": "Снимок боя повреждён. Переподключитесь, чтобы обновить его.",
   "retreat_room": "Отступить",
-  "your_turn": "Ваш ход"
+  "your_turn": "Ваш ход",
+  "action_turn_unavailable": "Дождитесь своего хода и завершения предыдущего действия.",
+  "action_target_unavailable": "Выберите доступную цель.",
+  "action_equipment_unavailable": "Выбранное оружие недоступно.",
+  "action_ammunition_unavailable": "Для этого оружия не осталось боеприпасов.",
+  "action_shield_conflict": "Уберите щит, чтобы использовать оружие двумя руками.",
+  "action_spell_resource_unavailable": "Выберите поддерживаемое заклинание с доступным действием и ячейкой."
 }

@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +14,8 @@ import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
-import type { ChatMessage, ChatStreamEvent, MessagePart, StagedImage } from '../state/chat';
+import type { ChatMessage, ChatStreamEvent, MessagePart } from '../state/chat';
+import { MAX_CONVERSATION_DRAFT_LENGTH } from '../state/conversationDrafts';
 import { READING_FONT_SIZES } from '../state/settings';
 import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
@@ -24,6 +26,7 @@ import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
 import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
+import { useConversationDraft } from './useConversationDraft';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -90,12 +93,25 @@ export function ChatPanel({
   // paperclip is hidden and paste/drag of image files is rejected with a hint
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
-  const [draft, setDraft] = useState('');
-  const [staged, setStaged] = useState<StagedImage[]>([]);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const sessionId = useStore((s) => s.session.activeSessionId);
+  const composerDraft = useConversationDraft(`solo:${campaignId}:${sessionId}`);
+  const draft = composerDraft.text;
+  const setDraft = composerDraft.setText;
+  const staged = composerDraft.attachments;
+  const setStaged = composerDraft.setAttachments;
+  const sending = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
-  const { ref: historyRef, onScroll, scrollToBottom, reset: resetScroll } = useStickyScroll(100);
+  const {
+    ref: historyRef,
+    onScroll,
+    scrollToBottom,
+    reset: resetScroll,
+    shouldScroll,
+    jumpToBottom,
+  } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
   useEffect(() => {
@@ -147,12 +163,12 @@ export function ChatPanel({
       }
       if (didError !== null) setStagingError(didError);
     },
-    [staged.length, t],
+    [staged.length, t, setStaged],
   );
 
-  const removeStaged = useCallback((index: number) => {
+  const removeStaged = (index: number) => {
     setStaged((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  };
 
   const canSend =
     !isStreaming &&
@@ -205,13 +221,14 @@ export function ChatPanel({
   );
 
   const onSend = async () => {
-    if (!canSend) return;
+    if (!canSend || sending.current) return;
     if (needsSetup) {
       onRequireSetup?.();
       return;
     }
     const text = draft;
-    setDraft('');
+    const before = new Set(useStore.getState().chat.messages.map((message) => message.id));
+    sending.current = true;
     // Convert staged images to wire MessageParts (strip the data-URL prefix to
     // the bare base64 the backend expects). They ride the dedicated `images`
     // field of the agent turn (F2 - vision wired end to end).
@@ -221,13 +238,28 @@ export function ChatPanel({
       data_b64: img.dataUrl.replace(/^data:[^;]+;base64,/, ''),
       name: img.name ?? null,
     }));
-    setStaged([]);
     setStagingError(null);
-    await send(text, images.length > 0 ? images : undefined);
+    try {
+      await send(text, images.length > 0 ? images : undefined);
+      const accepted = useStore
+        .getState()
+        .chat.messages.some(
+          (message) =>
+            !before.has(message.id) && message.role === 'user' && message.content === text,
+        );
+      if (accepted) {
+        setDraft((current) => (current === text ? '' : current));
+        setStaged((current) => (current === staged ? [] : current));
+      }
+    } catch {
+      setStagingError(t('send_failed'));
+    } finally {
+      sending.current = false;
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void onSend();
     } else if (e.key === 'Escape' && isStreaming) {
@@ -292,7 +324,9 @@ export function ChatPanel({
   // Merge finalized messages and inline tool-call events into one ordered list.
   // Both draw sequenceIndex from the shared _nextSeq counter in the slice.
   const mergedStream: MergedItem[] = [
-    ...messages.map((m) => ({ kind: 'message' as const, item: m })),
+    ...messages
+      .filter((message) => message.role !== 'system')
+      .map((m) => ({ kind: 'message' as const, item: m })),
     ...chatStreamEvents.map((e) => ({ kind: 'event' as const, item: e })),
   ].sort((a, b) => (a.item.sequenceIndex ?? 0) - (b.item.sequenceIndex ?? 0));
 
@@ -409,6 +443,12 @@ export function ChatPanel({
       </div>
 
       {recoveryNotice}
+      {!shouldScroll && (
+        <button type="button" className={styles.sessionLoadErrorRetry} onClick={jumpToBottom}>
+          {t('scroll_latest')}
+        </button>
+      )}
+      {composerDraft.failure && <p role="status">{t('draft_save_failed')}</p>}
       <div className={styles.composer}>
         <div className={styles.composerCol}>
           {stagingError !== null && (
@@ -424,6 +464,8 @@ export function ChatPanel({
             onPaste={onPaste}
             placeholder={t('placeholder')}
             rows={2}
+            maxLength={MAX_CONVERSATION_DRAFT_LENGTH}
+            onBlur={() => void composerDraft.flush()}
             className={styles.draft}
             aria-label={t('placeholder')}
           />

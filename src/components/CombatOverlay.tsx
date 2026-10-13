@@ -2,9 +2,13 @@ import { useEffect } from 'react';
 import type { AoeTemplateEntry, CombatToken } from '../state/combat';
 import { useStore } from '../state/useStore';
 import { AoeTemplate } from './AoeTemplate';
+import type { ActorVisualMap } from './actorVisuals';
 import { CombatToken as CombatTokenComponent, type PlayerTokenPresentation } from './CombatToken';
 
 interface Props {
+  selectedTokenId?: string | null | undefined;
+  onSelectToken?: ((id: string) => void) | undefined;
+  actorVisuals?: ActorVisualMap | undefined;
   playerPresentation?: PlayerTokenPresentation;
   movableTokenId?: string | null;
   active: boolean;
@@ -32,6 +36,9 @@ interface Props {
  * immediately; the rest are scheduled via setTimeout and cleared on unmount.
  */
 export function CombatOverlay({
+  selectedTokenId,
+  onSelectToken,
+  actorVisuals,
   active,
   tokens,
   playerPresentation,
@@ -91,6 +98,9 @@ export function CombatOverlay({
         <CombatTokenComponent
           key={token.id}
           token={token}
+          selected={selectedTokenId === token.id}
+          onSelect={onSelectToken}
+          actorVisual={actorVisuals?.[token.characterId ?? token.id]}
           {...(revision !== undefined ? { revision } : {})}
           cellSize={cellSize}
           zoom={zoom}

@@ -1,4 +1,10 @@
 {
+  "speaker_player": "Player",
+  "scroll_latest": "Latest message",
+  "send_failed": "Could not send. Your input is kept.",
+  "speaker_dm": "Dungeon Master",
+  "message_truncated": "The beginning of this message is omitted.",
+  "draft_save_failed": "Draft kept open. Could not save it for the next launch.",
   "recovery_model": "Original model: {{model}}",
   "no_response": "(no response)",
   "journal_saved": "Saved to journal",

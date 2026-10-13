@@ -59,6 +59,7 @@ export const AdventureProjectionSchema = v.object({
     history: v.array(AdventureActionSchema),
   }),
   available_actions: v.array(AdventureActionSchema),
+  public_goals: v.optional(v.array(AdventureActionSchema)),
 });
 export type AdventureAction = v.InferOutput<typeof AdventureActionSchema>;
 export type AdventureProjection = v.InferOutput<typeof AdventureProjectionSchema>;

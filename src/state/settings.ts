@@ -119,7 +119,7 @@ export interface SettingsActions {
   dismissProviderMigrationNotice: () => void;
 }
 
-function clampChatWidth(width: number): number {
+export function clampChatWidth(width: number): number {
   if (!Number.isFinite(width)) return DEFAULT_CHAT_WIDTH;
   if (width < MIN_CHAT_WIDTH) return MIN_CHAT_WIDTH;
   if (width > MAX_CHAT_WIDTH) return MAX_CHAT_WIDTH;

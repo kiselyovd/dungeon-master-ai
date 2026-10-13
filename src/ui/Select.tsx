@@ -32,11 +32,8 @@ export function Select<T extends string>({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
-  const selectedIndex = Math.max(
-    0,
-    options.findIndex((option) => option.value === value),
-  );
-  const [activeIndex, setActiveIndex] = useState(selectedIndex);
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const [activeIndex, setActiveIndex] = useState(Math.max(0, selectedIndex));
   const selected = options[selectedIndex];
 
   useEffect(() => {
@@ -79,7 +76,7 @@ export function Select<T extends string>({
         disabled={disabled}
         className={styles.trigger}
         onClick={() => {
-          setActiveIndex(selectedIndex);
+          setActiveIndex(Math.max(0, selectedIndex));
           setOpen((current) => !current);
         }}
         onKeyDown={(event) => {

@@ -30,14 +30,6 @@
   z-index: var(--z-overlay-1);
 }
 
-.overlay .container {
-  animation: journalSlideIn var(--t-slow) ease both;
-}
-
-.overlay[data-state="closing"] .container {
-  animation: journalSlideOut var(--t-slow) ease both;
-}
-
 .container {
   position: relative;
   background: var(--color-bg-overlay);
@@ -151,4 +143,30 @@
   font-size: var(--text-xs);
   color: var(--color-fg-muted);
   margin-top: var(--space-2);
+}
+
+.embedded .container {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  animation: none;
+}
+.embedded .scroll {
+  overflow: visible;
+}
+.embedded .header {
+  display: none;
+}
+.embedded .container::after {
+  display: none;
+}
+
+.overlay .container {
+  animation: journalSlideIn var(--t-slow) ease both;
+}
+.overlay[data-state="closing"] .container {
+  animation: journalSlideOut var(--t-slow) ease both;
 }

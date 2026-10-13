@@ -19,11 +19,11 @@ test('settings opens the full wizard in the current hero draft scope and Cancel 
 });
 
 for (const lang of ['ru', 'en'] as const) {
-  for (const width of [960, 1280]) {
+  for (const width of [960, 1280, 1920]) {
     test(`prepared adventure ${lang} ${width}: source, scoped hero, real first scene`, async ({
       page,
     }) => {
-      const height = width === 960 ? 640 : 800;
+      const height = width === 960 ? 640 : width === 1280 ? 800 : 1080;
       await page.setViewportSize({ width, height });
       await mockTauri(page, { ui_language: lang, image_enabled: false });
       await page.goto('/');
@@ -50,6 +50,22 @@ for (const lang of ['ru', 'en'] as const) {
       });
       await enter.click();
       await expect(page.locator('.dm-vtt-panel')).toBeVisible();
+      await expect(page.locator('[data-game-table]')).toHaveAttribute('data-table-mode', 'solo');
+      await expect(page.locator('[data-table-layout]')).toHaveAttribute(
+        'data-table-layout',
+        'persistent',
+      );
+      const composerBox = await page
+        .getByPlaceholder(lang === 'ru' ? 'Что ты делаешь?' : 'What do you do?')
+        .boundingBox();
+      expect(composerBox && composerBox.y + composerBox.height).toBeLessThanOrEqual(height);
+      expect(
+        await page.evaluate(
+          () =>
+            document.documentElement.scrollHeight <= window.innerHeight &&
+            document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
       await expect(
         page.getByPlaceholder(lang === 'ru' ? 'Что ты делаешь?' : 'What do you do?'),
       ).toBeVisible();

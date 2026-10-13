@@ -12,6 +12,14 @@
   border-color: var(--color-danger);
 }
 
+.compact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
 @keyframes gold-flash {
   0% {
     box-shadow: 0 0 0 2px var(--color-accent);
@@ -75,6 +83,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.compact .header {
+  display: contents;
+}
+.compact .toolName {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.compact .body {
+  flex-basis: 100%;
 }
 
 .section {

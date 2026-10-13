@@ -64,4 +64,29 @@ it('disables an attack with exhausted ammunition', () => {
     <WeaponAttackDialog actor={actor(0)} targets={[enemy]} onAttack={vi.fn()} onClose={vi.fn()} />,
   );
   expect(screen.getByRole('button', { name: 'Confirm attack' })).toBeDisabled();
+  expect(screen.getByRole('status')).toHaveTextContent('No ammunition remains');
+});
+it('rejects a stale selected target and recovers from a transport failure without losing the weapon', async () => {
+  const fighter = actor(20);
+  const attack = vi.fn(async () => {
+    throw new Error('transport interrupted');
+  });
+  const close = vi.fn();
+  const view = render(
+    <WeaponAttackDialog
+      actor={fighter}
+      targets={[fighter, enemy]}
+      onAttack={attack}
+      onClose={close}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm attack' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm attack' })).toBeEnabled());
+  expect(attack).toHaveBeenCalledWith('enemy', 'shortbow', 'default', false);
+  expect(close).not.toHaveBeenCalled();
+  view.rerender(
+    <WeaponAttackDialog actor={fighter} targets={[]} onAttack={attack} onClose={close} />,
+  );
+  expect(screen.getByRole('button', { name: 'Confirm attack' })).toBeDisabled();
+  expect(screen.getByRole('status')).toHaveTextContent('Choose an available target');
 });

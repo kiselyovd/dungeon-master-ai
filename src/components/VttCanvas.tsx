@@ -19,9 +19,11 @@ import { useMediaImage } from '../features/media/useMediaImage';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { AuthoredMap } from './AuthoredMap';
+import type { ActorVisualMap } from './actorVisuals';
 import { CombatOverlay } from './CombatOverlay';
 import type { PlayerTokenPresentation } from './CombatToken';
 export interface VttPresentation {
+  actorVisuals?: ActorVisualMap | undefined;
   mapMediaRef?: MediaReference | null;
   mediaScope?: MediaScope | null;
   active: boolean;
@@ -36,6 +38,8 @@ export interface VttPresentation {
 extend({ Container, Graphics });
 
 interface Props {
+  selectedTokenId?: string | null | undefined;
+  onSelectToken?: ((id: string) => void) | undefined;
   presentation?: VttPresentation;
   /** Optional override; when omitted the count is derived from the container width. */
   widthCells?: number;
@@ -62,6 +66,8 @@ function deriveCells(containerPx: number, cellSize: number, override: number | u
 }
 
 export function VttCanvas({
+  selectedTokenId,
+  onSelectToken,
   widthCells,
   heightCells,
   cellSize = 30,
@@ -439,9 +445,12 @@ export function VttCanvas({
           </Application>
           {showTokens && (
             <CombatOverlay
+              selectedTokenId={selectedTokenId}
+              onSelectToken={onSelectToken}
               {...(presentation
                 ? {
                     playerPresentation: presentation.player,
+                    actorVisuals: presentation.actorVisuals,
                     movableTokenId: presentation.movableTokenId,
                   }
                 : {})}

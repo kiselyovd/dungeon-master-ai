@@ -10,6 +10,21 @@
   position: relative;
 }
 
+.speaker {
+  color: var(--color-fg-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.delivery {
+  color: var(--color-fg-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  margin-top: var(--space-2);
+}
+
 .bubble[data-role="user"] {
   align-self: flex-end;
   background: var(--color-accent-tint);

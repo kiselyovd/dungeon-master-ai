@@ -1,4 +1,8 @@
 {
+  "campaigns_loading": "Loading campaigns…",
+  "campaigns_unavailable": "Could not load campaigns.",
+  "campaigns_load": "Load campaigns",
+  "context_expand": "Expand context",
   "refresh_invitation": "Refresh invitation",
   "recover_host": "Recover hosted room",
   "title": "Co-op session",
@@ -60,5 +64,7 @@
   "recovery_saves": "Death saves: {{successes}} successes, {{failures}} failures",
   "recovery_remaining": "Recovery in {{minutes}} game minutes",
   "recovery_safe_place": "Waiting requires a safe place. A conscious companion can bring the group back to town.",
-  "recovery_wait_hint": "This advances the shared game clock. Other dying heroes will make death saving throws while time passes."
+  "recovery_wait_hint": "This advances the shared game clock. Other dying heroes will make death saving throws while time passes.",
+  "table_context": "Adventure",
+  "table_room": "Room"
 }

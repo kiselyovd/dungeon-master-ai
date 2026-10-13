@@ -53,12 +53,7 @@ describe('ChatPanel', () => {
   });
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
-    useStore
-      .getState()
-      .session.activate(
-        '62ba8579-904b-4460-a68a-df6268ed404a',
-        'b5271021-b82c-40c4-aa9f-554af0d79b22',
-      );
+    useStore.getState().session.activate(crypto.randomUUID(), crypto.randomUUID());
     streamAgentTurnMock.mockReset();
     fetchSessionMessagesMock.mockReset();
     fetchSessionMessagesMock.mockImplementation(async () => useStore.getState().chat.messages);

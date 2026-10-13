@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { getPendingAgentRecoveryInput } from '../api/agentPending';
 import { fetchAgentRecovery } from '../api/agentRecovery';
 import { ActionBar } from '../components/ActionBar';
+import { ActorPortrait } from '../components/ActorPortrait';
 import { CharacterSheet } from '../components/CharacterSheet';
 import { CharacterWizard } from '../components/CharacterWizard';
 import { CharFab } from '../components/CharFab';
 import { ChatPanel } from '../components/ChatPanel';
 import { ChatResizer } from '../components/ChatResizer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { HeroContext } from '../components/HeroContext';
 import { InitiativeTracker } from '../components/InitiativeTracker';
 import { JournalViewer } from '../components/JournalViewer';
 import { LocalModeModal } from '../components/LocalModeModal';
@@ -27,7 +29,7 @@ import { ToolInspectorDrawer } from '../components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from '../components/UpdateAvailableModal';
 import { VideoDisabledToast } from '../components/VideoDisabledToast';
 import { VttCanvas } from '../components/VttCanvas';
-import { AdventurePanel } from '../features/adventure/AdventurePanel';
+import { AdventureContent } from '../features/adventure/AdventurePanel';
 import { useAdventure } from '../features/adventure/useAdventure';
 import { CampaignCreate } from '../features/campaigns/CampaignCreate';
 import { CampaignHeroChoice } from '../features/campaigns/CampaignHeroChoice';
@@ -38,7 +40,9 @@ import { isPlayerToken } from '../features/combat/model/selectors';
 import { canCast } from '../features/combat/model/spellAvailability';
 import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
+import { useCombatSelection } from '../features/combat/useCombatSelection';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
+import { GameTable } from '../features/game-table';
 import { useLegacyCampaignPortrait } from '../features/media/useLegacyCampaignPortrait';
 import { useFirstEntry } from '../features/onboarding/useFirstEntry';
 import { type RecoveryPorts, useRecovery } from '../features/recovery/useRecovery';
@@ -51,12 +55,15 @@ import { selectedLocalModelIsRunning } from '../state/localMode';
 // useSession is mounted inside ChatPanel so the retry-bar can call refetch.
 import { loadRestOutbox } from '../state/restOutbox';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui/Button';
 import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import { AppOverlays } from './AppOverlays';
 import { AppShell } from './AppShell';
+import { GameTableExperience } from './GameTableExperience';
 import { RoomExperience } from './RoomExperience';
 import { exitRoomToLocalCampaign } from './roomExit';
+import { soloTable } from './tableAdapters';
 import { useAgentTurn } from './useAgentTurn';
 import { useAppShellController } from './useAppShellController';
 
@@ -238,6 +245,7 @@ function App() {
   const { t: tAdventure } = useTranslation('adventure');
   const { t: tCampaigns } = useTranslation('campaigns');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tCharacter } = useTranslation('character');
   const firstEntry = useStore((state) => state.onboarding.entry);
   const localChatReady = useStore((state) => selectedLocalModelIsRunning(state.localMode));
   const uiLanguage = useStore((s) => s.settings.uiLanguage);
@@ -260,6 +268,7 @@ function App() {
   const [spellCastScope, setSpellCastScope] = useState<string | null>(null);
   const [restScope, setRestScope] = useState<string | null>(null);
   const combatEncounterId = useStore((s) => s.combat.encounterId);
+  const combatRevision = useStore((s) => s.combat.revision);
   const sessionGeneration = useStore((s) => s.session.transitionGeneration);
   const pcName = useStore((s) => s.pc.name);
   const pcCharacterId = useStore((s) => s.pc.characterId);
@@ -270,7 +279,11 @@ function App() {
   // force-show it. [W1.6]
   const showActionBar = combatActive && pcTokenId !== null && currentTurnId === pcTokenId;
   const ownedCombatToken = combatTokens.find((token) => token.id === pcTokenId);
-  const currentAttackScope = `${combatEncounterId}:${ownedCombatToken?.id}:${sessionGeneration}`;
+  const currentAttackScope = `${combatEncounterId}:${combatRevision}:${ownedCombatToken?.id}:${sessionGeneration}`;
+  const combatSelection = useCombatSelection(
+    `${combatEncounterId}:${sessionGeneration}:${pcCharacterId}`,
+    combatTokens,
+  );
   const journalEntries = useStore((s) => s.journal.entries);
   const journalOpen = useStore((s) => s.journal.isOpen);
   const closeJournal = useStore((s) => s.journal.close);
@@ -294,9 +307,28 @@ function App() {
       activeProvider === 'local-mistralrs',
   );
   const campaignsFeature = useCampaigns();
+  const enterRooms = useCallback(() => {
+    useStore.getState().chat.abort();
+    setRoomOpen(true);
+    void campaignsFeature.refresh();
+  }, [campaignsFeature.refresh]);
   const adventureFeature = useAdventure();
   const [adventureOpen, setAdventureOpen] = useState(false);
   const closeAdventure = useCallback(() => setAdventureOpen(false), []);
+  const [tableContextId, setTableContextId] = useState<string | null>(null);
+  const selectedTableContext = journalOpen
+    ? 'journal'
+    : npcsOpen
+      ? 'npcs'
+      : adventureOpen
+        ? 'adventure'
+        : tableContextId;
+  const selectTableContext = (id: string | null) => {
+    closeJournal();
+    closeNpcs();
+    closeAdventure();
+    setTableContextId(id);
+  };
   const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
   const currentRestScope = `${persistedCampaignId}:${pcCharacterId}:${sessionGeneration}`;
   useEffect(() => {
@@ -358,7 +390,7 @@ function App() {
       | 'provider_local_mistralrs',
   );
   const needsModelSetup =
-    activeProvider === 'local-mistralrs' ? !localChatReady : activeProviderConfig === null;
+    activeProviderConfig === null || (activeProvider === 'local-mistralrs' && !localChatReady);
   const providerStatus = activeProviderConfig === null ? 'error' : 'connected';
   const modelLabel = getProviderModel(useStore.getState());
   const imageEnabled = useStore((s) => s.settings.imageEnabled);
@@ -479,6 +511,9 @@ function App() {
           />
           <RoomExperience
             campaigns={campaignsFeature.campaigns}
+            campaignsLoading={campaignsFeature.loading}
+            campaignsError={Boolean(campaignsFeature.errorCode)}
+            onRefreshCampaigns={() => void campaignsFeature.refresh()}
             onBack={() =>
               exitRoomToLocalCampaign(persistedCampaignId, campaignsFeature.activate, () => {
                 setRoomOpen(false);
@@ -530,10 +565,7 @@ function App() {
               : {})}
             onLanguageChange={setUiLanguage}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenRoom={() => {
-              useStore.getState().chat.abort();
-              setRoomOpen(true);
-            }}
+            onOpenRoom={enterRooms}
           />
           {campaignRoute.kind === 'campaign-create' ? (
             <CampaignCreate
@@ -616,314 +648,416 @@ function App() {
     <ErrorBoundary level="top">
       <ProviderMigrationBanner />
       <AppShell readingFontSize={readingFontSize}>
-        <header className="dm-titlebar" data-tauri-drag-region>
-          <div className="dm-titlebar-left">
-            <div className="dm-app-mark">
-              <div className="dm-app-mark-glyph" data-testid="brand-crest">
-                <Icons.Crest size={18} strokeWidth={1.35} />
+        <GameTableExperience
+          ports={{
+            send: (text) => void sendAgentTurn(text),
+            cancel: agentTurn.cancel,
+            retry: () => void recovery.retry(),
+            resume: () => void recovery.resume(),
+            openHero: () => setCharacterSheetOpen(true),
+            openJournal,
+            openNpcs,
+            configure: () => {
+              setSettingsOpen(true);
+            },
+          }}
+          model={soloTable({
+            campaign: campaignsFeature.active as NonNullable<typeof campaignsFeature.active>,
+            timeline: sessionGeneration,
+            character: useStore.getState().pc,
+            title: currentScene?.name ?? null,
+            map: combatAuthored?.map ?? useStore.getState().session.adventure?.map ?? null,
+            art: useStore.getState().session.mapMediaRef ?? null,
+            tokens: combatTokens,
+            activeFight: combatActive,
+            encounterId: combatEncounterId,
+            messages: useStore.getState().chat.messages,
+            outcomes: toolEntries,
+            configured: activeProviderConfig !== null,
+            runtimeReady:
+              activeProvider === 'local-mistralrs' ? localChatReady : activeProviderConfig !== null,
+            busy: agentStreaming,
+            recovery:
+              recovery.status === 'loading'
+                ? 'checking'
+                : recovery.status === 'error'
+                  ? 'unavailable'
+                  : recovery.blocked
+                    ? 'pending'
+                    : 'clear',
+          })}
+        >
+          <header className="dm-titlebar" data-tauri-drag-region>
+            <div className="dm-titlebar-left">
+              <div className="dm-app-mark">
+                <div className="dm-app-mark-glyph" data-testid="brand-crest">
+                  <Icons.Crest size={18} strokeWidth={1.35} />
+                </div>
+                <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
               </div>
-              <span className="dm-app-mark-name">DUNGEON MASTER AI</span>
+              <div className="dm-titlebar-divider" />
+              <div className="dm-titlebar-campaign">
+                <Icons.Book size={12} />
+                <span>{campaignsFeature.active?.title ?? t('campaign_default')}</span>
+              </div>
             </div>
-            <div className="dm-titlebar-divider" />
-            <div className="dm-titlebar-campaign">
-              <Icons.Book size={12} />
-              <span>{campaignsFeature.active?.title ?? t('campaign_default')}</span>
+
+            <div className="dm-titlebar-center">
+              <ScenePill scene={currentScene} />
             </div>
-          </div>
 
-          <div className="dm-titlebar-center">
-            <ScenePill scene={currentScene} />
-          </div>
-
-          <div className="dm-titlebar-right">
-            <button
-              type="button"
-              className="dm-btn-tb"
-              onClick={() => {
-                useStore.getState().chat.abort();
-                setRoomOpen(true);
-              }}
-            >
-              {tCampaigns('coop')}
-            </button>
-            {adventureFeature.projection && (
+            <div className="dm-titlebar-right">
+              <button type="button" className="dm-btn-tb" onClick={enterRooms}>
+                {tCampaigns('coop')}
+              </button>
+              {adventureFeature.projection && (
+                <button
+                  type="button"
+                  className="dm-btn-tb"
+                  onClick={() => setAdventureOpen(true)}
+                  aria-label={tAdventure('open')}
+                  title={tAdventure('open')}
+                >
+                  <Icons.BookOpen size={13} />
+                  <span>{tAdventure('open')}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="dm-btn-tb"
-                onClick={() => setAdventureOpen(true)}
-                aria-label={tAdventure('open')}
-                title={tAdventure('open')}
+                onClick={() => void campaignsFeature.clear()}
+                aria-label={tCampaigns('back_library')}
+                title={tCampaigns('back_library')}
               >
-                <Icons.BookOpen size={13} />
-                <span>{tAdventure('open')}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="dm-btn-tb"
-              onClick={() => void campaignsFeature.clear()}
-              aria-label={tCampaigns('back_library')}
-              title={tCampaigns('back_library')}
-            >
-              <Icons.Book size={13} />
-              <span>{tCampaigns('back_library')}</span>
-            </button>
-            <button
-              type="button"
-              className="dm-btn-tb"
-              onClick={openSaves}
-              aria-label={t('saves')}
-              title={t('saves')}
-            >
-              <Icons.Save size={13} />
-              <span>{t('saves')}</span>
-            </button>
-            <button
-              type="button"
-              className="dm-btn-tb"
-              onClick={openJournal}
-              aria-label={t('journal')}
-              title={t('journal')}
-            >
-              <Icons.Scroll size={13} />
-              <span>{t('journal')}</span>
-            </button>
-            <button
-              type="button"
-              className="dm-btn-tb"
-              onClick={openNpcs}
-              aria-label={t('npcs')}
-              title={t('npcs')}
-            >
-              <Icons.User size={13} />
-              <span>{t('npcs')}</span>
-            </button>
-            <div className="dm-titlebar-divider" />
-            <button
-              type="button"
-              className="dm-btn-tb dm-btn-tb-icon"
-              onClick={() => setSettingsOpen(true)}
-              aria-label={t('settings')}
-              title={t('settings')}
-            >
-              <Icons.Settings size={14} />
-            </button>
-            <div className="dm-window-controls">
-              <button
-                type="button"
-                className="dm-window-ctrl"
-                data-testid="window-minimize"
-                onClick={() => void tauriWindowAction('minimize')}
-                aria-label={t('minimize')}
-                title={t('minimize')}
-              >
-                <Icons.Minimize size={10} />
+                <Icons.Book size={13} />
+                <span>{tCampaigns('back_library')}</span>
               </button>
               <button
                 type="button"
-                className="dm-window-ctrl"
-                data-testid="window-maximize"
-                onClick={() => void tauriWindowAction('toggleMaximize')}
-                aria-label={t('maximize')}
-                title={t('maximize')}
+                className="dm-btn-tb"
+                onClick={openSaves}
+                aria-label={t('saves')}
+                title={t('saves')}
               >
-                <Icons.Square size={10} />
+                <Icons.Save size={13} />
+                <span>{t('saves')}</span>
               </button>
               <button
                 type="button"
-                className="dm-window-ctrl dm-window-close"
-                data-testid="window-close"
-                onClick={() => void tauriWindowAction('close')}
-                aria-label={t('close')}
-                title={t('close')}
+                className="dm-btn-tb"
+                onClick={openJournal}
+                aria-label={t('journal')}
+                title={t('journal')}
               >
-                <Icons.X size={10} />
+                <Icons.Scroll size={13} />
+                <span>{t('journal')}</span>
               </button>
+              <button
+                type="button"
+                className="dm-btn-tb"
+                onClick={openNpcs}
+                aria-label={t('npcs')}
+                title={t('npcs')}
+              >
+                <Icons.User size={13} />
+                <span>{t('npcs')}</span>
+              </button>
+              <div className="dm-titlebar-divider" />
+              <button
+                type="button"
+                className="dm-btn-tb dm-btn-tb-icon"
+                onClick={() => setSettingsOpen(true)}
+                aria-label={t('settings')}
+                title={t('settings')}
+              >
+                <Icons.Settings size={14} />
+              </button>
+              <div className="dm-window-controls">
+                <button
+                  type="button"
+                  className="dm-window-ctrl"
+                  data-testid="window-minimize"
+                  onClick={() => void tauriWindowAction('minimize')}
+                  aria-label={t('minimize')}
+                  title={t('minimize')}
+                >
+                  <Icons.Minimize size={10} />
+                </button>
+                <button
+                  type="button"
+                  className="dm-window-ctrl"
+                  data-testid="window-maximize"
+                  onClick={() => void tauriWindowAction('toggleMaximize')}
+                  aria-label={t('maximize')}
+                  title={t('maximize')}
+                >
+                  <Icons.Square size={10} />
+                </button>
+                <button
+                  type="button"
+                  className="dm-window-ctrl dm-window-close"
+                  data-testid="window-close"
+                  onClick={() => void tauriWindowAction('close')}
+                  aria-label={t('close')}
+                  title={t('close')}
+                >
+                  <Icons.X size={10} />
+                </button>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <ErrorBoundary level="section">
-          <main className="dm-vtt-panel">
-            <VttCanvas
-              onMoveToken={
-                recovery.blocked ? undefined : (id, x, y) => void combatCommands.move(id, x, y)
+          <ErrorBoundary level="section">
+            <GameTable
+              activeContext={selectedTableContext}
+              onContextChange={selectTableContext}
+              contextPanels={[
+                {
+                  id: 'adventure',
+                  label: t('scene'),
+                  content: adventureFeature.projection ? (
+                    <AdventureContent
+                      projection={adventureFeature.projection}
+                      pending={adventureFeature.pending || recovery.blocked}
+                      error={adventureFeature.error}
+                      retryRequired={adventureFeature.retryRequired}
+                      onAction={(action) => void adventureFeature.perform(action)}
+                      onRetry={() => void adventureFeature.retry()}
+                    />
+                  ) : (
+                    <p>{currentScene?.name}</p>
+                  ),
+                },
+                {
+                  id: 'hero',
+                  label: t('hero'),
+                  content: (
+                    <>
+                      <HeroContext character={useStore.getState().pc} />
+                      <Button onClick={() => setCharacterSheetOpen(true)}>
+                        {tCharacter('context_full_sheet')}
+                      </Button>
+                    </>
+                  ),
+                },
+                {
+                  id: 'journal',
+                  label: t('journal'),
+                  content: (
+                    <JournalViewer
+                      embedded
+                      entries={journalEntries}
+                      onClose={() => selectTableContext(null)}
+                    />
+                  ),
+                },
+                {
+                  id: 'npcs',
+                  label: t('npcs'),
+                  content: (
+                    <NpcMemoryGrid
+                      embedded
+                      npcs={npcList}
+                      onClose={() => selectTableContext(null)}
+                    />
+                  ),
+                },
+              ]}
+              renderPortrait={(actor) => (
+                <ActorPortrait
+                  actor={{
+                    characterId: actor.characterId,
+                    heroClass: actor.classId,
+                    portraitAssetId: actor.portraitAssetId,
+                    portraitMediaRef: actor.portraitMediaRef,
+                    mediaScope: persistedCampaignId
+                      ? { kind: 'campaign', campaign_id: persistedCampaignId }
+                      : null,
+                  }}
+                />
+              )}
+              scene={
+                <main className="dm-vtt-panel">
+                  <VttCanvas
+                    selectedTokenId={combatSelection.selectedId}
+                    onSelectToken={combatSelection.select}
+                    onMoveToken={
+                      recovery.blocked
+                        ? undefined
+                        : (id, x, y) => void combatCommands.move(id, x, y)
+                    }
+                  />
+                  {combatActive && (
+                    <InitiativeTracker
+                      compact
+                      tokens={combatTokens}
+                      order={combatOrder}
+                      round={combatRound}
+                      activeTokenId={currentTurnId}
+                      selectedTokenId={combatSelection.selectedId}
+                      onSelect={combatSelection.select}
+                    />
+                  )}
+                  {showActionBar && !recovery.blocked && (
+                    <ActionBar
+                      slots={ownedCombatToken?.casting?.slots}
+                      pending={combatCommands.pending}
+                      onAttack={
+                        ownedCombatToken?.loadout
+                          ? () => setWeaponAttackScope(currentAttackScope)
+                          : undefined
+                      }
+                      castAvailable={
+                        ownedCombatToken?.casting ? canCast(ownedCombatToken) : undefined
+                      }
+                      onCast={
+                        ownedCombatToken?.casting
+                          ? () => setSpellCastScope(currentAttackScope)
+                          : () => void combatCommands.cast()
+                      }
+                      onEndTurn={() => void combatCommands.endTurn()}
+                      onRetreat={combatAuthored ? () => void combatCommands.retreat() : undefined}
+                      retreatAvailable={Boolean(
+                        combatAuthored &&
+                          ownedCombatToken &&
+                          combatAuthored.map.exits.some(
+                            (exit) =>
+                              exit.x === ownedCombatToken.x && exit.y === ownedCombatToken.y,
+                          ),
+                      )}
+                      onIntent={(text) => {
+                        void sendAgentTurn(text);
+                      }}
+                    />
+                  )}
+                  {weaponAttackScope === currentAttackScope &&
+                    showActionBar &&
+                    ownedCombatToken?.loadout && (
+                      <WeaponAttackDialog
+                        key={currentAttackScope}
+                        actor={ownedCombatToken}
+                        initialTargetId={combatSelection.selectedId}
+                        targets={combatTokens.filter(
+                          (token) =>
+                            token.id !== ownedCombatToken.id && !token.characterId && token.hp > 0,
+                        )}
+                        onClose={() => setWeaponAttackScope(null)}
+                        onAttack={combatCommands.weaponAttack}
+                      />
+                    )}
+                  {spellCastScope === currentAttackScope &&
+                    showActionBar &&
+                    ownedCombatToken?.casting && (
+                      <SpellCastDialog
+                        key={currentAttackScope}
+                        actor={ownedCombatToken}
+                        initialTargetId={combatSelection.selectedId}
+                        targets={combatTokens}
+                        onClose={() => setSpellCastScope(null)}
+                        onCast={combatCommands.spell}
+                      />
+                    )}
+                  <CharFab
+                    onOpen={() => selectTableContext('hero')}
+                    onOpenWizard={() => setWizardReopen(true)}
+                  />
+                </main>
               }
+              chat={
+                <ChatPanel
+                  needsSetup={needsModelSetup}
+                  onRequireSetup={() => {
+                    if (activeProvider === 'local-mistralrs') {
+                      setSettingsInitialTab('local-llm');
+                      setSettingsOpen(true);
+                    } else handleOpenChatSettings();
+                  }}
+                  onInspect={() => setInspectorOpen(true)}
+                  controller={agentTurn}
+                  recoveryNotice={recoveryNotice}
+                  recoveryBlocked={recovery.blocked && !recovery.clarifying}
+                />
+              }
+              resizer={<ChatResizer />}
             />
-            {combatActive && (
-              <InitiativeTracker
-                tokens={combatTokens}
-                order={combatOrder}
-                round={combatRound}
-                activeTokenId={currentTurnId}
-              />
-            )}
-            {showActionBar && !recovery.blocked && (
-              <ActionBar
-                pending={combatCommands.pending}
-                onAttack={
-                  ownedCombatToken?.loadout
-                    ? () => setWeaponAttackScope(currentAttackScope)
-                    : undefined
-                }
-                castAvailable={ownedCombatToken?.casting ? canCast(ownedCombatToken) : undefined}
-                onCast={
-                  ownedCombatToken?.casting
-                    ? () => setSpellCastScope(currentAttackScope)
-                    : () => void combatCommands.cast()
-                }
-                onEndTurn={() => void combatCommands.endTurn()}
-                onRetreat={combatAuthored ? () => void combatCommands.retreat() : undefined}
-                retreatAvailable={Boolean(
-                  combatAuthored &&
-                    ownedCombatToken &&
-                    combatAuthored.map.exits.some(
-                      (exit) => exit.x === ownedCombatToken.x && exit.y === ownedCombatToken.y,
-                    ),
-                )}
-                onIntent={(text) => {
-                  void sendAgentTurn(text);
+          </ErrorBoundary>
+
+          <StatusBar
+            provider={providerLabel}
+            model={modelLabel}
+            status={providerStatus}
+            savedAgo={savedAgo}
+            image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
+            video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
+            onOpenSettings={(tab) => {
+              setSettingsInitialTab(tab);
+              setSettingsOpen(true);
+            }}
+          />
+
+          <AppOverlays>
+            <SettingsModal
+              open={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              initialTab={settingsInitialTab}
+              onRequestCharacterRecreate={() => {
+                setSettingsOpen(false);
+                setWizardReopen(true);
+              }}
+            />
+            <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
+            {pendingUpdate && (
+              <UpdateAvailableModal
+                version={pendingUpdate.version}
+                notes={pendingUpdate.notes}
+                onLater={dismissUpdate}
+                onUpdate={() => {
+                  void pendingUpdate.install().finally(dismissUpdate);
                 }}
               />
             )}
-            {weaponAttackScope === currentAttackScope &&
-              showActionBar &&
-              ownedCombatToken?.loadout && (
-                <WeaponAttackDialog
-                  key={currentAttackScope}
-                  actor={ownedCombatToken}
-                  targets={combatTokens.filter(
-                    (token) =>
-                      token.id !== ownedCombatToken.id && !token.characterId && token.hp > 0,
-                  )}
-                  onClose={() => setWeaponAttackScope(null)}
-                  onAttack={combatCommands.weaponAttack}
-                />
-              )}
-            {spellCastScope === currentAttackScope &&
-              showActionBar &&
-              ownedCombatToken?.casting && (
-                <SpellCastDialog
-                  key={currentAttackScope}
-                  actor={ownedCombatToken}
-                  targets={combatTokens}
-                  onClose={() => setSpellCastScope(null)}
-                  onCast={combatCommands.spell}
-                />
-              )}
-            <CharFab
-              onOpen={() => setCharacterSheetOpen(true)}
-              onOpenWizard={() => setWizardReopen(true)}
+            {savesOpen && <SavesScreen />}
+            <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
+            <SaveErrorToast />
+            <ToolInspectorDrawer
+              entries={toolEntries}
+              isOpen={inspectorOpen}
+              onClose={() => setInspectorOpen(false)}
             />
-          </main>
-
-          <aside className="dm-chat-panel" aria-label={t('chat_panel')}>
-            <ChatResizer />
-            <ChatPanel
-              needsSetup={needsModelSetup}
-              onRequireSetup={() => {
-                if (activeProvider === 'local-mistralrs') {
-                  setSettingsInitialTab('local-llm');
-                  setSettingsOpen(true);
-                } else handleOpenChatSettings();
-              }}
-              onInspect={() => setInspectorOpen(true)}
-              controller={agentTurn}
-              recoveryNotice={recoveryNotice}
-              recoveryBlocked={recovery.blocked && !recovery.clarifying}
+            <CharacterSheet
+              open={characterSheetOpen}
+              onClose={() => setCharacterSheetOpen(false)}
+              onRest={
+                pcCharacterId && !recovery.blocked
+                  ? () => {
+                      setCharacterSheetOpen(false);
+                      setRestScope(currentRestScope);
+                    }
+                  : undefined
+              }
             />
-          </aside>
-        </ErrorBoundary>
-
-        <StatusBar
-          provider={providerLabel}
-          model={modelLabel}
-          status={providerStatus}
-          savedAgo={savedAgo}
-          image={{ enabled: imageEnabled, label: imageEnabled ? imagePreset : t('modality_off') }}
-          video={{ enabled: videoEnabled, label: videoEnabled ? videoMode : t('modality_off') }}
-          onOpenSettings={(tab) => {
-            setSettingsInitialTab(tab);
-            setSettingsOpen(true);
-          }}
-        />
-
-        <AppOverlays>
-          <SettingsModal
-            open={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-            initialTab={settingsInitialTab}
-            onRequestCharacterRecreate={() => {
-              setSettingsOpen(false);
-              setWizardReopen(true);
-            }}
-          />
-          <LocalModeModal open={localModeOpen} onClose={() => setLocalModeOpen(false)} />
-          {pendingUpdate && (
-            <UpdateAvailableModal
-              version={pendingUpdate.version}
-              notes={pendingUpdate.notes}
-              onLater={dismissUpdate}
-              onUpdate={() => {
-                void pendingUpdate.install().finally(dismissUpdate);
-              }}
+            {restScope === currentRestScope && pcCharacterId && (
+              <RestDialog key={currentRestScope} onClose={() => setRestScope(null)} />
+            )}
+            {wizardReopen && (
+              <CharacterWizard
+                mode={pcHeroClass ? 'edit' : 'initial'}
+                onCommitCharacter={campaignsFeature.commitCharacter}
+                onClose={() => setWizardReopen(false)}
+                onOpenImageSettings={handleOpenImageSettings}
+                hidden={settingsOpen}
+              />
+            )}
+            <SceneTransitionOverlay />
+            <VideoDisabledToast
+              videoEnabled={videoEnabled}
+              sceneTransitionsEnabled={sceneTransitionsEnabled}
+              sceneName={currentScene?.name ?? null}
+              onOpenVideoSettings={handleOpenVideoSettings}
             />
-          )}
-          {journalOpen && <JournalViewer entries={journalEntries} onClose={closeJournal} />}
-          {npcsOpen && <NpcMemoryGrid npcs={npcList} onClose={closeNpcs} />}
-          {savesOpen && <SavesScreen />}
-          <QuickSaveToast lastQuickSaveAt={lastQuickSaveAt} />
-          <SaveErrorToast />
-          <ToolInspectorDrawer
-            entries={toolEntries}
-            isOpen={inspectorOpen}
-            onClose={() => setInspectorOpen(false)}
-          />
-          <CharacterSheet
-            open={characterSheetOpen}
-            onClose={() => setCharacterSheetOpen(false)}
-            onRest={
-              pcCharacterId && !recovery.blocked
-                ? () => {
-                    setCharacterSheetOpen(false);
-                    setRestScope(currentRestScope);
-                  }
-                : undefined
-            }
-          />
-          {restScope === currentRestScope && pcCharacterId && (
-            <RestDialog key={currentRestScope} onClose={() => setRestScope(null)} />
-          )}
-          {adventureFeature.projection && (
-            <AdventurePanel
-              open={adventureOpen}
-              onClose={closeAdventure}
-              projection={adventureFeature.projection}
-              pending={adventureFeature.pending || recovery.blocked}
-              error={adventureFeature.error}
-              retryRequired={adventureFeature.retryRequired}
-              onAction={(action) => void adventureFeature.perform(action)}
-              onRetry={() => void adventureFeature.retry()}
-            />
-          )}
-          {wizardReopen && (
-            <CharacterWizard
-              mode={pcHeroClass ? 'edit' : 'initial'}
-              onCommitCharacter={campaignsFeature.commitCharacter}
-              onClose={() => setWizardReopen(false)}
-              onOpenImageSettings={handleOpenImageSettings}
-              hidden={settingsOpen}
-            />
-          )}
-          <SceneTransitionOverlay />
-          <VideoDisabledToast
-            videoEnabled={videoEnabled}
-            sceneTransitionsEnabled={sceneTransitionsEnabled}
-            sceneName={currentScene?.name ?? null}
-            onOpenVideoSettings={handleOpenVideoSettings}
-          />
-          <SplashOverlay />
-        </AppOverlays>
+            <SplashOverlay />
+          </AppOverlays>
+        </GameTableExperience>
       </AppShell>
     </ErrorBoundary>
   );

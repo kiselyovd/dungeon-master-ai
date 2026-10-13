@@ -20,11 +20,9 @@ export function isPlayerTurn(
 export function isPlayerToken(
   token: CombatToken,
   characterId: string | null | undefined,
-  playerName: string | null,
+  _playerName: string | null,
 ): boolean {
-  return characterId
-    ? token.characterId === characterId
-    : playerName !== null && token.name === playerName;
+  return Boolean(characterId && token.characterId === characterId);
 }
 
 /** Modern projections carry authoritative mortality; legacy unbound zero-HP monsters retain their prior display. */

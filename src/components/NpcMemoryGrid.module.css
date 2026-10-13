@@ -250,3 +250,29 @@
   text-align: center;
   padding: var(--space-7) 0;
 }
+
+.embedded .container {
+  padding: 0;
+  max-width: none;
+}
+.embedded .header {
+  flex-direction: column;
+  align-items: stretch;
+}
+.embedded .title,
+.embedded .closeBtn {
+  display: none;
+}
+.embedded .headerActions {
+  width: 100%;
+}
+.embedded .search {
+  width: 100%;
+}
+.embedded .filters {
+  flex-wrap: wrap;
+}
+.embedded .grid {
+  grid-template-columns: 1fr;
+  overflow: visible;
+}

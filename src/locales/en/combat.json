@@ -9,6 +9,11 @@
   "initiative_tracker": "Initiative",
   "round": "Round {{round}}",
   "action": "Action",
+  "action_pending": "Finishing the action",
+  "casting_unavailable_short": "No spell available",
+  "retreat_exit_short": "Reach the dry exit",
+  "movement_exhausted": "No movement left",
+  "slot_budget": "L{{level}}: {{remaining}}/{{maximum}}",
   "bonus_action": "Bonus",
   "reaction": "Reaction",
   "move": "Move",
@@ -137,5 +142,11 @@
   },
   "invalid_projection": "The combat snapshot is invalid. Reconnect to refresh it.",
   "retreat_room": "Retreat",
-  "your_turn": "Your turn"
+  "your_turn": "Your turn",
+  "action_turn_unavailable": "Wait for your turn and the previous action to finish.",
+  "action_target_unavailable": "Choose an available target.",
+  "action_equipment_unavailable": "The selected weapon is unavailable.",
+  "action_ammunition_unavailable": "No ammunition remains for this weapon.",
+  "action_shield_conflict": "Put away your shield before using two hands.",
+  "action_spell_resource_unavailable": "Choose a supported spell with an available action and slot."
 }

@@ -68,6 +68,7 @@ interface SaveRowProps {
 }
 
 function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: SaveRowProps) {
+  const { i18n } = useTranslation('saves');
   const KindIcon = kindIcon(save.kind);
   const TagIcon = tagIcon(save.tag);
   return (
@@ -89,7 +90,7 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: 
             <KindIcon size={10} /> {kindLabel}
           </span>
           <span className="dm-save-row-date">
-            {new Date(save.created_at).toLocaleString(undefined, {
+            {new Date(save.created_at).toLocaleString(i18n.language, {
               month: 'short',
               day: '2-digit',
               hour: '2-digit',
@@ -103,7 +104,7 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: 
 }
 
 export function SavesScreen() {
-  const { t } = useTranslation('saves');
+  const { t, i18n } = useTranslation('saves');
   const {
     saves,
     selectedSaveId,
@@ -362,7 +363,7 @@ export function SavesScreen() {
                 <div className="dm-save-detail-meta-cell">
                   <div className="dm-save-detail-meta-label">{t('created_label')}</div>
                   <div className="dm-save-detail-meta-value">
-                    {new Date(selected.created_at).toLocaleString()}
+                    {new Date(selected.created_at).toLocaleString(i18n.language)}
                   </div>
                 </div>
               </div>

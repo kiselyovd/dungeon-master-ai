@@ -3,9 +3,11 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import type { JournalEntry } from '../state/journal';
+import { ContextSurface } from './ContextSurface';
 import styles from './JournalViewer.module.css';
 
 interface Props {
+  embedded?: boolean;
   entries: JournalEntry[];
   onClose: () => void;
 }
@@ -14,13 +16,13 @@ interface Props {
  * Full-screen journal overlay.
  * M3: functional plain viewer. Styled parchment renderer ships in M5.
  */
-export function JournalViewer({ entries, onClose }: Props) {
+export function JournalViewer({ entries, onClose, embedded = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isClosing, triggerClose } = useClosingAnimation(onClose);
   useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
-  const { t } = useTranslation('journal');
+    if (!embedded) containerRef.current?.focus();
+  }, [embedded]);
+  const { t, i18n } = useTranslation('journal');
 
   // Sanitise once per (id + html) pair so re-renders don't re-purify the
   // same entry. Backend sanitises upstream too; this is defense in depth.
@@ -34,17 +36,12 @@ export function JournalViewer({ entries, onClose }: Props) {
   );
 
   return (
-    <div
-      className={styles.overlay}
-      data-state={isClosing ? 'closing' : 'open'}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('title')}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          triggerClose();
-        }
-      }}
+    <ContextSurface
+      embedded={embedded}
+      label={t('title')}
+      className={embedded ? styles.embedded : styles.overlay}
+      state={isClosing ? 'closing' : 'open'}
+      onEscape={triggerClose}
     >
       <div className={styles.container} tabIndex={-1} ref={containerRef}>
         <div className={styles.header}>
@@ -71,13 +68,19 @@ export function JournalViewer({ entries, onClose }: Props) {
                   dangerouslySetInnerHTML={{ __html: safeHtml }}
                 />
                 <time className={styles.timestamp} dateTime={entry.created_at}>
-                  {new Date(entry.created_at).toLocaleString()}
+                  {new Date(entry.created_at).toLocaleString(i18n.language, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </time>
               </article>
             ))
           )}
         </div>
       </div>
-    </div>
+    </ContextSurface>
   );
 }

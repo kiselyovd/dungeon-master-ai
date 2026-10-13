@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchCampaignState } from '../api/campaigns';
 import type { CampaignSummary } from '../api/contracts/campaign';
 import { parseMediaReference } from '../api/contracts/mediaAsset';
@@ -18,19 +19,32 @@ import {
   savedGuestRooms,
   stopHostRoom,
 } from '../api/rooms';
+import { ActorPortrait } from '../components/ActorPortrait';
 import { CharacterWizard } from '../components/CharacterWizard';
+import { ChatResizer } from '../components/ChatResizer';
+import { HeroContext } from '../components/HeroContext';
+import { JournalViewer } from '../components/JournalViewer';
+import { NpcMemoryGrid } from '../components/NpcMemoryGrid';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SettingsModal } from '../components/SettingsModal';
+import { AdventureContent } from '../features/adventure/AdventurePanel';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
+import { GameTable } from '../features/game-table';
 import { RoomPortraitTransfer } from '../features/media/model/RoomPortraitTransfer';
 import { toRecoveryView } from '../features/recovery/model/recovery';
 import { RoomHome } from '../features/rooms/RoomHome';
 import { RoomPlay } from '../features/rooms/RoomPlay';
 import { useRoom } from '../features/rooms/useRoom';
 import { useStore } from '../state/useStore';
+import { GameTableExperience } from './GameTableExperience';
+import { roomContext } from './roomContext';
 import { roomPorts } from './roomPorts';
+import { roomTable } from './tableAdapters';
 
 interface Props {
+  campaignsLoading?: boolean | undefined;
+  campaignsError?: boolean | undefined;
+  onRefreshCampaigns?: (() => void) | undefined;
   campaigns: CampaignSummary[];
   onBack: () => void | Promise<void>;
 }
@@ -42,6 +56,17 @@ function ConnectedRoom({
   onBack: () => void | Promise<void>;
 }) {
   const { view, controller } = useRoom(roomPorts, connection);
+  const { t } = useTranslation('common');
+  const [contextId, setContextId] = useState<string | null>(null);
+  const context = useMemo(() => {
+    if (!view.state) return null;
+    try {
+      return roomContext(view.state, connection.member_id);
+    } catch {
+      return null;
+    }
+  }, [view.state, connection.member_id]);
+  const unavailableContext = view.state !== null && context === null;
   const portraitTransfer = useMemo(
     () =>
       new RoomPortraitTransfer({
@@ -92,6 +117,10 @@ function ConnectedRoom({
       setClosing(false);
     }
   }
+  const tableModel = roomTable(
+    { ...view, busy: view.busy || closing || refreshingInvitation },
+    connection,
+  );
   return (
     <>
       {connection.kind === 'host' && (
@@ -102,138 +131,277 @@ function ConnectedRoom({
           initialTab="chat"
         />
       )}
-      <RoomPlay
-        recoveryNotice={
-          view.recovery || view.recoveryStatus === 'error' || view.pending?.kind === 'dm_turn' ? (
-            <RecoveryPanel
-              view={
-                view.recovery
-                  ? toRecoveryView(view.recovery)
-                  : view.pending?.kind === 'dm_turn'
-                    ? {
-                        requestId: view.pending.request_id,
-                        actorId: '',
-                        model: null,
-                        phase: view.pending.awaiting_clarification
-                          ? 'needs_input'
-                          : 'progress_unknown',
-                        action: view.pending.awaiting_clarification ? 'clarify' : 'resume',
-                        progressKnown: false,
-                        totalCommands: null,
-                        finishedCommands: null,
-                        performedAttempts: null,
-                        refusedAttempts: null,
-                        clarificationId: view.pending.awaiting_clarification ?? null,
-                      }
-                    : null
-              }
-              status={view.recoveryStatus === 'idle' ? 'ready' : view.recoveryStatus}
-              busy={view.busy}
-              onResume={() => void controller.retryPending()}
-              onRetry={() => void controller.reconnect()}
-              {...(connection.kind === 'host' ? { onConfigure: () => setSettingsOpen(true) } : {})}
-            />
-          ) : null
-        }
-        invitation={invitation}
-        onRefreshInvitation={
-          connection.kind === 'host'
-            ? () => {
-                if (refreshingInvitation) return;
-                setRefreshingInvitation(true);
-                setInvitationError(false);
-                void recoverHostRoom()
-                  .then((current) => {
-                    if (
-                      current?.kind !== 'host' ||
-                      current.room.room_id !== connection.room.room_id
-                    )
-                      throw new Error('room_scope_changed');
-                    setInvitation(current.invitation);
-                  })
-                  .catch(() => setInvitationError(true))
-                  .finally(() => setRefreshingInvitation(false));
-              }
-            : undefined
-        }
-        view={{
-          ...view,
-          busy: view.busy || closing || refreshingInvitation,
-          errorCode: closingError
-            ? 'native_host_stop_failed'
-            : invitationError
-              ? 'native_host_invitation_failed'
-              : view.errorCode,
+      <GameTableExperience
+        model={tableModel}
+        ports={{
+          send: (text) => void controller.sendDm(text),
+          retry: () => void controller.retryPending(),
+          cancel: () => controller.cancelDm(),
+          openHero: () => {
+            useStore.getState().charCreation.resetDraft();
+            setWizard(true);
+          },
+          ...(connection.kind === 'host' ? { configure: () => setSettingsOpen(true) } : {}),
         }}
-        battle={
-          view.state && (
-            <RoomCombatPanel
-              mapMediaRef={view.state.map_media_ref ?? null}
-              raw={view.state.combat}
-              timelineReset={view.timelineReset}
-              map={view.state.adventure?.map ?? null}
-              player={{
-                characterId:
-                  view.state.actors.find((actor) => actor.member_id === connection.member_id)
-                    ?.character_id ?? null,
-                heroClass:
-                  typeof view.state.own_character?.heroClass === 'string'
-                    ? view.state.own_character.heroClass
-                    : null,
-                portraitUrl:
-                  typeof view.state.own_character?.portraitUrl === 'string'
-                    ? view.state.own_character.portraitUrl
-                    : null,
-                portraitAssetId:
-                  typeof view.state.own_character?.portraitAssetId === 'string'
-                    ? view.state.own_character.portraitAssetId
-                    : null,
-                portraitMediaRef: view.state.own_character?.portraitMediaRef
-                  ? parseMediaReference(view.state.own_character.portraitMediaRef)
-                  : null,
-                mediaScope:
-                  view.status === 'connected'
-                    ? {
-                        kind: 'room',
-                        room_id: connection.room.room_id,
-                        member_id: connection.member_id,
-                        epoch: view.state.room.epoch ?? connection.room.epoch ?? 1,
+      >
+        <RoomPlay
+          renderTable={(slots) => (
+            <GameTable
+              {...slots}
+              activeContext={contextId}
+              onContextChange={setContextId}
+              contextPanels={[
+                {
+                  id: 'adventure',
+                  label: t('scene'),
+                  content: view.state?.adventure ? (
+                    <AdventureContent
+                      projection={view.state.adventure}
+                      pending={
+                        view.status !== 'connected' ||
+                        view.busy ||
+                        Boolean(view.pending) ||
+                        Boolean(view.state?.agent_busy)
                       }
-                    : null,
-              }}
-              disabled={
-                view.status !== 'connected' ||
-                view.busy ||
-                view.pending !== null ||
-                view.state.agent_busy
+                      error={Boolean(view.errorCode)}
+                      retryRequired={Boolean(view.pending)}
+                      onAction={(action) => {
+                        if (!view.state) return;
+                        void controller.perform({
+                          kind: 'adventure',
+                          request_id: crypto.randomUUID(),
+                          expected_revision: view.state.revision,
+                          action,
+                        });
+                      }}
+                      onRetry={() => void controller.retryPending()}
+                    />
+                  ) : (
+                    <p>{tableModel.scene.title}</p>
+                  ),
+                },
+                {
+                  id: 'hero',
+                  label: t('hero'),
+                  content: (
+                    <>
+                      {unavailableContext ? (
+                        <p role="alert">{t('context_unavailable')}</p>
+                      ) : (
+                        <HeroContext character={context?.own ?? null} />
+                      )}
+                      {slots.context}
+                    </>
+                  ),
+                },
+                {
+                  id: 'journal',
+                  label: t('journal'),
+                  content: unavailableContext ? (
+                    <p role="alert">{t('context_unavailable')}</p>
+                  ) : (
+                    <JournalViewer
+                      embedded
+                      entries={context?.journal ?? []}
+                      onClose={() => setContextId(null)}
+                    />
+                  ),
+                },
+                {
+                  id: 'npcs',
+                  label: t('npcs'),
+                  content: unavailableContext ? (
+                    <p role="alert">{t('context_unavailable')}</p>
+                  ) : (
+                    <NpcMemoryGrid
+                      embedded
+                      npcs={context?.npcs ?? []}
+                      onClose={() => setContextId(null)}
+                    />
+                  ),
+                },
+              ]}
+              resizer={<ChatResizer />}
+              renderPortrait={(actor) => (
+                <ActorPortrait
+                  actor={{
+                    characterId: actor.characterId,
+                    heroClass: actor.classId,
+                    portraitAssetId: actor.portraitAssetId,
+                    portraitMediaRef: actor.portraitMediaRef,
+                    mediaScope:
+                      view.status === 'connected'
+                        ? {
+                            kind: 'room',
+                            room_id: connection.room.room_id,
+                            member_id: connection.member_id,
+                            epoch: view.state?.room.epoch ?? connection.room.epoch ?? 1,
+                          }
+                        : null,
+                  }}
+                />
+              )}
+              scene={
+                tableModel.scene.kind === 'tactical' || tableModel.combat === 'active'
+                  ? slots.scene
+                  : null
               }
-              onAction={async (encounter_id, expected_revision, action) => {
-                await controller.perform({
-                  kind: 'combat',
-                  request_id: crypto.randomUUID(),
-                  encounter_id,
-                  expected_revision,
-                  action,
-                });
-                return (
-                  controller.getSnapshot().errorCode === null &&
-                  controller.getSnapshot().pending === null
-                );
-              }}
             />
-          )
-        }
-        onLeave={() => void leave()}
-        onReconnect={() => void controller.reconnect()}
-        onRetry={() => void controller.retryPending()}
-        onCancel={() => controller.cancelDm()}
-        onSend={(text) => void controller.sendDm(text)}
-        onAction={(action) => void controller.perform(action)}
-        onHero={() => {
-          useStore.getState().charCreation.resetDraft();
-          setWizard(true);
-        }}
-      />
+          )}
+          recoveryNotice={
+            view.recovery || view.recoveryStatus === 'error' || view.pending?.kind === 'dm_turn' ? (
+              <RecoveryPanel
+                view={
+                  view.recovery
+                    ? toRecoveryView(view.recovery)
+                    : view.pending?.kind === 'dm_turn'
+                      ? {
+                          requestId: view.pending.request_id,
+                          actorId: '',
+                          model: null,
+                          phase: view.pending.awaiting_clarification
+                            ? 'needs_input'
+                            : 'progress_unknown',
+                          action: view.pending.awaiting_clarification ? 'clarify' : 'resume',
+                          progressKnown: false,
+                          totalCommands: null,
+                          finishedCommands: null,
+                          performedAttempts: null,
+                          refusedAttempts: null,
+                          clarificationId: view.pending.awaiting_clarification ?? null,
+                        }
+                      : null
+                }
+                status={view.recoveryStatus === 'idle' ? 'ready' : view.recoveryStatus}
+                busy={view.busy}
+                onResume={() => void controller.retryPending()}
+                onRetry={() => void controller.reconnect()}
+                {...(connection.kind === 'host'
+                  ? { onConfigure: () => setSettingsOpen(true) }
+                  : {})}
+              />
+            ) : null
+          }
+          invitation={invitation}
+          onRefreshInvitation={
+            connection.kind === 'host'
+              ? () => {
+                  if (refreshingInvitation) return;
+                  setRefreshingInvitation(true);
+                  setInvitationError(false);
+                  void recoverHostRoom()
+                    .then((current) => {
+                      if (
+                        current?.kind !== 'host' ||
+                        current.room.room_id !== connection.room.room_id
+                      )
+                        throw new Error('room_scope_changed');
+                      setInvitation(current.invitation);
+                    })
+                    .catch(() => setInvitationError(true))
+                    .finally(() => setRefreshingInvitation(false));
+                }
+              : undefined
+          }
+          view={{
+            ...view,
+            busy: view.busy || closing || refreshingInvitation,
+            errorCode: closingError
+              ? 'native_host_stop_failed'
+              : invitationError
+                ? 'native_host_invitation_failed'
+                : view.errorCode,
+          }}
+          battle={
+            view.state && (
+              <RoomCombatPanel
+                actorVisuals={Object.fromEntries(
+                  view.state.actors.map((actor) => [
+                    actor.character_id,
+                    {
+                      characterId: actor.character_id,
+                      heroClass: actor.class_id,
+                      portraitAssetId: actor.portrait_asset_id ?? null,
+                      portraitMediaRef: actor.portrait_media_ref ?? null,
+                      mediaScope:
+                        view.status === 'connected'
+                          ? {
+                              kind: 'room' as const,
+                              room_id: connection.room.room_id,
+                              member_id: connection.member_id,
+                              epoch: view.state?.room.epoch ?? connection.room.epoch ?? 1,
+                            }
+                          : null,
+                    },
+                  ]),
+                )}
+                mapMediaRef={view.state.map_media_ref ?? null}
+                raw={view.state.combat}
+                timelineReset={view.timelineReset}
+                map={view.state.adventure?.map ?? null}
+                player={{
+                  characterId:
+                    view.state.actors.find((actor) => actor.member_id === connection.member_id)
+                      ?.character_id ?? null,
+                  heroClass:
+                    typeof view.state.own_character?.heroClass === 'string'
+                      ? view.state.own_character.heroClass
+                      : null,
+                  portraitUrl:
+                    typeof view.state.own_character?.portraitUrl === 'string'
+                      ? view.state.own_character.portraitUrl
+                      : null,
+                  portraitAssetId:
+                    typeof view.state.own_character?.portraitAssetId === 'string'
+                      ? view.state.own_character.portraitAssetId
+                      : null,
+                  portraitMediaRef: view.state.own_character?.portraitMediaRef
+                    ? parseMediaReference(view.state.own_character.portraitMediaRef)
+                    : null,
+                  mediaScope:
+                    view.status === 'connected'
+                      ? {
+                          kind: 'room',
+                          room_id: connection.room.room_id,
+                          member_id: connection.member_id,
+                          epoch: view.state.room.epoch ?? connection.room.epoch ?? 1,
+                        }
+                      : null,
+                }}
+                disabled={
+                  view.status !== 'connected' ||
+                  view.busy ||
+                  view.pending !== null ||
+                  view.state.agent_busy
+                }
+                onAction={async (encounter_id, expected_revision, action) => {
+                  await controller.perform({
+                    kind: 'combat',
+                    request_id: crypto.randomUUID(),
+                    encounter_id,
+                    expected_revision,
+                    action,
+                  });
+                  return (
+                    controller.getSnapshot().errorCode === null &&
+                    controller.getSnapshot().pending === null
+                  );
+                }}
+              />
+            )
+          }
+          onLeave={() => void leave()}
+          onReconnect={() => void controller.reconnect()}
+          onRetry={() => void controller.retryPending()}
+          onCancel={() => controller.cancelDm()}
+          onSend={(text) => controller.sendDm(text)}
+          onAction={(action) => void controller.perform(action)}
+          onHero={() => {
+            useStore.getState().charCreation.resetDraft();
+            setWizard(true);
+          }}
+        />
+      </GameTableExperience>
       {wizard && (
         <CharacterWizard
           mode="initial"
@@ -247,7 +415,13 @@ function ConnectedRoom({
     </>
   );
 }
-export function RoomExperience({ campaigns, onBack }: Props) {
+export function RoomExperience({
+  campaigns,
+  onBack,
+  campaignsLoading,
+  campaignsError,
+  onRefreshCampaigns,
+}: Props) {
   const [saved, setSaved] = useState<GuestRecoveryChoice[]>([]);
   const [connection, setConnection] = useState<RoomConnection | null>(null);
   const [busy, setBusy] = useState(false);
@@ -268,6 +442,9 @@ export function RoomExperience({ campaigns, onBack }: Props) {
   if (connection) return <ConnectedRoom connection={connection} onBack={onBack} />;
   return (
     <RoomHome
+      campaignsLoading={campaignsLoading}
+      campaignsError={campaignsError}
+      onRefreshCampaigns={onRefreshCampaigns}
       campaigns={campaigns}
       busy={busy}
       error={error}

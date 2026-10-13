@@ -241,7 +241,13 @@ export class RoomController {
     if (this.view.errorCode || this.view.pending) throw new Error('character_commit_failed');
   }
   async sendDm(text: string) {
-    if (!text.trim() || !this.view.state?.own_character) return;
+    if (
+      !text.trim() ||
+      !this.view.state?.own_character ||
+      this.view.status !== 'connected' ||
+      this.view.busy
+    )
+      return false;
     if (this.view.pending) {
       if (this.view.pending.kind === 'dm_turn' && this.view.pending.awaiting_clarification) {
         await this.runDm({
@@ -250,14 +256,14 @@ export class RoomController {
           awaiting_clarification: undefined,
           clarification: { id: this.view.pending.awaiting_clarification, reply: text },
         });
-        return;
+        return true;
       }
       this.patch({ errorCode: 'native_room_action_pending' });
-      return;
+      return false;
     }
     if (this.view.state.agent_busy) {
       this.patch({ errorCode: 'native_room_turn_running' });
-      return;
+      return false;
     }
     await this.runDm({
       kind: 'dm_turn',
@@ -265,6 +271,7 @@ export class RoomController {
       player_message: text,
       resume: false,
     });
+    return true;
   }
   private async runDm(operation: Extract<PendingRoomAction, { kind: 'dm_turn' }>) {
     if (this.view.status !== 'connected' || this.view.busy || !this.view.connection) return;

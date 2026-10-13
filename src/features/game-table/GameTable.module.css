@@ -1,0 +1,191 @@
+.root {
+  grid-column: 1 / -1;
+  grid-row: 2 / 3;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-deep) 92%, transparent),
+      color-mix(in srgb, var(--color-bg-base) 96%, transparent)
+    ),
+    var(--dm-texture-oak);
+  background-size:
+    auto,
+    512px 512px;
+}
+.root[data-mode="host"],
+.root[data-mode="guest"] {
+  grid-row: 2 / 4;
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  min-width: 0;
+}
+.party {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-x: auto;
+  min-width: 0;
+}
+.actor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.actor[data-allegiance="self"] {
+  color: var(--color-accent-soft);
+}
+.actor strong,
+.actor small {
+  display: block;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.actor small {
+  color: var(--color-fg-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+}
+.portrait {
+  width: var(--header-height);
+  height: var(--header-height);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-bg-overlay);
+}
+.portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.controls {
+  display: flex;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--chat-width);
+  min-width: 0;
+  min-height: 0;
+}
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.notices {
+  flex: 0 0 auto;
+  max-height: 35%;
+  overflow: auto;
+}
+.notices:empty {
+  display: none;
+}
+.scene {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.scene > main,
+.scene > section {
+  height: 100%;
+  min-height: 0;
+}
+
+.contextDock {
+  position: absolute;
+  inset: var(--space-3) var(--space-3) var(--space-3) auto;
+  z-index: 6;
+  width: min(380px, calc(100% - var(--space-6)));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-base);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+.contextHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.contextHeader strong {
+  flex: 1;
+  font-family: var(--font-display);
+}
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+.tabs [aria-selected="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent-soft);
+}
+.contextContent {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+}
+.chat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--color-border-strong);
+}
+.chat > section {
+  min-height: 0;
+  flex: 1;
+}
+.exploration {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+.exploration img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  opacity: 0.65;
+}
+.exploration span {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  padding: var(--space-4);
+  background: var(--color-bg-overlay);
+}

@@ -2,17 +2,26 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Modal } from '../../ui';
 import { Select } from '../../ui/Select';
+import { isDeadToken } from './model/selectors';
 import { preferredSpellSlot, spellAvailable } from './model/spellAvailability';
 import type { CombatToken, SpellChoiceDto } from './model/types';
 
 interface Props {
+  initialTargetId?: string | null | undefined;
   disabled?: boolean;
   actor: CombatToken;
   targets: CombatToken[];
   onClose: () => void;
   onCast: (spellId: string, targetIds: string[], slotLevel: number) => Promise<boolean>;
 }
-export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = false }: Props) {
+export function SpellCastDialog({
+  actor,
+  targets,
+  onClose,
+  onCast,
+  disabled = false,
+  initialTargetId,
+}: Props) {
   const { t } = useTranslation('combat');
   const choices = actor.casting?.choices ?? [];
   const first = choices.find((choice) => choice.supported);
@@ -22,10 +31,14 @@ export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = fa
   const eligible = (rule: SpellChoiceDto | undefined) =>
     targets.filter((target) =>
       rule?.healing
-        ? Boolean(target.characterId) && !target.conditions.includes('dead')
+        ? Boolean(target.characterId) && !isDeadToken(target)
         : !target.characterId && target.hp > 0,
     );
-  const [targetId, setTargetId] = useState(eligible(first)[0]?.id ?? '');
+  const [targetId, setTargetId] = useState(
+    eligible(first).find((target) => target.id === initialTargetId)?.id ??
+      eligible(first)[0]?.id ??
+      '',
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const available = Boolean(
@@ -41,6 +54,8 @@ export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = fa
     try {
       if (await onCast(spellId, [targetId], slot)) onClose();
       else setError(true);
+    } catch {
+      setError(true);
     } finally {
       setBusy(false);
     }
@@ -62,6 +77,17 @@ export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = fa
         </>
       }
     >
+      {!available && (
+        <p role="status">
+          {t(
+            disabled
+              ? 'action_turn_unavailable'
+              : !rule || !spellAvailable(actor, rule, slot)
+                ? 'action_spell_resource_unavailable'
+                : 'action_target_unavailable',
+          )}
+        </p>
+      )}
       <Field label={t('spell_selection')}>
         {({ id }) => (
           <Select
@@ -125,7 +151,6 @@ export function SpellCastDialog({ actor, targets, onClose, onCast, disabled = fa
           {t('spell_range', { range: rule.range_ft })}
         </p>
       )}
-      {!available && <p role="status">{t('spell_unavailable')}</p>}
       {error && <p role="alert">{t('weapon_rejected')}</p>}
     </Modal>
   );

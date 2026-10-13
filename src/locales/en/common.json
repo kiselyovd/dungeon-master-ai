@@ -1,4 +1,7 @@
 {
+  "hero": "Hero",
+  "scene": "Scene",
+  "context_unavailable": "Could not read this context. Reconnect to refresh it.",
   "app_title": "Dungeon Master AI",
   "error_title": "Something went wrong",
   "error_reload": "Reload",

@@ -146,6 +146,7 @@ it('recovers an existing host selection without creating a replacement room', as
     address: '127.0.0.1:4123',
     invitation: 'renewed fixture',
   });
+  await user.click(screen.getByRole('button', { name: 'Room' }));
   await user.click(screen.getByRole('button', { name: 'Refresh invitation' }));
   await screen.findByDisplayValue('renewed fixture');
 });
@@ -177,6 +178,8 @@ it('waits for confirmed guest departure before leaving the connected screen', as
   render(<RoomExperience campaigns={[]} onBack={back} />);
   await user.click(await screen.findByRole('button', { name: 'Saved player · 127.0.0.1:4123' }));
   await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  if (!screen.queryByRole('dialog', { name: 'Room' }))
+    await user.click(screen.getByRole('button', { name: 'Room' }));
   await user.click(screen.getByRole('button', { name: 'Leave room' }));
   expect(back).not.toHaveBeenCalled();
   expect(mocks.leave).toHaveBeenCalledWith(wire.state.room.room_id, 1);
@@ -208,8 +211,12 @@ it('retries only local navigation after a confirmed guest departure', async () =
   render(<RoomExperience campaigns={[]} onBack={back} />);
   await user.click(await screen.findByRole('button', { name: 'Saved player · 127.0.0.1:4123' }));
   await screen.findByRole('heading', { name: 'Dungeon Master · AI' });
+  if (!screen.queryByRole('dialog', { name: 'Room' }))
+    await user.click(screen.getByRole('button', { name: 'Room' }));
   await user.click(screen.getByRole('button', { name: 'Leave room' }));
   await screen.findByRole('alert');
+  if (!screen.queryByRole('dialog', { name: 'Room' }))
+    await user.click(screen.getByRole('button', { name: 'Room' }));
   await user.click(screen.getByRole('button', { name: 'Leave room' }));
   await vi.waitFor(() => expect(back).toHaveBeenCalledTimes(2));
   expect(mocks.leave).toHaveBeenCalledTimes(1);

@@ -186,7 +186,7 @@ function parseCombat(value: unknown): CombatProjectionDto {
   return combat;
 }
 
-function parseJournal(value: unknown): JournalEntry {
+export function parseJournal(value: unknown): JournalEntry {
   const entry = asRecord(value, 'restore_journal_invalid');
   return {
     id: asString(entry.id, 'restore_journal_invalid'),
@@ -197,7 +197,7 @@ function parseJournal(value: unknown): JournalEntry {
   };
 }
 
-function parseNpc(value: unknown): NpcRecord {
+export function parseNpc(value: unknown): NpcRecord {
   const npc = asRecord(value, 'restore_npc_invalid');
   const disposition = asString(npc.disposition, 'restore_npc_invalid');
   if (!DISPOSITIONS.includes(disposition as NpcRecord['disposition'])) {
@@ -222,7 +222,7 @@ function parseNpc(value: unknown): NpcRecord {
   };
 }
 
-function parsePcPatch(value: unknown): Partial<PcData> {
+export function parsePcPatch(value: unknown): Partial<PcData> {
   const input = asRecord(value, 'restore_pc_invalid');
   const output: Partial<PcData> = {};
   if (input.defense !== undefined) {

@@ -48,13 +48,42 @@ it('selects the prepared healing spell and self target with a remaining slot', a
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
 });
 it('does not submit an exhausted slot or an unsupported prepared spell', () => {
+  if (!hero.casting) throw Error('fixture casting profile missing');
   render(
     <SpellCastDialog
-      actor={{ ...hero, casting: { ...hero.casting!, slots: { 1: { maximum: 2, remaining: 0 } } } }}
+      actor={{ ...hero, casting: { ...hero.casting, slots: { 1: { maximum: 2, remaining: 0 } } } }}
       targets={[hero]}
       onCast={vi.fn()}
       onClose={vi.fn()}
     />,
   );
   expect(screen.getByRole('button', { name: 'Confirm spell' })).toBeDisabled();
+});
+
+it('allows aid to a downed human but never offers healing as resurrection of a confirmed dead actor', () => {
+  const attack = vi.fn(async () => true);
+  const target = {
+    ...hero,
+    id: 'wounded',
+    characterId: 'other',
+    hp: 0,
+    isDead: true,
+    conditions: [],
+  };
+  const { rerender } = render(
+    <SpellCastDialog actor={hero} targets={[target]} onCast={attack} onClose={vi.fn()} />,
+  );
+  expect(screen.getByRole('button', { name: 'Confirm spell' })).toBeDisabled();
+  rerender(
+    <SpellCastDialog
+      actor={hero}
+      targets={[{ ...target, isDead: false }]}
+      onCast={attack}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole('button', { name: 'Confirm spell' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('combobox', { name: 'Target' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Mira (0/20)' }));
+  expect(screen.getByRole('button', { name: 'Confirm spell' })).toBeEnabled();
 });

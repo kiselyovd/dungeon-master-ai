@@ -46,9 +46,42 @@
   gap: var(--space-2);
 }
 .messages {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.chatCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  gap: var(--space-2);
+}
+.chatCard > h2 {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.composer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border-strong);
+  background: var(--color-bg-base);
+}
+.composer textarea {
+  min-height: var(--space-12);
+  max-height: calc(var(--space-12) * 2);
+  resize: vertical;
 }
 .message {
   white-space: pre-wrap;

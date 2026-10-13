@@ -35,6 +35,28 @@
     box-shadow var(--t-fast);
 }
 
+.dm-hero-context h2,
+.dm-hero-context h3 {
+  font-family: var(--font-display);
+  margin: var(--space-3) 0 var(--space-2);
+}
+.dm-hero-context-vitals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+.dm-hero-context-vitals dt {
+  color: var(--color-fg-secondary);
+}
+.dm-hero-context-vitals dd {
+  margin: 0;
+}
+.dm-hero-context p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .dm-char-fab:hover {
   border-color: var(--color-accent);
   box-shadow: var(--glow-accent);

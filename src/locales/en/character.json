@@ -1,4 +1,9 @@
 {
+  "context_backstory": "Backstory",
+  "context_ideals": "Ideals",
+  "context_bonds": "Bonds",
+  "context_flaws": "Flaws",
+  "context_full_sheet": "Full character sheet",
   "title": "Character Sheet",
   "close_aria": "Close character sheet",
   "fab_aria": "Open character sheet for {{name}}",

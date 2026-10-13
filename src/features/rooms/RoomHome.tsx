@@ -8,6 +8,9 @@ import { Modal } from '../../ui/Modal';
 import styles from './Room.module.css';
 
 interface Props {
+  campaignsLoading?: boolean | undefined;
+  campaignsError?: boolean | undefined;
+  onRefreshCampaigns?: (() => void) | undefined;
   onRecoverHost?: () => void;
   onPostpone?: () => void;
   saved?: GuestRecoveryChoice[];
@@ -21,6 +24,9 @@ interface Props {
   onJoin: (address: string, room: string, name: string, invitation: string) => void;
 }
 export function RoomHome({
+  campaignsLoading,
+  campaignsError,
+  onRefreshCampaigns,
   campaigns,
   busy,
   error,
@@ -102,6 +108,13 @@ export function RoomHome({
           >
             <h2>{t('host')}</h2>
             <p className={styles.meta}>{t('host_hint')}</p>
+            {campaignsLoading && <p role="status">{t('campaigns_loading')}</p>}
+            {campaignsError && <p role="alert">{t('campaigns_unavailable')}</p>}
+            {onRefreshCampaigns && (campaignsError || campaigns.length === 0) && (
+              <Button disabled={campaignsLoading} onClick={onRefreshCampaigns}>
+                {t('campaigns_load')}
+              </Button>
+            )}
             {onRecoverHost && (
               <Button disabled={busy} onClick={onRecoverHost}>
                 {t('recover_host')}
@@ -136,7 +149,11 @@ export function RoomHome({
                 />
               )}
             </Field>
-            <Button type="submit" variant="primary" disabled={busy || !campaign}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={busy || campaignsLoading || !campaign}
+            >
               {busy ? t('connecting') : t('host')}
             </Button>
           </form>

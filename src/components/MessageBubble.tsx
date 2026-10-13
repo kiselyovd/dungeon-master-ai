@@ -68,6 +68,9 @@ const markdownComponents: Components = {
 };
 
 interface MessageBubbleProps {
+  speaker?: string | undefined;
+  truncated?: boolean;
+  journalEnabled?: boolean;
   chatRole: ChatRole;
   /** When true, render with a "live" treatment (italic + accent border). */
   streaming?: boolean;
@@ -224,6 +227,9 @@ function countImages(parts: MessagePart[] | undefined): number {
  * are notified the assistant response is still in progress.
  */
 export function MessageBubble({
+  speaker,
+  truncated = false,
+  journalEnabled = true,
   chatRole,
   streaming = false,
   parts,
@@ -298,7 +304,15 @@ export function MessageBubble({
         data-narrator={isNarrator ? 'true' : undefined}
         data-testid="bubble"
       >
-        {renderedBody}
+        <div className={styles.speaker}>
+          {speaker ?? t(chatRole === 'user' ? 'speaker_player' : 'speaker_dm')}
+        </div>
+        <div data-message-body>{renderedBody}</div>
+        {truncated && (
+          <p className={styles.delivery} role="status">
+            {t('message_truncated')}
+          </p>
+        )}
         {isNarrator && (
           <div className={styles.actions}>
             <button
@@ -309,23 +323,27 @@ export function MessageBubble({
             >
               <Icons.Copy size={14} />
             </button>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              aria-label={t('action_retry')}
-              onClick={onRetry}
-              disabled={retryDisabled}
-            >
-              <Icons.Refresh size={14} />
-            </button>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              aria-label={t('action_save_journal')}
-              onClick={handleSaveJournal}
-            >
-              <Icons.BookOpen size={14} />
-            </button>
+            {onRetry && (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                aria-label={t('action_retry')}
+                onClick={onRetry}
+                disabled={retryDisabled}
+              >
+                <Icons.Refresh size={14} />
+              </button>
+            )}
+            {journalEnabled && (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                aria-label={t('action_save_journal')}
+                onClick={handleSaveJournal}
+              >
+                <Icons.BookOpen size={14} />
+              </button>
+            )}
             {journalSaved && (
               <span className={styles.savedHint} role="status" aria-live="polite">
                 {t('journal_saved')}
