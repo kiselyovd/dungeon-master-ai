@@ -6,7 +6,9 @@ An AI Dungeon Master for solo D&D 5e, with a virtual tabletop and campaign saves
 
 Create a character, describe an action, and let the DM narrate the scene and invoke game tools. The backend resolves initiative, turns, damage, conditions, and spells; the campaign state persists in SQLite.
 
-![Combat interface with initiative, a virtual tabletop, and DM narration](docs/screenshots/combat.jpg)
+[![Interactive tour of the published Dungeon Master AI screens](docs/screenshots/showcase.png)](https://kiselyovd.github.io/showcase/dungeon-master-ai/)
+
+**[Explore the product tour](https://kiselyovd.github.io/showcase/dungeon-master-ai/)** — character creation, combat, and the platform-specific path to the published release.
 
 ## Try it
 
