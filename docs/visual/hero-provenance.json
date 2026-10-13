@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "usage": "Generated for the user-authorized Dungeon Master AI project; retained source/provenance, no third-party stock art.",
+  "assets": [
+    {
+      "assetId": "hero.fighter.02.v2",
+      "generationId": "exec-fa25a227-96ba-40e1-9597-bfd6ae90d6b1",
+      "prompt": "Use-case: stylized-concept. Generate one production game asset: a square head-and-torso painted portrait for a rich classic fantasy tabletop game, fighter identity 02. One human adult man, about forty, dark brown skin, closely cropped black hair and a short black beard, strong expressive face, calm protective expression. Practical worn mail armour with restrained battered steel shoulder plates over a dark quilted gambeson, a plain ochre wool cloak, a longsword at his hip and a worn wood-and-iron shield partly visible. This is a cosmetic fighter portrait, no text or stats. Art direction: believable oil and gouache realism with subtle visible brushwork, warm directional practical lantern light from the left, convincing volume and worn metal/leather/wool, quiet shadowed stone background, restrained warm gold accents; dignified grounded high fantasy. Eyes and face extremely readable at 96px. Framing: square portrait, head and torso, generous safe edges, keep entire head inside frame, no decorative frame. A single person only. No writing, labels, watermarks, logos, technology, glowing runes, fancy particles, plastic 3D rendering, anime, oversaturated neon, extra limbs, or new narrative props.",
+      "master": ".artifacts/visual-production/masters/fighter-02-portrait.png",
+      "masterSha256": "a0d7f10e6ea60de39c661d1e465a39f0a45551ada603bf2a0c52292cd73f0a31",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.fighter.02.v2",
+      "generationId": "exec-02913fec-11d5-4fdf-a300-6141671b6c91",
+      "prompt": "Use-case: identity-preserve. Edit/extend the referenced fighter portrait into its matching whole-body tabletop miniature sprite. Preserve exactly this man's face, dark brown skin, cropped black hair, short beard, ochre wool cloak, worn mail/gambeson with battered steel shoulder armour, brown leather belts, wood-and-iron shield and longsword. One same human fighter only. Change composition and camera: full body from complete head to both boots, fixed three-quarter overhead orthographic camera looking down about 40 degrees, compact neutral guarded stance, body and shield silhouette clearly readable at 30/48/64 screen pixel cells. Shield in left hand, longsword in right hand lowered alongside the body, no weapon cutting across his face. Natural anatomy, distinct arms and legs, no oversized cape/train, balanced weight and convincing volume. Both boots entirely visible with a common ground anchor near the bottom centre; generous transparent safety margin around head, feet, shield and weapon. Vertical sprite composition, rich oil/gouache painted realism matching the reference, warm practical directional light, worn believable materials. Remove the stone wall, lantern and all background completely. Truly transparent RGBA background. No ground plane, no floor, no cast shadow baked outside the figure, no pedestal or base, no ring, UI, labels, HP, letters, writing, watermark, logo, particles, glow or extra props. Keep the entire full silhouette unclipped.",
+      "master": ".artifacts/visual-production/masters/fighter-02-miniature.png",
+      "masterSha256": "2b7dbcbc84752e7d8ab93e4b6ca630b5c621005cc071805c6d62cc21d86d8a49",
+      "referenceAssetId": "hero.fighter.02.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.fighter.03.v2",
+      "generationId": "exec-96de68af-a4a9-48c6-9f4a-da0818e8a75a",
+      "prompt": "Use-case: stylized-concept. Generate one production game asset: square head-and-torso portrait of one distinct human fighter, identity03. An older human woman around sixty-five, a strong weathered face with kind alert eyes, silver-grey hair in a practical short braid, calm experienced protective expression. Worn mail over a dark quilted gambeson, restrained battered steel shoulder armour, a deep burgundy wool cloak, brown leather belts, a longsword at her hip and a plain worn wood-and-iron shield partly visible. Believable oil and gouache painted realism, subtle visible brushwork, warm directional practical lantern light from the left, convincing dimensional face and armour, restrained worn brass accents, quiet dark stone background. Grounded rich classic fantasy tabletop art, consistent practical warm light and tactile worn materials. Readable eyes and face at96px. Square head-and-torso framing with generous safe edges, entire head inside frame, no frame. Single woman only. No writing, words, labels, watermark, logo, technological details, glowing runes, particles, plastic3D rendering, anime, oversaturated neon, extra people or extra limbs. This is cosmetic appearance only; do not draw UI or game statistics.",
+      "master": ".artifacts/visual-production/masters/fighter-03-portrait.png",
+      "masterSha256": "866494a1fdd2a815fa0e20ba13fc179093843637b05cd92638f40df8c45051c6",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.fighter.03.v2",
+      "generationId": "exec-8cc5467f-e387-40a9-b55e-c915657de774",
+      "prompt": "Use-case: identity-preserve. Edit and extend the referenced portrait into its matching complete full-body tabletop miniature sprite. Preserve exactly this same older human woman, experienced weathered face, silver-grey practical braid, deep burgundy wool cloak, worn mail and quilted gambeson, battered steel shoulder armour, brown leather belts, longsword and wood-and-iron shield. One same person only. Full body from head to both boots, fixed three-quarter overhead orthographic view looking down about40degrees; neutral compact guarded stance, convincing volume, natural anatomy, separate readable limbs. Shield on left arm, longsword in right hand lowered along the body, blade not across face. Both feet entirely visible with the ground contact centred near the bottom centre, modest staggered stance, generous true-transparent safety margins on all sides. Keep complete head, weapon, shield, cape and boots unclipped. Vertical sprite composition. Rich believable oil/gouache painted realism, warm practical directional lighting and worn tactile materials match the portrait. Remove stone wall, lantern and all surroundings. Actual transparent RGBA background; do not paint a background, backdrop glow, haze, floor, ground plane, external cast shadow, base, pedestal, ring, writing, letters, UI, labels, HP, watermark, logo or magical particles. No extra props or extra figures. The image is cosmetic and must not encode status or game statistics.",
+      "master": ".artifacts/visual-production/masters/fighter-03-miniature.png",
+      "masterSha256": "f12652be3d5d534a7492ef5cd38fb808f2e08c00399553be001fe909f3d1fc9c",
+      "referenceAssetId": "hero.fighter.03.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.fighter.04.v2",
+      "generationId": "exec-6fca0271-c3d8-4abe-bad5-652ad68fc577",
+      "prompt": "Use-case: stylized-concept. Generate one production game asset: square head-and-torso portrait of one distinct human fighter, identity04. A young adult human man around twenty-eight, East Asian facial features, warm light tan skin, dark brown eyes, straight black hair neatly tied back in a small practical knot, lean athletic build, thoughtful steady protective expression. Practical worn mail over a charcoal quilted gambeson, restrained battered steel shoulder armour, a dark forest-green wool cloak, brown leather belts, a longsword at his hip and a plain worn wood-and-iron shield partly visible. Believable oil and gouache painted realism with subtle visible brushwork, warm directional practical lantern light from the left, convincing volume and worn metal/leather/wool, quiet dark stone background, restrained warm brass accents. Grounded rich classic fantasy tabletop art with readable eyes at96px. Square head-and-torso framing, generous safe edges, entire head inside frame, no frame. One person only. No writing, words, labels, watermark, logo, technology, glowing runes, particles, plastic3D rendering, anime, oversaturated neon, extra people, extra limbs or new narrative props. Cosmetic fighter portrait, no UI or stats.",
+      "master": ".artifacts/visual-production/masters/fighter-04-portrait.png",
+      "masterSha256": "b2becc0035a4a7f91e8cf91631ece52489d832a74ebc8068017cb36d2f130cef",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.fighter.04.v2",
+      "generationId": "exec-a8c1b719-d54d-45e7-9ca2-e1f9066968cb",
+      "prompt": "Use-case: identity-preserve. Edit and extend the referenced portrait into its matching complete full-body tabletop miniature sprite. Preserve exactly this same young adult East Asian human man, straight black hair tied back in a small practical knot, steady face, forest-green wool cloak, worn mail and charcoal quilted gambeson, battered steel shoulder armour, brown leather belts, longsword and wood-and-iron shield. One same person only. Full body from head to both boots, fixed three-quarter overhead orthographic view looking down about40degrees; neutral compact guarded stance, convincing volume, natural anatomy, separate readable limbs. Shield on left arm, longsword in right hand lowered along the body, blade not across face. Both feet entirely visible with the ground contact centred near the bottom centre, modest staggered stance, generous true-transparent safety margins on all sides. Keep complete head, weapon, shield, cape and boots unclipped. Vertical sprite composition. Rich believable oil/gouache painted realism, warm practical directional lighting and worn tactile materials match the portrait. Remove stone wall, lantern and all surroundings. Actual transparent RGBA background; do not paint a background, backdrop glow, haze, floor, ground plane, external cast shadow, base, pedestal, ring, writing, letters, UI, labels, HP, watermark, logo or magical particles. No extra props or extra figures. The image is cosmetic and must not encode status or game statistics.",
+      "master": ".artifacts/visual-production/masters/fighter-04-miniature.png",
+      "masterSha256": "8c245c8dc43c1747840274c58ffdfefcd763f75a402cdb9e3e69513a583c47d8",
+      "referenceAssetId": "hero.fighter.04.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.rogue.01.v2",
+      "generationId": "exec-2513b83f-8124-46d0-a5af-2ac86c787455",
+      "prompt": "Use-case: stylized-concept. Production Dungeon Master AI game asset: ONE square head-and-torso portrait of rogue identity 01. Adult human woman with warm olive skin, dark chestnut hair tied in a short practical ponytail, brown eyes, alert thoughtful expression, recognizable face entirely visible with no hood. Muted teal short wool cloak over worn dark brown leather armour, plain leather belt and gloves, a sheathed short sword at the hip and a small belt pouch partly visible. Believable oil/gouache painted fantasy realism, subtle brushwork, warm practical lantern lighting from upper left, convincing dimensional face, tactile worn leather and cloth, restrained brass accents, quiet dark stone backdrop. Grounded dignified fantasy tabletop visual family with the existing warm armour/cloth portraits. Face must read at 96 pixels. Square framing entire head and torso with generous safe margins, no decorative border. Cosmetic appearance only. Single person, no writing, text, stats, UI, watermark, logos, hood concealing eyes, extra people/limbs, particles, glow, anime, plastic 3D or bright neon.",
+      "master": ".artifacts/visual-production/masters/rogue-01-portrait.png",
+      "masterSha256": "51363cbb904d25d60c5c7cfb093d5d5824e62197d4844d90c10810d49435618d",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.rogue.01.v2",
+      "generationId": "exec-1c38697c-99bf-4cc3-8ad2-8215a344e28b",
+      "prompt": "Use-case: identity-preserve. Reference image is the approved portrait for rogue 01. Extend it into ONE matching whole-body tabletop miniature. Preserve exactly this person's face, skin, hairstyle, cloak colour, leather armour, linen, belt and pouch. One same human only. Complete head to both intact boots, generous transparent margin all around. Fixed three-quarter overhead orthographic camera looking down about 40 degrees; compact natural upright ready stance, no crouch. Right hand holds the same short sword lowered beside the leg, left hand relaxed, distinct arms and legs, short cloak behind rather than covering both feet. Keep the face fully visible. Same warm practical oil/gouache painted realism, tactile worn materials and convincing volume. Strong readable silhouette at 30/48/64 pixel cells, boots centered at a common ground anchor near bottom centre. Truly transparent RGBA empty background; remove the wall, lantern, ground and every background object. NO pedestal, base, ring, floor, ground plane, baked cast shadow outside figure, haze, glow, UI, writing, labels, watermark, stats, extra people/limbs or cropped weapon/feet. Cosmetic artwork only, no rules or live status.",
+      "master": ".artifacts/visual-production/masters/rogue-01-miniature.png",
+      "masterSha256": "31ac7c691fc5770d8f0982301f02a441db9636e36d188def134a872dd1771ab4",
+      "referenceAssetId": "hero.rogue.01.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.rogue.02.v2",
+      "generationId": "exec-8bdbe697-27da-44f5-bc8d-85e820f0cec6",
+      "prompt": "Use-case: stylized-concept. Production Dungeon Master AI game asset: ONE square head-and-torso portrait of rogue identity 02. Adult human man about fifty with dark brown skin, closely cropped salt-and-pepper hair and a neat grey beard, perceptive expressive face and calm faint smile. A short russet-red wool mantle over a worn dark brown leather vest, practical dark linen shirt, plain leather gloves, narrow shoulder belt, sheathed short sword and compact pouch. Believable oil and gouache painted fantasy realism, subtle brushwork, warm practical lantern lighting from upper left, convincing dimensional face, tactile worn leather and cloth, restrained brass accents, quiet dark stone backdrop. Grounded dignified fantasy tabletop visual family. Face reads at 96 pixels; whole head with generous safe margins and upper torso. Single person only, face fully visible, no hood concealing eyes. Cosmetic appearance only. No decorative border, writing, text, stats, UI, watermark, logo, particles, magical glow, anime, plastic 3D, bright neon, extra people or extra limbs.",
+      "master": ".artifacts/visual-production/masters/rogue-02-portrait.png",
+      "masterSha256": "48095a9dd6edf7dd7394e3b90ed75c0de6467212a160fb11e94e4cc6a8f018fa",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.rogue.02.v2",
+      "generationId": "exec-14410dfc-0d3f-4320-9698-28322924a3d9",
+      "prompt": "Use-case: identity-preserve. Reference image is the approved portrait for rogue 02. Extend it into ONE matching whole-body tabletop miniature. Preserve exactly this person's face, skin, hairstyle, cloak colour, leather armour, linen, belt and pouch. One same human only. Complete head to both intact boots, generous transparent margin all around. Fixed three-quarter overhead orthographic camera looking down about 40 degrees; compact natural upright ready stance, no crouch. Right hand holds the same short sword lowered beside the leg, left hand relaxed, distinct arms and legs, short cloak behind rather than covering both feet. Keep the face fully visible. Same warm practical oil/gouache painted realism, tactile worn materials and convincing volume. Strong readable silhouette at 30/48/64 pixel cells, boots centered at a common ground anchor near bottom centre. Truly transparent RGBA empty background; remove the wall, lantern, ground and every background object. NO pedestal, base, ring, floor, ground plane, baked cast shadow outside figure, haze, glow, UI, writing, labels, watermark, stats, extra people/limbs or cropped weapon/feet. Cosmetic artwork only, no rules or live status.",
+      "master": ".artifacts/visual-production/masters/rogue-02-miniature.png",
+      "masterSha256": "dfae9983d868283233dbd596fc8c873ef18e0df4c8e865a8726c22effcbf13e8",
+      "referenceAssetId": "hero.rogue.02.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.rogue.03.v2",
+      "generationId": "exec-e6a4a63e-17d8-4cb0-b5ec-7759523d1e09",
+      "prompt": "Use-case: stylized-concept. Production Dungeon Master AI game asset: ONE square head-and-torso portrait of rogue identity 03. Adult human woman about thirty with fair freckled skin, amber eyes and short copper-red wavy hair, open attentive face, calm confident expression. A short muted plum wool cape over charcoal worn leather armour, linen tunic, plain gloves, simple belt, sheathed short sword and compact pouch. Believable oil and gouache painted fantasy realism, subtle brushwork, warm practical lantern lighting from upper left, convincing dimensional face, tactile worn leather and cloth, restrained brass accents, quiet dark stone backdrop. Grounded dignified fantasy tabletop visual family. Face reads at 96 pixels; whole head with generous safe margins and upper torso. Single person only, face fully visible, no hood concealing eyes. Cosmetic appearance only. No decorative border, writing, text, stats, UI, watermark, logo, particles, magical glow, anime, plastic 3D, bright neon, extra people or extra limbs.",
+      "master": ".artifacts/visual-production/masters/rogue-03-portrait.png",
+      "masterSha256": "dae84fea6d9f7d71a5ef1ca3be197434c14b8fb730433ee6d2f989416c524877",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.rogue.03.v2",
+      "generationId": "exec-d2f08d36-1bdc-48e8-a858-61c60d92c8b1",
+      "prompt": "Use-case: identity-preserve. Reference image is the approved portrait for rogue 03. Extend it into ONE matching whole-body tabletop miniature. Preserve exactly this person's face, skin, hairstyle, cloak colour, leather armour, linen, belt and pouch. One same human only. Complete head to both intact boots, generous transparent margin all around. Fixed three-quarter overhead orthographic camera looking down about 40 degrees; compact natural upright ready stance, no crouch. Right hand holds the same short sword lowered beside the leg, left hand relaxed, distinct arms and legs, short cloak behind rather than covering both feet. Keep the face fully visible. Same warm practical oil/gouache painted realism, tactile worn materials and convincing volume. Strong readable silhouette at 30/48/64 pixel cells, boots centered at a common ground anchor near bottom centre. Truly transparent RGBA empty background; remove the wall, lantern, ground and every background object. NO pedestal, base, ring, floor, ground plane, baked cast shadow outside figure, haze, glow, UI, writing, labels, watermark, stats, extra people/limbs or cropped weapon/feet. Cosmetic artwork only, no rules or live status.",
+      "master": ".artifacts/visual-production/masters/rogue-03-miniature.png",
+      "masterSha256": "f6833b4030b530b6efbe20d3e89b2da9354cf88c282634e1e3a0594bd16f88bf",
+      "referenceAssetId": "hero.rogue.03.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.rogue.04.v2",
+      "generationId": "exec-47566d11-d6e9-4803-911a-1e826640dabf",
+      "prompt": "Use-case: stylized-concept. Production Dungeon Master AI game asset: ONE square head-and-torso portrait of rogue identity 04. Adult human man about thirty-five with East Asian features, tan skin, straight black hair in a compact low knot, clean-shaven distinct face and thoughtful alert expression. A short moss-green wool cape over weathered dark brown leather armour, practical dark linen shirt, plain gloves, narrow shoulder belt, sheathed short sword and compact pouch. Believable oil and gouache painted fantasy realism, subtle brushwork, warm practical lantern lighting from upper left, convincing dimensional face, tactile worn leather and cloth, restrained brass accents, quiet dark stone backdrop. Grounded dignified fantasy tabletop visual family. Face reads at 96 pixels; whole head with generous safe margins and upper torso. Single person only, face fully visible, no hood concealing eyes. Cosmetic appearance only. No decorative border, writing, text, stats, UI, watermark, logo, particles, magical glow, anime, plastic 3D, bright neon, extra people or extra limbs.",
+      "master": ".artifacts/visual-production/masters/rogue-04-portrait.png",
+      "masterSha256": "04bf644107549d7b4008f66a3d067f04391bf890eaacee65ec0d3c23263834bb",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.rogue.04.v2",
+      "generationId": "exec-da767ea8-247b-4d86-a2f3-6a6a2eb8e7d2",
+      "prompt": "Use-case: identity-preserve. Reference image is the approved portrait for rogue 04. Extend it into ONE matching whole-body tabletop miniature. Preserve exactly this person's face, skin, hairstyle, cloak colour, leather armour, linen, belt and pouch. One same human only. Complete head to both intact boots, generous transparent margin all around. Fixed three-quarter overhead orthographic camera looking down about 40 degrees; compact natural upright ready stance, no crouch. Right hand holds the same short sword lowered beside the leg, left hand relaxed, distinct arms and legs, short cloak behind rather than covering both feet. Keep the face fully visible. Same warm practical oil/gouache painted realism, tactile worn materials and convincing volume. Strong readable silhouette at 30/48/64 pixel cells, boots centered at a common ground anchor near bottom centre. Truly transparent RGBA empty background; remove the wall, lantern, ground and every background object. NO pedestal, base, ring, floor, ground plane, baked cast shadow outside figure, haze, glow, UI, writing, labels, watermark, stats, extra people/limbs or cropped weapon/feet. Cosmetic artwork only, no rules or live status.",
+      "master": ".artifacts/visual-production/masters/rogue-04-miniature.png",
+      "masterSha256": "e86081810182d77784ea97f99e95f772022694691c1d3b2aa63c30c9b54be5e7",
+      "referenceAssetId": "hero.rogue.04.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.wizard.01.v2",
+      "generationId": "exec-07a77737-9de4-4a70-a516-fd8fb5f4d887",
+      "prompt": "Use-case: stylized-concept. ONE production game portrait, wizard identity 01. Adult human woman with deep brown skin, short tight black curls, dark eyes and a thoughtful attentive expression. Dark indigo wool robe with muted antique gold trim, practical brown leather belt and pouch, modest short mantle, simple straight wooden staff with a small plain brass cap. Square complete-head-and-torso portrait with face clear and readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle visible brushwork, warm practical lantern light from upper left, convincing dimensional face, worn wool/leather/wood, quiet dark stone backdrop. Match the established rich grounded fantasy tabletop art family. Single person, cosmetic appearance only. No glowing spells, runes, particles, neon, magical aura, decorative frame, text, UI, watermark, logos, stats, extra people or limbs, anime or plastic3D.",
+      "master": ".artifacts/visual-production/masters/wizard-01-portrait.png",
+      "masterSha256": "c59040b23543a334d95b78c88b689c44a1ef84d3d2a6754ded5122afa03172a4",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.wizard.02.v2",
+      "generationId": "exec-cabfff88-43fd-4213-a49b-25e5aa86e3a3",
+      "prompt": "Use-case: stylized-concept. ONE production game portrait, wizard identity 02. Older human man around seventy, pale weathered skin, silver hair and a neat short white beard, kind observant eyes. Muted slate-blue robe, plain cream collar, weathered brown belt and pouch, compact wool shoulder mantle, straight wooden staff with a small carved wooden cap. Square complete-head-and-torso portrait with face clear and readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle visible brushwork, warm practical lantern light from upper left, convincing dimensional face, worn wool/leather/wood, quiet dark stone backdrop. Match the established rich grounded fantasy tabletop art family. Single person, cosmetic appearance only. No glowing spells, runes, particles, neon, magical aura, decorative frame, text, UI, watermark, logos, stats, extra people or limbs, anime or plastic3D.",
+      "master": ".artifacts/visual-production/masters/wizard-02-portrait.png",
+      "masterSha256": "11011db6db8a24bca80a61c8fad4cf10eef39cf5d3bbd1abb7c38bb83bd5b00f",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.wizard.03.v2",
+      "generationId": "exec-1c48e447-fc6d-44ae-8a3c-752c38e87c99",
+      "prompt": "Use-case: stylized-concept. ONE production game portrait, wizard identity 03. Adult human woman with East Asian features, warm tan skin, straight black hair tied into a compact bun, thoughtful focused expression. Deep plum robe with restrained bronze fasteners, plain brown belt and pouch, small short mantle, straight wooden staff with an unlit brass ring cap. Square complete-head-and-torso portrait with face clear and readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle visible brushwork, warm practical lantern light from upper left, convincing dimensional face, worn wool/leather/wood, quiet dark stone backdrop. Match the established rich grounded fantasy tabletop art family. Single person, cosmetic appearance only. No glowing spells, runes, particles, neon, magical aura, decorative frame, text, UI, watermark, logos, stats, extra people or limbs, anime or plastic3D.",
+      "master": ".artifacts/visual-production/masters/wizard-03-portrait.png",
+      "masterSha256": "f86ccb18d5a26be30b07e595092463e466d8960cf7be08e685171a8fe0ff6671",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.wizard.04.v2",
+      "generationId": "exec-d6b30fa1-9cdc-48fc-818b-9518bd509f48",
+      "prompt": "Use-case: stylized-concept. ONE production game portrait, wizard identity 04. Adult human man with olive skin, shoulder-length auburn hair tied back, neat auburn moustache and beard, calm curious eyes. Muted forest-green robe with small ochre collar, plain leather belt and pouch, short wool mantle, straight wooden staff with a modest unlit stone cap. Square complete-head-and-torso portrait with face clear and readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle visible brushwork, warm practical lantern light from upper left, convincing dimensional face, worn wool/leather/wood, quiet dark stone backdrop. Match the established rich grounded fantasy tabletop art family. Single person, cosmetic appearance only. No glowing spells, runes, particles, neon, magical aura, decorative frame, text, UI, watermark, logos, stats, extra people or limbs, anime or plastic3D.",
+      "master": ".artifacts/visual-production/masters/wizard-04-portrait.png",
+      "masterSha256": "fd04f9065d3f473f7b95881f9823ad8117f362a36230ce160cc3112b5be6ae20",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.wizard.01.v2",
+      "generationId": "exec-8fe05b1f-29bb-4395-b52f-f2aaaf1dac28",
+      "prompt": "Use-case: identity-preserve. Reference is the approved wizard 01 portrait. Extend into ONE matching complete whole-body tabletop miniature. Preserve this exact human face, skin, hairstyle, robe, mantle, belt, pouch and staff-cap design. Full head to BOTH intact visible boots, generous transparent safety margin around complete staff, head, robe and feet. Fixed three-quarter OVERHEAD ORTHOGRAPHIC camera, visibly looking down about 40 degrees; show top of shoulders and feet, avoid eye-level camera. Compact neutral standing stance, robe hem at ankle level, both feet distinct and bottom centred. Hold matching wooden staff vertically in one hand, staff no higher than the head, other hand relaxed. Same warm practical oil/gouache painted fantasy realism and believable worn cloth/leather/wood; strong silhouette at 30/48/64px cells. Truly transparent RGBA background; remove wall and lantern. No ground, floor, pedestal, base, ring, smoke, haze, cast shadow outside silhouette, glow, runes, particles, active spell effects, cropped limb/prop, writing, UI, stats, watermark, extra people or limbs. Cosmetic identity only, no current rules/status encoded.",
+      "master": ".artifacts/visual-production/masters/wizard-01-miniature.png",
+      "masterSha256": "4cfb29118e163e6e4a24c71079f045121587bd6980b903b1836e10e78a8e683a",
+      "referenceAssetId": "hero.wizard.01.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.wizard.02.v2",
+      "generationId": "exec-2cf21c39-5a60-4a52-932e-6d7b273e2905",
+      "prompt": "Use-case: identity-preserve. Reference is the approved wizard 02 portrait. Extend into ONE matching complete whole-body tabletop miniature. Preserve this exact human face, skin, hairstyle, robe, mantle, belt, pouch and staff-cap design. Full head to BOTH intact visible boots, generous transparent safety margin around complete staff, head, robe and feet. Fixed three-quarter OVERHEAD ORTHOGRAPHIC camera, visibly looking down about 40 degrees; show top of shoulders and feet, avoid eye-level camera. Compact neutral standing stance, robe hem at ankle level, both feet distinct and bottom centred. Hold matching wooden staff vertically in one hand, staff no higher than the head, other hand relaxed. Same warm practical oil/gouache painted fantasy realism and believable worn cloth/leather/wood; strong silhouette at 30/48/64px cells. Truly transparent RGBA background; remove wall and lantern. No ground, floor, pedestal, base, ring, smoke, haze, cast shadow outside silhouette, glow, runes, particles, active spell effects, cropped limb/prop, writing, UI, stats, watermark, extra people or limbs. Cosmetic identity only, no current rules/status encoded.",
+      "master": ".artifacts/visual-production/masters/wizard-02-miniature.png",
+      "masterSha256": "826b040a4d0cd4f5a23b5b2637a36d26602396cc7892e89ce0c250013b642c77",
+      "referenceAssetId": "hero.wizard.02.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.wizard.03.v2",
+      "generationId": "exec-5783e721-116d-407d-88c9-1dbb850b55c1",
+      "prompt": "Use-case: identity-preserve. Reference is the approved wizard 03 portrait. Extend into ONE matching complete whole-body tabletop miniature. Preserve this exact human face, skin, hairstyle, robe, mantle, belt, pouch and staff-cap design. Full head to BOTH intact visible boots, generous transparent safety margin around complete staff, head, robe and feet. Fixed three-quarter OVERHEAD ORTHOGRAPHIC camera, visibly looking down about 40 degrees; show top of shoulders and feet, avoid eye-level camera. Compact neutral standing stance, robe hem at ankle level, both feet distinct and bottom centred. Hold matching wooden staff vertically in one hand, staff no higher than the head, other hand relaxed. Same warm practical oil/gouache painted fantasy realism and believable worn cloth/leather/wood; strong silhouette at 30/48/64px cells. Truly transparent RGBA background; remove wall and lantern. No ground, floor, pedestal, base, ring, smoke, haze, cast shadow outside silhouette, glow, runes, particles, active spell effects, cropped limb/prop, writing, UI, stats, watermark, extra people or limbs. Cosmetic identity only, no current rules/status encoded.",
+      "master": ".artifacts/visual-production/masters/wizard-03-miniature.png",
+      "masterSha256": "d6796e7d9c5bb1cd8846abce76a40e97b0eef0b9c584f324eec63fbd2bcb3503",
+      "referenceAssetId": "hero.wizard.03.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.wizard.04.v2",
+      "generationId": "exec-e88bc377-3dbb-44a2-bf99-5fa113c78681",
+      "prompt": "Use-case: identity-preserve. Reference is the approved wizard 04 portrait. Extend into ONE matching complete whole-body tabletop miniature. Preserve this exact human face, skin, hairstyle, robe, mantle, belt, pouch and staff-cap design. Full head to BOTH intact visible boots, generous transparent safety margin around complete staff, head, robe and feet. Fixed three-quarter OVERHEAD ORTHOGRAPHIC camera, visibly looking down about 40 degrees; show top of shoulders and feet, avoid eye-level camera. Compact neutral standing stance, robe hem at ankle level, both feet distinct and bottom centred. Hold matching wooden staff vertically in one hand, staff no higher than the head, other hand relaxed. Same warm practical oil/gouache painted fantasy realism and believable worn cloth/leather/wood; strong silhouette at 30/48/64px cells. Truly transparent RGBA background; remove wall and lantern. No ground, floor, pedestal, base, ring, smoke, haze, cast shadow outside silhouette, glow, runes, particles, active spell effects, cropped limb/prop, writing, UI, stats, watermark, extra people or limbs. Cosmetic identity only, no current rules/status encoded.",
+      "master": ".artifacts/visual-production/masters/wizard-04-miniature.png",
+      "masterSha256": "3a6e6f9513ffa72db696afe96a75032e0cf5846ffedfc44e2e54386996a74765",
+      "referenceAssetId": "hero.wizard.04.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.cleric.01.v2",
+      "generationId": "exec-72d711df-79a4-4c5f-8726-ad8169616e53",
+      "prompt": "Use-case: stylized-concept. ONE production Dungeon Master AI game portrait of cleric identity 01. Adult human woman with deep brown skin, dark eyes and black hair braided compactly back, kind steady expression. Ivory practical robe with muted teal stole, worn mail at collar and modest steel shoulders, leather belt with pouch, plain mace and small round wooden shield with iron rim partly visible, small plain brass medallion. Square whole-head-and-torso portrait, face readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle brushwork, warm practical lantern light upper left, convincing dimensional face and tactile worn wool/leather/steel, quiet dark stone background. Match established grounded rich fantasy tabletop family. Single person, cosmetic appearance only. No named religion, readable symbols, spells, halo, wings, particles, glowing medallion, mechanical status, text, UI, watermark, border, logo, neon, anime, plastic3D or extra figures/limbs.",
+      "master": ".artifacts/visual-production/masters/cleric-01-portrait.png",
+      "masterSha256": "6e5feb5201a41b0c6a819b673839b74a2bc7a8fe04c031e7ba13d606824065df",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.cleric.02.v2",
+      "generationId": "exec-68780273-9446-44a3-8154-a5e75cbc1634",
+      "prompt": "Use-case: stylized-concept. ONE production Dungeon Master AI game portrait of cleric identity 02. Older human man with warm olive skin, bald head and a short grey beard, weathered compassionate face. Ochre wool robe with short crimson mantle, worn mail collar, small battered steel shoulder pieces, leather belt and pouch, plain mace and modest round wood-and-iron shield partly visible, small plain medallion. Square whole-head-and-torso portrait, face readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle brushwork, warm practical lantern light upper left, convincing dimensional face and tactile worn wool/leather/steel, quiet dark stone background. Match established grounded rich fantasy tabletop family. Single person, cosmetic appearance only. No named religion, readable symbols, spells, halo, wings, particles, glowing medallion, mechanical status, text, UI, watermark, border, logo, neon, anime, plastic3D or extra figures/limbs.",
+      "master": ".artifacts/visual-production/masters/cleric-02-portrait.png",
+      "masterSha256": "d244553ef2b9b380e8c24485aac60fd4a36cb6923ef1c9e1e7f95ab9a2f18aa9",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.cleric.03.v2",
+      "generationId": "exec-bf39689c-46be-4d56-922e-4426e914ec68",
+      "prompt": "Use-case: stylized-concept. ONE production Dungeon Master AI game portrait of cleric identity 03. Adult human woman with pale freckled skin, light grey eyes and short sandy-blonde bob, thoughtful resolute face. Muted navy wool robe and cream tabard, worn mail collar and modest steel shoulders, plain brown belt and pouch, simple mace and modest wood-and-iron shield partly visible, small unadorned medallion. Square whole-head-and-torso portrait, face readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle brushwork, warm practical lantern light upper left, convincing dimensional face and tactile worn wool/leather/steel, quiet dark stone background. Match established grounded rich fantasy tabletop family. Single person, cosmetic appearance only. No named religion, readable symbols, spells, halo, wings, particles, glowing medallion, mechanical status, text, UI, watermark, border, logo, neon, anime, plastic3D or extra figures/limbs.",
+      "master": ".artifacts/visual-production/masters/cleric-03-portrait.png",
+      "masterSha256": "8a25e4ba56f78f7af4480402034a5ce8912fde87dd49ff5417e1f771a130fc91",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "hero.cleric.04.v2",
+      "generationId": "exec-fc1039e9-a961-43e9-9316-30d336cc8400",
+      "prompt": "Use-case: stylized-concept. ONE production Dungeon Master AI game portrait of cleric identity 04. Adult human man with East Asian features, tan skin and short neat black hair, clean-shaven calm attentive face. Pale grey wool robe with muted green stole, worn mail collar and small steel shoulders, practical leather belt with pouch, plain mace and small wood-and-iron round shield partly visible, modest plain brass medallion. Square whole-head-and-torso portrait, face readable at96px, generous safe margins. Believable oil/gouache painted fantasy realism, subtle brushwork, warm practical lantern light upper left, convincing dimensional face and tactile worn wool/leather/steel, quiet dark stone background. Match established grounded rich fantasy tabletop family. Single person, cosmetic appearance only. No named religion, readable symbols, spells, halo, wings, particles, glowing medallion, mechanical status, text, UI, watermark, border, logo, neon, anime, plastic3D or extra figures/limbs.",
+      "master": ".artifacts/visual-production/masters/cleric-04-portrait.png",
+      "masterSha256": "5ed9bf27b931640b41e296763fc18533dd8b47d5c2e4c581273f3d6e2e19926e",
+      "consumers": [
+        "PortraitLibrary",
+        "CharacterSheet",
+        "PartyStrip",
+        "participant-scoped media lookup"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.cleric.01.v2",
+      "generationId": "exec-f0a792c8-6cf8-4737-ac14-0810b4d4c3a4",
+      "prompt": "Use-case: identity-preserve. Reference is the approved cleric 01 portrait. Extend into ONE matching full-body tabletop miniature. Preserve exactly this human face, skin, hair, robe colours, stole/mantle, mail, steel shoulders, belt, pouch, plain medallion, mace and shield design. Full body from entire head to both complete boots; fixed three-quarter overhead orthographic camera looking down40degrees. Compact natural neutral guarded stance, not lunging, shield held left with its whole rim visible, mace held right lowered beside leg. Robe hem at ankles so both boots remain distinct and centred near bottom common ground anchor. Strong readable silhouette at30/48/64px game cells, generous transparent margins around head, cloak, shield, weapon and feet. Same practical warm light, oil/gouache painted fantasy realism with convincing volume and worn tactile materials. Truly transparent RGBA empty background; remove wall, lantern and all environment. No floor, ground, pedestal, base, ring, shadows outside figure, halo, glowing medallion, particles, smoke, haze, spell, aura, stats, live condition, UI, writing, watermark, additional figures/limbs or cropped props. Cosmetic appearance only, do not infer gear or powers from picture.",
+      "master": ".artifacts/visual-production/masters/cleric-01-miniature.png",
+      "masterSha256": "25644646a87590b7fc10696159bd1f901c40e5a01efab6cc82736838f222ba57",
+      "referenceAssetId": "hero.cleric.01.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.cleric.02.v2",
+      "generationId": "exec-cb443a92-98b4-4e30-afce-665bc99b028a",
+      "prompt": "Use-case: identity-preserve. Reference is the approved cleric 02 portrait. Extend into ONE matching full-body tabletop miniature. Preserve exactly this human face, skin, hair, robe colours, stole/mantle, mail, steel shoulders, belt, pouch, plain medallion, mace and shield design. Full body from entire head to both complete boots; fixed three-quarter overhead orthographic camera looking down40degrees. Compact natural neutral guarded stance, not lunging, shield held left with its whole rim visible, mace held right lowered beside leg. Robe hem at ankles so both boots remain distinct and centred near bottom common ground anchor. Strong readable silhouette at30/48/64px game cells, generous transparent margins around head, cloak, shield, weapon and feet. Same practical warm light, oil/gouache painted fantasy realism with convincing volume and worn tactile materials. Truly transparent RGBA empty background; remove wall, lantern and all environment. No floor, ground, pedestal, base, ring, shadows outside figure, halo, glowing medallion, particles, smoke, haze, spell, aura, stats, live condition, UI, writing, watermark, additional figures/limbs or cropped props. Cosmetic appearance only, do not infer gear or powers from picture.",
+      "master": ".artifacts/visual-production/masters/cleric-02-miniature.png",
+      "masterSha256": "87154dff96bcbaf9805a245167d551e093a305953d0f65d60c85cc1934c9174c",
+      "referenceAssetId": "hero.cleric.02.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    },
+    {
+      "assetId": "miniature.cleric.03.v2",
+      "generationId": "exec-3605727e-a3a8-41d8-b85d-1b23aa8041c8",
+      "prompt": "Use-case: background-extraction. Edit target is this exact approved full-body cleric woman miniature. Remove ALL background and the brown/black blurred haze surrounding her. Output the identical complete figure alone on truly empty TRANSPARENT RGBA pixels with alpha exactly0 everywhere outside the figure, including all corners, margins and gaps around the mace, between legs and beside the shield. Do not leave a semitransparent tinted backdrop, gradient, shadow or vignette. Keep the same woman, face, hair, navy robe, cream tabard, round plain wooden iron-rim shield and boss, mace, pose and full boots exactly as in reference. Keep original image dimensions and generous framing. Crisp clean natural antialiased silhouette only; no halo. No new painting, background, floor, base, ring, glow, writing, watermark, UI or cropping. Preserve the figure's identity, anatomy and equipment aggressively; only background removal.",
+      "master": ".artifacts/visual-production/masters/cleric-03-miniature.png",
+      "masterSha256": "feed06c2e156c7d42a3783cfa8d4c0be1b8b8e2001ebbcadc1d8852330f04730",
+      "referenceAssetId": "hero.cleric.03.v2",
+      "previousGenerationId": "exec-42e928c3-f4af-431c-92bd-7af1cc228843",
+      "previousMaster": ".artifacts/visual-production/masters/cleric-03-miniature-candidate-1.png",
+      "refinement": "round shield matched to portrait; tinted background rejected and removed with built-in imagegen",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice",
+      "previousGenerations": [
+        {
+          "generationId": "exec-42e928c3-f4af-431c-92bd-7af1cc228843",
+          "master": ".artifacts/visual-production/masters/cleric-03-miniature-candidate-1.png",
+          "prompt": "Use-case: identity-preserve. Reference is the approved cleric 03 portrait. Extend into ONE matching full-body tabletop miniature. Preserve exactly this human face, skin, hair, robe colours, stole/mantle, mail, steel shoulders, belt, pouch, plain medallion, mace and shield design. Full body from entire head to both complete boots; fixed three-quarter overhead orthographic camera looking down40degrees. Compact natural neutral guarded stance, not lunging, shield held left with its whole rim visible, mace held right lowered beside leg. Robe hem at ankles so both boots remain distinct and centred near bottom common ground anchor. Strong readable silhouette at30/48/64px game cells, generous transparent margins around head, cloak, shield, weapon and feet. Same practical warm light, oil/gouache painted fantasy realism with convincing volume and worn tactile materials. Truly transparent RGBA empty background; remove wall, lantern and all environment. No floor, ground, pedestal, base, ring, shadows outside figure, halo, glowing medallion, particles, smoke, haze, spell, aura, stats, live condition, UI, writing, watermark, additional figures/limbs or cropped props. Cosmetic appearance only, do not infer gear or powers from picture.",
+          "referenceAssetId": "hero.cleric.03.v2",
+          "rejection": "pointed/emblazoned shield mismatched portrait",
+          "masterSha256": "e999facdd8fce628cdc35dfddc0dc021144b9c25c36d2e44d086484a8a9314d0"
+        },
+        {
+          "generationId": "exec-8884ad4c-6f8d-4f4b-9c48-db34a1671055",
+          "master": ".artifacts/visual-production/masters/cleric-03-miniature-candidate-2.png",
+          "prompt": "Use-case: precise-object-edit / identity-preserve. Image1 is the edit target: approved full-body cleric miniature. Image2 is the same woman's approved portrait, use ONLY as shield equipment reference. Change ONLY the shield in image1: replace the pointed kite shield and its painted fleur-de-lis with the matching compact ROUND plain wooden shield from image2, iron rim and iron central boss, worn dark wooden planks, no painted emblem. The round shield may appear oval in perspective but has NO pointed bottom. Preserve exactly this woman's face, sandy-blonde hair, navy mantle, cream tabard, chainmail, steel shoulders, belt, pouch, medallion, mace, pose, boots, full-body framing and warm painted rendering. Keep complete shield within original safe margins, same hand/grip. Preserve genuine RGBA transparency and all empty margins. No new objects, base, floor, haze, glow, writing, UI, watermark or anatomy changes. Cosmetic artwork only.",
+          "rejection": "alpha fraction only0.06993: tinted backdrop retained",
+          "masterSha256": "89ca2a2585846102c7cd906211eea7cdd17a9479011beeb8e14709275c5b877a"
+        }
+      ]
+    },
+    {
+      "assetId": "miniature.cleric.04.v2",
+      "generationId": "exec-acc96f98-47ee-47bd-b27a-1fe289f8a174",
+      "prompt": "Use-case: identity-preserve. Reference is the approved cleric 04 portrait. Extend into ONE matching full-body tabletop miniature. Preserve exactly this human face, skin, hair, robe colours, stole/mantle, mail, steel shoulders, belt, pouch, plain medallion, mace and shield design. Full body from entire head to both complete boots; fixed three-quarter overhead orthographic camera looking down40degrees. Compact natural neutral guarded stance, not lunging, shield held left with its whole rim visible, mace held right lowered beside leg. Robe hem at ankles so both boots remain distinct and centred near bottom common ground anchor. Strong readable silhouette at30/48/64px game cells, generous transparent margins around head, cloak, shield, weapon and feet. Same practical warm light, oil/gouache painted fantasy realism with convincing volume and worn tactile materials. Truly transparent RGBA empty background; remove wall, lantern and all environment. No floor, ground, pedestal, base, ring, shadows outside figure, halo, glowing medallion, particles, smoke, haze, spell, aura, stats, live condition, UI, writing, watermark, additional figures/limbs or cropped props. Cosmetic appearance only, do not infer gear or powers from picture.",
+      "master": ".artifacts/visual-production/masters/cleric-04-miniature.png",
+      "masterSha256": "1c871c1616f5bfe577d62c4cb964f7504b175bc63d7a3baa9193b458d819a6b1",
+      "referenceAssetId": "hero.cleric.04.v2",
+      "consumers": [
+        "CombatToken"
+      ],
+      "selection": "accepted: full-size and alpha review; production gallery/cold reload; public table30/48/64px light/dark; actual Tauri gallery16 and durable cold choice"
+    }
+  ],
+  "export": {
+    "tool": "bundled Sharp",
+    "format": "webp",
+    "quality": 86,
+    "alphaQuality": 100,
+    "effort": 6,
+    "contentEdits": "none; codec/size derivatives only"
+  }
+}

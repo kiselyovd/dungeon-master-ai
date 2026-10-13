@@ -34,6 +34,7 @@ import { withTimeout } from '../lib/withTimeout';
 import { campaignVisits } from './campaignVisits';
 import type { CharacterDraft, WizardTab } from './charCreation';
 import { CharCreationDraftSchema, StrictCharCreationDraftSchema } from './charCreationSchema';
+import { createCoalescingWriter } from './coalescingWriter';
 import type { OnboardingData } from './onboarding';
 import { PC_DATA_KEYS, type PcData } from './pc';
 import { LocalMistralRsConfigSchema, OpenaiCompatConfigSchema } from './providers';
@@ -100,7 +101,12 @@ const settingsStore = new LazyStore(SETTINGS_FILE);
 /** Disk barrier before committing a campaign sheet; uses the existing draft
  * surface and drops methods/unknown fields through the data schema. */
 export async function persistCharacterDraft(draft: CharacterDraft & { activeTab: WizardTab }) {
-  await settingsStore.set(KEY_CHAR_CREATION_DRAFT, v.parse(StrictCharCreationDraftSchema, draft));
+  const parsed = v.parse(StrictCharCreationDraftSchema, draft) as CharacterDraft & {
+    activeTab: WizardTab;
+  };
+  // Drain earlier UI snapshots before the explicit disk acknowledgement.
+  await writePreferences({ state: { charCreation: parsed }, version: 0 });
+  await settingsStore.set(KEY_CHAR_CREATION_DRAFT, parsed);
   await settingsStore.save();
 }
 
@@ -339,6 +345,157 @@ export interface PersistedSettings {
   charCreation?: Partial<CharacterDraft & { activeTab: WizardTab }>;
 }
 
+type PersistedValue = StorageValue<PersistedSettings>;
+function mergePreferenceSnapshots(
+  previous: PersistedValue,
+  latest: PersistedValue,
+): PersistedValue {
+  return {
+    ...latest,
+    state: {
+      ...previous.state,
+      ...latest.state,
+      settings: { ...previous.state.settings, ...latest.state.settings },
+      session: { ...previous.state.session, ...latest.state.session },
+      onboarding: { ...previous.state.onboarding, ...latest.state.onboarding },
+    },
+  };
+}
+// Keep preferences independent of a slow or unavailable vault. Each lane writes
+// one complete group at a time; bursts retain the latest pending snapshot.
+const writePreferences = createCoalescingWriter<PersistedValue>(async (value) => {
+  const settings = value.state.settings ?? {};
+  const session = value.state.session ?? {};
+  const onboarding = value.state.onboarding ?? {};
+  const pc = value.state.pc ?? {};
+  const charCreation = value.state.charCreation;
+  const settingsWrites: Promise<unknown>[] = [];
+  if (settings.activeProvider !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_PROVIDER, settings.activeProvider));
+  }
+  if (settings.uiLanguage !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_UI_LANGUAGE, settings.uiLanguage));
+  }
+  if (settings.narrationLanguage !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_NARRATION_LANGUAGE, settings.narrationLanguage));
+  }
+  if (settings.systemPrompt !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_SYSTEM_PROMPT, settings.systemPrompt));
+  }
+  if (settings.temperature !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_TEMPERATURE, settings.temperature));
+  }
+  if (settings.chatPanelWidth !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
+  }
+  if (settings.readingFontSize !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_READING_FONT_SIZE, settings.readingFontSize));
+  }
+  if (settings.campaignVisits !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CAMPAIGN_VISITS, settings.campaignVisits));
+  }
+  if (settings.sceneTransitionsEnabled !== undefined) {
+    settingsWrites.push(
+      settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
+    );
+  }
+  if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
+  }
+  if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
+  }
+  if (session.currentScene !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
+  }
+  if (onboarding.completed !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
+  }
+  if (onboarding.version !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_VERSION, onboarding.version));
+  if (onboarding.entry !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_ENTRY, onboarding.entry));
+  // PC: partialize always sends the whole `pc` slice, so the full JSON
+  // entry and the legacy `hero_class` scalar are written together
+  // (atomic) or not at all (audit F6). They live in the same flush
+  // group, so they cannot diverge.
+  if (value.state.pc !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_PC, pc));
+    settingsWrites.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass ?? null));
+  }
+  if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
+    settingsWrites.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
+  }
+  if (settings.discoveredCatalogs !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
+  }
+  if (settings.imageEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_ENABLED, settings.imageEnabled));
+  }
+  if (settings.imagePreset !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_PRESET, settings.imagePreset));
+  }
+  if (settings.imageStyleLora !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_STYLE_LORA, settings.imageStyleLora));
+  }
+  if (settings.videoEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VIDEO_ENABLED, settings.videoEnabled));
+  }
+  if (settings.videoMode !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VIDEO_MODE, settings.videoMode));
+  }
+  if (settings.visionEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VISION_ENABLED, settings.visionEnabled));
+  }
+  if (settings.reasoningEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_REASONING_ENABLED, settings.reasoningEnabled));
+  }
+  if (settings.reasoningBudget !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_REASONING_BUDGET, settings.reasoningBudget));
+  }
+  if (settings.licenseRestrictedMode !== undefined) {
+    settingsWrites.push(
+      settingsStore.set(KEY_LICENSE_RESTRICTED_MODE, settings.licenseRestrictedMode),
+    );
+  }
+  if (settings.agentMaxRounds !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_AGENT_MAX_ROUNDS, settings.agentMaxRounds));
+  }
+
+  await flushGroup('settings', settingsWrites, settingsStore);
+}, mergePreferenceSnapshots);
+const writeSecrets = createCoalescingWriter<NonNullable<PersistedSettings['settings']>>(
+  async (settings) => {
+    const secretWrites: Promise<unknown>[] = [];
+    if (
+      settings.providers !== undefined &&
+      !(
+        unreadSecrets.has(KEY_PROVIDERS) &&
+        Object.values(settings.providers).every((provider) => provider === null)
+      )
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_PROVIDERS, settings.providers).then(() => {
+          unreadSecrets.delete(KEY_PROVIDERS);
+        }),
+      );
+    }
+    if (
+      settings.replicateApiKey !== undefined &&
+      !(unreadSecrets.has(KEY_REPLICATE_API_KEY) && !settings.replicateApiKey)
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey).then(() => {
+          unreadSecrets.delete(KEY_REPLICATE_API_KEY);
+        }),
+      );
+    }
+
+    if (secretWrites.length) await flushGroup('secrets', secretWrites, secretsStore);
+  },
+  (previous, latest) => ({ ...previous, ...latest }),
+);
+
 export const persistStorage: PersistStorage<PersistedSettings> = {
   async getItem(_name): Promise<StorageValue<PersistedSettings> | null> {
     const [
@@ -548,138 +705,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
 
   async setItem(_name, value): Promise<void> {
     const settings = value.state.settings ?? {};
-    const session = value.state.session ?? {};
-    const onboarding = value.state.onboarding ?? {};
-    const pc = value.state.pc ?? {};
-    const charCreation = value.state.charCreation;
-
-    // Plaintext prefs and encrypted secrets flush independently. A
-    // failure in one surface must never abort the other - a Stronghold
-    // write throwing previously aborted the whole Promise.all and left
-    // settings.json unflushed (the "remembers nothing" bug, audit F1).
-    const settingsWrites: Promise<unknown>[] = [];
-    const secretWrites: Promise<unknown>[] = [];
-
-    if (
-      settings.providers !== undefined &&
-      !(
-        unreadSecrets.has(KEY_PROVIDERS) &&
-        Object.values(settings.providers).every((provider) => provider === null)
-      )
-    ) {
-      secretWrites.push(
-        secretsStore.set(KEY_PROVIDERS, settings.providers).then(() => {
-          unreadSecrets.delete(KEY_PROVIDERS);
-        }),
-      );
-    }
-    if (
-      settings.replicateApiKey !== undefined &&
-      !(unreadSecrets.has(KEY_REPLICATE_API_KEY) && !settings.replicateApiKey)
-    ) {
-      secretWrites.push(
-        secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey).then(() => {
-          unreadSecrets.delete(KEY_REPLICATE_API_KEY);
-        }),
-      );
-    }
-
-    if (settings.activeProvider !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_PROVIDER, settings.activeProvider));
-    }
-    if (settings.uiLanguage !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_UI_LANGUAGE, settings.uiLanguage));
-    }
-    if (settings.narrationLanguage !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_NARRATION_LANGUAGE, settings.narrationLanguage));
-    }
-    if (settings.systemPrompt !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_SYSTEM_PROMPT, settings.systemPrompt));
-    }
-    if (settings.temperature !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_TEMPERATURE, settings.temperature));
-    }
-    if (settings.chatPanelWidth !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
-    }
-    if (settings.readingFontSize !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_READING_FONT_SIZE, settings.readingFontSize));
-    }
-    if (settings.campaignVisits !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_CAMPAIGN_VISITS, settings.campaignVisits));
-    }
-    if (settings.sceneTransitionsEnabled !== undefined) {
-      settingsWrites.push(
-        settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
-      );
-    }
-    if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
-    }
-    if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
-    }
-    if (session.currentScene !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
-    }
-    if (onboarding.completed !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
-    }
-    if (onboarding.version !== undefined)
-      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_VERSION, onboarding.version));
-    if (onboarding.entry !== undefined)
-      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_ENTRY, onboarding.entry));
-    // PC: partialize always sends the whole `pc` slice, so the full JSON
-    // entry and the legacy `hero_class` scalar are written together
-    // (atomic) or not at all (audit F6). They live in the same flush
-    // group, so they cannot diverge.
-    if (value.state.pc !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_PC, pc));
-      settingsWrites.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass ?? null));
-    }
-    if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
-      settingsWrites.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
-    }
-    if (settings.discoveredCatalogs !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
-    }
-    if (settings.imageEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_ENABLED, settings.imageEnabled));
-    }
-    if (settings.imagePreset !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_PRESET, settings.imagePreset));
-    }
-    if (settings.imageStyleLora !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_STYLE_LORA, settings.imageStyleLora));
-    }
-    if (settings.videoEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VIDEO_ENABLED, settings.videoEnabled));
-    }
-    if (settings.videoMode !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VIDEO_MODE, settings.videoMode));
-    }
-    if (settings.visionEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VISION_ENABLED, settings.visionEnabled));
-    }
-    if (settings.reasoningEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_REASONING_ENABLED, settings.reasoningEnabled));
-    }
-    if (settings.reasoningBudget !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_REASONING_BUDGET, settings.reasoningBudget));
-    }
-    if (settings.licenseRestrictedMode !== undefined) {
-      settingsWrites.push(
-        settingsStore.set(KEY_LICENSE_RESTRICTED_MODE, settings.licenseRestrictedMode),
-      );
-    }
-    if (settings.agentMaxRounds !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_AGENT_MAX_ROUNDS, settings.agentMaxRounds));
-    }
-
-    // Settings flush first and unconditionally - it must survive a
-    // secrets failure. Each group logs its own failures and never throws.
-    await flushGroup('settings', settingsWrites, settingsStore);
-    if (secretWrites.length) await flushGroup('secrets', secretWrites, secretsStore);
+    await Promise.all([
+      writePreferences(value),
+      settings.providers !== undefined || settings.replicateApiKey !== undefined
+        ? writeSecrets(settings)
+        : Promise.resolve(),
+    ]);
   },
 
   async removeItem(_name): Promise<void> {

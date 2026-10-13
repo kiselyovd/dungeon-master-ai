@@ -1041,6 +1041,7 @@ function App() {
             )}
             {wizardReopen && (
               <CharacterWizard
+                allowCancel
                 mode={pcHeroClass ? 'edit' : 'initial'}
                 onCommitCharacter={campaignsFeature.commitCharacter}
                 onClose={() => setWizardReopen(false)}

@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks 1-5 and 7-17 verified. Checkpoint 3 is committed as 6037356; inherited changes remain separate. Task 12 adds actual library location/save/visit metadata, public action outcomes and concise bilingual copy; full gates passed with RUST_LOG=info (997 Rust / 1177 frontend tests). Entry, campaign preparation and readiness are verified; Checkpoint 4 is committed as a564432; inherited source remains separate. Task 16 shared presentation contracts/adapters are verified; persistent layout (Task 17) is verified; actor/combat presentation (Task 18) is next. Task 6 deterministic native/SQLite proof is verified; installed Qwen failed before effects on both native attempts, so real-model recovery after committed effects remains open.
+Status: in progress; Tasks1-5 and7-24 verified. Checkpoint6 local validation complete; Task25 world art is next. Task6 real-model recovery after committed effects remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -455,7 +455,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
 ### Character art production
 
-- [ ] **Task 21: Produce four fighter portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+- [x] **Task 21: Produce four fighter portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/fighter-*; visual manifest/catalog, gallery/wizard and initiative consumers.
 
@@ -465,7 +465,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO selected stable ID/version and consumer; DEBUG hash, alpha and bytes; WARN rejected anatomy/identity/edge quality. Generation metadata stays in manifest.
 
-- [ ] **Task 22: Produce four rogue portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+- [x] **Task 22: Produce four rogue portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/rogue-*; shared visual manifest/gallery consumers.
 
@@ -475,7 +475,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO asset/version/pair IDs; DEBUG size/alpha/hash validation; WARN rejected candidates. No additional decorative runtime logs.
 
-- [ ] **Task 23: Produce four wizard portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+- [x] **Task 23: Produce four wizard portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/wizard-*; shared manifest/gallery consumers.
 
@@ -485,7 +485,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO final pair IDs and consumer binding; DEBUG metadata and payload; WARN overbright/unreadable or mismatched candidates.
 
-- [ ] **Task 24: Produce four cleric portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+- [x] **Task 24: Produce four cleric portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/cleric-*; shared manifest/gallery consumers.
 
@@ -769,3 +769,5 @@ Next authorized workflow is `$aif-implement` when requested. Start at Task 1 usi
 - 2026-10-12 verification environment: preserved 115.87GiB target cache relocated from this worktree's C target to D:/codex-builds/dmai-uiux-20261012/target with a junction restoring the original path after C filled. Final full gates use installed Rust 1.96.0, CARGO_PROFILE_TEST_DEBUG=0 (Windows PDB limit), TEMP/TMP on the owned D directory, RUST_LOG=info (telemetry smoke requires INFO), and DMAI_SKIP_SIDECAR_BUILD=1 (unit gates only; real native checks rebuild sidecar separately). Three equivalent Clippy boolean expressions were simplified; no lint exception or test assertion was removed. New migration count/actor columns are asserted. Evidence: .artifacts/product-uiux/checkpoint-1-verified-gates.log and checkpoint-1-browser.
 - 2026-10-12 checkpoint 1 committed as 92142a6. Full gates: 976 Rust tests and 1146 frontend tests pass; production build and browser 21/21 pass. Explicit owned-only patches for inherited-dirty route/turn/workflow/room-test files validated against HEAD. All original unrelated changes remain unstaged. No push/publication or real-model/Tauri-UI completion claim.
 - 2026-10-12 Task 4: proactive solo read plus original-input hydration, shared recovery notice, exact-ID continuation and unsent-draft retention are wired into the production root. Native-room controller reads public progress for its durable DM request; app composition provides the same notice through a ReactNode slot without sibling feature imports. Delayed scopes/mixed snapshots/unavailable reads are guarded; configured VITE_RECOVERY_TRACE=1 emits only safe scope/phase IDs. Actual-root regression passes, focused UI/controller tests pass, production build and architecture pass; production-browser proactive/room coverage 10/10 passes. Actual Tauri/model restart proof remains Task 6. One inherited room-failure test label now expects Continue answer; preserve its pre-existing uncommitted test body when staging checkpoint 2.
+
+- 2026-10-13 checkpoint6: four identities for each fighter/rogue/wizard/cleric (32 paired derivatives,1909008 frontend bytes). Stable legacy IDs/order and generic fallback pool preserved. Full-size/alpha and production table30/48/64px light/dark QA, all-class gallery/cold selection, same-name host/guest realSQLite public refs, and canonical cleric life-state rendering pass. Native QA discovered/fixed missing settings-wizard Cancel and late older preference writes; preferences serialize/coalesce independently of secrets, preserving explicit draft disk barriers. Final consolidated gates PASS1005Rust/200frontendfiles1246tests; final production browser51PASS; actual fresh Windows Tauri decoded16portraits, persisted cleric04 and restored it after normal close/cold launch with unchanged campaign/hero IDs,revision2,HP12,AC18 and sheet hash,exceptions0. No model/media inference, physical LAN, CI or publication claim. Evidence: checkpoint-6-persistence-full-gates.log, checkpoint-6-persistence-browser.log and hero-native/proof-{warm,cold}.json.

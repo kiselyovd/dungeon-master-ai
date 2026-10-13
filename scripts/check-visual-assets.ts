@@ -44,7 +44,8 @@ for(const asset of manifest.assets) {
 }
 const provenance=JSON.parse(await readFile('docs/visual/pilot-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;referenceAssetId?:string}>};
 const materials=JSON.parse(await readFile('docs/visual/material-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
-provenance.assets.push(...materials.assets);
+const heroes=JSON.parse(await readFile('docs/visual/hero-provenance.json','utf8')) as {assets:Array<{assetId:string;generationId:string;consumers:string[]}>};
+provenance.assets.push(...materials.assets,...heroes.assets);
 for(const asset of manifest.assets.filter(asset=>asset.source==='builtin_imagegen')) {
   if(!provenance.assets.some(entry=>entry.assetId===asset.id&&entry.generationId))throw new Error(`missing_visual_provenance:${asset.id}`);
   if(asset.category==='frame' && !asset.alpha)throw new Error(`frame_alpha_missing:${asset.id}`);

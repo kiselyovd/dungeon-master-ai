@@ -73,3 +73,17 @@ are in `.artifacts/product-uiux/pilot/{screens,quality-measurements.json}`.
 
 All final gameplay, performance, packaging, native DPI and real-model acceptance
 remain separate gates in the active plan.
+
+## Production fighter refinement, 2026-10-13
+
+The initial pilot capture and source master remain historical evidence. Its
+production miniature now uses an identity-preserving generator refinement with
+the stone pedestal removed; the face, cobalt cloak, shield, sword and armour are
+retained. The stable ID is unchanged. Its current 512 x 768 alpha derivative is
+53,396 bytes; the previous source remains retained in pilot provenance.
+
+Three additional fighter portrait-miniature pairs are integrated in the same
+catalogue, adding 413,662 encoded bytes. All four pairs are selectable and
+persisted in the production gallery and render at 30/48/64px without clipped
+silhouettes or changes to the mechanical cells. See
+[Stable visual references](VISUAL_REFERENCES.md#fighter-identity-set-2026-10-13).

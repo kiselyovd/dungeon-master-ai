@@ -502,6 +502,68 @@ test('public same-name actors retain distinct portrait-miniature pairs and cell 
   }
 });
 
+for (const heroClass of ['fighter', 'rogue', 'wizard', 'cleric']) {
+  for (const number of ['01', '02', '03', '04']) {
+    test(`${heroClass} ${number} retains its public portrait and whole miniature at table scale`, async ({
+      page,
+    }) => {
+      const snapshot = JSON.parse(
+        readFileSync(
+          new URL('../src/api/__fixtures__/roomCombatUpdate.json', import.meta.url),
+          'utf8',
+        ),
+      ) as RoomUpdate;
+      const actor = snapshot.state.actors[0];
+      if (!actor) throw Error('fighter fixture actor missing');
+      actor.portrait_asset_id = `hero.${heroClass}.${number}.v2`;
+      await installRoomStub(page, snapshot);
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Совместная игра' }).click();
+      await page.getByRole('button', { name: 'Восстановить подключение гостя' }).click();
+      const miniature = page.locator(`[data-asset-id="miniature.${heroClass}.${number}.v2"]`);
+      await expect(miniature).toHaveCount(1);
+      await expect
+        .poll(() =>
+          miniature
+            .locator('img')
+            .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 512),
+        )
+        .toBe(true);
+      await expect(miniature).toHaveCSS('pointer-events', 'none');
+      const cell = miniature.locator('..');
+      let current = 30;
+      for (const size of [30, 48, 64]) {
+        const canvas = page.locator('.dm-vtt-canvas');
+        const bounds = await canvas.boundingBox();
+        if (!bounds) throw Error('viewport missing');
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        if (size !== current)
+          await page.mouse.wheel(0, -Math.log(size / current) / Math.log(1.0015));
+        await expect
+          .poll(async () => Math.round((await cell.boundingBox())?.width ?? 0))
+          .toBe(size);
+        expect(await cell.getAttribute('style')).toContain('width: 30px');
+        await page.screenshot({
+          path: `.artifacts/visual-production/${heroClass}-${number}-dark-${size}.png`,
+          animations: 'disabled',
+        });
+        current = size;
+      }
+      // Contrast specimen of the same production geometry/renderer. No cells,
+      // blockers, actor positions or mechanical data are modified.
+      await page.getByTestId('authored-map').evaluate((svg) => {
+        (svg as SVGElement).style.setProperty('--color-bg-base', '#dbcda9');
+        (svg as SVGElement).style.setProperty('--color-bg-raised', '#b7a782');
+      });
+      await page.screenshot({
+        path: `.artifacts/visual-production/${heroClass}-${number}-light-64.png`,
+        animations: 'disabled',
+      });
+      await expect(miniature).toHaveCount(1);
+    });
+  }
+}
+
 test('room narration preserves reading position and restores a scoped draft after cold reload', async ({
   page,
 }) => {

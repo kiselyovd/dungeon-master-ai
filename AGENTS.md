@@ -97,6 +97,7 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | Campaign state | `docs/CAMPAIGN_STATE.md` | Current-state continuation, character recovery, snapshots, and verification boundaries. |
 | Authored adventure | `docs/AUTHORED_ADVENTURE.md` | Bundled Bell adventure, state transitions, consequence rules and acceptance evidence. |
 | AI turn recovery | `docs/AI_TURN_RECOVERY.md` | Durable delivery receipts, authority, retry behavior and remaining interrupted-turn work. |
+| Hero identities | `docs/visual/HERO_IDENTITIES.md` | Reviewed portraits, paired miniatures, persistence and visual verification. |
 
 ## AI Context Files
 

@@ -1,5 +1,6 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EMPTY_DRAFT } from '../charCreation';
 import { emptyPcData } from '../pc';
 import { persistStorage, preserveLegacyCharacter } from '../persistStorage';
 import type { ApiKey, BaseUrl, OpenaiCompatConfig } from '../providers';
@@ -21,9 +22,69 @@ import { strongholdSecretsStore } from '../strongholdSecretsStore';
 const legacySecrets = new LazyStore('secrets.json');
 const settings = new LazyStore('settings.json');
 
+it('preserves the latest draft when an older native store write completes late', async () => {
+  const originalSet = LazyStore.prototype.set;
+  vi.spyOn(LazyStore.prototype, 'set').mockImplementation(async function (
+    this: LazyStore,
+    key,
+    value,
+  ) {
+    if (
+      key === 'char_creation_draft' &&
+      (value as { portraitAssetId?: string }).portraitAssetId === 'hero.fighter.01.v2'
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+    return originalSet.call(this, key, value);
+  });
+  const write = (portraitAssetId: string) =>
+    persistStorage.setItem('any', {
+      state: {
+        charCreation: { ...structuredClone(EMPTY_DRAFT), classId: 'fighter', portraitAssetId },
+      },
+      version: 0,
+    });
+  const older = write('hero.fighter.01.v2');
+  const newer = write('hero.fighter.04.v2');
+  await Promise.all([older, newer]);
+  expect(
+    (await settings.get<{ portraitAssetId: string }>('char_creation_draft'))?.portraitAssetId,
+  ).toBe('hero.fighter.04.v2');
+  await settings.delete('char_creation_draft');
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+});
+
+it('flushes newer preferences while an older vault write is pending', async () => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(strongholdSecretsStore, 'set').mockImplementation(async () => gate);
+  const older = persistStorage.setItem('any', {
+    state: {
+      settings: {
+        uiLanguage: 'en',
+        providers: { 'openai-compat': null, 'local-mistralrs': null },
+      },
+    },
+    version: 0,
+  });
+  const newer = persistStorage.setItem('any', {
+    state: { settings: { uiLanguage: 'ru' } },
+    version: 0,
+  });
+  try {
+    await newer;
+    expect(await settings.get('ui_language')).toBe('ru');
+  } finally {
+    release();
+    await older;
+    await settings.delete('ui_language');
+  }
 });
 
 it('waits for a slow but healthy encrypted provider read instead of hydrating it as absent', async () => {

@@ -56,6 +56,35 @@ describe('PortraitTab', () => {
     expect(screen.getByLabelText(/prompt/i)).toBeInTheDocument();
   });
 
+  it.each(
+    ['fighter', 'rogue', 'wizard', 'cleric'].flatMap((heroClass) =>
+      ['01', '02', '03', '04'].map((number) => [heroClass, number]),
+    ),
+  )('%s %s changes only cosmetic draft fields', (heroClass, number) => {
+    const draft = useStore.getState().charCreation;
+    draft.setDraftField('classId', heroClass ?? null);
+    draft.setDraftField('name', 'Existing human hero');
+    draft.setDraftField('raceId', 'human');
+    draft.setAbilityScore('str', 16);
+    draft.setDraftField('equipmentInventory', [
+      { id: 'sword', name: 'Longsword', count: 1, icon: 'sword' },
+    ]);
+    const before = useStore.getState().charCreation;
+    const { container } = render(<PortraitTab />);
+    const choice = container.querySelector<HTMLInputElement>(
+      `[data-asset-id="hero.${heroClass}.${number}.v2"] input`,
+    );
+    expect(choice).not.toBeNull();
+    if (!choice) throw new Error('missing fighter identity');
+    fireEvent.click(choice);
+    const after = useStore.getState().charCreation;
+    expect(after.portraitAssetId).toBe(`hero.${heroClass}.${number}.v2`);
+    for (const key of Object.keys(before) as Array<keyof typeof before>) {
+      if (['portraitAssetId', 'portraitMediaRef', 'portraitUrl'].includes(key)) continue;
+      expect(after[key], key).toEqual(before[key]);
+    }
+  });
+
   it('seeds the prompt from race + class + alignment', () => {
     const s = useStore.getState().charCreation;
     s.setDraftField('raceId', 'human');

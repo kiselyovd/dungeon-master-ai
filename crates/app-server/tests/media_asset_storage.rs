@@ -54,6 +54,126 @@ async fn campaign(store: Arc<SqliteStore>) -> app_application::models::session::
 }
 
 #[tokio::test]
+async fn both_room_participants_keep_all_explicit_hero_identities_without_private_sheets() {
+    for class in ["fighter", "rogue", "wizard", "cleric"] {
+        for number in ["01", "02", "03", "04"] {
+            let db = SqlitePool::connect("sqlite::memory:").await.unwrap();
+            pool::migrate(&db).await.unwrap();
+            let store = Arc::new(SqliteStore::new(db));
+            let c = campaign(store.clone()).await;
+            let portrait = format!("hero.{class}.{number}.v2");
+            let mut host_sheet = hero("Same name");
+            host_sheet["portraitAssetId"] = json!(portrait);
+            let host_character = Uuid::new_v4();
+            let current = store
+                .commit_character(CommitCampaignCharacter {
+                    campaign_id: c.id,
+                    session_id: c.last_session_id,
+                    character_id: host_character,
+                    expected_revision: c.revision,
+                    causation_id: "host-visual".into(),
+                    character: host_sheet,
+                })
+                .await
+                .unwrap();
+            let rooms = RoomService::new(
+                store.clone(),
+                store.clone(),
+                Arc::new(InMemorySecretsStore::default()),
+                Arc::new(SystemRoomClock),
+            )
+            .with_media_assets(media(store));
+            let created = rooms
+                .create_local_room(CreateLocalRoom {
+                    campaign_id: c.id,
+                    session_id: c.last_session_id,
+                    expected_revision: current.campaign.revision,
+                    causation_id: "visual-room".into(),
+                })
+                .await
+                .unwrap();
+            let room = created.grant.room.room_id;
+            let guest = rooms
+                .join(JoinRoom {
+                    room_id: room,
+                    join_id: Uuid::new_v4(),
+                    display_name: "Same name".into(),
+                    invitation: RoomSecret::from_input(created.invitation.expose().into()).unwrap(),
+                    resume_proof: RoomSecret::generate(),
+                })
+                .await
+                .unwrap();
+            let host_subject = rooms
+                .authenticate(room, created.grant.member_id, &created.grant.capability)
+                .await
+                .unwrap();
+            let guest_subject = rooms
+                .authenticate(room, guest.member_id, &guest.capability)
+                .await
+                .unwrap();
+            let mut guest_sheet = hero("Same name");
+            guest_sheet["portraitAssetId"] = json!("hero.rogue.legacy.v1");
+            let guest_character = Uuid::new_v4();
+            let proposal = rooms
+                .submit_character(
+                    &guest_subject,
+                    SubmitRoomCharacter {
+                        proposal_id: Uuid::new_v4(),
+                        character_id: guest_character,
+                        character: guest_sheet,
+                    },
+                )
+                .await
+                .unwrap();
+            let revision = rooms
+                .own_party(&host_subject)
+                .await
+                .unwrap()
+                .unwrap()
+                .revision;
+            rooms
+                .approve_character(
+                    &host_subject,
+                    ApproveRoomCharacter {
+                        proposal_id: proposal.proposal_id,
+                        expected_revision: revision,
+                        causation_id: "approve-visual".into(),
+                    },
+                )
+                .await
+                .unwrap();
+            let host_view = rooms.own_party(&host_subject).await.unwrap().unwrap();
+            let guest_view = rooms.own_party(&guest_subject).await.unwrap().unwrap();
+            assert_eq!(host_view.actors, guest_view.actors);
+            assert_eq!(host_view.actors.len(), 2);
+            assert_ne!(host_character, guest_character);
+            let selected = host_view
+                .actors
+                .iter()
+                .find(|actor| actor.character_id == host_character)
+                .unwrap();
+            assert_eq!(
+                selected.portrait_asset_id.as_deref(),
+                Some(portrait.as_str())
+            );
+            let other = guest_view
+                .actors
+                .iter()
+                .find(|actor| actor.character_id == guest_character)
+                .unwrap();
+            assert_eq!(
+                other.portrait_asset_id.as_deref(),
+                Some("hero.rogue.legacy.v1")
+            );
+            let public_json = serde_json::to_string(&guest_view.actors).unwrap();
+            assert!(!public_json.contains("PRIVATE_SHEET_SENTINEL"));
+            assert!(!public_json.contains("portraitUrl"));
+            assert!(!public_json.contains("data_b64"));
+        }
+    }
+}
+
+#[tokio::test]
 async fn real_file_reopen_preserves_bytes_and_hash_without_inline_character_bytes() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("media.db");

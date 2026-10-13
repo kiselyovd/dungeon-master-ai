@@ -125,6 +125,7 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Durable requests and safe recovery reads | [AI turn recovery](docs/AI_TURN_RECOVERY.md) |
 | Human intentions and confirmed effects | [Human command ledger](docs/HUMAN_COMMAND_LEDGER.md) |
 | Native co-op evidence and limits | [Co-op acceptance](docs/COOP_ACCEPTANCE.md) |
+| Built-in portraits and whole miniatures | [Hero identities](docs/visual/HERO_IDENTITIES.md) |
 
 ## Build
 

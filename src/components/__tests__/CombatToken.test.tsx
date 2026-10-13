@@ -60,6 +60,46 @@ describe('CombatToken', () => {
     expect(ac.textContent).toBe('14');
   });
 
+  it.each([
+    '01',
+    '02',
+    '03',
+    '04',
+  ])('cleric %s retains identity through canonical life-state changes', (number) => {
+    const presentation = {
+      characterId: 'pc-stable',
+      heroClass: 'cleric',
+      portraitAssetId: `hero.cleric.${number}.v2`,
+      portraitUrl: null,
+    };
+    const phases: TokenData[] = [
+      { ...baseToken, hp: 5 },
+      { ...baseToken, hp: 0, conditions: ['unconscious'], isDead: false },
+      { ...baseToken, hp: 0, conditions: ['dead'], isDead: true },
+      // A later server projection is living again; the renderer does not grant resurrection.
+      { ...baseToken, hp: 8, conditions: [], isDead: false },
+    ];
+    const view = render(
+      <CombatToken token={baseToken} playerPresentation={presentation} cellSize={30} />,
+    );
+    for (const token of phases) {
+      view.rerender(<CombatToken token={token} playerPresentation={presentation} cellSize={30} />);
+      expect(view.getByTestId('miniature-tok-1')).toHaveAttribute(
+        'data-asset-id',
+        `miniature.cleric.${number}.v2`,
+      );
+      const cell = view.getByTestId('combat-token-tok-1');
+      expect(cell.style.width).toBe('30px');
+      expect(cell.style.left).toBe('60px');
+      expect(cell.style.top).toBe('90px');
+      expect(cell.hasAttribute('data-dead')).toBe(token.isDead === true);
+      expect(view.queryByTestId('combat-token-skull') !== null).toBe(token.isDead === true);
+      expect(view.getByTestId('combat-token-tok-1-hpbar').style.width).toBe(
+        `${(token.hp / token.maxHp) * 100}%`,
+      );
+    }
+  });
+
   it('active token has data-active attribute', () => {
     const token = { ...baseToken, isActive: true };
     const { getByTestId } = render(<CombatToken token={token} cellSize={30} />);

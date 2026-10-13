@@ -69,7 +69,12 @@ fn catalog_is_unique_valid_and_has_complete_scene_coverage() {
             assert!(asset.width >= 1024 && asset.height >= 576);
         }
         assert!(asset.bytes.len() <= 512 * 1024);
-        assert!(!asset.keywords.is_empty());
+        if asset.gallery_only {
+            assert_eq!(asset.category, BundledAssetCategory::Portrait);
+            assert!(asset.keywords.is_empty());
+        } else {
+            assert!(!asset.keywords.is_empty());
+        }
     }
 }
 

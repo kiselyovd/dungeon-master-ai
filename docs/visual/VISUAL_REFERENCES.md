@@ -14,8 +14,10 @@ silently assigning another character. New builtin portrait choices persist only
 `portraitAssetId` in the character draft, sheet, campaign document and nonsecret
 preferences. The offline collection stays available when generation is disabled.
 
-The selected portrait is shown in the sheet and current token presentation.
-Whole production miniatures and their mechanical picking anchors are Task18.
+The selected portrait is shown in the sheet, party strip and actor presentation.
+The shared production table renders an explicitly paired whole miniature; its
+image is pointer-free and anchored to the unchanged mechanical cell. An owned or
+custom portrait without a reviewed pair uses the portrait fallback.
 Generated/uploaded media now uses bounded owned content references (Task9).
 Unresolved legacy sources remain recoverable; arbitrary external URLs are never
 fetched automatically.
@@ -47,3 +49,29 @@ a generated matching miniature; only an explicit reviewed catalog pair provides 
 The material/frame production set and actual consumers are documented in
 [Materials](MATERIALS.md). Typography and self-hosted font licenses are documented
 in [Typography](TYPOGRAPHY.md).
+The four-class portrait/miniature collection is documented in
+[Hero identities](HERO_IDENTITIES.md).
+
+## Fighter identity set, 2026-10-13
+
+Four v2 portraits pair with four transparent whole miniatures through stable IDs
+`hero.fighter.01.v2` through `hero.fighter.04.v2`. The pilot identity stays at its
+existing gallery position. New identities are appended; previously saved faces
+and generic bundled fallback choices retain their previous mappings. Explicit
+backend portrait IDs address the same bytes as the frontend gallery.
+
+Each choice is cosmetic: it preserves the draft name, class, abilities and
+equipment. All four choices load in the actual production wizard, and the last
+selection survives cold reload. The public room projection renders all four
+matching miniatures at 30, 48 and 64 screen pixels on light/dark geometry without
+changing actor coordinates, hit targets or rules. Original generator prompts,
+references and master hashes are retained in `hero-provenance.json`; the pilot
+refinement is in `pilot-provenance.json`.
+
+Evidence: `e2e/hero-art.spec.ts`, the four fighter cases in
+`e2e/room-production.spec.ts`, and the cosmetic-draft cases in
+`src/components/wizard/__tests__/PortraitTab.test.tsx`. Captures and qualified
+logs are under `.artifacts/visual-production/` and `.artifacts/product-uiux/`.
+This is production-browser and focused-test evidence. The combined native art
+acceptance is scheduled at the hero-set checkpoint; real-model and physical LAN
+acceptance remain separate.
