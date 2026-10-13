@@ -27,3 +27,30 @@ it('equal NPC display names keep distinct records and never receive an ambiguous
   useStore.getState().npcs.addFact('two', { text: 'Confirmed second identity', created_at: 'now' });
   expect(useStore.getState().npcs.records.two?.facts).toHaveLength(1);
 });
+
+it('campaign restoration retains two same-name NPCs under their canonical IDs', () => {
+  const npc = {
+    campaign_id: 'campaign',
+    name: 'Mira',
+    role: '',
+    disposition: 'neutral' as const,
+    trust: 0,
+    facts: [],
+    updated_at: 'now',
+  };
+  useStore.getState().restoration.apply({
+    campaignId: 'campaign',
+    sessionId: 'session',
+    revision: 1,
+    messages: [],
+    pc: {},
+    scene: null,
+    combat: null,
+    journal: [],
+    npcs: [
+      { ...npc, id: 'first' },
+      { ...npc, id: 'second' },
+    ],
+  });
+  expect(Object.keys(useStore.getState().npcs.records)).toEqual(['first', 'second']);
+});

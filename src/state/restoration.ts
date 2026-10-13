@@ -115,7 +115,7 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
       journal: { ...state.journal, entries: projection.journal },
       npcs: {
         ...state.npcs,
-        records: Object.fromEntries(projection.npcs.map((npc) => [npc.name, npc])),
+        records: Object.fromEntries(projection.npcs.map((npc) => [npc.id, npc])),
       },
     }));
   };

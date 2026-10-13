@@ -2,30 +2,73 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import '../../i18n';
+import { npcAppearance } from '../../state/npcAppearance';
 import { NpcMemoryGrid } from '../NpcMemoryGrid';
 
-const mockNpcs = [
-  {
-    id: 'n1',
-    campaign_id: 'c1',
-    name: 'Mira',
-    role: 'Innkeeper',
-    disposition: 'friendly' as const,
-    trust: 50,
-    facts: [{ text: 'She saved the party in session 2', created_at: '2026-05-07T12:00:00Z' }],
-    updated_at: '2026-05-07T12:00:00Z',
-  },
-];
+const exampleNpc = {
+  id: 'n1',
+  campaign_id: 'c1',
+  name: 'Mira',
+  role: 'Innkeeper',
+  disposition: 'friendly' as const,
+  trust: 50,
+  facts: [{ text: 'She saved the party in session 2', created_at: '2026-05-07T12:00:00Z' }],
+  updated_at: '2026-05-07T12:00:00Z',
+};
+const mockNpcs = [exampleNpc];
 
 describe('NpcMemoryGrid', () => {
-  it('renders NPC card', () => {
+  it('renders NPC card', async () => {
     render(<NpcMemoryGrid npcs={mockNpcs} onClose={vi.fn()} />);
     expect(screen.getByText('Mira')).toBeInTheDocument();
     expect(screen.getByText('Innkeeper')).toBeInTheDocument();
-    expect(document.querySelector('img[data-archetype="innkeeper"]')).toHaveAttribute(
-      'src',
-      expect.stringContaining('npc-innkeeper'),
+    await waitFor(() =>
+      expect(document.querySelector('img[data-archetype="innkeeper"]')).toHaveAttribute(
+        'src',
+        expect.stringContaining('npc-innkeeper'),
+      ),
     );
+  });
+
+  it('preserves a known legacy face after the role changes', async () => {
+    const npc = { ...exampleNpc, id: crypto.randomUUID() };
+    await npcAppearance(`${npc.campaign_id}:${npc.id}`, 'npc.guard.legacy.v1');
+    const view = render(<NpcMemoryGrid npcs={[npc]} onClose={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        document.querySelector('img[data-asset-id="npc.guard.legacy.v1"]'),
+      ).toBeInTheDocument(),
+    );
+    view.rerender(<NpcMemoryGrid npcs={[{ ...npc, role: 'Mage' }]} onClose={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        document.querySelector('img[data-asset-id="npc.guard.legacy.v1"]'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('does not replace an unavailable assigned face', async () => {
+    const npc = { ...exampleNpc, id: crypto.randomUUID() };
+    await npcAppearance(`${npc.campaign_id}:${npc.id}`, 'npc.missing.v2');
+    render(<NpcMemoryGrid npcs={[npc]} onClose={vi.fn()} />);
+    await screen.findByText('Portrait unavailable');
+    expect(document.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open portrait of Mira' })).toBeDisabled();
+  });
+
+  it('closes only the expanded portrait on Escape and restores focus', async () => {
+    const onClose = vi.fn();
+    render(<NpcMemoryGrid npcs={[{ ...exampleNpc, id: crypto.randomUUID() }]} onClose={onClose} />);
+    const button = screen.getByRole('button', { name: 'Open portrait of Mira' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+    expect(screen.getByRole('dialog', { name: 'Mira' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Mira' })).not.toBeInTheDocument(),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(button).toHaveFocus();
   });
 
   it('shows disposition label', () => {

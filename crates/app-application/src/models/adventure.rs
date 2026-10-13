@@ -15,6 +15,49 @@ pub struct AdventureProjection {
     /// private-canon objective is inferred by a presentation adapter.
     #[serde(default)]
     pub public_goals: Vec<Action>,
+    /// Portraits permitted by confirmed meetings/discoveries; never private DM canon.
+    #[serde(default)]
+    pub public_npcs: Vec<PublicAdventureNpc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublicAdventureNpc {
+    pub id: String,
+    pub portrait_asset_id: String,
+}
+
+fn public_npcs(state: &AdventureState) -> Vec<PublicAdventureNpc> {
+    if state.package_id != BELL_ADVENTURE_ID {
+        return Vec::new();
+    }
+    let visited =
+        |location| state.location == location || state.history.contains(&Action::Move(location));
+    let met = [
+        ("mila", true),
+        ("agata", true),
+        (
+            "leon",
+            visited(Location::Shrine) || state.facts.contains(&Fact::WardUnderstood),
+        ),
+        ("varden", visited(Location::Warehouse)),
+        (
+            "tikhon",
+            state.facts.contains(&Fact::TikhonLocated)
+                || state.facts.contains(&Fact::TikhonRescued),
+        ),
+        (
+            "savely",
+            state.facts.contains(&Fact::RosterAvailable)
+                || state.facts.contains(&Fact::EchoAcknowledged),
+        ),
+    ];
+    met.into_iter()
+        .filter(|(_, visible)| *visible)
+        .map(|(id, _)| PublicAdventureNpc {
+            id: id.into(),
+            portrait_asset_id: format!("npc.bell.{id}.v2"),
+        })
+        .collect()
 }
 
 impl From<AdventureState> for AdventureProjection {
@@ -26,6 +69,7 @@ impl From<AdventureState> for AdventureProjection {
             .copied()
             .collect();
         Self {
+            public_npcs: public_npcs(&state),
             map: if state.location == Location::Archive {
                 Some(app_domain::combat::geometry::bell_archive_map())
             } else {
@@ -59,6 +103,59 @@ pub struct AdventureIntent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authored_portraits_reveal_only_confirmed_people() {
+        let state = AdventureState::new();
+        let ids = |state: AdventureState| {
+            AdventureProjection::from(state)
+                .public_npcs
+                .into_iter()
+                .map(|npc| npc.id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids(state.clone()), vec!["mila", "agata"]);
+        let mut found = state.clone();
+        found.facts.insert(Fact::TikhonLocated);
+        assert!(ids(found).contains(&"tikhon".into()));
+        assert!(!ids(state.clone()).contains(&"savely".into()));
+        let mut known = state;
+        known.history.push(Action::Move(Location::Shrine));
+        known.history.push(Action::Move(Location::Warehouse));
+        known.facts.insert(Fact::RosterAvailable);
+        known.facts.insert(Fact::TikhonRescued);
+        assert_eq!(
+            ids(known.clone()),
+            vec!["mila", "agata", "leon", "varden", "tikhon", "savely"]
+        );
+        let restored: AdventureState =
+            serde_json::from_str(&serde_json::to_string(&known).unwrap()).unwrap();
+        assert_eq!(ids(restored), ids(known));
+    }
+
+    #[test]
+    fn public_portrait_metadata_has_no_private_canon_or_future_identity() {
+        let state = AdventureState::new();
+        let json = serde_json::to_value(AdventureProjection::from(state).public_npcs).unwrap();
+        for npc in json.as_array().unwrap() {
+            assert_eq!(npc.as_object().unwrap().len(), 2);
+            assert!(npc["portrait_asset_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("npc.bell."));
+        }
+        let serialized = json.to_string();
+        for hidden in [
+            "savely",
+            "varden",
+            "tikhon",
+            "silver",
+            "culprit",
+            "biography",
+        ] {
+            assert!(!serialized.contains(hidden));
+        }
+    }
 
     #[test]
     fn public_goals_only_offer_current_scene_actions() {

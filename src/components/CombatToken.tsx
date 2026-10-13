@@ -12,7 +12,12 @@ import { useMediaImage } from '../features/media/useMediaImage';
 import { legacyPortraitUrl } from '../lib/heroPortraits';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
-import { type ActorVisualPresentation, actorBuiltinAppearance } from './actorVisuals';
+import {
+  type ActorVisualPresentation,
+  actorBuiltinAppearance,
+  opponentAppearance,
+  opponentFrame,
+} from './actorVisuals';
 
 export interface PlayerTokenPresentation {
   characterId: string | null;
@@ -140,7 +145,12 @@ export function CombatToken({
     visual?.mediaScope ?? null,
     'portrait',
   );
-  const miniatureSrc = builtin?.miniature ?? null;
+  const opponent = !token.characterId ? opponentAppearance(token.opponentAppearance) : null;
+  useEffect(() => {
+    if (token.opponentAppearance && !token.characterId && !opponent)
+      console.warn('[art:WARN] opponent_miniature_unavailable');
+  }, [token.opponentAppearance, token.characterId, opponent]);
+  const miniatureSrc = builtin?.miniature ?? opponent?.uri ?? null;
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for
@@ -346,7 +356,13 @@ export function CombatToken({
         data-active={token.isActive ? 'true' : undefined}
         data-dead={isDead ? 'true' : undefined}
         data-downed={token.hp <= 0 && !isDead ? 'true' : undefined}
-        onPointerDown={draggable ? onPointerDown : undefined}
+        onPointerDown={(event) => {
+          if (draggable) onPointerDown(event);
+          // A stationary token still owns its primary selection click. If the
+          // map starts panning and captures this pointer, the eventual click
+          // is retargeted to the canvas instead of selecting the actor.
+          else if (event.button === 0) event.stopPropagation();
+        }}
         onPointerMove={draggable ? onPointerMove : undefined}
         onPointerUp={draggable ? onPointerEnd : undefined}
         onPointerCancel={draggable ? onPointerEnd : undefined}
@@ -384,7 +400,7 @@ export function CombatToken({
         {miniatureSrc && (
           <div
             data-testid={`miniature-${token.id}`}
-            data-asset-id={builtin?.miniatureId ?? ''}
+            data-asset-id={builtin?.miniatureId ?? opponent?.id ?? ''}
             style={{
               position: 'absolute',
               left: '50%',
@@ -394,6 +410,7 @@ export function CombatToken({
               transform: 'translateX(-50%)',
               pointerEvents: 'none',
               zIndex: 2,
+              ...(opponent ? opponentFrame(opponent, cellSize) : {}),
             }}
           >
             <img

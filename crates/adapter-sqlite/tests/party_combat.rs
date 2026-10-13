@@ -100,6 +100,7 @@ async fn fixture_with_party_size(
                 authored: None,
                 adventure: None,
                 campaign_scope: None,
+                appearances: Default::default(),
                 schema_version: COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,
                 revision: 0,

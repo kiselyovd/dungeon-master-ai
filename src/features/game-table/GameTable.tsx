@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KEY_ART } from '../../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../../assets/livingTabletop';
 import { Button } from '../../ui/Button';
+import { DecorativeImage } from '../../ui/DecorativeImage';
 import { Icons } from '../../ui/Icons';
 import { Modal } from '../../ui/Modal';
 import styles from './GameTable.module.css';
@@ -140,7 +141,7 @@ export function GameTable({
           <div className={styles.scene}>
             {scene ?? (
               <div className={styles.exploration}>
-                <img src={KEY_ART.vttEmpty} alt="" />
+                <DecorativeImage src={KEY_ART.vttEmpty} assetId={KEY_ART_IDS.vttEmpty} />
                 <span>{model.scene.title ?? model.title}</span>
               </div>
             )}

@@ -7,7 +7,7 @@ use app_application::agent::operations::{
 use app_application::agent::tool_dispatch::{GeneratedAgentMedia, ToolExecution};
 use app_application::models::agent::AgentTurnRequest;
 use app_application::models::snapshot::{CreateSnapshotRecord, RestoreSnapshotRecord};
-use app_application::ports::repositories::SnapshotRepository;
+use app_application::ports::repositories::{AdventureRepository, SnapshotRepository};
 use app_application::{
     campaigns::{CreateCampaign, CreateCampaignCommand},
     media_assets::MediaAssets,
@@ -82,7 +82,7 @@ async fn both_room_participants_keep_all_explicit_hero_identities_without_privat
                 Arc::new(InMemorySecretsStore::default()),
                 Arc::new(SystemRoomClock),
             )
-            .with_media_assets(media(store));
+            .with_media_assets(media(store.clone()));
             let created = rooms
                 .create_local_room(CreateLocalRoom {
                     campaign_id: c.id,
@@ -145,6 +145,62 @@ async fn both_room_participants_keep_all_explicit_hero_identities_without_privat
             let host_view = rooms.own_party(&host_subject).await.unwrap().unwrap();
             let guest_view = rooms.own_party(&guest_subject).await.unwrap().unwrap();
             assert_eq!(host_view.actors, guest_view.actors);
+            let host_update = rooms.initial_updates(&host_subject, None).await.unwrap();
+            let guest_update = rooms.initial_updates(&guest_subject, None).await.unwrap();
+            let host_public = serde_json::to_value(&host_update.state).unwrap();
+            let guest_public = serde_json::to_value(&guest_update.state).unwrap();
+            assert_eq!(
+                host_public["adventure"]["public_npcs"],
+                guest_public["adventure"]["public_npcs"]
+            );
+            assert_eq!(
+                host_public["adventure"]["public_npcs"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                2
+            );
+            use app_application::models::adventure::{Action, AdventureCommand, Location};
+            let mut current = store.load_current(c.id).await.unwrap();
+            for (index, action) in [
+                Action::Move(Location::Quay),
+                Action::Move(Location::Archive),
+                Action::LocateTikhon,
+                Action::StartDefense,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                current = store
+                    .act(AdventureCommand {
+                        campaign_id: c.id,
+                        session_id: c.last_session_id,
+                        character_id: host_character,
+                        expected_revision: current.campaign.revision,
+                        causation_id: format!("public-art-step-{index}"),
+                        action,
+                    })
+                    .await
+                    .unwrap();
+            }
+            let host_update = rooms.initial_updates(&host_subject, None).await.unwrap();
+            let guest_update = rooms.initial_updates(&guest_subject, None).await.unwrap();
+            let host_public = serde_json::to_value(&host_update.state).unwrap();
+            let guest_public = serde_json::to_value(&guest_update.state).unwrap();
+            let appearances = host_public["combat"]["appearances"].as_object().unwrap();
+            assert_eq!(appearances.len(), 2);
+            assert_eq!(
+                host_public["combat"]["appearances"],
+                guest_public["combat"]["appearances"]
+            );
+            for (id, appearance) in appearances {
+                assert_eq!(appearance, "water_echo");
+                assert!(guest_public["combat"]["snapshot"]["combatants"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|actor| actor["id"] == id.as_str()));
+            }
             assert_eq!(host_view.actors.len(), 2);
             assert_ne!(host_character, guest_character);
             let selected = host_view

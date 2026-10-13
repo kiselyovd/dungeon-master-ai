@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "npc.innkeeper.v2",
+      "generationId": "exec-dc89e416-3ba9-4eee-ae3d-ab1c0bbb937b",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype innkeeper. A kindly older human man with olive skin, greying curly brown hair and a short beard, warm attentive eyes. Worn cream linen shirt, dark wool waistcoat, brown leather apron, plain belt. No mugs or coins obstructing his face. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-innkeeper.png",
+      "masterSha256": "578f7238ad105983005253e68a88f76b7e89dff0f5cd4b60e4e16e3c8921ccf2",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.guard.v2",
+      "generationId": "exec-2e937634-3e0e-49fd-90f6-e7bb0eab8a89",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype guard. An adult human woman with dark brown skin, short tightly curled black hair and an alert composed face. Practical worn mail, restrained steel shoulder plates, muted blue wool mantle, small steel helmet carried under arm rather than hiding face. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-guard.png",
+      "masterSha256": "f2199e376aeb6fd9126cbade425f71b5a439a7272dcc305c0947c0566b3f0e3c",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.merchant.v2",
+      "generationId": "exec-e96086c9-1792-4149-b2f8-1993885b8445",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype merchant. An older human woman with East Asian features, tan skin, neatly pinned black-and-grey hair and a thoughtful confident face. Ochre wool coat over a dark linen tunic, modest brass clasp, plain leather shoulder strap and a small closed unmarked ledger. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-merchant.png",
+      "masterSha256": "e5ed3dc730a5dfb2bcc0ec19ddc05b41694e9e537dd089fc9e026fcd15a0b3f7",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.rogue.v2",
+      "generationId": "exec-e45f7114-9b70-4108-adf9-ea44efd56d80",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype rogue. An adult human man with warm olive skin, shoulder-length dark hair tied back, clean-shaven face and watchful eyes. Worn dark brown leather jerkin, muted plum scarf, short dark wool cloak with hood pushed behind his head, plain belt. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-rogue.png",
+      "masterSha256": "db371bfebe015dc1f8d08ea2a2272cdcad13810d2aa79402a2d10563e9f32e80",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.mage.v2",
+      "generationId": "exec-dfdd89bc-2133-40bc-a903-61657fa3f8d8",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype mage. An older human woman with deep brown skin, short silver-grey curls and a calm observant face. Muted indigo wool robes with restrained worn gold trim, plain leather belt, modest straight wooden staff partly visible, unlit. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-mage.png",
+      "masterSha256": "63c99596050abcc7884204eedb7d2b572ccbf992bf7efc08833b57c6cd07976b",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.priestess.v2",
+      "generationId": "exec-26229621-0431-48cd-bfd2-e56742b8785f",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype priestess. An adult human woman with warm tan skin, brown hair in a compact braid and a kind resolute face. Ivory wool robe and a subdued teal shoulder stole, small plain brass medallion, simple belt. No identifiable religious insignia or halo. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-priestess.png",
+      "masterSha256": "9588df23078761d2495a2010fd1c88f750e5b1eb2a207b9901fcb1f3d5ddc058",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.knight.v2",
+      "generationId": "exec-33f2cf00-471d-45af-923b-a62c549d43cf",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype knight. An adult human man with tan skin, short black hair and a neat dark beard, steady protective expression. Worn practical blued steel and mail, restrained bronze trim, short burgundy wool mantle, plain belt and modest wooden shield partly visible. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-knight.png",
+      "masterSha256": "4360507f84bf4c6d125d155f326c48833454bc15eeaa4b3f87c80fd113024376",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.peasant.v2",
+      "generationId": "exec-2ca1fd3d-699a-42a0-88a0-c40e61018dac",
+      "prompt": "Use-case: stylized-concept. ONE production generic NPC portrait for the Dungeon Master AI fantasy tabletop, archetype peasant. An adult human woman with pale freckled skin, copper-red hair under a plain linen headscarf and an open weathered face. Worn grey-brown wool dress, cream linen collar and simple dark apron, practical natural cloth. Square head-and-upper-torso composition, entire head inside generous safe margins, clear expressive face readable at96px and full512px view. Believable oil and gouache painted fantasy realism with subtle brushwork, warm practical lantern light from upper left, rich tactile worn cloth/leather/metal, convincing dimensional face, quiet dark stone backdrop. Match the established grounded warm hero portrait family. Cosmetic public archetype only, no named identity, hidden biography, secrets, quest objects or affiliation. Single person only. No decorative frame, writing, text, UI, stats, watermarks, logos, glowing spells/runes, particles, neon, anime, plastic3D, extra limbs or people.",
+      "master": ".artifacts/visual-production/masters/npc-peasant.png",
+      "masterSha256": "971fecc7966ae30d976a3600c3336a77840913c10cd2a464cd20f629072f7bbf",
+      "consumers": [
+        "NpcMemoryGrid",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; production card/full view RU/EN960/1280/1920; legacy/missing/same-name/cold-restore QA"
+    },
+    {
+      "assetId": "npc.bell.mila.v2",
+      "generationId": "exec-be90882a-36e5-46fe-8220-a48db89209d9",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Mila, an adult townswoman in Veresk. A human woman in her thirties, light olive skin, practical dark chestnut braid, attentive determined expression; weathered muted green wool shawl, plain cream linen blouse, simple brown belt. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-mila.png",
+      "masterSha256": "11a8b75b654731036073aeeefdcfb9ef4a97cbdc3853b16c6611be2e2f4ea477",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    },
+    {
+      "assetId": "npc.bell.agata.v2",
+      "generationId": "exec-1cd26bda-3e6a-41fa-8988-82a0ee4e42e2",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Agata, the inn's proprietor. A mature human woman in her fifties, medium warm-brown skin, dark hair pinned back with a few grey strands, perceptive welcoming face; russet wool waistcoat over cream linen, plain brown apron. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-agata.png",
+      "masterSha256": "33deec240d8a270965a5d4e4e4e604ac53cdbad444eaa580eed9c4987a5bc324",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    },
+    {
+      "assetId": "npc.bell.leon.v2",
+      "generationId": "exec-77548ad3-477b-4ed0-b934-981756410e28",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Leon, the caretaker at the town shrine. An older human man, pale weathered skin, closely cropped silver hair and a short neat beard, gentle thoughtful expression; muted slate-blue wool robe, plain cream collar, unadorned small bronze medallion. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-leon.png",
+      "masterSha256": "932335b3a1550388dc18f1656560d3a89ceb200b2b46d2184e9e2f74dd21f1b9",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    },
+    {
+      "assetId": "npc.bell.varden.v2",
+      "generationId": "exec-ea99f7ea-8d81-4451-ad90-cf3ab505eba3",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Varden, the courteous warehouse proprietor. An adult human man in his forties, olive skin, neatly combed short black hair, trimmed dark beard, calm polite expression; restrained deep burgundy wool coat over dark linen, simple brass clasp, plain leather belt. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-varden.png",
+      "masterSha256": "bcc18c33c91a46a3c08efa19ab9aebdcd77d83a3fb84aff39e7572afabf26e66",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    },
+    {
+      "assetId": "npc.bell.tikhon.v2",
+      "generationId": "exec-9fb35ad0-c388-4234-b98e-ecfc34f06218",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Tikhon, the ferryman. An older human man in his sixties, tanned weathered face, grey wavy hair, short grey beard and alert kind eyes; worn dark ochre wool coat, cream linen collar, plain belt. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-tikhon.png",
+      "masterSha256": "0c7906265e9fa6f2c15ad2ca904dc0c2b538778f61300d8dfe8034f6d5282fbf",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    },
+    {
+      "assetId": "npc.bell.savely.v2",
+      "generationId": "exec-bdf50104-ebb9-4a76-bb7a-f5d973009dc9",
+      "prompt": "Use-case: stylized-concept. ONE production portrait for the user-authorized Bell adventure in Dungeon Master AI. Savely, a human ferryman portrait. An adult man about forty, warm tan skin, curly dark-brown hair and a short dark beard, resolute gentle face; faded muted blue wool coat, plain cream shirt, simple belt. Appearance choices are cosmetic artwork, not new story canon. Square whole head-and-torso composition with safe margins; face readable at96px and full768px display. Believable oil/gouache painted fantasy realism, subtle brushwork, practical warm upper-left lantern light, tactile worn wool/linen/leather, quiet non-specific shadowed stone backdrop, consistent with approved hero/NPC portrait family. Single person only. No other characters, quest-specific items, bell parts, documents, money, hidden affiliations, clues, historical dates, grave/ghost/death effects, active spells, halos, symbols, text, logos, stats, UI or decorative frames. Do not illustrate any secret, intention or undiscovered relationship. Grounded neutral public portrait.",
+      "master": ".artifacts/visual-production/masters/npc-bell-savely.png",
+      "masterSha256": "7ced678d94b961702bf3367eb78dbff313210d194a23da56db5ed3119d27f914",
+      "consumers": [
+        "server-permitted authored NPC gallery",
+        "full portrait dialog"
+      ],
+      "selection": "accepted: full-size review; public server reveal/privacy/restore; all6 production dialogs RU/EN+cold; host/guest public projection",
+      "publicAppearance": "Cosmetic portrait; public role only, no new story fact, secret, intention or relationship"
+    }
+  ],
+  "export": {
+    "tool": "bundled Sharp",
+    "quality": 86,
+    "size": 768,
+    "contentEdits": "none; codec/size only"
+  }
+}

@@ -146,6 +146,11 @@ fn all_tools_core() -> Vec<Tool> {
                             "properties": {
                                 "role": {"type":"string","enum":["npc"]},
                                 "name": { "type": "string", "description": "Combatant name (required)." },
+                                "appearance": {
+                                    "type": "string",
+                                    "enum": ["water_echo","goblin","skeleton","zombie","wolf","bandit","orc","giant_rat"],
+                                    "description": "Optional cosmetic miniature for a publicly visible NPC. Choose only an established visible appearance; omit for unknown actors. This supplies no monster statistics or rules."
+                                },
                                 "hp": { "type": "integer", "description": "Optional; defaults to a sane value." },
                                 "max_hp": { "type": "integer", "description": "Optional; defaults to hp." },
                                 "ac": { "type": "integer", "description": "Optional; defaults to 10." },

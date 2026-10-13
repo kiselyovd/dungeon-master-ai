@@ -303,6 +303,7 @@ async fn cursor_survives_real_database_and_vault_reopening_and_failed_commits_pu
                 authored: None,
                 adventure: None,
                 campaign_scope: None,
+                appearances: Default::default(),
                 schema_version: app_application::models::combat::COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,
                 revision: 0,

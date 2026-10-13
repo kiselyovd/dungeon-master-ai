@@ -1,3 +1,4 @@
+import { DecorativeImage } from '../ui/DecorativeImage';
 // Pixi's static shader/uniform paths support the desktop CSP without eval.
 import 'pixi.js/unsafe-eval';
 import { Application, extend } from '@pixi/react';
@@ -13,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BattleMap } from '../api/contracts/battleMap';
 import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
-import { KEY_ART } from '../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../assets/livingTabletop';
 import type { CombatToken } from '../features/combat/model/types';
 import { useMediaImage } from '../features/media/useMediaImage';
 import { useStore } from '../state/useStore';
@@ -523,7 +524,11 @@ export function VttCanvas({
 
       {isEmpty && (
         <div className="dm-vtt-empty" aria-live="polite" data-art-direction="living-tabletop">
-          <img src={KEY_ART.vttEmpty} alt="" className="dm-vtt-empty-art" />
+          <DecorativeImage
+            src={KEY_ART.vttEmpty}
+            assetId={KEY_ART_IDS.vttEmpty}
+            className="dm-vtt-empty-art"
+          />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>
         </div>

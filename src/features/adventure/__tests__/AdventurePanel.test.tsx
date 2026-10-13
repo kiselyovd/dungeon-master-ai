@@ -4,6 +4,43 @@ import { expect, it, vi } from 'vitest';
 import i18n from '../../../i18n';
 import { AdventurePanel } from '../AdventurePanel';
 
+it('renders only server-permitted portrait identities and keeps the parent dialog open', async () => {
+  await i18n.changeLanguage('en');
+  const close = vi.fn();
+  render(
+    <AdventurePanel
+      open
+      onClose={close}
+      pending={false}
+      error={false}
+      retryRequired={false}
+      onAction={vi.fn()}
+      onRetry={vi.fn()}
+      projection={{
+        state: {
+          package_id: 'bell-beneath-water',
+          location: 'belfry',
+          facts: ['roster_available'],
+          ending: null,
+          closed: false,
+          history: [],
+        },
+        available_actions: [],
+        public_npcs: [{ id: 'mila', portrait_asset_id: 'npc.bell.mila.v2' }],
+      }}
+    />,
+  );
+  expect(screen.queryByRole('button', { name: 'Open portrait of Savely' })).not.toBeInTheDocument();
+  const button = screen.getByRole('button', { name: 'Open portrait of Mila' });
+  await userEvent.click(button);
+  expect(screen.getByRole('dialog', { name: 'Mila' })).toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog', { name: 'Mila' })).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'The Bell Beneath the Water' })).toBeInTheDocument();
+  expect(close).not.toHaveBeenCalled();
+  expect(button).toHaveFocus();
+});
+
 it('renders only discovered facts and the server supplied actions', async () => {
   await i18n.changeLanguage('en');
   const action = vi.fn();

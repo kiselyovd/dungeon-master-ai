@@ -29,7 +29,12 @@ export function ContextSurface({
       aria-modal="true"
       aria-label={label}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') onEscape();
+        if (
+          event.key === 'Escape' &&
+          event.target instanceof Element &&
+          event.target.closest('[role="dialog"]') === event.currentTarget
+        )
+          onEscape();
       }}
     >
       {children}

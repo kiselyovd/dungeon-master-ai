@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks1-5 and7-24 verified. Checkpoint6 local validation complete; Task25 world art is next. Task6 real-model recovery after committed effects remains open.
+Status: in progress; Tasks1-5 and7-26 verified. Checkpoint6 committed376c8d7. Checkpoint7 Tasks25-26 verified and uncommitted; Task27 opponents is next. Task6 real-model after-effects recovery remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -497,7 +497,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
 ### World art production
 
-- [ ] **Task 25: Upgrade eight generic NPC portraits with stable assignments** (depends on 8, 9, 20)
+- [x] **Task 25: Upgrade eight generic NPC portraits with stable assignments** (depends on 8, 9, 20)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/npcs/archetypes/*; src/components/NpcMemoryGrid.tsx; visual catalog and NPC presentation mapping.
 
@@ -507,7 +507,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO stable migration/asset IDs; DEBUG fallback classification; WARN unavailable portrait. Never log private NPC memories.
 
-- [ ] **Task 26: Produce all six Bell NPC portraits without revealing hidden canon** (depends on 8, 9, 20, 25)
+- [x] **Task 26: Produce all six Bell NPC portraits without revealing hidden canon** (depends on 8, 9, 20, 25)
 
   **Files / ownership:** Proposed canonical NPC art for mila, agata, leon, varden, tikhon and savely; visual catalog; authored public NPC presentation mapping.
 
@@ -517,7 +517,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO public NPC/asset IDs; DEBUG consumer visibility decision; WARN missing art. No hidden canon or generated biography in logs.
 
-- [ ] **Task 27: Produce eight opponent miniature archetypes and integrate full silhouettes** (depends on 8, 9, 18)
+- [x] **Task 27: Produce eight opponent miniature archetypes and integrate full silhouettes** (depends on 8, 9, 18)
 
   **Files / ownership:** Proposed src/assets/living-tabletop/v2/opponents/*; token presentation catalog; CombatToken/InitiativeTracker and public encounter adapters.
 
@@ -527,7 +527,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** INFO archetype/asset binding; DEBUG alpha/bounds/bytes; WARN fallback/reject. Do not log hidden encounter rosters.
 
-- [ ] **Task 28: Upgrade three key images and four save illustrations** (depends on 7, 8, 9, 11, 17, 20)
+- [x] **Task 28: Upgrade three key images and four save illustrations** (depends on 7, 8, 9, 11, 17, 20)
 
   **Files / ownership:** Existing KEY_ART/SAVE_ART consumers; proposed v2 splash/onboarding/exploration and save artwork; campaign library and saves components.
 
@@ -771,3 +771,17 @@ Next authorized workflow is `$aif-implement` when requested. Start at Task 1 usi
 - 2026-10-12 Task 4: proactive solo read plus original-input hydration, shared recovery notice, exact-ID continuation and unsent-draft retention are wired into the production root. Native-room controller reads public progress for its durable DM request; app composition provides the same notice through a ReactNode slot without sibling feature imports. Delayed scopes/mixed snapshots/unavailable reads are guarded; configured VITE_RECOVERY_TRACE=1 emits only safe scope/phase IDs. Actual-root regression passes, focused UI/controller tests pass, production build and architecture pass; production-browser proactive/room coverage 10/10 passes. Actual Tauri/model restart proof remains Task 6. One inherited room-failure test label now expects Continue answer; preserve its pre-existing uncommitted test body when staging checkpoint 2.
 
 - 2026-10-13 checkpoint6: four identities for each fighter/rogue/wizard/cleric (32 paired derivatives,1909008 frontend bytes). Stable legacy IDs/order and generic fallback pool preserved. Full-size/alpha and production table30/48/64px light/dark QA, all-class gallery/cold selection, same-name host/guest realSQLite public refs, and canonical cleric life-state rendering pass. Native QA discovered/fixed missing settings-wizard Cancel and late older preference writes; preferences serialize/coalesce independently of secrets, preserving explicit draft disk barriers. Final consolidated gates PASS1005Rust/200frontendfiles1246tests; final production browser51PASS; actual fresh Windows Tauri decoded16portraits, persisted cleric04 and restored it after normal close/cold launch with unchanged campaign/hero IDs,revision2,HP12,AC18 and sheet hash,exceptions0. No model/media inference, physical LAN, CI or publication claim. Evidence: checkpoint-6-persistence-full-gates.log, checkpoint-6-persistence-browser.log and hero-native/proof-{warm,cold}.json.
+
+- 2026-10-13 Task25: eight generic768px NPC portraits773516bytes integrated with stable device-scoped IDs. Existing assignments remain unchanged; absent-role fallback keeps the original8-way order, RU/EN initial role selection and missing-assigned-image state are explicit. Shared portrait dialog preserves full face/crop, Escape/focus and parent context. Production restore regression proved same-name NPCs collapsed under name keys; fixed to canonical record IDs. Focused28tests and full frontend201files1267testsPASS; architecture/assets/buildPASS; six production-root browser RU/EN x960/1280/1920 scenarios select all8, preserve legacy identity and cold restore with changed role. Source/provenance retained. Checkpoint7 native/full gates remain grouped with Tasks26-28.
+
+- 2026-10-13 Task26: six authored Bell768px portraits525690bytes produced from public role information with cosmetic appearance only, no secret/quest props. Application-owned public_npcs projection uses confirmed visits/find/roster/echo facts, exposes only id+portrait_asset_id and survives domain serialization/actual SQLite snapshot restore. Renderer consumes the permitted list without inferring future identities; shared full-portrait dialog reused. Three Rust projection/privacy tests, real SQLite restore and authenticated host/guest shared initial projection pass; focused UI and two production-root RU/EN revealed/hidden/all6/cold consumers pass, generic6browser scenarios remaingreen. Architecture/typecheck/assets/build pass. Fresh native/full checkpoint7 remains grouped with Tasks27-28.
+
+- 2026-10-13 Task27 implementation and renderer QA: eight explicit cosmetic opponent IDs,648452bytes, application-owned public UUID bindings, typed start_combat appearance allowlist and canonical WaterEcho assignment. Actual SQLite sorted-ID persistence tests7PASS; application old-projection/tool-boundary tests2PASS. Frontend47PASS, production build/static gatesPASS, all workspace Rust test targets compile. RU/EN real-root production browser2PASS: board/initiative selection, adjacent overlapping art, conditions/death, missing-ID marker, two-cell10ft ruler, low zoom and cold reload. Reviewed actual-frame light/dark30/48/64 screenshots. Stationary selection/pan capture defect reproduced RED, corrected GREEN. Actual authenticated canonical host/guest acceptance still running; Task27 box remains open until it passes. Native/full checkpoint7 gates remain grouped afterTask28.
+
+- 2026-10-13 Task27 final authenticated projection gatePASS: actualcanonical Quay->Archive->LocateTikhon->StartDefense in each of16 real-room setups, both authenticated subjects receive the same2 WaterEcho UUID bindings, each boundID exists in the public combat snapshot. The initial public NPC list remains unchanged before discovery. Firstdirect authored creation was correctly rejected by authored_encounter_mismatch; no authority validator was weakened. Newselectedmastercount71, catalogue120entries14881631bytes. Task28 started with retainedsplashcandidate; native/fullcheckpoint7 evidence stillpending25-28grouped.
+
+- 2026-10-13 Task28: seven selected key/save paintings1293284bytes integrated in KEY_ART/SAVE_ART and real startup/onboarding/table/library/save consumers. Existing IDs remain; generic artwork adds no narrative facts. Optional DecorativeImage failures retain usable labels/actions and recover for new sources; Loading status localized. Save fullpreview clipping discovered visually and fixed to contained192px-max frame; long campaign heading uses existing smaller token with an owned class, preserving inheritedCSS. Focused26PASS, production build/fastgatesPASS, final17RU/EN production-root browser cases960/1280/1920PASS inclall7 resources, longactualmetadata, startuphealth, missingart, reducedmotion and library. Selectedmastercount78; catalogue127entries16174915bytes. Checkpoint7 integratedfullgates are running; actualfreshTauri and ownedlocalcommit remainpending.
+
+- 2026-10-13 Checkpoint7 integrated gatesPASS:1011Rust tests,204files1282frontend tests, static/clippy/assets/typechecks. Initial smoke-log test was filtered by inherited RUST_LOG=warn; exact reproduction with info and full corrected gates pass, no production logging change. Fresh backend built; TauriQA build and real warm/cold acceptance pending.
+
+- 2026-10-13 Checkpoint7 nativePASS: fresh debugTauri exe/backend/frontend hashes retained in checkpoint-7-native/build-provenance.json; real first entry/Bell creation,8 offline-seeded public generic NPC fullviews and device assignment persistence,6 namedBell faces reached through canonical UI actions,2 authoredWaterEcho miniatures,4 current-state snapshots via realHTTP and UIcategory views. Normalclose/coldrestart afterofflinegeneric-role changes retainedall8faces,6publicidentities,2bindings and canonicalrev15/HP12/AC18/characterhash. UncaughtJSexceptions0, localLLM/image statesoff. EmptyDEBUGimage-sidecar was never invoked; no GPU/live-model/physicalLAN/releaseclaim. QAapp closed normally; no owned processes remain. Localownedcheckpointcommit pending.

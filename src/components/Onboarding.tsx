@@ -1,9 +1,10 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KEY_ART } from '../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../assets/livingTabletop';
 import type { OnboardingEntry } from '../state/onboarding';
 import { useStore } from '../state/useStore';
 import { Button } from '../ui/Button';
+import { DecorativeImage } from '../ui/DecorativeImage';
 import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 
@@ -41,7 +42,11 @@ export function Onboarding({ onComplete, onJoinRoom, hideLanguage = false }: Onb
           )}
         </div>
         <div className="dm-onboarding-hero" data-art-direction="living-tabletop">
-          <img src={KEY_ART.onboarding} alt="" data-testid="onboarding-hero-art" />
+          <DecorativeImage
+            src={KEY_ART.onboarding}
+            assetId={KEY_ART_IDS.onboarding}
+            data-testid="onboarding-hero-art"
+          />
         </div>
         <h1 id={titleId} className="dm-onboarding-title">
           {t('entry_title')}

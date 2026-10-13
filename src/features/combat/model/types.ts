@@ -56,6 +56,7 @@ export interface AoeTemplateEntry {
 }
 
 export interface CombatToken {
+  opponentAppearance?: string;
   isDead?: boolean;
   displayNameKey?: string;
   id: string;
@@ -79,6 +80,7 @@ export interface CombatToken {
 }
 
 export interface CombatProjectionDto {
+  appearances?: Record<string, string>;
   authored?: {
     kind: 'bell_archive_defense';
     map: BattleMap;

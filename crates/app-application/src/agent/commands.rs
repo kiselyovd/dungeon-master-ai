@@ -40,6 +40,8 @@ pub struct ApplyHealingCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct InitiativeEntryCommand {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<crate::models::combat::OpponentArchetype>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<CombatParticipantRole>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

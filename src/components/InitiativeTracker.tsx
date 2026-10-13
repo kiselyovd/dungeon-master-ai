@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { isDeadToken } from '../features/combat/model/selectors';
 import type { CombatToken } from '../state/combat';
 import { Icons } from '../ui/Icons';
+import { opponentAppearance } from './actorVisuals';
 
 interface Props {
   selectedTokenId?: string | null | undefined;
@@ -76,6 +77,7 @@ export function InitiativeTracker({
             const isDead = isDeadToken(tok);
             const hpPct = tok.maxHp > 0 ? (tok.hp / tok.maxHp) * 100 : 0;
             const hpClass = hpPct < 25 ? 'crit' : hpPct < 50 ? 'low' : '';
+            const opponent = !tok.characterId ? opponentAppearance(tok.opponentAppearance) : null;
             return (
               <li key={tok.id} className="dm-init-item">
                 <button
@@ -94,6 +96,21 @@ export function InitiativeTracker({
                   })}
                 >
                   <div className="dm-init-init">{index + 1}</div>
+                  {opponent && (
+                    <img
+                      src={opponent.uri}
+                      alt=""
+                      draggable={false}
+                      data-asset-id={opponent.id}
+                      style={{
+                        width: 32,
+                        height: 40,
+                        objectFit: 'contain',
+                        pointerEvents: 'none',
+                        filter: isDead ? 'grayscale(100%)' : undefined,
+                      }}
+                    />
+                  )}
                   <div className="dm-init-body">
                     <div className={`dm-init-name${isDead ? ' is-dead' : ''}`}>
                       {tok.displayNameKey

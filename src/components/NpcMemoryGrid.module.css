@@ -148,6 +148,11 @@
 }
 
 .cardBanner {
+  border: none;
+  padding: 0;
+  width: 100%;
+  color: var(--color-fg-muted);
+  cursor: pointer;
   height: 140px;
   background: linear-gradient(135deg, var(--color-bg-deep), var(--color-bg-overlay));
   display: flex;
@@ -155,6 +160,29 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+}
+
+.cardBanner:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+.cardBanner:disabled {
+  cursor: default;
+}
+.unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.fullPortrait {
+  display: block;
+  width: 100%;
+  max-width: 768px;
+  max-height: 65vh;
+  object-fit: contain;
+  margin: 0 auto;
 }
 
 .cardBanner::after {
@@ -168,7 +196,7 @@
 .cardPortrait {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   user-select: none;
   -webkit-user-drag: none;

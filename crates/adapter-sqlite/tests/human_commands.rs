@@ -1028,6 +1028,7 @@ async fn start_combat(f: &Fixture) -> CombatProjection {
         authored: None,
         adventure: None,
         campaign_scope: None,
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id: Uuid::new_v4(),
         revision: 0,

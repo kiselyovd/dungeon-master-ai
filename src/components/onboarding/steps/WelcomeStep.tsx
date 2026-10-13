@@ -1,10 +1,11 @@
+import { DecorativeImage } from '../../../ui/DecorativeImage';
 /**
  * WelcomeStep - step 1 of 6 in the onboarding flow. Renders the welcome
  * title, flavour description, and the primary Next button (no Back on step 1).
  */
 
 import { useTranslation } from 'react-i18next';
-import { KEY_ART } from '../../../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../../../assets/livingTabletop';
 import { Icons } from '../../../ui/Icons';
 
 export interface WelcomeStepProps {
@@ -18,7 +19,11 @@ export function WelcomeStep({ titleId, onNext }: WelcomeStepProps) {
   return (
     <>
       <div className="dm-onboarding-hero" data-art-direction="living-tabletop">
-        <img src={KEY_ART.onboarding} alt="" data-testid="onboarding-hero-art" />
+        <DecorativeImage
+          src={KEY_ART.onboarding}
+          assetId={KEY_ART_IDS.onboarding}
+          data-testid="onboarding-hero-art"
+        />
         <span className="dm-ambient-light" aria-hidden="true" />
       </div>
       <div className="dm-onboarding-glyph-row">

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { AdventureAction, AdventureProjection } from '../../api/contracts/adventure';
+import { NpcPortraitButton } from '../../components/NpcPortraitButton';
 import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Modal';
 import styles from './AdventurePanel.module.css';
@@ -77,6 +78,19 @@ export function AdventureContent({
         <h2>{t(`locations.${state.location}`)}</h2>
         <p>{t(`scenes.${state.location}`)}</p>
       </section>
+      {(projection.public_npcs?.length ?? 0) > 0 && (
+        <section>
+          <h3>{t('npcs_title')}</h3>
+          <div className={styles.portraitGrid}>
+            {projection.public_npcs?.map((npc) => (
+              <figure key={npc.id} className={styles.portraitTile}>
+                <NpcPortraitButton assetId={npc.portrait_asset_id} name={t(`npcs.${npc.id}`)} />
+                <figcaption>{t(`npcs.${npc.id}`)}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
       {state.ending && <p role="status">{t(`ending.${state.ending}`)}</p>}
       {state.defense && <p role="status">{t(`defense.${state.defense}`)}</p>}
       {pending && <p role="status">{t('pending')}</p>}

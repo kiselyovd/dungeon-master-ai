@@ -1614,6 +1614,8 @@ fn combat_fixture() -> (Arc<FakeCombatRepository>, CombatantId, CombatantId, Uui
             adventure: None,
 
             campaign_scope: None,
+
+            appearances: Default::default(),
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,
             revision: 4,

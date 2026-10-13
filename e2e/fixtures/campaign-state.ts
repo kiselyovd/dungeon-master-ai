@@ -87,6 +87,12 @@ export async function mockCampaignState(
         characterId: state.character_id,
       };
     }
+    if (Array.isArray(seed.public_npcs)) state.projection.npcs = seed.public_npcs;
+    if (seed.public_combat !== undefined)
+      state.projection.combat = seed.public_combat as CampaignStateResponse['projection']['combat'];
+    if (seed.public_adventure !== undefined)
+      state.projection.adventure =
+        seed.public_adventure as CampaignStateResponse['projection']['adventure'];
     states.set(state.campaign.id, state);
   }
 

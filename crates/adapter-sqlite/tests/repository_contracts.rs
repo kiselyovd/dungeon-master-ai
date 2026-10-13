@@ -171,6 +171,8 @@ fn combat_projection(encounter_id: Uuid, combatant_id: CombatantId) -> CombatPro
         adventure: None,
 
         campaign_scope: None,
+
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,

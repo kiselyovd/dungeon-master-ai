@@ -50,6 +50,7 @@ async fn fixture() -> (Arc<SqliteStore>, CommitCampaignCharacter, Uuid) {
         authored: None,
         adventure: None,
         campaign_scope: None,
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id: id,
         revision: 0,

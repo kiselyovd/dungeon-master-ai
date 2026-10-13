@@ -37,6 +37,8 @@ async fn fixture_with_pool(
                 adventure: None,
 
                 campaign_scope: None,
+
+                appearances: Default::default(),
                 schema_version: COMBAT_PROJECTION_VERSION,
                 encounter_id: encounter,
                 revision: 0,

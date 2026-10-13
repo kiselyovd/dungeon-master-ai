@@ -1,5 +1,14 @@
 {
   "goals_title": "Goals in this scene",
+  "npcs_title": "People you have met",
+  "npcs": {
+    "mila": "Mila",
+    "agata": "Agata",
+    "leon": "Leon",
+    "varden": "Varden",
+    "tikhon": "Tikhon",
+    "savely": "Savely"
+  },
   "title": "The Bell Beneath the Water",
   "premise": "A bell rings from the flooded belfry in Veresk. Ferryman Tikhon has not returned. His daughter Mila asks you to bring him home and discover what troubles the river.",
   "selection_hint": "An authored level-one adventure. Investigation, negotiation and a safe rescue route lead to distinct endings. The land ledger is an optional choice.",

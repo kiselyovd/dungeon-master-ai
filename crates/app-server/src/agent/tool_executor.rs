@@ -346,6 +346,7 @@ async fn execute_start_combat(
 
     // Build domain entries and a parallel id->name map in one pass.
     let mut id_to_name: HashMap<uuid::Uuid, String> = HashMap::new();
+    let mut appearances = std::collections::BTreeMap::new();
     let mut domain_entries: Vec<InitiativeEntry> = Vec::with_capacity(entries_raw.len());
 
     for entry in entries_raw {
@@ -364,6 +365,14 @@ async fn execute_start_combat(
         };
 
         let id = CombatantId(uuid::Uuid::new_v4());
+        if let Some(value) = entry.get("appearance") {
+            let Ok(archetype) = serde_json::from_value::<
+                app_application::models::combat::OpponentArchetype,
+            >(value.clone()) else {
+                return (json!({"error":"combat_appearance_invalid"}), true);
+            };
+            appearances.insert(id.0, archetype);
+        }
         id_to_name.insert(id.0, name);
         domain_entries.push(InitiativeEntry {
             id,
@@ -399,6 +408,7 @@ async fn execute_start_combat(
         authored: None,
         adventure: None,
         campaign_scope: None,
+        appearances,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,
@@ -415,6 +425,9 @@ async fn execute_start_combat(
         Ok(projection) => projection,
         Err(error) => return (json!({"error":error.to_string()}), true),
     };
+    for archetype in projection.appearances.values() {
+        tracing::info!(archetype = ?archetype, "public combat appearance bound");
+    }
     let ordered: Vec<Value> = projection
         .snapshot
         .initiative
@@ -1535,6 +1548,64 @@ mod query_rules_tests {
 mod start_combat_tests {
     use super::*;
 
+    #[tokio::test]
+    async fn explicit_appearances_follow_sorted_ids_and_persist_without_inferred_rules() {
+        let pool = make_pool().await;
+        let store = SqliteStore::new(pool);
+        let session = Uuid::new_v4();
+        let names = [
+            "water_echo",
+            "goblin",
+            "skeleton",
+            "zombie",
+            "wolf",
+            "bandit",
+            "orc",
+            "giant_rat",
+        ];
+        let entries: Vec<_> = names.iter().enumerate().map(|(index, appearance)| {
+            json!({"role":"npc", "name":"Unrelated identical label", "roll":index, "appearance":appearance})
+        }).collect();
+        let (value, failed) =
+            execute_start_combat(&json!({"initiative_entries":entries}), &store, session).await;
+        assert!(!failed, "{value}");
+        let projection: CombatProjection =
+            serde_json::from_value(value["projection"].clone()).unwrap();
+        assert_eq!(projection.appearances.len(), names.len());
+        for (index, actor) in projection.snapshot.combatants.iter().enumerate() {
+            assert_eq!(
+                serde_json::to_value(projection.appearances[&actor.id.0]).unwrap(),
+                names[7 - index]
+            );
+            assert_eq!((actor.max_hp, actor.ac), (10, 10));
+        }
+        let restored = store.get(projection.encounter_id).await.unwrap().unwrap();
+        assert_eq!(restored.appearances, projection.appearances);
+    }
+
+    #[tokio::test]
+    async fn unknown_appearance_rejects_before_commit_and_names_do_not_assign_art() {
+        let pool = make_pool().await;
+        let store = SqliteStore::new(pool.clone());
+        let session = Uuid::new_v4();
+        let (error, failed) = execute_start_combat(&json!({"initiative_entries":[{"name":"Goblin","appearance":"https://remote.invalid/art.png"}]}), &store, session).await;
+        assert!(failed);
+        assert_eq!(error["error"], "combat_appearance_invalid");
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM combat_encounters")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
+        let (value, failed) = execute_start_combat(
+            &json!({"initiative_entries":[{"name":"Goblin"}]}),
+            &store,
+            session,
+        )
+        .await;
+        assert!(!failed);
+        assert!(value["projection"].get("appearances").is_none());
+    }
+
     async fn make_pool() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:")
             .await
@@ -1703,6 +1774,7 @@ mod cast_spell_tests {
                     authored: None,
                     adventure: None,
                     campaign_scope: None,
+                    appearances: Default::default(),
                     schema_version: COMBAT_PROJECTION_VERSION,
                     encounter_id,
                     revision: 0,

@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "opponent.water_echo.v2",
+      "generationId": "exec-92eda6f3-f04b-48ee-8715-fc9264970b88",
+      "prompt": "Use-case: precise-object-edit. Edit this Water Echo elemental miniature. Preserve its same faceless blue-grey water body, two arms and two distinct legs, neutral stance, painted realistic water volume. Change framing: place the COMPLETE figure smaller within a vertical transparent canvas, with generous empty transparent safety margins on ALL sides, especially above the highest head curl and below both feet. Nothing may touch an image edge; entire head/curls/hands/feet intact. Remove any vivid cyan/blue glow fringe or isolated particles outside the water silhouette. Keep muted natural water colours, warm practical lighting, fixed three-quarter overhead orthographic view, strong small silhouette. Truly transparent RGBA background, no tinted haze/backdrop. No floor, base, ring, shadow outside body, new props, text, UI, stats, face/identity or cropping. Only composition/safety-margin and edge cleanup; cosmetic art.",
+      "master": ".artifacts/visual-production/masters/npc-water-echo-refined.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "bell_defense"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.8235636393229167,
+        "spriteBounds": {
+          "left": 157,
+          "top": 116,
+          "right": 494,
+          "bottom": 657
+        }
+      },
+      "masterSha256": "cf70bd13474871434a7d8fbacdc8ef213e488471fb1d3ffe3b903f67d4d95e4a"
+    },
+    {
+      "assetId": "opponent.goblin.v2",
+      "generationId": "exec-a5a0b584-6e71-4aa9-9792-ba066021eb48",
+      "prompt": "Use-case: stylized-concept. One complete GOBLIN opponent miniature for a premium fantasy virtual tabletop. Small lean olive-green goblin with large pointed ears, worn brown leather vest and cloth trousers, one short sword held safely out from its body, plain small wood shield, two intact arms/hands, two legs/feet. Readable compact neutral ready stance, entire anatomy and equipment inside safe margins. Painted realistic fantasy miniature with tactile leather and metal, warm restrained light, muted green/brown palette, no cartoon or glowing edge. Fixed three-quarter overhead orthographic camera looking down about 30 degrees, front facing slightly to viewer left, same camera as human tabletop miniatures. Vertical composition, whole figure occupies about 75 percent of height, generous truly transparent RGBA margins all around, feet form the bottom of the silhouette. No ground, floor, pedestal, ring, scenery, cast shadow outside body, particles, haze, text, symbols, UI, numbers, stats or cropped extremities. Cosmetic reusable art only.",
+      "master": ".artifacts/visual-production/masters/opponent-goblin.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.7484130859375,
+        "spriteBounds": {
+          "left": 36,
+          "top": 108,
+          "right": 469,
+          "bottom": 624
+        }
+      },
+      "masterSha256": "4f8ab9894bcc9fae01c2d1c8823b10acabbbd81e44a60cedb513e62079314a3b"
+    },
+    {
+      "assetId": "opponent.skeleton.v2",
+      "generationId": "exec-7f3c1fc8-d231-49f2-8a9a-d8ccc2fb260b",
+      "prompt": "Use-case: stylized-concept. ONE whole SKELETON opponent miniature, production cosmetic asset for a painted realistic fantasy tabletop. Weathered ivory articulated human skeleton, intact skull and ribs and two arms/hands/two legs/feet, scraps of dull rusted chainmail and dark leather belt, simple single short sword angled beside body. Non-gory, neutral compact ready stance with separated limbs, calm natural warm light, tactile hand-painted bones/rust. Fixed three-quarter overhead orthographic camera looking down 30 degrees; slightly turned left; complete silhouette within vertical canvas and generous empty margins, feet lowest point. High small-size readability, no glow. REAL transparent RGBA background: absolutely no coloured haze, gradient, halo, backdrop, background pixels or scenery. No floor, base, ground, ring, external shadow, particles, text, symbols, numbers, UI or cropped extremities. Entire figure around75 percent canvas height.",
+      "master": ".artifacts/visual-production/masters/opponent-skeleton.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.7925324616608797,
+        "spriteBounds": {
+          "left": 110,
+          "top": 43,
+          "right": 495,
+          "bottom": 721
+        }
+      },
+      "masterSha256": "26a5397eebcc2021c95c91e74a823b54de916d5ead040a7ed88c589df5a58743"
+    },
+    {
+      "assetId": "opponent.zombie.v2",
+      "generationId": "exec-de4da9ba-9d0f-45a5-a6e3-71f2bd6e14bf",
+      "prompt": "Use-case: stylized-concept. ONE complete ZOMBIE opponent miniature for a premium painted realistic fantasy tabletop. Non-gory undead adult human with pallid grey-green intact skin, sunken tired face, faded torn brown tunic and grey trousers, worn soft boots, no exposed organs, no blood. TWO clear arms with hands, TWO legs with boots. Compact shambling ready stance, hands beside torso, full figure and generous safety margins, entire head/hands/feet intact. Tactile fabric and painted skin, warm practical light, muted palette, no glow. Fixed three-quarter overhead orthographic camera looking down about30 degrees, slightly turned left; feet lowest silhouette point, figure75percent vertical canvas. Truly transparent RGBA cutout, NO haze, gradient, halo, scenery, ground, platform, floor, ring, cast shadow outside body, particles, text, numbers, symbols or UI. Cosmetic only, no implied statistics.",
+      "master": ".artifacts/visual-production/masters/opponent-zombie.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.7196248372395834,
+        "spriteBounds": {
+          "left": 136,
+          "top": 12,
+          "right": 441,
+          "bottom": 752
+        }
+      },
+      "masterSha256": "4c7965be067195dc3bfc36489cd69f733d5d402c185b0e06764ee4d0e46d34ea"
+    },
+    {
+      "assetId": "opponent.wolf.v2",
+      "generationId": "exec-c9defb7f-bac1-49c8-85a1-e4deb3e31793",
+      "prompt": "Use-case: stylized-concept. ONE complete grey WOLF opponent miniature for premium painted realistic fantasy tabletop. Natural four-legged adult grey-brown wolf, dense muted fur, alert ears, closed mouth, tail visible and entirely inside frame, FOUR distinct legs with paws intact. Compact calm alert walking stance, head toward viewer left/front; no saddle, armour, magic or human accessories. Fixed three-quarter overhead orthographic camera looking down30degrees, see the back and head clearly, tactile painted fur, warm practical light, crisp readable silhouette at small sizes. Complete animal within generous transparent margins on all sides, vertical canvas, paws bottom silhouette point. REAL transparent RGBA cutout: no haze, coloured backdrop, halo, gradient, ground, floor, pedestal, ring, outside cast shadow, particles, scenery, text, numbers, symbols or UI. Entire animal intact, no cropped tail or paws. Cosmetic art only.",
+      "master": ".artifacts/visual-production/masters/opponent-wolf.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.6375579833984375,
+        "spriteBounds": {
+          "left": 31,
+          "top": 117,
+          "right": 499,
+          "bottom": 697
+        }
+      },
+      "masterSha256": "f8c3ee5799d16c6cdf6710fde65fc4b8ba39ab2408e9e4be4a3f07fcd5be7f49"
+    },
+    {
+      "assetId": "opponent.bandit.v2",
+      "generationId": "exec-41dd3cb5-8aa7-4fae-9d1a-34b64947056e",
+      "prompt": "Use-case: stylized-concept. ONE whole BANDIT opponent miniature, reusable premium painted realistic fantasy tabletop cutout. Adult human woman with olive skin and short dark hair, plain weathered brown leather jerkin over faded grey shirt, muted burgundy neck scarf, patched trousers and practical brown boots; one ordinary short sword held beside her body. No named identity, faction, story-specific emblem or secret object. Compact guarded neutral stance, two intact arms/hands and two separate legs/feet, entire figure and equipment contained in generous transparent margins. Fixed three-quarter overhead orthographic camera looking down30degrees, body slightly left; tactile leather/fabric, restrained warm natural lighting, crisp small-size silhouette, no glow. Verticalcanvas figure75percent height, feet lowest point. Truly transparent RGBA: no haze/gradient/halo/backdrop, floor/ground/base/ring/shadow outside silhouette, scenery, particles, text, UI, symbols or numbers. No cropped extremities. Cosmetic art only.",
+      "master": ".artifacts/visual-production/masters/opponent-bandit.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.7795636212384259,
+        "spriteBounds": {
+          "left": 98,
+          "top": 29,
+          "right": 427,
+          "bottom": 739
+        }
+      },
+      "masterSha256": "4fa0c02f20462f19aa021b6a5b93e0998ac3bfcd93732960c0911324691bd853"
+    },
+    {
+      "assetId": "opponent.orc.v2",
+      "generationId": "exec-87e9d790-d8c4-498c-9f97-a56bac8a992b",
+      "prompt": "Use-case: stylized-concept. ONE complete ORC opponent miniature for premium painted realistic fantasy virtual tabletop. Broad muscular adult orc with muted grey-green skin, short coarse dark hair, small lower tusks, plain dark leather harness over rough wool tunic, dull steel shoulder guard, heavy brown trousers and boots. Holds one plain single-handed battle axe angled beside body; no faction emblem, named identity, magic or story-specific object. Compact neutral ready stance, TWO clear arms/hands and TWO distinct legs/feet; all axe/head/hands/feet safely inside generous margins. Fixed three-quarter overhead orthographic camera looking down30degrees, body slightly turned left; painted realistic tactile leather/metal, restrained warm lighting and muted olive/brown, crisp small silhouette. Vertical canvas whole figure75percent height, feet lowest point. REAL transparent RGBA cutout; no haze, backdrop, halo, gradient, glow, floor, ground, base, ring, outside shadow, particles, scenery, text, UI, symbols, numbers or clipped parts. Cosmetic reusable art only.",
+      "master": ".artifacts/visual-production/masters/opponent-orc.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.6296228479456019,
+        "spriteBounds": {
+          "left": 51,
+          "top": 31,
+          "right": 509,
+          "bottom": 735
+        }
+      },
+      "masterSha256": "476a51f8ab2703a4b928f6871ba2b106a8240532e8404f131db9a6d34e3a97bb"
+    },
+    {
+      "assetId": "opponent.giant_rat.v2",
+      "generationId": "exec-9b39b699-7101-4f96-8bc2-c37f46185cc9",
+      "prompt": "Use-case: precise-object-edit. Edit this same grey-brown giant rat miniature, preserving fur/material/palette/alert expression and overhead30degree orthographic view. Make the complete animal smaller inside the transparent canvas with generous empty transparent margins including whiskers and tail. Show all FOUR distinct legs and paws in a compact grounded natural crouch; FOUR paws must be visually separable, no missing or extra limbs. Curve the tail close beside and behind the body; its entire tip must end ABOVE the lowest paws, so PAWS are the lowest visible parts and share the ground baseline. Keep tail/head/whiskers fully inside canvas. Preserve whole body; no floor, base, external shadow, ring, particles, scenery, text or UI. Remove any coloured haze/halo/backdrop completely; real transparent RGBA background, no glow. Cosmetic composition/anatomy/ground-anchor correction only.",
+      "master": ".artifacts/visual-production/masters/opponent-giant_rat.png",
+      "consumers": [
+        "CombatToken",
+        "InitiativeTracker",
+        "start_combat.appearance"
+      ],
+      "selection": "accepted: full silhouette, real production frames on light/dark30/48/64, RU/EN board/queue selection, overlapping actors, conditions/death, low zoom, unavailable ID and cold renderer reload",
+      "measurements": {
+        "alphaZeroFraction": 0.7497304280598959,
+        "spriteBounds": {
+          "left": 35,
+          "top": 196,
+          "right": 488,
+          "bottom": 568
+        }
+      },
+      "masterSha256": "a41e77ebe888b76e37ff6d1bebdded9d460dc9785ee49686d33dc76913359ecb"
+    }
+  ]
+}

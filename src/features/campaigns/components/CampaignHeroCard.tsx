@@ -1,5 +1,6 @@
 import type { CampaignSummary } from '../../../api/contracts/campaign';
-import { SCENE_ART } from '../../../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../../../assets/livingTabletop';
+import { DecorativeImage } from '../../../ui/DecorativeImage';
 import { Icons } from '../../../ui/Icons';
 import styles from '../CampaignHome.module.css';
 import { CampaignProgress } from './CampaignProgress';
@@ -22,11 +23,11 @@ export function CampaignHeroCard({
   return (
     <article className={styles.heroCard}>
       <div className={styles.heroArt} aria-hidden="true">
-        <img src={SCENE_ART.exploration} alt="" />
+        <DecorativeImage src={KEY_ART.vttEmpty} assetId={KEY_ART_IDS.vttEmpty} />
       </div>
       <div className={styles.heroBody}>
         <div className={styles.heroCopy}>
-          <h2>{campaign.title}</h2>
+          <h2 className={styles.heroTitle}>{campaign.title}</h2>
           <p>{campaign.premise}</p>
           <CampaignProgress campaign={campaign} visitedAt={visitedAt} />
         </div>

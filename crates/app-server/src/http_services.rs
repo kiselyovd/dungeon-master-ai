@@ -831,6 +831,7 @@ fn projection_from_start(
         authored: None,
         adventure: None,
         campaign_scope: None,
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,

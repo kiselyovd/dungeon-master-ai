@@ -126,6 +126,9 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Human intentions and confirmed effects | [Human command ledger](docs/HUMAN_COMMAND_LEDGER.md) |
 | Native co-op evidence and limits | [Co-op acceptance](docs/COOP_ACCEPTANCE.md) |
 | Built-in portraits and whole miniatures | [Hero identities](docs/visual/HERO_IDENTITIES.md) |
+| Stable NPC faces and public reveal | [NPC portraits](docs/visual/NPC_PORTRAITS.md) |
+| Public opponent art and tactical anchors | [Opponent miniatures](docs/visual/OPPONENT_MINIATURES.md) |
+| Startup, library and save paintings | [Key and save art](docs/visual/KEY_SAVE_ART.md) |
 
 ## Build
 

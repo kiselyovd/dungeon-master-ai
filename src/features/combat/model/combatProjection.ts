@@ -115,6 +115,19 @@ export function parseCombatProjection(value: unknown): CombatProjectionDto | nul
     )
       return null;
   }
+  if (value.appearances !== undefined) {
+    if (!isRecord(value.appearances)) return null;
+    for (const [id, appearance] of Object.entries(value.appearances)) {
+      const actor = snapshot.combatants.find((entry) => entry.id === id);
+      if (
+        !actor ||
+        actor.character_id ||
+        typeof appearance !== 'string' ||
+        !/^[a-z][a-z_]{0,47}$/.test(appearance)
+      )
+        return null;
+    }
+  }
   return value as unknown as CombatProjectionDto;
 }
 
@@ -132,6 +145,9 @@ export function projectionTokens(projection: CombatProjectionDto): CombatToken[]
       isDead: combatant.is_dead,
       ...(combatant.display_name_key ? { displayNameKey: combatant.display_name_key } : {}),
       ...(combatant.character_id ? { characterId: combatant.character_id } : {}),
+      ...(!combatant.character_id && projection.appearances?.[combatant.id]
+        ? { opponentAppearance: projection.appearances[combatant.id] }
+        : {}),
       ...(combatant.loadout ? { loadout: combatant.loadout } : {}),
       ...(combatant.casting ? { casting: combatant.casting } : {}),
       spellSlotUsed: combatant.budget.spell_slot_used ?? false,

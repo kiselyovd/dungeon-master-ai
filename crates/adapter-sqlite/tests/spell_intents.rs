@@ -59,6 +59,7 @@ async fn spell_resources_commit_replay_and_restore_with_the_hero() {
                 authored: None,
                 adventure: None,
                 campaign_scope: None,
+                appearances: Default::default(),
                 snapshot: CombatSnapshot {
                     active: true,
                     round: 1,

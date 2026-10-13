@@ -92,6 +92,15 @@ async fn rescue_contract(rescue_action: Action) {
         })
         .await
         .unwrap();
+    let discovered_portraits = current
+        .projection
+        .adventure
+        .as_ref()
+        .unwrap()
+        .public_npcs
+        .clone();
+    assert!(discovered_portraits.iter().any(|npc| npc.id == "tikhon"));
+    assert!(!discovered_portraits.iter().any(|npc| npc.id == "savely"));
     let rescue = AdventureCommand {
         campaign_id: campaign.id,
         session_id: campaign.last_session_id,
@@ -157,6 +166,10 @@ async fn rescue_contract(rescue_action: Action) {
         .await
         .unwrap();
     let restored = store.load_current(campaign.id).await.unwrap();
+    assert_eq!(
+        restored.projection.adventure.as_ref().unwrap().public_npcs,
+        discovered_portraits
+    );
     assert_eq!(restored.projection.character["inventory"], json!([]));
     assert!(!restored
         .projection

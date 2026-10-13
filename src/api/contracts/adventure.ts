@@ -60,6 +60,14 @@ export const AdventureProjectionSchema = v.object({
   }),
   available_actions: v.array(AdventureActionSchema),
   public_goals: v.optional(v.array(AdventureActionSchema)),
+  public_npcs: v.optional(
+    v.array(
+      v.object({
+        id: v.picklist(['mila', 'agata', 'leon', 'varden', 'tikhon', 'savely']),
+        portrait_asset_id: v.pipe(v.string(), v.maxLength(160)),
+      }),
+    ),
+  ),
 });
 export type AdventureAction = v.InferOutput<typeof AdventureActionSchema>;
 export type AdventureProjection = v.InferOutput<typeof AdventureProjectionSchema>;

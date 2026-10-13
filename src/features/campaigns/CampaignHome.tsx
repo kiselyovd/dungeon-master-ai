@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { CampaignSummary } from '../../api/contracts/campaign';
+import { KEY_ART, KEY_ART_IDS } from '../../assets/livingTabletop';
 import { useStore } from '../../state/useStore';
+import { DecorativeImage } from '../../ui/DecorativeImage';
 import { Icons } from '../../ui/Icons';
 import styles from './CampaignHome.module.css';
 import { CampaignHeroCard } from './components/CampaignHeroCard';
@@ -61,7 +63,11 @@ export function CampaignHome({
           />
         ) : (
           <section className={styles.empty} aria-live="polite">
-            <Icons.BookOpen size={28} />
+            <DecorativeImage
+              src={KEY_ART.onboarding}
+              assetId={KEY_ART_IDS.onboarding}
+              className={styles.emptyArt}
+            />
             <h2>{loading ? t('loading') : t('empty_title')}</h2>
           </section>
         )}

@@ -1,5 +1,5 @@
 use crate::models::combat::{
-    AuthoredEncounter, AuthoredEncounterKind, CombatProjection, CombatSnapshot,
+    AuthoredEncounter, AuthoredEncounterKind, CombatProjection, CombatSnapshot, OpponentArchetype,
     COMBAT_PROJECTION_VERSION,
 };
 use app_domain::{
@@ -68,6 +68,10 @@ pub fn bell_defense(encounter_id: Uuid) -> CombatProjection {
         }),
         adventure: None,
         campaign_scope: None,
+        appearances: actors
+            .iter()
+            .map(|actor| (actor.id.0, OpponentArchetype::WaterEcho))
+            .collect(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,

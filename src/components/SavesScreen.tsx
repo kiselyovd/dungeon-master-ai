@@ -1,3 +1,4 @@
+import { DecorativeImage } from '../ui/DecorativeImage';
 /**
  * SavesScreen (M5 P2.13).
  *
@@ -9,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SaveSummary, SaveTag } from '../api/saves';
-import { SAVE_ART } from '../assets/livingTabletop';
+import { SAVE_ART, SAVE_ART_IDS } from '../assets/livingTabletop';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
@@ -53,7 +54,11 @@ interface SaveThumbProps {
 function SaveThumb({ tag, large = false }: SaveThumbProps) {
   return (
     <div className={`dm-save-thumb${large ? ' dm-save-thumb-lg' : ''}`} data-tag={tag}>
-      <img src={TAG_THUMB_SRC[tag]} alt="" className="dm-save-thumb-art" />
+      <DecorativeImage
+        src={TAG_THUMB_SRC[tag]}
+        assetId={SAVE_ART_IDS[tag]}
+        className="dm-save-thumb-art"
+      />
     </div>
   );
 }

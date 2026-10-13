@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { backendUrl } from '../api/client';
-import { KEY_ART } from '../assets/livingTabletop';
+import { KEY_ART, KEY_ART_IDS } from '../assets/livingTabletop';
+import { DecorativeImage } from '../ui/DecorativeImage';
 
 const POLL_INTERVAL_MS = 250;
 const FADE_OUT_MS = 320;
@@ -17,6 +19,7 @@ async function pingHealth(signal: AbortSignal): Promise<boolean> {
 }
 
 export function SplashOverlay() {
+  const { t } = useTranslation('common');
   const [ready, setReady] = useState(false);
   const [hidden, setHidden] = useState(false);
   const fadeTimer = useRef<number | null>(null);
@@ -67,10 +70,14 @@ export function SplashOverlay() {
       className={`dm-splash${ready ? ' is-fading' : ''}`}
       role="status"
       aria-live="polite"
-      aria-label="Loading"
+      aria-label={t('loading')}
     >
       <div className="dm-splash-art" data-art-direction="living-tabletop">
-        <img src={KEY_ART.splash} alt="" className="dm-splash-image" />
+        <DecorativeImage
+          src={KEY_ART.splash}
+          assetId={KEY_ART_IDS.splash}
+          className="dm-splash-image"
+        />
         <span className="dm-ambient-light" aria-hidden="true" />
         <span className="dm-ambient-dust" aria-hidden="true" />
       </div>
