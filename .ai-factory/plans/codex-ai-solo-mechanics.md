@@ -892,3 +892,20 @@ Evidence: docs/REAL_MODEL_SESSION_ACCEPTANCE.md and
 .artifacts/product-uiux/task-44-sessions/. Matchingmanagedweights remainabsent;
 separate10.28GB Gemma downloadproposal awaits explicitmodel authorization.
 ManualDPIretestwaived, physicalLANdeferred byuser. FullAIacceptance remainsopen.
+
+2026-10-15 second installed-model check:
+The installed Ternary Bonsai2 27B PTQ1_0 loaded with the existing Prism runtime.
+Actual native composer/click gameplay eventually completed14 peaceful commands
+on a fresh campaign. The initial bounded run failed at clapper narration after
+2resumes; one separate diagnostic resume repaired unconfirmed_effect/public_state
+and passed faithful=true without another effect. Continuation then reached
+LocateTikhon. RescueTikhon failed before effects on initial+2resumes: correct
+structured action, independentvalid=false. Finalrev17/Archive/HP12/history14;
+adventure open. Both installed alternatives therefore leave full-session
+acceptance open; no validator/default/dependency change was made to force a pass.
+No fresh model download or separate full Bonsai defensive run is claimed.
+Evidence: .artifacts/product-uiux/task-44-bonsai/ and
+ docs/REAL_MODEL_SESSION_ACCEPTANCE.md. QA provider restored through UI and all
+owned processes/listeners stopped. Existing new-weight question remains pending;
+physicalLAN remains deferred. A specific code defect causing the verdict has
+not been established, so no speculative production patch was retained.

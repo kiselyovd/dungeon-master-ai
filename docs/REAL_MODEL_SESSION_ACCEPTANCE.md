@@ -92,3 +92,42 @@ The QA native app, model and transparent proxy were stopped after the snapshot;
 their owned ports9243/31809/31810 are closed. All43 protected inherited paths
 still match the checkpoint13 byte hashes. `cleanup-proof.json` and
 `checkpoint-14-receipt.json` record these checks.
+
+## Second installed model,2026-10-15
+
+An inventory found the already installed Ternary Bonsai2 27B PTQ1_0 model.
+The existing compatible Prism runtime loaded it with context16384, one slot,
+reasoningoff and authenticated loopback access. Model SHA256 is
+`53107f530aa52eb00912263ab1ee29bd199261c87cd7b4ad4ca1318c1fe33ee3`;
+the file is5,946,648,928bytes. No weights were downloaded. The model was selected
+through normal settings in the same isolated QA profile, on a fresh campaign.
+
+The bounded peaceful run delivered eight commands. Its ninth action recovered
+the clapper once, but narration remained pending after two continuations. A
+separate diagnostic continuation localized an `unconfirmed_effect` against
+`public_state`; the bounded prose repair then passed `faithful=true` and delivered
+the answer without repeating the action. The initial bounded failure remains a
+failure in `peaceful/verdict.json`.
+
+The same campaign continued with repair, town, quay, archive and locating Tikhon.
+All five completed; the return to town required one continuation. Thus fourteen
+commands eventually completed in this campaign, with the extra clapper narration
+continuation explicitly included. This is not an uninterrupted-session pass.
+
+The fifteenth command, `rescue_tikhon`, reproduced the pre-effect rejection seen
+with Qwen. The initial request and both same-UUID continuations generated the
+correct structured action, then independently returned `valid=false`. The final
+canonical state is revision17, Archive, HP12, fourteen adventure history entries,
+no rescue fact and zero effects on the pending rescue request. The adventure is
+open. A specific programming cause for the negative semantic decision has not
+been established; no validator was weakened to force completion. A separate
+full Bonsai defensive session is not claimed.
+
+Evidence is in `.artifacts/product-uiux/task-44-bonsai/`: provenance, the initial
+and continued verdicts/progress, same-request diagnostic metadata, screenshots,
+safe model-structure records and final snapshot. QA settings were restored to
+the preceding Qwen alias through the normal UI. The native app, model and proxy
+were stopped; the runtime/profile process count is zero and ports9243/31809/31810
+are closed. No production profile or new package/source dependency was changed.
+New matching managed weights still await the existing download question, and
+physical two-device LAN remains explicitly deferred. Task44 remains open.
