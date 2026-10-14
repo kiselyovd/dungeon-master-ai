@@ -861,3 +861,18 @@ The scheduled transport cut was never reached. This is safe recovery retention,
 not successful real-model narration after effects or full session acceptance.
 Evidence: `.artifacts/product-uiux/real-model/` (sanitized restart counts, native
 screenshots and binary provenance). No model defaults or validators overridden.
+
+2026-10-14 qualified native after-effect recovery:
+The installed Qwen3.5-9B Q4_K_M ran in a separate authenticated llama-server with
+reasoning disabled for this QA run; production defaults and validators were not
+changed. A real Quay move committed one adventure/tool receipt and300seconds.
+An intentional post-effect response cut retained the pending narration. Normal
+exit and cold native restart preserved the same request/actor, HP12, inventory,
+location/time/history and unsent draft. The first resumed narration remained
+withheld; a further continuation passed faithfulness against currentQuay evidence
+and added one assistant message without another effect. Native recovery acceptance
+is now proved for this episode. Intermittent narration rejection, complete
+peaceful/defensive AI-led sessions and physical LAN remain open. Evidence:
+`.artifacts/product-uiux/task-6-effects-checkpoint12/attempt2/`. Initial stream-only
+fault selection and600second test expectation were corrected; original logs are
+retained. No rejected validator decision was promoted to publication.

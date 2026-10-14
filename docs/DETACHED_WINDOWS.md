@@ -64,6 +64,7 @@ projection and rendered character after room access was revoked by closing the r
 Cold placement on a real second monitor and recovery from a missing-monitor
 preference have passed for all three windows. Initial physical Windows scale
 changes at 125, 150 and 200 percent kept the detached header controls accessible,
-but exposed outer-window placement beyond the work area. The active plan retains
-the scale acceptance item until the corrected native build passes the same checks.
+but exposed outer-window placement beyond the work area. Per-window recovery after
+the settled DPI rectangle has been implemented. The user explicitly waived the
+manual scale repetition; the corrected physical DPI placement is not verified.
 Other desktop operating systems are not verified by the Windows run.
