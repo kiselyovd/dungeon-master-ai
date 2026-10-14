@@ -86,6 +86,9 @@ export const createRestorationSlice: StateCreator<RestorationState, [], [], Rest
         activeCampaignId: input === null ? null : projection.campaignId,
         activeSessionId: input === null ? null : projection.sessionId,
         transitionGeneration: state.session.transitionGeneration + 1,
+        presentationGeneration: projection.liveUpdate
+          ? state.session.presentationGeneration
+          : state.session.presentationGeneration + 1,
         loadError: null,
         currentScene: projection.scene,
         adventure: projection.adventure ?? null,

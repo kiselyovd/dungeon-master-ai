@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { usePresentationMotion } from '../hooks/usePresentationMotion';
 import { DEFAULT_READING_FONT_SIZE, type ReadingFontSize } from '../state/settings';
 
 export function AppShell({
@@ -8,8 +9,13 @@ export function AppShell({
   children: ReactNode;
   readingFontSize?: ReadingFontSize;
 }) {
+  const motion = usePresentationMotion();
   return (
-    <div className="dm-app" style={{ '--text-reading': `${readingFontSize}px` } as CSSProperties}>
+    <div
+      className="dm-app"
+      data-motion-paused={!motion.active || motion.reduced ? 'true' : undefined}
+      style={{ '--text-reading': `${readingFontSize}px` } as CSSProperties}
+    >
       {children}
     </div>
   );

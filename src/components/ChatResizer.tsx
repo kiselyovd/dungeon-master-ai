@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { MAX_CHAT_WIDTH, MIN_CHAT_WIDTH } from '../state/settings';
 import { useStore } from '../state/useStore';
-import styles from './ChatResizer.module.css';
+import styles from '../ui/PaneResizer.module.css';
 
 const KEYBOARD_STEP_PX = 16;
 const KEYBOARD_STEP_LARGE_PX = 64;

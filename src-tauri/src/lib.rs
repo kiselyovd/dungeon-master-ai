@@ -4,6 +4,7 @@ mod commands;
 mod processes;
 
 use commands::backend::{backend_port, BackendState};
+use commands::desktop::{desktop_reset_geometry, DesktopState};
 use commands::rooms::{
     cancel_room_stream, host_room, join_room, postpone_guest_room, recover_guest_room,
     recover_host_room, resume_room, room_operation, saved_guest_rooms, stop_host_room, stream_room,
@@ -25,7 +26,9 @@ pub fn run() {
         .manage(BackendState::default())
         .manage(NativeRoomState::default())
         .manage(RuntimeProcesses::default())
+        .manage(DesktopState::default())
         .setup(|app| {
+            commands::desktop::restore(app.handle());
             let salt_path = app
                 .path()
                 .app_local_data_dir()
@@ -51,6 +54,23 @@ pub fn run() {
         .on_window_event(|window, event| {
             if matches!(
                 event,
+                WindowEvent::Focused(true) | WindowEvent::ScaleFactorChanged { .. }
+            ) {
+                commands::desktop::recover_offscreen(window);
+            }
+            if matches!(
+                event,
+                WindowEvent::Moved(_)
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. }
+            ) {
+                commands::desktop::capture(window, false);
+            }
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                commands::desktop::capture(window, true);
+            }
+            if matches!(
+                event,
                 WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
             ) {
                 let processes = window
@@ -65,6 +85,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             backend_port,
+            desktop_reset_geometry,
             host_room,
             recover_host_room,
             stop_host_room,

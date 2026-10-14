@@ -295,10 +295,17 @@ describe('CombatToken', () => {
 
   // W1.7a - token move animation: transition enabled when not dragging
   describe('move animation (W1.7a)', () => {
-    it('transition is set on left/top when token is not being dragged', () => {
-      const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
+    it('animates left/top only for a confirmed movement cue', () => {
+      const { getByTestId, rerender } = render(<CombatToken token={baseToken} cellSize={30} />);
       const el = getByTestId('combat-token-tok-1') as HTMLElement;
-      // When not dragging, inline transition should be set to animate moves.
+      expect(el.style.transition).not.toContain('left');
+      rerender(
+        <CombatToken
+          token={baseToken}
+          cellSize={30}
+          effects={[{ id: 'revision-5:move', actorId: baseToken.id, kind: 'move' }]}
+        />,
+      );
       expect(el.style.transition).toContain('left');
       expect(el.style.transition).toContain('top');
     });
@@ -309,7 +316,13 @@ describe('CombatToken', () => {
       const onMove = vi.fn();
       const token = { ...baseToken, x: 0, y: 0 };
       const { getByTestId } = render(
-        <CombatToken token={token} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
+        <CombatToken
+          token={token}
+          cellSize={30}
+          onMove={onMove}
+          currentTurnId="tok-1"
+          effects={[{ id: 'revision-5:move', actorId: token.id, kind: 'move' }]}
+        />,
       );
       const el = getByTestId('combat-token-tok-1') as HTMLElement;
       // Before drag: transition is set.

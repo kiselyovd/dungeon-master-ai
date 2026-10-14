@@ -310,7 +310,12 @@ export function ChatPanel({
   useEffect(() => {
     if (!isStreaming) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        !e.isComposing &&
+        !document.querySelector('[role="dialog"]')
+      ) {
         cancel();
         resetScroll();
       }
@@ -458,6 +463,7 @@ export function ChatPanel({
           )}
           <ComposerAttachments items={staged} onRemove={removeStaged} />
           <textarea
+            data-command-target="chat"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}

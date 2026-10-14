@@ -28,7 +28,9 @@ import { NpcMemoryGrid } from '../components/NpcMemoryGrid';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SettingsModal } from '../components/SettingsModal';
 import { AdventureContent } from '../features/adventure/AdventurePanel';
+import { parseCombatProjection, projectionTokens } from '../features/combat/model/combatProjection';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
+import { CommandCenter } from '../features/commands/CommandCenter';
 import { GameTable } from '../features/game-table';
 import { RoomPortraitTransfer } from '../features/media/model/RoomPortraitTransfer';
 import { toRecoveryView } from '../features/recovery/model/recovery';
@@ -36,6 +38,12 @@ import { RoomHome } from '../features/rooms/RoomHome';
 import { RoomPlay } from '../features/rooms/RoomPlay';
 import { useRoom } from '../features/rooms/useRoom';
 import { useStore } from '../state/useStore';
+import {
+  focusTable,
+  registerCommands,
+  resetLayout,
+  toggleFullscreen,
+} from './commandRegistrations';
 import { GameTableExperience } from './GameTableExperience';
 import { roomContext } from './roomContext';
 import { roomPorts } from './roomPorts';
@@ -121,6 +129,54 @@ function ConnectedRoom({
     { ...view, busy: view.busy || closing || refreshingInvitation },
     connection,
   );
+  const combat = view.state?.combat ? parseCombatProjection(view.state.combat) : null;
+  const own = combat
+    ? projectionTokens(combat).find((actor) => actor.characterId === tableModel.ownActorId)
+    : undefined;
+  const ownTurn = Boolean(
+    combat?.snapshot.active && own && own.hp > 0 && combat.snapshot.current_combatant === own.id,
+  );
+  const commands = registerCommands(
+    {
+      table: Boolean(view.state),
+      guest: connection.kind === 'guest',
+      room: true,
+      busy:
+        view.busy ||
+        closing ||
+        refreshingInvitation ||
+        view.status !== 'connected' ||
+        Boolean(view.state?.agent_busy),
+      recovery: Boolean(view.pending || view.recovery),
+      ownTurn,
+    },
+    (id) => t(`commands_${id}`),
+    {
+      hero: () => setContextId('hero'),
+      journal: () => setContextId('journal'),
+      npcs: () => setContextId('npcs'),
+      room: () => focusTable('room'),
+      settings: connection.kind === 'host' ? () => setSettingsOpen(true) : undefined,
+      recovery: () => controller.retryPending(),
+      focus_chat: () => focusTable('chat'),
+      focus_map:
+        tableModel.scene.kind === 'tactical' || tableModel.combat === 'active'
+          ? () => focusTable('map')
+          : undefined,
+      reset_layout: resetLayout,
+      fullscreen: toggleFullscreen,
+      end_turn: () =>
+        combat
+          ? controller.perform({
+              kind: 'combat',
+              request_id: crypto.randomUUID(),
+              encounter_id: combat.encounter_id,
+              expected_revision: combat.revision,
+              action: { kind: 'end_turn' },
+            })
+          : undefined,
+    },
+  );
   return (
     <>
       {connection.kind === 'host' && (
@@ -147,6 +203,9 @@ function ConnectedRoom({
         <RoomPlay
           renderTable={(slots) => (
             <GameTable
+              commandLauncher={
+                <CommandCenter key={`${connectionKey}:${view.timelineReset}`} commands={commands} />
+              }
               {...slots}
               activeContext={contextId}
               onContextChange={setContextId}

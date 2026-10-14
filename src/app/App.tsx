@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getPendingAgentRecoveryInput } from '../api/agentPending';
 import { fetchAgentRecovery } from '../api/agentRecovery';
@@ -21,13 +21,11 @@ import { ProviderMigrationBanner } from '../components/ProviderMigrationBanner';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SavesScreen } from '../components/SavesScreen';
 import { ScenePill } from '../components/ScenePill';
-import { SceneTransitionOverlay } from '../components/SceneTransitionOverlay';
 import { SettingsModal } from '../components/SettingsModal';
 import { SplashOverlay } from '../components/SplashOverlay';
 import { StatusBar } from '../components/StatusBar';
 import { ToolInspectorDrawer } from '../components/ToolInspectorDrawer';
 import { UpdateAvailableModal } from '../components/UpdateAvailableModal';
-import { VideoDisabledToast } from '../components/VideoDisabledToast';
 import { VttCanvas } from '../components/VttCanvas';
 import { AdventureContent } from '../features/adventure/AdventurePanel';
 import { useAdventure } from '../features/adventure/useAdventure';
@@ -42,6 +40,8 @@ import { SpellCastDialog } from '../features/combat/SpellCastDialog';
 import { useCombatCommands } from '../features/combat/useCombatCommands';
 import { useCombatSelection } from '../features/combat/useCombatSelection';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
+import { CommandCenter } from '../features/commands/CommandCenter';
+import { commandPlatform, shortcutLabel } from '../features/commands/model';
 import { GameTable } from '../features/game-table';
 import { useLegacyCampaignPortrait } from '../features/media/useLegacyCampaignPortrait';
 import { useFirstEntry } from '../features/onboarding/useFirstEntry';
@@ -60,6 +60,12 @@ import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import { AppOverlays } from './AppOverlays';
 import { AppShell } from './AppShell';
+import {
+  focusTable,
+  registerCommands,
+  resetLayout,
+  toggleFullscreen,
+} from './commandRegistrations';
 import { GameTableExperience } from './GameTableExperience';
 import { RoomExperience } from './RoomExperience';
 import { exitRoomToLocalCampaign } from './roomExit';
@@ -142,6 +148,7 @@ async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'
 }
 
 interface CampaignTitleBarProps {
+  commands?: ReactNode;
   language: 'en' | 'ru';
   campaignTitle?: string;
   onLanguageChange: (language: 'en' | 'ru') => void;
@@ -151,6 +158,7 @@ interface CampaignTitleBarProps {
 }
 
 function CampaignTitleBar({
+  commands,
   language,
   campaignTitle,
   onLanguageChange,
@@ -180,6 +188,7 @@ function CampaignTitleBar({
       <div className="dm-titlebar-center" />
 
       <div className="dm-titlebar-right">
+        {commands}
         <LanguageSegmentedControl
           value={language}
           onChange={onLanguageChange}
@@ -360,9 +369,6 @@ function App() {
   } = useAppShellController({
     uiLanguage,
     chatPanelWidth,
-    quickSave,
-    openSaves,
-    enabled: hydrated && !roomOpen,
   });
 
   useFirstEntry(hydrated, firstEntry, () => setRoomOpen(true));
@@ -379,11 +385,6 @@ function App() {
     setSettingsOpen(true);
   }, [setSettingsInitialTab, setSettingsOpen]);
 
-  const handleOpenVideoSettings = useCallback(() => {
-    setSettingsInitialTab('video');
-    setSettingsOpen(true);
-  }, [setSettingsInitialTab, setSettingsOpen]);
-
   const providerLabel = tSettings(
     `provider_${activeProvider.replace('-', '_')}` as
       | 'provider_openai_compat'
@@ -397,7 +398,6 @@ function App() {
   const imagePreset = useStore((s) => s.settings.imagePreset);
   const videoEnabled = useStore((s) => s.settings.videoEnabled);
   const videoMode = useStore((s) => s.settings.videoMode);
-  const sceneTransitionsEnabled = useStore((s) => s.settings.sceneTransitionsEnabled);
   const npcList = Object.values(npcRecords);
 
   // StatusBar "saved" chip: derive minutes-since-last-quicksave from the saves
@@ -488,6 +488,54 @@ function App() {
     />
   );
 
+  const tableReady = campaignRoute.kind === 'game-table';
+  const commands = registerCommands(
+    {
+      table: tableReady,
+      guest: false,
+      room: false,
+      busy:
+        agentStreaming || combatCommands.pending || Boolean(useStore.getState().session.mutationId),
+      recovery: recovery.blocked,
+      ownTurn: showActionBar && Boolean(ownedCombatToken && ownedCombatToken.hp > 0),
+    },
+    (id) => t(`commands_${id}`),
+    {
+      hero: () => setCharacterSheetOpen(true),
+      journal: openJournal,
+      npcs: openNpcs,
+      saves: openSaves,
+      quick_save: quickSave,
+      recovery:
+        recovery.status === 'error'
+          ? recovery.retry
+          : recovery.view?.action === 'resume'
+            ? recovery.resume
+            : undefined,
+      room: enterRooms,
+      settings: () => setSettingsOpen(true),
+      focus_chat: () => focusTable('chat'),
+      focus_map: () => focusTable('map'),
+      reset_layout: resetLayout,
+      fullscreen: toggleFullscreen,
+      end_turn: combatCommands.endTurn,
+      local_runtime: () => setLocalModeOpen(true),
+      inspector: () => setInspectorOpen(true),
+    },
+  );
+  const commandLauncher = (
+    <CommandCenter
+      key={`${persistedCampaignId}:${sessionGeneration}:${campaignRoute.kind}`}
+      commands={commands}
+    />
+  );
+  const commandTitle = (id: string, fallback: string) => {
+    const shortcut = commands.find((command) => command.id === id)?.shortcut;
+    return shortcut
+      ? `${fallback} (${shortcutLabel(shortcut, commandPlatform(navigator.platform))})`
+      : fallback;
+  };
+
   if (!hydrated) {
     return (
       <ErrorBoundary level="top">
@@ -503,6 +551,7 @@ function App() {
       <ErrorBoundary level="top">
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             campaignTitle={tCampaigns('coop')}
             onLanguageChange={setUiLanguage}
@@ -531,6 +580,7 @@ function App() {
       <ErrorBoundary level="top">
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             onLanguageChange={setUiLanguage}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -559,6 +609,7 @@ function App() {
         <ProviderMigrationBanner />
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             {...(campaignsFeature.active?.title
               ? { campaignTitle: campaignsFeature.active.title }
@@ -707,6 +758,7 @@ function App() {
             </div>
 
             <div className="dm-titlebar-right">
+              {commandLauncher}
               <button type="button" className="dm-btn-tb" onClick={enterRooms}>
                 {tCampaigns('coop')}
               </button>
@@ -737,7 +789,7 @@ function App() {
                 className="dm-btn-tb"
                 onClick={openSaves}
                 aria-label={t('saves')}
-                title={t('saves')}
+                title={commandTitle('saves', t('saves'))}
               >
                 <Icons.Save size={13} />
                 <span>{t('saves')}</span>
@@ -747,7 +799,7 @@ function App() {
                 className="dm-btn-tb"
                 onClick={openJournal}
                 aria-label={t('journal')}
-                title={t('journal')}
+                title={commandTitle('journal', t('journal'))}
               >
                 <Icons.Scroll size={13} />
                 <span>{t('journal')}</span>
@@ -757,7 +809,7 @@ function App() {
                 className="dm-btn-tb"
                 onClick={openNpcs}
                 aria-label={t('npcs')}
-                title={t('npcs')}
+                title={commandTitle('npcs', t('npcs'))}
               >
                 <Icons.User size={13} />
                 <span>{t('npcs')}</span>
@@ -768,7 +820,7 @@ function App() {
                 className="dm-btn-tb dm-btn-tb-icon"
                 onClick={() => setSettingsOpen(true)}
                 aria-label={t('settings')}
-                title={t('settings')}
+                title={commandTitle('settings', t('settings'))}
               >
                 <Icons.Settings size={14} />
               </button>
@@ -1049,13 +1101,6 @@ function App() {
                 hidden={settingsOpen}
               />
             )}
-            <SceneTransitionOverlay />
-            <VideoDisabledToast
-              videoEnabled={videoEnabled}
-              sceneTransitionsEnabled={sceneTransitionsEnabled}
-              sceneName={currentScene?.name ?? null}
-              onOpenVideoSettings={handleOpenVideoSettings}
-            />
             <SplashOverlay />
           </AppOverlays>
         </GameTableExperience>

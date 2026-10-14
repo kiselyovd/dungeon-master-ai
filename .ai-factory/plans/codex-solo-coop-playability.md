@@ -2,7 +2,7 @@
 
 Branch: `codex/solo-coop-playability`
 Created: 2026-10-12
-Status: in progress; Tasks1-5 and7-31 verified. Checkpoint7 committed81f2448. Checkpoint8 Tasks29-31 full/browser/native verification passed; local checkpoint commit pending. Task32 motion is next. Task6 real-model after-effects recovery remains open.
+Status: in progress; Tasks1-5,7-33 and35 verified. Checkpoint9 implementation and consolidated gates verified; local commit identity is recorded in .artifacts/product-uiux/CHECKPOINT9-CURRENT.md. Task34 physical native125/150/200 DPI acceptance remains open (available monitor100%). Task35 frontend/build/browser and actual native CtrlS/F11/focus proof passed. Task36 window lifecycle is next. Task6 real-model after-effects recovery remains open.
 Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
 Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
 
@@ -569,7 +569,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
 ### Motion and workspace
 
-- [ ] **Task 32: Animate confirmed gameplay events and spatial relationships** (depends on 18, 19, 27, 30)
+- [x] **Task 32: Animate confirmed gameplay events and spatial relationships** (depends on 18, 19, 27, 30)
 
   **Files / ownership:** src/components/{CombatToken,CombatOverlay,InitiativeTracker,ActionBar}.tsx; shared game-table components; src/styles/{combat,vtt}.css; event adapter/presentation tests.
 
@@ -579,7 +579,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG event ID and one-shot effect classification in development only; WARN stale effect dropped. No per-frame logging.
 
-- [ ] **Task 33: Replace blocking scene transitions and respect reduced/background motion** (depends on 17, 29, 32)
+- [x] **Task 33: Replace blocking scene transitions and respect reduced/background motion** (depends on 17, 29, 32)
 
   **Files / ownership:** src/components/SceneTransitionOverlay.tsx; src/styles/{overlays,living-tabletop,globals}.css; useClosingAnimation and token transition handling; settings and browser tests. src/assets/livingTabletop.ts and selected visual registry transition-role mappings.
 
@@ -599,7 +599,7 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 
   **Logging:** DEBUG preference version and safe geometry/clamp reason; INFO restore/reset; WARN off-screen recovery. No per-resize event logging.
 
-- [ ] **Task 35: Add a command palette and one cross-platform shortcut registry** (depends on 16, 17, 34)
+- [x] **Task 35: Add a command palette and one cross-platform shortcut registry** (depends on 16, 17, 34)
 
   **Files / ownership:** Proposed src/features/commands/{model,CommandPalette}.tsx; src/app/useAppShellController.ts and composition registrations; src/ui existing Modal; locales and shortcut/browser tests.
 
@@ -797,3 +797,8 @@ Next authorized workflow is `$aif-implement` when requested. Start at Task 1 usi
 - 2026-10-14 Checkpoint8 integration: full campaign journeyPASS after stale initial scene/provenance/dialog fixture updates to the current prepared scene and shared context regions; authoritative movement/heal/attack/save/restore assertions retained. All8 maps, all8 illustrations and owned-media reload browserPASS. Actual-backend repeat7PASS initially, with two960 reduced-motion modal checks failing. Scoped Modal CSS explicitly disables animations under reduced motion; bothRU/EN960 real-backend cases nowPASS, including all6 transitions, actualrestore and missing-image fallback. FinalfastgatesPASS. Original38dirtytracked files match checkpoint7 baseline;5untracked source tests preserved. Fullgates/native/localownedcommit pending, goalACTIVE.
 
 - 2026-10-14 Checkpoint8 acceptancePASS: fullgates1014Rust/207frontendfiles1292tests, finalfastgates/buildPASS, completecampaign journey and actualbackend scenes/restore/missing-art/DPRcalibrationPASS. FreshTauri ownprofile art20261014 verifies6canonicalscenes, missing-artstatus/close, Archivecalibratedskin/twoWaterEcho sprites, all8illustrations+8maps fromactualbackend fallback with exactpackagedbytes throughfixturechat delivery, category-correctportrait, Escape/focus/fullviews andcoldsameSQLite revision13/HP12/heroHash/skin. RuntimeLLM/imageoff, JSexceptions0; allownedprocessesclosed. Harness repairs: page-targetCDP, focus beforecontrolactivation, CORSpreflight and nativebridgereadiness; screenshots waitforanimationend. Source/API/native/model layers remain distinct. All16settlednativefullviews inspected. Task31checked; selectednewmasters100/globalcoverageaudit stillTasks43-44. Localownedcheckpointcommit next; Task32 then.
+
+- 2026-10-14 Task33 local acceptance: ordinary scene changes update in-table painting/caption and retain composer/actions; no fullscreen transition or per-scene video-off nag. Optional canonical combat begin/end cards use public art, pointer passthrough, no autofocus, immediate Skip and encounter/scope dedup. Shared reactive motion preference pauses decoration and suppresses reduced/background replay; reduced close/splash timers settle immediately. Validated live adventure commits retain transient presentationGeneration while request transitionGeneration still advances; load/restore/clear reset visual scope. Four original transition files archived with identical hashes outside shipping imports, four roles mapped to selected illustrations; catalogue145entries21128951bytes, selectedmasters100 unchanged and globalaudit still43-44. Focused55 and additional18 cases PASS; fullfrontend209files1304 PASS; productionbuild/fast/architecture PASS. Real-backend major/held combat-response focus-sensor case PASS (OS focus remains native checkpoint9), ordinary normal scenes6RU/EN×width plus3DPRmap cases9PASS and reduced scenes6PASS including real restore/drafts/missing art. Compact major screenshot inspected. Owned backend/procs stopped. Tasks32-33 uncommitted, checkpoint9 full/native/localcommit follows32-35. Task34 next; fullgoal active.
+
+- 2026-10-14 Task34 implementation/progress: versioned safe workspace_v1 with pane widths, context/expansion, reading and split/table/chat views; old flat preferences load compatibly, reset preserves campaign/draft and invokes main-only native geometry reset. Shared resizer visual reused; no dependencies added. Focused74 and fullfrontend210files1306PASS, productionbuild/architecture/fastgatesPASS, browserworkspace2PASS. Native store/TauriCore geometry normal logical dimensions/monitor offsets/max state/work-area/nonclient clamp, main-only capture and safe invalid/missing-monitor fallback implemented. Rust tests3PASS include simulated125/150/200 calculations. Actual freshTauri atOS100% resize1100x700, maximize preservingnormal, coldmaximize/unmaximize, realUIreset, malformedversion/oversize and non-existent-monitor recoveryPASS, JSexceptions0, runtimesoff and allownedprocessesclosed. Physical native125/150/200 matrix missing in current environment, so Task34 remains open; do not treat simulation as fullacceptance. Docs WORKSPACE.md and TASK34-CURRENT receipt updated. Goal active, Task35 next available work; groupedcheckpoint9/full/native/ownedcommit remains pending.
+- 2026-10-14 Task35 and checkpoint9 local acceptance: localized app-composed palette and Ctrl/Meta registry bind existing solo/room controllers; private/host settings and local room saves are refused, end-turn requires an owned living current actor and no pending recovery, absent room map has no focus command. Typing/IME/repeats, nested Escape, draft/focus and settings/layout behavior verified. Diagnostics remain advanced. Full consolidated gate PASS with VITEST_MAX_WORKERS=1: Rust1017 and frontend213files1328tests; four fork startup timeouts at configured4 were separately recorded and no assertions were skipped. Native actual CtrlS creates exactly one save (revision2→3), F11 toggles/restores, map/chat focus and draft/character hash survive, JSexceptions0; all captured QA processes and WebView descendants stopped. Production browser45distinct cases covered, final map availability focused15/root tests and2browser cases PASS, productionbuild/fastgates PASS. Geometry uses MSRV1.81-compatible map_or; provider cancellation fixture waits for actual HTTP arrival before cancellation (9round tests PASS), production provider unchanged. Checkpoint9 preserves inherited38tracked/5untracked via89whole+4mixed owned staging. Actual125/150/200 DPI, real-model after-effect recovery and36-44 remain open; no release/push/dependencies authorized.

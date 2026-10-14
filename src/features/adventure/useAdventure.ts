@@ -51,7 +51,7 @@ export function useAdventure() {
         }
         const restored = buildCampaignState(confirmed);
         retryOperation.current = null;
-        useStore.getState().restoration.apply(restored);
+        useStore.getState().restoration.apply({ ...restored, liveUpdate: true });
       } catch (error) {
         if (!current(op)) return;
         retryOperation.current =

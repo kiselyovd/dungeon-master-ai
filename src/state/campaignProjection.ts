@@ -17,6 +17,7 @@ export const RESTORE_MESSAGE_LIMIT = 20;
 const RENDERABLE_ROLES = new Set<string>(['user', 'assistant', 'system']);
 
 export interface RestoredSessionProjection {
+  liveUpdate?: boolean;
   mapMediaRef?: import('../api/contracts/mediaAsset').MediaReference | null;
   adventure?: import('../api/contracts/adventure').AdventureProjection | null;
   preserveDraft?: boolean;

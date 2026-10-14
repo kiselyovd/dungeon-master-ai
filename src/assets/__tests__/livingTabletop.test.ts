@@ -1,7 +1,17 @@
-import { statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { HERO_ART, KEY_ART, NPC_ART, SAVE_ART, SCENE_ART, TOKEN_ART } from '../livingTabletop';
+import {
+  HERO_ART,
+  KEY_ART,
+  NPC_ART,
+  SAVE_ART,
+  SCENE_ART,
+  SCENE_ART_IDS,
+  TOKEN_ART,
+} from '../livingTabletop';
+import { visualAsset } from '../visualCatalog';
 
 const WAVE_1: ReadonlyArray<readonly [string, number]> = [
   ['splash.webp', 900_000],
@@ -24,10 +34,27 @@ const WAVE_2: ReadonlyArray<readonly [string, number]> = [
   ...['combat', 'exploration', 'dialog', 'npc'].map(
     (role) => [`save-${role}.webp`, 700_000] as const,
   ),
-  ...['combat', 'dialog', 'exploration', 'dungeon'].map(
-    (role) => [`scene-${role}.webp`, 1_000_000] as const,
-  ),
 ];
+it('binds all four transition roles to selected illustrations and preserves original hashes outside shipping imports', () => {
+  const bindings = JSON.parse(
+    readFileSync(resolve(__dirname, '../../../docs/visual/transition-art-bindings.json'), 'utf8'),
+  );
+  for (const role of ['combat', 'dialog', 'exploration', 'dungeon'] as const) {
+    const id = SCENE_ART_IDS[role];
+    expect(bindings.mappings).toContainEqual({ role, assetId: id });
+    const selected = visualAsset(id, 'illustration');
+    expect(selected?.version).toBe(2);
+    expect(SCENE_ART[role]).toBe(selected?.uri);
+  }
+  for (const archived of bindings.archived) {
+    expect(visualAsset(archived.id)).toBeNull();
+    expect(
+      createHash('sha256')
+        .update(readFileSync(resolve(__dirname, '../../../', archived.path)))
+        .digest('hex'),
+    ).toBe(archived.sha256);
+  }
+});
 
 const MATERIALS = ['leather', 'stone', 'oak', 'parchment', 'velvet', 'bronze'].map(
   (role) => [`material-${role}.webp`, 450_000] as const,

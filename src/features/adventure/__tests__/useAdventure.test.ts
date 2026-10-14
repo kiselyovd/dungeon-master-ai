@@ -98,6 +98,7 @@ it('blocks a new chat turn while an adventure projection is pending, even if its
   });
 });
 it('does not change the current scene before server confirmation', async () => {
+  const visualEpoch = useStore.getState().session.presentationGeneration;
   let resolve: (value: CampaignStateResponse) => void = () => {};
   vi.mocked(actInAdventure).mockReturnValue(
     new Promise((r) => {
@@ -115,6 +116,7 @@ it('does not change the current scene before server confirmation', async () => {
     await pending;
   });
   expect(useStore.getState().session.adventure?.state.location).toBe('quay');
+  expect(useStore.getState().session.presentationGeneration).toBe(visualEpoch);
 });
 it('ignores a late result after selecting another campaign', async () => {
   let resolve: (value: CampaignStateResponse) => void = () => {};

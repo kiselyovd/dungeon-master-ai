@@ -221,13 +221,23 @@ async fn mixed_native_calls_and_legacy_markup_do_not_duplicate_or_publish_tool_s
 #[tokio::test]
 async fn waiting_complete_tool_response_is_cancellable_without_publishing_chunks() {
     let server = MockServer::start().await;
-    Mock::given(method("POST")).and(path("/chat/completions")).respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(2)).set_body_json(json!({"id":"slow","object":"chat.completion","model":"dmai-bonsai-eval","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[call("slow-call")]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}))).mount(&server).await;
+    let arrived = std::sync::Arc::new(tokio::sync::Notify::new());
+    let notify = std::sync::Arc::clone(&arrived);
+    Mock::given(method("POST")).and(path("/chat/completions")).respond_with(move |_: &wiremock::Request| {
+        notify.notify_one();
+        ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(10)).set_body_json(json!({"id":"slow","object":"chat.completion","model":"dmai-bonsai-eval","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[call("slow-call")]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}))
+    }).mount(&server).await;
     let provider = OpenAICompatProvider::new(server.uri(), "fixture-key".into());
-    let cancelled = tokio::time::timeout(
-        std::time::Duration::from_millis(100),
-        provider.stream_chat(request()),
-    )
-    .await;
+    let pending = provider.stream_chat(request());
+    tokio::pin!(pending);
+    // Cancel an in-flight request, rather than racing initial connection setup.
+    tokio::select! {
+        result = &mut pending => panic!("provider completed before the held response: {}", result.is_ok()),
+        receipt = tokio::time::timeout(std::time::Duration::from_secs(5), arrived.notified()) => {
+            receipt.expect("mock server did not receive the provider request");
+        }
+    }
+    let cancelled = tokio::time::timeout(std::time::Duration::from_millis(100), &mut pending).await;
     assert!(cancelled.is_err());
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }

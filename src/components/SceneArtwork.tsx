@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { AdventureProjection } from '../api/contracts/adventure';
 import { visualAsset } from '../assets/visualCatalog';
+import { usePresentationMotion } from '../hooks/usePresentationMotion';
 import { Button } from '../ui/Button';
 import { DecorativeImage } from '../ui/DecorativeImage';
 import { Modal } from '../ui/Modal';
@@ -71,6 +72,18 @@ function PaintingView({
   const { t } = useTranslation('adventure');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const motion = usePresentationMotion();
+  const observed = useRef(scope);
+  const [arrival, setArrival] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    const changed = observed.current !== scope;
+    observed.current = scope;
+    if (!motion.active || motion.reduced) {
+      setArrival(null);
+      return;
+    }
+    if (changed) setArrival(scope);
+  }, [scope, motion.active, motion.reduced]);
   useEffect(() => setExpandedId((current) => (current === scope ? current : null)), [scope]);
   const unavailable = !asset || unavailableId === assetId;
   const image = (preview: boolean) =>
@@ -78,7 +91,12 @@ function PaintingView({
       <DecorativeImage
         src={asset.uri}
         assetId={asset.id}
-        className={preview ? styles.full : styles.painting}
+        key={scope}
+        className={
+          preview
+            ? styles.full
+            : `${styles.painting}${arrival === scope ? ` ${styles.arrival}` : ''}`
+        }
         onAvailabilityChange={(available) => setUnavailableId(available ? null : assetId)}
       />
     ) : null;
@@ -92,7 +110,7 @@ function PaintingView({
           aria-label={t('scene_current', { location: title })}
         >
           {image(false)}
-          <div className={styles.caption}>
+          <div className={`${styles.caption}${arrival === scope ? ` ${styles.arrival}` : ''}`}>
             <h2>{title}</h2>
             {unavailable && <p role="status">{t('scene_unavailable')}</p>}
           </div>

@@ -193,6 +193,16 @@ test('production co-op root joins a guest and preserves its own hero', async ({ 
   await expect(page.locator('[data-game-table]')).toHaveAttribute('data-table-mode', 'guest');
   await expect(page.getByLabel('Что делает ваш герой?')).toBeEnabled();
   await expect(page.getByText('Tara', { exact: true })).toBeVisible();
+  await page.keyboard.press('Control+k');
+  const palette = page.getByRole('dialog', { name: 'Команды' });
+  await expect(palette.getByRole('button', { name: /Быстрое сохранение/ })).toBeDisabled();
+  await expect(palette.getByRole('button', { name: /Открыть настройки/ })).toBeDisabled();
+  await expect(palette.getByRole('button', { name: /Завершить свой ход/ })).toBeDisabled();
+  await expect(palette.getByRole('button', { name: /Перейти к карте/ })).toBeDisabled();
+  await palette.getByRole('textbox', { name: 'Найти команду' }).fill('журнал');
+  await palette.getByRole('button', { name: /Открыть журнал/ }).click();
+  await expect(page.getByRole('region', { name: 'Хроника Барда' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.screenshot({
     path: '.artifacts/room-ui-production-browser.png',
     fullPage: true,
@@ -237,6 +247,12 @@ test('production room battle renders actual server map and gates the next human 
   });
   await page.getByRole('button', { name: 'Закончить ход' }).click();
   await expect(page.getByRole('button', { name: 'Закончить ход' })).toBeDisabled();
+  await page.keyboard.press('Control+k');
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Команды' })
+      .getByRole('button', { name: /Завершить свой ход/ }),
+  ).toBeDisabled();
 });
 
 test('a clean guest enters co-op directly and returns to the campaign library', async ({
@@ -665,7 +681,7 @@ for (const width of [960, 1280, 1920]) {
     await expect(composer).toHaveValue('Сохранённый ввод рядом с журналом');
     await page.getByRole('tab', { name: 'NPC', exact: true }).click();
     await expect(pane.getByText('Знакомая Мира')).toBeVisible();
-    await expect(pane.locator('[data-asset-id="npc.innkeeper.legacy.v1"]')).toHaveCount(1);
+    await expect(pane.locator('[data-asset-id="npc.innkeeper.v2"]')).toHaveCount(1);
     await expect(page.getByText('НЕПУБЛИЧНЫЙ СЕКРЕТ')).toHaveCount(0);
     await page.getByRole('button', { name: 'Развернуть панель' }).click();
     await expect(page.getByRole('dialog', { name: 'NPC', exact: true })).toBeVisible();

@@ -42,3 +42,11 @@
   max-height: 65vh;
   object-fit: contain;
 }
+.arrival {
+  animation: dm-art-enter var(--t-base) ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrival {
+    animation: none;
+  }
+}

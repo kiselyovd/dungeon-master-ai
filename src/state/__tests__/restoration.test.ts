@@ -66,6 +66,28 @@ describe('atomic session restoration', () => {
     expect(state.toolLog.entries).toEqual([]);
   });
 
+  it('keeps live presentation continuity while a restored timeline resets it', () => {
+    const projection: RestoredSessionProjection = {
+      campaignId: 'campaign',
+      sessionId: 'session',
+      revision: 1,
+      messages: [],
+      pc: {},
+      scene: null,
+      combat: null,
+      journal: [],
+      npcs: [],
+    };
+    useStore.getState().restoration.apply(projection);
+    const epoch = useStore.getState().session.presentationGeneration;
+    const requestGeneration = useStore.getState().session.transitionGeneration;
+    useStore.getState().restoration.apply({ ...projection, revision: 2, liveUpdate: true });
+    expect(useStore.getState().session.presentationGeneration).toBe(epoch);
+    expect(useStore.getState().session.transitionGeneration).toBeGreaterThan(requestGeneration);
+    useStore.getState().restoration.apply({ ...projection, revision: 3 });
+    expect(useStore.getState().session.presentationGeneration).toBe(epoch + 1);
+  });
+
   it('aborts the old transport before dropping its controller', () => {
     const controller = new AbortController();
     const abort = vi.spyOn(controller, 'abort');

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SettingsData } from '../../state/settings';
+import { defaultWorkspace } from '../../state/workspacePreferences';
 import { setBackendPortForTesting } from '../client';
 import { ensureSettingsV2, invalidateBackendSettings, postSettingsV2, toV2Wire } from '../settings';
 
 // Read whatever DEFAULT_SETTINGS exists; if not exported, build a baseline inline.
 function baseSettings(): SettingsData {
   return {
+    workspace: defaultWorkspace(),
     activeProvider: 'openai-compat',
     providers: {
       'openai-compat': {

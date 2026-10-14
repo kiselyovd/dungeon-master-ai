@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePresentationMotion } from './usePresentationMotion';
 
 /**
  * Duration (ms) of the overlay enter/exit animation.
@@ -35,12 +36,22 @@ export function useClosingAnimation(
   // (before setIsClosing causes a re-render) cannot schedule two timers.
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  const { reduced } = usePresentationMotion();
 
   // Keep the ref current so stale closures in setTimeout always call the
   // latest version of onClose.
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    if (!reduced || !closingRef.current) return;
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    closingRef.current = false;
+    setIsClosing(false);
+    onCloseRef.current();
+  }, [reduced]);
 
   useEffect(() => {
     return () => {
@@ -53,6 +64,14 @@ export function useClosingAnimation(
 
   const triggerClose = useCallback(() => {
     if (closingRef.current) return;
+    if (reduced) {
+      closingRef.current = true;
+      onCloseRef.current();
+      queueMicrotask(() => {
+        closingRef.current = false;
+      });
+      return;
+    }
     closingRef.current = true;
     setIsClosing(true);
     timerRef.current = setTimeout(() => {
@@ -61,7 +80,7 @@ export function useClosingAnimation(
       setIsClosing(false);
       onCloseRef.current();
     }, durationMs);
-  }, [durationMs]);
+  }, [durationMs, reduced]);
 
   return { isClosing, triggerClose };
 }

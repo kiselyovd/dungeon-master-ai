@@ -274,6 +274,12 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   expect(useStore.getState().saves.isOpen).toBe(false);
   expect(screen.queryByRole('button', { name: 'Создать своего героя' })).not.toBeInTheDocument();
   expect(useStore.getState().pc.heroClass).toBeNull();
+  await user.keyboard('{Control>}k{/Control}');
+  const palette = screen.getByRole('dialog', { name: 'Команды' });
+  expect(palette.querySelector('[data-command-id="quick_save"]')).toBeDisabled();
+  expect(palette.querySelector('[data-command-id="settings"]')).toBeDisabled();
+  expect(palette.querySelector('[data-command-id="end_turn"]')).toBeDisabled();
+  expect(palette.querySelector('[data-command-id="focus_map"]')).toBeDisabled();
 });
 
 it('lets a first-boot guest join without configuring a provider or creating a solo hero', async () => {

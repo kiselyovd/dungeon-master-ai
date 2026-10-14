@@ -8,6 +8,26 @@ import type {
   ProviderKind,
 } from './providers';
 import type { ImagePreset, ReasoningBudget, VideoMode } from './settingsMigration';
+import {
+  DEFAULT_CHAT_WIDTH,
+  DEFAULT_READING_FONT_SIZE,
+  defaultWorkspace,
+  MAX_CHAT_WIDTH,
+  MIN_CHAT_WIDTH,
+  READING_FONT_SIZES,
+  type ReadingFontSize,
+  type WorkspacePreferences,
+  workspacePreferences,
+} from './workspacePreferences';
+
+export {
+  DEFAULT_CHAT_WIDTH,
+  DEFAULT_READING_FONT_SIZE,
+  MAX_CHAT_WIDTH,
+  MIN_CHAT_WIDTH,
+  READING_FONT_SIZES,
+  type ReadingFontSize,
+} from './workspacePreferences';
 
 export type Language = 'en' | 'ru';
 
@@ -21,12 +41,6 @@ export interface ProvidersMap {
  * as named constants so the drag handle, keyboard nudge, and persisted-value
  * sanitiser all share a single source of truth.
  */
-export const MIN_CHAT_WIDTH = 360;
-export const MAX_CHAT_WIDTH = 640;
-export const DEFAULT_CHAT_WIDTH = 480;
-export const READING_FONT_SIZES = [16, 17, 18] as const;
-export type ReadingFontSize = (typeof READING_FONT_SIZES)[number];
-export const DEFAULT_READING_FONT_SIZE: ReadingFontSize = 17;
 
 export function readingFontSize(value: number): ReadingFontSize {
   return READING_FONT_SIZES.find((size) => size === value) ?? DEFAULT_READING_FONT_SIZE;
@@ -43,6 +57,7 @@ export function readingFontSize(value: number): ReadingFontSize {
  * network boundary in `src/api/settings.ts::postSettingsV2`.
  */
 export interface SettingsData {
+  workspace: WorkspacePreferences;
   activeProvider: ProviderKind;
   providers: ProvidersMap;
   uiLanguage: Language;
@@ -85,6 +100,8 @@ export interface SettingsData {
 }
 
 export interface SettingsActions {
+  setWorkspace: (patch: Partial<WorkspacePreferences>) => void;
+  resetWorkspace: () => void;
   setActiveProvider: (kind: ProviderKind) => void;
   setProviderConfig: (config: ProviderConfig) => void;
   clearProviderConfig: (kind: ProviderKind) => void;
@@ -187,6 +204,7 @@ const DEFAULT_PROVIDERS: ProvidersMap = {
 
 export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSlice> = (set) => ({
   settings: {
+    workspace: defaultWorkspace(),
     activeProvider: 'openai-compat',
     providers: DEFAULT_PROVIDERS,
     uiLanguage: 'ru',
@@ -246,11 +264,43 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setChatPanelWidth: (width) =>
       set((s) => ({
-        settings: { ...s.settings, chatPanelWidth: clampChatWidth(width) },
+        settings: {
+          ...s.settings,
+          chatPanelWidth: clampChatWidth(width),
+          workspace: { ...s.settings.workspace, chatWidth: clampChatWidth(width) },
+        },
       })),
 
     setReadingFontSize: (size) =>
-      set((s) => ({ settings: { ...s.settings, readingFontSize: readingFontSize(size) } })),
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          readingFontSize: readingFontSize(size),
+          workspace: { ...s.settings.workspace, readingFontSize: readingFontSize(size) },
+        },
+      })),
+
+    setWorkspace: (patch) =>
+      set((s) => {
+        const workspace = workspacePreferences({ ...s.settings.workspace, ...patch });
+        return {
+          settings: {
+            ...s.settings,
+            workspace,
+            chatPanelWidth: workspace.chatWidth,
+            readingFontSize: workspace.readingFontSize,
+          },
+        };
+      }),
+    resetWorkspace: () =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          workspace: defaultWorkspace(),
+          chatPanelWidth: DEFAULT_CHAT_WIDTH,
+          readingFontSize: DEFAULT_READING_FONT_SIZE,
+        },
+      })),
 
     recordCampaignVisit: (campaignId) =>
       set((s) => ({

@@ -1,3 +1,7 @@
+import sceneDungeon from '../../crates/adapter-media/assets/bundled/illustrations/illustration-dungeon.webp';
+import sceneExploration from '../../crates/adapter-media/assets/bundled/illustrations/illustration-forest-road.webp';
+import sceneCombat from '../../crates/adapter-media/assets/bundled/illustrations/illustration-ruins.webp';
+import sceneDialog from '../../crates/adapter-media/assets/bundled/illustrations/illustration-tavern.webp';
 import heroCleric from './living-tabletop/hero-cleric.webp';
 import heroFighter from './living-tabletop/hero-fighter.webp';
 import heroRogue from './living-tabletop/hero-rogue.webp';
@@ -10,10 +14,6 @@ import npcMerchant from './living-tabletop/npc-merchant.webp';
 import npcPeasant from './living-tabletop/npc-peasant.webp';
 import npcPriestess from './living-tabletop/npc-priestess.webp';
 import npcRogue from './living-tabletop/npc-rogue.webp';
-import sceneCombat from './living-tabletop/scene-combat.webp';
-import sceneDialog from './living-tabletop/scene-dialog.webp';
-import sceneDungeon from './living-tabletop/scene-dungeon.webp';
-import sceneExploration from './living-tabletop/scene-exploration.webp';
 import tokenCleric from './living-tabletop/token-cleric.png';
 import tokenFighter from './living-tabletop/token-fighter.png';
 import tokenRogue from './living-tabletop/token-rogue.png';
@@ -76,4 +76,10 @@ export const SCENE_ART = {
   dialog: sceneDialog,
   exploration: sceneExploration,
   dungeon: sceneDungeon,
+} as const;
+export const SCENE_ART_IDS = {
+  combat: 'illustration-ruins',
+  dialog: 'illustration-tavern',
+  exploration: 'illustration-forest-road',
+  dungeon: 'illustration-dungeon',
 } as const;

@@ -9,6 +9,45 @@ describe('useClosingAnimation', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('closes immediately and only once in reduced motion without a timer', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useClosingAnimation(onClose));
+    act(() => {
+      result.current.triggerClose();
+      result.current.triggerClose();
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(result.current.isClosing).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('finishes a pending close immediately when reduced motion is enabled', () => {
+    let reduced = false;
+    let listener: (() => void) | undefined;
+    vi.stubGlobal('matchMedia', () => ({
+      get matches() {
+        return reduced;
+      },
+      addEventListener: (_name: string, callback: () => void) => {
+        listener = callback;
+      },
+      removeEventListener: vi.fn(),
+    }));
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useClosingAnimation(onClose));
+    act(() => result.current.triggerClose());
+    act(() => {
+      reduced = true;
+      listener?.();
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(result.current.isClosing).toBe(false);
+    act(() => vi.advanceTimersByTime(280));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('isClosing is false initially', () => {

@@ -1,154 +1,88 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SCENE_ART } from '../assets/livingTabletop';
+import { SCENE_ART, SCENE_ART_IDS } from '../assets/livingTabletop';
+import { usePresentationMotion } from '../hooks/usePresentationMotion';
 import { useStore } from '../state/useStore';
+import { Button } from '../ui/Button';
 
-const FADE_OUT_MS = 280;
-const DISPLAY_MS = 3_200;
-const DEBOUNCE_MS = 30_000;
-
-type SceneTag = 'combat' | 'dialog' | 'exploration' | 'dungeon';
-
-const TAG_ART: Record<SceneTag, string> = SCENE_ART;
-
-const KEYWORD_TAG: ReadonlyArray<readonly [RegExp, SceneTag]> = [
-  [/combat|battle|fight|skirmish|ambush|боев|сраж|битв|драк/i, 'combat'],
-  [/dialog|talk|conversation|parley|диалог|разговор|беседа|переговор/i, 'dialog'],
-  [/dungeon|crypt|cave|cavern|tomb|catacomb|подземел|пещер|склеп|катакомб/i, 'dungeon'],
-  [/explor|forest|road|wilderness|travel|journey|wood|поход|лес|путь|путеш|дорог/i, 'exploration'],
-];
-
-function pickTag(name: string): SceneTag {
-  for (const [pattern, tag] of KEYWORD_TAG) {
-    if (pattern.test(name)) return tag;
-  }
-  return 'exploration';
+interface Props {
+  scopeKey: string;
+  active: boolean;
+  encounterId: string | null;
+  art?: { id: string; uri: string } | null;
 }
+const DISPLAY_MS = 3_200;
+type Moment = { id: string; kind: 'combat_enter' | 'combat_exit' };
 
-export function SceneTransitionOverlay() {
+/** Optional canonical major-event accent. Ordinary movement never creates it.
+ * It lives inside the table, does not take focus and permits pointer passthrough. */
+export function SceneTransitionOverlay({ scopeKey, active, encounterId, art }: Props) {
   const { t } = useTranslation('common');
-  const enabled = useStore((s) => s.settings.sceneTransitionsEnabled);
-  const sceneName = useStore((s) => s.session.currentScene?.name ?? null);
-
-  const [activeTag, setActiveTag] = useState<SceneTag | null>(null);
-  const [fading, setFading] = useState(false);
-  const lastTriggerAt = useRef<number>(0);
-  const lastSceneName = useRef<string | null>(sceneName);
+  const enabled = useStore((state) => state.settings.sceneTransitionsEnabled);
+  const motion = usePresentationMotion();
+  const previous = useRef({ scopeKey, active, encounterId });
   const didMount = useRef(false);
-  const fadeTimer = useRef<number | null>(null);
-  const unmountTimer = useRef<number | null>(null);
+  const seen = useRef(new Set<string>());
+  const [moment, setMoment] = useState<Moment | null>(null);
 
   useEffect(() => {
-    // First render only: remember hydrated state without firing. A later
-    // null -> scene change is a real transition and must remain visible.
-    if (!didMount.current) {
+    const old = previous.current;
+    previous.current = { scopeKey, active, encounterId };
+    if (!didMount.current || old.scopeKey !== scopeKey) {
       didMount.current = true;
-      lastSceneName.current = sceneName;
+      seen.current.clear();
+      if (active && encounterId) seen.current.add(`${encounterId}:combat_enter`);
+      setMoment(null);
       return;
     }
-    if (sceneName === lastSceneName.current) return;
-    lastSceneName.current = sceneName;
-
-    if (!enabled || sceneName === null) return;
-    const now = Date.now();
-    if (now - lastTriggerAt.current < DEBOUNCE_MS) return;
-    lastTriggerAt.current = now;
-
-    if (fadeTimer.current !== null) window.clearTimeout(fadeTimer.current);
-    if (unmountTimer.current !== null) window.clearTimeout(unmountTimer.current);
-    setActiveTag(pickTag(sceneName));
-    setFading(false);
-  }, [sceneName, enabled]);
-
-  const dismiss = (): void => {
-    if (activeTag === null || fading) return;
-    if (fadeTimer.current !== null) {
-      window.clearTimeout(fadeTimer.current);
-      fadeTimer.current = null;
+    if (old.active === active) {
+      if (!enabled || !motion.active || motion.reduced) setMoment(null);
+      return;
     }
-    if (unmountTimer.current !== null) window.clearTimeout(unmountTimer.current);
-    setFading(true);
-    unmountTimer.current = window.setTimeout(() => {
-      setActiveTag(null);
-      setFading(false);
-      unmountTimer.current = null;
-    }, FADE_OUT_MS);
-  };
+    const id = active ? encounterId : old.encounterId;
+    if (!id) return;
+    const kind = active ? 'combat_enter' : 'combat_exit';
+    const key = `${id}:${kind}`;
+    if (seen.current.has(key)) return;
+    seen.current.add(key);
+    if (seen.current.size > 32) seen.current.delete(seen.current.values().next().value ?? '');
+    if (!enabled || !motion.active || motion.reduced) {
+      setMoment(null);
+      return;
+    }
+    setMoment({ id: JSON.stringify([scopeKey, key]), kind });
+    if (import.meta.env.DEV) console.debug('[scene.motion]', { kind, result: 'shown' });
+  }, [scopeKey, active, encounterId, enabled, motion.active, motion.reduced]);
 
   useEffect(() => {
-    if (activeTag === null) return;
-    fadeTimer.current = window.setTimeout(() => {
-      fadeTimer.current = null;
-      setFading(true);
-      unmountTimer.current = window.setTimeout(() => {
-        setActiveTag(null);
-        setFading(false);
-        unmountTimer.current = null;
-      }, FADE_OUT_MS);
-    }, DISPLAY_MS);
-  }, [activeTag]);
+    if (!moment) return;
+    const timer = setTimeout(() => setMoment(null), DISPLAY_MS);
+    return () => clearTimeout(timer);
+  }, [moment]);
 
-  // Esc key skips an active transition. The dismiss handler reads the
-  // latest activeTag/fading via closure, but we re-bind on every change
-  // so the listener has fresh state at trigger time.
-  useEffect(() => {
-    if (activeTag === null) return;
-    const onKey = (e: globalThis.KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
-      if (fading) return;
-      if (fadeTimer.current !== null) {
-        window.clearTimeout(fadeTimer.current);
-        fadeTimer.current = null;
-      }
-      if (unmountTimer.current !== null) window.clearTimeout(unmountTimer.current);
-      setFading(true);
-      unmountTimer.current = window.setTimeout(() => {
-        setActiveTag(null);
-        setFading(false);
-        unmountTimer.current = null;
-      }, FADE_OUT_MS);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [activeTag, fading]);
-
-  useEffect(() => {
-    return () => {
-      if (fadeTimer.current !== null) window.clearTimeout(fadeTimer.current);
-      if (unmountTimer.current !== null) window.clearTimeout(unmountTimer.current);
-    };
-  }, []);
-
-  if (activeTag === null) return null;
-
+  if (!moment) return null;
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Esc is handled at window level above; click-to-dismiss is a convenience
-    <div
-      className={`dm-scene-transition${fading ? ' is-fading' : ''}`}
-      role="dialog"
-      aria-label={t('scene_transition_label')}
-      onClick={dismiss}
+    <aside
+      className="dm-scene-transition"
+      role="status"
+      aria-live="polite"
+      data-moment-id={moment.id}
     >
-      <div className="dm-scene-transition-art" data-art-direction="living-tabletop">
-        <img
-          className="dm-scene-transition-image"
-          src={TAG_ART[activeTag]}
-          alt=""
-          data-testid="scene-transition-art"
-        />
-        <span className="dm-ambient-light" aria-hidden="true" />
-        <span className="dm-ambient-dust" aria-hidden="true" />
+      <img
+        className="dm-scene-transition-image"
+        src={art?.uri ?? SCENE_ART.combat}
+        alt=""
+        data-testid="scene-transition-art"
+        data-asset-id={art?.id ?? SCENE_ART_IDS.combat}
+      />
+      <div className="dm-scene-transition-caption">
+        <strong>
+          {t(moment.kind === 'combat_enter' ? 'cinematic_combat_enter' : 'cinematic_combat_exit')}
+        </strong>
+        <Button className="dm-scene-transition-skip" onClick={() => setMoment(null)}>
+          {t('skip')}
+        </Button>
       </div>
-      <button
-        type="button"
-        className="dm-scene-transition-skip"
-        onClick={(e) => {
-          e.stopPropagation();
-          dismiss();
-        }}
-      >
-        {t('skip')}
-      </button>
-    </div>
+    </aside>
   );
 }

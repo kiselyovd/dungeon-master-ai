@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { backendUrl } from '../api/client';
 import { KEY_ART, KEY_ART_IDS } from '../assets/livingTabletop';
+import { usePresentationMotion } from '../hooks/usePresentationMotion';
 import { DecorativeImage } from '../ui/DecorativeImage';
 
 const POLL_INTERVAL_MS = 250;
@@ -23,6 +24,7 @@ export function SplashOverlay() {
   const [ready, setReady] = useState(false);
   const [hidden, setHidden] = useState(false);
   const fadeTimer = useRef<number | null>(null);
+  const motion = usePresentationMotion();
 
   useEffect(() => {
     const ac = new AbortController();
@@ -54,6 +56,10 @@ export function SplashOverlay() {
 
   useEffect(() => {
     if (!ready) return;
+    if (motion.reduced) {
+      setHidden(true);
+      return;
+    }
     fadeTimer.current = window.setTimeout(() => setHidden(true), FADE_OUT_MS);
     return () => {
       if (fadeTimer.current !== null) {
@@ -61,7 +67,7 @@ export function SplashOverlay() {
         fadeTimer.current = null;
       }
     };
-  }, [ready]);
+  }, [ready, motion.reduced]);
 
   if (hidden) return null;
 

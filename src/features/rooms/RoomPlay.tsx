@@ -301,6 +301,7 @@ export function RoomPlay({
         <Field label={t('message')}>
           {(props) => (
             <textarea
+              data-command-target="chat"
               {...props}
               className={styles.input}
               value={text}

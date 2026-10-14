@@ -27,8 +27,15 @@ import {
   DecorativeSceneArtwork,
   SceneArtwork,
   type SceneArtworkPresentation,
+  sceneArtworkAsset,
 } from './SceneArtwork';
+import { SceneTransitionOverlay } from './SceneTransitionOverlay';
 export interface VttPresentation {
+  transitionScopeKey?: string;
+  encounterId?: string | null;
+  events?: readonly unknown[];
+  motionScopeKey?: string;
+  round?: number;
   mapSkinAssetId?: string | null;
   sceneArtwork?: SceneArtworkPresentation | null;
   actorVisuals?: ActorVisualMap | undefined;
@@ -59,6 +66,7 @@ interface Props {
 
 /** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */
 const MIN_CANVAS_PX = 60;
+const NO_EVENTS: readonly unknown[] = [];
 /** Fallback dimensions when no ResizeObserver and no container size are available. */
 const FALLBACK_CELLS = 20;
 
@@ -97,10 +105,20 @@ export function VttCanvas({
       : null;
   const storedTurn = useStore((s) => s.combat.currentTurnId);
   const storedRevision = useStore((s) => s.combat.revision);
+  const storedRound = useStore((s) => s.combat.round);
+  const storedEvents = useStore((s) => s.combat.events);
   const storedAoe = useStore((s) => s.combat.aoeTemplates);
   const storedImage = useStore((s) => s.session.mapImageUrl);
   const storedMedia = useStore((s) => s.session.mapMediaRef);
   const campaignId = useStore((s) => s.session.activeCampaignId);
+  const storedSessionId = useStore((s) => s.session.activeSessionId);
+  const storedTimeline = useStore((s) => s.session.presentationGeneration);
+  const transitionScopeKey = presentation
+    ? (presentation.transitionScopeKey ?? '')
+    : JSON.stringify([campaignId, storedSessionId, storedTimeline, scenery?.location ?? null]);
+  const motionScopeKey = presentation
+    ? presentation.motionScopeKey
+    : JSON.stringify([campaignId, storedSessionId, storedTimeline, storedEncounterId]);
   const reference = presentation ? presentation.mapMediaRef : storedMedia;
   const media = useMediaImage(
     reference,
@@ -314,7 +332,12 @@ export function VttCanvas({
       return;
     }
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        !e.isComposing &&
+        !document.querySelector('[role="dialog"]')
+      ) {
         setMeasureOrigin(null);
         setMeasureCurrent(null);
       }
@@ -422,7 +445,19 @@ export function VttCanvas({
   const isEmpty = tokens.length === 0 && !combatActive && !hasMap;
 
   return (
-    <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
+    <div
+      className="dm-vtt"
+      ref={containerRef}
+      data-testid="dm-vtt"
+      data-command-target="map"
+      tabIndex={-1}
+    >
+      <SceneTransitionOverlay
+        scopeKey={transitionScopeKey}
+        active={combatActive}
+        encounterId={presentation ? (presentation.encounterId ?? null) : storedEncounterId}
+        art={scenery ? sceneArtworkAsset(scenery) : null}
+      />
       <div
         className="dm-vtt-canvas"
         onWheel={onWheel}
@@ -474,6 +509,9 @@ export function VttCanvas({
               {...(onMoveToken ? { onMoveToken } : {})}
               currentTurnId={currentTurnId}
               revision={combatRevision}
+              round={presentation ? (presentation.round ?? 1) : storedRound}
+              events={presentation ? (presentation.events ?? NO_EVENTS) : storedEvents}
+              {...(motionScopeKey ? { motionScopeKey } : {})}
               aoeTemplates={aoeTemplates}
             />
           )}

@@ -29,6 +29,7 @@ export interface SessionData {
   mutationId: string | null;
   adventure: AdventureProjection | null;
   transitionGeneration: number;
+  presentationGeneration: number;
   activeCampaignId: string | null;
   activeSessionId: string | null;
   /**
@@ -89,6 +90,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     },
     adventure: null,
     transitionGeneration: 0,
+    presentationGeneration: 0,
     beginTransition: () => {
       const generation = get().session.transitionGeneration + 1;
       set((state) => ({ session: { ...state.session, transitionGeneration: generation } }));
@@ -110,6 +112,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
           pendingRestore: null,
           activeSessionId: sessionId,
           transitionGeneration: s.session.transitionGeneration + 1,
+          presentationGeneration: s.session.presentationGeneration + 1,
         },
       })),
 
@@ -133,6 +136,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
           mapMediaRef: null,
           loadError: null,
           transitionGeneration: s.session.transitionGeneration + 1,
+          presentationGeneration: s.session.presentationGeneration + 1,
         },
       })),
 

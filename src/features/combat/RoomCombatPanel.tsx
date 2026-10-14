@@ -88,6 +88,20 @@ export function RoomCombatPanel({
           selectedTokenId={selection.selectedId}
           onSelectToken={selection.select}
           presentation={{
+            transitionScopeKey: JSON.stringify([
+              timelineReset,
+              projection?.campaign_scope?.campaign_id,
+              player.characterId,
+              sceneArtwork?.location ?? null,
+            ]),
+            encounterId: projection?.encounter_id ?? null,
+            motionScopeKey: JSON.stringify([
+              timelineReset,
+              projection?.encounter_id,
+              player.characterId,
+            ]),
+            round: projection?.snapshot.round ?? 1,
+            events: projection?.events ?? [],
             mapSkinAssetId: active
               ? (projection?.authored?.map_skin_asset_id ?? null)
               : (mapSkinAssetId ?? null),

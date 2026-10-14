@@ -1,37 +1,37 @@
 // Generated from the reviewed asset manifest. Stable IDs never choose a random face.
 
-import asset45 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-cave.webp';
-import asset46 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-dungeon.webp';
-import asset47 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-forest-road.webp';
-import asset48 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-ruins.webp';
-import asset49 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-tavern.webp';
-import asset50 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-temple.webp';
-import asset51 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-village.webp';
-import asset52 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-wizard-tower.webp';
-import asset145 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-cave-v1.webp';
-import asset146 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-dungeon-v1.webp';
-import asset143 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-forest-road-v1.webp';
-import asset144 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-ruins-v1.webp';
-import asset141 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-tavern-v1.webp';
-import asset147 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-temple-v1.webp';
-import asset142 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-village-v1.webp';
-import asset148 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-wizard-tower-v1.webp';
-import asset136 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-cave-chamber-v1.webp';
-import asset137 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-dungeon-hall-v1.webp';
-import asset134 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-forest-crossing-v1.webp';
-import asset135 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-ruined-courtyard-v1.webp';
-import asset133 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-tavern-interior-v1.webp';
-import asset138 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-temple-floor-v1.webp';
-import asset140 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-tower-chamber-v1.webp';
-import asset139 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-village-square-v1.webp';
-import asset37 from '../../crates/adapter-media/assets/bundled/maps/map-cave-chamber.webp';
-import asset38 from '../../crates/adapter-media/assets/bundled/maps/map-dungeon-hall.webp';
-import asset39 from '../../crates/adapter-media/assets/bundled/maps/map-forest-crossing.webp';
-import asset40 from '../../crates/adapter-media/assets/bundled/maps/map-ruined-courtyard.webp';
-import asset41 from '../../crates/adapter-media/assets/bundled/maps/map-tavern-interior.webp';
-import asset42 from '../../crates/adapter-media/assets/bundled/maps/map-temple-floor.webp';
-import asset43 from '../../crates/adapter-media/assets/bundled/maps/map-tower-chamber.webp';
-import asset44 from '../../crates/adapter-media/assets/bundled/maps/map-village-square.webp';
+import asset41 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-cave.webp';
+import asset42 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-dungeon.webp';
+import asset43 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-forest-road.webp';
+import asset44 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-ruins.webp';
+import asset45 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-tavern.webp';
+import asset46 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-temple.webp';
+import asset47 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-village.webp';
+import asset48 from '../../crates/adapter-media/assets/bundled/illustrations/illustration-wizard-tower.webp';
+import asset141 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-cave-v1.webp';
+import asset142 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-dungeon-v1.webp';
+import asset139 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-forest-road-v1.webp';
+import asset140 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-ruins-v1.webp';
+import asset137 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-tavern-v1.webp';
+import asset143 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-temple-v1.webp';
+import asset138 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-village-v1.webp';
+import asset144 from '../../crates/adapter-media/assets/bundled/illustrations/legacy/illustration-wizard-tower-v1.webp';
+import asset132 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-cave-chamber-v1.webp';
+import asset133 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-dungeon-hall-v1.webp';
+import asset130 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-forest-crossing-v1.webp';
+import asset131 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-ruined-courtyard-v1.webp';
+import asset129 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-tavern-interior-v1.webp';
+import asset134 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-temple-floor-v1.webp';
+import asset136 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-tower-chamber-v1.webp';
+import asset135 from '../../crates/adapter-media/assets/bundled/maps/legacy/map-village-square-v1.webp';
+import asset33 from '../../crates/adapter-media/assets/bundled/maps/map-cave-chamber.webp';
+import asset34 from '../../crates/adapter-media/assets/bundled/maps/map-dungeon-hall.webp';
+import asset35 from '../../crates/adapter-media/assets/bundled/maps/map-forest-crossing.webp';
+import asset36 from '../../crates/adapter-media/assets/bundled/maps/map-ruined-courtyard.webp';
+import asset37 from '../../crates/adapter-media/assets/bundled/maps/map-tavern-interior.webp';
+import asset38 from '../../crates/adapter-media/assets/bundled/maps/map-temple-floor.webp';
+import asset39 from '../../crates/adapter-media/assets/bundled/maps/map-tower-chamber.webp';
+import asset40 from '../../crates/adapter-media/assets/bundled/maps/map-village-square.webp';
 import asset0 from './living-tabletop/hero-cleric.webp';
 import asset1 from './living-tabletop/hero-fighter.webp';
 import asset2 from './living-tabletop/hero-rogue.webp';
@@ -55,100 +55,96 @@ import asset19 from './living-tabletop/save-combat.webp';
 import asset20 from './living-tabletop/save-dialog.webp';
 import asset21 from './living-tabletop/save-exploration.webp';
 import asset22 from './living-tabletop/save-npc.webp';
-import asset23 from './living-tabletop/scene-combat.webp';
-import asset24 from './living-tabletop/scene-dialog.webp';
-import asset25 from './living-tabletop/scene-dungeon.webp';
-import asset26 from './living-tabletop/scene-exploration.webp';
-import asset27 from './living-tabletop/splash.webp';
-import asset28 from './living-tabletop/token-cleric.png';
-import asset29 from './living-tabletop/token-fighter.png';
-import asset30 from './living-tabletop/token-rogue.png';
-import asset31 from './living-tabletop/token-wizard.png';
-import asset131 from './living-tabletop/v2/bell-scene-archive-v2.webp';
-import asset132 from './living-tabletop/v2/bell-scene-belfry-v2.webp';
-import asset128 from './living-tabletop/v2/bell-scene-quay-v2.webp';
-import asset129 from './living-tabletop/v2/bell-scene-shrine-v2.webp';
-import asset127 from './living-tabletop/v2/bell-scene-town-v2.webp';
-import asset130 from './living-tabletop/v2/bell-scene-warehouse-v2.webp';
-import asset67 from './living-tabletop/v2/frame-campaign-v2.webp';
-import asset65 from './living-tabletop/v2/frame-journal-v2.webp';
-import asset64 from './living-tabletop/v2/frame-panel-v2.webp';
-import asset66 from './living-tabletop/v2/frame-portrait-v2.webp';
-import asset90 from './living-tabletop/v2/hero-cleric-01-v2.webp';
-import asset91 from './living-tabletop/v2/hero-cleric-02-v2.webp';
-import asset92 from './living-tabletop/v2/hero-cleric-03-v2.webp';
-import asset93 from './living-tabletop/v2/hero-cleric-04-v2.webp';
-import asset32 from './living-tabletop/v2/hero-fighter-01-v2.webp';
-import asset68 from './living-tabletop/v2/hero-fighter-02-v2.webp';
-import asset69 from './living-tabletop/v2/hero-fighter-03-v2.webp';
-import asset70 from './living-tabletop/v2/hero-fighter-04-v2.webp';
-import asset74 from './living-tabletop/v2/hero-rogue-01-v2.webp';
-import asset76 from './living-tabletop/v2/hero-rogue-02-v2.webp';
-import asset78 from './living-tabletop/v2/hero-rogue-03-v2.webp';
-import asset80 from './living-tabletop/v2/hero-rogue-04-v2.webp';
-import asset82 from './living-tabletop/v2/hero-wizard-01-v2.webp';
-import asset83 from './living-tabletop/v2/hero-wizard-02-v2.webp';
-import asset84 from './living-tabletop/v2/hero-wizard-03-v2.webp';
-import asset85 from './living-tabletop/v2/hero-wizard-04-v2.webp';
-import asset122 from './living-tabletop/v2/key-exploration-v2.webp';
-import asset121 from './living-tabletop/v2/key-onboarding-v2.webp';
-import asset120 from './living-tabletop/v2/key-splash-v2.webp';
-import asset33 from './living-tabletop/v2/map-archive-v2.webp';
-import asset57 from './living-tabletop/v2/material-bronze-v2.webp';
-import asset62 from './living-tabletop/v2/material-cloth-v2.webp';
-import asset53 from './living-tabletop/v2/material-leather-v2.webp';
-import asset34 from './living-tabletop/v2/material-oak-v2.webp';
-import asset63 from './living-tabletop/v2/material-oxidized-metal-v2.webp';
-import asset60 from './living-tabletop/v2/material-pale-paper-v2.webp';
-import asset55 from './living-tabletop/v2/material-parchment-v2.webp';
-import asset59 from './living-tabletop/v2/material-river-masonry-v2.webp';
-import asset58 from './living-tabletop/v2/material-stone-floor-v2.webp';
-import asset54 from './living-tabletop/v2/material-stone-v2.webp';
-import asset56 from './living-tabletop/v2/material-velvet-v2.webp';
-import asset61 from './living-tabletop/v2/material-worn-board-v2.webp';
-import asset107 from './living-tabletop/v2/npc-bell-agata-v2.webp';
-import asset108 from './living-tabletop/v2/npc-bell-leon-v2.webp';
-import asset106 from './living-tabletop/v2/npc-bell-mila-v2.webp';
-import asset111 from './living-tabletop/v2/npc-bell-savely-v2.webp';
-import asset110 from './living-tabletop/v2/npc-bell-tikhon-v2.webp';
-import asset109 from './living-tabletop/v2/npc-bell-varden-v2.webp';
-import asset99 from './living-tabletop/v2/npc-guard-v2.webp';
-import asset98 from './living-tabletop/v2/npc-innkeeper-v2.webp';
-import asset104 from './living-tabletop/v2/npc-knight-v2.webp';
-import asset102 from './living-tabletop/v2/npc-mage-v2.webp';
-import asset100 from './living-tabletop/v2/npc-merchant-v2.webp';
-import asset105 from './living-tabletop/v2/npc-peasant-v2.webp';
-import asset103 from './living-tabletop/v2/npc-priestess-v2.webp';
-import asset101 from './living-tabletop/v2/npc-rogue-v2.webp';
-import asset117 from './living-tabletop/v2/opponents/bandit-v2.webp';
-import asset119 from './living-tabletop/v2/opponents/giant-rat-v2.webp';
-import asset113 from './living-tabletop/v2/opponents/goblin-v2.webp';
-import asset118 from './living-tabletop/v2/opponents/orc-v2.webp';
-import asset114 from './living-tabletop/v2/opponents/skeleton-v2.webp';
-import asset112 from './living-tabletop/v2/opponents/water-echo-v2.webp';
-import asset116 from './living-tabletop/v2/opponents/wolf-v2.webp';
-import asset115 from './living-tabletop/v2/opponents/zombie-v2.webp';
-import asset123 from './living-tabletop/v2/save-combat-v2.webp';
-import asset125 from './living-tabletop/v2/save-dialog-v2.webp';
-import asset124 from './living-tabletop/v2/save-exploration-v2.webp';
-import asset126 from './living-tabletop/v2/save-npc-v2.webp';
-import asset94 from './living-tabletop/v2/token-cleric-01-v2.webp';
-import asset95 from './living-tabletop/v2/token-cleric-02-v2.webp';
-import asset96 from './living-tabletop/v2/token-cleric-03-v2.webp';
-import asset97 from './living-tabletop/v2/token-cleric-04-v2.webp';
-import asset35 from './living-tabletop/v2/token-fighter-01-v2.webp';
-import asset71 from './living-tabletop/v2/token-fighter-02-v2.webp';
-import asset72 from './living-tabletop/v2/token-fighter-03-v2.webp';
-import asset73 from './living-tabletop/v2/token-fighter-04-v2.webp';
-import asset75 from './living-tabletop/v2/token-rogue-01-v2.webp';
-import asset77 from './living-tabletop/v2/token-rogue-02-v2.webp';
-import asset79 from './living-tabletop/v2/token-rogue-03-v2.webp';
-import asset81 from './living-tabletop/v2/token-rogue-04-v2.webp';
-import asset86 from './living-tabletop/v2/token-wizard-01-v2.webp';
-import asset87 from './living-tabletop/v2/token-wizard-02-v2.webp';
-import asset88 from './living-tabletop/v2/token-wizard-03-v2.webp';
-import asset89 from './living-tabletop/v2/token-wizard-04-v2.webp';
-import asset36 from './living-tabletop/vtt-empty.webp';
+import asset23 from './living-tabletop/splash.webp';
+import asset24 from './living-tabletop/token-cleric.png';
+import asset25 from './living-tabletop/token-fighter.png';
+import asset26 from './living-tabletop/token-rogue.png';
+import asset27 from './living-tabletop/token-wizard.png';
+import asset127 from './living-tabletop/v2/bell-scene-archive-v2.webp';
+import asset128 from './living-tabletop/v2/bell-scene-belfry-v2.webp';
+import asset124 from './living-tabletop/v2/bell-scene-quay-v2.webp';
+import asset125 from './living-tabletop/v2/bell-scene-shrine-v2.webp';
+import asset123 from './living-tabletop/v2/bell-scene-town-v2.webp';
+import asset126 from './living-tabletop/v2/bell-scene-warehouse-v2.webp';
+import asset63 from './living-tabletop/v2/frame-campaign-v2.webp';
+import asset61 from './living-tabletop/v2/frame-journal-v2.webp';
+import asset60 from './living-tabletop/v2/frame-panel-v2.webp';
+import asset62 from './living-tabletop/v2/frame-portrait-v2.webp';
+import asset86 from './living-tabletop/v2/hero-cleric-01-v2.webp';
+import asset87 from './living-tabletop/v2/hero-cleric-02-v2.webp';
+import asset88 from './living-tabletop/v2/hero-cleric-03-v2.webp';
+import asset89 from './living-tabletop/v2/hero-cleric-04-v2.webp';
+import asset28 from './living-tabletop/v2/hero-fighter-01-v2.webp';
+import asset64 from './living-tabletop/v2/hero-fighter-02-v2.webp';
+import asset65 from './living-tabletop/v2/hero-fighter-03-v2.webp';
+import asset66 from './living-tabletop/v2/hero-fighter-04-v2.webp';
+import asset70 from './living-tabletop/v2/hero-rogue-01-v2.webp';
+import asset72 from './living-tabletop/v2/hero-rogue-02-v2.webp';
+import asset74 from './living-tabletop/v2/hero-rogue-03-v2.webp';
+import asset76 from './living-tabletop/v2/hero-rogue-04-v2.webp';
+import asset78 from './living-tabletop/v2/hero-wizard-01-v2.webp';
+import asset79 from './living-tabletop/v2/hero-wizard-02-v2.webp';
+import asset80 from './living-tabletop/v2/hero-wizard-03-v2.webp';
+import asset81 from './living-tabletop/v2/hero-wizard-04-v2.webp';
+import asset118 from './living-tabletop/v2/key-exploration-v2.webp';
+import asset117 from './living-tabletop/v2/key-onboarding-v2.webp';
+import asset116 from './living-tabletop/v2/key-splash-v2.webp';
+import asset29 from './living-tabletop/v2/map-archive-v2.webp';
+import asset53 from './living-tabletop/v2/material-bronze-v2.webp';
+import asset58 from './living-tabletop/v2/material-cloth-v2.webp';
+import asset49 from './living-tabletop/v2/material-leather-v2.webp';
+import asset30 from './living-tabletop/v2/material-oak-v2.webp';
+import asset59 from './living-tabletop/v2/material-oxidized-metal-v2.webp';
+import asset56 from './living-tabletop/v2/material-pale-paper-v2.webp';
+import asset51 from './living-tabletop/v2/material-parchment-v2.webp';
+import asset55 from './living-tabletop/v2/material-river-masonry-v2.webp';
+import asset54 from './living-tabletop/v2/material-stone-floor-v2.webp';
+import asset50 from './living-tabletop/v2/material-stone-v2.webp';
+import asset52 from './living-tabletop/v2/material-velvet-v2.webp';
+import asset57 from './living-tabletop/v2/material-worn-board-v2.webp';
+import asset103 from './living-tabletop/v2/npc-bell-agata-v2.webp';
+import asset104 from './living-tabletop/v2/npc-bell-leon-v2.webp';
+import asset102 from './living-tabletop/v2/npc-bell-mila-v2.webp';
+import asset107 from './living-tabletop/v2/npc-bell-savely-v2.webp';
+import asset106 from './living-tabletop/v2/npc-bell-tikhon-v2.webp';
+import asset105 from './living-tabletop/v2/npc-bell-varden-v2.webp';
+import asset95 from './living-tabletop/v2/npc-guard-v2.webp';
+import asset94 from './living-tabletop/v2/npc-innkeeper-v2.webp';
+import asset100 from './living-tabletop/v2/npc-knight-v2.webp';
+import asset98 from './living-tabletop/v2/npc-mage-v2.webp';
+import asset96 from './living-tabletop/v2/npc-merchant-v2.webp';
+import asset101 from './living-tabletop/v2/npc-peasant-v2.webp';
+import asset99 from './living-tabletop/v2/npc-priestess-v2.webp';
+import asset97 from './living-tabletop/v2/npc-rogue-v2.webp';
+import asset113 from './living-tabletop/v2/opponents/bandit-v2.webp';
+import asset115 from './living-tabletop/v2/opponents/giant-rat-v2.webp';
+import asset109 from './living-tabletop/v2/opponents/goblin-v2.webp';
+import asset114 from './living-tabletop/v2/opponents/orc-v2.webp';
+import asset110 from './living-tabletop/v2/opponents/skeleton-v2.webp';
+import asset108 from './living-tabletop/v2/opponents/water-echo-v2.webp';
+import asset112 from './living-tabletop/v2/opponents/wolf-v2.webp';
+import asset111 from './living-tabletop/v2/opponents/zombie-v2.webp';
+import asset119 from './living-tabletop/v2/save-combat-v2.webp';
+import asset121 from './living-tabletop/v2/save-dialog-v2.webp';
+import asset120 from './living-tabletop/v2/save-exploration-v2.webp';
+import asset122 from './living-tabletop/v2/save-npc-v2.webp';
+import asset90 from './living-tabletop/v2/token-cleric-01-v2.webp';
+import asset91 from './living-tabletop/v2/token-cleric-02-v2.webp';
+import asset92 from './living-tabletop/v2/token-cleric-03-v2.webp';
+import asset93 from './living-tabletop/v2/token-cleric-04-v2.webp';
+import asset31 from './living-tabletop/v2/token-fighter-01-v2.webp';
+import asset67 from './living-tabletop/v2/token-fighter-02-v2.webp';
+import asset68 from './living-tabletop/v2/token-fighter-03-v2.webp';
+import asset69 from './living-tabletop/v2/token-fighter-04-v2.webp';
+import asset71 from './living-tabletop/v2/token-rogue-01-v2.webp';
+import asset73 from './living-tabletop/v2/token-rogue-02-v2.webp';
+import asset75 from './living-tabletop/v2/token-rogue-03-v2.webp';
+import asset77 from './living-tabletop/v2/token-rogue-04-v2.webp';
+import asset82 from './living-tabletop/v2/token-wizard-01-v2.webp';
+import asset83 from './living-tabletop/v2/token-wizard-02-v2.webp';
+import asset84 from './living-tabletop/v2/token-wizard-03-v2.webp';
+import asset85 from './living-tabletop/v2/token-wizard-04-v2.webp';
+import asset32 from './living-tabletop/vtt-empty.webp';
 export const VISUAL_ASSET_ENTRIES = [
   {
     ...{
@@ -570,78 +566,6 @@ export const VISUAL_ASSET_ENTRIES = [
   },
   {
     ...{
-      id: 'scene.combat.legacy.v1',
-      version: 1,
-      category: 'scene_art',
-      path: 'src/assets/living-tabletop/scene-combat.webp',
-      width: 1920,
-      height: 1080,
-      alpha: false,
-      bytes: 130918,
-      sha256: '8cdf243513fb344e48a84573853cf3202da39736e1813f71df9b0bd8c92b7451',
-      heroClass: null,
-      pairedAssetId: null,
-      source: 'legacy_repository',
-      backendAssetId: null,
-    },
-    uri: asset23,
-  },
-  {
-    ...{
-      id: 'scene.dialog.legacy.v1',
-      version: 1,
-      category: 'scene_art',
-      path: 'src/assets/living-tabletop/scene-dialog.webp',
-      width: 1920,
-      height: 1080,
-      alpha: false,
-      bytes: 149140,
-      sha256: '0cd4030d1bcb4a67351f3754bbc3723b88315b51d0a9c80344a9f4dcc380398e',
-      heroClass: null,
-      pairedAssetId: null,
-      source: 'legacy_repository',
-      backendAssetId: null,
-    },
-    uri: asset24,
-  },
-  {
-    ...{
-      id: 'scene.dungeon.legacy.v1',
-      version: 1,
-      category: 'scene_art',
-      path: 'src/assets/living-tabletop/scene-dungeon.webp',
-      width: 1920,
-      height: 1080,
-      alpha: false,
-      bytes: 241542,
-      sha256: '53d3188c1a465e983886d057eab4a026e18ae48905fe2b20eaaa631e90f18eb5',
-      heroClass: null,
-      pairedAssetId: null,
-      source: 'legacy_repository',
-      backendAssetId: null,
-    },
-    uri: asset25,
-  },
-  {
-    ...{
-      id: 'scene.exploration.legacy.v1',
-      version: 1,
-      category: 'scene_art',
-      path: 'src/assets/living-tabletop/scene-exploration.webp',
-      width: 1920,
-      height: 1080,
-      alpha: false,
-      bytes: 231682,
-      sha256: 'e88ab46405e73d2126c3522e45077f70bdecdb2075af711c901e39bfc6cd6aae',
-      heroClass: null,
-      pairedAssetId: null,
-      source: 'legacy_repository',
-      backendAssetId: null,
-    },
-    uri: asset26,
-  },
-  {
-    ...{
       id: 'splash.legacy.v1',
       version: 1,
       category: 'key_art',
@@ -656,7 +580,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset27,
+    uri: asset23,
   },
   {
     ...{
@@ -674,7 +598,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset28,
+    uri: asset24,
   },
   {
     ...{
@@ -692,7 +616,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset29,
+    uri: asset25,
   },
   {
     ...{
@@ -710,7 +634,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset30,
+    uri: asset26,
   },
   {
     ...{
@@ -728,7 +652,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset31,
+    uri: asset27,
   },
   {
     ...{
@@ -747,7 +671,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-fighter-01-v2.webp',
       backendAssetId: 'portrait-fighter-01-v2',
     },
-    uri: asset32,
+    uri: asset28,
   },
   {
     ...{
@@ -765,7 +689,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset33,
+    uri: asset29,
   },
   {
     ...{
@@ -783,7 +707,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset34,
+    uri: asset30,
   },
   {
     ...{
@@ -801,7 +725,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset35,
+    uri: asset31,
   },
   {
     ...{
@@ -819,7 +743,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'legacy_repository',
       backendAssetId: null,
     },
-    uri: asset36,
+    uri: asset32,
   },
   {
     ...{
@@ -837,7 +761,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset37,
+    uri: asset33,
   },
   {
     ...{
@@ -855,7 +779,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset38,
+    uri: asset34,
   },
   {
     ...{
@@ -873,7 +797,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset39,
+    uri: asset35,
   },
   {
     ...{
@@ -891,7 +815,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset40,
+    uri: asset36,
   },
   {
     ...{
@@ -909,7 +833,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset41,
+    uri: asset37,
   },
   {
     ...{
@@ -927,7 +851,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset42,
+    uri: asset38,
   },
   {
     ...{
@@ -945,7 +869,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset43,
+    uri: asset39,
   },
   {
     ...{
@@ -963,7 +887,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset44,
+    uri: asset40,
   },
   {
     ...{
@@ -981,7 +905,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset45,
+    uri: asset41,
   },
   {
     ...{
@@ -999,7 +923,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset46,
+    uri: asset42,
   },
   {
     ...{
@@ -1017,7 +941,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset47,
+    uri: asset43,
   },
   {
     ...{
@@ -1035,7 +959,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset48,
+    uri: asset44,
   },
   {
     ...{
@@ -1053,7 +977,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset49,
+    uri: asset45,
   },
   {
     ...{
@@ -1071,7 +995,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset50,
+    uri: asset46,
   },
   {
     ...{
@@ -1089,7 +1013,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset51,
+    uri: asset47,
   },
   {
     ...{
@@ -1107,7 +1031,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset52,
+    uri: asset48,
   },
   {
     ...{
@@ -1126,7 +1050,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['application shell', 'chat margins'],
       backendAssetId: null,
     },
-    uri: asset53,
+    uri: asset49,
   },
   {
     ...{
@@ -1145,7 +1069,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['character sheet surface'],
       backendAssetId: null,
     },
-    uri: asset54,
+    uri: asset50,
   },
   {
     ...{
@@ -1164,7 +1088,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['save tome pages'],
       backendAssetId: null,
     },
-    uri: asset55,
+    uri: asset51,
   },
   {
     ...{
@@ -1183,7 +1107,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['shared buttons', 'action controls'],
       backendAssetId: null,
     },
-    uri: asset56,
+    uri: asset52,
   },
   {
     ...{
@@ -1202,7 +1126,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['primary buttons', 'application crest'],
       backendAssetId: null,
     },
-    uri: asset57,
+    uri: asset53,
   },
   {
     ...{
@@ -1221,7 +1145,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['table surface outside authored map'],
       backendAssetId: null,
     },
-    uri: asset58,
+    uri: asset54,
   },
   {
     ...{
@@ -1240,7 +1164,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['map layer controls'],
       backendAssetId: null,
     },
-    uri: asset59,
+    uri: asset55,
   },
   {
     ...{
@@ -1259,7 +1183,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['journal reading surface'],
       backendAssetId: null,
     },
-    uri: asset60,
+    uri: asset56,
   },
   {
     ...{
@@ -1278,7 +1202,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['save tome spine'],
       backendAssetId: null,
     },
-    uri: asset61,
+    uri: asset57,
   },
   {
     ...{
@@ -1297,7 +1221,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['shared field margins'],
       backendAssetId: null,
     },
-    uri: asset62,
+    uri: asset58,
   },
   {
     ...{
@@ -1316,7 +1240,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['status bar'],
       backendAssetId: null,
     },
-    uri: asset63,
+    uri: asset59,
   },
   {
     ...{
@@ -1335,7 +1259,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['shared modal', 'character sheet'],
       backendAssetId: null,
     },
-    uri: asset64,
+    uri: asset60,
   },
   {
     ...{
@@ -1354,7 +1278,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['journal container', 'save tome'],
       backendAssetId: null,
     },
-    uri: asset65,
+    uri: asset61,
   },
   {
     ...{
@@ -1373,7 +1297,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['character portrait rim'],
       backendAssetId: null,
     },
-    uri: asset66,
+    uri: asset62,
   },
   {
     ...{
@@ -1392,7 +1316,7 @@ export const VISUAL_ASSET_ENTRIES = [
       consumers: ['recent campaign card'],
       backendAssetId: null,
     },
-    uri: asset67,
+    uri: asset63,
   },
   {
     ...{
@@ -1411,7 +1335,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-fighter-02-v2.webp',
       backendAssetId: 'portrait-fighter-02-v2',
     },
-    uri: asset68,
+    uri: asset64,
   },
   {
     ...{
@@ -1430,7 +1354,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-fighter-03-v2.webp',
       backendAssetId: 'portrait-fighter-03-v2',
     },
-    uri: asset69,
+    uri: asset65,
   },
   {
     ...{
@@ -1449,7 +1373,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-fighter-04-v2.webp',
       backendAssetId: 'portrait-fighter-04-v2',
     },
-    uri: asset70,
+    uri: asset66,
   },
   {
     ...{
@@ -1467,7 +1391,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset71,
+    uri: asset67,
   },
   {
     ...{
@@ -1485,7 +1409,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset72,
+    uri: asset68,
   },
   {
     ...{
@@ -1503,7 +1427,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset73,
+    uri: asset69,
   },
   {
     ...{
@@ -1522,7 +1446,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-rogue-01-v2.webp',
       backendAssetId: 'portrait-rogue-01-v2',
     },
-    uri: asset74,
+    uri: asset70,
   },
   {
     ...{
@@ -1540,7 +1464,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset75,
+    uri: asset71,
   },
   {
     ...{
@@ -1559,7 +1483,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-rogue-02-v2.webp',
       backendAssetId: 'portrait-rogue-02-v2',
     },
-    uri: asset76,
+    uri: asset72,
   },
   {
     ...{
@@ -1577,7 +1501,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset77,
+    uri: asset73,
   },
   {
     ...{
@@ -1596,7 +1520,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-rogue-03-v2.webp',
       backendAssetId: 'portrait-rogue-03-v2',
     },
-    uri: asset78,
+    uri: asset74,
   },
   {
     ...{
@@ -1614,7 +1538,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset79,
+    uri: asset75,
   },
   {
     ...{
@@ -1633,7 +1557,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-rogue-04-v2.webp',
       backendAssetId: 'portrait-rogue-04-v2',
     },
-    uri: asset80,
+    uri: asset76,
   },
   {
     ...{
@@ -1651,7 +1575,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset81,
+    uri: asset77,
   },
   {
     ...{
@@ -1670,7 +1594,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-wizard-01-v2.webp',
       backendAssetId: 'portrait-wizard-01-v2',
     },
-    uri: asset82,
+    uri: asset78,
   },
   {
     ...{
@@ -1689,7 +1613,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-wizard-02-v2.webp',
       backendAssetId: 'portrait-wizard-02-v2',
     },
-    uri: asset83,
+    uri: asset79,
   },
   {
     ...{
@@ -1708,7 +1632,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-wizard-03-v2.webp',
       backendAssetId: 'portrait-wizard-03-v2',
     },
-    uri: asset84,
+    uri: asset80,
   },
   {
     ...{
@@ -1727,7 +1651,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-wizard-04-v2.webp',
       backendAssetId: 'portrait-wizard-04-v2',
     },
-    uri: asset85,
+    uri: asset81,
   },
   {
     ...{
@@ -1745,7 +1669,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset86,
+    uri: asset82,
   },
   {
     ...{
@@ -1763,7 +1687,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset87,
+    uri: asset83,
   },
   {
     ...{
@@ -1781,7 +1705,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset88,
+    uri: asset84,
   },
   {
     ...{
@@ -1799,7 +1723,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset89,
+    uri: asset85,
   },
   {
     ...{
@@ -1818,7 +1742,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-cleric-01-v2.webp',
       backendAssetId: 'portrait-cleric-01-v2',
     },
-    uri: asset90,
+    uri: asset86,
   },
   {
     ...{
@@ -1837,7 +1761,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-cleric-02-v2.webp',
       backendAssetId: 'portrait-cleric-02-v2',
     },
-    uri: asset91,
+    uri: asset87,
   },
   {
     ...{
@@ -1856,7 +1780,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-cleric-03-v2.webp',
       backendAssetId: 'portrait-cleric-03-v2',
     },
-    uri: asset92,
+    uri: asset88,
   },
   {
     ...{
@@ -1875,7 +1799,7 @@ export const VISUAL_ASSET_ENTRIES = [
       backendPath: 'crates/adapter-media/assets/bundled/portraits/portrait-cleric-04-v2.webp',
       backendAssetId: 'portrait-cleric-04-v2',
     },
-    uri: asset93,
+    uri: asset89,
   },
   {
     ...{
@@ -1893,7 +1817,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset94,
+    uri: asset90,
   },
   {
     ...{
@@ -1911,7 +1835,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset95,
+    uri: asset91,
   },
   {
     ...{
@@ -1929,7 +1853,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset96,
+    uri: asset92,
   },
   {
     ...{
@@ -1947,7 +1871,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset97,
+    uri: asset93,
   },
   {
     ...{
@@ -1965,7 +1889,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset98,
+    uri: asset94,
   },
   {
     ...{
@@ -1983,7 +1907,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset99,
+    uri: asset95,
   },
   {
     ...{
@@ -2001,7 +1925,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset100,
+    uri: asset96,
   },
   {
     ...{
@@ -2019,7 +1943,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset101,
+    uri: asset97,
   },
   {
     ...{
@@ -2037,7 +1961,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset102,
+    uri: asset98,
   },
   {
     ...{
@@ -2055,7 +1979,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset103,
+    uri: asset99,
   },
   {
     ...{
@@ -2073,7 +1997,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset104,
+    uri: asset100,
   },
   {
     ...{
@@ -2091,7 +2015,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset105,
+    uri: asset101,
   },
   {
     ...{
@@ -2109,7 +2033,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset106,
+    uri: asset102,
   },
   {
     ...{
@@ -2127,7 +2051,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset107,
+    uri: asset103,
   },
   {
     ...{
@@ -2145,7 +2069,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset108,
+    uri: asset104,
   },
   {
     ...{
@@ -2163,7 +2087,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset109,
+    uri: asset105,
   },
   {
     ...{
@@ -2181,7 +2105,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset110,
+    uri: asset106,
   },
   {
     ...{
@@ -2199,7 +2123,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset111,
+    uri: asset107,
   },
   {
     ...{
@@ -2218,7 +2142,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset112,
+    uri: asset108,
   },
   {
     ...{
@@ -2237,7 +2161,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset113,
+    uri: asset109,
   },
   {
     ...{
@@ -2256,7 +2180,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset114,
+    uri: asset110,
   },
   {
     ...{
@@ -2275,7 +2199,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset115,
+    uri: asset111,
   },
   {
     ...{
@@ -2294,7 +2218,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset116,
+    uri: asset112,
   },
   {
     ...{
@@ -2313,7 +2237,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset117,
+    uri: asset113,
   },
   {
     ...{
@@ -2332,7 +2256,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset118,
+    uri: asset114,
   },
   {
     ...{
@@ -2351,7 +2275,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset119,
+    uri: asset115,
   },
   {
     ...{
@@ -2369,7 +2293,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset120,
+    uri: asset116,
   },
   {
     ...{
@@ -2387,7 +2311,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset121,
+    uri: asset117,
   },
   {
     ...{
@@ -2405,7 +2329,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset122,
+    uri: asset118,
   },
   {
     ...{
@@ -2423,7 +2347,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset123,
+    uri: asset119,
   },
   {
     ...{
@@ -2441,7 +2365,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset124,
+    uri: asset120,
   },
   {
     ...{
@@ -2459,7 +2383,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset125,
+    uri: asset121,
   },
   {
     ...{
@@ -2477,7 +2401,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset126,
+    uri: asset122,
   },
   {
     ...{
@@ -2495,7 +2419,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset127,
+    uri: asset123,
   },
   {
     ...{
@@ -2513,7 +2437,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset128,
+    uri: asset124,
   },
   {
     ...{
@@ -2531,7 +2455,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset129,
+    uri: asset125,
   },
   {
     ...{
@@ -2549,7 +2473,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset130,
+    uri: asset126,
   },
   {
     ...{
@@ -2567,7 +2491,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset131,
+    uri: asset127,
   },
   {
     ...{
@@ -2585,7 +2509,7 @@ export const VISUAL_ASSET_ENTRIES = [
       source: 'builtin_imagegen',
       backendAssetId: null,
     },
-    uri: asset132,
+    uri: asset128,
   },
   {
     ...{
@@ -2603,7 +2527,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset133,
+    uri: asset129,
   },
   {
     ...{
@@ -2621,7 +2545,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset134,
+    uri: asset130,
   },
   {
     ...{
@@ -2639,7 +2563,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset135,
+    uri: asset131,
   },
   {
     ...{
@@ -2657,7 +2581,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset136,
+    uri: asset132,
   },
   {
     ...{
@@ -2675,7 +2599,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset137,
+    uri: asset133,
   },
   {
     ...{
@@ -2693,7 +2617,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset138,
+    uri: asset134,
   },
   {
     ...{
@@ -2711,7 +2635,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset139,
+    uri: asset135,
   },
   {
     ...{
@@ -2729,7 +2653,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset140,
+    uri: asset136,
   },
   {
     ...{
@@ -2747,7 +2671,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset141,
+    uri: asset137,
   },
   {
     ...{
@@ -2765,7 +2689,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset142,
+    uri: asset138,
   },
   {
     ...{
@@ -2783,7 +2707,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset143,
+    uri: asset139,
   },
   {
     ...{
@@ -2801,7 +2725,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset144,
+    uri: asset140,
   },
   {
     ...{
@@ -2819,7 +2743,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset145,
+    uri: asset141,
   },
   {
     ...{
@@ -2837,7 +2761,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset146,
+    uri: asset142,
   },
   {
     ...{
@@ -2855,7 +2779,7 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset147,
+    uri: asset143,
   },
   {
     ...{
@@ -2873,6 +2797,6 @@ export const VISUAL_ASSET_ENTRIES = [
       pairedAssetId: null,
       backendAssetId: null,
     },
-    uri: asset148,
+    uri: asset144,
   },
 ] as const;

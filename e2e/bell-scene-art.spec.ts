@@ -25,7 +25,8 @@ for (const language of ['ru', 'en'] as const)
         width,
         height: width === 960 ? 640 : width === 1280 ? 800 : 1080,
       });
-      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const reduced = process.env.DMAI_E2E_REDUCED_MOTION !== '0';
+      await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
       const created = await request.post(`${base}/campaigns`, {
         data: {
           schema_version: 1,
@@ -75,10 +76,19 @@ for (const language of ['ru', 'en'] as const)
       });
       await page.goto('/');
       await expect(page.locator('.dm-splash')).toHaveCount(0);
+      const composer = page.getByPlaceholder(
+        language === 'ru' ? 'Что ты делаешь?' : 'What do you do?',
+      );
+      await composer.fill(language === 'ru' ? 'Неотправленный черновик' : 'Unsent scene draft');
       const trigger = page
         .getByRole('button', { name: locale.open, exact: true })
         .and(page.locator('[aria-expanded]'));
       const inspect = async (location: string) => {
+        await expect(page.locator('.dm-scene-transition')).toHaveCount(0);
+        await expect(page.locator('.dm-video-disabled-toast')).toHaveCount(0);
+        await expect(composer).toHaveValue(
+          language === 'ru' ? 'Неотправленный черновик' : 'Unsent scene draft',
+        );
         const id = `scene.bell.${location}.v2`,
           title = locale.locations[location];
         const current = await (await request.get(`${base}/campaigns/${campaign.id}/state`)).json();
@@ -111,13 +121,14 @@ for (const language of ['ru', 'en'] as const)
         );
         await expect(modal.locator('img')).toHaveAttribute('data-asset-id', id);
         await expect(modal.locator('img')).toHaveCSS('object-fit', 'contain');
-        expect(
-          await modal.evaluate((node) =>
-            node
-              .getAnimations({ subtree: true })
-              .some((animation) => animation.playState === 'running'),
-          ),
-        ).toBe(false);
+        if (reduced)
+          expect(
+            await modal.evaluate((node) =>
+              node
+                .getAnimations({ subtree: true })
+                .some((animation) => animation.playState === 'running'),
+            ),
+          ).toBe(false);
         await page.screenshot({
           path: `.artifacts/visual-production/bell-scene-${location}-${language}-${width}.png`,
           animations: 'disabled',

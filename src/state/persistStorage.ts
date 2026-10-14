@@ -48,6 +48,7 @@ import {
 } from './settings';
 import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 import { strongholdSecretsStore } from './strongholdSecretsStore';
+import { workspacePreferences } from './workspacePreferences';
 
 /** Upper bound on a single encrypted-secrets read during hydration. The argon2
  * vault open is deliberately slow and has been observed to hang on corrupt
@@ -72,6 +73,7 @@ const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
 const KEY_READING_FONT_SIZE = 'reading_font_size';
 const KEY_CAMPAIGN_VISITS = 'campaign_visits';
 const KEY_SCENE_TRANSITIONS_ENABLED = 'scene_transitions_enabled';
+const KEY_WORKSPACE = 'workspace_v1';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
@@ -370,6 +372,8 @@ const writePreferences = createCoalescingWriter<PersistedValue>(async (value) =>
   const pc = value.state.pc ?? {};
   const charCreation = value.state.charCreation;
   const settingsWrites: Promise<unknown>[] = [];
+  if (settings.workspace !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_WORKSPACE, workspacePreferences(settings.workspace)));
   if (settings.activeProvider !== undefined) {
     settingsWrites.push(settingsStore.set(KEY_ACTIVE_PROVIDER, settings.activeProvider));
   }
@@ -507,6 +511,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       tempRaw,
       replicateRaw,
       chatWidthRaw,
+      workspaceRaw,
       readingSizeRaw,
       visitsRaw,
       sceneTransitionsRaw,
@@ -538,6 +543,7 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_TEMPERATURE),
       getSecretSafe(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.get(KEY_WORKSPACE),
       settingsStore.get(KEY_READING_FONT_SIZE),
       settingsStore.get(KEY_CAMPAIGN_VISITS),
       settingsStore.get(KEY_SCENE_TRANSITIONS_ENABLED),
@@ -648,6 +654,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
     if (readingSizeParsed.success) settings.readingFontSize = readingSizeParsed.output;
+    if (workspaceRaw != null || chatWidthParsed.success || readingSizeParsed.success) {
+      const workspace = workspacePreferences(workspaceRaw, {
+        chatWidth: settings.chatPanelWidth,
+        readingFontSize: settings.readingFontSize,
+      });
+      settings.workspace = workspace;
+      settings.chatPanelWidth = workspace.chatWidth;
+      settings.readingFontSize = workspace.readingFontSize;
+    }
     if (visitsRaw !== undefined && visitsRaw !== null) settings.campaignVisits = visits;
     if (sceneTransitionsParsed.success) {
       settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;

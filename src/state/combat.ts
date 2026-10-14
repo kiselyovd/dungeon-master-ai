@@ -23,6 +23,7 @@ export interface CombatSlice {
     authored: CombatProjectionDto['authored'];
     encounterId: string | null;
     revision: number;
+    events: readonly unknown[];
     tokens: CombatToken[];
     initiativeOrder: string[];
     currentTurnId: string | null;
@@ -49,6 +50,7 @@ export function emptyCombatProjectionState() {
     authored: null,
     encounterId: null,
     revision: -1,
+    events: [] as unknown[],
     tokens: [] as CombatToken[],
     initiativeOrder: [] as string[],
     currentTurnId: null,
@@ -69,6 +71,7 @@ export function combatProjectionState(projection: CombatProjectionDto) {
     authored: projection.authored ?? null,
     encounterId: projection.encounter_id,
     revision: projection.revision,
+    events: projection.events,
     tokens,
     initiativeOrder: projection.snapshot.initiative
       .map((entry) => entry.id)
@@ -104,6 +107,7 @@ export function legacyCombatProjectionState(snapshot: SnapshotCombat) {
     active: snapshot.active,
     encounterId: snapshot.encounter_id,
     revision: 0,
+    events: [] as unknown[],
     tokens,
     initiativeOrder: [...snapshot.initiative],
     currentTurnId: snapshot.current_turn_id,

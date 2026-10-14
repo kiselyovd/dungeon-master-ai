@@ -72,6 +72,7 @@ export const useStore = create<AppState>()(
       },
       partialize: (state): PersistedSettings => ({
         settings: {
+          workspace: state.settings.workspace,
           activeProvider: state.settings.activeProvider,
           providers: state.settings.providers,
           uiLanguage: state.settings.uiLanguage,

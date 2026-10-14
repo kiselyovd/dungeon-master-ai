@@ -61,3 +61,10 @@ for(const asset of manifest.assets.filter(asset=>asset.source==='builtin_imagege
   if(asset.category==='frame' && !asset.alpha)throw new Error(`frame_alpha_missing:${asset.id}`);
 }
 console.log(`[assets:INFO] verified count=${manifest.assets.length} bytes=${manifest.assets.reduce((sum,asset)=>sum+asset.bytes,0)}`);
+const transitions=JSON.parse(await readFile('docs/visual/transition-art-bindings.json','utf8')) as {mappings:Array<{role:string;assetId:string}>;archived:Asset[]};
+if(transitions.mappings.length!==4||new Set(transitions.mappings.map(entry=>entry.role)).size!==4)throw new Error('invalid_transition_roles');
+for(const entry of transitions.mappings)if(!manifest.assets.some(asset=>asset.id===entry.assetId&&asset.category==='illustration'&&asset.version>=2))throw new Error('transition_selected_master_missing');
+for(const archived of transitions.archived){
+  if(!archived.path.startsWith('.artifacts/visual-production/legacy-scene-transitions/')||ids.has(archived.id))throw new Error('archived_transition_still_shipping');
+  if(createHash('sha256').update(await readFile(archived.path)).digest('hex')!==archived.sha256)throw new Error('archived_transition_hash_changed');
+}

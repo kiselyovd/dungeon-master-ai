@@ -79,8 +79,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   [data-art-direction="living-tabletop"],
-  [data-art-direction="living-tabletop"] * {
-    animation: none !important;
-    transform: none !important;
+  [data-art-direction="living-tabletop"] .dm-ambient-light,
+  [data-art-direction="living-tabletop"] .dm-ambient-dust,
+  .dm-scene-transition-image,
+  .dm-splash-image {
+    animation: none;
   }
+}
+
+.dm-app[data-motion-paused="true"] [data-art-direction="living-tabletop"] {
+  animation: none;
+}
+.dm-app[data-motion-paused="true"] .dm-ambient-light,
+.dm-app[data-motion-paused="true"] .dm-ambient-dust,
+.dm-app[data-motion-paused="true"] .dm-scene-transition-image,
+.dm-app[data-motion-paused="true"] .dm-splash-image {
+  animation-play-state: paused;
 }

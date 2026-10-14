@@ -132,6 +132,10 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Canonical current-location atmosphere | [Bell scene paintings](docs/visual/BELL_SCENES.md) |
 | Map artwork and exact tactical calibration | [Map skins](docs/visual/MAP_SKINS.md) |
 | Bundled scenic images and fallback behavior | [Offline illustrations](docs/visual/OFFLINE_ILLUSTRATIONS.md) |
+| Confirmed combat cues and motion preferences | [Gameplay motion](docs/visual/CONFIRMED_MOTION.md) |
+| Scene changes, cinematic preferences and ambient pause | [Scene transitions](docs/visual/SCENE_TRANSITIONS.md) |
+| Command palette, shortcuts and role limits | [Commands](docs/COMMANDS.md) |
+| Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
 
 ## Build
 

@@ -89,16 +89,14 @@ test('empty VTT uses living-tabletop art and retains product labels', async ({ p
   await expect(page.locator('.dm-vtt-empty[data-art-direction="living-tabletop"]')).toBeVisible();
 });
 
-test('NPC, save, and combat scene use their semantic images', async ({ page }) => {
+test('NPC and save images remain available without a scene-name cinematic', async ({ page }) => {
   await page.goto('/');
   await page.getByPlaceholder(/what do you do/i).fill('approach the old bridge');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const art = page.getByTestId('scene-transition-art');
-  await expect(art).toBeVisible();
-  await expect(art).toHaveAttribute('src', /scene-combat.*\.webp/);
-  await page.keyboard.press('Escape');
-  await expect(art).toHaveCount(0);
+  await expect(page.getByTestId('scene-transition-art')).toHaveCount(0);
+  await page.getByPlaceholder(/what do you do/i).fill('Unsent next action');
+  await expect(page.getByPlaceholder(/what do you do/i)).toHaveValue('Unsent next action');
 
   await page.getByRole('button', { name: 'NPCs', exact: true }).click();
   await expect(page.locator('img[data-archetype="innkeeper"]')).toHaveAttribute(
@@ -117,15 +115,16 @@ test('NPC, save, and combat scene use their semantic images', async ({ page }) =
   );
 });
 
-test('reduced motion stops every living-tabletop descendant animation', async ({ page }) => {
+test('reduced motion stops decorative animations and does not create a blocking scene overlay', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.getByPlaceholder(/what do you do/i).fill('approach the old bridge');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const art = page.getByTestId('scene-transition-art');
-  await expect(art).toBeVisible();
-  const animatedDescendants = page.locator('[data-art-direction="living-tabletop"] *');
+  await expect(page.getByTestId('scene-transition-art')).toHaveCount(0);
+  const animatedDescendants = page.locator('.dm-ambient-light, .dm-ambient-dust, .dm-splash-image');
   await expect
     .poll(async () =>
       animatedDescendants.evaluateAll((elements) =>

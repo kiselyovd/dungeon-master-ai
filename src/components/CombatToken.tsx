@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
+import type { ConfirmedCombatEffect } from '../features/combat/model/confirmedMotion';
 import { isDeadToken, isIncapacitatedToken } from '../features/combat/model/selectors';
 import { useMediaImage } from '../features/media/useMediaImage';
 import { legacyPortraitUrl } from '../lib/heroPortraits';
@@ -29,6 +30,7 @@ export interface PlayerTokenPresentation {
 }
 
 interface Props {
+  effects?: readonly ConfirmedCombatEffect[];
   selected?: boolean | undefined;
   onSelect?: ((id: string) => void) | undefined;
   actorVisual?: ActorVisualPresentation | undefined;
@@ -96,6 +98,7 @@ export function CombatToken({
   currentTurnId,
   playerPresentation,
   revision,
+  effects = [],
 }: Props) {
   const { t } = useTranslation('combat');
   const displayName = token.displayNameKey
@@ -160,6 +163,10 @@ export function CombatToken({
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const healthEffect = effects.find((effect) => effect.kind === 'damage' || effect.kind === 'heal');
+  const moveConfirmed = effects.some((effect) => effect.kind === 'move');
+  const turnArrived = effects.some((effect) => effect.kind === 'own_turn');
+  const resourceEffect = effects.find((effect) => effect.kind === 'resource');
   // The PC's own token prefers the generated/selected portrait over class art (E4).
   const portraitSrc = visual?.portraitMediaRef
     ? media.url
@@ -324,6 +331,11 @@ export function CombatToken({
         data-testid={`combat-token-${token.id}`}
         type="button"
         data-selected={selected ? 'true' : undefined}
+        data-confirmed-effect={healthEffect?.kind}
+        data-resource-spent={
+          effects.some((effect) => effect.kind === 'resource') ? 'true' : undefined
+        }
+        data-motion-event={effects[0]?.id}
         tabIndex={onSelect ? 0 : -1}
         aria-disabled={!onSelect}
         aria-label={t('token_aria', {
@@ -381,14 +393,17 @@ export function CombatToken({
           // Animate model-driven and drop-committed moves (left/top change when
           // isDragging=false). Suppress transition during live drag so the token
           // tracks the pointer with zero lag. [W1.7a]
-          transition: isDragging ? undefined : 'left 0.25s ease, top 0.25s ease',
+          transition:
+            !isDragging && !prefersReducedMotion
+              ? `${moveConfirmed ? 'left var(--t-base) ease, top var(--t-base) ease, ' : ''}outline-color var(--t-fast) ease, outline-offset var(--t-fast) ease`
+              : undefined,
           // Pulse pauses during drag so the active-token glow does not
           // visually compete with the ghost + live position feedback. Dead
           // tokens never pulse - the skull overlay is the only motion cue.
           // Suppressed when the user prefers reduced motion. [W1.7b]
           animation:
-            token.isActive && !isDragging && !incapacitated && !prefersReducedMotion
-              ? 'token-pulse 1.6s ease-in-out infinite'
+            turnArrived && !isDragging && !incapacitated && !prefersReducedMotion
+              ? 'token-pulse var(--t-slow) ease-in-out'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
           zIndex: isDragging ? 10000 : Math.round(token.y * 10 + 10),
@@ -397,6 +412,19 @@ export function CombatToken({
           opacity: isDead ? 0.7 : undefined,
         }}
       >
+        {resourceEffect && (
+          <span key={resourceEffect.id} className="dm-token-resource-feedback" aria-hidden="true" />
+        )}
+        {healthEffect && (
+          <span
+            key={healthEffect.id}
+            className={`dm-token-health-feedback ${healthEffect.kind}`}
+            aria-hidden="true"
+          >
+            {healthEffect.kind === 'heal' ? '+' : '-'}
+            {healthEffect.amount}
+          </span>
+        )}
         {miniatureSrc && (
           <div
             data-testid={`miniature-${token.id}`}
@@ -581,7 +609,8 @@ export function CombatToken({
               width: `${hpPct}%`,
               height: '100%',
               background: hpColor(token.hp, token.maxHp),
-              transition: 'width var(--t-base) ease',
+              transition:
+                healthEffect && !prefersReducedMotion ? 'width var(--t-base) ease' : undefined,
             }}
           />
         </div>

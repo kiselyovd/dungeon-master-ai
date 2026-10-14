@@ -18,28 +18,64 @@
   }
 }
 
-/* "Your turn" label floats above the PC token on their active turn. [W1.7b] */
-@keyframes your-turn-fade-in {
+/* Current-turn status is static on hydration/reconnect. Arrival uses a single
+   canonical revision cue on the token, rather than an animation on mount. */
+.token-your-turn {
+  animation: none;
+}
+
+@keyframes confirmed-health-change {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(4px);
+    transform: translateX(-50%) translateY(var(--space-2));
   }
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
 }
-
-.token-your-turn {
-  animation: your-turn-fade-in 0.2s ease forwards;
+@keyframes confirmed-resource-change {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.dm-token-health-feedback {
+  position: absolute;
+  top: calc(var(--space-6) * -1);
+  left: 50%;
+  z-index: 3;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-deep);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  pointer-events: none;
+  animation: confirmed-health-change var(--t-slow) ease both;
+}
+.dm-token-health-feedback.damage {
+  color: var(--color-danger);
+}
+.dm-token-health-feedback.heal {
+  color: var(--color-success);
+}
+.dm-token-resource-feedback {
+  position: absolute;
+  inset: -2px;
+  z-index: 3;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: confirmed-resource-change var(--t-slow) ease both;
 }
 
-/* Respect system motion preferences: disable the "Your turn" fade-in when the
-   user has requested reduced motion. The token-pulse animation is controlled
-   via an inline `style` in CombatToken.tsx; it is already skipped when
-   prefers-reduced-motion is set there via a `matchMedia` check. [W1.7b] */
 @media (prefers-reduced-motion: reduce) {
-  .token-your-turn {
+  .dm-token-health-feedback,
+  .dm-token-resource-feedback {
     animation: none;
   }
 }

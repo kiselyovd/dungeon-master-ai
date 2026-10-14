@@ -243,6 +243,42 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
   page,
 }) => {
   test.setTimeout(30_000);
+  const reduced = process.env.DMAI_E2E_REDUCED_MOTION === '1';
+  await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
+  await page.addInitScript(() => {
+    const audit = window as typeof window & {
+      __dmaiMotion: Array<{ id: string; kind: string | null; transition: string }>;
+    };
+    audit.__dmaiMotion = [];
+    const seen = new Set<string>();
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        const node = mutation.target;
+        if (!(node instanceof HTMLElement)) continue;
+        const id = node.dataset.motionEvent;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        audit.__dmaiMotion.push({
+          id,
+          kind: node.dataset.confirmedEffect ?? null,
+          transition: node.style.transition,
+        });
+      }
+    }).observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-motion-event'],
+    });
+  });
+  const motionAudit = () =>
+    page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __dmaiMotion: Array<{ id: string; kind: string | null; transition: string }>;
+          }
+        ).__dmaiMotion,
+    );
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: null,
@@ -704,12 +740,34 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
         args: { combatant_id: HERO_ID, x: 2, y: 0 },
       });
     await expect(hero).toHaveCSS('left', '0px');
+    expect(await motionAudit()).toEqual([]);
     releaseMove?.();
     await expect(hero).toHaveCSS('left', '60px');
+    if (reduced) expect(await motionAudit()).toEqual([]);
+    else
+      await expect
+        .poll(async () => (await motionAudit()).some((cue) => cue.transition.includes('left')))
+        .toBe(true);
 
+    const viewport = await page.locator('.dm-vtt-canvas').boundingBox();
+    if (!viewport) throw new Error('battle viewport missing');
+    await page.mouse.move(viewport.x + 400, viewport.y + 180);
+    await page.mouse.down();
+    await page.mouse.move(viewport.x + 640, viewport.y + 300, { steps: 4 });
+    await page.mouse.up();
     await page.getByTestId('action-btn-cast').click();
     await page.getByRole('button', { name: 'Confirm spell', exact: true }).click();
     await expect(page.getByLabel(/Aria 10\/10 HP/)).toBeVisible();
+    expect(await page.locator('.dm-vtt-panel').evaluate((node) => node.scrollTop)).toBe(0);
+    if (reduced) expect(await motionAudit()).toEqual([]);
+    else
+      await expect
+        .poll(async () => (await motionAudit()).some((cue) => cue.kind === 'heal'))
+        .toBe(true);
+    await page.screenshot({
+      path: `.artifacts/product-uiux/task-32-${reduced ? 'reduced' : 'normal'}-heal.png`,
+      animations: 'disabled',
+    });
     await expect(page.getByTestId('action-btn-attack')).toBeDisabled();
   });
 
@@ -728,6 +786,7 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await page.getByRole('button', { name: 'Confirm attack', exact: true }).click();
     await expect(page.getByLabel(/Goblin Scout 2\/7 HP/)).toBeVisible();
     await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toHaveCSS('left', '60px');
+    const effectsBeforeStaleReply = (await motionAudit()).length;
     await sendChat(page, 'Inspect the fight.');
     await expect(
       page.getByText('The scout is wounded; Aria remains ready.', { exact: true }),
@@ -735,6 +794,7 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     await expect(page.getByTestId(`combat-token-${HERO_ID}`)).toHaveCSS('left', '60px');
     await expect(page.getByLabel(/Aria 10\/10 HP/)).toBeVisible();
     await expect(page.getByLabel(/Goblin Scout 2\/7 HP/)).toBeVisible();
+    expect((await motionAudit()).length).toBe(effectsBeforeStaleReply);
     await page.getByTestId('action-btn-end_turn').click();
     await page.getByTestId('action-btn-attack').click();
     await page.getByRole('button', { name: 'Confirm attack', exact: true }).click();
