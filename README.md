@@ -139,6 +139,8 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Pasteable links, native opening and explicit room joining | [Room invitations](docs/ROOM_INVITATIONS.md) |
 | Opt-in events, Windows permissions and notification clicks | [Desktop notifications](docs/NOTIFICATIONS.md) |
 | Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
+| Backup/dossier roles, validation and atomic import | [Portable campaigns](docs/PORTABLE_CAMPAIGNS.md) |
+| Read-only hero/journal views, scope and access limits | [Detached windows](docs/DETACHED_WINDOWS.md) |
 
 ## Build
 

@@ -1,3 +1,4 @@
+pub mod campaign_bundles;
 pub mod events;
 pub mod llm;
 pub mod media;

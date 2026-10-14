@@ -33,6 +33,7 @@ struct Display {
 pub struct DesktopState {
     restoring: AtomicBool,
     geometry: Mutex<Option<Geometry>>,
+    auxiliary: Mutex<std::collections::BTreeMap<String, Geometry>>,
 }
 #[derive(Debug)]
 struct Placement {
@@ -63,6 +64,23 @@ fn place(
     border: (u32, u32),
     matching: bool,
 ) -> Placement {
+    place_with_defaults(
+        saved,
+        display,
+        border,
+        matching,
+        (960.0, 640.0),
+        (1280.0, 800.0),
+    )
+}
+fn place_with_defaults(
+    saved: Option<&Geometry>,
+    display: &Display,
+    border: (u32, u32),
+    matching: bool,
+    minimum: (f64, f64),
+    default: (f64, f64),
+) -> Placement {
     let saved = saved.filter(|value| valid(value));
     let scale = if display.scale.is_finite() && display.scale > 0.0 {
         display.scale
@@ -71,13 +89,13 @@ fn place(
     };
     let available_width = (display.width.saturating_sub(border.0).max(1) as f64) / scale;
     let available_height = (display.height.saturating_sub(border.1).max(1) as f64) / scale;
-    let min_width = 960.0_f64.min(available_width);
-    let min_height = 640.0_f64.min(available_height);
+    let min_width = minimum.0.min(available_width);
+    let min_height = minimum.1.min(available_height);
     let width = saved
-        .map_or(1280.0, |value| value.width)
+        .map_or(default.0, |value| value.width)
         .clamp(min_width, available_width);
     let height = saved
-        .map_or(800.0, |value| value.height)
+        .map_or(default.1, |value| value.height)
         .clamp(min_height, available_height);
     let outer_width = width * scale + border.0 as f64;
     let outer_height = height * scale + border.1 as f64;
@@ -163,11 +181,19 @@ fn choose<'a>(saved: Option<&Geometry>, monitors: &'a [Display]) -> Option<(&'a 
     monitors.first().map(|monitor| (monitor, false))
 }
 fn persist(app: &AppHandle, geometry: &Geometry, flush: bool) -> Result<(), &'static str> {
+    persist_at(app, KEY, geometry, flush)
+}
+fn persist_at(
+    app: &AppHandle,
+    key: &str,
+    geometry: &Geometry,
+    flush: bool,
+) -> Result<(), &'static str> {
     let store = app
         .store(STORE)
         .map_err(|_| "desktop_preferences_unavailable")?;
     store.set(
-        KEY,
+        key,
         serde_json::to_value(geometry).map_err(|_| "desktop_geometry_invalid")?,
     );
     if flush {
@@ -180,7 +206,18 @@ fn persist(app: &AppHandle, geometry: &Geometry, flush: bool) -> Result<(), &'st
 fn apply(window: &Window, saved: Option<&Geometry>) -> Result<Geometry, &'static str> {
     let monitors = displays(window)?;
     let (monitor, matching) = choose(saved, &monitors).ok_or("desktop_monitor_missing")?;
-    let placement = place(saved, monitor, border(window), matching);
+    let placement = if auxiliary_key(window.label()).is_some() {
+        place_with_defaults(
+            saved,
+            monitor,
+            border(window),
+            matching,
+            (520.0, 400.0),
+            (960.0, 720.0),
+        )
+    } else {
+        place(saved, monitor, border(window), matching)
+    };
     window
         .set_min_size(Some(LogicalSize::new(
             placement.min_width,
@@ -273,6 +310,84 @@ pub fn capture(window: &Window, flush: bool) {
     }
 }
 
+fn auxiliary_key(label: &str) -> Option<&'static str> {
+    match label {
+        "hero" => Some("hero_geometry_v1"),
+        "journal" => Some("journal_geometry_v1"),
+        _ => None,
+    }
+}
+pub fn restore_auxiliary(window: &Window) {
+    let Some(key) = auxiliary_key(window.label()) else {
+        return;
+    };
+    let app = window.app_handle();
+    let state = app.state::<DesktopState>();
+    let saved = app
+        .store(STORE)
+        .ok()
+        .and_then(|store| store.get(key))
+        .and_then(|value| serde_json::from_value::<Geometry>(value).ok())
+        .filter(valid);
+    state.restoring.store(true, Ordering::SeqCst);
+    if let Ok(geometry) = apply(window, saved.as_ref()) {
+        state
+            .auxiliary
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(window.label().to_owned(), geometry);
+    }
+    state.restoring.store(false, Ordering::SeqCst);
+}
+pub fn capture_auxiliary(window: &Window, flush: bool) {
+    let Some(key) = auxiliary_key(window.label()) else {
+        return;
+    };
+    let state = window.app_handle().state::<DesktopState>();
+    if state.restoring.load(Ordering::SeqCst)
+        || window.is_minimized().unwrap_or(true)
+        || window.is_fullscreen().unwrap_or(true)
+    {
+        return;
+    }
+    let mut all = state
+        .auxiliary
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let maximized = window.is_maximized().unwrap_or(false);
+    if !maximized {
+        if let (Ok(position), Ok(size), Ok(Some(monitor))) = (
+            window.outer_position(),
+            window.inner_size(),
+            window.current_monitor(),
+        ) {
+            let area = monitor.work_area();
+            let scale = monitor.scale_factor();
+            if size.width > 0 && size.height > 0 && scale > 0.0 {
+                all.insert(
+                    window.label().to_owned(),
+                    Geometry {
+                        schema_version: 1,
+                        monitor: monitor.name().cloned(),
+                        monitor_x: area.position.x,
+                        monitor_y: area.position.y,
+                        offset_x: (position.x as f64 - area.position.x as f64) / scale,
+                        offset_y: (position.y as f64 - area.position.y as f64) / scale,
+                        width: size.width as f64 / scale,
+                        height: size.height as f64 / scale,
+                        maximized,
+                    },
+                );
+            }
+        }
+    }
+    if let Some(geometry) = all.get_mut(window.label()) {
+        geometry.maximized = maximized;
+        if let Err(code) = persist_at(window.app_handle(), key, geometry, flush) {
+            log::warn!("desktop auxiliary geometry not saved: {code}");
+        }
+    }
+}
 pub fn recover_offscreen(window: &Window) {
     if window.label() != "main"
         || window.is_maximized().unwrap_or(true)

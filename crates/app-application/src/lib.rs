@@ -1,6 +1,7 @@
 //! Protocol-neutral application contracts and use-case boundaries.
 
 pub mod agent;
+pub mod campaign_bundles;
 pub mod campaigns;
 pub mod combat;
 pub mod media_assets;

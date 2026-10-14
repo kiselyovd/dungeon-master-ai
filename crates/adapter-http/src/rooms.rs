@@ -24,6 +24,7 @@ pub fn router(service: Arc<RoomService>) -> Router {
         .route("/rooms/{room_id}/join", post(join_room))
         .route("/rooms/{room_id}/leave", post(leave_room))
         .route("/rooms/{room_id}/party", get(own_party))
+        .route("/rooms/{room_id}/dossier", get(own_dossier))
         .route(
             "/rooms/{room_id}/media/assets",
             post(upload_portrait).layer(DefaultBodyLimit::max(
@@ -266,6 +267,26 @@ async fn own_party(
         .own_party(&subject)
         .await
         .map(Json)
+        .map_err(room_error)
+}
+async fn own_dossier(
+    State(service): State<Arc<RoomService>>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<([(header::HeaderName, &'static str); 2], Vec<u8>), HttpServiceError> {
+    let subject = subject(&service, room_id, &headers).await?;
+    service
+        .export_own_dossier(&subject)
+        .await
+        .map(|bytes| {
+            (
+                [
+                    (header::CONTENT_TYPE, "application/octet-stream"),
+                    (header::CACHE_CONTROL, "no-store"),
+                ],
+                bytes,
+            )
+        })
         .map_err(room_error)
 }
 async fn invite(

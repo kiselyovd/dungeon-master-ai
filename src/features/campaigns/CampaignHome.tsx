@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CampaignSummary } from '../../api/contracts/campaign';
 import { KEY_ART, KEY_ART_IDS } from '../../assets/livingTabletop';
@@ -9,6 +10,7 @@ import { CampaignHeroCard } from './components/CampaignHeroCard';
 import { CampaignProgress } from './components/CampaignProgress';
 
 interface CampaignHomeProps {
+  nativeTools?: ReactNode;
   errorCode?: string | null;
   onRetry?: () => void;
   campaigns: CampaignSummary[];
@@ -18,6 +20,7 @@ interface CampaignHomeProps {
 }
 
 export function CampaignHome({
+  nativeTools,
   campaigns,
   loading,
   onContinue,
@@ -77,6 +80,7 @@ export function CampaignHome({
           {t('new_campaign')}
         </button>
 
+        {nativeTools}
         {archive.length > 0 && (
           <section className={styles.archive} aria-labelledby="campaign-archive-title">
             <div className={styles.archiveHeading}>

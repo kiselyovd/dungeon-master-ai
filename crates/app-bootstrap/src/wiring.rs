@@ -155,6 +155,11 @@ pub fn build_room_router(
 pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow::Result<Router> {
     let media_assets = compose_media_assets(&state);
     let store = Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone()));
+    let bundles = adapter_http::native_bundles::router(
+        Arc::new(crate::campaign_bundles::NativeBundles::new(store.clone())),
+        token.clone(),
+    )
+    .map_err(|_| anyhow::anyhow!("native bundle owner configuration invalid"))?;
     let rooms = Arc::new(
         app_application::rooms::RoomService::new(
             store.clone(),
@@ -162,7 +167,13 @@ pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow:
             state.secrets_repo(),
             Arc::new(app_application::rooms::SystemRoomClock),
         )
-        .with_media_assets(media_assets),
+        .with_media_assets(media_assets)
+        .with_dossiers(Arc::new(
+            app_application::campaign_bundles::CampaignBundles::new(
+                store.clone(),
+                Arc::new(adapter_media::bundle_codec::DecodedRasterInspector),
+            ),
+        )),
     );
     let listener = Arc::new(crate::room_listener::RoomTcpListener::new(
         state.clone(),
@@ -179,5 +190,5 @@ pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow:
         .map_err(|_| anyhow::anyhow!("native guest owner configuration invalid"))?;
     let broker = adapter_http::room_owner::transport_router(transport, token)
         .map_err(|_| anyhow::anyhow!("native transport owner configuration invalid"))?;
-    Ok(host.merge(guest).merge(broker))
+    Ok(host.merge(guest).merge(broker).merge(bundles))
 }

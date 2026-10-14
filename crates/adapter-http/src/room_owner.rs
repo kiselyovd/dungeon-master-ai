@@ -25,7 +25,7 @@ pub fn router(
         token,
     )
 }
-fn protect(base: Router, token: String) -> Result<Router, HttpServiceError> {
+pub(crate) fn protect(base: Router, token: String) -> Result<Router, HttpServiceError> {
     if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(HttpServiceError::Internal {
             code: "native_owner_token_invalid",

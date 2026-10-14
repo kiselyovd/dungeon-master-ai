@@ -1,0 +1,29 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  padding: var(--space-4);
+  gap: var(--space-3);
+}
+.header {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.root :global(.dm-char-backdrop) {
+  position: relative;
+  padding: 0;
+  background: transparent;
+}
+.root :global(.dm-char) {
+  width: 100%;
+  max-height: none;
+}

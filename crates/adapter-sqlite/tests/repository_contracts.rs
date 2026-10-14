@@ -199,12 +199,13 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 25);
+    assert_eq!(migration_count, 26);
     for table in [
         "media_content",
         "media_assets",
         "media_bindings",
         "current_map_media",
+        "campaign_bundle_imports",
     ] {
         let present: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
@@ -215,7 +216,7 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .unwrap();
         assert!(
             present,
-            "media ownership and selected references must be migrated: {table}"
+            "media ownership, selected references and import receipts must be migrated: {table}"
         );
     }
     for table in ["agent_turn_operations", "room_dm_turns"] {

@@ -144,6 +144,7 @@ pub struct RoomService {
     secrets: Arc<dyn SecretsStore>,
     clock: Arc<dyn RoomClock>,
     media_assets: Option<Arc<crate::media_assets::MediaAssets>>,
+    dossiers: Option<Arc<dyn crate::ports::campaign_bundles::PlayerDossierExporter>>,
 }
 impl RoomService {
     pub fn new(
@@ -158,11 +159,53 @@ impl RoomService {
             secrets,
             clock,
             media_assets: None,
+            dossiers: None,
         }
     }
     pub fn with_media_assets(mut self, assets: Arc<crate::media_assets::MediaAssets>) -> Self {
         self.media_assets = Some(assets);
         self
+    }
+    pub fn with_dossiers(
+        mut self,
+        exporter: Arc<dyn crate::ports::campaign_bundles::PlayerDossierExporter>,
+    ) -> Self {
+        self.dossiers = Some(exporter);
+        self
+    }
+    pub async fn export_own_dossier(&self, subject: &RoomSubject) -> Result<Vec<u8>, RoomError> {
+        let _lane = ROOM_MUTATION.lock().await;
+        let room = self.authorized_room(subject).await?;
+        let party = self
+            .parties
+            .party(room.campaign_id)
+            .await
+            .map_err(|_| RoomError::Repository)?
+            .ok_or(RoomError::Denied)?;
+        if party.session_id != room.session_id {
+            return Err(RoomError::Denied);
+        }
+        let own = party
+            .view_for(subject.lease.member_id)
+            .map_err(|_| RoomError::Denied)?;
+        let actor = own
+            .own_character
+            .get("characterId")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|value| Uuid::parse_str(value).ok())
+            .ok_or(RoomError::Denied)?;
+        let exporter = self.dossiers.as_ref().ok_or(RoomError::Repository)?;
+        let bytes = exporter
+            .export_own(
+                room.campaign_id,
+                actor,
+                i64::try_from(self.clock.now().saturating_mul(1000))
+                    .map_err(|_| RoomError::Repository)?,
+            )
+            .await
+            .map_err(|_| RoomError::Repository)?;
+        self.authorized_room(subject).await?;
+        Ok(bytes)
     }
     pub async fn upload_portrait(
         &self,

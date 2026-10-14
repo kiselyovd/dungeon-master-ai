@@ -29,6 +29,7 @@ import { NpcMemoryGrid } from '../components/NpcMemoryGrid';
 import { RecoveryPanel } from '../components/RecoveryPanel';
 import { SettingsModal } from '../components/SettingsModal';
 import { AdventureContent } from '../features/adventure/AdventurePanel';
+import { CampaignPortability } from '../features/campaign-bundles/CampaignPortability';
 import { parseCombatProjection, projectionTokens } from '../features/combat/model/combatProjection';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
 import { CommandCenter } from '../features/commands/CommandCenter';
@@ -47,6 +48,7 @@ import { RoomHome } from '../features/rooms/RoomHome';
 import { RoomPlay } from '../features/rooms/RoomPlay';
 import { useRoom } from '../features/rooms/useRoom';
 import { useStore } from '../state/useStore';
+import { AuxiliaryButton } from './AuxiliaryButton';
 import {
   focusTable,
   registerCommands,
@@ -58,6 +60,7 @@ import { GameTableExperience } from './GameTableExperience';
 import { roomContext } from './roomContext';
 import { roomPorts } from './roomPorts';
 import { roomTable } from './tableAdapters';
+import { useAuxiliaryProjection } from './useAuxiliaryProjection';
 
 interface Props {
   initialInvitation?: InvitationPreview | null;
@@ -86,6 +89,15 @@ function ConnectedRoom({
     }
   }, [view.state, connection.member_id]);
   const unavailableContext = view.state !== null && context === null;
+  useAuxiliaryProjection({
+    scopeId: `room:${connection.room.room_id}:${connection.member_id}:${view.timelineReset}`,
+    campaignId: connection.room.campaign_id,
+    memberId: connection.member_id,
+    revision: view.state?.revision ?? 0,
+    ready: view.status === 'connected' && Boolean(context) && !unavailableContext,
+    hero: context?.own ?? null,
+    journal: context?.journal ?? [],
+  });
   const portraitTransfer = useMemo(
     () =>
       new RoomPortraitTransfer({
@@ -319,6 +331,10 @@ function ConnectedRoom({
                         <HeroContext character={context?.own ?? null} />
                       )}
                       {slots.context}
+                      <AuxiliaryButton
+                        kind="hero"
+                        disabled={view.status !== 'connected' || !context?.own}
+                      />
                     </>
                   ),
                 },
@@ -328,11 +344,14 @@ function ConnectedRoom({
                   content: unavailableContext ? (
                     <p role="alert">{t('context_unavailable')}</p>
                   ) : (
-                    <JournalViewer
-                      embedded
-                      entries={context?.journal ?? []}
-                      onClose={() => setContextId(null)}
-                    />
+                    <>
+                      <AuxiliaryButton kind="journal" disabled={view.status !== 'connected'} />
+                      <JournalViewer
+                        embedded
+                        entries={context?.journal ?? []}
+                        onClose={() => setContextId(null)}
+                      />
+                    </>
                   ),
                 },
                 {
@@ -412,6 +431,16 @@ function ConnectedRoom({
           }
           invitation={invitation}
           notificationControl={<NotificationPreferences />}
+          portabilityControl={
+            view.state ? (
+              <CampaignPortability
+                scopeId={`${view.state.room.room_id}:${view.state.room.epoch}:${connection.member_id}`}
+                campaigns={[{ id: view.state.campaign.id, title: view.state.campaign.title }]}
+                guest={connection.kind === 'guest'}
+                canImport={false}
+              />
+            ) : null
+          }
           onRefreshInvitation={
             connection.kind === 'host'
               ? () => {

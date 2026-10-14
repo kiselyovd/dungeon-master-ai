@@ -14,6 +14,7 @@ import { RoomRecoveryPanel } from './RoomRecoveryPanel';
 
 interface Props {
   notificationControl?: ReactNode;
+  portabilityControl?: ReactNode;
   renderTable?: (slots: RoomTableSlots) => ReactNode;
   invitation?: string;
   onRefreshInvitation?: (() => void) | undefined;
@@ -37,6 +38,7 @@ export interface RoomTableSlots {
 }
 export function RoomPlay({
   notificationControl,
+  portabilityControl,
   view,
   invitation,
   onRefreshInvitation,
@@ -118,6 +120,7 @@ export function RoomPlay({
   const roomControls = (
     <section className={styles.card}>
       {notificationControl}
+      {portabilityControl}
       <h2>{state?.title ?? t('title')}</h2>
       {(view.errorCode === 'native_host_stop_failed' ||
         view.errorCode === 'native_host_invitation_failed') && <p role="alert">{t('error')}</p>}

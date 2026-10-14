@@ -34,6 +34,7 @@ pub fn run() {
         // dispatch, avoiding the plugin's raw-URL state and debug logging.
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -46,6 +47,8 @@ pub fn run() {
         .manage(commands::invocations::InvocationBroker::default())
         .manage(commands::invitations::InvitationInbox::default())
         .manage(commands::notifications::NotificationState::default())
+        .manage(commands::bundles::BundleFileState::default())
+        .manage(commands::auxiliary::AuxiliaryState::default())
         .manage(process_job)
         .setup(|app| {
             log::info!("native launch kind=first");
@@ -95,9 +98,11 @@ pub fn run() {
                     | WindowEvent::ScaleFactorChanged { .. }
             ) {
                 commands::desktop::capture(window, false);
+                commands::desktop::capture_auxiliary(window, false);
             }
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 commands::desktop::capture(window, true);
+                commands::desktop::capture_auxiliary(window, true);
             }
             if matches!(event, WindowEvent::Destroyed) {
                 log::debug!("window={} lifecycle=destroyed", window.label());
@@ -108,6 +113,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             backend_port,
+            commands::auxiliary::desktop_aux_open,
+            commands::auxiliary::desktop_aux_publish,
+            commands::auxiliary::desktop_aux_heartbeat,
+            commands::auxiliary::desktop_aux_read,
+            commands::auxiliary::desktop_aux_focus_main,
+            commands::auxiliary::desktop_aux_close,
             desktop_reset_geometry,
             desktop_confirm_exit,
             commands::invitations::desktop_parse_invitation,
@@ -115,6 +126,11 @@ pub fn run() {
             commands::invitations::desktop_create_invitation,
             commands::invitations::desktop_register_invitation_protocol,
             commands::notifications::desktop_notification_preferences,
+            commands::bundles::desktop_bundle_export,
+            commands::bundles::desktop_bundle_pick_import,
+            commands::bundles::desktop_bundle_confirm_import,
+            commands::bundles::desktop_bundle_cancel,
+            commands::bundles::desktop_bundle_reveal,
             commands::notifications::desktop_set_notifications,
             commands::notifications::desktop_notification_context,
             commands::notifications::desktop_offer_notification,
@@ -151,6 +167,40 @@ pub fn run() {
 #[cfg(test)]
 mod packaging_tests {
     use serde_json::Value;
+    mod command_manifest {
+        include!("../app_commands.rs");
+    }
+
+    #[test]
+    fn every_registered_application_command_has_an_acl_manifest_entry() {
+        let source = include_str!("lib.rs");
+        let handler = source
+            .split_once("tauri::generate_handler![")
+            .unwrap()
+            .1
+            .split_once("])")
+            .unwrap()
+            .0;
+        let registered: std::collections::BTreeSet<_> = handler
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.trim_end_matches(',').rsplit("::").next().unwrap())
+            .collect();
+        let manifest: std::collections::BTreeSet<_> =
+            command_manifest::COMMANDS.iter().copied().collect();
+        assert_eq!(registered, manifest);
+        let auxiliary: Value =
+            serde_json::from_str(include_str!("../capabilities/auxiliary.json")).unwrap();
+        assert_eq!(
+            auxiliary["permissions"],
+            serde_json::json!([
+                "allow-desktop-aux-read",
+                "allow-desktop-aux-focus-main",
+                "allow-desktop-aux-close"
+            ])
+        );
+    }
 
     fn external_bins(source: &str) -> Vec<String> {
         serde_json::from_str::<Value>(source).unwrap()["bundle"]["externalBin"]

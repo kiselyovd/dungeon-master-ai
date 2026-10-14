@@ -1,6 +1,7 @@
 //! Production composition root for the backend sidecar.
 
 mod authority;
+pub mod campaign_bundles;
 pub mod config;
 pub mod paths;
 pub mod room_listener;

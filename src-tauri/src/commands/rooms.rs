@@ -41,6 +41,61 @@ fn owner_connection(app: &AppHandle) -> Result<(u16, String), String> {
     let token = app.state::<ControlServer>().token().to_owned();
     Ok((port, token))
 }
+pub(crate) fn bundle_guest_target(
+    app: &AppHandle,
+    campaign: Uuid,
+    kind: app_application::models::campaign_bundle::BundleKind,
+) -> Result<Option<app_application::models::room_transport::NativeRoomTransportRequest>, String> {
+    let state = app.state::<NativeRoomState>();
+    let guest = state
+        .guest
+        .lock()
+        .map_err(|_| "native_room_selection_changed")?;
+    if let Some(guest) = guest.as_ref() {
+        if kind != app_application::models::campaign_bundle::BundleKind::PlayerDossier
+            || guest.room.campaign_id.0 != campaign
+            || !guest.room.active
+        {
+            return Err("bundle_export_forbidden".into());
+        }
+        return Ok(Some(
+            app_application::models::room_transport::NativeRoomTransportRequest {
+                address: guest.address,
+                room_id: guest.room.room_id,
+                member_id: guest.member_id,
+                capability: guest.capability.clone(),
+                operation: app_application::models::room_transport::NativeRoomOperation::Party {},
+            },
+        ));
+    }
+    Ok(None)
+}
+pub(crate) fn auxiliary_scope_allowed(
+    app: &AppHandle,
+    campaign: Option<Uuid>,
+    member: Option<Uuid>,
+) -> bool {
+    let state = app.state::<NativeRoomState>();
+    let Ok(guest) = state.guest.lock() else {
+        return false;
+    };
+    if let Some(guest) = guest.as_ref() {
+        return guest.room.active
+            && campaign == Some(guest.room.campaign_id.0)
+            && member == Some(guest.member_id);
+    }
+    if let Some(member) = member {
+        let Ok(host) = state.host.lock() else {
+            return false;
+        };
+        return host.as_ref().is_some_and(|host| {
+            host.room.active
+                && campaign == Some(host.room.campaign_id.0)
+                && member == host.member_id
+        });
+    }
+    true
+}
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())

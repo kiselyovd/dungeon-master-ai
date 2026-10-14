@@ -30,6 +30,7 @@ import { UpdateAvailableModal } from '../components/UpdateAvailableModal';
 import { VttCanvas } from '../components/VttCanvas';
 import { AdventureContent } from '../features/adventure/AdventurePanel';
 import { useAdventure } from '../features/adventure/useAdventure';
+import { CampaignPortability } from '../features/campaign-bundles/CampaignPortability';
 import { CampaignCreate } from '../features/campaigns/CampaignCreate';
 import { CampaignHeroChoice } from '../features/campaigns/CampaignHeroChoice';
 import { CampaignHome } from '../features/campaigns/CampaignHome';
@@ -75,6 +76,7 @@ import { Icons } from '../ui/Icons';
 import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import { AppOverlays } from './AppOverlays';
 import { AppShell } from './AppShell';
+import { AuxiliaryButton } from './AuxiliaryButton';
 import {
   focusTable,
   registerCommands,
@@ -88,6 +90,7 @@ import { exitRoomToLocalCampaign } from './roomExit';
 import { soloTable } from './tableAdapters';
 import { useAgentTurn } from './useAgentTurn';
 import { useAppShellController } from './useAppShellController';
+import { useAuxiliaryProjection } from './useAuxiliaryProjection';
 
 function getProviderModel(state: ReturnType<typeof useStore.getState>): string {
   const active = state.settings.activeProvider;
@@ -360,6 +363,22 @@ function AppContent() {
     setTableContextId(id);
   };
   const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
+  const auxiliaryPc = useStore((s) => s.pc);
+  const auxiliaryRevision = useStore((s) => s.campaigns.active?.revision ?? 0);
+  const auxiliaryLoading = useStore(
+    (s) =>
+      Boolean(s.session.mutationId || s.session.loadError || s.session.pendingRestore) ||
+      s.campaigns.active?.id !== s.session.activeCampaignId,
+  );
+  useAuxiliaryProjection({
+    enabled: !roomOpen,
+    scopeId: `owned:${persistedCampaignId}:${sessionGeneration}`,
+    campaignId: persistedCampaignId,
+    revision: auxiliaryRevision,
+    ready: hydrated && onboardingCompleted && !auxiliaryLoading,
+    hero: auxiliaryPc,
+    journal: journalEntries,
+  });
   const currentRestScope = `${persistedCampaignId}:${pcCharacterId}:${sessionGeneration}`;
   useEffect(() => {
     if (persistedCampaignId && pcCharacterId && loadRestOutbox(persistedCampaignId))
@@ -733,6 +752,16 @@ function AppContent() {
             </main>
           ) : (
             <CampaignHome
+              nativeTools={
+                <CampaignPortability
+                  scopeId="library"
+                  campaigns={campaignsFeature.campaigns}
+                  onImported={() => campaignsFeature.refresh()}
+                  onOpen={async (id) => {
+                    await campaignsFeature.activate(id);
+                  }}
+                />
+              }
               errorCode={campaignsFeature.errorCode}
               onRetry={() => {
                 void (persistedCampaignId
@@ -972,6 +1001,7 @@ function AppContent() {
                       <Button onClick={() => setCharacterSheetOpen(true)}>
                         {tCharacter('context_full_sheet')}
                       </Button>
+                      <AuxiliaryButton kind="hero" disabled={!pcCharacterId} />
                     </>
                   ),
                 },
@@ -979,11 +1009,14 @@ function AppContent() {
                   id: 'journal',
                   label: t('journal'),
                   content: (
-                    <JournalViewer
-                      embedded
-                      entries={journalEntries}
-                      onClose={() => selectTableContext(null)}
-                    />
+                    <>
+                      <AuxiliaryButton kind="journal" disabled={!persistedCampaignId} />
+                      <JournalViewer
+                        embedded
+                        entries={journalEntries}
+                        onClose={() => selectTableContext(null)}
+                      />
+                    </>
                   ),
                 },
                 {
@@ -1161,6 +1194,7 @@ function AppContent() {
             />
             <CharacterSheet
               open={characterSheetOpen}
+              tools={<AuxiliaryButton kind="hero" disabled={!pcCharacterId} />}
               onClose={() => setCharacterSheetOpen(false)}
               onRest={
                 pcCharacterId && !recovery.blocked

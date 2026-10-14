@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+mod app_commands;
 
 fn main() {
     println!("cargo:rerun-if-changed=../crates/app-bootstrap/src");
@@ -32,7 +33,12 @@ fn main() {
         );
     }
 
-    tauri_build::build();
+    println!("cargo:rerun-if-changed=app_commands.rs");
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(app_commands::COMMANDS)),
+    )
+    .expect("build desktop command permissions");
 }
 
 fn ensure_local_sidecar(bin_basename: &str, build_hint: &str) {

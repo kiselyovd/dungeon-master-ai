@@ -723,7 +723,7 @@ fn map_snapshot(row: sqlx::sqlite::SqliteRow) -> Result<CampaignSnapshot, Reposi
     })
 }
 
-async fn apply_projection(
+pub(crate) async fn apply_projection(
     transaction: &mut Transaction<'_, Sqlite>,
     snapshot: &CampaignSnapshot,
 ) -> Result<(), RepositoryError> {

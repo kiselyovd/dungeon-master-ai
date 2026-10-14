@@ -6,6 +6,7 @@ export function ContextSurface({
   className,
   state,
   onEscape,
+  onBackdrop,
   children,
 }: {
   embedded: boolean;
@@ -13,6 +14,7 @@ export function ContextSurface({
   className: string | undefined;
   state: 'open' | 'closing';
   onEscape: () => void;
+  onBackdrop?: (() => void) | undefined;
   children: ReactNode;
 }) {
   if (embedded)
@@ -28,6 +30,9 @@ export function ContextSurface({
       role="dialog"
       aria-modal="true"
       aria-label={label}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onBackdrop?.();
+      }}
       onKeyDown={(event) => {
         if (
           event.key === 'Escape' &&

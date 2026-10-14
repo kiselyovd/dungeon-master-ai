@@ -1,5 +1,6 @@
 //! Axum inbound adapter and stable wire mappers.
 
+pub mod native_bundles;
 pub mod room_owner;
 pub mod rooms;
 pub mod routes;

@@ -1,6 +1,7 @@
 pub mod adventure;
 pub mod agent;
 pub mod campaign;
+pub mod campaign_bundle;
 pub mod campaign_state;
 pub mod chat;
 pub mod combat;
@@ -27,4 +28,5 @@ pub mod room_transport;
 
 pub mod room_recovery;
 
+pub mod portable_campaign;
 pub mod solo_recovery;

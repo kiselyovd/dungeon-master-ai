@@ -72,6 +72,23 @@ pub trait MediaHttpService: Send + Sync {
         Err(HttpServiceError::NotFound)
     }
 }
+#[async_trait]
+pub trait NativeCampaignBundleHttpService: Send + Sync {
+    async fn preview(
+        &self,
+        bytes: &[u8],
+    ) -> Result<app_application::models::portable_campaign::CampaignBundlePreview, HttpServiceError>;
+    async fn export(
+        &self,
+        campaign: app_application::models::identity::CampaignId,
+        kind: app_application::models::campaign_bundle::BundleKind,
+    ) -> Result<Vec<u8>, HttpServiceError>;
+    async fn import(
+        &self,
+        bytes: &[u8],
+        operation_id: Uuid,
+    ) -> Result<app_application::models::portable_campaign::CampaignImportResult, HttpServiceError>;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SrdSection {
