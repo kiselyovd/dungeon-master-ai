@@ -128,7 +128,7 @@ it('recovers an existing host selection without creating a replacement room', as
     room: wire.state.room,
     member_id: wire.state.room.members.find((member) => member.role === 'host')?.member_id,
     address: '127.0.0.1:4123',
-    invitation: 'fixture',
+    invitation: 'a'.repeat(64),
   });
   const user = userEvent.setup();
   render(<RoomExperience campaigns={[]} onBack={() => {}} />);
@@ -144,11 +144,21 @@ it('recovers an existing host selection without creating a replacement room', as
     room: wire.state.room,
     member_id: wire.state.room.members.find((member) => member.role === 'host')?.member_id,
     address: '127.0.0.1:4123',
-    invitation: 'renewed fixture',
+    invitation: 'b'.repeat(64),
   });
   await user.click(screen.getByRole('button', { name: 'Room' }));
+  await user.click(screen.getByRole('button', { name: 'Create invitation link' }));
+  const originalLink = await screen.findByLabelText<HTMLInputElement>('Invitation link');
+  expect(new URL(originalLink.value).searchParams.get('invitation')).toBe('a'.repeat(64));
   await user.click(screen.getByRole('button', { name: 'Refresh invitation' }));
-  await screen.findByDisplayValue('renewed fixture');
+  expect(screen.queryByLabelText('Invitation link')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Create invitation link' }));
+  const renewedLink = await screen.findByLabelText<HTMLInputElement>('Invitation link');
+  const parsed = new URL(renewedLink.value);
+  expect(parsed.searchParams.get('invitation')).toBe('b'.repeat(64));
+  expect(parsed.searchParams.get('room')).toBe(wire.state.room.room_id);
+  expect(mocks.recoverHost).toHaveBeenCalledTimes(3);
+  expect(mocks.host).not.toHaveBeenCalled();
 });
 
 it('waits for confirmed guest departure before leaving the connected screen', async () => {

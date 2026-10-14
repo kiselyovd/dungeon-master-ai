@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { useTranslation } from 'react-i18next';
 import { getPendingAgentRecoveryInput } from '../api/agentPending';
 import { fetchAgentRecovery } from '../api/agentRecovery';
+import type { InvitationPreview } from '../api/invitations';
 import { ActionBar } from '../components/ActionBar';
 import { ActorPortrait } from '../components/ActorPortrait';
 import { CharacterSheet } from '../components/CharacterSheet';
@@ -42,6 +43,20 @@ import { useCombatSelection } from '../features/combat/useCombatSelection';
 import { WeaponAttackDialog } from '../features/combat/WeaponAttackDialog';
 import { CommandCenter } from '../features/commands/CommandCenter';
 import { commandPlatform, shortcutLabel } from '../features/commands/model';
+import {
+  DesktopCloseProvider,
+  useDesktopClosePolicy,
+  useDesktopCloseRequest,
+} from '../features/desktop/DesktopCloseProvider';
+import {
+  DesktopInvitationsProvider,
+  useInvitationTarget,
+} from '../features/desktop/DesktopInvitationsProvider';
+import {
+  DesktopNotificationsProvider,
+  useDesktopNotifications,
+} from '../features/desktop/DesktopNotificationsProvider';
+import { ownTurnNotification } from '../features/desktop/model/notifications';
 import { GameTable } from '../features/game-table';
 import { useLegacyCampaignPortrait } from '../features/media/useLegacyCampaignPortrait';
 import { useFirstEntry } from '../features/onboarding/useFirstEntry';
@@ -66,6 +81,7 @@ import {
   resetLayout,
   toggleFullscreen,
 } from './commandRegistrations';
+import { flushAppCloseState } from './desktopClosePorts';
 import { GameTableExperience } from './GameTableExperience';
 import { RoomExperience } from './RoomExperience';
 import { exitRoomToLocalCampaign } from './roomExit';
@@ -148,6 +164,7 @@ async function tauriWindowAction(action: 'minimize' | 'toggleMaximize' | 'close'
 }
 
 interface CampaignTitleBarProps {
+  onCloseApp: () => void;
   commands?: ReactNode;
   language: 'en' | 'ru';
   campaignTitle?: string;
@@ -158,6 +175,7 @@ interface CampaignTitleBarProps {
 }
 
 function CampaignTitleBar({
+  onCloseApp,
   commands,
   language,
   campaignTitle,
@@ -235,7 +253,7 @@ function CampaignTitleBar({
             type="button"
             className="dm-window-ctrl dm-window-close"
             data-testid="window-close"
-            onClick={() => void tauriWindowAction('close')}
+            onClick={onCloseApp}
             aria-label={t('close')}
             title={t('close')}
           >
@@ -247,8 +265,10 @@ function CampaignTitleBar({
   );
 }
 
-function App() {
+function AppContent() {
+  const requestClose = useDesktopCloseRequest();
   const [roomOpen, setRoomOpen] = useState(false);
+  const [roomInvitation, setRoomInvitation] = useState<InvitationPreview | null>(null);
   const [customHeroCampaign, setCustomHeroCampaign] = useState<string | null>(null);
   const { t } = useTranslation('common');
   const { t: tAdventure } = useTranslation('adventure');
@@ -279,6 +299,7 @@ function App() {
   const combatEncounterId = useStore((s) => s.combat.encounterId);
   const combatRevision = useStore((s) => s.combat.revision);
   const sessionGeneration = useStore((s) => s.session.transitionGeneration);
+  const campaignMutationId = useStore((s) => s.session.mutationId);
   const pcName = useStore((s) => s.pc.name);
   const pcCharacterId = useStore((s) => s.pc.characterId);
   const pcTokenId =
@@ -476,6 +497,51 @@ function App() {
     agentStreaming,
   );
   useLegacyCampaignPortrait(hydrated && !roomOpen && !recovery.blocked);
+  const ownTurnEvent =
+    persistedCampaignId && combatEncounterId
+      ? ownTurnNotification({
+          scopeId: persistedCampaignId,
+          encounterId: combatEncounterId,
+          round: combatRound,
+          ownActorId: pcCharacterId ?? null,
+          currentActorId:
+            combatTokens.find((token) => token.id === currentTurnId)?.characterId ?? null,
+          ownActorAlive: Boolean(ownedCombatToken && ownedCombatToken.hp > 0),
+          active: combatActive,
+          confirmed: hydrated && combatRevision >= 0 && !campaignMutationId && !roomOpen,
+        })
+      : null;
+  useDesktopNotifications({
+    scopeId: roomOpen ? null : persistedCampaignId,
+    priority: 1,
+    events: ownTurnEvent ? [ownTurnEvent] : [],
+    activate: (event) => {
+      if (event.target === 'downloads' && !roomOpen) {
+        setSettingsInitialTab('local-llm');
+        setSettingsOpen(true);
+      } else if (event.scopeId === persistedCampaignId && !roomOpen) focusTable('chat');
+    },
+  });
+  useInvitationTarget({
+    scope: `solo:${persistedCampaignId}:${sessionGeneration}`,
+    priority: 1,
+    blocked:
+      !hydrated ||
+      roomOpen ||
+      agentStreaming ||
+      combatCommands.pending ||
+      Boolean(campaignMutationId) ||
+      recovery.blocked,
+    prepare: async (preview) => {
+      await flushAppCloseState();
+      return () => {
+        setRoomInvitation(preview);
+        useStore.getState().onboarding.chooseEntry('guest');
+        setRoomOpen(true);
+        void campaignsFeature.refresh();
+      };
+    },
+  });
   const recoveryNotice = (
     // Recovery must settle before an automatic appearance migration can write.
     <RecoveryPanel
@@ -488,14 +554,26 @@ function App() {
     />
   );
 
+  useDesktopClosePolicy({
+    scope: `solo:${persistedCampaignId}:${sessionGeneration}`,
+    kind: 'solo',
+    pending:
+      agentStreaming ||
+      combatCommands.pending ||
+      Boolean(campaignMutationId) ||
+      (!roomOpen && recovery.blocked),
+    prepare: async () => {
+      await flushAppCloseState();
+      agentTurn.cancel();
+    },
+  });
   const tableReady = campaignRoute.kind === 'game-table';
   const commands = registerCommands(
     {
       table: tableReady,
       guest: false,
       room: false,
-      busy:
-        agentStreaming || combatCommands.pending || Boolean(useStore.getState().session.mutationId),
+      busy: agentStreaming || combatCommands.pending || Boolean(campaignMutationId),
       recovery: recovery.blocked,
       ownTurn: showActionBar && Boolean(ownedCombatToken && ownedCombatToken.hp > 0),
     },
@@ -551,6 +629,7 @@ function App() {
       <ErrorBoundary level="top">
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            onCloseApp={requestClose}
             commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             campaignTitle={tCampaigns('coop')}
@@ -559,6 +638,7 @@ function App() {
             hideSettings
           />
           <RoomExperience
+            initialInvitation={roomInvitation}
             campaigns={campaignsFeature.campaigns}
             campaignsLoading={campaignsFeature.loading}
             campaignsError={Boolean(campaignsFeature.errorCode)}
@@ -566,6 +646,7 @@ function App() {
             onBack={() =>
               exitRoomToLocalCampaign(persistedCampaignId, campaignsFeature.activate, () => {
                 setRoomOpen(false);
+                setRoomInvitation(null);
                 useStore.getState().onboarding.chooseEntry('adventure');
               })
             }
@@ -580,6 +661,7 @@ function App() {
       <ErrorBoundary level="top">
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            onCloseApp={requestClose}
             commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             onLanguageChange={setUiLanguage}
@@ -609,6 +691,7 @@ function App() {
         <ProviderMigrationBanner />
         <AppShell readingFontSize={readingFontSize}>
           <CampaignTitleBar
+            onCloseApp={requestClose}
             commands={!roomOpen ? commandLauncher : undefined}
             language={uiLanguage}
             {...(campaignsFeature.active?.title
@@ -849,7 +932,7 @@ function App() {
                   type="button"
                   className="dm-window-ctrl dm-window-close"
                   data-testid="window-close"
-                  onClick={() => void tauriWindowAction('close')}
+                  onClick={requestClose}
                   aria-label={t('close')}
                   title={t('close')}
                 >
@@ -1109,4 +1192,15 @@ function App() {
   );
 }
 
+function App() {
+  return (
+    <DesktopCloseProvider>
+      <DesktopNotificationsProvider>
+        <DesktopInvitationsProvider>
+          <AppContent />
+        </DesktopInvitationsProvider>
+      </DesktopNotificationsProvider>
+    </DesktopCloseProvider>
+  );
+}
 export default App;

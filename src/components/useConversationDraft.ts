@@ -1,5 +1,6 @@
 import { type SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
 import type { StagedImage } from '../state/chat';
+import { registerClosePreparation } from '../state/closePreparations';
 import { readConversationDraft, saveConversationDraft } from '../state/conversationDrafts';
 
 interface Draft {
@@ -52,6 +53,16 @@ export function useConversationDraft(scope: string) {
       if (value) void save(scope, value);
     };
   }, [scope, save]);
+  useEffect(
+    () =>
+      registerClosePreparation(async () => {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = null;
+        const value = memory.get(scope);
+        if (value) await saveConversationDraft(scope, value.text);
+      }),
+    [scope],
+  );
   const update = (change: (previous: Draft) => Draft) => {
     const value = change(memory.get(scope) ?? draft);
     version.current++;

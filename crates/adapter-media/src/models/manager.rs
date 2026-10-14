@@ -108,6 +108,7 @@ impl DownloadManager {
                                 },
                             );
                             let _ = events.send(DownloadEvent::Completed {
+                                event_id: uuid::Uuid::new_v4(),
                                 id: id_for_task,
                                 bytes_total: res.bytes_downloaded,
                             });
@@ -156,6 +157,7 @@ impl DownloadManager {
                                 },
                             );
                             let _ = events.send(DownloadEvent::Completed {
+                                event_id: uuid::Uuid::new_v4(),
                                 id: id_for_task,
                                 bytes_total: res.bytes_total,
                             });
@@ -233,6 +235,7 @@ impl DownloadManager {
                                 .await
                                 .insert(id_for_task, DownloadStatus::Completed { bytes_total });
                             let _ = events.send(DownloadEvent::Completed {
+                                event_id: uuid::Uuid::new_v4(),
                                 id: id_for_event,
                                 bytes_total,
                             });
@@ -272,6 +275,7 @@ impl DownloadManager {
                         DownloadStatus::Completed { bytes_total: 0 },
                     );
                     let _ = events.send(DownloadEvent::Completed {
+                        event_id: uuid::Uuid::new_v4(),
                         id: id_done,
                         bytes_total: 0,
                     });
@@ -310,6 +314,7 @@ impl DownloadManager {
                         },
                     );
                     let _ = events.send(DownloadEvent::Completed {
+                        event_id: uuid::Uuid::new_v4(),
                         id,
                         bytes_total: res.bytes_downloaded,
                     });

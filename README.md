@@ -135,6 +135,9 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Confirmed combat cues and motion preferences | [Gameplay motion](docs/visual/CONFIRMED_MOTION.md) |
 | Scene changes, cinematic preferences and ambient pause | [Scene transitions](docs/visual/SCENE_TRANSITIONS.md) |
 | Command palette, shortcuts and role limits | [Commands](docs/COMMANDS.md) |
+| Main/auxiliary closure, recovery and process cleanup | [Desktop lifecycle](docs/DESKTOP_LIFECYCLE.md) |
+| Pasteable links, native opening and explicit room joining | [Room invitations](docs/ROOM_INVITATIONS.md) |
+| Opt-in events, Windows permissions and notification clicks | [Desktop notifications](docs/NOTIFICATIONS.md) |
 | Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
 
 ## Build

@@ -1,6 +1,7 @@
 import { createContext, type KeyboardEvent, useContext, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageEntryForPreset, VIDEO_CATALOG } from '../api/providers-catalog';
+import { NotificationPreferences } from '../features/desktop/NotificationPreferences';
 import {
   preferenceDraft,
   type SettingsPreferences,
@@ -362,6 +363,7 @@ export function SettingsForm({
                   </Field>
                 </div>
                 <CollapsibleCard title={t('advanced')}>
+                  <NotificationPreferences />
                   <BehaviorExtras />
                 </CollapsibleCard>
               </ErrorBoundary>

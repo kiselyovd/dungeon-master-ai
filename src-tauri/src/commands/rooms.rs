@@ -69,6 +69,16 @@ async fn host_error(mut response: reqwest::Response) -> String {
     .into()
 }
 impl NativeRoomState {
+    pub fn shutdown_streams(&self) {
+        self.generation
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if let Ok(mut streams) = self.streams.lock() {
+            for (_, cancel) in streams.drain() {
+                let _ = cancel.send(true);
+            }
+        }
+        log::debug!("room streams lifecycle=stopped");
+    }
     fn retain_host(&self, grant: NativeHostRoomGrant) -> Result<NativeHostRoomView, String> {
         let view = public_view(&grant);
         let mut selected = self
@@ -660,6 +670,16 @@ pub async fn stream_room(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn application_shutdown_cancels_all_owned_room_streams() {
+        let state = NativeRoomState::default();
+        let first = state.register_stream(Uuid::new_v4()).unwrap();
+        let second = state.register_stream(Uuid::new_v4()).unwrap();
+        state.shutdown_streams();
+        assert!(*first.borrow());
+        assert!(*second.borrow());
+        assert!(state.streams.lock().unwrap().is_empty());
+    }
     #[test]
     fn renderer_view_never_contains_the_host_capability() {
         let capability = app_application::rooms::RoomSecret::generate();

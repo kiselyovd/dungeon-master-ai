@@ -9,9 +9,11 @@ import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import type { RoomView } from './model/RoomController';
 import styles from './Room.module.css';
+import { RoomInvitationShare } from './RoomInvitationShare';
 import { RoomRecoveryPanel } from './RoomRecoveryPanel';
 
 interface Props {
+  notificationControl?: ReactNode;
   renderTable?: (slots: RoomTableSlots) => ReactNode;
   invitation?: string;
   onRefreshInvitation?: (() => void) | undefined;
@@ -34,6 +36,7 @@ export interface RoomTableSlots {
   notices: ReactNode;
 }
 export function RoomPlay({
+  notificationControl,
   view,
   invitation,
   onRefreshInvitation,
@@ -114,6 +117,7 @@ export function RoomPlay({
   );
   const roomControls = (
     <section className={styles.card}>
+      {notificationControl}
       <h2>{state?.title ?? t('title')}</h2>
       {(view.errorCode === 'native_host_stop_failed' ||
         view.errorCode === 'native_host_invitation_failed') && <p role="alert">{t('error')}</p>}
@@ -125,17 +129,12 @@ export function RoomPlay({
           <p className={styles.meta}>
             {t('address')}: {connection.address}
           </p>
-          <Field label={t('invitation')}>
-            {(props) => (
-              <input
-                {...props}
-                className={styles.input}
-                readOnly
-                value={invitation ?? connection.invitation}
-                data-room-invitation
-              />
-            )}
-          </Field>
+          <RoomInvitationShare
+            address={connection.address}
+            roomId={connection.room.room_id}
+            invitation={invitation ?? connection.invitation}
+            busy={view.busy}
+          />
           {onRefreshInvitation && (
             <Button disabled={view.busy} onClick={onRefreshInvitation}>
               {t('refresh_invitation')}

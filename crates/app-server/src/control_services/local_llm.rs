@@ -70,6 +70,8 @@ pub(crate) struct DownloadEventWire {
     pub(crate) id: String,
     pub(crate) kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) event_id: Option<uuid::Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) bytes_done: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) total_bytes: Option<u64>,
@@ -113,17 +115,19 @@ pub(crate) fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
             Some(DownloadEventWire {
                 id: wire_id,
                 kind: "progress",
+                event_id: None,
                 bytes_done: Some(bytes_done),
                 total_bytes,
                 reason: None,
                 auth_required: false,
             })
         }
-        DownloadEvent::Completed { id, .. } => {
+        DownloadEvent::Completed { id, event_id, .. } => {
             let wire_id = wire_id_for_model(&id)?.to_owned();
             Some(DownloadEventWire {
                 id: wire_id,
                 kind: "completed",
+                event_id: Some(event_id),
                 bytes_done: None,
                 total_bytes: None,
                 reason: None,
@@ -139,6 +143,7 @@ pub(crate) fn to_wire(ev: DownloadEvent) -> Option<DownloadEventWire> {
             Some(DownloadEventWire {
                 id: wire_id,
                 kind: "failed",
+                event_id: None,
                 bytes_done: None,
                 total_bytes: None,
                 reason: Some(reason),
@@ -415,8 +420,23 @@ mod tests {
     }
 
     #[test]
+    fn completion_identity_is_preserved_across_subscriber_translation() {
+        let event_id = uuid::Uuid::new_v4();
+        let event = DownloadEvent::Completed {
+            event_id,
+            id: ModelId::Qwen3_5_4b,
+            bytes_total: 4096,
+        };
+        let first = to_wire(event.clone()).unwrap();
+        let replay = to_wire(event).unwrap();
+        assert_eq!(first.event_id, Some(event_id));
+        assert_eq!(replay.event_id, first.event_id);
+    }
+
+    #[test]
     fn to_wire_drops_events_for_non_catalog_ids() {
         let ev = crate::models::download::DownloadEvent::Completed {
+            event_id: uuid::Uuid::new_v4(),
             id: ModelId::NunchakuFluxDevInt4,
             bytes_total: 100,
         };

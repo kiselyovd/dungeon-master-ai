@@ -14,6 +14,11 @@ const windowActions = vi.hoisted(() => ({
   minimize: vi.fn(async () => {}),
   toggleMaximize: vi.fn(async () => {}),
 }));
+vi.mock('../../api/desktop', () => ({
+  confirmDesktopExit: windowActions.close,
+  listenForDesktopClose: vi.fn(async () => () => {}),
+  resetDesktopGeometry: vi.fn(async () => {}),
+}));
 vi.mock('../../api/agentRecovery', () => ({ fetchAgentRecovery: vi.fn(async () => null) }));
 vi.mock('../../api/agentPending', () => ({
   getPendingAgentRecoveryInput: vi.fn(async () => null),
@@ -55,6 +60,7 @@ vi.mock('../../api/rooms', async () => {
     resumeGuestRoom: vi.fn(),
     hostRoom: vi.fn(),
     stopHostRoom: vi.fn(async () => {}),
+    leaveGuestRoom: vi.fn(async () => {}),
     joinRoom: vi.fn(async () => ({
       kind: 'guest',
       room: wire.state.room,
@@ -261,6 +267,7 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   render(<App />);
   await user.click(await screen.findByRole('button', { name: 'Совместная игра' }));
   expect(screen.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  await user.click(screen.getByText('Ввести данные подключения вручную', { exact: true }));
   await user.type(screen.getByLabelText('Адрес и порт организатора'), '127.0.0.1:4123');
   await user.type(screen.getByLabelText('Код комнаты'), '11111111-1111-4111-8111-111111111111');
   await user.type(screen.getByLabelText('Ваше имя игрока'), 'Tara');
@@ -280,6 +287,17 @@ it('opens co-op through the real root and displays the human-owned guest hero', 
   expect(palette.querySelector('[data-command-id="settings"]')).toBeDisabled();
   expect(palette.querySelector('[data-command-id="end_turn"]')).toBeDisabled();
   expect(palette.querySelector('[data-command-id="focus_map"]')).toBeDisabled();
+  await user.keyboard('{Escape}');
+  const { leaveGuestRoom } = await import('../../api/rooms');
+  await user.click(screen.getByTestId('window-close'));
+  expect(screen.getByRole('dialog', { name: 'Закрыть Dungeon Master AI?' })).toBeVisible();
+  expect(screen.getByText('Вы покинете комнату, приложение закроется.')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Отмена' }));
+  expect(leaveGuestRoom).not.toHaveBeenCalled();
+  await user.click(screen.getByTestId('window-close'));
+  await user.click(screen.getByRole('button', { name: 'Закрыть приложение' }));
+  await waitFor(() => expect(leaveGuestRoom).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(windowActions.close).toHaveBeenCalledTimes(1));
 });
 
 it('lets a first-boot guest join without configuring a provider or creating a solo hero', async () => {

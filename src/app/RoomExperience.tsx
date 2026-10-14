@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchCampaignState } from '../api/campaigns';
 import type { CampaignSummary } from '../api/contracts/campaign';
 import { parseMediaReference } from '../api/contracts/mediaAsset';
+import type { InvitationPreview } from '../api/invitations';
 import { encodeMedia, readMedia } from '../api/mediaAssets';
 import {
   type GuestRecoveryChoice,
@@ -31,6 +32,14 @@ import { AdventureContent } from '../features/adventure/AdventurePanel';
 import { parseCombatProjection, projectionTokens } from '../features/combat/model/combatProjection';
 import { RoomCombatPanel } from '../features/combat/RoomCombatPanel';
 import { CommandCenter } from '../features/commands/CommandCenter';
+import { useDesktopClosePolicy } from '../features/desktop/DesktopCloseProvider';
+import { useInvitationTarget } from '../features/desktop/DesktopInvitationsProvider';
+import { useDesktopNotifications } from '../features/desktop/DesktopNotificationsProvider';
+import {
+  connectionNotification,
+  ownTurnNotification,
+} from '../features/desktop/model/notifications';
+import { NotificationPreferences } from '../features/desktop/NotificationPreferences';
 import { GameTable } from '../features/game-table';
 import { RoomPortraitTransfer } from '../features/media/model/RoomPortraitTransfer';
 import { toRecoveryView } from '../features/recovery/model/recovery';
@@ -44,12 +53,14 @@ import {
   resetLayout,
   toggleFullscreen,
 } from './commandRegistrations';
+import { flushAppCloseState } from './desktopClosePorts';
 import { GameTableExperience } from './GameTableExperience';
 import { roomContext } from './roomContext';
 import { roomPorts } from './roomPorts';
 import { roomTable } from './tableAdapters';
 
 interface Props {
+  initialInvitation?: InvitationPreview | null;
   campaignsLoading?: boolean | undefined;
   campaignsError?: boolean | undefined;
   onRefreshCampaigns?: (() => void) | undefined;
@@ -100,24 +111,50 @@ function ConnectedRoom({
   const [invitationError, setInvitationError] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'chat' | 'local-llm'>('chat');
   const [closing, setClosing] = useState(false);
   const [closingError, setClosingError] = useState(false);
   const confirmedDeparture = useRef<string | null>(null);
   const connectionKey = `${connection.kind}:${connection.room.room_id}:${connection.member_id}`;
+  async function depart() {
+    if (confirmedDeparture.current !== connectionKey) {
+      if (connection.kind === 'host') await stopHostRoom(connection.room.room_id);
+      else
+        await leaveGuestRoom(
+          connection.room.room_id,
+          controller.getSnapshot().state?.room.epoch ?? connection.room.epoch ?? 1,
+        );
+      confirmedDeparture.current = connectionKey;
+    }
+  }
+  useDesktopClosePolicy({
+    scope: connectionKey,
+    kind: connection.kind,
+    pending: view.busy || Boolean(view.pending || view.state?.agent_busy),
+    prepare: async () => {
+      await flushAppCloseState();
+      controller.cancelDm();
+      try {
+        await depart();
+      } catch {
+        return {
+          kind: 'unconfirmed_departure' as const,
+          preserveAndExit: async () => {
+            await flushAppCloseState();
+            if (connection.kind === 'guest') await postponeGuestRoom();
+            controller.leave();
+          },
+        };
+      }
+      controller.leave();
+    },
+  });
   async function leave() {
     if (closing) return;
     setClosing(true);
     setClosingError(false);
     try {
-      if (confirmedDeparture.current !== connectionKey) {
-        if (connection.kind === 'host') await stopHostRoom(connection.room.room_id);
-        else
-          await leaveGuestRoom(
-            connection.room.room_id,
-            view.state?.room.epoch ?? connection.room.epoch ?? 1,
-          );
-        confirmedDeparture.current = connectionKey;
-      }
+      await depart();
       await onBack();
       controller.leave();
     } catch {
@@ -136,6 +173,38 @@ function ConnectedRoom({
   const ownTurn = Boolean(
     combat?.snapshot.active && own && own.hp > 0 && combat.snapshot.current_combatant === own.id,
   );
+  const roomTurn = combat
+    ? ownTurnNotification({
+        scopeId: connection.room.room_id,
+        encounterId: combat.encounter_id,
+        round: combat.snapshot.round,
+        ownActorId: tableModel.ownActorId,
+        currentActorId:
+          projectionTokens(combat).find((actor) => actor.id === combat.snapshot.current_combatant)
+            ?.characterId ?? null,
+        ownActorAlive: Boolean(own && own.hp > 0),
+        active: combat.snapshot.active,
+        confirmed: view.status === 'connected' && view.cursor !== null,
+      })
+    : null;
+  const connectionFailure = connectionNotification(
+    connection.room.room_id,
+    view.state?.room.epoch ?? connection.room.epoch ?? 1,
+    view.cursor ?? 0,
+    view.status === 'disconnected' && Boolean(view.errorCode),
+    view.state !== null,
+  );
+  useDesktopNotifications({
+    scopeId: connection.room.room_id,
+    priority: 2,
+    events: [roomTurn, connectionFailure].filter((event) => event !== null),
+    activate: (event) => {
+      if (event.target === 'downloads' && connection.kind === 'host') {
+        setSettingsTab('local-llm');
+        setSettingsOpen(true);
+      } else if (event.scopeId === connection.room.room_id) focusTable('chat');
+    },
+  });
   const commands = registerCommands(
     {
       table: Boolean(view.state),
@@ -184,7 +253,7 @@ function ConnectedRoom({
           agentTurnInFlight={view.busy || Boolean(view.state?.agent_busy)}
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
-          initialTab="chat"
+          initialTab={settingsTab}
         />
       )}
       <GameTableExperience
@@ -342,6 +411,7 @@ function ConnectedRoom({
             ) : null
           }
           invitation={invitation}
+          notificationControl={<NotificationPreferences />}
           onRefreshInvitation={
             connection.kind === 'host'
               ? () => {
@@ -484,6 +554,7 @@ function ConnectedRoom({
   );
 }
 export function RoomExperience({
+  initialInvitation,
   campaigns,
   onBack,
   campaignsLoading,
@@ -494,6 +565,21 @@ export function RoomExperience({
   const [connection, setConnection] = useState<RoomConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [invitationPreview, setInvitationPreview] = useState(initialInvitation ?? null);
+  useInvitationTarget({
+    scope: connection ? `room:${connection.room.room_id}` : 'room-home',
+    priority: 2,
+    blocked: busy || Boolean(connection),
+    prepare: async (preview) => () => {
+      setInvitationPreview(preview);
+    },
+  });
+  useDesktopClosePolicy({
+    scope: 'room-home',
+    kind: 'idle',
+    pending: busy,
+    prepare: flushAppCloseState,
+  });
   useEffect(() => {
     let active = true;
     void savedGuestRooms()
@@ -510,6 +596,7 @@ export function RoomExperience({
   if (connection) return <ConnectedRoom connection={connection} onBack={onBack} />;
   return (
     <RoomHome
+      initialInvitation={invitationPreview}
       campaignsLoading={campaignsLoading}
       campaignsError={campaignsError}
       onRefreshCampaigns={onRefreshCampaigns}

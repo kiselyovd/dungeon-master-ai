@@ -73,6 +73,10 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | `crates/adapter-http/src/lib.rs` | Axum router and transport adapter surface. |
 | `src-tauri/src/main.rs` | Native executable entry point. |
 | `src-tauri/src/lib.rs` | Tauri builder, plugins, capabilities, backend process lifecycle, and app events. |
+| `src-tauri/src/processes/lifecycle.rs` | Main-only exit authorization and exactly-once application process cleanup. |
+| `src/features/desktop/DesktopCloseProvider.tsx` | Production close confirmation, live role/scope checks, and registered preparation barriers. |
+| `src-tauri/src/commands/invitations.rs` | Bounded invitation parsing, main-only inbox and opt-in native protocol registration. |
+| `src/features/desktop/DesktopInvitationsProvider.tsx` | Explicit invitation preview through app-owned destination ports. |
 | `src-tauri/src/commands/rooms.rs` | Native host-room commands and private credential/lifecycle state; renderer responses omit capability. |
 | `sidecar/app.py` | FastAPI image/video sidecar application and process entry point. |
 | `scripts/gates.sh` | Consolidated local and CI quality gate. |

@@ -7,6 +7,125 @@ const wire = JSON.parse(
   readFileSync(new URL('../src/api/__fixtures__/roomUpdate.json', import.meta.url), 'utf8'),
 ) as RoomUpdate;
 
+for (const kind of ['host', 'guest'] as const) {
+  test(`main window close confirms ${kind} departure and preserves unsent input on Cancel`, async ({
+    page,
+  }) => {
+    await installRoomStub(page, wire);
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'isTauri', { value: true });
+      const native = (
+        window as unknown as {
+          __TAURI_INTERNALS__: { invoke(command: string, args?: unknown): Promise<unknown> };
+        }
+      ).__TAURI_INTERNALS__;
+      Object.assign(native, {
+        metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
+      });
+      const invoke = native.invoke.bind(native);
+      (window as unknown as { desktopExits: number }).desktopExits = 0;
+      native.invoke = async (command, args) => {
+        if (command === 'desktop_confirm_exit') {
+          (window as unknown as { desktopExits: number }).desktopExits++;
+          return null;
+        }
+        return invoke(command, args);
+      };
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Совместная игра' }).click();
+    await page
+      .getByRole('button', {
+        name: kind === 'host' ? 'Восстановить комнату' : 'Восстановить подключение гостя',
+        exact: true,
+      })
+      .click();
+    const draft = page.getByRole('textbox', { name: 'Что делает ваш герой?' });
+    await draft.fill('Черновик перед закрытием');
+    await page.getByTestId('window-close').click();
+    const dialog = page.getByRole('dialog', { name: 'Закрыть Dungeon Master AI?' });
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText(
+        kind === 'host'
+          ? 'Комната ведущего остановится, её игроки отключатся.'
+          : 'Вы покинете комнату, приложение закроется.',
+      ),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Отмена' }).click();
+    await expect(draft).toHaveValue('Черновик перед закрытием');
+    expect(
+      await page.evaluate(() => (window as unknown as { desktopExits: number }).desktopExits),
+    ).toBe(0);
+    await page.getByTestId('window-close').click();
+    await dialog.getByRole('button', { name: 'Закрыть приложение' }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { desktopExits: number }).desktopExits))
+      .toBe(1);
+  });
+}
+
+test('unconfirmed guest departure needs an explicit recovery-preserving close', async ({
+  page,
+}) => {
+  await installRoomStub(page, wire);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'isTauri', { value: true });
+    const native = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke(command: string, args?: Record<string, unknown>): Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    Object.assign(native, {
+      metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
+    });
+    const invoke = native.invoke.bind(native);
+    (window as unknown as { closeProof: { exits: number; postponements: number } }).closeProof = {
+      exits: 0,
+      postponements: 0,
+    };
+    native.invoke = async (command, args = {}) => {
+      const proof = (window as unknown as { closeProof: { exits: number; postponements: number } })
+        .closeProof;
+      if (command === 'desktop_confirm_exit') {
+        proof.exits++;
+        return null;
+      }
+      if (command === 'postpone_guest_room') {
+        proof.postponements++;
+        return null;
+      }
+      if (
+        command === 'room_operation' &&
+        (args.operation as { kind?: string } | undefined)?.kind === 'leave'
+      )
+        throw 'native_guest_request_failed';
+      return invoke(command, args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByRole('button', { name: 'Восстановить подключение гостя', exact: true }).click();
+  const draft = page.getByRole('textbox', { name: 'Что делает ваш герой?' });
+  await draft.fill('Ввод для восстановления');
+  await page.getByTestId('window-close').click();
+  const dialog = page.getByRole('dialog', { name: 'Закрыть Dungeon Master AI?' });
+  await dialog.getByRole('button', { name: 'Закрыть приложение' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Выход из комнаты не подтверждён');
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { closeProof: { exits: number } }).closeProof.exits,
+    ),
+  ).toBe(0);
+  await expect(draft).toHaveValue('Ввод для восстановления');
+  await dialog.getByRole('button', { name: 'Закрыть и сохранить восстановление' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { closeProof: unknown }).closeProof))
+    .toEqual({ exits: 1, postponements: 1 });
+});
+
 import { mockTauri } from './fixtures/tauri-mock';
 
 async function installRoomStub(
@@ -66,7 +185,7 @@ async function installRoomStub(
               member_id: snapshot.state.room.members.find((member) => member.role === 'host')
                 ?.member_id,
               address: '127.0.0.1:4123',
-              invitation: 'fixture',
+              invitation: 'a'.repeat(64),
             };
           if (
             command === 'room_operation' &&
@@ -183,6 +302,7 @@ test('production co-op root joins a guest and preserves its own hero', async ({ 
   await page.goto('/');
   await page.getByRole('button', { name: 'Совместная игра' }).click();
   await expect(page.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  await page.getByText('Ввести данные подключения вручную', { exact: true }).click();
   await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
   await page.getByLabel('Код комнаты').fill(wire.state.room.room_id);
   await page.getByLabel('Ваше имя игрока').fill('Tara');
@@ -232,6 +352,7 @@ test('production room battle renders actual server map and gates the next human 
   await installRoomStub(page, snapshot);
   await page.goto('/');
   await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByText('Ввести данные подключения вручную', { exact: true }).click();
   await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
   await page.getByLabel('Код комнаты').fill(snapshot.state.room.room_id);
   await page.getByLabel('Ваше имя игрока').fill('Guest');
@@ -262,6 +383,7 @@ test('a clean guest enters co-op directly and returns to the campaign library', 
   await page.goto('/');
   await page.getByRole('button', { name: 'Присоединиться к игре' }).click();
   await expect(page.getByRole('heading', { name: 'Совместная игра' })).toBeVisible();
+  await page.getByText('Ввести данные подключения вручную', { exact: true }).click();
   await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
   await page.getByLabel('Код комнаты').fill(wire.state.room.room_id);
   await page.getByLabel('Ваше имя игрока').fill('Tara');
@@ -430,7 +552,16 @@ for (const role of ['host', 'guest'] as const) {
         await expect(
           page.getByRole('dialog', { name: language === 'en' ? 'Room' : 'Комната', exact: true }),
         ).toBeVisible();
-        if (role === 'host') await expect(page.locator('[data-room-invitation]')).toBeVisible();
+        if (role === 'host') {
+          await page
+            .getByRole('button', {
+              name: language === 'en' ? 'Create invitation link' : 'Создать ссылку приглашения',
+              exact: true,
+            })
+            .click();
+          await expect(page.locator('[data-room-invitation]')).toBeVisible();
+          await expect(page.locator('[data-room-invitation]')).toHaveValue(/^dmai:\/\/join\/v1\?/);
+        }
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog')).toHaveCount(0);
         await expect(room).toBeFocused();
@@ -704,3 +835,40 @@ for (const width of [960, 1280, 1920]) {
     });
   });
 }
+
+test('pasted invitation previews before the production root joins', async ({ page }) => {
+  test.setTimeout(60_000);
+  await installRoomStub(page, wire);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await expect(page.getByLabel('Адрес и порт организатора')).not.toBeVisible();
+  await page.getByLabel('Ваше имя игрока').fill('Tara');
+  await page
+    .getByLabel('Ссылка приглашения')
+    .fill(
+      `dmai://join/v1?address=127.0.0.1:4123&room=${wire.state.room.room_id}&invitation=${'a'.repeat(64)}`,
+    );
+  await page.getByRole('button', { name: 'Проверить ссылку', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Приглашение в комнату' })).toBeVisible();
+  await expect(page.getByLabel('Ссылка приглашения')).toHaveValue('');
+  await expect(page.locator('[data-table-mode=guest]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Подключиться', exact: true }).click();
+  await expect(page.locator('[data-table-mode=guest]')).toBeVisible();
+  await expect(page.getByText('Tara', { exact: true })).toBeVisible();
+});
+
+test('invalid invitation leaves the production root name and local campaign intact', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await installRoomStub(page, wire);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByLabel('Ваше имя игрока').fill('Tara');
+  await page.getByLabel('Ссылка приглашения').fill('https://invalid.example/room');
+  await page.getByRole('button', { name: 'Проверить ссылку', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Не удалось использовать ссылку');
+  await expect(page.getByRole('button', { name: 'Подключиться', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Ваше имя игрока')).toHaveValue('Tara');
+  await expect(page.locator('[data-table-mode=guest]')).toHaveCount(0);
+});
