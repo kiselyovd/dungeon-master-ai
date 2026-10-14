@@ -876,3 +876,19 @@ peaceful/defensive AI-led sessions and physical LAN remain open. Evidence:
 `.artifacts/product-uiux/task-6-effects-checkpoint12/attempt2/`. Initial stream-only
 fault selection and600second test expectation were corrected; original logs are
 retained. No rejected validator decision was promoted to publication.
+
+2026-10-14 fresh full-session attempts (Task44 UI/UX acceptance):
+Actual native Russian composer/mouse input with the installed Qwen3.5-9B,
+unchanged validators and separate reasoningoff QA process. Peaceful11 delivered
+commands completed; command12 remainedactions_pending after2 continuations.
+A separate diagnostic resume committed the one move and then failed narration
+faithfulness/repair (rev14/quay/HP12). Defensive5 AI-led setup commands completed;
+three real EndTurn UI clicks resolved the server-owned encounter asheld, HP4.
+The nextrescue command failed beforeeffects: actual model proposal correctly
+selectedrescue_tikhon, but independentvalid=false. Two additional diagnostic
+resumes reproduced that rejection with identicalcanonicalrev11/state/HP/inventory.
+Both adventures remainopen. No deterministic override or validator weakening.
+Evidence: docs/REAL_MODEL_SESSION_ACCEPTANCE.md and
+.artifacts/product-uiux/task-44-sessions/. Matchingmanagedweights remainabsent;
+separate10.28GB Gemma downloadproposal awaits explicitmodel authorization.
+ManualDPIretestwaived, physicalLANdeferred byuser. FullAIacceptance remainsopen.
