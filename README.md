@@ -68,7 +68,7 @@ docs/           architecture + milestone specs/plans (planning dir, gitignored)
 
 Prerequisites:
 
-- Rust stable: `rustup default stable`
+- Rust 1.94 or newer: `rustup default stable` (SQLx 0.9 sets the dependency minimum).
 - [Bun](https://bun.com/) 1.3+
 - Tauri prerequisites for your OS: https://tauri.app/start/prerequisites/
 - For the cloud path: an OpenAI-compatible endpoint + key (OpenRouter recommended).
@@ -141,6 +141,7 @@ Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --f
 | Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
 | Backup/dossier roles, validation and atomic import | [Portable campaigns](docs/PORTABLE_CAMPAIGNS.md) |
 | Read-only hero/journal views, scope and access limits | [Detached windows](docs/DETACHED_WINDOWS.md) |
+| Measured art payload and rendering acceptance limits | [Visual performance](docs/visual/PERFORMANCE.md) |
 
 ## Build
 
@@ -152,9 +153,8 @@ bun run tauri build
 
 - Distribution: signed installers + GitHub Releases with bundled binaries.
 - Branching saves + the Chronicles tome UI (v1 is linear saves).
-- VTT zoom/pan, light theme, density toggle.
+- Light theme and density toggle.
 - Live scene-transition video generation (pre-recorded mp4 is canonical today).
-- A self-hosted Cyrillic fantasy-serif display face (headings currently fall back to a serif with Cyrillic; the display face is Latin-only).
 - mistralrs reasoning/thinking surfacing (blocked on upstream).
 - Additional / regional cloud providers.
 

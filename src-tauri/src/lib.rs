@@ -85,11 +85,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(
-                event,
-                WindowEvent::Focused(true) | WindowEvent::ScaleFactorChanged { .. }
-            ) {
+            if matches!(event, WindowEvent::Focused(true)) {
                 commands::desktop::recover_offscreen(window);
+            }
+            if matches!(event, WindowEvent::ScaleFactorChanged { .. }) {
+                commands::desktop::recover_after_scale_change(window);
             }
             if matches!(
                 event,

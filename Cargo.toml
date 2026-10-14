@@ -18,7 +18,7 @@ resolver = "2"
 edition = "2021"
 authors = ["Daniil Kiselyov"]
 license = "MIT OR Apache-2.0"
-rust-version = "1.81"
+rust-version = "1.94"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }

@@ -93,6 +93,12 @@ function ConnectedRoom({
     scopeId: `room:${connection.room.room_id}:${connection.member_id}:${view.timelineReset}`,
     campaignId: connection.room.campaign_id,
     memberId: connection.member_id,
+    mediaScope: {
+      kind: 'room',
+      room_id: connection.room.room_id,
+      member_id: connection.member_id,
+      epoch: view.state?.room.epoch ?? connection.room.epoch ?? 1,
+    },
     revision: view.state?.revision ?? 0,
     ready: view.status === 'connected' && Boolean(context) && !unavailableContext,
     hero: context?.own ?? null,

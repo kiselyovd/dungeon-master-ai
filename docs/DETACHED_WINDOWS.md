@@ -20,6 +20,13 @@ selected campaign. The native adapter checks the selected room/member scope,
 binds each reader to its actual window label, and supplies only that view's
 payload. The journal reader never receives the hero document.
 
+For owned portrait references the authorized main composition reads and verifies
+the original media, then creates a derivative of at most 256 pixels per side.
+The bounded data image is tied to the current source asset and actor scope;
+detached views receive no media URL or backend capability. The journal does not
+receive portrait bytes. A missing portrait shows an explicit class-art fallback.
+Preview bytes remain in memory and do not enter normal preferences or backups.
+
 Sequence numbers reject delayed publications. Readers request changes once per
 second; unchanged revisions return only a sequence acknowledgement. Five-second
 heartbeats carry no campaign payload. A lease expires after fifteen seconds if
@@ -48,7 +55,15 @@ library campaign switch and main-exit process cleanup. Component and production
 browser tests cover owned/guest projections, invalid identity, revoked access and
 sanitized journal HTML. Browser fixtures are UI evidence, not native authority.
 
-Physical second-monitor and 125/150/200-percent scale checks, fresh native guest
-revocation, and detached uploaded/generated portrait rendering remain acceptance
-items in the active implementation plan. Other desktop operating systems are not
-verified by the Windows run.
+Actual Windows QA has also rendered an uploaded portrait through the main sheet's
+separate-window action, verified its 256-pixel derivative and normal-preference
+exclusion, and wheel-scrolled to inventory with header actions still visible.
+Two actual native clients have also exercised an accepted guest's portrait and
+own biography, absence of the host's private biography, and removal of the native
+projection and rendered character after room access was revoked by closing the room.
+Cold placement on a real second monitor and recovery from a missing-monitor
+preference have passed for all three windows. Initial physical Windows scale
+changes at 125, 150 and 200 percent kept the detached header controls accessible,
+but exposed outer-window placement beyond the work area. The active plan retains
+the scale acceptance item until the corrected native build passes the same checks.
+Other desktop operating systems are not verified by the Windows run.

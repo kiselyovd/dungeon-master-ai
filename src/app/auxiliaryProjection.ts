@@ -1,6 +1,7 @@
 import { parseJournal, parsePcPatch } from '../state/campaignProjection';
 import type { JournalEntry } from '../state/journal';
 import { emptyPcData, PC_DATA_KEYS, type PcData } from '../state/pc';
+import type { AuxiliaryPortrait } from './useAuxiliaryPortrait';
 
 export interface AuxiliaryProjection {
   schemaVersion: 1;
@@ -13,6 +14,8 @@ export interface AuxiliaryProjection {
   ready: boolean;
   hero: PcData | null;
   journal: JournalEntry[];
+  portrait: AuxiliaryPortrait | null;
+  portraitLoading: boolean;
 }
 export function auxiliaryHero(pc: Partial<PcData> | null): PcData | null {
   if (!pc?.characterId || !pc.name) return null;
@@ -40,11 +43,24 @@ export function parseAuxiliaryProjection(input: unknown): AuxiliaryProjection | 
   const actorId = typeof value.actorId === 'string' ? value.actorId : null;
   const hero = value.hero === null ? null : auxiliaryHero(value.hero as Partial<PcData>);
   const journal = value.journal.map(parseJournal);
+  let portrait: AuxiliaryPortrait | null = null;
+  if (value.portrait != null) {
+    const candidate = value.portrait as AuxiliaryPortrait;
+    if (
+      hero?.portraitMediaRef?.source !== 'owned' ||
+      candidate.assetId !== hero.portraitMediaRef.asset_id ||
+      typeof candidate.dataUrl !== 'string' ||
+      candidate.dataUrl.length > 512 * 1024 ||
+      !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(candidate.dataUrl)
+    )
+      throw Error('desktop_aux_invalid');
+    portrait = { assetId: candidate.assetId, dataUrl: candidate.dataUrl };
+  }
   if (
     (hero?.characterId !== actorId && hero) ||
     journal.some((entry) => entry.campaign_id !== campaignId) ||
     (value.ready && !campaignId) ||
-    (!value.ready && (hero || journal.length))
+    (!value.ready && (hero || journal.length || portrait))
   )
     throw Error('desktop_aux_invalid');
   return {
@@ -58,5 +74,7 @@ export function parseAuxiliaryProjection(input: unknown): AuxiliaryProjection | 
     ready: value.ready,
     hero,
     journal,
+    portrait,
+    portraitLoading: value.portraitLoading === true,
   };
 }

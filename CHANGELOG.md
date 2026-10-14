@@ -6,6 +6,13 @@ Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk 
 
 ## Unreleased
 
+- Add private full-campaign backups and own-player dossiers with validated media, atomic import into a new campaign and retry receipts.
+- Add native import/export dialogs, preview, cancellation and protection against replacing an existing file.
+- Add scoped read-only hero and journal windows with separate geometry, own portrait previews and access revocation.
+- Add a shared command palette, persistent workspace, native invitation handling, opt-in notifications and single-instance process ownership.
+- Refresh the bilingual tabletop with self-hosted Manrope/Literata, 100 selected generated art masters, whole miniatures and geometry-aligned maps.
+- Require Rust 1.94 or newer to match SQLx 0.9.
+
 - Add the selectable Bell Beneath the Water adventure with persistent locations, discoveries, rescue reward and distinct authored outcomes.
 - Make save restoration invalidate delayed writes and retain retries across reopening the saves screen; coordinate adventure commands with chat.
 

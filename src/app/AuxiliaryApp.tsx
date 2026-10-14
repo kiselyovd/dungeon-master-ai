@@ -8,6 +8,7 @@ import {
 } from '../api/auxiliaryWindows';
 import { CharacterSheetView } from '../components/CharacterSheetView';
 import { JournalViewer } from '../components/JournalViewer';
+import { resolveHeroPortrait } from '../lib/heroPortraits';
 import { Button } from '../ui/Button';
 import styles from './AuxiliaryApp.module.css';
 import { type AuxiliaryProjection, parseAuxiliaryProjection } from './auxiliaryProjection';
@@ -65,7 +66,33 @@ export function AuxiliaryApp() {
           <p role="status">{t('context_unavailable')}</p>
         ) : kind === 'hero' ? (
           projection.hero ? (
-            <CharacterSheetView embedded open pc={projection.hero} onClose={close} />
+            <>
+              {projection.hero.portraitMediaRef?.source === 'owned' && !projection.portrait && (
+                <p role="status">
+                  {t(
+                    projection.portraitLoading
+                      ? 'aux_portrait_loading'
+                      : 'aux_portrait_unavailable',
+                  )}
+                </p>
+              )}
+              <CharacterSheetView
+                embedded
+                open
+                pc={projection.hero}
+                portraitUrl={
+                  projection.hero.portraitMediaRef?.source === 'owned'
+                    ? (projection.portrait?.dataUrl ??
+                      resolveHeroPortrait({
+                        ...projection.hero,
+                        portraitMediaRef: null,
+                        portraitUrl: null,
+                      }))
+                    : resolveHeroPortrait(projection.hero)
+                }
+                onClose={close}
+              />
+            </>
           ) : (
             <p>{t('aux_no_hero')}</p>
           )

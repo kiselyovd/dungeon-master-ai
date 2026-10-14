@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
+import { readFileSync } from 'node:fs';
 import { emptyPcData } from '../../state/pc';
 import { AuxiliaryApp } from '../AuxiliaryApp';
 
@@ -13,6 +14,32 @@ vi.mock('../../api/auxiliaryWindows', () => ({
 }));
 const actor = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const campaign = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const asset = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const preview = `data:image/png;base64,${readFileSync('e2e/fixtures/sample.png').toString('base64')}`;
+function portraitFrame() {
+  const value = frame();
+  return {
+    ...value,
+    hero: {
+      ...value.hero,
+      portraitMediaRef: {
+        source: 'owned',
+        asset_id: asset,
+        category: 'portrait',
+        origin: 'uploaded',
+        descriptor: {
+          sha256: '0'.repeat(64),
+          mime_type: 'image/png',
+          byte_len: 1,
+          width: 1,
+          height: 1,
+        },
+      },
+    },
+    portrait: { assetId: asset, dataUrl: preview },
+    portraitLoading: false,
+  };
+}
 function frame(scope = 'owned', hero = true) {
   return {
     schemaVersion: 1,
@@ -73,6 +100,32 @@ describe('real detached production composition', () => {
     expect(await screen.findByText('Shared clue')).toBeInTheDocument();
     expect(screen.queryByText('My own biography')).not.toBeInTheDocument();
     expect(container.querySelector('script')).toBeNull();
+  });
+  it('renders the owned preview and clears it after scope revocation', async () => {
+    native.read.mockResolvedValue(portraitFrame());
+    const { container } = render(<AuxiliaryApp />);
+    expect(await screen.findByText('Mira')).toBeInTheDocument();
+    expect(container.querySelector('.dm-char-portrait-art')).toHaveAttribute('src', preview);
+    native.read.mockResolvedValue(null);
+    await waitFor(() => expect(container.querySelector('.dm-char-portrait-art')).toBeNull(), {
+      timeout: 2500,
+    });
+  });
+  it('rejects a preview bound to a different asset', async () => {
+    const value = portraitFrame();
+    value.portrait.assetId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    native.read.mockResolvedValue(value);
+    render(<AuxiliaryApp />);
+    await act(async () => {});
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByText('Mira')).not.toBeInTheDocument();
+  });
+  it('explains unavailable owned art while displaying the class fallback', async () => {
+    native.read.mockResolvedValue({ ...portraitFrame(), portrait: null });
+    const { container } = render(<AuxiliaryApp />);
+    expect(await screen.findByText('Mira')).toBeInTheDocument();
+    expect(screen.getByText('Portrait unavailable. Showing class artwork.')).toBeInTheDocument();
+    expect(container.querySelector('.dm-char-portrait-art')?.getAttribute('src')).not.toBe(preview);
   });
   it('clears the displayed hero when the lease is revoked', async () => {
     native.read.mockResolvedValue(frame());

@@ -53,10 +53,7 @@ fn valid(value: &Geometry) -> bool {
             .all(|number| number.is_finite())
         && (160.0..=10_000.0).contains(&value.width)
         && (160.0..=10_000.0).contains(&value.height)
-        && value
-            .monitor
-            .as_ref()
-            .map_or(true, |name| name.len() <= 256)
+        && value.monitor.as_ref().is_none_or(|name| name.len() <= 256)
 }
 fn place(
     saved: Option<&Geometry>,
@@ -389,7 +386,20 @@ pub fn capture_auxiliary(window: &Window, flush: bool) {
     }
 }
 pub fn recover_offscreen(window: &Window) {
-    if window.label() != "main"
+    recover(window, false);
+}
+pub fn recover_after_scale_change(window: &Window) {
+    // Windows applies the suggested DPI rectangle after emitting the scale event.
+    // Read its settled physical bounds on the UI thread, rather than the old size.
+    let window = window.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        let dispatcher = window.clone();
+        let _ = dispatcher.run_on_main_thread(move || recover(&window, true));
+    });
+}
+fn recover(window: &Window, fit_work_area: bool) {
+    if (window.label() != "main" && auxiliary_key(window.label()).is_none())
         || window.is_maximized().unwrap_or(true)
         || window.is_minimized().unwrap_or(true)
         || window.is_fullscreen().unwrap_or(true)
@@ -407,8 +417,17 @@ pub fn recover_offscreen(window: &Window) {
     ) else {
         return;
     };
-    // Keep a visible title/control strip; normal user panning across monitors is allowed.
+    // Focus recovery allows normal dragging across monitors. A completed DPI change
+    // instead fits the whole window to its current work area, including decoration.
     let visible = monitors.iter().any(|monitor| {
+        if fit_work_area {
+            return position.x as i64 >= monitor.x as i64
+                && position.y as i64 >= monitor.y as i64
+                && position.x as i64 + size.width as i64
+                    <= monitor.x as i64 + monitor.width as i64
+                && position.y as i64 + size.height as i64
+                    <= monitor.y as i64 + monitor.height as i64;
+        }
         let left = (position.x as i64).max(monitor.x as i64);
         let right =
             (position.x as i64 + size.width as i64).min(monitor.x as i64 + monitor.width as i64);
@@ -419,19 +438,37 @@ pub fn recover_offscreen(window: &Window) {
     if visible {
         return;
     }
-    let saved = state
-        .geometry
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone();
-    state.restoring.store(true, Ordering::SeqCst);
-    if let Ok(geometry) = apply(window, saved.as_ref()) {
-        *state
+    let saved = if window.label() == "main" {
+        state
             .geometry
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(geometry.clone());
-        let _ = persist(window.app_handle(), &geometry, true);
-        log::warn!("desktop off-screen main window recovered");
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    } else {
+        state
+            .auxiliary
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(window.label())
+            .cloned()
+    };
+    state.restoring.store(true, Ordering::SeqCst);
+    if let Ok(geometry) = apply(window, saved.as_ref()) {
+        if let Some(key) = auxiliary_key(window.label()) {
+            state
+                .auxiliary
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .insert(window.label().to_owned(), geometry.clone());
+            let _ = persist_at(window.app_handle(), key, &geometry, true);
+        } else {
+            *state.geometry.lock().unwrap_or_else(|p| p.into_inner()) = Some(geometry.clone());
+            let _ = persist(window.app_handle(), &geometry, true);
+        }
+        log::warn!(
+            "desktop window={} off-screen geometry recovered",
+            window.label()
+        );
     }
     state.restoring.store(false, Ordering::SeqCst);
 }

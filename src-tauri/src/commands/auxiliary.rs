@@ -26,6 +26,12 @@ impl AuxiliaryKind {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuxiliaryPortrait {
+    asset_id: Uuid,
+    data_url: String,
+}
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuxiliaryFrame {
     schema_version: u8,
     sequence: u64,
@@ -38,6 +44,10 @@ pub struct AuxiliaryFrame {
     ready: bool,
     hero: Option<Value>,
     journal: Vec<Value>,
+    #[serde(default)]
+    portrait: Option<AuxiliaryPortrait>,
+    #[serde(default)]
+    portrait_loading: bool,
 }
 #[derive(Default)]
 pub struct AuxiliaryState {
@@ -63,7 +73,12 @@ fn validate(frame: &AuxiliaryFrame) -> Result<(), &'static str> {
     {
         return Err("desktop_aux_invalid");
     }
-    if !frame.ready && (frame.hero.is_some() || !frame.journal.is_empty()) {
+    if !frame.ready
+        && (frame.hero.is_some()
+            || !frame.journal.is_empty()
+            || frame.portrait.is_some()
+            || frame.portrait_loading)
+    {
         return Err("desktop_aux_invalid");
     }
     if frame.ready && frame.campaign_id.is_none() {
@@ -113,6 +128,35 @@ fn validate(frame: &AuxiliaryFrame) -> Result<(), &'static str> {
                 .and_then(Value::as_str)
                 .and_then(|id| Uuid::parse_str(id).ok())
                 != frame.actor_id
+        {
+            return Err("desktop_aux_invalid");
+        }
+    }
+    if let Some(portrait) = &frame.portrait {
+        let reference = frame
+            .hero
+            .as_ref()
+            .and_then(|hero| hero.get("portraitMediaRef"))
+            .ok_or("desktop_aux_invalid")?;
+        let data = portrait
+            .data_url
+            .strip_prefix("data:image/")
+            .and_then(|value| value.split_once(";base64,"))
+            .ok_or("desktop_aux_invalid")?;
+        if portrait.data_url.len() > 512 * 1024
+            || !["png", "jpeg", "webp"].contains(&data.0)
+            || data.1.is_empty()
+            || !data
+                .1
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"+/=".contains(&byte))
+            || reference.get("source").and_then(Value::as_str) != Some("owned")
+            || reference.get("category").and_then(Value::as_str) != Some("portrait")
+            || reference
+                .get("asset_id")
+                .and_then(Value::as_str)
+                .and_then(|value| Uuid::parse_str(value).ok())
+                != Some(portrait.asset_id)
         {
             return Err("desktop_aux_invalid");
         }
@@ -169,6 +213,8 @@ pub fn desktop_aux_publish(
 fn project(frame: &AuxiliaryFrame, kind: AuxiliaryKind) -> Value {
     json!({"schemaVersion":1,"sequence":frame.sequence,"scopeId":frame.scope_id,"campaignId":frame.campaign_id,"actorId":frame.actor_id,"revision":frame.revision,"language":frame.language,"ready":frame.ready,
         "hero": if matches!(kind,AuxiliaryKind::Hero) {frame.hero.clone()} else {None},
+        "portrait": if matches!(kind,AuxiliaryKind::Hero) {frame.portrait.clone()} else {None},
+        "portraitLoading": matches!(kind,AuxiliaryKind::Hero)&&frame.portrait_loading,
         "journal": if matches!(kind,AuxiliaryKind::Journal) {frame.journal.clone()} else {vec![]}})
 }
 #[tauri::command]
@@ -299,6 +345,8 @@ mod tests {
             revision: 2,
             language: "ru".into(),
             ready: true,
+            portrait: None,
+            portrait_loading: false,
             hero: Some(json!({"characterId":actor,"name":"Mira","portraitUrl":null})),
             journal: vec![
                 json!({"id":"entry","campaign_id":campaign,"chapter":null,"entry_html":"Published","created_at":"2026-10-14"}),
@@ -311,8 +359,29 @@ mod tests {
         validate(&frame).unwrap();
         let journal = project(&frame, AuxiliaryKind::Journal);
         assert!(journal["hero"].is_null());
+        assert!(journal["portrait"].is_null());
         let hero = project(&frame, AuxiliaryKind::Hero);
         assert!(hero["journal"].as_array().unwrap().is_empty());
+    }
+    #[test]
+    fn portrait_preview_is_bound_to_the_owned_reference_and_never_sent_to_journal() {
+        let mut frame = frame();
+        let asset = Uuid::new_v4();
+        frame.hero.as_mut().unwrap()["portraitMediaRef"] =
+            json!({"source":"owned","asset_id":asset,"category":"portrait"});
+        frame.portrait = Some(AuxiliaryPortrait {
+            asset_id: asset,
+            data_url: "data:image/webp;base64,AQ==".into(),
+        });
+        validate(&frame).unwrap();
+        assert!(project(&frame, AuxiliaryKind::Journal)["portrait"].is_null());
+        frame.portrait.as_mut().unwrap().asset_id = Uuid::new_v4();
+        assert!(validate(&frame).is_err());
+        frame.portrait.as_mut().unwrap().asset_id = asset;
+        frame.portrait.as_mut().unwrap().data_url = "http://127.0.0.1/private".into();
+        assert!(validate(&frame).is_err());
+        frame.portrait.as_mut().unwrap().data_url = "data:image/svg+xml;base64,AQ==".into();
+        assert!(validate(&frame).is_err());
     }
     #[test]
     fn wrong_actor_private_fields_external_portrait_and_cross_campaign_journal_fail_closed() {
