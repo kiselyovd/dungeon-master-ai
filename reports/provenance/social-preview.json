@@ -1,0 +1,16 @@
+{
+  "asset": "docs/images/social-preview.png",
+  "sha256": "0bbfc9a7ee69c90409f134f3d094298842e4dcb4327b02aa6e04d00dae3c22d8",
+  "width": 1280,
+  "height": 640,
+  "bytes": 209269,
+  "kind": "project evidence composition; no generated model output",
+  "note": "Actual product screen from the published repository; code MIT",
+  "sources": [
+    {
+      "path": "docs\\screenshots\\combat.jpg",
+      "sha256": "ea8a4540c3f4e6146d922f9fd3c03e926a642a8b19077277c1d37116bf7de93b"
+    }
+  ],
+  "renderer": "portfolio-integrity-2026-10-15/render_previews.py"
+}
