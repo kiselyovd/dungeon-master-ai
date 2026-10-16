@@ -131,3 +131,47 @@ were stopped; the runtime/profile process count is zero and ports9243/31809/3181
 are closed. No production profile or new package/source dependency was changed.
 New matching managed weights still await the existing download question, and
 physical two-device LAN remains explicitly deferred. Task44 remains open.
+
+## RouterAI and local-weight continuation,2026-10-15
+
+The user authorized downloading weights to D and testing inexpensive RouterAI
+models with the key kept in the user environment. A separate loopback QA gateway
+reads that key only from the environment; the desktop receives a synthetic local
+credential. The gateway forwards real model responses and preserves application
+authority, planning and narration checks. It meters requests against a50RUB
+conservative catalog-price budget without storing raw prompts, replies or keys.
+
+The actual native peaceful route using RouterAI `openai/gpt-4.1-mini` completed
+all24 requested canonical actions without a UI continuation. Final state:
+revision27, town, HP12, history24, ward restored, ledger published, reward granted,
+closed adventure and `remembered_river`. Recovery reports no pending request.
+The token-price estimate for this route and its readiness probe was19.63RUB;
+it is an estimate, not an independently reconciled account charge. This proves
+the specified native mechanical route, not all narrative quality or game rules.
+
+At the user's request the next selected model is
+`anthropic/claude-haiku-5.5`. Its structured-response readiness probe passed.
+No complete Haiku session is claimed yet. The existing budget carries forward
+the GPT-run estimate rather than resetting it when models change.
+
+The pinned Gemma4 E2B download is now present on D. The10,246,621,918byte
+`model.safetensors` matches upstream SHA256
+`2db5482b20d746879bb3ef79b5203e9075a2e2b98f54ec7c2f281c1477ddc550`
+at revision `3e22461f65e89153144f8adb70e3b8c2cc9845a7`. Interrupted CLI transfer,
+validated ranged transfer, assembly and the final checksum are retained as
+separate evidence. Managed native inference/generation acceptance remains open;
+a verified download alone is insufficient.
+
+A guest QA ZIP containing the existing tested native executable/backend and
+launch instructions was prepared without keys, profiles or models. An isolated
+local smoke reached the real backend and join form. The first cold database on
+the busy D volume showed very slow migration statements; the launcher now uses
+LocalAppData for its database and WebView while model weights remain on D.
+The user confirms a Windows64 laptop on the same network and is transferring
+the archive. A physical two-device connection has not yet been observed.
+
+Evidence remains local under `.artifacts/product-uiux/task-44-routerai/`,
+`task-44-routerai-native/`, `task-44-lan/` and `task44-download-gemma-ranges.log`.
+The public repository contains this sanitized summary, not runtime credentials,
+databases, raw private session material or downloaded models. DPI repetition
+continues to be waived. Task44 remains open for the outstanding acceptance.

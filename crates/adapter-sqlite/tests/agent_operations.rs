@@ -73,9 +73,12 @@ async fn terminal_marker_is_not_published_before_its_completion_receipt_is_durab
     };
     let mut receiver = service.execute(input).await.unwrap();
     let mut terminal = false;
+    let mut failures = 0;
     while let Some(event) = receiver.recv().await {
         terminal |= matches!(event, AgentEvent::AgentDone { .. });
+        failures += usize::from(matches!(event, AgentEvent::AgentFailed));
     }
+    assert_eq!(failures, 1);
     assert!(
         !terminal,
         "failed durable completion must be visible as an incomplete stream"
@@ -198,4 +201,75 @@ async fn unfinished_old_process_operation_cannot_be_mistaken_for_a_fresh_turn() 
         store.claim(input, next_owner).await.unwrap(),
         OperationClaim::Interrupted
     );
+}
+
+struct FailedDriver(bool);
+#[async_trait::async_trait]
+impl AgentOperationDriver for FailedDriver {
+    async fn run(
+        &self,
+        _: AgentOperation,
+        _: tokio::sync::mpsc::Sender<AgentEvent>,
+        _: Arc<TurnCancellation>,
+    ) -> Result<(), &'static str> {
+        if self.0 {
+            Ok(())
+        } else {
+            Err("private_driver_diagnostic")
+        }
+    }
+}
+#[tokio::test]
+async fn driver_failure_is_delivered_after_interruption_without_becoming_replay_history() {
+    for succeed_without_terminal in [false, true] {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        pool::migrate(&pool).await.unwrap();
+        let store = Arc::new(SqliteStore::new(pool.clone()));
+        let owner = Uuid::new_v4();
+        let input = AgentOperation {
+            request_id: Uuid::new_v4(),
+            model: None,
+            request: AgentTurnRequest {
+                campaign_id: Uuid::new_v4(),
+                session_id: Uuid::new_v4(),
+                player_message: "Look".into(),
+                history: vec![],
+                images: vec![],
+                board: None,
+            },
+        };
+        let service = DurableAgentTurns::new(
+            store.clone(),
+            Arc::new(FailedDriver(succeed_without_terminal)),
+            owner,
+        );
+        let mut receiver = service.execute(input.clone()).await.unwrap();
+        let mut delivered = vec![];
+        while let Some(event) = receiver.recv().await {
+            delivered.push(event);
+        }
+        assert_eq!(
+            serde_json::to_value(delivered).unwrap(),
+            serde_json::json!([{"type":"agent_failed"}])
+        );
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM agent_turn_operations WHERE request_id=?1")
+                .bind(input.request_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(status, "interrupted");
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM agent_turn_events WHERE request_id=?1")
+                .bind(input.request_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            count, 0,
+            "failure notification must not replay ahead of recovered engine results"
+        );
+        let recovered = store.resume(input, owner).await.unwrap();
+        assert!(matches!(recovered,OperationClaim::Resuming{events,..} if events.is_empty()));
+    }
 }

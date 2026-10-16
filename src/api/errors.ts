@@ -7,11 +7,12 @@
  */
 export type ChatErrorCode =
   | 'auth_failed'
-  | 'agent_original_environment_changed'
-  | 'agent_original_environment_unavailable'
   | 'rate_limit'
   | 'network'
   | 'provider_error'
+  | 'agent_turn_failed'
+  | 'agent_original_environment_changed'
+  | 'agent_original_environment_unavailable'
   | 'no_body'
   | 'http_error'
   | 'aborted'

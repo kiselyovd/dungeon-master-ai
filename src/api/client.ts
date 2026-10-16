@@ -58,7 +58,7 @@ export async function initBackendListener(): Promise<UnlistenFn> {
 
 export async function backendUrl(path: string): Promise<string> {
   const port = await getBackendPort();
-  return `http://127.0.0.1:${port}${path}`;
+  return `http://localhost:${port}${path}`;
 }
 
 export function setBackendPortForTesting(port: number | null): void {

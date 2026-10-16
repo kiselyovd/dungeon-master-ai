@@ -21,8 +21,13 @@ import { evaluateDmReply, type DmReplySnapshot } from './lib/dm-reply';
 import {
   evaluateCampaignEvidence,
   isChatScrollContained,
-  isManualHeroButtonLabel,
+  isCombatSceneVisible,
+  resolveJournalEvidenceId,
+  resolveCampaignBootstrapAction,
+  resolveDmResponseTimeoutMs,
+  resolveRuntimeTimeoutMs,
   type CampaignEvidence,
+  type CombatSceneVisibilitySnapshot,
   type SafeCampaignEvidenceFile,
 } from './lib/tauri-campaign';
 
@@ -42,7 +47,11 @@ const campaignPrompt = [
   'Use concrete classic-fantasy visual prompts. Finish with one short narration sentence.',
 ].join(' ');
 const endCombatPrompt =
-  'The acceptance encounter is complete. Call end_combat exactly once, then narrate one short sentence.';
+  'Tool execution is required: call end_combat with an empty object now. Do not narrate before the tool succeeds. After the tool result, answer with one short sentence.';
+const endCombatRetryPrompt =
+  'The encounter is still active. You must call end_combat with {} in this turn; prose without that tool call is invalid. After it succeeds, answer with one short sentence.';
+const startCombatRetryPrompt =
+  `Tool execution is required: call start_combat now with exactly two initiative_entries: ${heroName} roll 20 and Gate Goblin roll 1. Do not narrate before the tool succeeds.`;
 const journalPrompt =
   'Call journal_append exactly once with chapter Acceptance and a short entry_html about the Moonlit Gate. Then answer with one short sentence.';
 
@@ -130,7 +139,7 @@ async function openSettings(cdp: CdpClient): Promise<void> {
   }
 }
 
-async function completeOnboardingToWizard(cdp: CdpClient): Promise<void> {
+async function completeOnboardingToCampaignHome(cdp: CdpClient): Promise<void> {
   if (!(await evaluateInPage<boolean>(cdp, `Boolean(document.querySelector('.dm-onboarding'))`))) {
     return;
   }
@@ -157,18 +166,23 @@ async function completeOnboardingToWizard(cdp: CdpClient): Promise<void> {
       throw new Error('onboarding_hero_step_missing');
     }
   }
-  const opened = await evaluateInPage<boolean>(
-    cdp,
-    `(() => {
-      const button = [...document.querySelectorAll('.dm-onboarding-actions button')]
-        .find((candidate) => (${isManualHeroButtonLabel.toString()})(candidate.textContent || ''));
-      if (!(button instanceof HTMLElement)) return false;
-      button.click();
-      return true;
-    })()`,
-  );
-  if (!opened || !(await waitForPageCondition(cdp, `!document.querySelector('.dm-onboarding')`, 20_000))) {
+  const selectedPresetHero = await clickFirst(cdp, '.dm-hero-card');
+  if (
+    !selectedPresetHero ||
+    !(await waitForPageCondition(cdp, `!document.querySelector('.dm-onboarding')`, 20_000))
+  ) {
     throw new Error('onboarding_not_completed');
+  }
+  if (
+    !(await waitForPageCondition(
+      cdp,
+      `[...document.querySelectorAll('button')].some((button) =>
+        /New campaign|РќРѕРІР°СЏ РєР°РјРїР°РЅРёСЏ/i.test((button.textContent || '').trim())
+      )`,
+      20_000,
+    ))
+  ) {
+    throw new Error('onboarding_campaign_home_missing');
   }
 }
 
@@ -247,7 +261,7 @@ async function configureLocalRuntime(
     if (!started) throw new Error('runtime_start_control_missing');
     status = await waitForLlmReady(
       port,
-      Number(process.env.LOCAL_RUNTIME_TIMEOUT_MS ?? 420_000),
+      resolveRuntimeTimeoutMs(process.env.LOCAL_RUNTIME_TIMEOUT_MS),
     );
     await sleep(6_000);
   }
@@ -255,12 +269,168 @@ async function configureLocalRuntime(
   return status;
 }
 
-async function createCharacter(cdp: CdpClient): Promise<string> {
-  const wizardVisible = await evaluateInPage<boolean>(
+async function campaignBootstrapAction(cdp: CdpClient) {
+  const surface = await evaluateInPage<{
+    wizardVisible: boolean;
+    campaignCreateVisible: boolean;
+    newCampaignAvailable: boolean;
+    gameTableVisible: boolean;
+  }>(
     cdp,
-    `(() => { const wizard = document.querySelector('.dm-wizard'); return wizard instanceof HTMLElement && getComputedStyle(wizard).display !== 'none'; })()`,
+    `(() => {
+      const wizard = document.querySelector('.dm-wizard');
+      return {
+        wizardVisible: wizard instanceof HTMLElement && getComputedStyle(wizard).display !== 'none',
+        campaignCreateVisible: Boolean(document.querySelector('main ol li[data-active="true"]')),
+        newCampaignAvailable: [...document.querySelectorAll('button')].some((button) =>
+          /New campaign|Новая кампания/i.test((button.textContent || '').trim())
+        ),
+        gameTableVisible: Boolean(
+          document.querySelector('.dm-vtt-panel') && document.querySelector('textarea')
+        ),
+      };
+    })()`,
   );
-  if (!wizardVisible) {
+  return resolveCampaignBootstrapAction(surface);
+}
+
+async function completeCampaignCreation(cdp: CdpClient): Promise<void> {
+  if (
+    !(await waitForPageCondition(
+      cdp,
+      `Boolean(document.querySelector('main ol li[data-active="true"]'))`,
+      15_000,
+    ))
+  ) {
+    throw new Error('campaign_create_not_visible');
+  }
+
+  const currentStep = () =>
+    evaluateInPage<number>(
+      cdp,
+      `Number(document.querySelector('main ol li[data-active="true"] span')?.textContent || 0)`,
+    );
+  let step = await currentStep();
+  if (step === 1) {
+    if (!(await clickFirst(cdp, 'main footer button:last-child:not(:disabled)'))) {
+      throw new Error('campaign_source_continue_missing');
+    }
+    if (
+      !(await waitForPageCondition(
+        cdp,
+        `Number(document.querySelector('main ol li[data-active="true"] span')?.textContent || 0) === 2`,
+        15_000,
+      ))
+    ) {
+      throw new Error('campaign_tuning_not_visible');
+    }
+    step = 2;
+  }
+  if (step === 2) {
+    const titleFilled = await evaluateInPage<boolean>(
+      cdp,
+      `(() => {
+        const title = document.querySelector('main input:not([type="radio"])');
+        if (!(title instanceof HTMLInputElement)) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(title, ${JSON.stringify(`CDP Campaign ${runId}`)});
+        title.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`,
+    );
+    const premiseFilled = await evaluateInPage<boolean>(
+      cdp,
+      `(() => {
+        const premise = document.querySelector('main textarea');
+        if (!(premise instanceof HTMLTextAreaElement)) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+        setter?.call(premise, 'A moonlit gate guards the road into an old frontier realm.');
+        premise.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`,
+    );
+    if (!titleFilled || !premiseFilled) throw new Error('campaign_tuning_fields_missing');
+    if (
+      !(await waitForPageCondition(
+        cdp,
+        `Boolean(document.querySelector('main footer button:last-child:not(:disabled)'))`,
+        5_000,
+      ))
+    ) {
+      throw new Error('campaign_tuning_invalid');
+    }
+    if (!(await clickFirst(cdp, 'main footer button:last-child:not(:disabled)'))) {
+      throw new Error('campaign_tuning_continue_missing');
+    }
+    if (
+      !(await waitForPageCondition(
+        cdp,
+        `Number(document.querySelector('main ol li[data-active="true"] span')?.textContent || 0) === 3`,
+        15_000,
+      ))
+    ) {
+      throw new Error('campaign_character_handoff_missing');
+    }
+    step = 3;
+  }
+  for (const nextStep of [4]) {
+    if (!(await clickFirst(cdp, 'main footer button:last-child:not(:disabled)'))) {
+      throw new Error('campaign_preparation_handoff_missing');
+    }
+    if (
+      !(await waitForPageCondition(
+        cdp,
+        `Number(document.querySelector('main ol li[data-active="true"] span')?.textContent || 0) === ${nextStep}`,
+        15_000,
+      ))
+    ) {
+      throw new Error('campaign_preparation_handoff_failed');
+    }
+    step = nextStep;
+  }
+  if (step !== 4 || !(await clickFirst(cdp, 'main footer button:last-child:not(:disabled)'))) {
+    throw new Error('campaign_create_submit_missing');
+  }
+  if (
+    !(await waitForPageCondition(
+      cdp,
+      `(() => { const wizard=document.querySelector('.dm-wizard'); return wizard instanceof HTMLElement && getComputedStyle(wizard).display !== 'none'; })()`,
+      30_000,
+    ))
+  ) {
+    throw new Error('campaign_character_handoff_failed');
+  }
+}
+
+async function createCharacter(cdp: CdpClient): Promise<string> {
+  let bootstrapAction = await campaignBootstrapAction(cdp);
+  if (bootstrapAction === 'game_ready') {
+    const heroVisible = await evaluateInPage<boolean>(
+      cdp,
+      `Boolean([...document.querySelectorAll('button')].find((button) =>
+        (button.getAttribute('aria-label') || '').includes(${JSON.stringify(heroName)})))`,
+    );
+    if (!heroVisible) throw new Error('prepared_character_not_visible');
+    return `pc-${runId}`;
+  }
+  if (bootstrapAction === 'open_campaign_create') {
+    const opened = await evaluateInPage<boolean>(
+      cdp,
+      `(() => {
+        const button = [...document.querySelectorAll('button')].find((candidate) =>
+          /New campaign|Новая кампания/i.test((candidate.textContent || '').trim())
+        );
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`,
+    );
+    if (!opened) throw new Error('campaign_create_control_missing');
+    bootstrapAction = 'complete_campaign_create';
+  }
+  if (bootstrapAction === 'complete_campaign_create') {
+    await completeCampaignCreation(cdp);
+  } else if (bootstrapAction === 'legacy_character_entry') {
     await openSettings(cdp);
     const recreate = await evaluateInPage<boolean>(
       cdp,
@@ -382,6 +552,10 @@ async function submitChatAndWait(
     cdp,
     `document.querySelectorAll('[data-testid="bubble"][data-role="assistant"]').length`,
   );
+  const baselineSuccessfulToolResults = await evaluateInPage<number>(
+    cdp,
+    `document.querySelectorAll('[data-tool-name][data-status="success"]').length`,
+  );
   const submitted = await evaluateInPage<boolean>(
     cdp,
     `(() => {
@@ -399,7 +573,7 @@ async function submitChatAndWait(
   );
   if (!submitted) throw new Error('chat_composer_missing');
 
-  const deadline = Date.now() + Number(process.env.DM_RESPONSE_TIMEOUT_MS ?? 360_000);
+  const deadline = Date.now() + resolveDmResponseTimeoutMs(process.env.DM_RESPONSE_TIMEOUT_MS);
   while (Date.now() < deadline) {
     const snapshot = await evaluateInPage<DmReplySnapshot>(
       cdp,
@@ -411,12 +585,15 @@ async function submitChatAndWait(
         const error = document.querySelector('[data-testid="chat-error"]');
         return {
           assistantMessages,
+          successfulToolResults: document.querySelectorAll(
+            '[data-tool-name][data-status="success"]'
+          ).length,
           isStreaming: history?.getAttribute('data-streaming') === 'true',
           errorCode: error?.getAttribute('data-error-code') || undefined,
         };
       })()`,
     );
-    const state = evaluateDmReply(snapshot, baseline);
+    const state = evaluateDmReply(snapshot, baseline, baselineSuccessfulToolResults);
     if (state.status === 'error') throw new Error(`agent_turn_${state.code}`);
     if (state.status === 'complete') return;
     await sleep(1_000);
@@ -481,7 +658,10 @@ function safeToolResult(toolName: string, result: Record<string, unknown>): Safe
     };
 }
 
-async function renderedToolResult(cdp: CdpClient, toolName: string): Promise<SafeTurnEvent> {
+async function optionalRenderedToolResult(
+  cdp: CdpClient,
+  toolName: string,
+): Promise<SafeTurnEvent | null> {
   const result = await evaluateInPage<Record<string, unknown> | null>(
     cdp,
     `(() => {
@@ -493,8 +673,27 @@ async function renderedToolResult(cdp: CdpClient, toolName: string): Promise<Saf
       try { return JSON.parse(text); } catch { return null; }
     })()`,
   );
-  if (!result) throw new Error(`rendered_tool_result_missing:${toolName}`);
-  return safeToolResult(toolName, result);
+  return result ? safeToolResult(toolName, result) : null;
+}
+
+async function renderedToolResult(cdp: CdpClient, toolName: string): Promise<SafeTurnEvent> {
+  const event = await optionalRenderedToolResult(cdp, toolName);
+  if (!event) throw new Error(`rendered_tool_result_missing:${toolName}`);
+  return event;
+}
+
+async function waitForRenderedToolResult(
+  cdp: CdpClient,
+  toolName: string,
+  timeoutMs = 20_000,
+): Promise<SafeTurnEvent | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const event = await optionalRenderedToolResult(cdp, toolName);
+    if (event) return event;
+    await sleep(250);
+  }
+  return null;
 }
 
 async function renderedMedia(cdp: CdpClient, toolName: string): Promise<SafeTurnEvent> {
@@ -601,29 +800,49 @@ async function driveCombat(
     })()`,
   );
   if (!tokenCenter) throw new Error('combat_drag_target_missing');
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mousePressed',
-    x: tokenCenter.x,
-    y: tokenCenter.y,
-    button: 'left',
-    buttons: 1,
-    clickCount: 1,
-  });
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
-    x: tokenCenter.x + 60,
-    y: tokenCenter.y,
-    button: 'left',
-    buttons: 1,
-  });
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mouseReleased',
-    x: tokenCenter.x + 60,
-    y: tokenCenter.y,
-    button: 'left',
-    buttons: 0,
-    clickCount: 1,
-  });
+  // WebView2 does not consistently grant pointer capture to mouse events
+  // synthesized through CDP. Once the pointer leaves the 30 px token, the
+  // release can land on the canvas and React never calls the token's
+  // onPointerEnd handler. Dispatch the complete pointer sequence to the same
+  // live token element so this acceptance step exercises the production drag
+  // handler deterministically.
+  const dragDispatched = await evaluateInPage<boolean>(
+    cdp,
+    `(() => {
+      const token = document.querySelector('[data-testid="combat-token-${tokenBefore.id}"]');
+      if (!(token instanceof HTMLElement) || typeof PointerEvent !== 'function') return false;
+      const shared = {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'mouse',
+        isPrimary: true,
+      };
+      token.dispatchEvent(new PointerEvent('pointerdown', {
+        ...shared,
+        clientX: ${tokenCenter.x},
+        clientY: ${tokenCenter.y},
+        button: 0,
+        buttons: 1,
+      }));
+      token.dispatchEvent(new PointerEvent('pointermove', {
+        ...shared,
+        clientX: ${tokenCenter.x + 60},
+        clientY: ${tokenCenter.y},
+        button: 0,
+        buttons: 1,
+      }));
+      token.dispatchEvent(new PointerEvent('pointerup', {
+        ...shared,
+        clientX: ${tokenCenter.x + 60},
+        clientY: ${tokenCenter.y},
+        button: 0,
+        buttons: 0,
+      }));
+      return true;
+    })()`,
+  );
+  if (!dragDispatched) throw new Error('combat_drag_dispatch_failed');
   evidence.push({ checkpoint: 'move_requested', revision: startRevision });
   logCheckpoint(evidence.at(-1)!);
   if (
@@ -749,15 +968,15 @@ async function observeJournal(cdp: CdpClient): Promise<string | null> {
     );
   if (!(await openByLabel('Journal|Журнал'))) throw new Error('journal_view_control_missing');
   await sleep(700);
-  const journalId = await evaluateInPage<string | null>(
+  const entryCount = await evaluateInPage<number>(
     cdp,
-    `document.querySelector('[role="dialog"] article h3')?.textContent?.trim() || null`,
+    `document.querySelectorAll('[role="dialog"] article').length`,
   );
   await evaluateInPage(
     cdp,
     `document.querySelector('[role="dialog"] button[aria-label]')?.click()`,
   );
-  return journalId;
+  return resolveJournalEvidenceId(entryCount);
 }
 
 async function quickSaveAndRestore(
@@ -856,7 +1075,7 @@ async function main(): Promise<void> {
     if (!health.ok) throw new Error(`backend_health_http_${health.status}`);
     evidence.push({ checkpoint: 'backend_ready', port });
     logCheckpoint(evidence.at(-1)!);
-    await completeOnboardingToWizard(cdp);
+    await completeOnboardingToCampaignHome(cdp);
 
     const characterId = await createCharacter(cdp);
     evidence.push({ checkpoint: 'character_created', characterId });
@@ -913,11 +1132,43 @@ async function main(): Promise<void> {
     evidence.push({ checkpoint: 'vtt_visible' });
     logCheckpoint(evidence.at(-1)!);
 
-    const startEvent = await renderedToolResult(cdp, 'start_combat');
+    let startEvent = await waitForRenderedToolResult(cdp, 'start_combat', 10_000);
+    if (!startEvent) {
+      await submitChatAndWait(cdp, startCombatRetryPrompt);
+      startEvent = await waitForRenderedToolResult(cdp, 'start_combat');
+    }
+    if (!startEvent) throw new Error('rendered_tool_result_missing:start_combat');
+    const combatScene = await evaluateInPage<CombatSceneVisibilitySnapshot>(
+      cdp,
+      `(() => {
+        const viewport = document.querySelector('[data-testid="dm-vtt"]');
+        const map = document.querySelector('[data-testid="dm-vtt-map-bg"]');
+        const overlay = document.querySelector('[data-testid="combat-overlay"]');
+        if (!(viewport instanceof HTMLElement) || !(map instanceof HTMLElement) ||
+            !(overlay instanceof HTMLElement)) throw new Error('combat_scene_missing');
+        const rect = (element) => {
+          const box = element.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        };
+        const tokens = [...overlay.children]
+          .filter((element) => element instanceof HTMLElement &&
+            (element.dataset.testid || '').startsWith('combat-token-'))
+          .map(rect);
+        return { viewport: rect(viewport), map: rect(map), tokens };
+      })()`,
+    );
+    if (!isCombatSceneVisible(combatScene)) throw new Error('combat_tokens_not_visible');
+    const combatScreenshot = `${artifactRoot}/campaign-combat.png`;
+    await captureScreenshot(cdp, combatScreenshot);
+    screenshots.push(combatScreenshot);
     await driveCombat(cdp, startEvent, evidence);
 
     await submitChatAndWait(cdp, endCombatPrompt);
-    const ended = await renderedToolResult(cdp, 'end_combat');
+    let ended = await waitForRenderedToolResult(cdp, 'end_combat');
+    if (!ended) {
+      await submitChatAndWait(cdp, endCombatRetryPrompt);
+      ended = await waitForRenderedToolResult(cdp, 'end_combat');
+    }
     if (!ended?.projection || ended.projection.active !== false || !Number.isInteger(ended.projection.revision)) {
       throw new Error('authoritative_combat_end_missing');
     }

@@ -7,6 +7,11 @@ use serde_json::json;
 fn maps_every_agent_event_to_the_stable_sse_wire_contract() {
     let cases = [
         (
+            AgentEvent::AgentFailed,
+            "error",
+            json!({"code":"agent_turn_failed"}),
+        ),
+        (
             AgentEvent::ReasoningText {
                 text: "plan".into(),
             },

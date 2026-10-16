@@ -20,6 +20,43 @@ export const REQUIRED_CAMPAIGN_CHECKPOINTS = [
 
 export type CampaignCheckpoint = (typeof REQUIRED_CAMPAIGN_CHECKPOINTS)[number];
 
+const DEFAULT_RUNTIME_TIMEOUT_MS = 780_000;
+const DEFAULT_DM_RESPONSE_TIMEOUT_MS = 720_000;
+
+export function resolveRuntimeTimeoutMs(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RUNTIME_TIMEOUT_MS;
+}
+
+export function resolveDmResponseTimeoutMs(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DM_RESPONSE_TIMEOUT_MS;
+}
+
+export function resolveJournalEvidenceId(entryCount: number): string | null {
+  return Number.isInteger(entryCount) && entryCount > 0 ? 'observed-journal-entry' : null;
+}
+
+export type CampaignBootstrapAction =
+  | 'ready'
+  | 'game_ready'
+  | 'open_campaign_create'
+  | 'complete_campaign_create'
+  | 'legacy_character_entry';
+
+export function resolveCampaignBootstrapAction(input: {
+  wizardVisible: boolean;
+  campaignCreateVisible: boolean;
+  newCampaignAvailable: boolean;
+  gameTableVisible?: boolean;
+}): CampaignBootstrapAction {
+  if (input.campaignCreateVisible) return 'complete_campaign_create';
+  if (input.newCampaignAvailable) return 'open_campaign_create';
+  if (input.wizardVisible) return 'ready';
+  if (input.gameTableVisible) return 'game_ready';
+  return 'legacy_character_entry';
+}
+
 type RevisionCheckpoint =
   | 'combat_started'
   | 'move_requested'
@@ -92,6 +129,44 @@ export interface ScrollContainmentSnapshot {
   chatScrollHeight: number;
   bodyOverflow: string;
   chatOverflowY: string;
+}
+
+interface ViewportRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CombatSceneVisibilitySnapshot {
+  viewport: ViewportRect;
+  map: ViewportRect;
+  tokens: ViewportRect[];
+}
+
+export function isCombatSceneVisible(snapshot: CombatSceneVisibilitySnapshot): boolean {
+  const tolerance = 1;
+  const { viewport, map, tokens } = snapshot;
+  const mapCoversViewport =
+    Math.abs(map.x - viewport.x) <= tolerance &&
+    Math.abs(map.y - viewport.y) <= tolerance &&
+    map.width + tolerance >= viewport.width &&
+    map.height + tolerance >= viewport.height;
+  if (!mapCoversViewport || tokens.length === 0) return false;
+
+  const safeInset = Math.min(60, Math.min(viewport.width, viewport.height) * 0.1);
+  return tokens.every((token) => {
+    const centerX = token.x + token.width / 2;
+    const centerY = token.y + token.height / 2;
+    return (
+      token.width >= 24 &&
+      token.height >= 24 &&
+      centerX >= viewport.x + safeInset &&
+      centerX <= viewport.x + viewport.width - safeInset &&
+      centerY >= viewport.y + safeInset &&
+      centerY <= viewport.y + viewport.height - safeInset
+    );
+  });
 }
 
 export function isChatScrollContained(snapshot: ScrollContainmentSnapshot): boolean {

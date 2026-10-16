@@ -287,6 +287,10 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                     let succeeded = matches!(engine.await, Ok(Ok(())));
                     let complete = recording_ok && succeeded && saw_done;
                     let finished = repository.finish(request_id, owner, complete).await;
+                    let failed = finished.is_err()
+                        || !recording_ok
+                        || !succeeded
+                        || !(saw_done || saw_needs_input);
                     if finished.is_err() {
                         tracing::error!(%request_id,code="agent_operation_finish_failed");
                     } else if recording_ok
@@ -297,6 +301,11 @@ impl<R: AgentOperationRepository + 'static, D: AgentOperationDriver + 'static>
                         if let Some(event) = terminal_event {
                             let _ = sender.send(event).await;
                         }
+                    }
+                    // Report the delivery failure after settlement, outside the replay log.
+                    // A retry must recover confirmed events, never replay an old failure.
+                    if failed && !disconnected {
+                        let _ = sender.send(AgentEvent::AgentFailed).await;
                     }
                 });
             }

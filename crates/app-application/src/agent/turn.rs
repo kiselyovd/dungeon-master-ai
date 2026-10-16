@@ -1482,6 +1482,7 @@ fn agent_event_kind(event: &AgentEvent) -> &'static str {
         AgentEvent::VideoGenerated { .. } => "video_generated",
         AgentEvent::AgentDone { .. } => "agent_done",
         AgentEvent::AgentNeedsInput { .. } => "agent_needs_input",
+        AgentEvent::AgentFailed => "agent_failed",
     }
 }
 

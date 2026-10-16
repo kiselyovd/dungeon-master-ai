@@ -14,6 +14,15 @@ export interface AgentTurnOptions extends AgentTurnRequest {
 
 let nextRequestSequence = 1;
 
+function transportEventDebugEnabled(): boolean {
+  if (!import.meta.env.DEV || typeof localStorage === 'undefined') return false;
+  try {
+    return localStorage.getItem('dmai.debug.agentTransport') === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Stream one validated agent turn without depending on UI state or components. */
 export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const requestId = `agent-${nextRequestSequence++}`;
@@ -67,8 +76,8 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const decoder = new SseStreamDecoder();
   let byteCount = 0;
   let eventSequence = 0;
-  let completed = false;
   let terminal = false;
+  const logIndividualEvents = transportEventDebugEnabled();
 
   const dispatch = (rawEvents: ReturnType<SseStreamDecoder['finish']>): void => {
     for (const raw of rawEvents) {
@@ -83,12 +92,14 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
         continue;
       }
       eventSequence += 1;
-      console.debug('[agent.transport]', {
-        requestId,
-        eventKind: event.type,
-        sequence: eventSequence,
-        byteCount,
-      });
+      if (logIndividualEvents) {
+        console.debug('[agent.transport]', {
+          requestId,
+          eventKind: event.type,
+          sequence: eventSequence,
+          byteCount,
+        });
+      }
       if (event.type === 'error') throw new ChatError(event.code, event.message);
       if (
         event.type === 'agent_done' ||
@@ -97,7 +108,6 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       )
         terminal = true;
       opts.onEvent(event);
-      if (event.type === 'agent_done') completed = true;
     }
   };
 
@@ -107,10 +117,6 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       if (done) break;
       byteCount += value.byteLength;
       dispatch(decoder.push(value));
-      if (completed) {
-        await reader.cancel();
-        break;
-      }
     }
     dispatch(decoder.finish());
     if (!terminal) throw new ChatError('network', 'agent_stream_incomplete');

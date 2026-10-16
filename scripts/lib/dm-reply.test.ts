@@ -19,6 +19,26 @@ describe('evaluateDmReply', () => {
     ).toEqual({ status: 'complete', text: 'The door opens.' });
   });
 
+  it('accepts a completed tool-only turn after the SSE stream closes', () => {
+    expect(
+      evaluateDmReply(
+        { assistantMessages: ['old'], successfulToolResults: 4, isStreaming: false },
+        1,
+        3,
+      ),
+    ).toEqual({ status: 'complete', text: '' });
+  });
+
+  it('does not accept a stale tool result from the preceding turn', () => {
+    expect(
+      evaluateDmReply(
+        { assistantMessages: ['old'], successfulToolResults: 3, isStreaming: false },
+        1,
+        3,
+      ),
+    ).toEqual({ status: 'pending' });
+  });
+
   it('keeps waiting when the new completed bubble is empty', () => {
     expect(
       evaluateDmReply({ assistantMessages: ['old', '   '], isStreaming: false }, 1),

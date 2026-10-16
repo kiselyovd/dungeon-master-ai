@@ -61,9 +61,12 @@ fn catalog_has_the_official_srd_521_character_identity() {
 
 #[test]
 fn every_supported_character_option_is_unique_and_attributed() {
+    type AttributedOption<'a> = (&'a str, &'a str, &'a str);
+    type CatalogCollection<'a> = (&'static str, Vec<AttributedOption<'a>>);
+
     let catalog = character_catalog();
 
-    let collections: [(&str, Vec<(&str, &str, &str)>); 7] = [
+    let collections: [CatalogCollection<'_>; 7] = [
         (
             "species",
             catalog

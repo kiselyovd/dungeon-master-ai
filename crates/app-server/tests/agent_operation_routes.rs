@@ -358,6 +358,11 @@ async fn invalid_terminal_responses_leave_real_operations_interrupted() {
                 .await
                 .unwrap();
         assert_eq!(status, "interrupted", "{label}");
+        assert!(response.contains("event: error"), "{label}: {response}");
+        assert!(
+            response.contains("agent_turn_failed"),
+            "{label}: {response}"
+        );
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE session_id=?1")
             .bind(session.to_string())
             .fetch_one(&pool)
@@ -378,6 +383,10 @@ async fn invalid_terminal_responses_leave_real_operations_interrupted() {
             .await
             .unwrap();
         assert!(continued.contains("agent_done"), "{label}: {continued}");
+        assert!(
+            !continued.contains("event: error"),
+            "failed notification must not replay: {label}"
+        );
         assert!(continued.contains("Confirmed continuation."), "{label}");
         assert!(!continued.contains("unfinished draft"), "{label}");
         let status: String =

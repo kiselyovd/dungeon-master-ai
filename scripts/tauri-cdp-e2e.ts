@@ -70,10 +70,24 @@ async function main(): Promise<void> {
 
     const backendReady = await waitForPageCondition(
       cdp,
-      `!document.querySelector('.dm-splash') && Boolean(document.querySelector('textarea'))`,
+      `!document.querySelector('.dm-splash') && Boolean(
+        document.querySelector('textarea') ||
+        document.querySelector('main[data-art-direction="living-tabletop"]')
+      )`,
       120_000,
     );
-    record('splash closes and chat composer mounts', backendReady);
+    record('splash closes and a campaign-ready surface mounts', backendReady);
+
+    const viewportContained = await evaluateInPage<boolean>(
+      cdp,
+      `document.documentElement.scrollWidth <= document.documentElement.clientWidth &&
+       document.body.scrollWidth <= document.body.clientWidth &&
+       (() => {
+         const surface = document.querySelector('main[data-art-direction="living-tabletop"]');
+         return !surface || getComputedStyle(surface).overflowX === 'hidden';
+       })()`,
+    );
+    record('application shell has no horizontal viewport scrollbar', viewportContained);
 
     const backendPort = await evaluateInPage<number | null>(
       cdp,

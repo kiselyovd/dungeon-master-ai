@@ -728,6 +728,7 @@ function AppContent() {
                 const campaign = await campaignsFeature.create(input);
                 if (campaign) {
                   useStore.getState().charCreation.resetDraft();
+                  useStore.getState().pc.setHeroClass(null);
                   setCampaignCreateOpen(false);
                 } else throw new Error('campaign_preparation_failed');
               }}

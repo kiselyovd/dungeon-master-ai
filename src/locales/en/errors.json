@@ -1,6 +1,7 @@
 {
   "agent_original_environment_changed": "Restore the original model and provider in AI settings to continue this response. Your confirmed actions are saved.",
   "agent_original_environment_unavailable": "The original provider configuration is unavailable. This request cannot be safely continued with another model. Your confirmed actions are saved.",
+  "agent_turn_failed": "The Dungeon Master did not finish the response. Retry the request to continue.",
   "auth_failed": "Authentication failed. Check your API key.",
   "rate_limit": "Rate limit hit. Please retry shortly.",
   "network": "Network error. Check your connection.",

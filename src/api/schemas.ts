@@ -15,6 +15,7 @@ const KNOWN_CODES = [
   'rate_limit',
   'network',
   'provider_error',
+  'agent_turn_failed',
   'no_body',
   'http_error',
   'aborted',

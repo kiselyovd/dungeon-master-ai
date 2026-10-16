@@ -102,11 +102,13 @@ export function RoomPlay({
             view.errorCode,
           )) && (
           <p role="alert">
-            {view.errorCode === 'native_room_original_environment_changed'
-              ? te('agent_original_environment_changed')
-              : view.errorCode === 'native_room_original_environment_unavailable'
-                ? te('agent_original_environment_unavailable')
-                : t('error')}
+            {view.errorCode === 'native_room_dm_failed' || view.errorCode === 'agent_turn_failed'
+              ? te('agent_turn_failed')
+              : view.errorCode === 'native_room_original_environment_changed'
+                ? te('agent_original_environment_changed')
+                : view.errorCode === 'native_room_original_environment_unavailable'
+                  ? te('agent_original_environment_unavailable')
+                  : t('error')}
           </p>
         )}
       {!renderTable && recoveryNotice}

@@ -5,6 +5,7 @@ use axum::response::sse::Event;
 /// Pure mapping from application events to the stable frontend SSE contract.
 pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Value) {
     match event {
+        AgentEvent::AgentFailed => ("error", serde_json::json!({"code":"agent_turn_failed"})),
         AgentEvent::ReasoningText { text } => {
             ("reasoning_text", serde_json::json!({ "text": text }))
         }

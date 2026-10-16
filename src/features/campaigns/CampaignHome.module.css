@@ -3,7 +3,9 @@
   grid-row: 2 / 4;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
   color: var(--color-fg-primary);
   background-image:
     linear-gradient(
@@ -14,6 +16,10 @@
   background-size:
     auto,
     512px 512px;
+}
+
+.root::-webkit-scrollbar {
+  display: none;
 }
 
 .content {
@@ -241,13 +247,35 @@
   color: var(--color-accent);
 }
 
+.emptyScene {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(var(--space-8) * 8);
+  align-content: end;
+  overflow: hidden;
+}
+
+.emptyScene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-deep) 8%, transparent) 30%,
+    color-mix(in srgb, var(--color-bg-deep) 92%, transparent)
+  );
+}
+
 .emptyArt {
-  width: min(100%, var(--chat-width));
-  height: calc(var(--space-8) * 4);
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  object-position: center;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+  object-position: center 56%;
 }
 
 .heroCopy .heroTitle {

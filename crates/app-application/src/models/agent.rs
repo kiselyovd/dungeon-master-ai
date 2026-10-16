@@ -55,6 +55,8 @@ pub enum AgentEvent {
         video_b64: String,
         kind: String,
     },
+    /// Delivery-only failure marker; never a successful or replayable outcome.
+    AgentFailed,
     AgentDone {
         total_rounds: usize,
     },

@@ -18,6 +18,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Keep the full Windows suite below the process-startup saturation point.
+    // Vitest otherwise forks up to every available logical CPU and workers can
+    // time out before loading jsdom on high-core developer machines.
+    maxWorkers: 4,
     setupFiles: ['./src/setupTests.ts'],
     css: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],

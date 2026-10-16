@@ -133,10 +133,11 @@ async function installRoomStub(
   snapshot: RoomUpdate,
   completed = true,
   recoveryStages?: { aid: RoomUpdate; wait: RoomUpdate },
+  dmFailure = false,
 ) {
   await mockTauri(page, { onboarding_completed: completed, ui_language: 'ru' });
   await page.addInitScript(
-    ({ snapshot, recoveryStages }) => {
+    ({ snapshot, recoveryStages, dmFailure }) => {
       type Internals = {
         invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
       };
@@ -147,6 +148,8 @@ async function installRoomStub(
         const outboxKey = `dmai-e2e-room-outbox:${snapshot.state.room.room_id}`;
         value.invoke = async (command, args = {}) => {
           const operation = args.operation as Record<string, unknown> | undefined;
+          if (command === 'room_operation' && operation?.kind === 'agent_recovery')
+            return { status: 200, body: null };
           if (command === 'stream_room' && operation?.kind === 'dm_turn') {
             window.localStorage.setItem(outboxKey, JSON.stringify(operation));
             const channel = args.onChunk as { onmessage: (packet: { bytes: number[] }) => void };
@@ -265,12 +268,30 @@ async function installRoomStub(
             return {
               status: 200,
               body:
-                operation?.kind === 'agent_recovery'
-                  ? null
-                  : operation?.kind === 'pending_action'
-                    ? JSON.parse(window.localStorage.getItem(outboxKey) ?? 'null')
-                    : snapshot,
+                operation?.kind === 'pending_action'
+                  ? JSON.parse(window.localStorage.getItem(outboxKey) ?? 'null')
+                  : snapshot,
             };
+          if (
+            command === 'stream_room' &&
+            dmFailure &&
+            (args.operation as { kind: string }).kind === 'dm_turn'
+          ) {
+            const target = window as unknown as { __testDmOps?: Record<string, unknown>[] };
+            const operations = target.__testDmOps ?? [];
+            target.__testDmOps = operations;
+            operations.push(structuredClone(args.operation as Record<string, unknown>));
+            const wire =
+              operations.length === 1
+                ? 'event: error\ndata: {"code":"agent_turn_failed"}\n\n'
+                : 'event: agent_done\ndata: {"total_rounds":1}\n\n';
+            (args.onChunk as { onmessage: (packet: unknown) => void }).onmessage({
+              room_id: snapshot.state.room.room_id,
+              stream_id: args.streamId,
+              bytes: Array.from(new TextEncoder().encode(wire)),
+            });
+            return;
+          }
           if (command === 'stream_room')
             return await new Promise<void>((resolve) =>
               streams.set(String(args.streamId), resolve),
@@ -293,7 +314,7 @@ async function installRoomStub(
       });
       if (existing) install(existing);
     },
-    { snapshot, recoveryStages },
+    { snapshot, recoveryStages, dmFailure },
   );
 }
 
@@ -493,6 +514,35 @@ test('production room table omits a withdrawn human without hiding the remaining
   });
 });
 
+test('production guest sees localized DM failure and retries its original request', async ({
+  page,
+}) => {
+  await installRoomStub(page, wire, true, undefined, true);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Совместная игра' }).click();
+  await page.getByText('Ввести данные подключения вручную', { exact: true }).click();
+  await page.getByLabel('Адрес и порт организатора').fill('127.0.0.1:4123');
+  await page.getByLabel('Код комнаты').fill(wire.state.room.room_id);
+  await page.getByLabel('Ваше имя игрока').fill('Tara');
+  await page.getByLabel('Приглашение').fill('fixture-invitation');
+  await page.getByRole('button', { name: 'Подключиться' }).click();
+  await page.getByLabel('Что делает ваш герой?').fill('Осматриваю оберег.');
+  await page.getByRole('button', { name: 'Отправить мастеру' }).click();
+  await expect(page.getByRole('alert')).toHaveText(
+    'Ответ ведущего не завершён. Повторите запрос, чтобы продолжить.',
+  );
+  await page.getByRole('button', { name: 'Продолжить ответ' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const operations = await page.evaluate(
+    () => (window as unknown as { __testDmOps?: Record<string, unknown>[] }).__testDmOps,
+  );
+  expect(operations).toHaveLength(2);
+  const [first, retry] = operations ?? [];
+  if (!first || !retry) throw new Error('Two DM operations expected');
+  expect(retry.request_id).toBe(first.request_id);
+  expect(retry.player_message).toBe(first.player_message);
+  expect(retry.resume).toBe(true);
+});
 for (const role of ['host', 'guest'] as const) {
   for (const language of ['ru', 'en'] as const) {
     for (const width of [960, 1280, 1920]) {

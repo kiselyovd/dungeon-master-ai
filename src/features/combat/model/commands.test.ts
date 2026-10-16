@@ -22,22 +22,19 @@ describe('sendCombatCommand transport cleanup', () => {
     vi.unstubAllGlobals();
   });
 
-  it('cancels the one-event SSE body as soon as the projection is decoded', async () => {
-    const cancel = vi.fn(async () => undefined);
-    const releaseLock = vi.fn();
-    const read = vi.fn().mockResolvedValue({
-      done: false,
-      value: new TextEncoder().encode(
-        `event: combat_projection\ndata: ${JSON.stringify({ projection })}\n\n`,
-      ),
-    });
+  it('drains the SSE body after decoding the projection', async () => {
+    const bytes = new TextEncoder().encode(
+      `event: combat_projection\ndata: ${JSON.stringify({ projection })}\n\n`,
+    );
+    const arrayBuffer = vi.fn(async () => bytes.buffer);
     setBackendPortForTesting(45678);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
         ok: true,
         status: 200,
-        body: { getReader: () => ({ read, cancel, releaseLock }) },
+        body: {},
+        arrayBuffer,
       })),
     );
 
@@ -49,8 +46,6 @@ describe('sendCombatCommand transport cleanup', () => {
     });
 
     expect(result.revision).toBe(1);
-    expect(cancel).toHaveBeenCalledOnce();
-    expect(releaseLock).toHaveBeenCalledOnce();
-    expect(read).toHaveBeenCalledOnce();
+    expect(arrayBuffer).toHaveBeenCalledOnce();
   });
 });

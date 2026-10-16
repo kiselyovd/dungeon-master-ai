@@ -65,7 +65,7 @@ export function CampaignHome({
             disabled={loading}
           />
         ) : (
-          <section className={styles.empty} aria-live="polite">
+          <section className={`${styles.empty} ${styles.emptyScene}`} aria-live="polite">
             <DecorativeImage
               src={KEY_ART.onboarding}
               assetId={KEY_ART_IDS.onboarding}

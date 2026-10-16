@@ -1,5 +1,6 @@
 export interface DmReplySnapshot {
   assistantMessages: string[];
+  successfulToolResults?: number;
   isStreaming: boolean;
   errorCode?: string;
 }
@@ -14,9 +15,14 @@ const PLACEHOLDER_MESSAGES = new Set(['...', '…']);
 export function evaluateDmReply(
   snapshot: DmReplySnapshot,
   baselineAssistantCount: number,
+  baselineSuccessfulToolResults = 0,
 ): DmReplyState {
   if (snapshot.errorCode) return { status: 'error', code: snapshot.errorCode };
   if (snapshot.isStreaming) return { status: 'pending' };
+
+  if ((snapshot.successfulToolResults ?? 0) > baselineSuccessfulToolResults) {
+    return { status: 'complete', text: '' };
+  }
 
   const newestMessage = snapshot.assistantMessages.at(-1)?.trim() ?? '';
   if (

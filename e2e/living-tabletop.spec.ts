@@ -29,7 +29,10 @@ test.beforeEach(async ({ page }, testInfo) => {
         body: JSON.stringify([
           {
             id: 'save-1',
+            campaign_id: '2c7d0d90-e970-47a7-aac4-66a147f96e58',
             session_id: 'session-1',
+            snapshot_id: 'snapshot-1',
+            revision: 3,
             kind: 'manual',
             title: 'Old bridge watch',
             summary: 'Mira warned the party about the bridge.',
