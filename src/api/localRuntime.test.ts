@@ -8,14 +8,14 @@ import {
 } from './localRuntime';
 
 const PORT = 45678;
-const base = `http://127.0.0.1:${PORT}`;
+const base = `http://localhost:${PORT}`;
 
 function mockFetch(response: Partial<Response>): ReturnType<typeof vi.fn> {
   const fn = vi.fn().mockResolvedValue({
     ok: true,
     status: 200,
     json: async () => ({}),
-    body: { cancel: vi.fn(async () => undefined) },
+    arrayBuffer: vi.fn(async () => new ArrayBuffer(0)),
     ...response,
   });
   vi.stubGlobal('fetch', fn);
@@ -40,27 +40,27 @@ describe('localRuntime API client', () => {
   });
 
   it('startLocalRuntimes POSTs to the backend port', async () => {
-    const cancel = vi.fn(async () => undefined);
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
     const fn = mockFetch({
       ok: true,
       status: 200,
-      body: { cancel } as unknown as ReadableStream,
+      arrayBuffer,
     });
     await startLocalRuntimes();
     expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/start`, { method: 'POST' });
-    expect(cancel).toHaveBeenCalledOnce();
+    expect(arrayBuffer).toHaveBeenCalledOnce();
   });
 
   it('stopLocalRuntimes POSTs to the backend port', async () => {
-    const cancel = vi.fn(async () => undefined);
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
     const fn = mockFetch({
       ok: true,
       status: 200,
-      body: { cancel } as unknown as ReadableStream,
+      arrayBuffer,
     });
     await stopLocalRuntimes();
     expect(fn).toHaveBeenCalledWith(`${base}/local/runtime/stop`, { method: 'POST' });
-    expect(cancel).toHaveBeenCalledOnce();
+    expect(arrayBuffer).toHaveBeenCalledOnce();
   });
 
   it('persistLocalModeConfig POSTs the JSON body to the backend port', async () => {
