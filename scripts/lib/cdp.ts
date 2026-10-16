@@ -44,6 +44,13 @@ interface RuntimeEvaluateResult<T> {
 
 type EventHandler = (params: unknown) => void;
 
+export function serializeJavaScriptLiteral(value: string | null): string {
+  return JSON.stringify(value).replace(
+    /[<>\u2028\u2029]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+}
+
 const sleep = (milliseconds: number) =>
   new Promise<void>((resolvePromise) => setTimeout(resolvePromise, milliseconds));
 

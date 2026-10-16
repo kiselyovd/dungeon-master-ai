@@ -143,11 +143,13 @@ If any rule is violated — fix the output before presenting it to the user.
 ## Examples
 
 **Simple feature:**
+
 ```
 feat(auth): add password reset functionality
 ```
 
 **Bug fix with body:**
+
 ```
 fix(api): handle null response from payment gateway
 
@@ -158,6 +160,7 @@ Fixes #123
 ```
 
 **Breaking change:**
+
 ```
 feat(api)!: change response format for user endpoint
 
@@ -194,26 +197,26 @@ When invoked:
 
 9. Execute `git commit` with the confirmed message
 10. Post-commit push handling:
-   - If `git.skip_push_after_commit = true` in resolved config:
-     - Skip push prompt entirely
-     - End workflow after successful local commit
-   - Otherwise (default behavior), offer to push:
-     - Show branch/ahead status: `git status -sb`
-     - If the branch has no upstream, use: `git push -u origin <branch>`
-     - Otherwise: `git push`
+    - If `git.skip_push_after_commit = true` in resolved config:
+      - Skip push prompt entirely
+      - End workflow after successful local commit
+    - Otherwise (default behavior), offer to push:
+      - Show branch/ahead status: `git status -sb`
+      - If the branch has no upstream, use: `git push -u origin <branch>`
+      - Otherwise: `git push`
 
-     ```
-     AskUserQuestion: Push to remote?
+      ```
+      AskUserQuestion: Push to remote?
 
-     Options:
-     1. Push now
-     2. Skip push
-     ```
+      Options:
+      1. Push now
+      2. Skip push
+      ```
 
-     - **Push now** → execute push command based on upstream status:
-       - if branch has no upstream → `git push -u origin <branch>`
-       - otherwise → `git push`
-     - **Skip push** → end the workflow
+      - **Push now** → execute push command based on upstream status:
+        - if branch has no upstream → `git push -u origin <branch>`
+        - otherwise → `git push`
+      - **Skip push** → end the workflow
 
 If argument provided (e.g., `$aif-commit auth`):
 - Use it as the scope

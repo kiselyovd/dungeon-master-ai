@@ -55,9 +55,11 @@ Handoff owns branch creation at the agent-code level. The skill must NOT create 
 - Do **NOT** create a worktree.
 - Read `HANDOFF_BRANCH_NAME` from the prompt / env.
 - Validate strict equality:
+
   ```
   Bash: git rev-parse --abbrev-ref HEAD
   ```
+
   The output must equal `HANDOFF_BRANCH_NAME` exactly. Do **not** accept partial matches, prefix matches, or "branch contains `/`" heuristics.
 - If the current branch does **not** match `HANDOFF_BRANCH_NAME`, STOP. Report a blocker in the plan summary:
   > `Branch drift: expected <HANDOFF_BRANCH_NAME>, actual <current>.`

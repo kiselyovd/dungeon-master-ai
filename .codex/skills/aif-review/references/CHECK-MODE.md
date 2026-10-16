@@ -26,7 +26,19 @@ If `+check` is not set, skip this entire procedure — render the review as-is, 
    - `Verdict: modify` → replace the item text with `Modified-text`. Place it in the target section. Increment `adjusted`. If target ≠ original, also increment `reclassified`.
    - `Verdict: drop` → remove the item. `Severity` is ignored. Increment `hidden`.
 
-   Reclassified items (target ≠ original) are rendered with a short suffix appended to the item text so the user understands the move: ` [+check: promoted from Suggestions]` or ` [+check: demoted from Critical Issues]`. The suffix is added by the main skill, not by the validator.
+   Reclassified items (target ≠ original) are rendered with a short suffix appended to the item text so the user understands the move. Each suffix begins with one space:
+
+   ```text
+    [+check: promoted from Suggestions]
+   ```
+
+   or
+
+   ```text
+    [+check: demoted from Critical Issues]
+   ```
+
+   The suffix is added by the main skill, not by the validator.
 
 > Edge case: the reviewed diff covers the change itself. A finding about how the change interacts with **unchanged** surrounding code is still verified against disk, and in PR mode disk is the current branch, not the PR branch — that residual mismatch is an acceptable compromise, since checking out the PR branch would break the read-only contract.
 

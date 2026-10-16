@@ -266,12 +266,12 @@ Then reconcile plan/task state:
 
 - Ensure the current plan file matches the current branch when git branch plans are in use (`@plan-file` override wins; otherwise branch-named plan takes priority over the resolved fast plan).
 - If `git.enabled = false` or full plans were created without a branch, prefer:
-    - explicit `@plan-file`,
-    - then the only `*.md` file in the configured plans dir,
-    - then the resolved fast plan path.
+  - explicit `@plan-file`,
+  - then the only `*.md` file in the configured plans dir,
+  - then the resolved fast plan path.
 - Compare `TaskList` statuses vs plan checkboxes.
-    - If code changes for a task appear already implemented but the task is not marked completed, verify quickly and then `TaskUpdate(..., status: "completed")` and update the plan checkbox.
-    - If a task is marked completed but the corresponding code is missing (rebase/reset happened), mark it back to pending and discuss with the user.
+  - If code changes for a task appear already implemented but the task is not marked completed, verify quickly and then `TaskUpdate(..., status: "completed")` and update the plan checkbox.
+  - If a task is marked completed but the corresponding code is missing (rebase/reset happened), mark it back to pending and discuss with the user.
 
 **If uncommitted changes exist:**
 
@@ -331,7 +331,7 @@ If `git.enabled = false`, replace option 2 with:
 - `2. Create rich full plan without branch creation`
 - Route it to `$aif-plan full <description>` without any git commands
 
-**If plan file exists → continue to Step 0.1**
+#### If plan file exists → continue to Step 0.1
 
 ### Step 0.1: Load Project Context & Past Experience
 
@@ -392,12 +392,12 @@ If any rule is violated — fix the output before presenting it to the user.
 **Patch fallback (limited, only when skill-context is missing):**
 
 - If `.ai-factory/skill-context/aif-implement/SKILL.md` does not exist and the resolved patches dir exists:
-    - Use `Glob` to find `*.md` files in the resolved patches dir
-    - Sort patch filenames ascending (lexical), then select the last **10** (or fewer if less exist)
-    - Read those selected patch files only
-    - Prioritize **Root Cause** and **Prevention** sections
+  - Use `Glob` to find `*.md` files in the resolved patches dir
+  - Sort patch filenames ascending (lexical), then select the last **10** (or fewer if less exist)
+  - Read those selected patch files only
+  - Prioritize **Root Cause** and **Prevention** sections
 - If skill-context exists, do **not** read all patches by default.
-    - Optionally read a few targeted recent patches only when a task clearly matches a known failure pattern.
+  - Optionally read a few targeted recent patches only when a task clearly matches a known failure pattern.
 
 **Use this context when implementing:**
 
@@ -506,19 +506,19 @@ Current task: #4 - Implement search service
 
 For each task:
 
-**3.1: Fetch full details**
+#### 3.1: Fetch full details
 
 ```
 TaskGet(taskId) → Get description, files, context
 ```
 
-**3.2: Mark as in_progress**
+#### 3.2: Mark as in_progress
 
 ```
 TaskUpdate(taskId, status: "in_progress")
 ```
 
-**3.3: Implement the task**
+#### 3.3: Implement the task
 
 - Read relevant files
 - Make necessary changes
@@ -526,19 +526,19 @@ TaskUpdate(taskId, status: "in_progress")
 - **NO tests unless plan includes test tasks**
 - **NO reports or summaries**
 
-**3.4: Verify implementation**
+#### 3.4: Verify implementation
 
 - Check code compiles/runs
 - Verify functionality works
 - Fix any immediate issues
 
-**3.5: Mark as completed**
+#### 3.5: Mark as completed
 
 ```
 TaskUpdate(taskId, status: "completed")
 ```
 
-**3.6: Update checkbox in plan file**
+#### 3.6: Update checkbox in plan file
 
 **IMMEDIATELY** after completing a task, update the checkbox in the plan file:
 
@@ -561,7 +561,7 @@ TaskUpdate(taskId, status: "completed")
 
 **Handoff sync (manual mode ONLY — skip when `HANDOFF_MODE` is `1`):** If a Handoff task ID was extracted in Step 0.2, call `handoff_push_plan` with `{ taskId: <id>, planContent: <full updated plan text> }` to sync the checklist progress.
 
-**3.7: Update the resolved description artifact if needed**
+#### 3.7: Update the resolved description artifact if needed
 
 If during implementation:
 
@@ -580,7 +580,7 @@ If during implementation:
 
 This keeps the resolved description artifact as the source of truth.
 
-**3.7.1: Update AGENTS.md and ARCHITECTURE.md if project structure changed**
+##### 3.7.1: Update AGENTS.md and ARCHITECTURE.md if project structure changed
 
 If during implementation:
 
@@ -594,7 +594,7 @@ If during implementation:
 
 **Only update if structure actually changed** — don't rewrite on every task. Check if new directories were created that aren't in the current structure map.
 
-**3.8: Check for commit checkpoint**
+#### 3.8: Check for commit checkpoint
 
 If the plan has commit checkpoints and current task is at a checkpoint:
 
@@ -613,7 +613,7 @@ Options:
 - No, continue to next task → proceed to the next task without committing
 - Skip all commit checkpoints → for all subsequent checkpoints within this `$aif-implement` run, skip the prompt automatically and proceed directly to the next task (as if user selected "No, continue to next task" each time). This is in-context memory — resets on `/clear` or new session
 
-**3.9: Move to next task or pause**
+#### 3.9: Move to next task or pause
 
 ### Step 4: Session Persistence
 
@@ -695,8 +695,8 @@ Only do this step when there is something concrete to capture.
 
 - This command may mark milestone completion when evidence is clear.
 - If milestone mapping is ambiguous, emit `WARN [roadmap] ...` and suggest the owner command:
-    - `$aif-roadmap check`
-    - or `$aif-roadmap <short update request>`
+  - `$aif-roadmap check`
+  - or `$aif-roadmap <short update request>`
 
 **RULES.md (NOT allowed in this command):**
 
@@ -761,15 +761,17 @@ If plan setting is `Docs: no` or setting is unset:
   ```
 
   **Based on choice:**
-    - "Yes, delete it" → delete the file:
-      ```bash
-      rm <resolved fast plan path>
-      ```
-    - "No, keep it" → leave the file as is, continue to the next step
+  - "Yes, delete it" → delete the file:
+
+    ```bash
+    rm <resolved fast plan path>
+    ```
+
+  - "No, keep it" → leave the file as is, continue to the next step
 
 - **If branch-named file** (e.g., `<configured plans dir>/feature-user-auth.md`):
-    - Keep it - documents what was done
-    - User can delete before merging if desired
+  - Keep it - documents what was done
+  - User can delete before merging if desired
 
 **Check if running in a git worktree:**
 
@@ -800,6 +802,7 @@ Options:
 
 - "Yes, merge and clean up" → follow the Worktree Merge procedure below
 - "No, I'll handle it manually" → show a reminder:
+
   ```
   To merge and clean up later:
     cd <main-repo-path>
@@ -938,7 +941,7 @@ Shows progress without executing.
 
 ## Execution Rules
 
-### DO:
+### DO
 
 - ✅ Execute one task at a time
 - ✅ Mark tasks in_progress before starting
@@ -949,7 +952,7 @@ Shows progress without executing.
 - ✅ Handle edge cases mentioned in task
 - ✅ Stop and ask if task is unclear
 
-### DON'T:
+### DON'T
 
 - ❌ Write tests (unless explicitly in task list)
 - ❌ Create report files

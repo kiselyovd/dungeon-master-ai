@@ -99,6 +99,7 @@ Same logic as `$aif-implement` — produce the **canonical branch stem** before 
 **Note:** Plan discovery scans `paths.plans/` only. Plans archived to `paths.archive/plans/` by `$aif-archive` are excluded from discovery. If a plan is found only in the archive, emit `WARN [aif-verify] plan <name> is archived; verifying archived plan`.
 
 **If no plan file found:**
+
 ```
 AskUserQuestion: No plan file found. What should I verify?
 
@@ -540,16 +541,19 @@ Strict mode is recommended before merging to the configured base branch or creat
 ## Usage
 
 ### After implement (suggested automatically)
+
 ```
 $aif-verify
 ```
 
 ### Strict mode before merge
+
 ```
 $aif-verify --strict
 ```
 
 ### Standalone (no plan, verify branch diff)
+
 ```
 $aif-verify
 → No plan found → verify branch diff against the configured base branch

@@ -183,7 +183,7 @@ If any stage fails (e.g. git error, diff too large and user cancels) — stop th
 
 ## Principles
 
-### DO:
+### DO
 
 - Understand the subject before writing test plans and test cases (analyze changes / test plan / merge request / task / text description)
 - Use the repository code only to the extent needed for the change analysis, test plan, and test cases
@@ -194,7 +194,7 @@ If any stage fails (e.g. git error, diff too large and user cancels) — stop th
 - Include negative scenarios and edge cases — they catch most bugs
 - Ask clarifying questions when business logic is not obvious from the code
 
-### DO NOT:
+### DO NOT
 
 - Replace the manual QA plan with automated test implementation details
 - Make assumptions about business logic without reading the code

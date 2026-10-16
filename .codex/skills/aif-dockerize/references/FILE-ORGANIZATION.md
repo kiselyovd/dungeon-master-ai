@@ -1,11 +1,12 @@
 # File Organization
 
-## Root Directory — only files Docker expects by convention:
+## Root Directory — only files Docker expects by convention
 - `Dockerfile` — CI/CD, Docker Hub, GitHub Actions look for it in root
 - `compose.yml`, `compose.override.yml`, `compose.production.yml` — `docker compose` looks in root
 - `.dockerignore` — must be in build context root
 
-## `docker/` Directory — all service configs and supporting files:
+## `docker/` Directory — all service configs and supporting files
+
 ```
 docker/
 ├── angie/                    # Reverse proxy (if used)
@@ -21,7 +22,8 @@ docker/
     └── redis.conf
 ```
 
-## `deploy/` Directory — production ops scripts:
+## `deploy/` Directory — production ops scripts
+
 ```
 deploy/
 └── scripts/
@@ -63,6 +65,7 @@ deploy/
 | `deploy/scripts/` | Production ops scripts (Step 8) |
 
 Update compose volumes to reference `docker/` paths:
+
 ```yaml
 # Example: Angie config mount
 volumes:

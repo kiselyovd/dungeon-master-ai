@@ -11,5 +11,21 @@ indent_size = 2
 [*.rs]
 indent_size = 4
 
+[*.py]
+indent_size = 4
+
+[*.{go,mk}]
+indent_style = tab
+indent_size = tab
+
+[{Makefile,GNUmakefile,makefile}]
+indent_style = tab
+indent_size = tab
+
+# Makefile recipes in these Markdown examples require literal tabs.
+# Markdownlint still validates tabs outside fenced Makefile examples.
+[**/aif-build-automation/references/BEST-PRACTICES.md]
+indent_style = unset
+
 [*.{md,markdown}]
 trim_trailing_whitespace = false

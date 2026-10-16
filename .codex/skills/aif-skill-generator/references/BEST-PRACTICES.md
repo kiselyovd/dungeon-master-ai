@@ -8,12 +8,14 @@ Guidelines for creating professional, maintainable skills.
 Each skill should do one thing well. If a skill does multiple unrelated things, split it.
 
 Bad:
+
 ```yaml
 name: utils
 description: Various utilities for development
 ```
 
 Good:
+
 ```yaml
 name: format-json
 description: Format and validate JSON files
@@ -43,6 +45,7 @@ references/
 ### 4. Fail Gracefully
 
 Include error handling guidance:
+
 ```markdown
 ## Error Handling
 
@@ -55,6 +58,7 @@ If X fails:
 ## Description Writing
 
 ### Formula
+
 ```
 [Action verb] [what it does]. [When to use it]. [Keywords for discovery].
 ```
@@ -62,6 +66,7 @@ If X fails:
 ### Examples
 
 **Good descriptions:**
+
 ```yaml
 # Clear action + when + keywords
 description: Generates TypeScript interfaces from JSON Schema. Use when defining API contracts, creating type definitions, or converting schemas.
@@ -74,6 +79,7 @@ description: Formats code according to project style guide. Use when cleaning up
 ```
 
 **Bad descriptions:**
+
 ```yaml
 # Too vague
 description: Helps with code
@@ -88,6 +94,7 @@ description: This skill is designed to help developers who are working with JSON
 ## Tool Permissions
 
 ### Be Specific
+
 ```yaml
 # Bad: too broad
 allowed-tools: Bash
@@ -97,6 +104,7 @@ allowed-tools: Bash(git status) Bash(git diff *) Bash(npm test)
 ```
 
 ### Common Patterns
+
 ```yaml
 # Read-only exploration
 allowed-tools: Read Grep Glob
@@ -114,6 +122,7 @@ allowed-tools: Bash(docker build *) Bash(docker push *)
 ## Argument Handling
 
 ### Single Argument
+
 ```yaml
 argument-hint: [filename]
 ---
@@ -121,6 +130,7 @@ Process file: $ARGUMENTS
 ```
 
 ### Multiple Arguments
+
 ```yaml
 argument-hint: [source] [target]
 ---
@@ -128,6 +138,7 @@ Convert $0 to $1 format
 ```
 
 ### Optional Arguments
+
 ```yaml
 argument-hint: [path] [--verbose]
 ---
@@ -144,6 +155,7 @@ Options: $ARGUMENTS
 - Research/exploration tasks
 
 ### Agent Selection
+
 ```yaml
 # For exploration
 context: fork
@@ -161,12 +173,14 @@ agent: general-purpose
 ## File Organization
 
 ### Small Skill
+
 ```
 skill-name/
 └── SKILL.md
 ```
 
 ### Medium Skill
+
 ```
 skill-name/
 ├── SKILL.md
@@ -175,6 +189,7 @@ skill-name/
 ```
 
 ### Large Skill
+
 ```
 skill-name/
 ├── SKILL.md
@@ -200,6 +215,7 @@ skill-name/
 4. Test edge cases
 
 ### Validation
+
 ```bash
 # Structure check
 ls -la skill-name/
@@ -226,6 +242,7 @@ npx skills-ref validate ./skill-name
 ## Common Mistakes
 
 ### 1. Overly Broad Description
+
 ```yaml
 # Bad
 description: Helps with development tasks
@@ -235,6 +252,7 @@ description: Generates React components with TypeScript, tests, and Storybook st
 ```
 
 ### 2. Missing Trigger Conditions
+
 ```yaml
 # Bad
 description: Analyzes code for issues
@@ -244,6 +262,7 @@ description: Analyzes code for issues. Use when reviewing code, debugging proble
 ```
 
 ### 3. Monolithic SKILL.md
+
 ```markdown
 # Bad: 2000 lines in SKILL.md
 
@@ -252,6 +271,7 @@ See [references/COMPLETE-GUIDE.md](references/COMPLETE-GUIDE.md) for full docume
 ```
 
 ### 4. Hardcoded Paths
+
 ```yaml
 # Bad
 Run: python /Users/me/skills/my-skill/scripts/run.py
@@ -261,6 +281,7 @@ Run: python scripts/run.py
 ```
 
 ### 5. No Error Guidance
+
 ```yaml
 # Bad
 Run the command and check output.

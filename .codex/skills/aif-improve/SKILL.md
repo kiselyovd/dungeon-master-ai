@@ -130,7 +130,7 @@ To create a plan first, use:
 
 ### Step 2: Load Context
 
-**2.1: Read the plan file**
+#### 2.1: Read the plan file
 
 Read the found plan file completely. Understand:
 - Feature scope and goals
@@ -140,7 +140,7 @@ Read the found plan file completely. Understand:
 - Commit checkpoints
 - Which tasks are already completed (checkboxes `- [x]`)
 
-**2.2: Read project context**
+#### 2.2: Read project context
 
 Read `.ai-factory/DESCRIPTION.md` (use path from config) if it exists:
 - Tech stack
@@ -154,7 +154,7 @@ When adding `## Research Context` to an unlinked plan, normalize the copied Acti
 
 Otherwise, read `.ai-factory/RESEARCH.md` (use path from config) if it exists and is relevant to the plan being refined.
 
-**2.3: Read patches (limited fallback)**
+#### 2.3: Read patches (limited fallback)
 
 Use patches as fallback context, not the default source:
 
@@ -186,7 +186,7 @@ codebase conventions, and tech-stack analysis. These rules are tailored to the c
 **Enforcement:** After generating any output artifact, verify it against all skill-context rules.
 If any rule is violated — fix the output before presenting it to the user.
 
-**2.4: Load current task list**
+#### 2.4: Load current task list
 
 ```
 TaskList → Get all tasks with statuses
@@ -198,9 +198,10 @@ Understand what's already been created, what's in progress, what's completed.
 
 Now do a **deeper** codebase exploration than what `$aif-plan` did initially:
 
-**3.1: Trace through existing code paths**
+#### 3.1: Trace through existing code paths
 
 For each task in the plan, find the relevant files:
+
 ```
 Glob + Grep: Find files mentioned in tasks
 Read: Understand current implementation
@@ -212,7 +213,7 @@ Look for:
 - Hidden dependencies the plan missed
 - Shared utilities or services the plan should use instead of creating new ones
 
-**3.2: Check for integration points**
+#### 3.2: Check for integration points
 
 Look for things the plan might have missed:
 - API routes that need updating
@@ -222,7 +223,7 @@ Look for things the plan might have missed:
 - Middleware or guards that apply
 - Existing validation patterns
 
-**3.3: Check for edge cases**
+#### 3.3: Check for edge cases
 
 Based on the tech stack and codebase:
 - Error handling patterns used in the project
@@ -235,36 +236,36 @@ Based on the tech stack and codebase:
 
 Compare the plan against what you found. Use `## Original Request` as the original intent / scope anchor when it exists, together with the current task list and any committed `## Research Context`. A proposed refinement is in scope only when it supports that original request or an explicitly approved user refinement prompt; otherwise route it to 4.6 (`out_of_scope`) instead of adding it to the active plan. Categorize issues:
 
-**4.1: Missing tasks**
+#### 4.1: Missing tasks
 - Tasks that should exist but don't (e.g., migration, config update, index creation)
 - Tasks for edge cases not covered
 
-**4.2: Task quality issues**
+#### 4.2: Task quality issues
 - Descriptions too vague (no file paths, no specific implementation details)
 - Missing logging requirements
 - Missing error handling details
 - Incorrect file paths
 
-**4.3: Dependency issues**
+#### 4.3: Dependency issues
 - Wrong task order (task A depends on B but B comes after A)
 - Missing dependencies (task C needs task A's output but isn't blocked by it)
 - Unnecessary dependencies (tasks could run in parallel)
 
-**4.4: Redundant or duplicate tasks**
+#### 4.4: Redundant or duplicate tasks
 - Two tasks doing the same thing
 - Task that's unnecessary because the code already exists
 - Task that duplicates existing functionality
 
-**4.5: Task size issues**
+#### 4.5: Task size issues
 - Tasks too large (should be split)
 - Tasks too small (should be merged)
 - Split/merge findings go into the "📝 Task Improvements" report section (`improvements` group, alongside 4.2) — they restructure existing tasks rather than add or remove them.
 
-**4.6: Out-of-scope tasks**
+#### 4.6: Out-of-scope tasks
 - Tasks already in the plan that look useful in themselves but are unrelated to the feature this plan is about (gold-plating)
 - On approval these are removed from the active plan — the same drop action as `removals` (see Step 6.4). The difference is the report only: an out-of-scope task goes to its own "💡 Out of scope" section instead of being lumped into "🗑️ Removals", so the user sees a useful-but-unrelated idea before it is dropped and can choose to capture it elsewhere. The skill itself does not persist out-of-scope items anywhere.
 
-**4.7: User-prompted improvements (if $ARGUMENTS provided)**
+#### 4.7: User-prompted improvements (if $ARGUMENTS provided)
 
 If the user provided specific improvement instructions in `$ARGUMENTS` (excluding `--list`, `+check`, and `@<path>` tokens):
 - Apply the user's feedback to the plan
@@ -355,29 +356,31 @@ $aif-implement
 
 Based on user's choice:
 
-**6.1: Apply task improvements**
+#### 6.1: Apply task improvements
 
 For existing tasks that need better descriptions:
+
 ```
 TaskGet(taskId) → read current
 TaskUpdate(taskId, description: "improved description", subject: "improved subject")
 ```
 
-**6.2: Add missing tasks**
+#### 6.2: Add missing tasks
 
 For new tasks:
+
 ```
 TaskCreate(subject, description, activeForm)
 TaskUpdate(taskId, addBlockedBy: [...]) → set dependencies
 ```
 
-**6.3: Fix dependencies**
+#### 6.3: Fix dependencies
 
 ```
 TaskUpdate(taskId, addBlockedBy: [...])
 ```
 
-**6.4: Remove redundant or out-of-scope tasks**
+#### 6.4: Remove redundant or out-of-scope tasks
 
 Both `removals` and `out_of_scope` translate to the same plan-file action — drop the task:
 
@@ -387,7 +390,7 @@ TaskUpdate(taskId, status: "deleted")
 
 The difference between the two is the report only. `removals` are dead-weight duplicates: mentioned once and forgotten. `out_of_scope` items appear in the "💡 Out of scope" section so the user sees the idea was noticed and consciously dropped from this plan, not removed without a trace. The skill does not persist out-of-scope tasks anywhere — capturing the idea elsewhere (issue tracker, backlog) is the user's call.
 
-**6.5: Update the plan file**
+#### 6.5: Update the plan file
 
 **CRITICAL:** After all changes, update the plan file to reflect the new state:
 
@@ -413,7 +416,7 @@ exact numeric prefix on rewrite. Never renumber a plan during an improve pass �
 the prefix is permanent and must survive any regeneration. Write back to the
 same absolute path you read from.
 
-**6.6: Confirm completion**
+#### 6.6: Confirm completion
 
 The Step 6.6 completion template below defines structure only. Render all human-readable text in this user-facing response in `ui_language`. Preserve command names, paths, task counts, and numeric counts unchanged.
 

@@ -54,6 +54,7 @@ Argument routing chain:
 3. **Everything else** → validate via `git rev-parse --verify` → commits mode or ask user
 
 Validation:
+
 ```bash
 git rev-parse --verify <argument> 2>/dev/null
 ```
@@ -79,9 +80,11 @@ git rev-parse --verify <argument> 2>/dev/null
 **Steps:**
 
 1. **Get commit list** between the ref and HEAD:
+
    ```bash
    git log --oneline --reverse <ref>..HEAD
    ```
+
    If no commits found (HEAD is at or behind `<ref>`), inform the user and **stop**.
 
 2. **Check commit count:**
@@ -102,10 +105,12 @@ git rev-parse --verify <argument> 2>/dev/null
    - "Cancel" → inform the user that review was cancelled → **STOP**
 
 3. **Review each commit:**
+
    ```bash
    git show <commit-hash> --stat
    git show <commit-hash>
    ```
+
    For each commit check:
    - Does the commit message match the actual changes?
    - Are changes atomic (single logical unit per commit)?
@@ -235,7 +240,13 @@ Example:
 [Free-form acknowledgements of good patterns. No path/fix required.]
 ```
 
-When `+check` reclassifies an item, a short ` [+check: …]` suffix is appended to the item text; see `references/CHECK-MODE.md` for the exact wording.
+When `+check` reclassifies an item, a short suffix beginning with one space is appended to the item text:
+
+```text
+ [+check: …]
+```
+
+See `references/CHECK-MODE.md` for the exact wording.
 
 Append the final machine-readable result after the markdown summary:
 

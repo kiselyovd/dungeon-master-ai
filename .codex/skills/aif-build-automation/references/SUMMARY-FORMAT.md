@@ -1,6 +1,6 @@
 # Summary Display Formats
 
-## Mode B (Generate New) — show what was created:
+## Mode B (Generate New) — show what was created
 
 ```
 ## Generated: [Filename]
@@ -25,7 +25,7 @@
   [tool-specific run command, e.g., "make help", "task --list", "just", "mage -l"]
 ```
 
-## Mode A (Enhance Existing) — show what was changed:
+## Mode A (Enhance Existing) — show what was changed
 
 ```
 ## Enhanced: [Filename]

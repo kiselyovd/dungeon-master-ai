@@ -29,7 +29,7 @@ def _patch_nunchaku_zimage_forward(transformer_cls) -> None:
     Fix until nunchaku ships a release that uses keyword args."""
     if getattr(transformer_cls, "_dm_ai_forward_patched", False):
         return
-    from nunchaku.models.transformers.transformer_zimage import (  # noqa: PLC0415
+    from nunchaku.models.transformers.transformer_zimage import (
         NunchakuZImageRopeHook,
     )
     base_forward = transformer_cls.__mro__[1].forward  # diffusers ZImageTransformer2DModel.forward
@@ -58,7 +58,7 @@ def _patch_nunchaku_zimage_forward(transformer_cls) -> None:
 class ZImageTurboBackend:
     name: ClassVar[str] = "quality-oss"
     modality: ClassVar[Literal["image"]] = "image"
-    vram_estimate_bytes: ClassVar[int] = int(6 * 1024**3)
+    vram_estimate_bytes: ClassVar[int] = 6 * 1024**3
 
     def __init__(self, weights_dir: Path | None = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
@@ -69,9 +69,9 @@ class ZImageTurboBackend:
             return
         assert_vram_free(6 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import ZImagePipeline  # noqa: PLC0415
-        from nunchaku import NunchakuZImageTransformer2DModel  # noqa: PLC0415
+        import torch
+        from diffusers import ZImagePipeline
+        from nunchaku import NunchakuZImageTransformer2DModel
 
         _patch_nunchaku_zimage_forward(NunchakuZImageTransformer2DModel)
 
@@ -103,7 +103,7 @@ class ZImageTurboBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -112,7 +112,7 @@ class ZImageTurboBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
+        import torch
 
         generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
         # guidance_scale=0.0 mandatory for Turbo models (distilled, no CFG path).

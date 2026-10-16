@@ -48,7 +48,7 @@ Output format:
 
 ## Example 2: Deployment Skill
 
-```yaml
+````yaml
 ---
 name: deploy
 description: Deploy application to production with safety checks and rollback capability.
@@ -87,11 +87,11 @@ Deploy to $ARGUMENTS environment:
 ```bash
 kubectl rollout undo deployment/app
 ```
-```
+````
 
 ## Example 3: Visual Report Skill
 
-```yaml
+````yaml
 ---
 name: test-coverage
 description: Generate interactive HTML test coverage report with charts and drill-down. Use after running tests or when analyzing test quality.
@@ -119,7 +119,7 @@ The report shows:
 - File-by-file breakdown
 - Uncovered line highlighting
 - Trend over time (if history available)
-```
+````
 
 ## Example 4: Research Skill
 

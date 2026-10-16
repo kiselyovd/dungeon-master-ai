@@ -69,11 +69,14 @@ Parsing rules:
 3. Determine completion: a plan is **completed** when ALL task checkboxes
    are `- [x]`. Plans with any `- [ ]` are incomplete.
 4. If no completed plans found:
+
    ```
    No completed plans found in <paths.plans/>.
    ```
+
    → STOP.
 5. Display completed plans:
+
    ```
    Completed plans ready to archive:
 
@@ -83,7 +86,9 @@ Parsing rules:
    Incomplete plans (skipped):
      - 0005_feature-delta.md (3/7 tasks done)
    ```
+
 6. Ask which to archive:
+
    ```
    AskUserQuestion: Which plans to archive?
 
@@ -92,6 +97,7 @@ Parsing rules:
    2. Select specific plans (enter numbers)
    3. Cancel
    ```
+
 7. Execute archive operation for selected plans (see **Archive Operation**).
 
 ---
@@ -103,6 +109,7 @@ Parsing rules:
 3. Glob `<paths.archive>/plans/*.md`.
 4. For each archived plan, read the YAML frontmatter to extract `archived` date.
 5. Display:
+
    ```
    Archived plans (<paths.archive>/plans/):
 
@@ -111,12 +118,15 @@ Parsing rules:
 
    Total: 2 archived plans
    ```
+
 6. Check `<paths.archive>/roadmap/` for snapshots and list them if present:
+
    ```
    Roadmap snapshots (<paths.archive>/roadmap/):
 
      1. 2026-05-20_roadmap-snapshot.md (3 milestones)
    ```
+
 7. STOP.
 
 ---
@@ -131,10 +141,12 @@ Parsing rules:
 3. If multiple matches: list them and ask user to be more specific → STOP.
 4. Read the matched plan file and check completion status.
 5. If incomplete:
+
    ```
    Plan <filename> is not completed (5/8 tasks done).
    Only completed plans can be archived.
    ```
+
    → STOP.
 6. Execute archive operation (see **Archive Operation**).
 
@@ -145,6 +157,7 @@ Parsing rules:
 1. Scan `paths.plans/` for completed plans (same logic as interactive mode).
 2. If no completed plans: inform and STOP.
 3. Display list and ask confirmation:
+
    ```
    AskUserQuestion: Archive ALL completed plans?
 
@@ -155,6 +168,7 @@ Parsing rules:
    1. Yes, archive all 2 plans
    2. Cancel
    ```
+
 4. Execute archive operation for all confirmed plans.
 
 ---
@@ -166,6 +180,7 @@ Parsing rules:
 3. Find milestones with `- [x]` checkbox (completed milestones).
 4. If no completed milestones: `No closed milestones to archive.` → STOP.
 5. Display and ask confirmation:
+
    ```
    Closed milestones found in ROADMAP.md:
 
@@ -178,17 +193,21 @@ Parsing rules:
    1. Yes, create snapshot and trim
    2. Cancel
    ```
+
 6. Create snapshot:
    - `mkdir -p <paths.archive>/roadmap/`
    - Determine snapshot filename: `YYYY-MM-DD_roadmap-snapshot.md`
    - **Collision check.** Before writing, verify the destination does not already exist:
+
      ```
      Read <paths.archive>/roadmap/YYYY-MM-DD_roadmap-snapshot.md
      ```
+
      If the file exists, append a counter suffix to produce a non-colliding name:
      `YYYY-MM-DD_roadmap-snapshot-2.md`, `YYYY-MM-DD_roadmap-snapshot-3.md`, etc.
      Check each candidate until a free name is found.
    - Write the resolved snapshot path with:
+
      ```markdown
      # Roadmap Snapshot — YYYY-MM-DD
 
@@ -199,6 +218,7 @@ Parsing rules:
      - [x] MVP Launch — core features shipped
      - [x] Beta Testing — user feedback round
      ```
+
 7. Edit `paths.roadmap`: remove the archived `- [x]` lines from the
    `## Milestones` section. Keep the `## Completed` table if it exists.
    **Do NOT edit `paths.roadmap` unless the snapshot write in step 6 succeeded.**
@@ -213,11 +233,14 @@ For each plan to archive:
 1. `mkdir -p <paths.archive>/plans/`
 
 2. **Collision check.** Before moving, verify the destination does not already exist:
+
    ```
    Read <paths.archive>/plans/<original-filename>
    ```
+
    If the file exists:
    - **Single plan** (interactive or `<plan-name>`): STOP with an error:
+
      ```
      ERROR [aif-archive] destination already exists: <paths.archive>/plans/<filename>
      A previously archived plan has the same filename. This can happen when
@@ -225,16 +248,21 @@ For each plan to archive:
      To resolve: rename the existing archive file, or delete it if it is no
      longer needed.
      ```
+
    - **Batch** (`--all`): SKIP this plan with a warning, continue to the next:
+
      ```
      WARN [aif-archive] skipped: <filename> — destination already exists
      ```
+
    Do NOT overwrite in either case.
 
 3. **Move the source file** into the archive path first:
+
    ```bash
    mv <paths.plans>/<filename> <paths.archive>/plans/<filename>
    ```
+
    This atomically removes the plan from the active directory.
 
 4. **Add archive metadata** to the moved file using `Edit`:
@@ -244,6 +272,7 @@ For each plan to archive:
 
    If the file has no YAML frontmatter:
    - Use `Edit` to prepend a minimal frontmatter block before the first line:
+
      ```yaml
      ---
      archived: YYYY-MM-DD
@@ -255,6 +284,7 @@ For each plan to archive:
 5. Logging: `INFO [aif-archive] archived: <filename> -> <paths.archive>/plans/<filename>`
 
 6. After all plans are processed, display summary:
+
    ```
    ## Archive Complete
 
@@ -267,6 +297,7 @@ For each plan to archive:
 
    Plans directory: <paths.plans/> (M plans remaining)
    ```
+
    Omit the "Skipped" section when K is 0.
 
 ### Completion Detection Algorithm
@@ -283,7 +314,12 @@ Edge cases:
 
 - Checkboxes outside `## Tasks` (e.g., in `## Settings` or `## Commit Plan`)
   are NOT counted for completion.
-- Nested checkboxes (indented `  - [x]`) ARE counted.
+- Nested checkboxes ARE counted, including indented forms:
+
+  ```text
+    - [x]
+  ```
+
 - Plans without a `## Tasks` section are not archivable — emit
   `WARN [aif-archive] <filename> has no ## Tasks section; skipping`.
 

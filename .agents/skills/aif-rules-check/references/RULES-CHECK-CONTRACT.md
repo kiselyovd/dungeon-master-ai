@@ -3,21 +3,21 @@
 **Overall Verdict:** PASS | WARN | FAIL
 **Files Checked:** <count>
 
-### Gate Results
+## Gate Results
 - PASS [rules] <summary>
 - WARN [rules] <summary>
 - FAIL [rules] <summary>
 
-### Blocking Violations
+## Blocking Violations
 - <file>: <explicit hard-rule violation tied to rule text>
 
-### Suggested Fixes
+## Suggested Fixes
 - <concrete code or workflow fix>
 
-### Suggested Rule Updates
+## Suggested Rule Updates
 - <candidate rule to add or clarify via /aif-rules>
 
-### Machine-Readable Gate Result
+## Machine-Readable Gate Result
 
 Append one final fenced JSON block after the human-readable report:
 

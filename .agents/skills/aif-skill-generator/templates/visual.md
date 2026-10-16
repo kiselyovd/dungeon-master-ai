@@ -2,7 +2,7 @@
 
 Use for generating HTML reports, visualizations, diagrams.
 
-```yaml
+````yaml
 ---
 name: {{SKILL_NAME}}
 description: {{DESCRIPTION}}
@@ -36,7 +36,7 @@ Creates `{{OUTPUT_FILE}}` in current directory and opens in browser.
 
 - Python 3.8+
 - No external dependencies (uses standard library only)
-```
+````
 
 ---
 

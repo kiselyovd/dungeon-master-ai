@@ -80,7 +80,6 @@ Monolith (any pattern) → Microservices:
 - A single team's deploy failure blocks all other teams
 ```
 
-
 ## Structured Modules
 
 **Core Principle:** A lightweight, domain-aware modular architecture. Each module encapsulates a feature area with its own routes, application services (orchestrators), rich models, and repositories. It brings the core benefits of DDD (rich models, dependency inversion) without the strict folder formalism.
@@ -90,6 +89,7 @@ Monolith (any pattern) → Microservices:
 **IMPORTANT: Domain-Centric, not Service-Centric:** Unlike traditional layered patterns, Structured Modules is **not** service-centric. The `Services/` layer acts only as Application Services (orchestrating use cases: fetch data → call model method → save). The actual core business rules, validations, and state mutations live strictly inside the `Models/` (Rich Domain Models).
 
 **Migration path to Explicit Architecture:**
+
 ```text
 Structured Modules                           Explicit Architecture
 ├── [ModuleName]/                            ├── [ContextName]/
@@ -105,6 +105,7 @@ Structured Modules                           Explicit Architecture
 - **By vertical slice (entity)** — grouping the controller, service, and repository for a specific entity into a single folder. Within each entity slice, individual use cases can optionally be extracted into separate classes. Cross-entity processes live at the module level.
 
 ### Folder Structure — Structured Modules (Technical Layer)
+
 ```text
 src/
 ├── [ModuleName]/                               # ── FEATURE MODULE ──
@@ -128,6 +129,7 @@ src/
 ```
 
 ### Folder Structure — Structured Modules (Vertical Slices By Entity)
+
 ```text
 src/
 ├── [ModuleName]/                               # ── FEATURE MODULE ──
@@ -182,6 +184,7 @@ src/
 **Domain-Driven Design (DDD)** is primarily about domain modeling: defining a ubiquitous language, identifying bounded contexts, and organizing logic into aggregates, entities, and value objects. DDD is **not** a folder structure. Explicit Architecture provides a way to structure code that implements DDD concepts cleanly.
 
 **Architecture Layers** (5 concentric layers, innermost to outermost):
+
 ```text
 ┌─────────────────────────────────────────────────────┐
 │  5. CONFIGURATION / COMPOSITION ROOT                │  DI container, wiring, bootstrap
@@ -344,8 +347,8 @@ src/
 ### Core Principles
 
 1. **Bounded Contexts:** Each bounded context represents a distinct business domain with its own ubiquitous language. A bounded context is a good candidate for extraction into its own microservice, though extraction usually requires operational, persistence, integration, and deployment work.
-  - Cross-context communication happens through DTOs, facades, or domain events.
-  - **Context Mapping:** Contexts communicate through strategic DDD relationship patterns like Customer/Supplier or Anti-Corruption Layer (ACL). Note that a Context Map is a strategic view of your system; an ACL is a specific integration pattern used within that map.
+   - Cross-context communication happens through DTOs, facades, or domain events.
+   - **Context Mapping:** Contexts communicate through strategic DDD relationship patterns like Customer/Supplier or Anti-Corruption Layer (ACL). Note that a Context Map is a strategic view of your system; an ACL is a specific integration pattern used within that map.
 
 2. **Domain Layer Purity:** The domain layer has ZERO dependencies on frameworks, databases, or external services. Contains Entities, Aggregates, Value Objects, Domain Events, Ports (interfaces), and Domain Exceptions.
 

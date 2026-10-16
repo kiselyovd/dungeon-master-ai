@@ -77,6 +77,7 @@ Compute a confidence score 0–100:
 ### Step 5: Output format (strict)
 
 If confidence is **100**:
+
 ```
 Answer:
 <final answer or patch summary>
@@ -90,6 +91,7 @@ Checks:
 ```
 
 If confidence is **< 100**:
+
 ```
 Result: INSUFFICIENT INFORMATION (no guessing)
 Current confidence: <N>/100

@@ -2,7 +2,7 @@
 
 Use for guidelines, conventions, best practices.
 
-```yaml
+````yaml
 ---
 name: {{SKILL_NAME}}
 description: {{DESCRIPTION}}
@@ -42,4 +42,4 @@ code or text
 - [ ] Item 1
 - [ ] Item 2
 - [ ] Item 3
-```
+````

@@ -257,7 +257,7 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     created_at: '2026-08-12T12:00:00Z',
     turn_number: 5,
   };
-  await page.route('http://127.0.0.1:31415/sessions/**', async (route) => {
+  await page.route('http://localhost:31415/sessions/**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/messages')) {
       await route.fulfill({
@@ -286,7 +286,7 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
     }
     await route.fallback();
   });
-  await page.route('http://127.0.0.1:31415/saves/**', async (route) => {
+  await page.route('http://localhost:31415/saves/**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/restore')) {
       await route.fulfill({

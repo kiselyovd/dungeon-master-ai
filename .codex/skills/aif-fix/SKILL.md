@@ -115,9 +115,11 @@ Templates and examples define structure, not fixed English output. If `artifact_
 - Apply the **Canonical Regression-First Policy** before changing implementation code when a regression check is needed for the bug, even if the existing plan did not include that policy
 - Follow the plan sequentially, but preserve the canonical order: confirm the problem first, implement the fix, then rerun the same regression check
 - After the fix is fully applied and verified in Step 4, delete the resolved fix plan file **only when it is the default fix plan path** `.ai-factory/FIX_PLAN.md`:
+
   ```bash
   rm .ai-factory/FIX_PLAN.md
   ```
+
 - If the fix plan came from a custom `paths.fix_plan` value, an explicitly supplied custom plan path, or any non-default fix plan location, do **not** delete it. Leave it in place and mention in the final summary that the custom fix plan was preserved.
 - Continue to Step 5 (Additional Test Coverage) and Step 6 (Patch)
 

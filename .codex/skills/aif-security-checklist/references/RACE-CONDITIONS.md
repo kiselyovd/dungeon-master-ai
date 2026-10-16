@@ -1,6 +1,7 @@
 # Race Conditions
 
 ## Double-Spending / Balance Race
+
 ```typescript
 // ❌ VULNERABLE: Read-then-write (two requests can read same balance)
 app.post('/transfer', async (req, res) => {
@@ -36,6 +37,7 @@ COMMIT;
 ```
 
 ## TOCTOU (Time of Check to Time of Use)
+
 ```typescript
 // ❌ VULNERABLE: Check permission, then act — gap between check and action
 app.post('/admin/delete-user', async (req, res) => {
@@ -77,6 +79,7 @@ try {
 ```
 
 ## Optimistic Locking
+
 ```typescript
 // ✅ SAFE: Version-based optimistic locking prevents lost updates
 app.put('/articles/:id', async (req, res) => {
@@ -93,6 +96,7 @@ app.put('/articles/:id', async (req, res) => {
 ```
 
 ## Idempotency Keys
+
 ```typescript
 // ✅ SAFE: Prevent duplicate payments with idempotency key
 app.post('/payments', async (req, res) => {
@@ -109,6 +113,7 @@ app.post('/payments', async (req, res) => {
 ```
 
 ## Distributed Locks (Redis)
+
 ```typescript
 // ✅ SAFE: Redis lock for cross-instance critical sections
 import { Redis } from 'ioredis';

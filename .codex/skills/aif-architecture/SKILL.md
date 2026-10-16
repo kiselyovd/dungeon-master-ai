@@ -32,6 +32,7 @@ If config.yaml doesn't exist, use defaults:
 - Non-functional requirements
 
 **If `.ai-factory/DESCRIPTION.md` does not exist:**
+
 ```
 ⚠️  No project description found.
 
@@ -135,6 +136,7 @@ How should we generate the ARCHITECTURE.md?
 1. Adapt the guidelines to fit the existing application structure (document reality).
 2. Generate the pure, strict architecture guidelines (requires refactoring the application later to match).
 ```
+
 Wait for their decision before proceeding to Step 2.
 
 ### Step 2: Generate the Architecture Artifact

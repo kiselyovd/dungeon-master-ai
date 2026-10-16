@@ -62,11 +62,13 @@ Invalid:
 ## Description Best Practices
 
 Good:
+
 ```yaml
 description: Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working with PDF documents or when the user mentions PDFs, forms, or document extraction.
 ```
 
 Bad:
+
 ```yaml
 description: Helps with PDFs.
 ```

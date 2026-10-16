@@ -107,6 +107,7 @@ Then:
 - If `TaskList` and plan checkboxes disagree, reconcile (verify code, then update `TaskUpdate` + plan checkbox).
 
 **Starting new session:**
+
 ```
 User: /aif-implement
 

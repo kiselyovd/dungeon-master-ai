@@ -49,7 +49,7 @@ Each token used its approved portrait as an image-edit reference with this share
 
 > Preserve this exact character's face, ancestry, age, clothing, armour and equipment. Recompose as a top-down three-quarter full-body tabletop combat token, complete readable silhouette inside a circular crop-safe area, neutral grounded stance, painterly edge detail matching the source portrait, exactly one character on a perfectly uniform bright chroma green background. No ring, base, text, external cast shadow, extra weapon, watermark, or second person.
 
-The chroma background was converted to a soft alpha matte with the bundled `remove_chroma_key.py` helper, then each token was encoded at 1024 x 1024. The final PNGs were inspected again after alpha conversion.
+The chroma background was converted to a soft alpha matte with the bundled `remove_chroma_key.py` helper, then each token was encoded at 1024 x 1024. The final PNG images were inspected again after alpha conversion.
 
 ## Wave 2
 

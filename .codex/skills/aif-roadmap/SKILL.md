@@ -63,7 +63,7 @@ Otherwise check if the resolved roadmap path exists (`paths.roadmap`, default: `
 
 ### Mode 1: Create Roadmap (First Run)
 
-**1.1: Gather Input**
+#### 1.1: Gather Input
 
 If user provided arguments (vision/description):
 - Use as primary input for milestones
@@ -93,14 +93,14 @@ Options:
 3. Skip — I'll reprioritize later
 ```
 
-**1.2: Explore Codebase**
+#### 1.2: Explore Codebase
 
 Scan the project to understand what's already built:
 - `Glob` for project structure (key directories, modules)
 - `Grep` for implemented features (routes, models, services)
 - Check git log for completed work: `git log --oneline -20`
 
-**1.3: Generate ROADMAP.md**
+#### 1.3: Generate ROADMAP.md
 
 Create the resolved roadmap artifact (default: `.ai-factory/ROADMAP.md`) with this format:
 
@@ -129,7 +129,7 @@ Create the resolved roadmap artifact (default: `.ai-factory/ROADMAP.md`) with th
 - Mark already-completed milestones as `[x]` and add them to the Completed table
 - Use today's date for milestones detected as already done
 
-**1.4: Confirm with user**
+#### 1.4: Confirm with user
 
 Show the generated roadmap and ask:
 
@@ -149,13 +149,13 @@ Apply changes if requested, then save to the resolved roadmap path.
 
 ### Mode 2: Update Roadmap (Subsequent Run)
 
-**2.1: Read Current State**
+#### 2.1: Read Current State
 
 - Read the resolved roadmap path
 - Read `.ai-factory/DESCRIPTION.md` (use path from config) for context
 - Explore codebase briefly to check what's changed since last update
 
-**2.2: Determine Action**
+#### 2.2: Determine Action
 
 If user provided arguments (new milestones/changes):
 - Apply the requested changes directly
@@ -173,7 +173,7 @@ Options:
 4. Rewrite — major revision of the roadmap
 ```
 
-**2.3: Review Progress (if chosen)**
+#### 2.3: Review Progress (if chosen)
 
 - Scan codebase for evidence of completed milestones
 - For each unchecked milestone, check if the work appears done
@@ -191,23 +191,24 @@ If confirmed:
 - Add entry to Completed table with today's date
 - Move completed milestones below unchecked ones (or keep in place — user preference)
 
-**2.4: Add New Milestones (if chosen)**
+#### 2.4: Add New Milestones (if chosen)
 
 - Ask user to describe new milestones
 - Insert them in logical order among existing milestones
 - Update the resolved roadmap path
 
-**2.5: Reprioritize (if chosen)**
+#### 2.5: Reprioritize (if chosen)
 
 - Show current order
 - Ask user for new order or let them describe priority changes
 - Reorder milestones in the resolved roadmap path
 
-**2.6: Save Changes**
+#### 2.6: Save Changes
 
 Update the resolved roadmap path with all modifications.
 
 Show summary:
+
 ```
 ## Roadmap Updated
 
@@ -228,12 +229,12 @@ Automated scan — analyze the codebase and mark completed milestones without in
 
 **Requires** the resolved roadmap path to exist. If it doesn't — tell the user to run `$aif-roadmap` first.
 
-**3.1: Read roadmap and project context**
+#### 3.1: Read roadmap and project context
 
 - Read the resolved roadmap path
 - Read `.ai-factory/DESCRIPTION.md` (use path from config) for tech stack context
 
-**3.2: Analyze each unchecked milestone**
+#### 3.2: Analyze each unchecked milestone
 
 For every `- [ ]` milestone:
 - Determine what evidence would prove it's done (files, routes, models, configs, tests)
@@ -241,7 +242,7 @@ For every `- [ ]` milestone:
 - Check `git log --oneline --all -30` for related commits
 - Score: **done** (strong evidence), **partial** (some work started), **not started**
 
-**3.3: Report findings**
+#### 3.3: Report findings
 
 ```
 ## Roadmap Progress Check
@@ -260,13 +261,14 @@ For every `- [ ]` milestone:
 Mark completed milestones? (2 milestones)
 ```
 
-**3.4: Apply changes (if confirmed)**
+#### 3.4: Apply changes (if confirmed)
 
 - Mark done milestones `[x]`
 - Add entries to Completed table with today's date
 - Leave partial and not-started milestones unchanged
 
 Show updated summary:
+
 ```
 Completed: X/N milestones
 Next up: **Milestone Name**

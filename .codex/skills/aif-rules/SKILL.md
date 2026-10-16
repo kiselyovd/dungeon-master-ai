@@ -138,6 +138,7 @@ $aif-rules area frontend
    Default: `.ai-factory/rules/<area>.md`
 
 3. **Check if area file exists:**
+
    ```text
    Glob: <resolved rules dir>/<area>.md
    ```
@@ -177,6 +178,7 @@ $aif-rules area frontend
    - Preserve existing `rules.base` and any other named `rules.<other-area>` entries
 
 8. **Confirm:**
+
    ```text
    Rule added to <resolved area rules file> and registered as `rules.<area>` in config.yaml:
 
@@ -222,10 +224,14 @@ Glob: <resolved RULES.md path>
 
 ### Step 3: Write Rule
 
-Use `Edit` to append the new rule as a `- ` list item at the end of the `## Rules` section.
+Use `Edit` to append the new rule as a list item at the end of the `## Rules` section:
+
+```text
+- rule text
+```
 
 **Formatting rules:**
-- Each rule is a single `- ` line
+- Each rule is a single line beginning with a hyphen followed by a space
 - Keep rules short and actionable (one sentence)
 - No categories, headers, or sub-lists - flat list only
 - No duplicates - if rule already exists (same meaning), tell user and skip

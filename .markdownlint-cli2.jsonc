@@ -1,6 +1,7 @@
 {
   "config": {
     "default": true,
+    "MD010": { "ignore_code_languages": ["makefile"] },
     "MD013": false,
     "MD022": false,
     "MD024": { "siblings_only": true },

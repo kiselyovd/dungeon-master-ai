@@ -28,9 +28,9 @@ class NunchakuFluxBackend:
             return
         assert_vram_free(8 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import FluxPipeline  # noqa: PLC0415
-        from nunchaku import NunchakuFluxTransformer2dModel  # noqa: PLC0415
+        import torch
+        from diffusers import FluxPipeline
+        from nunchaku import NunchakuFluxTransformer2dModel
 
         base_dir = self._weights_dir / "quality" / "flux-dev"
         nunchaku_path = self._weights_dir / "quality" / "nunchaku-flux-int4.safetensors"
@@ -52,7 +52,7 @@ class NunchakuFluxBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -61,7 +61,7 @@ class NunchakuFluxBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
+        import torch
 
         generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
         image = self._pipe(

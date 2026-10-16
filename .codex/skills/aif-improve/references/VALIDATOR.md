@@ -50,13 +50,13 @@ For every item, work through these checks before voting:
 
 For `missing` items, also check:
 
-6. Is the proposed task actually missing from the plan, or did the upstream agent overlook an existing task that already covers it?
-7. Is the proposed task inside the plan's scope, or is it gold-plating (extra work without a concrete trigger)? The user's improvement prompt shown in the project context counts as a concrete trigger — a task that directly fulfills that prompt is NOT gold-plating even if it falls outside the original plan scope, so judge it on accuracy (correct anchor, correct citation) instead. A task only loosely related to the prompt, or unrelated to it, is still gold-plating and judged on scope as usual. When the project context shows `none — bare auto-review`, apply the scope check to every `missing` item.
+1. Is the proposed task actually missing from the plan, or did the upstream agent overlook an existing task that already covers it?
+2. Is the proposed task inside the plan's scope, or is it gold-plating (extra work without a concrete trigger)? The user's improvement prompt shown in the project context counts as a concrete trigger — a task that directly fulfills that prompt is NOT gold-plating even if it falls outside the original plan scope, so judge it on accuracy (correct anchor, correct citation) instead. A task only loosely related to the prompt, or unrelated to it, is still gold-plating and judged on scope as usual. When the project context shows `none — bare auto-review`, apply the scope check to every `missing` item.
 
 For `out_of_scope` items, also check:
 
-8. Is the cited task actually unrelated to the feature this plan is about? Reread the plan's stated goal — if the task contributes to that goal directly or indirectly, the upstream agent misjudged it and the item should be dropped.
-9. Is the task a reasonable idea for later — useful in itself, just not for this plan? If yes, the framing is correct; judge the item on accuracy like any other. If the task is instead noise — vague, unactionable, or a duplicate of other work — do NOT vote `drop`: dropping an `out_of_scope` item leaves the task in the plan, which is the wrong outcome for noise. The finding is still partly right (the task does not belong in this plan), so vote `modify` and reword the item to plainly recommend removing the task, without the "useful idea for later" framing. You cannot reclassify a finding into the `removals` group; a `modify` kept under `out_of_scope` is the closest correct verdict.
+1. Is the cited task actually unrelated to the feature this plan is about? Reread the plan's stated goal — if the task contributes to that goal directly or indirectly, the upstream agent misjudged it and the item should be dropped.
+2. Is the task a reasonable idea for later — useful in itself, just not for this plan? If yes, the framing is correct; judge the item on accuracy like any other. If the task is instead noise — vague, unactionable, or a duplicate of other work — do NOT vote `drop`: dropping an `out_of_scope` item leaves the task in the plan, which is the wrong outcome for noise. The finding is still partly right (the task does not belong in this plan), so vote `modify` and reword the item to plainly recommend removing the task, without the "useful idea for later" framing. You cannot reclassify a finding into the `removals` group; a `modify` kept under `out_of_scope` is the closest correct verdict.
 
 ## Output format
 

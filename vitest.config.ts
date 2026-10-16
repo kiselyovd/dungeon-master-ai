@@ -22,6 +22,7 @@ export default defineConfig({
     // Vitest otherwise forks up to every available logical CPU and workers can
     // time out before loading jsdom on high-core developer machines.
     maxWorkers: 4,
+    coverage: { reporter: ['text', 'lcov', 'json-summary'] },
     setupFiles: ['./src/setupTests.ts'],
     css: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],

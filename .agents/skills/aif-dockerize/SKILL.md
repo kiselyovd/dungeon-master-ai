@@ -493,7 +493,7 @@ For detailed file organization (directory layout, file tables per mode, .env.exa
 
 ### 6.2 Audit / Enhance Mode — only write changed/new files, respect existing layout
 
-### 6.3 Create .env.example if missing — single file with sections, production vars commented out. Ensure `.env` in `.gitignore`.
+### 6.3 Create .env.example if missing — single file with sections, production vars commented out. Ensure `.env` in `.gitignore`
 
 ---
 

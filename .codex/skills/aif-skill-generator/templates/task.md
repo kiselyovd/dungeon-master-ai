@@ -2,7 +2,7 @@
 
 Use for specific workflows: deploy, commit, review, etc.
 
-```yaml
+````yaml
 ---
 name: {{SKILL_NAME}}
 description: {{DESCRIPTION}}
@@ -64,4 +64,4 @@ If something goes wrong:
 ```bash
 rollback command
 ```
-```
+````

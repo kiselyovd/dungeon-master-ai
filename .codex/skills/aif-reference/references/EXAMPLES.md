@@ -5,6 +5,7 @@ Practical examples of `/aif-reference` usage and expected output.
 ## Example 1: Single URL — Library Documentation
 
 **Input:**
+
 ```
 /aif-reference https://zod.dev --name zod-validation
 ```
@@ -56,6 +57,7 @@ type validation, form parsing, API request/response validation.
 ## Example 2: Multiple URLs — Cross-Referencing
 
 **Input:**
+
 ```
 /aif-reference https://docs.astro.build/en/getting-started/ https://docs.astro.build/en/guides/content-collections/
 ```
@@ -68,6 +70,7 @@ noting which information came from which source when there are differences.
 ## Example 3: Local File
 
 **Input:**
+
 ```
 /aif-reference ./docs/api-spec.yaml --name internal-api
 ```
@@ -80,6 +83,7 @@ with endpoints, parameters, response types, and example requests.
 ## Example 4: Update Existing
 
 **Input:**
+
 ```
 /aif-reference --update --name zod-validation
 ```
@@ -91,6 +95,7 @@ creation date.
 ## Example 5: Interactive Mode
 
 **Input:**
+
 ```
 /aif-reference
 ```

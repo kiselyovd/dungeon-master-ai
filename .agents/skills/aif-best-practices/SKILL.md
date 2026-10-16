@@ -46,6 +46,7 @@ If any rule is violated — fix the output before presenting it to the user.
 ## Naming Conventions
 
 ### Variables & Functions
+
 ```
 ✅ Good                          ❌ Bad
 ─────────────────────────────────────────────
@@ -66,6 +67,7 @@ handleSubmit                     submit
 - Variables/functions: camelCase (JS/TS/PHP) or snake_case (Python/Rust)
 
 ### Files & Directories
+
 ```
 ✅ Good                          ❌ Bad
 ─────────────────────────────────────────────
@@ -86,6 +88,7 @@ UserRepository.ts                user_repository.ts (mixed)
 ## Code Structure
 
 ### Function Design
+
 ```typescript
 // ✅ Good: Single responsibility, clear inputs/outputs
 function calculateDiscount(price: number, discountPercent: number): number {
@@ -124,6 +127,7 @@ function calculateDiscount(float $price, float $discountPercent): float
 - Early returns for guard clauses
 
 ### Module Organization
+
 ```
 feature/
 ├── index.ts          # Public exports only
@@ -146,6 +150,7 @@ feature/
 ## Error Handling
 
 ### Do's and Don'ts
+
 ```typescript
 // ✅ Good: Specific errors, meaningful messages
 class UserNotFoundError extends Error {
@@ -182,6 +187,7 @@ async function getUser(id) {
 - Return Result types for expected failures (optional)
 
 ### Error Messages
+
 ```
 ✅ Good: "Failed to create user: email 'test@example.com' already exists"
 ❌ Bad: "Error occurred"
@@ -193,6 +199,7 @@ async function getUser(id) {
 ## Testing Practices
 
 ### Test Structure (AAA Pattern)
+
 ```typescript
 describe('calculateDiscount', () => {
   it('should apply percentage discount to price', () => {
@@ -222,6 +229,7 @@ describe('calculateDiscount', () => {
 - Avoid testing private methods directly
 
 ### Test Coverage Priorities
+
 ```
 1. Critical business logic      ████████████ Must have
 2. Edge cases and boundaries    ████████░░░░ Important
@@ -252,6 +260,7 @@ describe('calculateDiscount', () => {
 - [ ] **Consistency**: Follows project conventions?
 
 ### Review Comments
+
 ```
 ✅ Good feedback:
 "This could throw if `user` is null. Consider adding a null check

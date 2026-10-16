@@ -79,14 +79,18 @@ Resolve two inputs before checking any rule:
 **If the user provided a git ref:**
 
 1. Validate it first:
+
    ```bash
    git rev-parse --verify <argument>
    ```
+
 2. If valid, use:
+
    ```bash
    git diff --name-only <argument>...HEAD
    git diff <argument>...HEAD
    ```
+
 3. If invalid, ask:
 
    ```
@@ -100,16 +104,21 @@ Resolve two inputs before checking any rule:
 **Without arguments:**
 
 1. Prefer staged work:
+
    ```bash
    git diff --cached --name-only
    git diff --cached
    ```
+
 2. If nothing is staged, fall back to working tree:
+
    ```bash
    git diff --name-only
    git diff
    ```
+
 3. If there is still no local diff and `git.enabled = true`, fall back to branch diff:
+
    ```bash
    git diff --name-only <resolved-base-branch>...HEAD
    git diff <resolved-base-branch>...HEAD

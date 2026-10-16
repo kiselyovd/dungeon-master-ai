@@ -12,8 +12,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends.protocol import PromptParams  # noqa: E402
-from pipeline import PipelineDispatcher  # noqa: E402
+from backends.protocol import PromptParams
+from pipeline import PipelineDispatcher
 
 
 class StubBackend:

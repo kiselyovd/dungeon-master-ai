@@ -20,7 +20,7 @@ Working assumptions: 1 player in solo; 2-4 players in cooperative play; AI is th
 - Architecture guard and Rust formatting passed after selecting installed toolchains explicitly.
 - 43 selected frontend/script tests passed. The entire Vitest suite did not complete in the audit; it must not be reported as passed.
 - Fresh production browser checks: 6/7 passed. Full-campaign save interception expects 127.0.0.1 while the client uses localhost; fix the harness before using this scenario to assess actual save behavior.
-- Biome reported one formatting error in src/api/__tests__/agentEvents.test.ts and six warnings.
+- Biome reported one formatting error in `src/api/__tests__/agentEvents.test.ts` and six warnings.
 - Campaign activation currently changes campaign/session pointers without restoring the entire campaign projection.
 - App sets worldReady from pc.heroClass, skipping independent world preparation.
 - Player token selection currently uses name equality.

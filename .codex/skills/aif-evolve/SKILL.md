@@ -38,6 +38,7 @@ Policy across workflow skills:
 All files in these directories are owned by ai-factory and will be overwritten on update — any direct edits will be lost.
 
 **ALWAYS write project-specific rules to skill-context:**
+
 ```
 .ai-factory/skill-context/<skill-name>/SKILL.md
 ```
@@ -127,7 +128,7 @@ If any rule is violated — fix the output before presenting it to the user.
 
 ### Step 1: Collect Intelligence
 
-**1.1: Read patches incrementally (cursor-based)**
+#### 1.1: Read patches incrementally (cursor-based)
 
 ```
 Glob: <resolved patches dir>/*.md
@@ -148,6 +149,10 @@ Recommended shape:
 }
 ```
 
+**Overlap window (anti-miss guard):**
+
+LLMs may miss prevention points on a single pass. To reduce the chance of "permanently skipping" a patch when running incrementally, processing includes the overlap window in rules 9–11 below.
+
 Processing rules:
 
 1. Glob patch files and sort by filename ascending (timestamp format is lexical-friendly).
@@ -159,15 +164,11 @@ Processing rules:
 7. Full rescan procedure: delete `<resolved evolutions dir>/patch-cursor.json`, then run `$aif-evolve` again.
 8. **Do not advance cursor in Step 1.1.** Cursor is updated only after successful apply/log write in Step 7.3.
 
-**Overlap window (anti-miss guard):**
-
-LLMs may miss prevention points on a single pass. To reduce the chance of "permanently skipping" a patch when running incrementally:
-
 9. When running in incremental mode (cursor exists and referenced patch is present), ALSO read the newest 5 patches by filename (tail-5 of the sorted patch list), then de-duplicate by filename.
 10. Track these separately in your own notes:
-   - "New patches" = patches with filename `>` `last_processed_patch`
-   - "Overlap patches" = tail-5 patches
-   - "Processed patches" = union(New, Overlap)
+    - "New patches" = patches with filename `>` `last_processed_patch`
+    - "Overlap patches" = tail-5 patches
+    - "Processed patches" = union(New, Overlap)
 11. Cursor updates in Step 7.3 MUST be based on "New patches" only (never advance cursor when only overlap patches were processed).
 
 Read every patch. For each one, extract:
@@ -195,14 +196,14 @@ and EACH skill must be checked independently in Step 5.
 
 When the run is incremental, this registry reflects the processed patch set for this run (new + overlap). Use full rescan when you need full historical backfill.
 
-**1.2: Aggregate patterns**
+#### 1.2: Aggregate patterns
 
 Group patches by tags and categories. Identify:
 - **Recurring problems** — same tag appears 3+ times? This is a systemic issue
 - **Tech-specific pitfalls** — problems tied to the stack (e.g., React re-renders, Laravel N+1)
 - **Missing guards** — what checks/patterns could have prevented these bugs
 
-**1.3: Read codebase conventions**
+#### 1.3: Read codebase conventions
 
 Scan the project for patterns:
 - Linter configs (`.eslintrc`, `phpstan.neon`, `ruff.toml`, etc.)
@@ -338,7 +339,7 @@ A gap only exists if NEITHER source covers it.
 
 For each skill, identify what's missing based on collected intelligence:
 
-**5.1: Patch-driven gaps (prevention-point-exhaustive)**
+#### 5.1: Patch-driven gaps (prevention-point-exhaustive)
 
 **CRITICAL: Check each prevention point × each target skill independently.**
 
@@ -362,14 +363,14 @@ covered, uncovered. If uncovered > 0 — these are gaps for Step 6.
 
 Note: in incremental mode, counts represent this run's processed patch set. For full historical recount, run a full rescan.
 
-**5.2: Tech-stack gaps**
+#### 5.2: Tech-stack gaps
 
 Compare project tech stack against skill instructions:
 - Skills reference generic patterns but project uses specific framework? → Add framework-specific guidance
 - Project uses TypeScript but skills show JS examples? → Update examples
 - Project uses specific ORM (Prisma, Eloquent)? → Add ORM-specific patterns
 
-**5.3: Convention gaps**
+#### 5.3: Convention gaps
 
 Compare project conventions against skill instructions:
 - Project has specific error handling pattern? → Skills should enforce it
@@ -393,7 +394,7 @@ For each gap found, create a concrete improvement:
 
 ### Step 7: Present & Apply
 
-**7.1: Present improvements to user**
+#### 7.1: Present improvements to user
 
 Each improvement MUST explicitly state the target file path.
 Use the following target labels:
@@ -462,7 +463,7 @@ For improvements — ask:
 
 **Do NOT apply any changes until the user answers.**
 
-**7.2: Apply approved improvements**
+#### 7.2: Apply approved improvements
 
 For each approved improvement, determine the target:
 
@@ -509,7 +510,7 @@ For each approved improvement, determine the target:
 **Rule**: [Specific, actionable instruction in English]
 ```
 
-**7.3: Save evolution log**
+#### 7.3: Save evolution log
 
 Create `<resolved evolutions dir>/YYYY-MM-DD-HH.mm.md`:
 

@@ -1,6 +1,7 @@
 # Prompt Injection (LLM Security)
 
 ## Direct Prompt Injection
+
 ```typescript
 // ❌ VULNERABLE: User input directly in system prompt
 const prompt = `You are a helpful assistant. Answer about: ${userInput}`;
@@ -17,6 +18,7 @@ await llm.complete({
 ```
 
 ## Indirect Prompt Injection
+
 ```typescript
 // ❌ VULNERABLE: Feeding untrusted external data into LLM context
 const webpage = await fetch(userUrl).then(r => r.text());
@@ -35,6 +37,7 @@ await llm.complete({
 ```
 
 ## Tool / Function Call Safety
+
 ```typescript
 // ❌ VULNERABLE: LLM output executed without validation
 const llmResponse = await llm.complete({ tools: [shellTool] });
@@ -54,6 +57,7 @@ await sandbox.execute(toolCall.name, args);
 ```
 
 ## Output Validation
+
 ```typescript
 // ❌ VULNERABLE: Rendering LLM output as HTML
 element.innerHTML = llmResponse;
@@ -77,6 +81,7 @@ function filterOutput(output: string): string {
 ```
 
 ## RAG Security
+
 ```
 ✅ Checklist:
 - [ ] Chunk metadata doesn't contain executable instructions

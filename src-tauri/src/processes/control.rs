@@ -266,9 +266,10 @@ mod tests {
     #[test]
     fn rejects_wrong_token_and_replayed_nonce() {
         let replay = ReplayProtector::default();
-        assert!(replay.accept("nonce-0000000001"));
-        assert!(!replay.accept("nonce-0000000001"));
-        assert!(!replay.accept("short"));
+        let nonce = Uuid::new_v4().to_string();
+        assert!(replay.accept(&nonce));
+        assert!(!replay.accept(&nonce));
+        assert!(!replay.accept(&nonce[..8]));
         let mut request_headers = HeaderMap::new();
         request_headers.insert(
             axum::http::header::AUTHORIZATION,

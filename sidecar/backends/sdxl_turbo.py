@@ -29,8 +29,8 @@ class SdxlTurboBackend:
             return
         # Real model loader; gated behind an import so non-CUDA test environments
         # can construct the backend without pulling torch+diffusers in.
-        import torch  # noqa: PLC0415
-        from diffusers import AutoPipelineForText2Image  # noqa: PLC0415
+        import torch
+        from diffusers import AutoPipelineForText2Image
 
         self._pipe = AutoPipelineForText2Image.from_pretrained(
             str(self._weights_dir),
@@ -42,7 +42,7 @@ class SdxlTurboBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
 
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()

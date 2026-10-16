@@ -366,6 +366,7 @@ services:
 | Infrastructure image config (POSTGRES_DB) | `environment:` on that service |
 
 **Anti-pattern — do NOT do this:**
+
 ```yaml
 # WRONG: duplicating every .env variable in compose
 environment:

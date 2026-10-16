@@ -219,6 +219,7 @@ Machine-readable fields:
 ## Authentication & Sessions
 
 ### Password Security
+
 ```
 ✅ Requirements:
 - [ ] Minimum 12 characters
@@ -231,6 +232,7 @@ Machine-readable fields:
 For implementation patterns (argon2, bcrypt, PHP, Laravel) → read `references/AUTH-PATTERNS.md`
 
 ### Session Management
+
 ```
 ✅ Checklist:
 - [ ] Session ID regenerated after login
@@ -243,6 +245,7 @@ For implementation patterns (argon2, bcrypt, PHP, Laravel) → read `references/
 For secure cookie settings example → read `references/AUTH-PATTERNS.md`
 
 ### JWT Security
+
 ```
 ✅ Checklist:
 - [ ] Use RS256 or ES256 (not HS256 for distributed systems)
@@ -258,6 +261,7 @@ For secure cookie settings example → read `references/AUTH-PATTERNS.md`
 ## Injection Prevention
 
 ### SQL Injection
+
 ```typescript
 // ❌ VULNERABLE: String concatenation
 const query = `SELECT * FROM users WHERE id = ${userId}`;
@@ -270,6 +274,7 @@ const user = await prisma.user.findUnique({ where: { id: userId } });
 ```
 
 ### NoSQL Injection
+
 ```typescript
 // ❌ VULNERABLE: Direct user input — attack: { "$ne": "" }
 const user = await db.users.findOne({ username: req.body.username });
@@ -279,6 +284,7 @@ const username = z.string().parse(req.body.username);
 ```
 
 ### Command Injection
+
 ```typescript
 // ❌ VULNERABLE: exec(`convert ${userFilename} output.png`);
 // ✅ SAFE: execFile('convert', [userFilename, 'output.png']);
@@ -289,6 +295,7 @@ const username = z.string().parse(req.body.username);
 ## Cross-Site Scripting (XSS)
 
 ### Prevention Checklist
+
 ```
 - [ ] All user output HTML-encoded by default
 - [ ] Content-Security-Policy header configured
@@ -298,6 +305,7 @@ const username = z.string().parse(req.body.username);
 ```
 
 ### Output Encoding
+
 ```typescript
 // ❌ VULNERABLE: element.innerHTML = userInput; / dangerouslySetInnerHTML
 // ✅ SAFE: element.textContent = userInput; / React: <div>{userInput}</div>
@@ -318,6 +326,7 @@ Set CSP header: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe
 ## CSRF Protection
 
 ### Checklist
+
 ```
 - [ ] CSRF tokens on all state-changing requests
 - [ ] SameSite=Strict or Lax on cookies
@@ -334,6 +343,7 @@ Set CSP header: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe
 ## Secrets Management
 
 ### Never Do This
+
 ```
 ❌ Secrets in code
 const API_KEY = "EXAMPLE_ONLY";
@@ -349,6 +359,7 @@ throw new Error(`DB connection failed: ${connectionString}`);
 ```
 
 ### Checklist
+
 ```
 - [ ] Secrets in environment variables or vault
 - [ ] .env in .gitignore
@@ -359,6 +370,7 @@ throw new Error(`DB connection failed: ${connectionString}`);
 ```
 
 ### Git History Cleanup
+
 ```bash
 # If secrets were committed, remove from history
 git filter-branch --force --index-filter \
@@ -380,6 +392,7 @@ git push origin --force --all
 ## API Security
 
 ### Authentication
+
 ```
 - [ ] API keys not in URLs (use headers)
 - [ ] Rate limiting per user/IP
@@ -388,6 +401,7 @@ git push origin --force --all
 ```
 
 ### Client-Facing Logging & Errors
+
 ```
 - [ ] Browser/client logs are disabled in production or routed through a logger that no-ops debug output in production
 - [ ] `console.log`, `console.debug`, `console.info`, and verbose client telemetry are gated by explicit non-production checks
@@ -419,6 +433,7 @@ function toClientError(error: unknown) {
 ```
 
 ### Input Validation
+
 ```typescript
 // ✅ Validate all input with schema
 import { z } from 'zod';
@@ -448,6 +463,7 @@ app.post('/users', (req, res) => {
 ```
 
 ### Response Security
+
 ```typescript
 // ✅ Don't expose internal errors
 app.use((err, req, res, next) => {
@@ -477,6 +493,7 @@ const userResponse = {
 ## Infrastructure Security
 
 ### Headers Checklist
+
 ```typescript
 app.use(helmet()); // Sets many security headers
 
@@ -490,6 +507,7 @@ res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 ```
 
 ### Dependency Security
+
 ```bash
 # Check for vulnerabilities
 npm audit
@@ -504,6 +522,7 @@ npx npm-check-updates -u
 ```
 
 ### Deployment Checklist
+
 ```
 - [ ] HTTPS only (redirect HTTP)
 - [ ] TLS 1.2+ only
@@ -524,6 +543,7 @@ npx npm-check-updates -u
 For detailed race condition patterns (double-spend, TOCTOU, optimistic locking, idempotency keys, distributed locks) → read `references/RACE-CONDITIONS.md`
 
 ### Prevention Checklist
+
 ```
 - [ ] Financial operations use database transactions with proper isolation
 - [ ] Inventory/stock checks use atomic decrement (not read-then-write)
@@ -541,6 +561,7 @@ For detailed race condition patterns (double-spend, TOCTOU, optimistic locking, 
 For detailed prompt injection patterns (direct, indirect, tool safety, output validation, RAG) → read `references/PROMPT-INJECTION.md`
 
 ### Prevention Checklist
+
 ```
 - [ ] User input never concatenated directly into system prompts
 - [ ] Input/output boundaries clearly separated (delimiters, roles)

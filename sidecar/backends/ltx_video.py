@@ -36,8 +36,8 @@ class LtxVideoBackend:
         # distilled 2B transformer (~3-4 GB BF16) + VAE slicing/tiling (~1-2 GB).
         assert_vram_free(7 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import LTXPipeline, LTXVideoTransformer3DModel  # noqa: PLC0415
+        import torch
+        from diffusers import LTXPipeline, LTXVideoTransformer3DModel
 
         repo_dir = self._weights_dir / "ltx-video" / "ltx-video"
         distilled_path = self._weights_dir / "ltx-video" / "ltxv-2b-0.9.6-distilled-04-25.safetensors"
@@ -64,7 +64,7 @@ class LtxVideoBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -73,8 +73,8 @@ class LtxVideoBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
-        from diffusers.utils import export_to_video  # noqa: PLC0415
+        import torch
+        from diffusers.utils import export_to_video
 
         steps = params.steps or 8
         frames = params.frame_count or 97

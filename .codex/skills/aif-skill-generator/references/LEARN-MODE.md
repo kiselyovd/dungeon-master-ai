@@ -7,6 +7,7 @@ Learn Mode activates automatically when the user passes one or more URLs as argu
 Scan `$ARGUMENTS` for patterns matching `https?://[^\s]+`. Any argument containing a URL triggers Learn Mode.
 
 **Examples of invocation:**
+
 ```
 /aif-skill-generator https://docs.example.com/api-reference
 /aif-skill-generator https://react.dev/learn https://react.dev/reference
@@ -23,6 +24,7 @@ When a non-URL argument is also present (like `my-skill-name`), use it as the sk
 For EACH URL provided:
 
 1. **Fetch the page** using `WebFetch` with a targeted prompt:
+
    ```
    WebFetch(url, "Extract ALL key information from this page:
    - Main topic and purpose
@@ -107,6 +109,7 @@ Ask the user 2-3 targeted questions using `AskUserQuestion`:
 Using the synthesized knowledge, generate a complete skill package:
 
 1. **Create directory structure**:
+
    ```
    skill-name/
    ├── SKILL.md              # Main skill with instructions derived from sources
@@ -168,25 +171,33 @@ When multiple URLs are provided:
 ## Examples
 
 ### Example 1: Single Documentation URL
+
 ```
 /aif-skill-generator https://tailwindcss.com/docs
 ```
+
 Result: A skill that helps write Tailwind CSS classes with a reference guide of utilities, responsive patterns, and best practices.
 
 ### Example 2: Multiple Related URLs
+
 ```
 /aif-skill-generator https://react.dev/learn/thinking-in-react https://react.dev/reference/react/hooks
 ```
+
 Result: A React development skill with component design patterns and hooks reference.
 
 ### Example 3: URL + Name
+
 ```
 /aif-skill-generator fastapi-helper https://fastapi.tiangolo.com/tutorial/
 ```
+
 Result: A skill named `fastapi-helper` with FastAPI patterns, endpoint templates, and validation examples.
 
 ### Example 4: Mixed Sources
+
 ```
 /aif-skill-generator https://docs.docker.com/compose/ https://blog.example.com/docker-compose-tips
 ```
+
 Result: A Docker Compose skill combining official reference with practical tips from the blog.

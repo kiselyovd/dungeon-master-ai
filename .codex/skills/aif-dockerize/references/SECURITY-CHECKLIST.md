@@ -127,6 +127,7 @@ Some services need specific capabilities even with `cap_drop: ALL`:
   - Go: `log.SetOutput(os.Stdout)` or structured logger (slog, zerolog)
   - PHP: `php-fpm` → set `catch_workers_output = yes`, `access.log = /proc/self/fd/2`
 - [ ] **Log rotation configured on every service** in compose:
+
   ```yaml
   logging:
     driver: "json-file"
@@ -134,6 +135,7 @@ Some services need specific capabilities even with `cap_drop: ALL`:
       max-size: "20m"
       max-file: "5"
   ```
+
 - [ ] Use YAML anchors (`x-logging: &logging`) to avoid repeating logging config
 - [ ] No sensitive data in log output (passwords, tokens, PII)
 - [ ] Consider centralized logging for production (ELK, Loki/Grafana, Datadog)
