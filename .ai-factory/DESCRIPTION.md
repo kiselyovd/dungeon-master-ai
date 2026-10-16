@@ -2,7 +2,7 @@
 
 ## Overview
 
-Dungeon Master AI is a cross-platform desktop assistant for solo Dungeons & Dragons 5e play. It combines an agentic Dungeon Master, a rules-aware combat engine, a virtual tabletop, campaign persistence, and local or cloud multimodal generation in a Tauri application.
+Dungeon Master AI is an experimental cross-platform desktop application for solo and host-owned cooperative Dungeons & Dragons 5e play. It combines an agentic Dungeon Master, server-authoritative mechanics, a virtual tabletop, durable campaign state and optional local or cloud media generation in a Tauri application. Implemented contracts and historical QA do not imply complete D&D rules or current real-model/physical-LAN acceptance.
 
 ## Core Features
 
@@ -10,6 +10,9 @@ Dungeon Master AI is a cross-platform desktop assistant for solo Dungeons & Drag
 - Resolve server-authoritative D&D 5e combat, initiative, conditions, damage, healing, spells, and action economy.
 - Present combat and exploration on a PixiJS virtual tabletop with interactive tokens and overlays.
 - Create and persist characters, campaigns, sessions, messages, saves, scenes, journal entries, and NPC memories.
+- Prepare a bundled adventure or custom opening, confirm a campaign-scoped hero, and continue only after the world is initialized.
+- Host authenticated LAN/VPN rooms with separate human-owned heroes, shared public state, reconnect and durable request recovery.
+- Preserve uncertain operation identities across retry and restart; support owner backups, player dossiers and scoped read-only desktop views.
 - Use either local model sidecars or OpenAI-compatible cloud endpoints for chat, image, and video generation.
 - Provide complete English and Russian user interfaces.
 
@@ -19,17 +22,20 @@ Dungeon Master AI is a cross-platform desktop assistant for solo Dungeons & Drag
 - **Frontend:** React 19, TypeScript, Vite, Zustand, react-i18next, PixiJS, Valibot, and CSS Modules plus shared CSS tokens.
 - **Backend:** Rust workspace with Axum, Tokio, SQLx, SQLite, `genai`, `tracing`, `thiserror`, and `anyhow`.
 - **Media sidecar:** Python 3, FastAPI, Uvicorn, PyTorch, and pluggable image/video backends.
-- **Persistence and secrets:** SQLite for application state and Tauri Stronghold for credentials.
+- **Persistence and secrets:** SQLite for application state, Stronghold for provider credentials, and the OS credential store for the desktop backend vault's unlock credential. Explicit operator environment credentials retain priority.
 - **Tooling:** Bun, Biome, Vitest, Testing Library, Playwright, Cargo, pytest, and GitHub Actions.
-- **External integrations:** OpenAI-compatible APIs, OpenRouter-compatible routing, Hugging Face model discovery/downloads, embedded `mistralrs`, and local media sidecars.
+- **External integrations:** OpenAI-compatible APIs such as RouterAI/OpenRouter and independently managed local servers, Hugging Face model discovery/downloads, optional embedded `mistralrs`, and local media sidecars. The standard cloud release packages the desktop shell and game backend; model/media runtimes and weights are separate.
 
 ## Current System Boundaries
 
 - `crates/app-domain` owns deterministic D&D rules and SRD-domain behavior.
-- `crates/app-llm` owns model-provider abstractions and local LLM process integration.
-- `crates/app-server` owns HTTP/SSE delivery, agent orchestration, persistence, provider lifecycle, and local runtime coordination.
-- `src-tauri` is the desktop composition root and owns native capabilities plus child-process startup.
-- `src` owns the React presentation layer, local UI state, API clients, localization, and VTT rendering.
+- `crates/app-application` owns use cases, protocol-neutral models and inward-owned ports; its only workspace dependency is `app-domain`.
+- `crates/adapter-http` owns Axum HTTP/SSE translation; `adapter-sqlite` owns repositories, migrations and transactions.
+- `crates/adapter-llm`, `adapter-media` and `adapter-secrets` implement provider, media/runtime-control and secret-storage ports without importing sibling adapters.
+- `crates/app-bootstrap` composes concrete backend adapters, configuration and startup.
+- `crates/app-llm` and `crates/app-server` are compatibility facades for stable consumers and tests. They do not own new application policy or composition.
+- `src-tauri` owns native capabilities, private runtime control and every embedded child process. Heavy inference stays outside the frontend.
+- `src/app` composes React controllers and store ports; `src/features` owns feature controllers/models; `src/api` validates transport; `src/state` stores projections; `src/components` and `src/ui` render presentation.
 - `sidecar` is a separate loopback HTTP process for image and video generation; heavy model dependencies do not enter the Rust or frontend dependency graphs.
 
 ## Architecture Notes
@@ -45,12 +51,12 @@ Dungeon Master AI is a cross-platform desktop assistant for solo Dungeons & Drag
 See `.ai-factory/ARCHITECTURE.md` for the detailed target architecture, dependency rules, and staged migration guidance.
 
 - **Pattern:** Explicit Architecture (Technical Layer).
-- **Mode:** Strict target architecture; the existing codebase will require a planned, checkpointed refactor.
+- **Mode:** Strict boundaries are implemented and enforced by `scripts/check-architecture.ts`; see `.ai-factory/ARCHITECTURE.md` for normative dependency rules.
 
 ## Non-Functional Requirements
 
 - **Privacy:** Keep local campaign content and model inputs on-device unless the user explicitly configures a cloud provider.
-- **Security:** Store credentials in Stronghold, constrain Tauri capabilities, validate untrusted payloads, and avoid logging secrets or full private prompts.
+- **Security:** Store provider credentials in Stronghold and the desktop backend unlock credential in the OS credential store; constrain Tauri capabilities, validate untrusted payloads, and avoid logging secrets or full private prompts.
 - **Reliability:** Use explicit timeouts, cancellation, retry/backoff where appropriate, process health probes, and honest degraded states.
 - **Observability:** Emit contextual structured logs from Rust boundaries and actionable errors from frontend and sidecar boundaries.
 - **Performance:** Keep UI work responsive while model inference, downloads, persistence, and media generation run asynchronously.

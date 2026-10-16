@@ -77,12 +77,38 @@ pub fn spawn_backend(
     executor: &tokio::runtime::Handle,
 ) -> Result<(), Box<dyn std::error::Error>> {
     stop(&app);
-    let sidecar = app
+    let executable = std::env::current_exe().map_err(|_| "backend_executable_path_invalid")?;
+    let working_directory =
+        std::env::current_dir().map_err(|_| "backend_working_directory_unavailable")?;
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "backend_app_data_directory_unavailable")?;
+    let profile = super::backend_profile::BackendProfile::resolve(
+        &executable,
+        &app_data,
+        &working_directory,
+        std::env::var_os("DATABASE_URL"),
+        std::env::var_os("DMAI_VAULT_PATH"),
+    )?;
+    let credential = super::backend_credentials::resolve(
+        profile.vault_path.as_deref(),
+        std::env::var_os("DMAI_VAULT_PASSPHRASE"),
+    )?;
+    profile.prepare_database_directory()?;
+    let mut sidecar = app
         .shell()
         .sidecar("dmai-server")
         .map_err(|error| format!("dmai-server sidecar lookup failed: {error}"))?
+        .env("DATABASE_URL", &profile.database_url)
         .env("DMAI_RUNTIME_CONTROL_URL", control_endpoint)
         .env("DMAI_RUNTIME_CONTROL_TOKEN", control_token);
+    if let Some(vault_path) = profile.vault_environment.as_ref() {
+        sidecar = sidecar.env("DMAI_VAULT_PATH", vault_path);
+    }
+    if let Some(credential) = credential.as_ref() {
+        sidecar = sidecar.env("DMAI_VAULT_PASSPHRASE", credential.as_str());
+    }
     let (mut events, child) = sidecar
         .spawn()
         .map_err(|error| format!("dmai-server spawn failed: {error}"))?;

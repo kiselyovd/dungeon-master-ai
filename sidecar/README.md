@@ -1,39 +1,35 @@
 # dmai-image-sidecar
 
-Local SDXL-Turbo image generation sidecar for dungeon-master-ai.
+[Documentation](../docs/README.md) > Python sidecar | [Configuration](../docs/CONFIGURATION.md) | [Contributing](../CONTRIBUTING.md)
+
+Optional Python 3.12 image/video generation sidecar for Dungeon Master AI. It dispatches the configured SDXL, Nunchaku/Z-Image and LTX backends. It is separate from the standard cloud-only desktop bundle and requires the chosen backend's runtime and model weights.
 
 ## Run from source
 
-```pwsh
-cd sidecar
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py --weights-dir ../models/stabilityai/sdxl-turbo
+Run dependency setup and offline work inside an approved Docker/dev container. Keep dependencies in its filesystem or named volumes and mount existing model weights read-only at the configured model root. Do not create a host `.venv` as the routine setup path. Native GPU/packaging work needs a separately approved target-OS environment; see [Contributing](../CONTRIBUTING.md).
+
+After installing the project requirements and the selected CPU/GPU torch build in that environment, run from `sidecar/`:
+
+```bash
+python app.py --weights-dir /models
 ```
 
-The first stdout line is `LISTENING_ON_PORT=<n>`; the Rust `LocalRuntime`
-parses this and probes `http://127.0.0.1:<n>/healthz`.
+The first stdout line is `LISTENING_ON_PORT=<n>`, followed by a health endpoint at `http://127.0.0.1:<n>/healthz`. In the desktop application, Tauri owns this child process and the backend accesses it through the runtime-control boundary. A standalone source run is a separate development process.
 
 ## Tests
 
-```pwsh
-pip install pytest httpx
-pytest tests/
+The offline suite does not require model downloads or a GPU. In a Python 3.12 container with the minimal test dependencies listed in `.github/workflows/test.yml`, run from the repository root:
+
+```bash
+python -m ruff check sidecar
+RUN_GPU_TESTS=0 python -m pytest sidecar/tests -q
 ```
 
-Tests stub the diffusers pipeline so torch is the only heavy import that
-survives.
+The tests inject stub backends. Real GPU/model checks require `RUN_GPU_TESTS=1` and are a separate acceptance stage.
 
 ## Build the standalone binary
 
-```pwsh
-pip install pyinstaller==6.10
-pyinstaller --noconfirm --clean build_spec.spec
-```
-
-The resulting `dist/dmai-image-sidecar/` directory ships into
-`src-tauri/binaries/python_sidecar_<target-triple>/` for Tauri's `externalBin`.
+Use `sidecar/scripts/build.ps1` or `build.sh` in the approved target-platform build environment; the Python prebuild workflow shows its dependency setup. PyInstaller's spec produces the executable `dist/dmai-image-sidecar` (`.exe` on Windows). The scripts stage it as `src-tauri/binaries/dmai-image-sidecar-<target-triple>[.exe]`, matching Tauri's `externalBin` contract. This artifact is not included in the normal cloud release matrix.
 
 ## Nunchaku install (Quality + Quality-OSS backends, optional)
 
@@ -43,7 +39,7 @@ SVDQuant Nunchaku from nunchaku-tech ships prebuilt wheels via GitHub Releases
 (the mit-han-lab HF mirror is frozen at 0.3.1; v1.x and Z-Image support live
 on GitHub).
 
-Install on Windows + Python 3.12 + torch 2.8:
+The following optional dependency commands belong in the approved matching Windows/Python 3.12/torch 2.8 GPU environment, not an unrelated host environment:
 
     gh release download v1.2.1 --repo nunchaku-tech/nunchaku \
       --pattern "nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl"
@@ -71,9 +67,17 @@ bundles its own cudart.
 ## diffusers from git main
 
 requirements.txt pins `diffusers @ git+https://github.com/huggingface/diffusers.git@main`
-because the Quality-OSS backend (Z-Image-Turbo) needs `ZImagePipeline` and
-`ZImageTransformer2DModel`, which only landed in unreleased 0.36+ dev. Switch back
-to a pinned release once 0.36 (or whichever version ships ZImagePipeline) is on PyPI.
+for the Quality-OSS backend's `ZImagePipeline` and `ZImageTransformer2DModel` APIs.
+Follow the current manifest rather than treating an old version note as proof of
+release availability. Replacing this source dependency is a separate dependency
+change that needs compatibility checks.
 
-transformers is pinned `>=4.51,<5.0` because Z-Image-Turbo's text encoder is
-Qwen3 (added in 4.51) but transformers 5.x removed symbols diffusers still imports.
+The manifest bounds transformers to `>=4.51,<5.0` for the existing Qwen3 text
+encoder/backend compatibility. Do not upgrade that range as part of documentation
+or optional runtime setup.
+
+## See Also
+
+- [Configuration](../docs/CONFIGURATION.md)
+- [Release packaging](../docs/RELEASE.md)
+- [Contributing](../CONTRIBUTING.md)

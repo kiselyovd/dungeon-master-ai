@@ -1,6 +1,6 @@
 [package]
 name = "dungeon-master-ai"
-version = "0.12.1"
+version = "0.13.0"
 description = "Multimodal AI-powered D&D desktop application"
 authors.workspace = true
 edition.workspace = true
@@ -34,12 +34,14 @@ tempfile = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
+keyring = { version = "=4.2.0", default-features = false, features = ["v1"] }
 env_logger = "0.11"
 app-application = { workspace = true }
 axum.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
 uuid.workspace = true
+sqlx.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "=0.61.3", features = ["UI_Notifications", "Win32_UI_Notifications", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_Shell_PropertiesSystem", "Win32_System_Com_StructuredStorage"] }

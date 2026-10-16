@@ -219,9 +219,12 @@ mod tests {
             repo.set("k", "v").await.unwrap();
         }
 
-        // Try to reopen with the wrong one - must surface a Vault error.
-        let err = StrongholdSecretsStore::open(snapshot, b"wrong-pw".to_vec());
+        let original = std::fs::read(&snapshot).unwrap();
+        let err = StrongholdSecretsStore::open(snapshot.clone(), b"wrong-pw".to_vec());
         assert!(err.is_err(), "wrong passphrase should not silently succeed");
+        assert_eq!(std::fs::read(&snapshot).unwrap(), original);
+        let reopened = StrongholdSecretsStore::open(snapshot, b"correct-pw".to_vec()).unwrap();
+        assert_eq!(reopened.get("k").await.unwrap().as_deref(), Some("v"));
     }
 
     #[tokio::test]

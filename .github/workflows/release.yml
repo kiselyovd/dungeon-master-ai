@@ -1,22 +1,13 @@
 name: release
 
-# Triggered on `v*` tag push. Builds the cloud-only Tauri bundle on all three
-# supported targets, signs `latest.json` via TAURI_SIGNING_PRIVATE_KEY (so
-# the in-app updater works end-to-end), and publishes a GitHub Release with
-# the bundles attached.
-#
-# Optional steps - skipped if the matching secret is missing - cover Windows
-# Authenticode signing (WINDOWS_CERT_BASE64 + WINDOWS_CERT_PASSWORD) and
-# macOS notarization (APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER).
-# First-GA pet-project releases ship without these; SmartScreen / Gatekeeper
-# show "unidentified developer" until a real cert lands.
-#
-# Local Mode binaries are produced by separate manual prebuild workflows and
-# are intentionally not bundled by this cloud-only release job. See docs/RELEASE.md.
-
+# Tagged cloud releases include signed Tauri 2 updater bundles for all targets.
+# Local model/media binaries remain separate prebuild artifacts.
 on:
   push:
     tags: ['v*']
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -26,17 +17,18 @@ jobs:
         include:
           - { os: windows-2022, target: x86_64-pc-windows-msvc, label: windows-x86_64 }
           - { os: macos-14, target: aarch64-apple-darwin, label: darwin-aarch64 }
-          # darwin-x86_64 (Intel Mac) intentionally dropped from first GA -
-          # macos-13 free runners queue indefinitely. Apple Silicon covers
-          # the realistic mac user base; revisit if a real demand emerges.
           - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, label: linux-x86_64 }
     runs-on: ${{ matrix.os }}
     env:
+      DMAI_CLOUD_ONLY: '1'
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
       WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
       WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
     steps:
@@ -44,9 +36,22 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
+      - name: Validate release version, notes and updater signer
+        shell: bash
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo '::error::TAURI_SIGNING_PRIVATE_KEY is required for signed updater bundles'
+            exit 1
+          fi
+          bun scripts/build_latest_json.ts --notes > "$RUNNER_TEMP/release-notes.md"
+
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          shared-key: desktop-${{ matrix.target }}
 
       - name: Linux GUI deps
         if: matrix.os == 'ubuntu-22.04'
@@ -56,45 +61,76 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install bun deps
-        run: bun install
+        run: bun install --frozen-lockfile
 
-      - name: Build cloud-only Tauri bundle (signs latest.json via TAURI_SIGNING_PRIVATE_KEY)
-        run: bun run tauri:build:cloud
-
-      - name: Sign Windows binaries
+      - name: Import optional Windows signing certificate before bundling
         if: matrix.os == 'windows-2022' && env.WINDOWS_CERT_BASE64 != ''
         shell: pwsh
         run: |
-          $cert = [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64)
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/cert.pfx", $cert)
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
-            Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-          Get-ChildItem -Path "target/release/bundle/" -Recurse -Include "*.exe","*.msi" |
-            ForEach-Object {
-              & $signtool sign /f "$env:RUNNER_TEMP/cert.pfx" /p "$env:WINDOWS_CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
-            }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+          $certificatePassword = [Security.SecureString]::new()
+          if ($env:WINDOWS_CERT_PASSWORD) {
+            $certificatePassword = ConvertTo-SecureString $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+          }
+          $certificate = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $certificatePassword |
+            Where-Object HasPrivateKey | Select-Object -First 1
+          if (-not $certificate) { throw 'Windows signing certificate has no private key' }
+          "WINDOWS_CERT_THUMBPRINT=$($certificate.Thumbprint)" >> $env:GITHUB_ENV
 
-      - name: Notarize macOS bundle
-        if: startsWith(matrix.os, 'macos') && env.APPLE_API_KEY != ''
+      - name: Prepare optional macOS signing and notarization before bundling
+        if: startsWith(matrix.os, 'macos') && (env.APPLE_CERTIFICATE != '' || env.APPLE_API_KEY_BASE64 != '' || env.APPLE_API_KEY != '' || env.APPLE_API_ISSUER != '' || env.APPLE_SIGNING_IDENTITY != '')
         shell: bash
         run: |
-          BUNDLE=$(find target/release/bundle/macos -name "*.app" | head -1)
-          if [ -z "$BUNDLE" ]; then
-            echo "no .app bundle found, skipping notarization"
-            exit 0
+          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ] || [ -z "$APPLE_API_KEY_BASE64" ] || [ -z "$APPLE_API_KEY" ] || [ -z "$APPLE_API_ISSUER" ]; then
+            echo '::error::macOS signing requires a Developer ID certificate, identity and complete notarization API credentials'
+            exit 1
           fi
-          ditto -c -k --keepParent "$BUNDLE" "$BUNDLE.zip"
-          xcrun notarytool submit "$BUNDLE.zip" \
-            --key <(echo "$APPLE_API_KEY" | base64 -d) \
-            --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER" \
-            --wait
-          xcrun stapler staple "$BUNDLE"
+          bun -e 'const fs = require("node:fs"); const path = require("node:path"); fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "release-signing.p12"), Buffer.from(process.env.APPLE_CERTIFICATE, "base64")); fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "release-api.p8"), Buffer.from(process.env.APPLE_API_KEY_BASE64, "base64"));'
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release.keychain-db"
+          security default-keychain -s "$RUNNER_TEMP/release.keychain-db"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release.keychain-db"
+          security set-keychain-settings -t 3600 -u "$RUNNER_TEMP/release.keychain-db"
+          security import "$RUNNER_TEMP/release-signing.p12" -k "$RUNNER_TEMP/release.keychain-db" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release.keychain-db"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/release-api.p8" >> "$GITHUB_ENV"
+
+      - name: Enable updater artifacts for this release
+        shell: bash
+        run: |
+          bun -e 'const fs = require("node:fs"); const path = require("node:path"); const config = JSON.parse(fs.readFileSync("src-tauri/tauri.cloud.conf.json", "utf8")); config.bundle.createUpdaterArtifacts = true; if (process.env.WINDOWS_CERT_THUMBPRINT) config.bundle.windows = { ...config.bundle.windows, certificateThumbprint: process.env.WINDOWS_CERT_THUMBPRINT, digestAlgorithm: "sha256", timestampUrl: "http://timestamp.digicert.com" }; fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "release-config.json"), JSON.stringify(config));'
+
+      - name: Build cloud bundle and sign the final updater artifacts
+        shell: bash
+        run: |
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD; fi
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then unset APPLE_SIGNING_IDENTITY; fi
+          if [ -z "$APPLE_API_KEY" ]; then unset APPLE_API_KEY APPLE_API_ISSUER; fi
+          bun x tauri build --target ${{ matrix.target }} --config "$RUNNER_TEMP/release-config.json"
+
+      - name: Remove temporary Windows signing certificate
+        if: always() && matrix.os == 'windows-2022' && env.WINDOWS_CERT_BASE64 != ''
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'release-signing.pfx') -ErrorAction SilentlyContinue
+          if ($env:WINDOWS_CERT_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:WINDOWS_CERT_THUMBPRINT" -ErrorAction SilentlyContinue
+          }
+
+      - name: Remove temporary macOS signing material
+        if: always() && startsWith(matrix.os, 'macos') && env.APPLE_CERTIFICATE != ''
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          rm -f "$RUNNER_TEMP/release-signing.p12" "$RUNNER_TEMP/release-api.p8"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-${{ matrix.label }}
-          path: target/release/bundle/
+          path: target/${{ matrix.target }}/release/bundle/
+          if-no-files-found: error
           retention-days: 90
 
   publish:
@@ -111,17 +147,24 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Generate latest.json
-        run: bun run scripts/build_latest_json.ts > latest.json
+      - name: Generate updater manifest and current-version release notes
+        run: |
+          bun scripts/build_latest_json.ts > latest.json
+          bun scripts/build_latest_json.ts --notes > release-notes.md
+          bun scripts/build_latest_json.ts --stage-assets
+
+      - name: Verify updater signatures against the bundled public key
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          bun scripts/verify-release-signatures.ts > release-verification.json
+          sha256sum release-assets/* latest.json release-verification.json | sed 's#release-assets/##' > SHA256SUMS
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Glob expansion: we want the actual bundle files, not the per-label
-          # directories. The download-artifact action puts each artifact in its
-          # own subdirectory, so we recurse with `find` and pass the file list.
-          mapfile -t BUNDLES < <(find artifacts/release-* -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.sig" \))
-          gh release create "${{ github.ref_name }}" \
-            --notes-file CHANGELOG.md \
-            "${BUNDLES[@]}" latest.json
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft \
+            --notes-file release-notes.md \
+            release-assets/* latest.json release-verification.json SHA256SUMS
+          gh release edit "$GITHUB_REF_NAME" --draft=false

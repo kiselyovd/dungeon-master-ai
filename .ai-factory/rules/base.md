@@ -14,10 +14,11 @@
 ## Module Structure
 
 - `crates/app-domain` contains deterministic D&D rules and domain behavior. It must not depend on Axum, SQLx, Tauri, model providers, or frontend concerns.
-- `crates/app-llm` contains LLM provider contracts, provider adapters, streaming translation, and local LLM process support.
-- `crates/app-server` contains application orchestration, HTTP/SSE routes, persistence, provider lifecycle, and runtime coordination.
-- `src-tauri` is the native composition root. Keep Tauri capabilities, process spawning, and desktop-only integration here.
-- `src/api`, `src/state`, `src/hooks`, `src/components`, and `src/ui` separate frontend transport, state, orchestration, product components, and reusable primitives.
+- `crates/app-application` owns use cases, typed models and inward-owned ports; its only workspace dependency is `app-domain`.
+- `crates/adapter-http`, `adapter-sqlite`, `adapter-llm`, `adapter-media` and `adapter-secrets` translate their respective boundaries without importing sibling adapters.
+- `crates/app-bootstrap` owns backend composition and the `dmai-server` entry point. `app-llm` and `app-server` remain compatibility facades, not new homes for policy or concrete wiring.
+- `src-tauri` owns native process lifetime, capabilities, desktop integration and native startup credentials.
+- `src/app` owns frontend composition; `src/features` owns feature controllers. `src/api`, `src/state`, `src/components` and `src/ui` retain transport, projections, product views and reusable presentation responsibilities.
 - `sidecar` is an independent FastAPI process. Keep heavyweight media/model dependencies and backend dispatch inside this boundary.
 - Cross-boundary communication must use typed Rust interfaces, validated HTTP/SSE contracts, Tauri events/commands, or explicit frontend schemas.
 

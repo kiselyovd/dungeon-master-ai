@@ -2,171 +2,91 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#stack)
 
-A multimodal, AI-powered Dungeons & Dragons desktop assistant. Tauri v2 + React + Rust.
+> A desktop Dungeon Master for solo D&D 5e, with experimental cooperative play.
 
-It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drives NPCs, resolves combat on a virtual tabletop, remembers your campaign, and can generate scene art - either fully on your machine or through a cloud model.
+Create a hero, explore a prepared adventure or your own opening scene, and play through chat and a virtual tabletop. The game backend owns rules, campaign state and confirmed outcomes; the AI narrates and requests game actions.
 
 <p align="center">
-  <img src="docs/screenshots/combat.jpg" width="49%" alt="Combat on the virtual tabletop - initiative tracker, action bar and AI tool-calls" />
-  <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Guided hero creation with class presets and character art" />
+  <img src="docs/screenshots/combat.jpg" width="49%" alt="Combat tabletop with initiative, actions and adventure chat" />
+  <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Hero portrait gallery with character preview" />
 </p>
 
-> **Status: v0.12.1, experimental.** The rules engine, character wizard, tabletop
-> and campaign persistence are implemented. Complete solo-adventure acceptance
-> and LAN/VPN cooperative play remain active development work. Model and media
-> behavior depends on the configured runtime and hardware; fixture tests do not
-> establish real-model playability. See [campaign continuation and recovery](docs/CAMPAIGN_STATE.md)
-> for current persistence behavior and its verification boundaries.
+Production browser previews with controlled test data: combat and the hero portrait gallery. These images do not establish native or real-model acceptance.
 
-The bundled [Bell Beneath the Water adventure](docs/AUTHORED_ADVENTURE.md) now
-has executable scene choices, discoveries and persistent authored outcomes.
-Recoverable AI-driven actions, complete mechanics and cooperative sessions remain
-the next development stages.
+**Experimental, before 1.0.** Campaign recovery, party play and desktop workflows are implemented, with acceptance limits recorded in the [documentation index](docs/README.md). A successful build does not establish complete real-model gameplay or physical two-device LAN/VPN support.
 
-## Features
+## Download and start
 
-- **Agentic DM loop.** A multi-round agent turns your message into narration plus tool calls: dice rolls, `start_combat` / `apply_damage` / `apply_healing` / token updates, `set_scene`, `remember_npc` / `recall_npc`, `journal_append`, `quick_save`, and `generate_image`. Tool results feed back into the next round.
-- **Combat VTT.** PixiJS virtual tabletop with draggable tokens, HP/AC chips, condition rings, AoE templates, an initiative tracker, and an action bar that sends typed commands. The UI updates mechanics only from newer authoritative server revisions.
-- **Character creation.** A full level-1 wizard (class, race, background, abilities by point-buy / standard array / 4d6, skills, spells, equipment, persona, AI-assisted portrait) plus quick preset heroes. Characters commit real combat stats (HP, AC, initiative, speed, proficiency bonus).
-- **Multimodal chat.** Stream narration with reasoning surfaced in a collapsible pill; attach images (vision) to a turn; render tool-call cards inline.
-- **Providers.**
-  - **Local-first:** an embedded `mistralrs` LLM sidecar (Qwen3.5 GGUF, vision capable) and a Python image/video sidecar (SDXL-Lightning / Z-Image-Turbo / FLUX / LTX-Video), owned by Tauri and controlled through an authenticated loopback channel. Models download from HuggingFace.
-  - **Cloud:** a single generic **OpenAI-compatible** provider. OpenRouter is the recommended hosted aggregator (one key, 100+ models, including Claude). Point it at any `/v1/chat/completions` endpoint - LM Studio, Ollama, llama.cpp, vLLM, Groq, DeepSeek, a LiteLLM proxy, etc. (Native Anthropic was removed in M11; route Claude through OpenRouter.)
-- **Persistence.** SQLite via `sqlx` (campaigns, sessions, messages, snapshots, combat); secrets in an encrypted Stronghold vault; linear saves with quick-save, overwrite, and load. State survives a restart.
-- **Localization.** Full English + Russian UI (react-i18next), Cyrillic-capable body/mono fonts.
+1. Open [GitHub Releases](https://github.com/kiselyovd/dungeon-master-ai/releases) and choose Windows x64, macOS Apple Silicon or Linux x64. Read the release's startup and signing notes.
+2. Follow [Getting started](docs/GETTING_STARTED.md), including its vault/startup requirements. Keep existing application data and credentials when upgrading.
+3. Choose **Start adventure**, select **Bell Beneath the Water** or a custom opening, prepare your hero and enter the first scene.
+4. Configure **Settings > Chat > Model server** with an OpenAI-compatible provider, its API base, your key and an available model ID. Send an action and check the confirmed result.
+
+The standard release is the **cloud flavor**: the desktop app and `dmai-server`, without embedded model/media executables or model weights. An existing local OpenAI-compatible server also works through Model server. Embedded GPU/model support requires separate runtimes and hardware checks.
+
+### Example: RouterAI or OpenRouter
+
+| Service | API base |
+| --- | --- |
+| RouterAI | `https://routerai.ru/api/v1` |
+| OpenRouter | `https://openrouter.ai/api/v1` |
+
+Enter the API base without `/chat/completions`, keep the key in Settings, and select an exact model ID from that provider's current catalog. Model availability, tool support and pricing depend on the provider and account. See [Configuration](docs/CONFIGURATION.md) for discovery, local servers and optional media.
+
+## What you can do
+
+- **Play and continue a campaign.** Persistent heroes, scenes, journals, NPC memories, saves and durable request recovery keep the campaign tied to its own state.
+- **Use supported D&D mechanics.** Server-confirmed combat covers initiative, attacks, supported spells, equipment, conditions, rest and recovery. The client renders newer authoritative revisions.
+- **Explore a prepared adventure.** Bell Beneath the Water includes discoveries, rescue decisions, authored consequences and distinct outcomes.
+- **Host an experimental co-op room.** Guests review an invitation, join deliberately and use their own accepted hero. The host owns campaign storage and the shared model; guests do not need the host's API key.
+- **Arrange the desktop.** Split/Table/Chat views, a command palette, saved workspace, scoped hero/journal windows, native invitations, opt-in notifications and portable campaign files support longer sessions.
+- **Choose presentation and language.** English and Russian interfaces, bundled fantasy artwork, portraits, miniatures and scene presentation work alongside optional generated media.
+
+For example, continue a saved Bell campaign, inspect the journal, send a short action, then use the confirmed encounter controls on the table. After an interrupted reply, recover its existing operation instead of sending the same action as a new request. [Campaign state](docs/CAMPAIGN_STATE.md) and [AI turn recovery](docs/AI_TURN_RECOVERY.md) explain the boundary.
+
+## Cooperative play
+
+The organizer starts **Co-op session**, creates a room and shares an invitation containing a reachable LAN/VPN address. Guests choose **Join game**, check the destination and explicitly join. `localhost` is not an address for a second computer.
+
+There is no public matchmaking or automatic Internet relay. Same-machine two-client checks and actual two-device acceptance are separate; see [Room invitations](docs/ROOM_INVITATIONS.md) and [Co-op acceptance](docs/COOP_ACCEPTANCE.md). Local solo save controls are unavailable while a room is active.
 
 ## Stack
 
-- Desktop shell: Tauri v2 (Rust), the sole owner of `dmai-server` and optional model/media sidecars.
-- Frontend: React 19 + TypeScript + Vite + Zustand + react-i18next, PixiJS v8, valibot for runtime schemas.
-- Backend: Rust workspace - axum HTTP server; `genai` for the LLM provider abstraction behind an atomic-swappable `RwLock<Arc<ProviderRegistry>>` (chat / image / video slots).
-- Toolchain: Bun (package manager + scripts) + Biome (lint + format).
-- Targets: Windows, macOS, Linux. (Local GPU sidecars are tuned for an NVIDIA RTX 3080 / Ampere; CPU fallbacks exist.)
+- Tauri 2 owns the native windows and backend/optional runtime processes.
+- React 19, TypeScript, Vite, Zustand and PixiJS provide the presentation layer.
+- Rust separates deterministic rules, application use cases, HTTP/SQLite/LLM/media/secrets adapters and backend composition.
+- Bun, Biome, Vitest, Playwright, Cargo and Python 3.12 offline tests provide the checks. Heavy image/video inference stays in the optional Python sidecar.
 
-## Repo layout
+See [Architecture](ARCHITECTURE.md) for the repository map and dependency directions. Standard release targets are Windows x64, macOS arm64 and Linux x64; Intel macOS is outside the current matrix.
 
-```
-crates/
-  app-domain/       deterministic D&D 5e rules and pure SRD concepts
-  app-application/  use cases, typed models, and inward-owned ports
-  adapter-http/     axum routes, DTO validation, and SSE mapping
-  adapter-sqlite/   SQLx repositories, transactions, and migrations
-  adapter-llm/      concrete LLM and embedding providers
-  adapter-media/    HuggingFace, downloads, image/video, runtime control client
-  adapter-secrets/  Stronghold and test secret stores
-  app-bootstrap/    backend composition and dmai-server entry point
-  app-llm/          compatibility provider facade
-  app-server/       compatibility server/test facade
-sidecar/            Python 3.12 image/video generation process
-src-tauri/          Tauri process owner, runtime control, capabilities, packaging
-src/                React app, feature controllers, projections, UI, locales
-e2e/            Playwright smoke tests (localStorage-backed Tauri mock)
-docs/           architecture + milestone specs/plans (planning dir, gitignored)
-```
+## Develop and verify
 
-## Dev setup
+[Contributing](CONTRIBUTING.md) covers container-managed dependencies, native platform requirements and development commands. Do not install or overwrite a host toolchain as an implicit setup step. Use a reviewed native exception when a container cannot provide the required OS/GPU/WebView.
 
-Prerequisites:
-
-- Rust 1.94 or newer: `rustup default stable` (SQLx 0.9 sets the dependency minimum).
-- [Bun](https://bun.com/) 1.3+
-- Tauri prerequisites for your OS: https://tauri.app/start/prerequisites/
-- For the cloud path: an OpenAI-compatible endpoint + key (OpenRouter recommended).
-- For the local path: a built `mistralrs-server` + the Python image sidecar (see the prebuild CI workflows); models download from HuggingFace on first use.
-
-```bash
-bun install
-bun run install-hooks   # one-time: pre-commit (fast gates) + pre-push (full gates)
-bun run tauri dev       # Vite + the Rust backend (dmai-server) - enough for CLOUD mode
-```
-
-`bun run tauri dev` builds and spawns the Rust backend automatically. It does NOT build/start the model sidecars (mistralrs LLM + Python image) - those are on-demand and need a one-time build:
-
-```bash
-bun run setup:local            # build mistralrs-server + create .venv for the image sidecar
-bun run setup:local --cuda     # GPU build (needs the CUDA toolkit / nvcc on PATH; RTX 3080)
-bun run dev:all                # sets DMAI_IMAGE_SIDECAR_DEV + preflights sidecars, then tauri dev
-```
-
-For CLOUD mode (OpenAI-compatible / OpenRouter) plain `bun run tauri dev` is all you need - no sidecars. Onboarding walks you through picking a preset (Local-only, Cloud, Hybrid, Text-only, or Manual), configuring a provider, and creating a hero. F11 toggles fullscreen; Ctrl+S quick-saves.
-
-### Example cloud Settings
-
-| Provider | Base URL | Example model |
-| --- | --- | --- |
-| OpenRouter (recommended) | `https://openrouter.ai/api/v1` | `anthropic/claude-3.5-sonnet`, `qwen/qwen-2.5-7b-instruct` |
-| LM Studio | `http://localhost:1234/v1` | whatever you loaded |
-| Ollama | `http://localhost:11434/v1` | `qwen3:1.7b`, `llama3.2` |
-| vLLM | `http://localhost:8000/v1` | model alias |
-| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat`, `deepseek-reasoner` |
-
-## Tests and gates
-
-`scripts/gates.sh` is the single source of truth for the quality gates - the same script backs the git hooks AND the CI `lint` job, so local and CI can never drift.
-
-```bash
-bun run gates        # full set: cargo fmt --check, clippy --all-features, biome ci,
-                     #           architecture, tsc, cargo test, vitest, em-dash
-bun run gates:fast   # fast subset: fmt, biome, architecture, tsc, em-dash
-bun run e2e          # Playwright (its own CI job; not in gates.sh - needs a browser download)
-bun run e2e:tauri    # deterministic real Tauri/WebView smoke
-python -m ruff check sidecar
-python -m pytest sidecar/tests -q
-```
-
-Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --fast` (seconds), **pre-push** runs the full `gates.sh`. Bypass once with `--no-verify`.
+The consolidated gate is `bun run gates`; `bun run gates:fast` is its smaller iteration subset. Production-build browser checks, native WebView checks, offline Python checks and real-model/GPU acceptance remain distinct. The [release checklist](docs/RELEASE_CHECKLIST.md) records those layers.
 
 ## Documentation
 
-| Topic | Guide |
-|---|---|
-| Campaign continuation and saves | [Campaign state](docs/CAMPAIGN_STATE.md) |
-| Durable requests and safe recovery reads | [AI turn recovery](docs/AI_TURN_RECOVERY.md) |
-| Human intentions and confirmed effects | [Human command ledger](docs/HUMAN_COMMAND_LEDGER.md) |
-| Native co-op evidence and limits | [Co-op acceptance](docs/COOP_ACCEPTANCE.md) |
-| Built-in portraits and whole miniatures | [Hero identities](docs/visual/HERO_IDENTITIES.md) |
-| Stable NPC faces and public reveal | [NPC portraits](docs/visual/NPC_PORTRAITS.md) |
-| Public opponent art and tactical anchors | [Opponent miniatures](docs/visual/OPPONENT_MINIATURES.md) |
-| Startup, library and save paintings | [Key and save art](docs/visual/KEY_SAVE_ART.md) |
-| Canonical current-location atmosphere | [Bell scene paintings](docs/visual/BELL_SCENES.md) |
-| Map artwork and exact tactical calibration | [Map skins](docs/visual/MAP_SKINS.md) |
-| Bundled scenic images and fallback behavior | [Offline illustrations](docs/visual/OFFLINE_ILLUSTRATIONS.md) |
-| Confirmed combat cues and motion preferences | [Gameplay motion](docs/visual/CONFIRMED_MOTION.md) |
-| Scene changes, cinematic preferences and ambient pause | [Scene transitions](docs/visual/SCENE_TRANSITIONS.md) |
-| Command palette, shortcuts and role limits | [Commands](docs/COMMANDS.md) |
-| Main/auxiliary closure, recovery and process cleanup | [Desktop lifecycle](docs/DESKTOP_LIFECYCLE.md) |
-| Pasteable links, native opening and explicit room joining | [Room invitations](docs/ROOM_INVITATIONS.md) |
-| Opt-in events, Windows permissions and notification clicks | [Desktop notifications](docs/NOTIFICATIONS.md) |
-| Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
-| Backup/dossier roles, validation and atomic import | [Portable campaigns](docs/PORTABLE_CAMPAIGNS.md) |
-| Read-only hero/journal views, scope and access limits | [Detached windows](docs/DETACHED_WINDOWS.md) |
-| Measured art payload and rendering acceptance limits | [Visual performance](docs/visual/PERFORMANCE.md) |
+| Guide | Contents |
+| --- | --- |
+| [Getting started](docs/GETTING_STARTED.md) | Install, first adventure, continue and join |
+| [Configuration](docs/CONFIGURATION.md) | Providers, local runtimes, media and credentials |
+| [Documentation index](docs/README.md) | Campaign, combat, room and desktop topic guides |
+| [Architecture](ARCHITECTURE.md) | Modules, process ownership and stable contracts |
+| [Contributing](CONTRIBUTING.md) | Development, tests and review conventions |
+| [Release guide](docs/RELEASE.md) | Platforms, signatures and publication |
+| [Release checklist](docs/RELEASE_CHECKLIST.md) | Required evidence and manual acceptance limits |
+| [Python sidecar](sidecar/README.md) | Optional image/video runtime and packaging |
 
-## Build
+Browse the [Wiki](https://github.com/kiselyovd/dungeon-master-ai/wiki) for entry points. [CHANGELOG.md](CHANGELOG.md) records versions; [Security](SECURITY.md) covers credentials and private data. Historical QA reports identify the revision and environment they tested.
 
-```bash
-bun run tauri build
-```
+## Known limits
 
-## Backlog (deferred)
-
-- Distribution: signed installers + GitHub Releases with bundled binaries.
-- Branching saves + the Chronicles tome UI (v1 is linear saves).
-- Light theme and density toggle.
-- Live scene-transition video generation (pre-recorded mp4 is canonical today).
-- mistralrs reasoning/thinking surfacing (blocked on upstream).
-- Additional / regional cloud providers.
-
-## Known limitations
-
-Current, confirmed issues (see `CHANGELOG.md` for the per-release detail):
-
-- Local GGUF loading crashes after the model loads in a non-TTY context on Windows (upstream `mistralrs`). The default Gemma / ISQ local path works, so prefer an ISQ model id over a raw GGUF on Windows.
-- `mistralrs` reasoning/thinking surfacing is not wired up yet (blocked on upstream).
-- A small set of accepted Biome diagnostics remains (test-only non-null assertions, exhaustive-deps, descending-specificity, and a configuration deprecation notice). They are non-blocking and do not fail the gates.
-- Local model/media bundles are built separately from the normal cloud-only release matrix; a green cloud bundle does not prove the GPU path.
-- Distribution is unsigned for now: self-signed Windows installers trigger SmartScreen "Unrecognized app" warnings until an EV certificate lands (see `docs/RELEASE.md`).
+- This is not a complete implementation of every D&D 5e rule or class feature.
+- Physical two-device LAN/VPN and complete long-form real-model acceptance remain separate open checks. Repeated physical DPI checks were waived for this development cycle.
+- Cloud packaging does not prove embedded model loading, GPU contention, media generation or upstream model behavior. Some Windows GGUF paths have recorded upstream failures; consult the runtime-specific evidence.
+- Without the optional trusted platform certificates, Windows/macOS may report an unidentified publisher. Updater signatures authenticate update packages and do not replace OS code signing.
+- Back up campaigns through the supported controls. Do not share provider vaults, live databases or private invitation material in issues or screenshots.
 
 ## License
 

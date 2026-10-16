@@ -66,7 +66,9 @@ The root `src/App.tsx` and legacy hook paths are compatibility re-exports for ex
 
 ## Runtime and packaging
 
-Tauri starts `dmai-server` and hosts a per-launch authenticated loopback control service. The backend calls that service through the `RuntimeControl` port. Tauri starts/stops/observes `mistralrs-server` and `dmai-image-sidecar`, owns their handles, and shuts them down with the application. Tokens and vault credentials are never persisted or logged.
+Tauri starts `dmai-server` and hosts a per-launch authenticated loopback control service. The backend calls that service through the `RuntimeControl` port. Tauri starts/stops/observes `mistralrs-server` and `dmai-image-sidecar`, owns their handles, and shuts them down with the application. Launch tokens and plaintext vault credentials are never written to application files or logs.
+
+The backend vault unlock credential is retained in the OS credential store by the native launcher. New desktop profiles use the writable `${appDataDir}/backend/` directory, separate from the frontend Stronghold snapshot. Legacy locations and explicit overrides are preserved; ambiguous paths or unavailable credentials fail explicitly. A per-vault file lock serializes credential creation and read-back. The credential reaches only the backend child environment, never an invoke response, frontend store or event. Encrypted Stronghold snapshots and the OS credential store are the durable secret boundaries.
 
 `tauri.conf.json` is the local bundle and declares all three binaries. `tauri.cloud.conf.json` overrides the bundle to `dmai-server` only. Normal cloud build/release matrices cover Windows x64, macOS arm64, and Linux x64. Manual model/media prebuild workflows use the same three targets, Python 3.12, and mistralrs tag `v0.8.3`.
 
