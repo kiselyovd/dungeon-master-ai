@@ -1,7 +1,9 @@
 //! Native notification policy owns durable dedup, OS focus and delivery errors.
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Mutex};
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+#[cfg(windows)]
+use tauri::Emitter;
+use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 
@@ -37,13 +39,16 @@ pub struct Event {
 pub struct NotificationState {
     game_scope: Mutex<Option<Uuid>>,
     lane: Mutex<()>,
+    #[cfg(windows)]
     activations: std::sync::atomic::AtomicU64,
 }
 #[derive(Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Permission {
     Granted,
+    #[cfg(windows)]
     Denied,
+    #[cfg(windows)]
     Unknown,
     #[cfg(not(windows))]
     Unsupported,
@@ -64,6 +69,7 @@ pub enum Language {
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
+    #[cfg(windows)]
     Sent,
     Duplicate,
     Suppressed,

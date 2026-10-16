@@ -154,7 +154,7 @@ pub fn run() {
         .run(move |app, event| {
             if matches!(event, RunEvent::Ready) {
                 // The single-instance message window and event loop now exist.
-                drop(startup_guard.take());
+                let _ = startup_guard.take();
                 commands::invocations::deliver_focus(app);
             }
             if matches!(event, RunEvent::Exit) {
