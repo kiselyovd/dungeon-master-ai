@@ -101,6 +101,7 @@ jobs:
       - name: Build cloud bundle and sign the final updater artifacts
         shell: bash
         run: |
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD; fi
           if [ -z "$APPLE_SIGNING_IDENTITY" ]; then unset APPLE_SIGNING_IDENTITY; fi
           if [ -z "$APPLE_API_KEY" ]; then unset APPLE_API_KEY APPLE_API_ISSUER; fi
           bun x tauri build --target ${{ matrix.target }} --config "$RUNNER_TEMP/release-config.json"
