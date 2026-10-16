@@ -7,6 +7,7 @@
  */
 
 import * as v from 'valibot';
+import { MediaReferenceSchema } from './contracts/mediaAsset';
 import type { ChatErrorCode } from './errors';
 
 const KNOWN_CODES = [
@@ -14,6 +15,7 @@ const KNOWN_CODES = [
   'rate_limit',
   'network',
   'provider_error',
+  'agent_turn_failed',
   'no_body',
   'http_error',
   'aborted',
@@ -87,6 +89,15 @@ export const ToolCallResultSchema = v.object({
 export const AgentDoneSchema = v.object({
   total_rounds: v.number(),
 });
+export const AgentNeedsInputSchema = v.object({
+  clarification_id: v.pipe(v.string(), v.uuid()),
+  command_id: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  total_rounds: v.pipe(v.number(), v.integer(), v.minValue(0)),
+});
+export function safeParseAgentNeedsInput(data: unknown) {
+  const result = v.safeParse(AgentNeedsInputSchema, data);
+  return result.success ? result.output : null;
+}
 
 export type ToolCallStartPayload = v.InferOutput<typeof ToolCallStartSchema>;
 export type ToolCallResultPayload = v.InferOutput<typeof ToolCallResultSchema>;
@@ -119,6 +130,7 @@ export function safeParseReasoningText(data: unknown): ReasoningTextPayload | nu
 }
 
 export const ImageGeneratedSchema = v.object({
+  media_ref: v.optional(MediaReferenceSchema),
   tool_call_id: v.optional(v.string()),
   round: v.optional(v.number()),
   mime_type: v.string(),

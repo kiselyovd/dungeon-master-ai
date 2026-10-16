@@ -2,12 +2,13 @@
 
 use async_trait::async_trait;
 use futures::stream::{self, StreamExt};
-use std::sync::Mutex;
+use std::{collections::VecDeque, sync::Mutex};
 
 use crate::provider::{Capabilities, ChatChunk, ChatRequest, ChunkStream, LlmError, LlmProvider};
 
 pub struct MockProvider {
     scripted: Mutex<Vec<ChatChunk>>,
+    followup_rounds: Mutex<VecDeque<Vec<ChatChunk>>>,
     capabilities: Capabilities,
     model: String,
     /// Optional thinking/reasoning chunks to emit BEFORE the scripted chunks.
@@ -21,6 +22,7 @@ impl MockProvider {
     pub fn new(scripted: Vec<ChatChunk>) -> Self {
         Self {
             scripted: Mutex::new(scripted),
+            followup_rounds: Mutex::new(VecDeque::new()),
             capabilities: Capabilities {
                 vision_input: true,
                 reasoning: true,
@@ -30,6 +32,14 @@ impl MockProvider {
             model: "mock-default".to_string(),
             thinking_chunks: Vec::new(),
         }
+    }
+
+    /// Explicit subsequent provider rounds. Empty streams remain empty unless
+    /// the fixture supplies a terminal chunk; tests can distinguish EOF from
+    /// a confirmed provider completion.
+    pub fn with_followup_rounds(mut self, rounds: Vec<Vec<ChatChunk>>) -> Self {
+        self.followup_rounds = Mutex::new(rounds.into());
+        self
     }
 
     /// Load a fresh set of scripted chunks. Useful for multi-turn tests where
@@ -60,6 +70,9 @@ impl MockProvider {
 
 #[async_trait]
 impl LlmProvider for MockProvider {
+    fn execution_origin(&self) -> Option<String> {
+        Some("deterministic-mock-v1".into())
+    }
     async fn stream_chat(&self, _req: ChatRequest) -> Result<ChunkStream, LlmError> {
         let mut all_chunks: Vec<ChatChunk> = self
             .thinking_chunks
@@ -68,7 +81,16 @@ impl LlmProvider for MockProvider {
             .collect();
         {
             let mut guard = self.scripted.lock().expect("mock provider lock poisoned");
-            all_chunks.extend(std::mem::take(&mut *guard));
+            let scripted = if guard.is_empty() {
+                self.followup_rounds
+                    .lock()
+                    .expect("mock rounds lock poisoned")
+                    .pop_front()
+                    .unwrap_or_default()
+            } else {
+                std::mem::take(&mut *guard)
+            };
+            all_chunks.extend(scripted);
         }
         let stream = stream::iter(all_chunks.into_iter().map(Ok)).boxed();
         Ok(stream)

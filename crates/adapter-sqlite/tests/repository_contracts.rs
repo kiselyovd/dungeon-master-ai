@@ -29,11 +29,76 @@ async fn store() -> SqliteStore {
     SqliteStore::new(pool)
 }
 
+#[tokio::test]
+async fn campaign_library_reports_public_current_location_without_mutating_gameplay() {
+    use app_application::models::adventure::{AdventureState, Location};
+    use app_application::models::session::CampaignLocation;
+    let store = store().await;
+    let (id, _) = campaign(&store, 1).await;
+    SceneRepository::set_current(
+        &store,
+        SceneRecord {
+            id: Uuid::new_v4(),
+            campaign_id: id.0,
+            name: "Public hall".into(),
+            description: "fixture scene description".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let initial = CampaignRepository::get(&store, id).await.unwrap().unwrap();
+    let canonical =
+        app_application::ports::repositories::CampaignStateRepository::load_current(&store, id)
+            .await
+            .unwrap();
+    assert_eq!(canonical.campaign, initial);
+    let summaries = CampaignRepository::list(&store).await.unwrap();
+    assert_eq!(
+        summaries[0].current_location,
+        Some(CampaignLocation::Scene {
+            title: "Public hall".into()
+        })
+    );
+    let adventure = AdventureState {
+        location: Location::Archive,
+        ..AdventureState::default()
+    };
+    sqlx::query("INSERT INTO campaign_adventures(campaign_id,state_json) VALUES(?1,?2)")
+        .bind(id.0.to_string())
+        .bind(serde_json::to_string(&adventure).unwrap())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let summaries = CampaignRepository::list(&store).await.unwrap();
+    assert_eq!(
+        summaries[0].current_location,
+        Some(CampaignLocation::Authored {
+            location: Location::Archive
+        })
+    );
+    let public = serde_json::to_value(&summaries[0]).unwrap();
+    assert!(public.get("facts").is_none());
+    assert!(public.get("description").is_none());
+    assert_eq!(
+        CampaignRepository::get(&store, id).await.unwrap().unwrap(),
+        initial
+    );
+    sqlx::query("UPDATE campaign_adventures SET state_json=json_set(state_json,'$.location','unknown_location') WHERE campaign_id=?1")
+        .bind(id.0.to_string()).execute(store.pool()).await.unwrap();
+    assert!(CampaignRepository::list(&store).await.unwrap()[0]
+        .current_location
+        .is_none());
+    let retained:String=sqlx::query_scalar("SELECT json_extract(state_json,'$.location') FROM campaign_adventures WHERE campaign_id=?1")
+        .bind(id.0.to_string()).fetch_one(store.pool()).await.unwrap();
+    assert_eq!(retained, "unknown_location");
+}
+
 async fn campaign(store: &SqliteStore, revision: u64) -> (CampaignId, SessionId) {
     let campaign_id = CampaignId(Uuid::new_v4());
     let session_id = SessionId(Uuid::new_v4());
     let now = 1_700_000_000_000;
     let initial = InitialCampaign {
+        opening_scene: None,
         detail: CampaignDetail {
             id: campaign_id,
             schema_version: 1,
@@ -101,6 +166,13 @@ fn create_snapshot_record(
 
 fn combat_projection(encounter_id: Uuid, combatant_id: CombatantId) -> CombatProjection {
     CombatProjection {
+        authored: None,
+
+        adventure: None,
+
+        campaign_scope: None,
+
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,
@@ -127,7 +199,44 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
         .fetch_one(store.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 1);
+    assert_eq!(migration_count, 26);
+    for table in [
+        "media_content",
+        "media_assets",
+        "media_bindings",
+        "current_map_media",
+        "campaign_bundle_imports",
+    ] {
+        let present: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
+        )
+        .bind(table)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+        assert!(
+            present,
+            "media ownership, selected references and import receipts must be migrated: {table}"
+        );
+    }
+    for table in ["agent_turn_operations", "room_dm_turns"] {
+        let actor_columns: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name='actor_id'")
+                .bind(table)
+                .fetch_one(store.pool())
+                .await
+                .unwrap();
+        assert_eq!(
+            actor_columns, 1,
+            "execution actor scope must survive migration"
+        );
+    }
+    let scoped:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='room_agent_message_published')")
+        .fetch_one(store.pool()).await.unwrap();
+    assert!(scoped);
+    let broad:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='room_message_created')")
+        .fetch_one(store.pool()).await.unwrap();
+    assert!(!broad);
 
     let tables = sqlx::query_scalar::<_, String>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -136,15 +245,44 @@ async fn migrations_are_embedded_idempotent_and_include_authoritative_projection
     .await
     .unwrap();
     for required in [
+        "campaign_parties",
+        "party_characters",
+        "party_operation_receipts",
+        "coop_rooms",
+        "room_creation_receipts",
+        "room_join_receipts",
+        "room_departure_receipts",
+        "room_return_receipts",
+        "room_character_proposals",
+        "room_character_approvals",
+        "room_changes",
+        "shared_messages",
+        "room_restore_guard",
+        "room_world_receipts",
+        "room_recovery_receipts",
+        "room_dm_turns",
+        "room_dm_events",
+        "room_agent_tools",
+        "room_agent_messages",
         "campaigns",
         "sessions",
         "campaign_events",
         "campaign_snapshots",
+        "campaign_adventures",
+        "adventure_operations",
+        "adventuring_states",
+        "rest_operations",
+        "solo_recovery_receipts",
+        "agent_turn_operations",
+        "agent_turn_events",
+        "agent_turn_messages",
+        "agent_tool_steps",
         "messages",
         "saves",
         "scenes",
         "combat",
         "combat_tokens",
+        "combat_action_receipts",
         "journal_entries",
         "npc_memory",
         "srd_chunks",
@@ -405,6 +543,62 @@ async fn concurrent_combat_writers_allow_exactly_one_revision_commit() {
 }
 
 #[tokio::test]
+async fn distinct_saves_capture_changed_state_and_retry_remains_idempotent() {
+    let store = store().await;
+    let (campaign_id, session_id) = campaign(&store, 1).await;
+    let first = store
+        .create_snapshot(create_snapshot_record(
+            campaign_id,
+            session_id,
+            Revision(1),
+            "fresh-1",
+        ))
+        .await
+        .unwrap();
+    MessageRepository::append(&store, session_id.0, ChatMessage::user_text("A new turn"))
+        .await
+        .unwrap();
+    let mut next =
+        create_snapshot_record(campaign_id, session_id, first.snapshot.revision, "fresh-2");
+    next.character = json!({"name": "Mira", "hp": 4, "inventory": ["rope"]});
+    let second = store.create_snapshot(next.clone()).await.unwrap();
+    let retry = store.create_snapshot(next).await.unwrap();
+    assert_ne!(first.snapshot.id, second.snapshot.id);
+    assert_eq!(second.snapshot.projection.character["hp"], 4);
+    assert_eq!(second.snapshot.projection.messages.len(), 1);
+    assert_eq!(retry.snapshot.id, second.snapshot.id);
+    assert!(second.snapshot.revision.0 > first.snapshot.revision.0);
+}
+
+#[tokio::test]
+async fn save_retry_cannot_return_another_campaigns_snapshot() {
+    let store = store().await;
+    let (campaign_a, session_a) = campaign(&store, 1).await;
+    let (campaign_b, session_b) = campaign(&store, 1).await;
+    store
+        .create_snapshot(create_snapshot_record(
+            campaign_a,
+            session_a,
+            Revision(1),
+            "shared-request",
+        ))
+        .await
+        .unwrap();
+    let result = store
+        .create_snapshot(create_snapshot_record(
+            campaign_b,
+            session_b,
+            Revision(1),
+            "shared-request",
+        ))
+        .await;
+    assert!(
+        result.is_err(),
+        "retry must not expose another campaign's state"
+    );
+}
+
+#[tokio::test]
 async fn campaign_snapshot_is_complete_revision_bound_and_idempotent() {
     let store = store().await;
     let (campaign_id, session_id) = campaign(&store, 4).await;
@@ -420,7 +614,7 @@ async fn campaign_snapshot_is_complete_revision_bound_and_idempotent() {
     let retried = store.create_snapshot(record).await.unwrap();
     assert_eq!(retried.save_id, first.save_id);
     assert_eq!(retried.snapshot.id, first.snapshot.id);
-    assert_eq!(first.snapshot.revision, Revision(4));
+    assert_eq!(first.snapshot.revision, Revision(5));
     assert_eq!(first.snapshot.ruleset_id, "srd-5.2.1");
     assert_eq!(first.snapshot.projection.messages.len(), 1);
     assert_eq!(first.snapshot.projection.character["name"], "Mira");
@@ -451,7 +645,7 @@ async fn restore_rolls_back_every_projection_when_active_pointer_update_fails() 
     .unwrap();
     let save = create_snapshot_record(campaign_id, session_id, Revision(4), "save-request-2");
     let save_id = save.id;
-    store.create_snapshot(save).await.unwrap();
+    let created = store.create_snapshot(save).await.unwrap();
     sqlx::query("DELETE FROM messages WHERE session_id = ?1")
         .bind(session_id.0.to_string())
         .execute(store.pool())
@@ -477,7 +671,7 @@ async fn restore_rolls_back_every_projection_when_active_pointer_update_fails() 
             save_id,
             campaign_id,
             session_id,
-            expected_revision: Revision(4),
+            expected_revision: created.snapshot.revision,
             causation_id: "restore-request-1".into(),
         })
         .await;

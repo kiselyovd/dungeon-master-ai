@@ -69,7 +69,7 @@ async fn equipment_endpoint_returns_three_buckets() {
         obj["weapons"].as_array().expect("weapons").len() == 16,
         "unexpected supported weapon count"
     );
-    assert_eq!(obj["armor"].as_array().expect("armor").len(), 5);
+    assert_eq!(obj["armor"].as_array().expect("armor").len(), 13);
     assert_eq!(
         obj["adventuring_gear"]
             .as_array()

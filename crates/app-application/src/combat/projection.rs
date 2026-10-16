@@ -6,25 +6,43 @@ use app_domain::combat::types::CombatantId;
 
 use crate::models::combat::{CombatProjection, CombatSnapshot};
 
+pub fn elapsed_seconds(previous_round: u32, snapshot: &CombatSnapshot) -> u64 {
+    if snapshot.round > previous_round {
+        u64::from(snapshot.round - previous_round) * app_domain::combat::ROUND_SECONDS
+    } else if !snapshot.active {
+        app_domain::combat::ROUND_SECONDS
+    } else {
+        0
+    }
+}
+
 pub fn resolver_state(
     snapshot: &CombatSnapshot,
-) -> (HashMap<CombatantId, Combatant>, InitiativeOrder) {
-    let combatants = snapshot
+) -> Option<(HashMap<CombatantId, Combatant>, InitiativeOrder)> {
+    let combatants: HashMap<CombatantId, Combatant> = snapshot
         .combatants
         .iter()
         .cloned()
         .map(|combatant| (combatant.id, combatant))
         .collect();
-    let mut order = InitiativeOrder::build(snapshot.initiative.clone());
-    if let Some(current) = snapshot.current_combatant {
-        for _ in 0..order.len() {
-            if order.current().id == current {
-                break;
-            }
-            order.advance();
-        }
+    let ids = snapshot
+        .initiative
+        .iter()
+        .map(|entry| entry.id)
+        .collect::<std::collections::HashSet<_>>();
+    if combatants.len() != snapshot.combatants.len()
+        || ids.len() != snapshot.initiative.len()
+        || ids.len() != combatants.len()
+        || ids.iter().any(|id| !combatants.contains_key(id))
+    {
+        return None;
     }
-    (combatants, order)
+    let order = InitiativeOrder::restore(
+        snapshot.initiative.clone(),
+        snapshot.current_combatant?,
+        snapshot.round,
+    )?;
+    Some((combatants, order))
 }
 
 pub fn replace_resolved_state(

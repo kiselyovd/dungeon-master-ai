@@ -84,3 +84,7 @@ pub mod test_support {
         }
     }
 }
+
+pub mod native_room_client;
+
+pub mod native_room_transport;

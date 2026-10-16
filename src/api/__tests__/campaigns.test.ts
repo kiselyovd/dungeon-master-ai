@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createCampaign, fetchCampaign, fetchCampaigns } from '../campaigns';
+import { buildCampaignState } from '../../state/campaignProjection';
+import { createCampaign, fetchCampaign, fetchCampaignState, fetchCampaigns } from '../campaigns';
 import type { Campaign } from '../contracts/campaign';
 
 vi.mock('../client', () => ({
@@ -24,6 +25,44 @@ const campaign: Campaign = {
 };
 
 describe('campaign API', () => {
+  it('cold-opens persisted tool checkpoints without rendering internal envelopes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              schema_version: 1,
+              ruleset_id: 'srd-5.2.1',
+              campaign,
+              session_id: campaign.last_session_id,
+              character_id: null,
+              projection: {
+                character: {},
+                combat: null,
+                scene: null,
+                journal: [],
+                npcs: [],
+                messages: [
+                  { role: 'user', content: 'Inspect the quay' },
+                  {
+                    role: 'assistant_with_tool_calls',
+                    content: null,
+                    tool_calls: [{ id: 'confirmed', name: 'adventure_action', args: {} }],
+                  },
+                  { role: 'tool_result', content: 'canonical result' },
+                ],
+              },
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+    const restored = buildCampaignState(await fetchCampaignState(campaign.id));
+    expect(restored.messages).toHaveLength(1);
+    expect(restored.messages[0]?.content).toBe('Inspect the quay');
+    expect(restored.messages[0]?.role).toBe('user');
+  });
   it('validates list, detail and create responses', async () => {
     const fetchMock = vi
       .fn()

@@ -35,6 +35,17 @@ export const CampaignSummarySchema = v.object({
   last_session_id: UuidSchema,
   revision: RevisionSchema,
   updated_at: TimestampSchema,
+  current_location: v.optional(
+    v.nullable(
+      v.variant('kind', [
+        v.object({
+          kind: v.literal('authored'),
+          location: v.picklist(['town', 'quay', 'shrine', 'warehouse', 'archive', 'belfry']),
+        }),
+        v.object({ kind: v.literal('scene'), title: v.string() }),
+      ]),
+    ),
+  ),
 });
 
 export const CampaignSchema = v.object({
@@ -50,6 +61,7 @@ export type CampaignSummary = v.InferOutput<typeof CampaignSummarySchema>;
 export type Campaign = v.InferOutput<typeof CampaignSchema>;
 
 export interface CreateCampaignInput {
+  requestId?: string;
   title: string;
   premise: string;
   seed: CampaignSeed;

@@ -43,6 +43,8 @@ pub async fn build_state(settings: &config::Settings) -> anyhow::Result<AppState
     };
     init_db(&pool).await.context("run migrations")?;
     let state = AppState::new(llm, settings.default_model.clone(), pool);
+    state.enable_player_verification();
+    compose_media_assets(&state);
 
     if let Some(control) = adapter_media::LoopbackRuntimeControl::from_env()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?
@@ -57,6 +59,18 @@ pub async fn build_state(settings: &config::Settings) -> anyhow::Result<AppState
     configure_secrets(&state)?;
     configure_embeddings(&state).await;
     Ok(state)
+}
+
+fn compose_media_assets(state: &AppState) -> Arc<app_application::media_assets::MediaAssets> {
+    if let Some(assets) = state.media_assets() {
+        return assets;
+    }
+    let assets = Arc::new(app_application::media_assets::MediaAssets::new(
+        Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone())),
+        Arc::new(adapter_media::asset_codec::RasterContentInspector),
+    ));
+    state.set_media_assets(assets.clone());
+    assets
 }
 
 fn configure_secrets(state: &AppState) -> anyhow::Result<()> {
@@ -125,4 +139,56 @@ async fn invalidate_srd_cache(
         }
     }
     Ok(())
+}
+
+/// Dedicated player router. The native process owner decides when/where to bind it.
+/// Never merge it with the privileged local desktop API on a public interface.
+pub fn build_room_router(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+) -> Router {
+    let dm = app_server::http_services::room_dm_http_service(state, rooms.clone());
+    adapter_http::rooms::router_with_dm(rooms, dm)
+}
+
+/// Compose native-only control when the Tauri process supplied its private token.
+pub fn build_native_room_owner_router(state: AppState, token: String) -> anyhow::Result<Router> {
+    let media_assets = compose_media_assets(&state);
+    let store = Arc::new(adapter_sqlite::SqliteStore::new(state.db().clone()));
+    let bundles = adapter_http::native_bundles::router(
+        Arc::new(crate::campaign_bundles::NativeBundles::new(store.clone())),
+        token.clone(),
+    )
+    .map_err(|_| anyhow::anyhow!("native bundle owner configuration invalid"))?;
+    let rooms = Arc::new(
+        app_application::rooms::RoomService::new(
+            store.clone(),
+            store.clone(),
+            state.secrets_repo(),
+            Arc::new(app_application::rooms::SystemRoomClock),
+        )
+        .with_media_assets(media_assets)
+        .with_dossiers(Arc::new(
+            app_application::campaign_bundles::CampaignBundles::new(
+                store.clone(),
+                Arc::new(adapter_media::bundle_codec::DecodedRasterInspector),
+            ),
+        )),
+    );
+    let listener = Arc::new(crate::room_listener::RoomTcpListener::new(
+        state.clone(),
+        rooms.clone(),
+    ));
+    let client = app_server::native_room_client::service(state.clone())
+        .map_err(|_| anyhow::anyhow!("native guest service configuration invalid"))?;
+    let transport = app_server::native_room_transport::service(state.clone())
+        .map_err(|_| anyhow::anyhow!("native room transport configuration invalid"))?;
+    let service = app_server::http_services::native_room_host_http_service(state, rooms, listener);
+    let host = adapter_http::room_owner::router(service, token.clone())
+        .map_err(|_| anyhow::anyhow!("native room owner configuration invalid"))?;
+    let guest = adapter_http::room_owner::client_router(client, token.clone())
+        .map_err(|_| anyhow::anyhow!("native guest owner configuration invalid"))?;
+    let broker = adapter_http::room_owner::transport_router(transport, token)
+        .map_err(|_| anyhow::anyhow!("native transport owner configuration invalid"))?;
+    Ok(host.merge(guest).merge(broker).merge(bundles))
 }

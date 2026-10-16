@@ -22,6 +22,17 @@ pub struct AgentToolCatalog {
 }
 
 impl AgentToolCatalog {
+    pub fn for_context(&self, combat_active: bool, adventure_active: bool) -> Vec<Tool> {
+        let mut tools = self.for_combat_state(combat_active);
+        tools.retain(|tool| {
+            if adventure_active {
+                authored_tool_allowed(&tool.name)
+            } else {
+                tool.name != "adventure_action"
+            }
+        });
+        tools
+    }
     pub fn for_combat_state(&self, combat_active: bool) -> Vec<Tool> {
         if combat_active {
             self.combat.clone()
@@ -29,6 +40,21 @@ impl AgentToolCatalog {
             self.exploration.clone()
         }
     }
+}
+
+pub fn authored_tool_allowed(name: &str) -> bool {
+    matches!(
+        name,
+        "adventure_action"
+            | "combat_action"
+            | "rest_action"
+            | "roll_dice"
+            | "query_rules"
+            | "quick_save"
+            | "generate_map"
+            | "generate_illustration"
+            | "generate_video"
+    )
 }
 
 pub fn classify_handler(tool_name: &str) -> &'static str {

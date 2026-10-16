@@ -21,7 +21,7 @@ export interface NpcRecord {
 
 export interface NpcSlice {
   npcs: {
-    records: Record<string, NpcRecord>; // keyed by name
+    records: Record<string, NpcRecord>; // keyed by canonical record ID
     isOpen: boolean;
     upsertNpc: (npc: NpcRecord) => void;
     addFact: (name: string, fact: NpcFact) => void;
@@ -37,18 +37,19 @@ export const createNpcSlice: StateCreator<NpcSlice, [], [], NpcSlice> = (set) =>
     isOpen: false,
 
     upsertNpc: (npc) =>
-      set((s) => ({ npcs: { ...s.npcs, records: { ...s.npcs.records, [npc.name]: npc } } })),
+      set((s) => ({ npcs: { ...s.npcs, records: { ...s.npcs.records, [npc.id]: npc } } })),
 
     addFact: (name, fact) =>
       set((s) => {
-        const existing = s.npcs.records[name];
+        const matches = Object.values(s.npcs.records).filter((npc) => npc.name === name);
+        const existing = s.npcs.records[name] ?? (matches.length === 1 ? matches[0] : undefined);
         if (!existing) return s;
         return {
           npcs: {
             ...s.npcs,
             records: {
               ...s.npcs.records,
-              [name]: { ...existing, facts: [...existing.facts, fact] },
+              [existing.id]: { ...existing, facts: [...existing.facts, fact] },
             },
           },
         };
@@ -58,7 +59,7 @@ export const createNpcSlice: StateCreator<NpcSlice, [], [], NpcSlice> = (set) =>
       set((s) => ({
         npcs: {
           ...s.npcs,
-          records: Object.fromEntries(npcs.map((n) => [n.name, n])),
+          records: Object.fromEntries(npcs.map((n) => [n.id, n])),
         },
       })),
 

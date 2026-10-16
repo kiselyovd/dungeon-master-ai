@@ -17,19 +17,19 @@
   max-height: 90vh;
   overflow: auto;
   color: var(--color-text, #f0e6d6);
-  font-family: var(--font-body, Inter, sans-serif);
+  font-family: var(--font-body);
   box-shadow: var(--shadow-modal, 0 16px 36px rgba(0, 0, 0, 0.55));
 }
 
 .modal h2 {
   margin: 0 0 var(--space-4, 16px) 0;
-  font-family: var(--font-display, Cinzel, serif);
+  font-family: var(--font-display);
   color: var(--color-accent, #d4af37);
 }
 
 .modal h3 {
   margin: var(--space-5, 20px) 0 var(--space-2, 8px) 0;
-  font-family: var(--font-display, Cinzel, serif);
+  font-family: var(--font-display);
 }
 
 .row {

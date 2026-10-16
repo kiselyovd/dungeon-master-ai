@@ -75,3 +75,32 @@ pub fn roll_with_disadvantage(die: Die, modifier: i32, rng: &mut SeededRng) -> (
     let kept = a.min(b) + modifier;
     (kept, [a, b])
 }
+
+/// A d20 test with the full dice evidence. Opposing flags cancel before rolling.
+pub fn roll_d20_detailed(
+    modifier: i32,
+    advantage: bool,
+    disadvantage: bool,
+    rng: &mut SeededRng,
+) -> RollDetail {
+    if advantage == disadvantage {
+        return roll_expr_detailed(
+            &DiceExpr {
+                count: 1,
+                die: Die::D20,
+                modifier,
+            },
+            rng,
+        );
+    }
+    let (total, rolls) = if advantage {
+        roll_with_advantage(Die::D20, modifier, rng)
+    } else {
+        roll_with_disadvantage(Die::D20, modifier, rng)
+    };
+    RollDetail {
+        rolls: rolls.to_vec(),
+        modifier,
+        total,
+    }
+}

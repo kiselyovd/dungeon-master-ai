@@ -44,7 +44,7 @@ pub fn compute_effective_damage(
         DamageRelation::Normal => raw,
         DamageRelation::Resistant => raw / 2,
         DamageRelation::Immune => 0,
-        DamageRelation::Vulnerable => raw * 2,
+        DamageRelation::Vulnerable => raw.saturating_mul(2),
     }
 }
 
@@ -56,6 +56,16 @@ pub fn apply_damage_to_combatant(
     damage_type: DamageType,
     resist: &DamageResistance,
 ) -> i32 {
-    let effective = compute_effective_damage(raw_amount, damage_type, resist);
-    combatant.apply_raw_damage(effective)
+    apply_damage_with_critical(combatant, raw_amount, damage_type, resist, false)
+}
+
+pub fn apply_damage_with_critical(
+    combatant: &mut Combatant,
+    raw_amount: i32,
+    damage_type: DamageType,
+    resist: &DamageResistance,
+    critical: bool,
+) -> i32 {
+    let effective = compute_effective_damage(raw_amount.max(0), damage_type, resist);
+    combatant.apply_raw_damage_with_critical(effective, critical)
 }

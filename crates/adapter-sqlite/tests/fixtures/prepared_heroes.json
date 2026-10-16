@@ -1,0 +1,359 @@
+{
+  "fighter": {
+    "characterId": null,
+    "backstory": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "personalityFlags": [],
+    "spells": {
+      "cantrips": [],
+      "level1": []
+    },
+    "heroClass": "fighter",
+    "name": "Hero",
+    "race": "human",
+    "subclass": null,
+    "background": "soldier",
+    "alignment": "Lawful Neutral",
+    "level": 1,
+    "experience": 0,
+    "experienceNext": 300,
+    "hp": 12,
+    "hpMax": 12,
+    "ac": 18,
+    "initiative": 1,
+    "speedFt": 30,
+    "proficiencyBonus": 2,
+    "abilities": {
+      "str": 16,
+      "dex": 12,
+      "con": 14,
+      "int": 10,
+      "wis": 13,
+      "cha": 11
+    },
+    "savingThrowProfs": {
+      "str": true,
+      "con": true
+    },
+    "skillProfs": {
+      "athletics": true,
+      "intimidation": true
+    },
+    "inventory": [
+      {
+        "id": "longsword",
+        "name": "Longsword",
+        "count": 1,
+        "icon": "sword"
+      },
+      {
+        "id": "shield",
+        "name": "Shield",
+        "count": 1,
+        "icon": "shield"
+      },
+      {
+        "id": "potion-healing",
+        "name": "Potion of Healing",
+        "count": 1,
+        "icon": "potion"
+      },
+      {
+        "id": "gold",
+        "name": "Gold pieces",
+        "count": 30,
+        "icon": "coin"
+      },
+      {
+        "id": "chain-mail",
+        "name": "chain-mail",
+        "count": 1,
+        "icon": "shield"
+      }
+    ],
+    "portraitUrl": null,
+    "portraitAssetId": null,
+    "portraitMediaRef": null,
+    "defense": {
+      "schema_version": 1,
+      "armor_id": "chain-mail",
+      "shield": true
+    },
+    "baseSpeedFt": 30
+  },
+  "rogue": {
+    "characterId": null,
+    "backstory": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "personalityFlags": [],
+    "spells": {
+      "cantrips": [],
+      "level1": []
+    },
+    "heroClass": "rogue",
+    "name": "Hero",
+    "race": "halfling",
+    "subclass": null,
+    "background": "criminal",
+    "alignment": "Chaotic Neutral",
+    "level": 1,
+    "experience": 0,
+    "experienceNext": 300,
+    "hp": 10,
+    "hpMax": 10,
+    "ac": 14,
+    "initiative": 3,
+    "speedFt": 30,
+    "proficiencyBonus": 2,
+    "abilities": {
+      "str": 10,
+      "dex": 16,
+      "con": 13,
+      "int": 12,
+      "wis": 11,
+      "cha": 14
+    },
+    "savingThrowProfs": {
+      "dex": true,
+      "int": true
+    },
+    "skillProfs": {
+      "acrobatics": true,
+      "deception": true,
+      "perception": true,
+      "stealth": true
+    },
+    "inventory": [
+      {
+        "id": "shortbow",
+        "name": "Shortbow",
+        "count": 1,
+        "icon": "bow"
+      },
+      {
+        "id": "shortsword",
+        "name": "Shortsword",
+        "count": 1,
+        "icon": "sword"
+      },
+      {
+        "id": "potion-healing",
+        "name": "Potion of Healing",
+        "count": 1,
+        "icon": "potion"
+      },
+      {
+        "id": "gold",
+        "name": "Gold pieces",
+        "count": 25,
+        "icon": "coin"
+      },
+      {
+        "id": "leather-armor",
+        "name": "leather-armor",
+        "count": 1,
+        "icon": "shield"
+      }
+    ],
+    "portraitUrl": null,
+    "portraitAssetId": null,
+    "portraitMediaRef": null,
+    "defense": {
+      "schema_version": 1,
+      "armor_id": "leather-armor",
+      "shield": false
+    },
+    "baseSpeedFt": 30
+  },
+  "wizard": {
+    "characterId": null,
+    "backstory": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "personalityFlags": [],
+    "spells": {
+      "cantrips": [
+        "fire-bolt",
+        "mage-hand",
+        "light"
+      ],
+      "level1": [
+        "magic-missile",
+        "shield",
+        "sleep",
+        "detect-magic"
+      ]
+    },
+    "heroClass": "wizard",
+    "name": "Hero",
+    "race": "elf",
+    "subclass": null,
+    "background": "sage",
+    "alignment": "Neutral Good",
+    "level": 1,
+    "experience": 0,
+    "experienceNext": 300,
+    "hp": 8,
+    "hpMax": 8,
+    "ac": 12,
+    "initiative": 2,
+    "speedFt": 30,
+    "proficiencyBonus": 2,
+    "abilities": {
+      "str": 9,
+      "dex": 14,
+      "con": 12,
+      "int": 16,
+      "wis": 13,
+      "cha": 10
+    },
+    "savingThrowProfs": {
+      "int": true,
+      "wis": true
+    },
+    "skillProfs": {
+      "arcana": true,
+      "history": true,
+      "investigation": true
+    },
+    "inventory": [
+      {
+        "id": "quarterstaff",
+        "name": "Quarterstaff",
+        "count": 1,
+        "icon": "sword"
+      },
+      {
+        "id": "spellbook",
+        "name": "Spellbook",
+        "count": 1,
+        "icon": "scroll"
+      },
+      {
+        "id": "potion-healing",
+        "name": "Potion of Healing",
+        "count": 1,
+        "icon": "potion"
+      },
+      {
+        "id": "gold",
+        "name": "Gold pieces",
+        "count": 20,
+        "icon": "coin"
+      }
+    ],
+    "portraitUrl": null,
+    "portraitAssetId": null,
+    "portraitMediaRef": null,
+    "defense": {
+      "schema_version": 1,
+      "armor_id": null,
+      "shield": false
+    },
+    "baseSpeedFt": 30
+  },
+  "cleric": {
+    "characterId": null,
+    "backstory": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "personalityFlags": [],
+    "spells": {
+      "cantrips": [
+        "sacred-flame",
+        "guidance",
+        "light"
+      ],
+      "level1": [
+        "bless",
+        "cure-wounds",
+        "guiding-bolt",
+        "healing-word"
+      ]
+    },
+    "heroClass": "cleric",
+    "name": "Hero",
+    "race": "dwarf",
+    "subclass": null,
+    "background": "acolyte",
+    "alignment": "Lawful Good",
+    "level": 1,
+    "experience": 0,
+    "experienceNext": 300,
+    "hp": 11,
+    "hpMax": 11,
+    "ac": 16,
+    "initiative": 0,
+    "speedFt": 25,
+    "proficiencyBonus": 2,
+    "abilities": {
+      "str": 14,
+      "dex": 10,
+      "con": 14,
+      "int": 11,
+      "wis": 16,
+      "cha": 12
+    },
+    "savingThrowProfs": {
+      "wis": true,
+      "cha": true
+    },
+    "skillProfs": {
+      "insight": true,
+      "persuasion": true
+    },
+    "inventory": [
+      {
+        "id": "mace",
+        "name": "Mace",
+        "count": 1,
+        "icon": "sword"
+      },
+      {
+        "id": "shield",
+        "name": "Shield",
+        "count": 1,
+        "icon": "shield"
+      },
+      {
+        "id": "holy-symbol",
+        "name": "Holy symbol",
+        "count": 1,
+        "icon": "scroll"
+      },
+      {
+        "id": "potion-healing",
+        "name": "Potion of Healing",
+        "count": 1,
+        "icon": "potion"
+      },
+      {
+        "id": "gold",
+        "name": "Gold pieces",
+        "count": 15,
+        "icon": "coin"
+      },
+      {
+        "id": "scale-mail",
+        "name": "scale-mail",
+        "count": 1,
+        "icon": "shield"
+      }
+    ],
+    "portraitUrl": null,
+    "portraitAssetId": null,
+    "portraitMediaRef": null,
+    "defense": {
+      "schema_version": 1,
+      "armor_id": "scale-mail",
+      "shield": true
+    },
+    "baseSpeedFt": 25
+  }
+}

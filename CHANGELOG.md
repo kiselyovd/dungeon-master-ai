@@ -4,6 +4,24 @@ All notable changes to this project are tracked here. The format follows [Keep a
 
 Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk schema may change between them. See `docs/RELEASE.md` for the release pipeline and `docs/RELEASE_CHECKLIST.md` for the per-release manual smoke list.
 
+## Unreleased
+
+- Add private full-campaign backups and own-player dossiers with validated media, atomic import into a new campaign and retry receipts.
+- Add native import/export dialogs, preview, cancellation and protection against replacing an existing file.
+- Add scoped read-only hero and journal windows with separate geometry, own portrait previews and access revocation.
+- Add a shared command palette, persistent workspace, native invitation handling, opt-in notifications and single-instance process ownership.
+- Refresh the bilingual tabletop with self-hosted Manrope/Literata, 100 selected generated art masters, whole miniatures and geometry-aligned maps.
+- Require Rust 1.94 or newer to match SQLx 0.9.
+
+- Add the selectable Bell Beneath the Water adventure with persistent locations, discoveries, rescue reward and distinct authored outcomes.
+- Make save restoration invalidate delayed writes and retain retries across reopening the saves screen; coordinate adventure commands with chat.
+
+- Persist character sheets, biographies and selected spells per campaign before entering play.
+- Continue campaigns through one current-state projection; prevent old hero, inventory and late replies from leaking into another chronicle.
+- Capture distinct saves at fresh revisions while keeping retries idempotent.
+- Preserve legacy local hero backups and failed wizard drafts; add campaign-library navigation and localized retry feedback.
+- Add transactional migration, rollback, HTTP and production-root campaign continuation coverage.
+
 ## [v0.12.0-real-engine] - 2026-06-16 - Make everything real (W1-W4)
 
 The "make everything real" workstream: tool stubs are gone and the combat layer runs on real rules. Full design in the planning dir spec `2026-06-09-dmai-make-everything-real-design.md`.

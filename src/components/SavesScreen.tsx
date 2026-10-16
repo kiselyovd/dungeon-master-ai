@@ -1,3 +1,4 @@
+import { DecorativeImage } from '../ui/DecorativeImage';
 /**
  * SavesScreen (M5 P2.13).
  *
@@ -9,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SaveSummary, SaveTag } from '../api/saves';
-import { SAVE_ART } from '../assets/livingTabletop';
+import { SAVE_ART, SAVE_ART_IDS } from '../assets/livingTabletop';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
@@ -53,7 +54,11 @@ interface SaveThumbProps {
 function SaveThumb({ tag, large = false }: SaveThumbProps) {
   return (
     <div className={`dm-save-thumb${large ? ' dm-save-thumb-lg' : ''}`} data-tag={tag}>
-      <img src={TAG_THUMB_SRC[tag]} alt="" className="dm-save-thumb-art" />
+      <DecorativeImage
+        src={TAG_THUMB_SRC[tag]}
+        assetId={SAVE_ART_IDS[tag]}
+        className="dm-save-thumb-art"
+      />
     </div>
   );
 }
@@ -68,6 +73,7 @@ interface SaveRowProps {
 }
 
 function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: SaveRowProps) {
+  const { i18n } = useTranslation('saves');
   const KindIcon = kindIcon(save.kind);
   const TagIcon = tagIcon(save.tag);
   return (
@@ -89,7 +95,7 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: 
             <KindIcon size={10} /> {kindLabel}
           </span>
           <span className="dm-save-row-date">
-            {new Date(save.created_at).toLocaleString(undefined, {
+            {new Date(save.created_at).toLocaleString(i18n.language, {
               month: 'short',
               day: '2-digit',
               hour: '2-digit',
@@ -103,7 +109,7 @@ function SaveRow({ save, active, onClick, tagLabel, kindLabel, untitledLabel }: 
 }
 
 export function SavesScreen() {
-  const { t } = useTranslation('saves');
+  const { t, i18n } = useTranslation('saves');
   const {
     saves,
     selectedSaveId,
@@ -362,7 +368,7 @@ export function SavesScreen() {
                 <div className="dm-save-detail-meta-cell">
                   <div className="dm-save-detail-meta-label">{t('created_label')}</div>
                   <div className="dm-save-detail-meta-value">
-                    {new Date(selected.created_at).toLocaleString()}
+                    {new Date(selected.created_at).toLocaleString(i18n.language)}
                   </div>
                 </div>
               </div>

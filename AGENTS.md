@@ -56,16 +56,38 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 |---|---|
 | `src/main.tsx` | Initializes localization/styles and invokes the production bootstrap. |
 | `src/app/bootstrap.tsx` | Mounts the production React root. |
+| `src/auxiliary.tsx` | Mounts the detached read-only hero/journal root without game-store or provider bootstrap. |
+| `src/app/AuxiliaryApp.tsx` | Composes scoped auxiliary projections and existing read-only views. |
 | `src/app/App.tsx` | Composes feature controllers, shell, and overlays. |
-| `crates/app-bootstrap/src/main.rs` | Stable `dmai-server` binary entry point. |
+| `src/app/GameTableExperience.tsx` | Binds solo/room presentation models and controller ports to the shared table surface. |
+| `src/app/tableAdapters.ts` | Allowlisted public solo/room presentation projections; no transport or rule mutation. |
+| `src/features/game-table/index.ts` | Shared table presentation contracts, scope/context and reusable view surface. |
+| `crates/app-bootstrap/src/main.rs` | Cargo `app-server` binary entry point; packaged as the native `dmai-server` sidecar. |
 | `crates/app-bootstrap/src/wiring.rs` | Constructs concrete adapters and HTTP services. |
+| `crates/app-bootstrap/src/room_listener.rs` | Native-controlled, room-scoped public TCP transport lifecycle inside the backend process. |
 | `crates/app-application/src/lib.rs` | Public use-case, model, and port surface. |
+| `crates/app-application/src/agent/recovery.rs` | Safe player progress derived from validated command receipts; excludes private ledger content. |
+| `crates/adapter-sqlite/src/agent_recovery.rs` | Read-only solo/member recovery with current actor and timeline guards. |
 | `crates/app-domain/src/lib.rs` | Public surface of the deterministic game-domain crate. |
+| `crates/app-domain/src/rest.rs` | Deterministic rest, Hit Point Dice and game-time rules. |
+| `crates/app-application/src/rest.rs` | Scoped rest use case and accepted-character resource mapping. |
+| `crates/adapter-sqlite/src/rest.rs` | Atomic rest receipts, resources and shared session clock. |
 | `crates/adapter-http/src/lib.rs` | Axum router and transport adapter surface. |
 | `src-tauri/src/main.rs` | Native executable entry point. |
 | `src-tauri/src/lib.rs` | Tauri builder, plugins, capabilities, backend process lifecycle, and app events. |
+| `src-tauri/src/processes/lifecycle.rs` | Main-only exit authorization and exactly-once application process cleanup. |
+| `src/features/desktop/DesktopCloseProvider.tsx` | Production close confirmation, live role/scope checks, and registered preparation barriers. |
+| `src-tauri/src/commands/invitations.rs` | Bounded invitation parsing, main-only inbox and opt-in native protocol registration. |
+| `src/features/desktop/DesktopInvitationsProvider.tsx` | Explicit invitation preview through app-owned destination ports. |
+| `src-tauri/src/commands/rooms.rs` | Native host-room commands and private credential/lifecycle state; renderer responses omit capability. |
 | `sidecar/app.py` | FastAPI image/video sidecar application and process entry point. |
 | `scripts/gates.sh` | Consolidated local and CI quality gate. |
+| `scripts/check-visual-assets.ts` | Stable visual manifest, bytes, header and portrait-pair verification. |
+| `src/assets/visualCatalog.ts` | Versioned visual identities and category-aware reference resolution. |
+| `crates/app-application/src/media_assets.rs` | Owned media registration, verified lookup and portable reference use cases. |
+| `crates/adapter-sqlite/src/media_assets.rs` | Immutable image bytes, ownership, actor bindings and selected map persistence. |
+| `src/features/media/` | Scoped image resources and non-destructive portrait migration. |
+| `crates/adapter-llm/src/native_runtime.rs` | Trusted native model identity and current-port binding for the default alias. |
 | `package.json` | Bun frontend scripts and JavaScript dependency manifest. |
 | `Cargo.toml` | Rust workspace membership and shared dependencies. |
 
@@ -78,6 +100,16 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | Release guide | `docs/RELEASE.md` | Release workflow and operational guidance. |
 | Release checklist | `docs/RELEASE_CHECKLIST.md` | Detailed release verification checklist. |
 | Sidecar guide | `sidecar/README.md` | Python media-sidecar setup and runtime notes. |
+| Campaign state | `docs/CAMPAIGN_STATE.md` | Current-state continuation, character recovery, snapshots, and verification boundaries. |
+| Authored adventure | `docs/AUTHORED_ADVENTURE.md` | Bundled Bell adventure, state transitions, consequence rules and acceptance evidence. |
+| AI turn recovery | `docs/AI_TURN_RECOVERY.md` | Durable delivery receipts, authority, retry behavior and remaining interrupted-turn work. |
+| Hero identities | `docs/visual/HERO_IDENTITIES.md` | Reviewed portraits, paired miniatures, persistence and visual verification. |
+| NPC portraits | `docs/visual/NPC_PORTRAITS.md` | Stable generic identities, authored public reveal and portrait QA. |
+| Opponent miniatures | `docs/visual/OPPONENT_MINIATURES.md` | Explicit public bindings, alpha bounds, tactical anchors and visual QA. |
+| Key and save art | `docs/visual/KEY_SAVE_ART.md` | Generic atmosphere, full-frame previews, fallback and crop verification. |
+| Bell scene paintings | `docs/visual/BELL_SCENES.md` | Public current-location bindings, shared preview and restore evidence. |
+| Map skins | `docs/visual/MAP_SKINS.md` | Explicit geometry-calibrated bindings, neutral rejection and layer validation. |
+| Offline illustrations | `docs/visual/OFFLINE_ILLUSTRATIONS.md` | Stable scenic fallback categories, provenance and shared full-view behavior. |
 
 ## AI Context Files
 
@@ -90,6 +122,8 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 | `.ai-factory/rules/base.md` | Codebase-derived naming, structure, error, logging, and test conventions. |
 
 ## Agent Rules
+
+- The AI is the shared Dungeon Master: narration, NPC portrayal and scene/combat adjudication. Every player hero is human-controlled; never implement an autonomous AI hero or let the DM choose a hero's decisions or dialogue. Keep trusted DM knowledge (accepted party biographies and hidden canon), player-visible information and mechanical actor authority separate. Never publish private DM reasoning to player streams, including collaborative campaigns.
 
 - Preserve inward dependency direction. Domain rules belong in `app-domain`; use cases and ports belong in `app-application`; HTTP, SQLite, LLM, media, and secrets remain isolated adapters; concrete backend wiring belongs in `app-bootstrap`; native process ownership belongs in `src-tauri`; heavy inference belongs in `sidecar`.
 - Keep React as a presentation adapter. Combat mechanics are server-authoritative, features do not import sibling internals, API modules do not import Zustand/components, and app modules own composition only.

@@ -44,6 +44,255 @@ pub trait CampaignRepository: Send + Sync {
 }
 
 #[async_trait]
+pub trait CampaignStateRepository: Send + Sync {
+    async fn load_current(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+    async fn commit_character(
+        &self,
+        command: crate::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+}
+
+#[async_trait]
+pub trait RestRepository: Send + Sync {
+    async fn status(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<crate::models::rest::RestStatus, RepositoryError>;
+    async fn rest(
+        &self,
+        command: crate::models::rest::RestCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::rest::RestResult, RepositoryError>;
+}
+
+#[async_trait]
+pub trait PartyRepository: Send + Sync {
+    async fn initialize_party(
+        &self,
+        command: crate::models::party::InitializeParty,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
+    async fn party(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<Option<crate::models::party::PartyState>, RepositoryError>;
+    async fn enroll_party_character(
+        &self,
+        command: crate::models::party::EnrollPartyCharacter,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
+}
+
+#[async_trait]
+pub trait RoomRepository: Send + Sync {
+    async fn bind_room_dm_environment(
+        &self,
+        _lease: &crate::models::room::RoomLease,
+        _turn: Uuid,
+        _owner: Uuid,
+        _environment: &crate::agent::operations::ExecutionEnvironment,
+        _resuming: bool,
+    ) -> Result<(), RepositoryError> {
+        Err(RepositoryError::Operation {
+            operation: "room_environment",
+            code: "agent_original_environment_unavailable",
+        })
+    }
+    async fn room_dm_request(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+    ) -> Result<Option<crate::agent::operations::AgentOperation>, RepositoryError>;
+    async fn claim_room_dm_turn(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        input: crate::agent::operations::AgentOperation,
+        owner: Uuid,
+        resume: bool,
+    ) -> Result<crate::agent::operations::OperationClaim, RepositoryError>;
+    async fn append_room_dm_event(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        sequence: u64,
+        event: crate::models::agent::AgentEvent,
+    ) -> Result<(), RepositoryError>;
+    async fn finish_room_dm_turn(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn: Uuid,
+        owner: Uuid,
+        complete: bool,
+    ) -> Result<(), RepositoryError>;
+
+    /// Trusted Dungeon Master context only; never return this through a player endpoint.
+    async fn room_dm_party(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<crate::models::party::PartyState, RepositoryError>;
+    async fn append_room_agent_message(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        message: crate::models::chat::ChatMessage,
+    ) -> Result<crate::models::campaign::StoredMessage, RepositoryError>;
+    async fn room_agent_checkpoint(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+    ) -> Result<Vec<crate::models::campaign::StoredMessage>, RepositoryError>;
+    async fn replay_room_agent_tool(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::AgentToolCommand,
+    ) -> Result<Option<crate::agent::tool_dispatch::ToolExecution>, RepositoryError>;
+    async fn prepare_room_agent_tool(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::AgentToolCommand,
+    ) -> Result<crate::models::room_agent::PreparedRoomTool, RepositoryError>;
+    async fn resolve_room_skill_check(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        turn_id: Uuid,
+        tool_id: &str,
+        command: crate::agent::commands::RollDiceCommand,
+        rng_seed: u64,
+    ) -> Result<serde_json::Value, RepositoryError>;
+    async fn act_room_adventure(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_world::RoomAdventureCommand,
+    ) -> Result<crate::models::room_world::RoomWorldReceipt, RepositoryError>;
+    async fn recover_room_hero(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_recovery::RoomRecoveryCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_recovery::RoomRecoveryReceipt, RepositoryError>;
+    async fn room_rest_status(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<crate::models::rest::RestStatus, RepositoryError>;
+    async fn rest_room(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_world::RoomRestCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_world::RoomWorldReceipt, RepositoryError>;
+    async fn room_updates(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        after: Option<u64>,
+        force_snapshot: bool,
+    ) -> Result<Option<crate::models::room_state::RoomUpdate>, RepositoryError>;
+    async fn room_combat(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        encounter: Uuid,
+    ) -> Result<crate::models::combat::CombatProjection, RepositoryError>;
+    async fn act_room_combat(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        encounter: Uuid,
+        command: crate::models::room_combat::RoomCombatCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::room_combat::RoomCombatResult, RepositoryError>;
+    async fn submit_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_character::SubmitRoomCharacter,
+    ) -> Result<crate::models::room_character::ProposalSummary, RepositoryError>;
+    async fn own_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<Option<crate::models::room_character::OwnCharacterProposal>, RepositoryError>;
+    async fn pending_character_proposals(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<Vec<crate::models::room_character::ProposalSummary>, RepositoryError>;
+    async fn approve_character_proposal(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        command: crate::models::room_character::ApproveRoomCharacter,
+    ) -> Result<crate::models::room_character::CharacterApproval, RepositoryError>;
+    async fn room(
+        &self,
+        room_id: Uuid,
+    ) -> Result<Option<crate::models::room::RoomRecord>, RepositoryError>;
+    async fn find_creation(
+        &self,
+        campaign_id: CampaignId,
+        id: &str,
+        signature: &str,
+    ) -> Result<Option<crate::models::room::RoomRecord>, RepositoryError>;
+    async fn create_room(
+        &self,
+        room: crate::models::room::RoomRecord,
+        id: &str,
+        signature: &str,
+    ) -> Result<crate::models::room::RoomRecord, RepositoryError>;
+    async fn find_join(
+        &self,
+        room_id: Uuid,
+        join_id: Uuid,
+    ) -> Result<Option<crate::models::room::RoomJoinRecord>, RepositoryError>;
+    async fn commit_join(
+        &self,
+        command: crate::models::room::CommitRoomJoin,
+    ) -> Result<crate::models::room::RoomJoinRecord, RepositoryError>;
+    async fn leave_member(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        expected_epoch: u64,
+        request_id: &str,
+    ) -> Result<crate::models::room::RoomDepartureReceipt, RepositoryError>;
+    async fn return_member(
+        &self,
+        room_id: Uuid,
+        member_id: Uuid,
+        credential_id: Uuid,
+        expected_epoch: u64,
+        expected_departure_epoch: u64,
+        request_id: &str,
+    ) -> Result<(), RepositoryError>;
+    async fn close_room(
+        &self,
+        lease: &crate::models::room::RoomLease,
+    ) -> Result<(), RepositoryError>;
+    async fn revoke_member(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        member_id: Uuid,
+    ) -> Result<(), RepositoryError>;
+    async fn rotate_invitation(
+        &self,
+        lease: &crate::models::room::RoomLease,
+        invitation: crate::models::room::RoomInvitation,
+    ) -> Result<(), RepositoryError>;
+}
+
+#[async_trait]
+pub trait AdventureRepository: Send + Sync {
+    async fn act_as_dm(
+        &self,
+        _intent: crate::models::adventure::AdventureIntent,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError> {
+        Err(RepositoryError::NotFound)
+    }
+    async fn act(
+        &self,
+        command: crate::models::adventure::AdventureCommand,
+    ) -> Result<crate::models::campaign_state::CampaignSessionState, RepositoryError>;
+}
+
+#[async_trait]
 pub trait SessionRepository: Send + Sync {
     async fn get(&self, session_id: SessionId) -> Result<Option<CampaignSession>, RepositoryError>;
     async fn latest_for_campaign(
@@ -123,11 +372,27 @@ pub trait SnapshotRepository: Send + Sync {
 
 #[async_trait]
 pub trait CombatRepository: Send + Sync {
+    async fn find_action(
+        &self,
+        encounter_id: Uuid,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<Option<CombatProjection>, RepositoryError>;
+
+    /// Commit the projection and its immutable request/result receipt in the
+    /// same transaction. A simultaneous exact duplicate returns that receipt.
+    async fn commit_action(
+        &self,
+        expected_revision: u64,
+        projection: CombatProjection,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<crate::models::combat::CombatActionCommit, RepositoryError>;
     async fn create(
         &self,
         session_id: Uuid,
         projection: CombatProjection,
-    ) -> Result<(), RepositoryError>;
+    ) -> Result<CombatProjection, RepositoryError>;
 
     async fn get(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError>;
 
@@ -162,4 +427,17 @@ pub trait SceneRepository: Send + Sync {
 pub trait SrdRepository: Send + Sync {
     async fn search(&self, query: &str, limit: usize)
         -> Result<Vec<SrdReference>, RepositoryError>;
+}
+
+#[async_trait]
+pub trait SoloRecoveryRepository: Send + Sync {
+    async fn recovery_status(
+        &self,
+        id: CampaignId,
+    ) -> Result<crate::models::solo_recovery::SoloRecoveryStatus, RepositoryError>;
+    async fn recover_solo(
+        &self,
+        command: crate::models::solo_recovery::SoloRecoveryCommand,
+        rng_seed: u64,
+    ) -> Result<crate::models::solo_recovery::SoloRecoveryResult, RepositoryError>;
 }

@@ -1,0 +1,855 @@
+# Implementation Plan: Reliable, Unified and Visually Rich Desktop Game
+
+Branch: `codex/solo-coop-playability`
+Created: 2026-10-12
+Status: in progress; Tasks1-5,7-33 and35-40 verified (38/44). Checkpoint10 committed100ad73; Tasks40-42 grouped for checkpoint11. Task41 native portability UI is next. Task34 physical native125/150/200 DPI and Task6 real-model after-effects recovery remain open. All necessary packages are explicitly authorized.
+Planning baseline: `890ab4cab4f547d05a257c74108c9be5323635b4` plus the actual inherited dirty worktree.
+Plan mode: `$aif-plan full`; subsequent execution uses AI Factory only.
+
+## Original Request
+
+Давай сделай через $aif-plan full подробный план всех этих улучшений в актуальной ветке: восстановление после ошибок, чистка текста и онбординга, единый стол для соло и co-op, анимации и десктопные фичи. И я бы прокачал UI, шрифт, визуал, побольше негенерируй текстур, блоков, задних фонов, более качественных картинок персонажей, карт, самих мини фигурок персонажей на карте и прочего
+
+## Confirmed preferences and settings
+
+- Testing: yes; meaningful behavioral/contract regressions, real production-root coverage, production-build browser and native checks.
+- Logging: verbose, using existing structured development logging with safe IDs/codes/counts/durations. Production noise remains reducible through current logging controls.
+- Docs: yes; mandatory documentation checkpoints routed through `$aif-docs` during implementation.
+- Visual direction: user-confirmed rich fantasy tabletop world with physical materials, paintings and dimensional-looking miniatures.
+- Artifacts: English, following `.ai-factory/config.yaml`; RU/EN product copy remains in locale catalogs.
+- Git: remain in the existing managed worktree and current branch. The explicit user branch instruction overrides automatic new-branch creation.
+- Execution: ordered local checkpoints through `$aif-implement`; this planning turn writes plan files only and does not implement or generate production assets.
+- Dependencies: on 2026-10-14 the user approved the three proposed Tauri plugins, then the Windows notification dependency, then explicitly authorized all necessary packages. That authorization supersedes the original dependency approval prerequisite; it does not authorize push, release or production-profile installation.
+- Publication: no push, merge, tag, release, installation over a user's profile or deployment is authorized.
+
+## Completed foundation and parallel active work
+
+The former branch-bound foundation plan is preserved byte-for-byte at `codex-solo-coop-playability-foundation-completed.md` in this directory. Its completed tasks and historical evidence remain unchanged.
+Original foundation SHA256: `7446532d763d9566bca67971a309d02fbb2e9163d135ed31bc6009a5ad44c59d`.
+
+This file is now the discoverable active full plan for the current branch. Do not restart delivered campaign persistence, ownership, authored adventure or canonical mechanics.
+
+Existing `.ai-factory/plans/codex-ai-solo-mechanics.md`, `codex-lan-coop.md`, `codex-hero-recovery.md`, `codex-defense-equipment.md` and `codex-bell-adventure.md` remain authoritative for their unfinished mechanics/model/native acceptance. This plan consumes their contracts and contributes UI/recovery/native evidence; it does not silently mark them complete.
+
+## Goal and measurable outcomes
+
+Let a solo player or LAN/VPN group enter a prepared adventure quickly, understand confirmed actions, recover interrupted delivery without duplicate effects, and play through the same readable, attractive desktop table.
+
+- Prepared adventure route performs real steps: Adventure -> Hero -> First scene; optional media setup is deferred.
+- Guest entry does not require a local model or solo hero setup.
+- Chat composer, scene/map and relevant action/recovery controls remain simultaneously reachable at 960x640 and 1280x800.
+- Recovery is discovered before the next mutation and resumes the same durable identity.
+- One design-token system provides consistent RU/EN typography, quiet rich materials, public portraits and full miniature silhouettes for every actor.
+- The final production catalog contains 100 selected masters with real consumers, stable references and offline fallback; thumbnail variants and unused images do not count.
+- Window/workspace restoration, command palette, valid invitation links, notifications, portable campaigns and read-only detached windows work through native adapters.
+- Full real-model peaceful/defensive and physical LAN acceptance remains a separate mandatory playability verdict, never inferred from browser fixture success.
+
+## Evidence from the 2026-10-12 exploration
+
+- The main checkout is on the older `feature/refactor-project-strict-explicit-architecture`; this worktree is the latest implementation branch at 890ab4c.
+- Production build passed. Lint completed without errors, with seven existing warnings and one configuration deprecation information item.
+- Selected production-browser scenarios: 13/13 passed; room-production: 7 passed and 1 timed out waiting for the recovery button. This is not a full current gates/native/model acceptance.
+- **Corrected diagnosis:** the room failure fixture reports canonical pending_action=null after an injected failed stream. The controller refreshes that canonical value and consequently hides retry. Actual native code persists pending before dispatch and retains it on stream failure. Correct fixture fidelity and native proof first; do not call the observed fixture failure an established native defect.
+- Preset choice scrolls at 1280x800, uses 11px explanatory copy and repeats technical choices. Campaign creation contains two informational handoff screens.
+- Campaign cards translate a technical revision into 'Глава'; they show a raw ruleset ID. Runtime UI explains backend port plumbing.
+- Co-op uses a scrolling page with battle above party/chat; solo already has a persistent map/chat shell.
+- Transparent miniatures are clipped into portrait circles; other actors can become initials. Authored geometry suppresses raster map backgrounds.
+- Portrait fallback currently maps non-map styles, including character_portrait, to scene Illustration: this semantic mismatch requires a regression and correction.
+- Current visual corpus: 33 frontend images (~6.30 MB), 16 bundled maps/illustrations (~1.89 MB), 34 local font files (~0.99 MB). Latin/Cyrillic display headings use different families.
+- Latest real Qwen/Bonsai notes still do not establish complete model-led playability; two native clients on one machine do not establish separate-device LAN/VPN acceptance.
+
+Local exploration evidence: `.artifacts/ux-audit-20261012/{report.json,game-report.json,*.png}`, `.artifacts/room-ui-production-browser.png`, `.artifacts/room-combat-production-browser.png`, and the failing room test trace. These files are ephemeral evidence, not checked-in product assets.
+
+## Research Context
+
+Source: `.ai-factory/RESEARCH.md` (Agreed intent and Proposed authority and content contract; Updated: 2026-10-06; SHA256: 3b479742b6ab90427a07c56c7b1837a828ffd84e9b246040c50b7952b4d9b288)
+Snapshot scope: the verbatim content between the markers below, normalized to LF, trimmed trailing spaces and one final newline. Older 'Initial audit' gaps are historical and are not blindly treated as current requirements.
+
+<!-- uiux:research-copy:start -->
+## Agreed intent
+
+- Finish a complete playable adventure with an AI Dungeon Master.
+- Use one authoritative campaign system for solo and cooperative play.
+- Cooperative players use separate devices, initially over LAN or VPN.
+- Prepare world history, characters, secrets and consequences in advance rather than delegating their invention to a small runtime model.
+- Evaluate the installed Ternary Bonsai 2 27B as a replacement candidate.
+- Preserve existing worktree changes. Add no production dependencies without approval.
+
+Working assumptions: 1 player in solo; 2-4 players in cooperative play; AI is the Dungeon Master; a player hosts campaign storage and inference. These assumptions remain adjustable. Initial host migration, public matchmaking, voice chat and public Internet relay are outside this first delivery.
+
+## Proposed authority and content contract
+
+Host-owned state: campaign, participant membership, character ownership, current scene, encounter, resources, discovered clues, NPC facts, journal, rewards, save revisions and adventure flags.
+
+Clients send intentions. The server checks membership, character ownership, turn, resources, range, request identity and expected revision. Attack modifiers and equipment effects are derived from canonical sheets, not trusted client values. The AI proposes narrative and permitted tools; the engine accepts or rejects changes and supplies their actual outcomes.
+
+One ordered execution lane per campaign prevents two simultaneous AI turns from interpreting the same obsolete state. Chat discussion may remain concurrent. In combat, only the current actor can commit its turn actions. Outside combat, participants may submit individual actions or explicitly agree a group action; the system does not require every player to answer before every narration.
+
+An adventure package should separate:
+
+1. immutable world canon and actual secrets;
+2. player-visible facts;
+3. each NPC's knowledge, beliefs, agenda and possible lies;
+4. authored scene descriptions, connections, clues and encounters;
+5. runtime facts and explicit consequence rules;
+6. optional flavor the model may invent without changing canon.
+
+The model receives the current scene, relevant canon, participant sheets, known clues and the engine's recent outcomes. Hidden information is supplied only when needed for DM reasoning, never copied into ordinary player events. The whole adventure is not injected into every turn.
+
+The model may vary wording, gestures and nonessential background detail. It may not invent new quest-critical objects, rewrite secrets, grant resources, resurrect characters, reveal undiscovered clues as already known, or silently change scene. Unsupported actions receive an honest response with alternatives. No player action is committed merely because prose describes it.
+
+Narrative proposals and their mechanical events need a recoverable operation record. Cancellation before commit changes no resources; interruption after commit resumes from the recorded outcome without rerolling or duplicating effects. The policy for partial multi-tool turns must be explicit in the implementation specification.
+<!-- uiux:research-copy:end -->
+
+## Roadmap linkage
+
+Skipped: the configured `.ai-factory/ROADMAP.md` does not exist. The current request and active branch are the scope anchor. Do not create a roadmap or modify rules/research under this planning command.
+
+## Architecture and non-negotiable boundaries
+
+- Follow `.ai-factory/ARCHITECTURE.md` over stale overview descriptions in older context files.
+- Deterministic rules stay in app-domain; use cases/read projections and ports in app-application; SQLite/HTTP/media/LLM/secrets remain isolated adapters. Backend composition stays in app-bootstrap.
+- Tauri remains the sole owner of native windows, runtime processes, room IPC and OS/file integration.
+- React is presentation and intention dispatch. New game-table views accept neutral props/ports; no feature imports a sibling feature's internals. App modules compose controllers/adapters and must not accumulate new workflows.
+- Retain authenticated participant ownership, stable actor IDs, server revision ordering, receipt replay, partial-command recovery, publication checks and timeline reset guards.
+- Never publish DM reasoning, semantic checker drafts, hidden knowledge or other players' biographies as chat, progress, notifications or export previews.
+- Extend existing visual/spacing/type/motion tokens in place; retire superseded values after consumer verification. The explicit visual upgrade permits changing the current system, not creating a parallel system.
+- Images do not define mechanical armor, collision, walls, doors, range or rewards. Canonical geometry remains authoritative; art is a calibrated skin.
+- Keep machine contracts in English and visible labels in RU/EN catalogs. Preserve supported save/media contract IDs and use additive migrations.
+- Preserve the actual dirty baseline and existing user art; no broad formatting, cleanup, database reset or automatic source-cache deletion.
+- Logs contain safe IDs, phase, revisions, sizes and durations only; no prompts, text bodies, biographies, keys, invitation URIs, capability/resume proofs or base64.
+
+## Compact design brief
+
+### Visual language
+
+Evolve the existing calm painted fantasy: worn oak, quiet stone, parchment, cloth, restrained metal, warm practical light and violet/gold accents. Use rich backgrounds and edge detail to frame the game; keep prose, forms and combat data on quiet surfaces. Avoid glowing borders around every block, texture behind every line of prose, tiny uppercase paragraphs and inconsistent mixed-script headings.
+
+### Typography
+
+Default production candidate: Manrope for controls and Literata for narration/headings, with existing JetBrains Mono only for developer diagnostics. Verify real licenses/subsets and compare on RU/EN screen specimens before integration. Primary control text >=14px; narration 16-18px with adjustable reading scale, line height about 1.6-1.75 and bounded line length. Hierarchy comes from roles and spacing, not additional decorative fonts.
+
+### Table layout and entry
+
+Prepared play: choose adventure, choose/create its hero, enter the first real scene. Guests: open/paste invitation, review room, choose name/hero, join. Model preparation is essential only for the inference owner; images/video and expert settings are optional.
+
+The shared table keeps a compact header/party status, one scene or tactical map area, stable chat/composer and contextual actions. Hero/journal/NPC/goals use a reusable side panel; standalone dialogs remain available where focus or confirmation matters. Room setup/recovery administration is contextual and does not dominate the game.
+
+### Motion
+
+Use the current 120/180/280ms hierarchy. Animate public canonical changes and navigation continuity, not fake work progress or unconfirmed mechanics. Reduced-motion and background visibility affect both CSS and JS timing; no animation blocks an otherwise available input.
+
+### Miniatures
+
+2D raster artwork with a dimensional painted miniature appearance, not a new 3D renderer. One complete actor per transparent image, matched portrait identity, common three-quarter overhead camera and feet anchor, unclipped weapons, code-rendered ground shadow/rings/status. Test at full size and actual 30/48/64px presentation; logical cell hit targets remain unchanged.
+
+### Map treatment
+
+Upgrade general bundled maps as artwork. Only a calibrated skin based on current authored geometry may be advertised as a tactical map. The current Archive is 12x8 with wall x=6 excluding passage y=3 and exit (1,3); verify current source before generation. Other Bell locations get atmospheric paintings unless a separately implemented geometry exists.
+
+## Production art inventory: 100 selected masters
+
+| Category | Count | Required consumers |
+|---|---:|---|
+| Materials | 12 | Table, quiet panels, journal/save surfaces |
+| Transparent scalable frame/edge kits | 4 | Portraits, panels, journal/page and campaign cards |
+| Key and save illustrations | 7 | 3 key images and 4 save categories |
+| Bell location paintings | 6 | Town, quay, shrine, warehouse, archive, belfry |
+| Hero portraits | 16 | Four distinct identities for each of four currently selectable classes |
+| Matched hero miniatures | 16 | Every portrait pair selectable and persisted in solo/co-op |
+| NPC portraits | 14 | 8 generic archetypes plus all 6 named Bell NPCs |
+| Opponent miniature archetypes | 8 | Water Echo and 7 catalog-backed public archetypes |
+| Tactical/general map images | 9 | 8 bundled maps plus 1 exact Archive skin |
+| Bundled scene illustrations | 8 | Existing provider fallback categories |
+| **Total** | **100** | Each retained master has a real consumer |
+
+Existing satisfactory assets may be retained only after the same quality/provenance/consumer review; high-quality variants are selected rather than generated just to raise a count. The pilot is included, not extra. Four old generic transition roles reuse selected location/fallback illustrations; retained raw originals are excluded from shipping imports unless explicitly counted. Custom player media is durable user content and is not part of this fixed built-in 100-master count. No new character class or combat mechanic is inferred from the art inventory.
+
+### Asset production rules
+
+- Use the built-in imagegen workflow for requested raster authoring and artistic edits; one call per distinct asset/variant. Inspect local references before editing; preserve true alpha for miniatures/frames. Do not silently switch to API-key CLI generation.
+- Generate source-appropriate framing rather than baking UI text/buttons or relying on destructive portrait crops. Existing SVG icons and deterministic geometric overlays remain code-native.
+- Save selected shipping images under project production asset paths and wire consumers before counting delivery. Keep approved source masters and generation/provenance records under a durable workspace directory outside Vite/Rust packaged imports; rejected candidates are not bundled.
+- Use existing asset tooling for measured encoding/derivative export where available; any new production package needs explicit approval. Artistic changes/background removal use imagegen, not an unrequested custom image-editing fallback.
+- Manifest records stable ID/version, category, portrait/miniature identity, dimensions, alpha, SHA256, bytes, derivatives, source/reference/generator identifiers, license/usage record, consumer and selection notes.
+- Core presets remain the currently supported fighter/rogue/wizard/cleric. Diversity is visual; identity and public permissions remain canonical. Generic NPC assignment must not change with catalog length.
+- Generate and integrate in the bounded waves in Tasks 21-31. Inspect every final asset plus actual-size/table screenshots; no 'more files' substitute for readable, consistent art.
+
+### Initial budget targets
+
+Measure and confirm these in Task 7 before bulk waves: materials <=220KiB, optimized portrait <=180KiB, miniature derivative <=350KiB, wide illustration <=450KiB, existing bundled map <=512KiB, calibrated Archive skin <=900KiB. Target total encoded shipping art/fonts <=32MiB and visible decoded art <=96MiB. These are proposed project budgets, not already measured results.
+
+Use portrait/miniature derivatives appropriate for 96/256/512px surfaces and 1280/1920px scenes, where existing tooling supports them. Keep higher-resolution approved originals outside installers. A justified measured budget change is recorded in the visual manifest/design decision before bulk production; do not degrade all art blindly to hit an arbitrary number.
+
+## Native dependency decision
+
+| Capability | Preferred existing path / proposed addition | Prerequisite |
+|---|---|---|
+| Workspace/window state | Existing Tauri core + store first; window-state plugin only if justified | Measured restore/DPI semantics |
+| Command palette | Existing React/ui Modal and injected command registry | No new production package |
+| Single instance | tauri-plugin-single-instance if approved | Register before process setup; preserve QA profile identities |
+| OS invitation protocol | tauri-plugin-deep-link if approved; paste-link parser works first | Single instance, bounded URI grammar, native validation |
+| OS notifications | tauri-plugin-notification if approved | Opt-in/focus/dedup behavior |
+| Native file pickers | tauri-plugin-dialog if approved | Portable bundle contract and narrow path capability |
+| Portable bundle encoding | Existing dependencies first; compression library only if needed/approved | Versioned schema, bounds, rollback and private-data policy |
+| Detached windows | Existing Tauri core and per-label capabilities | Exactly-once process shutdown refactor |
+
+Before adding a package during implementation, prepare a concrete reviewable dependency/capability change with supported version, license, platform/toolchain compatibility and narrowly scoped permissions, then obtain the missing explicit approval. Do not install during planning, add broad filesystem capabilities, use permission workarounds or claim paste-link tests prove OS registration.
+
+Not included: autonomous player heroes, a new 3D engine, cloud sync/relay, public matchmaking, voice chat, host migration, implicit tray hosting, unimplemented PDF/DOCX ingestion, model training or an unapproved model download. These do not block independently authorized UI/asset work.
+
+## Commit plan
+
+| Checkpoint | Tasks | Suggested local commit |
+|---|---|---|
+| 1 | 1-3 | fix(recovery): align durable pending contracts and fixtures |
+| 2 | 4-6 | feat(recovery): expose proactive safe continuation |
+| 3 | 7-11 | feat(visual): establish typography materials and semantic assets |
+| 4 | 12-15 | feat(onboarding): shorten entry and progressive setup |
+| 5 | 16-20 | feat(tabletop): unify solo and cooperative game surfaces |
+| 6 | 21-24 | feat(art): ship matched hero portraits and miniatures |
+| 7 | 25-28 | feat(art): ship NPC opponents and key illustrations |
+| 8 | 29-31 | feat(art): ship authored scenes and calibrated maps |
+| 9 | 32-35 | feat(desktop): add purposeful motion workspace and commands |
+| 10 | 36-39 | feat(native): add scoped lifecycle links and notifications |
+| 11 | 40-42 | feat(campaigns): add portability and detached read-only views |
+| 12 | 43-44 | perf(ui): validate polished desktop delivery and offline assets |
+
+Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art before the pilot/catalog/renderer can consume it. Tests and asset production may proceed independently of unresolved model quality, but final full-playability acceptance must remain honest. Commit only checkpoint-owned changes after relevant checks; never git add . or include inherited hunks. Planning creates no commits.
+
+## Tasks
+
+### Baseline and recovery
+
+- [x] **Task 1: Freeze the actual dirty-worktree baseline and reproducible UX scenarios**
+
+  **Files / ownership:** Existing scripts/gates.sh, e2e/playwright.config.ts, e2e/{campaign-home,living-tabletop,settings,room-production,agent-failure}.spec.ts; new .artifacts/product-uiux/ evidence during implementation.
+
+  **Deliverable:** Record HEAD plus owned/unrelated source hashes before implementation. Reproduce the 2026-10-12 production-build screens at 1280x800 and 960x640. Preserve the inherited 39 dirty tracked files and untracked tests; edits to overlapping files must be staged by owned hunks. Bind every subsequent check to the actual worktree/build rather than clean HEAD.
+
+  **Verification / acceptance:** Run the focused baseline, lint and production build. Record existing warnings, the co-op retry fixture failure, measured navigation and asset payloads. Existing defects remain named; no skipped assertion or false full-suite PASS.
+
+  **Logging:** DEBUG safe file/build hashes and test IDs; INFO baseline result and duration; WARN named inherited failures. No source bodies, campaign content, keys or screenshots containing invitations.
+
+- [x] **Task 2: Make the interrupted co-op fixture match durable native pending behavior** (depends on 1)
+
+  **Files / ownership:** e2e/room-production.spec.ts, src/features/rooms/model/RoomController.test.ts, src/api/roomStream.test.ts; existing crates/app-server/src/native_room_transport/stream.rs and transport integration tests.
+
+  **Deliverable:** The current fixture always returns null for pending_action, so refresh removes the retry button after an injected failure. Persist the fixture pending request before stream dispatch, retain it on SSE error/EOF/cancel, clear on agent_done and retain clarification identity on agent_needs_input. Add distinct definitive-rejection and unavailable-pending responses. Do not add a speculative frontend fallback that contradicts canonical state.
+
+  **Verification / acceptance:** The original guest retry scenario passes with the same request_id and resume=true. Add failure-after-commit, failure-before-commit, clarification and terminal-rejection cases. Native transport integration verifies matching persistence/clear semantics, independently of the fixture.
+
+  **Logging:** DEBUG request ID, operation kind, lifecycle and clear reason; INFO recovered delivery; WARN interrupted transport; ERROR persistence failure. Raw invitation/resume proofs stay private.
+
+- [x] **Task 3: Define a safe shared recovery projection over existing canonical ledgers** (depends on 2)
+
+  **Files / ownership:** crates/app-application/src/agent/recovery.rs, agent/mod.rs and models/room_transport.rs; adapter-http routes/services; adapter-sqlite agent_recovery.rs, human_commands.rs, room_human_commands.rs and operation actor-scope guards with additive migration 0022_agent_actor_scope.sql; app-server transport/service delegation; src/api/{agentRecovery,agentPending,rooms}.ts and contracts; src/features/recovery/model/. Preserve existing pending endpoints unchanged; recovery-input is an additive owner-only continuation endpoint. Actual solo ledger file is human_commands.rs, not the earlier assumed solo_human_commands.rs.
+
+  **Deliverable:** Specify a versioned read-only projection for scope/request identity, confirmed public effects, incomplete narration, clarification and allowed recovery action. Derive confirmed progress from durable receipts, not prose, tool cards or client memory. Map solo HTTP and native-room pending through separate adapters into one presentation model. Preserve existing error/event names; any additive wire field must default compatibly.
+
+  **Verification / acceptance:** Contract tests cover before/after effect commit, partial compound commands, canonical refusal, missing/unknown pending, stale generation, wrong participant and restored timeline. Prove public projection omits command source spans, hidden canon, checker drafts, reasoning, credentials and private biographies.
+
+  **Logging:** DEBUG scope IDs, revision, phase and recovery classification; INFO operation completion; WARN unknown/stale state; ERROR projection failure. Never log command text or private ledgers.
+
+- [x] **Task 4: Probe and present recoverable requests proactively** (depends on 3)
+
+  **Files / ownership:** src/features/agent-turn/useAgentTurn.ts; src/features/rooms/model/RoomController.ts; proposed src/features/recovery/{useRecovery,RecoveryPanel}.tsx; src/app/{App,RoomExperience}.tsx; src/locales/{en,ru}/{errors,chat,rooms}.json.
+
+  **Deliverable:** Discover pending on campaign/room activation and cold resume, before the next send. Present neutral states: confirmed action, narration unfinished, clarification, reconnecting, unavailable runtime, definitive refusal. Offer Continue answer using the original identity. If canonical pending cannot be read, show unknown state and read retry before allowing another mutation. Keep hero vitality recovery distinct.
+
+  **Verification / acceptance:** Render the real production root for solo/host/guest. Pending and errors remain reachable after restart, rejoin, cancellation, campaign switch and save restoration. Late probes cannot affect the next campaign. Already committed effects never execute twice. Never reveal unpublished narration to make progress look lively.
+
+  **Logging:** DEBUG safe transitions and probe duration; INFO successful resume; WARN unreachable canonical state; ERROR terminal boundary failure. No continuous polling console spam.
+
+- [x] **Task 5: Keep runtime/settings repair atomic and preserve player input** (depends on 3, 4)
+
+  **Files / ownership:** src/components/{SettingsModal,SettingsForm,ChatPanel}.tsx; proposed src/features/settings/useSettings.ts; src/api/settings.ts; src/features/rooms/RoomPlay.tsx; src/state/settings.ts; relevant settings/recovery tests.
+
+  **Deliverable:** Maintain settings drafts until the backend confirms the full replacement; failed Save must not change the active model/configuration or lose the draft. Reuse Stronghold secret flows. Offer contextual model start/reconnect while preserving the pending request. Keep unsent player text and reading position through panel changes; reconcile only already-public messages, never private narration drafts. A pending operation is pinned to its original model/provider identity: changing active settings from model A to B affects future turns only. Resume uses the original execution environment or remains explicitly blocked until it can be safely restored; never silently execute the old request under B. This delivery does not invent a cross-model operation migration.
+
+  **Verification / acceptance:** Deferred/rejected settings ACK, backend restart, double Save, cancel, provider repair then resume, and campaign/room switch regressions. Secret values never enter ordinary workspace persistence. The recovery action retains request identity and does not reroll or duplicate resource spending. Test pending model A plus active model B, unavailable original runtime/configuration and a legacy pending record lacking reconstructable provider details. Preserve original receipts/request identity throughout.
+
+  **Logging:** DEBUG config revision/generation and elapsed time; INFO confirmed configuration; WARN timed-out ACK; ERROR safe boundary code. Do not include URLs with secrets, keys, settings bodies or player drafts.
+
+  **Implementation evidence (2026-10-12):** All preference/provider fields are staged, a deferred ACK commits once, rejected Save retains edits, Cancel discards preferences, and duplicate submits are guarded. Original execution origin/effective model are durably bound before inference for solo and rooms (migration 0023); original environment conflicts preserve recovery and legacy unknown origin is blocked. Hosts can repair settings within their room. Three real HTTP environment/recomposition regressions plus the room host-model regression pass; 40 focused settings tests, all 1153 frontend tests and nine production-browser scenarios pass. Full consolidated gate passed in `.artifacts/product-uiux/checkpoint-2-verified-gates.log`; the tested worktree includes preserved inherited changes. No native UI/model acceptance is claimed by this task.
+
+- [x] **Task 6: Prove recovery with real persistence and native restart** (depends on 2, 3, 4, 5)
+
+  **Files / ownership:** Existing application/SQLite/native-room recovery integration tests; e2e/{agent-recovery,agent-clarification,agent-failure,room-production,provider-startup}.spec.ts; scripts/tauri-cdp-campaign.ts and existing scripts/lib recovery helpers.
+
+  **Deliverable:** Drive interruption before an effect, after one effect in a compound command, after all effects before narration, during clarification, and after a save/timeline reset. Use isolated native profiles and a deterministic provider first. Read actual SQLite receipts and encrypted native pending recovery through supported boundaries. Reuse existing native harnesses and clean up only owned processes.
+
+  **Verification / acceptance:** Exact HP, slots, clock, movement and reward counts are unchanged on resumed delivery. Host/guest permissions and current timeline survive restart. Record a separate real-model repetition with installed approved models; semantic failures remain open in codex-ai-solo-mechanics.md rather than being concealed by UI success.
+
+  **Logging:** DEBUG canonical IDs/revisions and effect counts; INFO each accepted checkpoint; WARN model-quality failure; ERROR recovery mismatch. Evidence is sanitized and explicitly classified by test layer.
+
+  **Implementation evidence (2026-10-12):** A fresh Tauri production frontend/backend and isolated file-backed QA profile completed a clean interruption/restart/resume cycle. Request `8da06776-faab-40ad-a954-e3136716cebc` retained two compound-action receipts, 600 seconds, HP 12 and inventory; only one assistant message was added on continuation and the unsent draft survived. Native smoke 8/8 and the actual-CSP browser regression pass. Native proof exposed/fixed Pixi static-CSP initialization and nullable internal tool-message decoding (27 focused API/root checks). Existing real SQLite/application/Stronghold room regressions cover effect boundaries, clarification, actor/timeline replacement and receipt replay. Installed Qwen3.5-9B weights were recovered from the prior session and verified at the LM Studio path. A fresh native real-model attempt and cold continuation retained UUID `aadb1bd0-916e-4ab9-8566-433d5adb4d02`, revision 2, HP 12, inventory, zero receipts/time and the unsent draft, with no uncaught errors. Both model attempts failed before effects and the intended transport cut was not reached. This checkbox remains open for successful real-model recovery after committed effects; semantic quality stays open in `codex-ai-solo-mechanics.md`. Independent visual production is authorized by the checkpoint policy above. Artifacts: `.artifacts/product-uiux/native/{interrupted-proof,resumed-proof}.json` and `.artifacts/product-uiux/real-model/{runtime-provenance,real-model-restart-proof}.json`.
+
+  **Real-model completion (2026-10-14):** Installed Qwen3.5-9B Q4_K_M with a separate authenticated llama-server performed one canonical Quay move. The corrected proxy cut a non-streamed JSON response only after the actual SQLite adventure receipt was committed. Native recovery retained request6c82027f-c2f3-4e43-a262-f376a6b04c13, character71b04ddd-9adf-4e10-87b2-c6649e80bd69, HP12, inventory, locationQuay,300seconds and one tool receipt. Normal app exit and cold native restart preserved that exact post-effect checkpoint and the unsent draft. First narration continuation was rejected; another continuation completed with one assistant message, identical request/effects and unchanged HP/inventory/time/history. Failed quality verdicts remain in the AI mechanics plan. Initial stream-only fault harness missed the ordinary JSON response; an initial clock expectation incorrectly used600seconds (the correct single Quay move is300). Original results retained, validators unchanged. Receipts: `.artifacts/product-uiux/task-6-effects-checkpoint12/attempt2/`. This satisfies the after-effect real-model recovery repetition alongside the prior deterministic compound/clarification/timeline cases, not whole-adventure semantic acceptance.
+
+### Visual foundation
+
+- [x] **Task 7: Define the evolved art direction and prove a small integrated pilot** (depends on 1)
+
+  **Files / ownership:** docs/visual/LIVING_TABLETOP_ASSETS.md; proposed docs/visual/PRODUCT_UIUX.md; src/styles/{theme,fonts,materials}.css only after pilot selection; .artifacts/product-uiux/ visual specimens. Proposed nonshipping e2e/fixtures/visual-pilot specimen, using current authoritative map data.
+
+  **Deliverable:** Specify one evolved Living Tabletop system: warm practical light, restrained violet/gold, painted fantasy, tactile quiet materials, readable controls and miniature silhouettes. Build an EN/RU specimen and one real screen composition using existing components. Generate a pilot texture, portrait/miniature pair and geometry-aligned Archive skin via imagegen; these count toward the final inventory. Review a bounded nonshipping visual specimen before full production. The specimen composites candidate whole miniatures and current map geometry at real sizes; it is not a second production root and does not claim the completed renderers. Formal production silhouette/map integration belongs to Tasks 18 and 29.
+
+  **Verification / acceptance:** The nonshipping pilot is readable at 960x640, 1280x800 and actual miniature sizes; portrait and miniature identity match, material tiles repeat, map aligns to current geometry. No flattened bitmap UI, baked labels or second token/component system. Select using the user-confirmed brief; routine asset waves do not need repeated approval.
+
+  **Logging:** INFO pilot asset IDs and selected versions; DEBUG dimensions, alpha, bytes and measured surface contrast; WARN rejected candidates. Tool prompts/reference IDs belong in the asset manifest, never production logs.
+
+  **Implementation evidence (2026-10-12):** Four distinct generated masters selected: oak, fighter identity 01, matching transparent whole miniature, and geometry-referenced Archive skin. Versioned workspace WebP derivatives total 683274 bytes; body/secondary/gold contrast is 14.42/9.50/8.54. Miniature corners have alpha 0; 61.5% of its pixels are fully transparent and the figure has nonzero margins on all sides. The nonshipping specimen reuses actual AppShell/Button/Icons/tokens, validates full viewport coverage and shows 32/48/64px silhouettes. Four RU/EN browser scenarios pass at 960x640 and 1280x800; production build passes and excludes the fixture. Current domain geometry was confirmed directly in `bell_archive_map`. The selected brief is `docs/visual/PRODUCT_UIUX.md`; production consumer wiring remains Task 8/18/30.
+
+- [x] **Task 8: Create stable visual references and fix semantic portrait fallback** (depends on 7)
+
+  **Files / ownership:** src/assets/livingTabletop.ts; proposed src/assets/visualCatalog.ts and docs/visual/asset-manifest.json; src/lib/heroPortraits.ts; src/components/wizard/PortraitTab.tsx; crates/adapter-media/src/image/{bundled,resilient}.rs and media tests; application/media contracts only as required.
+
+  **Deliverable:** Add stable versioned asset IDs, category, dimensions, alpha, hash, provenance, reference/generator metadata, portrait-miniature pairing and consumer binding. Persist IDs rather than base64. Correct character_portrait fallback so it returns portrait art or an honest unavailable result, never scenery. Preserve map/chat routing, generated/bundled provenance and backward-compatible legacy IDs.
+
+  **Verification / acceptance:** Manifest checks enforce unique identities, valid references, bounded files and required alpha. Primary unavailable/malformed tests never accept a tavern/forest as a portrait. Catalog expansion cannot change an already assigned face. Legacy saves and unavailable custom images resolve deterministically without data loss.
+
+  **Logging:** DEBUG selection category/asset ID and fallback reason; INFO chosen provenance; WARN unavailable reference; ERROR semantic mismatch. Prompts, private portrait uploads and image bytes are excluded from runtime logs.
+
+  **Implementation evidence (2026-10-12):** A 53-entry manifest and category-aware runtime catalog preserve legacy IDs, explicit portrait identities and matched miniature references. `portraitAssetId` survives draft/preferences/campaign projection; unknown assigned identities remain unavailable instead of silently changing faces. Offline native-radio selection and backend bundled portrait responses persist IDs, not image bytes. Five native portrait resources keep fallback out of scenery/map categories; malformed/signature/source mismatch cases fail safely. Eleven focused media tests, eleven identity/portrait UI tests, production build and the production-root offline portrait browser scenario pass. `assets:check` verifies bytes/hashes/header dimensions/alpha/pairs/provenance and is included in consolidated gates. Full gate `.artifacts/product-uiux/task-8-verified-full-gates.log` passed with 175 frontend files/1159 tests. The related native alias audit verifies real loaded model identity (including custom repo/file/mmproj), rejects unavailable/different-runtime settings, and rebinds same-model ports before inference; its real HTTP adapter checks send zero requests on mismatch. Real-model semantic acceptance remains open under Task 6. Generated/uploaded URL durability is explicitly Task 9.
+
+- [x] **Task 9: Persist generated and uploaded media through bounded owned references** (depends on 8)
+
+  **Files / ownership:** Proposed app-application media asset models/ports/use cases; adapter-media durable content store and authorized HTTP/native lookup; adapter-sqlite reference metadata/migration as needed; src/api media reference schemas, src/state/{pc,campaignProjection}.ts, wizard/portrait and room public asset adapters; media persistence/native tests.
+
+  **Deliverable:** Define source-aware references: bundled asset ID/version versus immutable content-hash media stored under application-owned local storage. Keep private/public ownership and campaign bindings explicit. Persist selected generated/uploaded portraits and maps without base64 in ordinary preferences or repeating bytes in every room revision. Resolve through authorized media access/cache; guests receive only permitted public actor art. Migrate valid legacy data URLs/trusted local sources non-destructively; unresolved/oversized legacy data stays recoverable with an honest fallback. Verify actual current envelope limits before choosing bounds. No arbitrary remote fetch on restore/migration.
+
+  **Verification / acceptance:** Real storage + cold restart preserves custom portraits/media and stable hashes; authorized two-client lookup retains distinct public identities without private-sheet access. Missing/corrupt media, cross-campaign access, scope revocation and near-limit legacy records including 8MiB cases have explicit results without truncation or deletion. Export/import round-trips referenced bytes and metadata. Source fallback never claims a matching miniature was generated. URLs/object resources are invalidated safely after scope change.
+
+  **Logging:** DEBUG reference/hash/ownership IDs, sizes and migration status; INFO durable asset registration/migration; WARN retained unresolved legacy media; ERROR unauthorized/corrupt reference. No image bytes, full local paths, private portrait source URLs or provider output in logs.
+
+  **Execution evidence (2026-10-12):** `.artifacts/product-uiux/task-9-verified-full-gates.log` reports all gates passed (996 Rust / 1167 frontend tests). Three production-browser media scenarios passed in `task-9-final-browser.log`. Fresh packaged Tauri with an isolated profile preserves both owned image hashes across cold restart and renders the portrait from scoped bytes; `media-native/cold-proof.json` and `build-provenance.json` record the native result. Seven real SQLite media tests cover reopen, authorization/revocation, corruption, near-limit legacy input, portable bytes, atomic map selection/snapshot and failed migration rollback. Native media QA uses a debug Python placeholder and synthetic provider configuration; it does not establish GPU media generation or real-model semantic readiness.
+
+- [x] **Task 10: Upgrade bilingual typography and the existing token hierarchy** (depends on 7)
+
+  **Files / ownership:** public/fonts/ and retained license files; src/styles/{fonts,theme,globals}.css; src/ui shared primitives; typography/root/browser tests.
+
+  **Deliverable:** Default proposal: self-hosted Manrope for UI and Literata for narrative/headings, retaining JetBrains Mono only for diagnostics. Verify the actual font files, weights, Cyrillic/Latin coverage and licenses before use. Replace existing role tokens centrally; do not layer new ad hoc families. Use primary controls at least 14px, narrative 16-18px with reading scale, sensible line lengths and tabular resource digits.
+
+  **Verification / acceptance:** Compare old/new RU/EN specimens, mixed-script names, italic/bold, symbols and offline rendering. At minimum window size key actions remain visible without shrinking essential text. Font loading causes no material layout shift. Remove obsolete font files only after a consumer inventory proves they are unused and not user-owned.
+
+  **Logging:** INFO selected families/version/source; DEBUG payload and loading metrics; WARN missing glyph or fallback. No new production font package or CDN dependency.
+
+  **Execution evidence (2026-10-12):** Manrope 4.504 and Literata 3.103, 12 verified local WOFF2 subsets (503376 bytes), real italic and RU/EN coverage; OFL licenses and `docs/visual/font-manifest.json` ship with the app. Existing type roles upgraded centrally, 26 unused tracked fonts archived/removed after 464-source consumer inventory. Device-local 16/17/18px reading preference persists and applies to narration/journal; room narration uses the same role. `task-10-full-frontend.log`: 179 files / 1169 tests passed; `task-10-room-focused.log`: 39 passed after the room role change. Production build, architecture guard and Biome check pass (seven existing warnings). `task-10-browser-reviewed.log`: four production-root RU/EN checks at 960/1280 pass with real local glyph inspection, keyboard reading-size selection, cold reload, reachable input and CLS <0.1; captures compared with the original UI audit. Native media proof precedes these font changes; refreshed native visual verification belongs to the material checkpoint.
+
+- [x] **Task 11: Produce and integrate 12 materials and four scalable frame kits** (depends on 7, 8, 10)
+
+  **Files / ownership:** src/assets/living-tabletop/v2/ proposed final assets; src/styles/{materials,living-tabletop,character,saves}.css; src/ui/{Button,Field,Modal}.module.css; visual manifest and asset/browser tests.
+
+  **Deliverable:** Upgrade six current material roles and add quiet stone-floor, river masonry, pale-paper, worn-board, cloth and oxidized-metal variants. Create four transparent edge/frame kits for journal, portraits, panels and campaign cards. Apply them through existing tokens and scalable CSS composition; keep text surfaces calm and reserve rich texture for margins/table surfaces.
+
+  **Verification / acceptance:** Inspect every selected master at full resolution, 2x2 tile repetition and actual UI sizes; no visible seams, halos, blurry edges or text baked into art. Test transparency/high-contrast fallbacks, resizing and keyboard focus. Every production kit has an actual consumer.
+
+  **Logging:** INFO approved asset/version and consumer; DEBUG dimensions, repetition/alpha checks and byte budgets; WARN visual reject. Do not add runtime logs for decorative rendering.
+
+  **Execution evidence (2026-10-12):** Twelve material masters (including pilot oak) and four transparent frame kits have real consumers through the existing CSS roles. Fifteen new built-in generation jobs/prompts and consumer bindings are recorded in `docs/visual/material-provenance.json`; selected derivatives add 2254748 bytes within existing budgets. All 16 assets were visually reviewed in the nonshipping repeat/alpha/stretch specimen; actual sheet, journal, campaign and forced-colors/focus browser scenarios passed at 960/1280. Fresh Tauri proof validates local Literata/Manrope glyphs, painted panel/portrait layers and surviving owned media; `materials/native-proof.json` records binary hash and CSS font weights. The variable Manrope font exposes an internal ExtraLight family name in WebView metadata while the rendered CSS weight is 400. `.artifacts/product-uiux/checkpoint-3-full-gates-verified.log`: all gates passed (996 Rust / 1169 frontend). The first gate exposed obsolete material filename expectations and a transient cancellation-fixture race; the existing assertions were updated, cancellation passed alone, and the repeat full Rust suite passed without altering that test. Native QA does not prove GPU image generation or real-model semantics. Validation uses the actual inherited dirty worktree; the checkpoint stages only owned deltas.
+
+### Entry and settings
+
+- [x] **Task 12: Rewrite visible copy and replace technical or misleading metadata** (depends on 10)
+
+  **Files / ownership:** src/locales/{en,ru}/{common,campaigns,onboarding,settings,local_mode,chat,rooms,agent,combat,adventure}.json; CampaignHome/CampaignHeroCard, StatusBar, ToolCallCard and their consumer tests.
+
+  **Deliverable:** Remove development/architecture explanations and repeated role/marketing assertions. Replace campaign revision-as-chapter with actual current location, last visit and save status. Keep local/cloud handling, download requirements and costs once at the decision point. Hide raw JSON, tool rounds, model IDs and pipeline jargon behind existing diagnostics; show confirmed public outcomes in play. Preserve machine keys/contracts.
+
+  **Verification / acceptance:** All reachable RU/EN flows use concise accurate labels; no unsupported 'best quality' or always-offline promise. Locale parity and root tests assert meaningful user behavior rather than every exact sentence. Errors name an available action. Old misleading metadata no longer appears on campaign cards.
+
+  **Logging:** INFO locale audit counts in verification only; WARN missing/stale key; no production logging for copy-only rendering.
+
+  **Execution evidence (2026-10-12):** `docs/visual/PRODUCT_COPY.md` documents actual public metadata and rendering boundaries. Library location reads canonical authored/scene state without mutation; opened history is separate device-local metadata, recorded after current ACK only. Ordinary cards hide raw JSON/rounds and model reasoning; explicit details reach the real shell inspector. Footer reports configuration rather than asserting successful inference. Model-found/process-running labels and memory choices no longer claim universal readiness, offline operation or fixed 16GB requirements. Canonical identity labels use RU/EN catalogs without changing stored values. Nineteen locale catalogs have matching logical keys (1146 English leaves plus legitimate RU plural forms). Two production-browser RU/EN scenarios verify outcome masking, real inspector opening and history after restart. Readonly SQLite contracts 11/11 and transition regressions pass. `task-12-full-gates-info.log`: all gates passed (997 Rust / 1177 frontend); explicit INFO logging is required by the telemetry smoke test, whereas inherited RUST_LOG=warn intentionally filters its event. Native entry/configuration verification is grouped with Tasks 13-15; successful real-model semantics are not inferred from these fixture checks.
+
+- [x] **Task 13: Shorten first launch and preserve direct guest entry** (depends on 4, 10, 12)
+
+  **Files / ownership:** src/components/Onboarding.tsx and onboarding/{presets,steps}/*; src/state/onboarding.ts and persistence migration; src/features/campaigns/model/{route,types}.ts; src/app/App.tsx; onboarding routing/root/e2e tests.
+
+  **Deliverable:** First launch offers Start adventure and Join game. Remove global hero creation before campaign ownership exists. Keep only essential model readiness for a host/solo player; image/video setup is optional later. Guest joins without local model setup, preserving the already implemented native path. Migrate completed/partial onboarding without discarding a legacy hero draft or guest recovery choice.
+
+  **Verification / acceptance:** Fresh solo/host/guest and migrated profiles reach the correct route. Next/Back remain visible without scrolling past long preset lists at 1280x800. A partially configured user can resume, browse and create a draft without contradictory blocking overlays. Model unavailability has a concrete repair action.
+
+  **Logging:** DEBUG route/onboarding version and completion transition; INFO completed setup; WARN retained legacy draft. No personal input or provider secrets in logs.
+
+  **Execution evidence (2026-10-12):** Version-2 first choice offers adventure/guest, retains legacy PC/drafts, restores saved guest navigation and does not create a global hero. Entry now mounts a quiet surface without a game map/chat or global provider preflight. Missing chat setup is gated before dispatch, preserving unsent text/attachments and opening the proper tab. Native controls and header language remain available. `docs/visual/FIRST_ENTRY.md` records migration and readiness boundaries. Six RU/EN production browser scenarios at 960/1280 pass, including guest restart; captured real-root/composer/migration tests 37/37, full frontend 183 files / 1175 tests, production build, architecture and Biome pass. A transient NUL-filled dist/log artifact was rejected, direct rebuild produced an HTML file with zero NUL bytes, and browser verification was repeated on that build. Native entry/creation/setup proof remains the grouped checkpoint with Tasks 14-15.
+
+- [x] **Task 14: Make campaign creation perform real steps and commit heroes in scope** (depends on 12, 13)
+
+  **Files / ownership:** src/features/campaigns/{CampaignCreate,CampaignHome}.tsx; existing character wizard/review, campaign controllers and contracts; proposed campaign-scoped visual/preset picker; src/locales/{en,ru}/{campaigns,wizard,adventure}.json.
+
+  **Deliverable:** For the bundled Bell path use Adventure -> Hero -> First scene. Remove empty Hero/World handoff pages. Offer good prepared hero drafts plus the existing full wizard; commit the chosen sheet only to this campaign before play. Keep collaborative title/premise route honest about current world preparation. Hide unimplemented PDF/DOCX import instead of presenting a working choice.
+
+  **Verification / acceptance:** Bundled/collaborative routes, Back/cancel, rejected campaign/character commit and interrupted preparation retain drafts and scope. No unrelated previous hero leaks. Library previews show actual location/last visit. WorldReady is based on real initialization for the chosen source, not merely pc.heroClass.
+
+  **Logging:** DEBUG creation phase, campaign ID and revision; INFO confirmed campaign/hero readiness; WARN retriable preparation; ERROR initialization failure. No private backstory or world secrets logged.
+
+**Execution evidence (2026-10-12):** Prepared/custom source choices now create actual initialized campaigns and go directly to a scoped hero picker or the existing full wizard. Creation identities/drafts and character attempt IDs/hash/original revision survive interruption without repeated portrait bytes; disk ACK precedes dispatch, and canonical scope controls readiness. Concurrent/lost creation ACK leaves one campaign/session/event/scene, rollback retains no half-campaign, and all four exact production hero fixtures commit/replay through SQLite (3/3). Focused root/preparation tests 31/31 and the full frontend suite pass. Fourteen production-browser scenarios pass, including RU/EN at 960/1280, Back, rejected hero, lost create/hero ACK and cold reload. Screenshots confirm fixed reachable footer controls. Documentation: `docs/visual/CAMPAIGN_PREPARATION.md`. Native acceptance for Tasks 12-15 remains the grouped checkpoint; no successful model inference is implied.
+
+- [x] **Task 15: Expose simple AI/media readiness with advanced settings on demand** (depends on 5, 10, 12, 13)
+
+  **Files / ownership:** src/components/{SettingsForm,SettingsModal,LocalModeModal,StatusBar}.tsx; components/settings/*; provider/runtime/download hooks; EN/RU settings/local_mode locales and focused e2e.
+
+  **Deliverable:** Show selected model, installed/running state and Start/Test/Repair actions first. Put GGUF/mmproj, context/reasoning budget, VRAM strategy, system prompt and agent limits in Advanced sections. Remove Hugging Face instructions from cloud-only forms. Derive readiness from runtime/confirmed provider state rather than config existence alone. Keep optional images/video and cost decisions separate from essential chat setup.
+
+  **Verification / acceptance:** Changing source does not lose per-provider drafts; errors preserve data; model switches during active turns stay gated. Missing model, slow start, failed download, offline catalog and denied permission are actionable. Runtime start occurs only through existing native ownership; no unrequested large model download or provider promotion.
+
+  **Logging:** DEBUG safe readiness/download state and elapsed time; INFO confirmed runtime transition; WARN slow/unavailable runtime; ERROR stable safe code. Never log API keys or full provider responses.
+
+**Execution evidence (2026-10-12):** One local model surface serves Settings and the shortcut window, with authoritative install/loaded-ID status and retry/check actions. Unknown status does not retain a running claim; model changes and Save are gated during solo/room turns. Advanced sections hold actual native context arguments (512-65536, --max-seq-len verified against the installed CLI), reasoning, instructions, memory and agent limits. Cloud checks distinguish live model lists from unverified curated fallback, mask provider error bodies and discard stale replies. Local media declares its native requirement through application ports; disabled/bundled/cloud media does not start with chat. Full gate `checkpoint-4-qualified-full-gates.log` passes: 1002 Rust / 189 files and 1195 frontend tests, clippy, architecture and assets. Fourteen production-browser preparation/settings scenarios plus nine final scenarios pass, including the current scoped Settings-to-wizard callback. Fresh isolated Tauri build/entry/cancel/settings/cold SQLite proof retains the same campaign/session/actor, revision 2, HP 12, AC 18, built-in portrait ID and one character receipt. All four actual native portraits decode before the accepted art screenshot; the earlier pre-decode image was rejected. Native source/QA artifact paths are `.artifacts/product-uiux/entry-native/`; no model/media inference was started. The native profile later received a separate owned art-test campaign; the one-campaign cold comparison predates that addition. Windows SDK sidecar copying requires closing the QA process before Cargo gates; after normal Close all gates pass. Debug Python placeholder is not GPU/packaged-release proof. Custom HF download records remain managed but the legacy preset start bridge is not advertised as supporting arbitrary custom IDs. Docs: `docs/visual/MODEL_READINESS.md`.
+
+### Shared game table
+
+- [x] **Task 16: Define shared presentation ports with separate solo and room adapters** (depends on 3, 4, 8, 9)
+
+  **Files / ownership:** Proposed src/features/game-table/model/{types,layout}.ts and feature tests; src/app/{App,RoomExperience}.tsx; proposed src/app/GameTableExperience.tsx; existing agent/combat/adventure/room API projections.
+
+  **Deliverable:** Define a prop-driven table model with scene, public actors, own actor, chat/public outcomes, recovery, connection state and enabled actions. Solo and room controllers retain authority/transport responsibilities; app composition adapts both. Reusable game-table views must not import sibling feature internals or become another engine. Model exploration without tactical geometry explicitly.
+
+  **Verification / acceptance:** Contract/root tests cover solo/host/guest, no own hero, unknown readiness, active/ended fight, restored timeline and withheld private data. Architecture check forbids sibling feature imports, API/store coupling and app-owned workflows. Same inputs produce equivalent visible table behavior without duplicating control logic.
+
+  **Logging:** DEBUG safe adapter scope/revision; INFO scope switch; WARN incompatible projection; ERROR validation failure. Shared props contain only player-visible data.
+
+**Execution evidence (2026-10-12):** Shared presentation types and context expose public actors, appearance references, explicit exploration/tactical scenes, conversation/outcomes, recovery/readiness and availability. Pure app adapters bind solo and room controller snapshots without exposing private sheets/proposals/invitations/system messages or raw tool payloads. Stable scope keys distinguish timeline/epoch/encounter changes while keeping mounted drafts through revision/restore updates. Existing chat width limits are reused. The actual production solo/host/guest composition supplies role-bound UI ports to the same scope surface; controllers retain all commands/transport/receipts and existing attachment handling. Local compose now requires confirmed configuration plus matching runtime. Five focused files / 17 tests, full frontend 193 files / 1205 tests, architecture/fast gates and production build pass. Fifteen production-browser solo/guest/host preparation/room scenarios pass; stale first-entry/library copy in a legacy fixture was updated to the verified Task 13 flow. UI layout remains the subsequent task. Docs: `docs/visual/SHARED_TABLE.md`; repository entry-point map updated. Native visual acceptance is grouped with the substantial layout/control changes in Tasks 17-20, and successful model/physical LAN play is still separate.
+
+- [x] **Task 17: Replace the scrolling co-op page with one persistent table layout** (depends on 10, 11, 16)
+
+  **Files / ownership:** Proposed src/features/game-table/{GameTable,TableHeader,PartyStrip,SidePanel}.tsx and CSS Modules; src/styles/shell.css; src/app composition; RoomPlay.tsx and existing ChatResizer; production-root and browser smoke tests.
+
+  **Deliverable:** Keep scene/map, chat composer and current action/recovery controls visible together in solo and co-op. Use a compact party strip and contextual side panel for hero/journal/NPC/objectives. Move room credentials/recovery administration into contextual room controls. Keep narration and panel scrolling local; collapse secondary titlebar labels at minimum width. Preserve one reachable Settings/Help/diagnostics path.
+
+  **Verification / acceptance:** Real production-root renders and production-build browser smoke at 960x640, 1280x800 and 1920x1080, RU/EN. No lateral overflow, clipped main action, disappearing composer or full-page scroll pushing chat below combat. Keyboard resizing, focus return and campaign/room switching remain valid.
+
+  **Logging:** DEBUG layout preference/version and scope changes only; INFO layout reset; WARN invalid persisted sizes. No logs on every pointer movement or React render.
+
+**Execution evidence (2026-10-13):** Both production roles use the same bounded scene/conversation columns and compact public party strip, supplied by existing controllers through app-owned slots. Scene/composer stay simultaneously reachable; chat/history/notifications scroll locally. Room credentials/refresh/departure are in Room, approvals/authored actions/rest/wounded help in Adventure. Existing resizer/preferences/material/font tokens are reused, secondary titlebar labels collapse at narrow width. Nested modal keyboard/backdrop handling is scoped to the top dialog with focus return and stable callbacks during snapshot updates. Administrative failures remain in their open modal and no duplicate alert is emitted behind it. Focused root/controller and modal tests pass, full frontend 193 files / 1206 tests and fast/architecture/assets/build pass. Twenty-nine production-browser flows include solo/host/guest, RU/EN at 960x640, 1280x800, 1920x1080, real map/composer/document bounds, keyboard resize, hidden invitations, focus return and unsent-draft retention. Legacy fixture assertions follow the explicit new drawer/party-group interactions without removing server receipt/HP/turn checks. Actual minimum-width screenshot reviewed. `docs/visual/SHARED_TABLE.md` records the delivered layout. Combat/miniature/context polish remains Tasks 18-20; fresh Tauri UI is grouped with their checkpoint, and physical LAN/model semantics remain separate.
+
+- [x] **Task 18: Unify combat interaction and public visual identity for every actor** (depends on 8, 9, 16, 17)
+
+  **Files / ownership:** src/components/{VttCanvas,CombatToken,CombatOverlay,InitiativeTracker,ActionBar}.tsx; src/features/combat/{RoomCombatPanel,WeaponAttackDialog,SpellCastDialog}.tsx and model/{types,combatProjection}.ts; additive application/public actor visual fields if required.
+
+  **Deliverable:** Resolve all actors by stable IDs and public visual references. Separate portrait from full miniature. Use shared selection, ownership, range/target hints, action/bonus/reaction/movement/slots and end-turn affordances. Show why an action is unavailable near that action. Scope targeting to encounter/timeline. Keep mechanical cell hit targets independent of a tall sprite silhouette.
+
+  **Verification / acceptance:** Equal names, multiple human heroes, enemy actors, selected custom portrait fallback, downed/dead/withdrawn actors and zoom all work. Unauthorized move/attack/cast remains rejected by server. Late revisions or save reset cannot apply an obsolete target. Visual change never changes collision, coordinates, initiative or damage.
+
+  **Logging:** DEBUG actor/encounter IDs and selected intent; INFO canonical command result; WARN rejected/stale action. No client-authoritative mechanics or private actor sheet copied to other players.
+
+- [x] **Task 19: Make conversation and confirmed outcomes readable and recoverable** (depends on 4, 10, 12, 17)
+
+  **Files / ownership:** src/components/{ChatPanel,MessageBubble,ToolCallCard,TypingIndicator}.tsx; src/features/rooms/RoomPlay.tsx; shared game-table chat presentation; agent-turn reducers and public room message mapping.
+
+  **Deliverable:** Use narrative typography, stable paragraph widths, speaker identity and a compact confirmed-outcome strip. Place recovery/clarification beside the composer. Keep Enter/Shift+Enter, attachments, copy/journal actions and reading-position behavior. Collapse raw diagnostics by default. Support compatible public message rendering in co-op without publishing DM reasoning, checker drafts or hidden tool details.
+
+  **Verification / acceptance:** Long RU narration, streaming/finished output, scroll-away, keyboard focus, failed send/retry and image/video delivery remain usable. Confirmed mechanics and pending narration are visibly distinct. A retry neither duplicates the user message nor silently drops effects. Existing publication gates remain intact.
+
+  **Logging:** DEBUG stream identity, byte count and terminal classification; INFO final delivery; WARN interruption; ERROR safe failure code. No text/reasoning/base64 in logs.
+
+- [x] **Task 20: Put discovered facts, goals, journal, NPCs and hero context within reach** (depends on 12, 16, 17, 19)
+
+  **Files / ownership:** src/features/adventure/AdventurePanel.tsx; src/components/{JournalViewer,NpcMemoryGrid,CharacterSheet,SavesScreen}.tsx; proposed game-table context panels and existing public projections; locales and root/e2e tests.
+
+  **Deliverable:** Replace repeated modal navigation with reusable contextual panels while preserving accessible modal fallback. Show current discovered facts, explicit public goals and supported actions; retain free-text play. Bind NPC art by stable canonical/record identity rather than catalog-size-dependent hash. Use actual save timestamps and current scene summaries. Separate guest-owned sheet from public party status.
+
+  **Verification / acceptance:** Players can read journal/hero and continue a turn without losing the composer or selection. Unknown secrets and unencountered NPCs stay hidden; available buttons do not promise unsupported mechanics. Changed catalog preserves known faces. Keyboard open/close and nested dialogs return focus correctly.
+
+  **Logging:** DEBUG panel/record IDs and public revision; INFO save/restore confirmation; WARN missing asset/record. No full journal, NPC memory or biography in logs.
+
+### Character art production
+
+- [x] **Task 21: Produce four fighter portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/fighter-*; visual manifest/catalog, gallery/wizard and initiative consumers.
+
+  **Deliverable:** Generate four distinct fighter identities with matching portrait and genuinely transparent full-body miniature, using approved references for face, ancestry, clothes and equipment. Use fixed three-quarter overhead view, practical light, neutral pose, no baked base/ring/HP/text. Preserve four-class mechanics; these are visual choices. Save final selected outputs to workspace and wire every pair.
+
+  **Verification / acceptance:** Inspect every asset at full size and actual 30/48/64px table scale on light/dark maps. Feet/pivot and weapon silhouette are clear and unclipped. Gallery choice, persisted restore and co-op public visual references retain the identity; custom portrait without miniature has an honest fallback.
+
+  **Logging:** INFO selected stable ID/version and consumer; DEBUG hash, alpha and bytes; WARN rejected anatomy/identity/edge quality. Generation metadata stays in manifest.
+
+- [x] **Task 22: Produce four rogue portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/rogue-*; shared visual manifest/gallery consumers.
+
+  **Deliverable:** Apply the established portrait-miniature production recipe to four rogues with readable distinct silhouettes and consistent equipment. Match each miniature to its own portrait reference; no class stereotype substitutes a player's selected identity. Reuse catalog/persistence and actual table rendering.
+
+  **Verification / acceptance:** Same identity, alpha, silhouette, pivot, bounds, gallery, restore and two-client tests as Task 21. Every pair is selected in the actual production gallery and shown on the table at least once. No unused generated asset enters the bundle.
+
+  **Logging:** INFO asset/version/pair IDs; DEBUG size/alpha/hash validation; WARN rejected candidates. No additional decorative runtime logs.
+
+- [x] **Task 23: Produce four wizard portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/wizard-*; shared manifest/gallery consumers.
+
+  **Deliverable:** Produce four wizard identities with matched faces/clothing, restrained magical props and readable overhead silhouettes. Magical glow must not obscure cells or encode active spells/conditions. Keep large ornaments within safe sprite margins; effects remain code-rendered after canonical events.
+
+  **Verification / acceptance:** Full/actual-size QA, true alpha, no halos, paired identity and persisted selection pass. Spells, targeting/AoE and current actor highlights remain readable above the art. Low/reduced-motion modes retain clear status.
+
+  **Logging:** INFO final pair IDs and consumer binding; DEBUG metadata and payload; WARN overbright/unreadable or mismatched candidates.
+
+- [x] **Task 24: Produce four cleric portrait-miniature identity pairs** (depends on 7, 8, 9, 10, 18, 20)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/heroes/cleric-*; shared manifest/gallery consumers.
+
+  **Deliverable:** Produce four cleric identities in the established material/light/camera language. Match portrait and miniature equipment; avoid presenting art as mechanically granting armor, weapons or abilities. Keep shadow, ownership, HP and conditions as separate code layers.
+
+  **Verification / acceptance:** Same pair/alpha/pivot/gallery/restore QA plus wounded, dying, dead and revived-as-supported rendering tests. Fixed artwork is cosmetic appearance and may retain its painted equipment after loadout changes; canonical panels/intent checks always show the actual current gear and modifiers. Never claim the picture grants equipment, encode live status into art or imply resurrection. Existing hero drafts survive visual selection changes.
+
+  **Logging:** INFO approved identity/version; DEBUG metadata checks; WARN anatomy/equipment inconsistency. No game facts inferred from an image.
+
+### World art production
+
+- [x] **Task 25: Upgrade eight generic NPC portraits with stable assignments** (depends on 8, 9, 20)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/npcs/archetypes/*; src/components/NpcMemoryGrid.tsx; visual catalog and NPC presentation mapping.
+
+  **Deliverable:** Produce the existing eight archetypes in the evolved painting style and bind them through explicit stable asset references. Migrate prior deterministic choices without reshuffling known faces when categories grow. Keep generic fallback separate from authored canonical IDs.
+
+  **Verification / acceptance:** Catalog expansion, RU/EN names, absent role, duplicate display names, restore and missing asset tests keep the same known NPC portrait. Dossier thumbnails and full portraits pass real-screen readability and crop QA.
+
+  **Logging:** INFO stable migration/asset IDs; DEBUG fallback classification; WARN unavailable portrait. Never log private NPC memories.
+
+- [x] **Task 26: Produce all six Bell NPC portraits without revealing hidden canon** (depends on 8, 9, 20, 25)
+
+  **Files / ownership:** Proposed canonical NPC art for mila, agata, leon, varden, tikhon and savely; visual catalog; authored public NPC presentation mapping.
+
+  **Deliverable:** Create six distinct named identities based only on approved public appearance information. Pair canonical NPC IDs to saved visual references. Show a portrait only when the public projection permits that person/appearance; asset captions and selection labels must not reveal secrets, intentions or undiscovered relationships.
+
+  **Verification / acceptance:** Every named NPC has an actual discovered-dossier/dialog consumer. Spoiler/privacy tests distinguish private DM knowledge from public presentation. Known portraits remain stable after save/restore and across host/guest.
+
+  **Logging:** INFO public NPC/asset IDs; DEBUG consumer visibility decision; WARN missing art. No hidden canon or generated biography in logs.
+
+- [x] **Task 27: Produce eight opponent miniature archetypes and integrate full silhouettes** (depends on 8, 9, 18)
+
+  **Files / ownership:** Proposed src/assets/living-tabletop/v2/opponents/*; token presentation catalog; CombatToken/InitiativeTracker and public encounter adapters.
+
+  **Deliverable:** Create Water Echo first, then seven approved reusable opponent archetypes matching encounters actually supported by the current catalog. Use true alpha, common overhead camera and consistent ground anchor. Assign via explicit public presentation metadata, never initials/name regex or gameplay rules inferred from art.
+
+  **Verification / acceptance:** All eight have a reachable renderer/gallery consumer and bounded fallback. Multi-actor boards, overlapping sprites, selection/range/conditions, dead actors and low zoom remain readable. Enemy art does not alter collision or reveal hidden encounter content.
+
+  **Logging:** INFO archetype/asset binding; DEBUG alpha/bounds/bytes; WARN fallback/reject. Do not log hidden encounter rosters.
+
+- [x] **Task 28: Upgrade three key images and four save illustrations** (depends on 7, 8, 9, 11, 17, 20)
+
+  **Files / ownership:** Existing KEY_ART/SAVE_ART consumers; proposed v2 splash/onboarding/exploration and save artwork; campaign library and saves components.
+
+  **Deliverable:** Select seven higher-quality compositions for splash, onboarding, peaceful exploration and the four existing save categories. Leave calm space around actual text, use crop-safe composition and code-rendered labels. Improve populated and empty campaign library states without oversized explanatory blocks.
+
+  **Verification / acceptance:** Each image is visually checked at all supported aspect ratios, with long RU headings and real action buttons. Splash does not delay healthy startup; save cards describe actual snapshot state. No baked text or generated controls.
+
+  **Logging:** INFO selected key/save asset IDs; DEBUG crop/payload/readiness metrics; WARN unreadable composition. No campaign content embedded in generic artwork.
+
+- [x] **Task 29: Produce six Bell location paintings and use them during exploration** (depends on 8, 9, 17, 20)
+
+  **Files / ownership:** Proposed town/quay/shrine/warehouse/archive/belfry scene assets; visual catalog; shared scene viewport and authored adventure public mapping.
+
+  **Deliverable:** Produce six scene paintings faithful to public location descriptions. Bind to current canonical location and render atmosphere when no tactical map exists. Use public reveal rules and transitions; never add new quest-critical objects or imply a new walkable battle geometry. Include scene-preview/continuation uses.
+
+  **Verification / acceptance:** All six appear through actual scene transitions. Restore/rejoin selects the correct art. No invented doors, critical clues or secret spoilers. Text readability, contain/crop, missing asset and reduced-motion checks pass.
+
+  **Logging:** INFO current public location/asset version; DEBUG load/crop metrics; WARN unavailable visual. No private world canon in runtime logs.
+
+- [x] **Task 30: Upgrade eight bundled maps and add the exact Archive tactical skin** (depends on 8, 9, 17, 18, 29)
+
+  **Files / ownership:** crates/adapter-media/assets/bundled/maps/*; bundled registry; src/components/{AuthoredMap,VttCanvas}.tsx; proposed map visual reference/calibration contract and map/e2e tests.
+
+  **Deliverable:** Retain eight stable bundled map identities, upgrading selected raster art, and produce one Archive skin from the current 12x8 geometry reference: wall x=6 except passage y=3, exit (1,3). Permit authoritative arenas to use a calibrated visual skin while geometry/coordinates remain the source of truth. General generated maps without geometry stay decorative scene art.
+
+  **Verification / acceptance:** Overlay landmarks, walls/passages/exits, grids, movement budget, distance/range and token coordinates remain aligned at zoom/fit/DPR changes. No artistic door adds a legal route. Map layers, streaming routing, save/restore and source provenance pass. Preserve the current bundled-map byte limit unless an explicit contract migration is justified.
+
+  **Logging:** DEBUG map/geometry hashes, calibration and layer state; INFO selected skin; WARN missing/misaligned art; ERROR contract mismatch. No prompts or image bytes logged.
+
+- [x] **Task 31: Upgrade eight bundled scene illustrations and verify their offline fallback** (depends on 8, 9, 19, 25, 26, 28, 29, 30)
+
+  **Files / ownership:** crates/adapter-media/assets/bundled/illustrations/*; image bundled/resilient providers; ToolCallCard, portrait fallback and visual catalog tests.
+
+  **Deliverable:** Upgrade the existing eight illustration categories and verify their actual fallback consumers. Complete 100-master closure belongs to Tasks 43-44 after every art wave, not this eight-image task. Keep generated-vs-bundled provenance quiet but available. Every unsupported/missing image runtime still permits attractive offline play, with category-correct art. Store high-resolution masters/provenance outside packaged import paths and selected shipping images inside the project.
+
+  **Verification / acceptance:** Offline native/browser play renders all required categories, portraits, maps and missing-image fallback honestly. No regenerated scene image is accepted as a character portrait. These eight illustrations have valid stable references and real fallback consumers; global catalog count/coverage is verified only at Tasks 43-44. No thumbnails/rejected variants are counted as masters.
+
+  **Logging:** INFO catalog coverage and provenance; DEBUG manifest hashes/bytes; WARN honest unavailable category; ERROR bad semantic binding.
+
+### Motion and workspace
+
+- [x] **Task 32: Animate confirmed gameplay events and spatial relationships** (depends on 18, 19, 27, 30)
+
+  **Files / ownership:** src/components/{CombatToken,CombatOverlay,InitiativeTracker,ActionBar}.tsx; shared game-table components; src/styles/{combat,vtt}.css; event adapter/presentation tests.
+
+  **Deliverable:** Reuse the existing 120/180/280ms motion scale. Add restrained own-turn arrival, confirmed hit/heal/resource change and target-selection continuity; move sprites only after canonical confirmation. Keep status rings/shadows/effects code-rendered and keyed by canonical event/revision so retries or reconnects do not replay a celebration or damage effect.
+
+  **Verification / acceptance:** Denied/stale/replayed commands produce no false success motion. Reduced motion uses static status changes and immediate final positions. Concurrent actors, long sessions and save timeline reset do not stack stale effects. Inputs remain responsive throughout.
+
+  **Logging:** DEBUG event ID and one-shot effect classification in development only; WARN stale effect dropped. No per-frame logging.
+
+- [x] **Task 33: Replace blocking scene transitions and respect reduced/background motion** (depends on 17, 29, 32)
+
+  **Files / ownership:** src/components/SceneTransitionOverlay.tsx; src/styles/{overlays,living-tabletop,globals}.css; useClosingAnimation and token transition handling; settings and browser tests. src/assets/livingTabletop.ts and selected visual registry transition-role mappings.
+
+  **Deliverable:** Use in-table scene art/title transitions for ordinary movement instead of a 3.2-second full-screen interruption. Keep cinematic transitions optional for major events. Honor reduced-motion in both CSS and JS timers, including token movement. Replace blanket descendant transform removal with scoped decorative overrides. Pause ambient work in hidden/unfocused windows without changing canonical operations. The four legacy generic SCENE_ART transition roles reuse the selected six location paintings/eight bundled illustrations through explicit semantic mappings; do not keep an undocumented additional shipping art set. Unreferenced originals remain preserved outside bundled paths.
+
+  **Verification / acceptance:** Scene navigation never hides composer/actions or steals focus. Reduced mode has no delayed blocking overlay; transformed interactive map content remains correct. Background/resume does not rerun effects or lose streams. No user must wait for animation completion to act.
+
+  **Logging:** DEBUG transition/event ID and visibility state; INFO preference change; WARN stale timer cleaned. No recurring decorative logs.
+
+- [x] **Task 34: Persist and reset the shared workspace and native window geometry** (depends on 17, 33)
+
+  **Files / ownership:** src/state/{settings,persistStorage}.ts; proposed src/features/game-table/model/workspace.ts; src-tauri/src/commands/desktop.rs and window lifecycle; existing store plugin; tauri.conf.json/capabilities.
+
+  **Deliverable:** Persist versioned pane widths, selected context panel, reading scale, view mode and native size/position/maximized monitor state. Reuse the existing store and Tauri core where practical. Validate/clamp old preferences and provide Reset layout. Restore safely after monitor removal and DPI changes; normal main-window close must not overwrite its saved normal geometry with auxiliary geometry.
+
+  **Verification / acceptance:** Cold/warm restart, missing monitor, 125/150/200% native scale, min/max resize, malformed/legacy prefs and reset all keep essential controls on-screen. No secrets/drafts/private room proofs enter workspace settings. Browser panel persistence and native geometry are verified separately.
+
+  **Acceptance qualification (2026-10-14):** Existing cold/warm, reset, malformed preferences, min/max and actual second/missing-monitor checks passed. Initial physical125/150/200percent runs kept essential UI controls visible but exposed outer-bound placement; settled per-window DPI recovery was implemented and native46tests/all-targetClippy passed. The user explicitly asked to skip repeating manual scale changes and continue available tests. That physical retest is waived for this task, not recorded as passed.
+
+  **Logging:** DEBUG preference version and safe geometry/clamp reason; INFO restore/reset; WARN off-screen recovery. No per-resize event logging.
+
+- [x] **Task 35: Add a command palette and one cross-platform shortcut registry** (depends on 16, 17, 34)
+
+  **Files / ownership:** Proposed src/features/commands/{model,CommandPalette}.tsx; src/app/useAppShellController.ts and composition registrations; src/ui existing Modal; locales and shortcut/browser tests.
+
+  **Deliverable:** Create an app-composed registry of localized commands, enabled conditions, platform Ctrl/Meta modifiers and handlers supplied by owning controllers. Include hero, journal, NPCs, saves, recovery, room controls, settings, focus chat/map, layout reset and fullscreen. Show shortcuts in menus/tooltips. Preserve existing Ctrl+S/F11 behavior; keep diagnostics advanced.
+
+  **Verification / acceptance:** Typing, IME, textarea newlines, nested-modal Escape, repeated shortcut and disabled guest/other-turn commands work. Ctrl on Windows/Linux and Meta on macOS are tested. Palette cannot execute a forbidden save/combat operation or bypass the server. No production command-palette package needed.
+
+  **Logging:** DEBUG command ID and enabled/refused result; INFO explicit invocation where operational; WARN unavailable command. Never log search text or player input.
+
+### Desktop integration
+
+- [x] **Task 36: Separate auxiliary-window closure from application process shutdown** (depends on 34, 35)
+
+  **Files / ownership:** src-tauri/src/lib.rs; src-tauri/src/processes/*; commands/rooms.rs and proposed commands/desktop.rs; per-window capabilities; native lifecycle tests.
+
+  **Deliverable:** Refactor exactly-once application shutdown before creating detached windows. Today any CloseRequested/Destroyed stops all backend/model/media/control processes. Auxiliary close must dispose only that view. Define main-window close behavior for an active room/operation, confirm the concrete impact and preserve durable effects. Stop owned room listeners and processes on actual application exit.
+
+  **Verification / acceptance:** Close/open multiple auxiliary windows, main close, crash/failed startup and repeated close events prove no orphan processes and no premature backend stop. Host/guest departure uses existing canonical operations. No implicit tray/background hosting is added in this plan.
+
+  **Logging:** DEBUG window label and lifecycle reason; INFO true app shutdown; WARN pending canonical operation; ERROR failed cleanup. Never log room credentials.
+
+- [x] **Task 37: Enforce a single application instance without duplicate backend startup** (depends on 36)
+
+  **Files / ownership:** src-tauri/src/lib.rs and setup; proposed native invocation broker; Cargo.toml/package dependencies only after explicit approval; packaged native launch harness.
+
+  **Deliverable:** Reuse an approved single-instance mechanism registered before backend spawning. Second launch focuses the existing main window and forwards a validated invocation to it. Preserve profile/application identifier separation used by native two-client QA; do not merge unrelated host/guest profiles.
+
+  **Verification / acceptance:** Packaged cold/second launch proves one backend for one application identity, no duplicate ports/model processes, correct focus and no lost pending operation. Isolated QA identities can still run concurrently. Plugin refusal/unavailability is an explicit implementation prerequisite, not silently bypassed.
+
+  **Logging:** INFO first/second launch and focus delivery; DEBUG safe identity/event IDs; WARN rejected invocation; ERROR broker failure. No raw argv/URI logging.
+
+- [x] **Task 38: Make room invitations one validated pasteable or openable link** (depends on 2, 13, 36, 37)
+
+  **Files / ownership:** src/api/rooms.ts; src-tauri/src/commands/rooms.rs; proposed invitation parser/native broker; RoomHome/RoomExperience; tauri.conf.json/capabilities; deep-link dependencies only after approval.
+
+  **Deliverable:** Define a versioned invitation URI containing only the existing expiry-bound/single-use invitation and required join address/room fields, never capability/resume proof. Parse natively, redact/discard raw URI, and open a join preview with name/room context; do not connect on link activation alone. Support pasted link before OS protocol integration. Hide bind address/advanced fields by default and share/rotate invitations honestly.
+
+  **Verification / acceptance:** Cold/warm launch, first-boot guest, an already active game, expired/rotated/consumed invitation, malformed URI/address, repeated activation and uncertain committed join are exercised. Wrong links cannot replace a campaign silently or duplicate a member. Native recovery remains available. OS registration is tested in packaged native application.
+
+  **Logging:** DEBUG parse/result/event ID; INFO join preview and confirmed membership; WARN expired/rejected link. Never log/share in screenshots the raw invitation or URI.
+
+- [x] **Task 39: Notify only meaningful confirmed events when the app is inactive** (depends on 17, 32, 36)
+
+  **Files / ownership:** Proposed src/features/desktop/notification model/port; src/app registrations; src-tauri native notification adapter/capabilities; existing room cursor/actor/download events; settings/locales.
+
+  **Deliverable:** Add opt-in native notifications for own turn, model/download readiness and actionable connection failure. Derive from canonical event IDs/own actor and deduplicate across subscribe/reconnect/restart. Suppress while focused and respect OS permissions. Clicking focuses the relevant existing view, preserving current state. No private narration in notification bodies.
+
+  **Verification / acceptance:** Permission refusal, focus changes, reconnect replay, duplicate revisions, host/guest actor identities and notification clicks pass. No notification for another player's turn, each token, private DM reasoning or routine unchanged status. Actual OS delivery requires packaged native proof.
+
+  **Logging:** DEBUG event classification/dedup key; INFO sent/clicked event type; WARN denied permission; ERROR adapter failure. No private message text or invitation payload.
+
+- [x] **Task 40: Define and implement a portable authoritative campaign bundle** (depends on 3, 8, 9, 20, 30)
+
+  **Files / ownership:** Proposed app-application campaign import/export use cases and inward-owned ports/models; adapter-sqlite transaction implementation; typed HTTP services/composition; portable bundle tests.
+
+  **Deliverable:** Define two discriminated formats and role policies before serialization: full_campaign_backup is permitted only for the solo storage owner or host storage owner, includes canonical hidden adventure state and accepted party documents privately, and is never exposed through guest export; player_dossier is permitted for an authenticated player's own sheet/biography and public messages/discovered facts only, never another player's private biography, hidden canon or room credentials. A dossier is not a restorable full campaign. Full backups export an authoritative validated snapshot plus bounded required media, schema/ruleset/version and hashes, excluding vault/settings/native outbox/private reasoning/discarded drafts. Import only full_campaign_backup into a new campaign with explicit ID remapping and a whole transaction. Use opaque bounded asset names; reject absolute/traversal paths, links and executable members, and never fetch remote URLs during import. Validate entry counts, decoded dimensions and total expanded size before staging.
+
+  **Verification / acceptance:** Round-trip hero/equipment/resources/location/confirmed history/art references without changing the source. Wrong ruleset/schema/hash, oversized/corrupt/missing media, partial write and duplicate IDs leave existing campaigns untouched. Guest export permissions are enforced; raw SQLite file copying is not the portable contract. Compression, if introduced, is a separate approved dependency. Add role/mode allow-deny and secret-filter cases, dossier-as-backup rejection, traversal/absolute/symlink/executable input, external-URL nonfetch and decompression/dimension/count limits with atomic rollback.
+
+  **Logging:** DEBUG bundle version/IDs/hashes and safe counts; INFO export/import completion; WARN unsupported input; ERROR transaction rollback. No bundle contents or filesystem secrets in logs.
+
+- [x] **Task 41: Expose native campaign import/export with clear progress and cancellation** (depends on 9, 20, 40)
+
+  **Files / ownership:** Proposed src/api/desktop.ts; campaign library/SavesScreen or shared campaign menu; src-tauri commands/native path handling and optional dialog plugin; locales and packaged native/browser fixtures.
+
+  **Deliverable:** Add Export campaign, Import campaign and Show file/location actions using validated native file pickers and the new bundle use cases. Keep filesystem access in the native adapter with narrow capabilities. Show progress without fake percentages when total work is unknown. Cancellation preserves source and existing campaigns; show an import summary before committing a new campaign. The export menu exposes only modes authorized for the current role; a host private-backup preview explains that it contains campaign secrets and party documents. Import rejects player_dossier as a campaign backup without creating partial data. Never automatically fetch linked media or extract arbitrary archive paths.
+
+  **Verification / acceptance:** Native open/save/cancel, read-only destination, large/corrupt bundle, path with spaces/Cyrillic, failed final write and user cancel pass. No broad frontend filesystem permission or automatic overwrite. Browser fixture tests verify UI only; actual file persistence is separately proved natively.
+
+  **Logging:** DEBUG safe operation ID and stage, not full private path; INFO completion/cancellation; WARN invalid destination/input; ERROR IO rollback.
+
+- [x] **Task 42: Add read-only detached hero and journal windows** (depends on 9, 17, 20, 34, 36)
+
+  **Files / ownership:** src-tauri window registry/capabilities; proposed app auxiliary-window composition; existing CharacterSheet/JournalViewer views and validated public/owned projections; native multiwindow tests.
+
+  **Deliverable:** Offer Open in separate window for the owned hero and permitted journal. Use existing views with a read-only versioned projection subscription, not an independent mutable game store. Secondary windows follow campaign/room changes and access scope, retain geometry and return focus. Keep private guest/host information separated.
+
+  **Verification / acceptance:** Auxiliary close leaves game and processes running; main exit closes all owned views. Scope switch/leave, save timeline reset, expired subscriptions and offline state show the correct read-only data or unavailable state. Second-monitor/DPI checks and per-window capability denial are verified. Render the actual auxiliary hero/journal production compositions in tests for owned/guest/revoked/unavailable scopes; include each entrypoint in lint/build and browser or WebView smoke. Native lifecycle checks alone do not prove those production roots render.
+
+  **Acceptance qualification (2026-10-14):** Actual native owned/guest portrait, host-private biography exclusion, revoke/unavailable projection, isolation/CSP/ACL, scope switch, close/reopen/focus/process cleanup and physical second/missing-monitor checks passed. Actual production roots and current frontend224files/1404cases passed; native46tests/all-targetClippy passed. Repeat physical DPI checks after the geometry fix were explicitly waived by the user, as recorded for Task34. Packaging/performance/final frozen acceptance remains in Tasks43/44.
+
+  **Logging:** DEBUG window/scope/revision and subscription cleanup; INFO open/close/focus; WARN revoked scope; ERROR invalid projection. No cross-player private sheet/biography leakage.
+
+### Final verification
+
+- [x] **Task 43: Meet measured rendering, loading and packaging budgets** (depends on 6, 9, 11, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42)
+
+  **Files / ownership:** Vite production imports/chunking; visual catalog/cache and VttCanvas asset lifecycle; scripts/native packaging manifests; asset/browser/native performance tests.
+
+  **Deliverable:** Load only required scene/actor assets and appropriate derivatives; reuse textures and release replaced object URLs/GPU resources. Split heavy presentation features where measurement justifies it. Measure cold startup, scrolling, map pan/drag and 20 actors at DPR2 on the same reference hardware; verify GPU/model contention separately. Keep approved source masters outside packaged imports and run offline local/cloud bundle checks.
+
+  **Verification / acceptance:** Target encoded art/font shipping payload <=32MiB; preserve current bundled map limit and document any justified budget change before bulk production. Target visible decoded art <=96MiB and no >10% regression against a recorded comparable baseline. No blank art, long main-thread stalls or private URLs after repeated transitions. Metrics are measured targets, not claimed results; quality is not achieved by blindly downsampling.
+
+  **Acceptance qualification (2026-10-14):** Conservative encoded art/font budget27.915MiB including backend copies (<32), measured20actor/DPR2 raster footprint38,367,488bytes (<96MiB, excludes GPU/decoder overhead). Five same-hardware baseline/current production-root samples passed <=10percent startup/frame/p95 regression with confirmed RTX3080; separate real Qwen2048token generation overlapped four complete paired samples with zero>50ms intervals in720frames perbuild. Actual extracted cloud NSIS47,732,283bytes and full local portable release booted with external network denied; all166 shipped art/font hashes and144 raster decodes passed. Ten cloud and forty local real campaign/scene/owned-portrait switches preserved canonical projections and revoked retired URLs (41created/40revoked/1current in the longer run);391 DOM nodes stable after warmup. Python3.12 frozen media program3,238,260,781bytes served real health/capabilities offline, with exact declared dependencies and23offline testsPASS/5GPUskips; Mistral executable helpPASS. This is packaging/visual/runtime-boot acceptance. Managed media orchestration and actual local model generation need compatible installed weights and stay in Task44; no model was falsely marked installed. Details and measurement limits: docs/visual/PERFORMANCE.md.
+
+  **Logging:** DEBUG safe cache/asset counts, decode bytes and frame samples in QA; INFO budget result/build hash; WARN measured regression; ERROR missing packaged asset. No per-frame production logging.
+
+- [ ] **Task 44: Deliver the documented local product and prove all acceptance layers** (depends on 6, 12, 13, 14, 15, 16, 17, 18, 19, 20, 43)
+
+  **Files / ownership:** README.md, CHANGELOG.md, AGENTS.md if entrypoints change, docs/visual/*, existing recovery/co-op/native guides, docs/RELEASE_CHECKLIST.md; all relevant tests and this plan progress.
+
+  **Deliverable:** Through aif-docs update actual workflows, shortcuts, recovery, visual production/provenance, offline art, room links, import/export and auxiliary windows. Run final gates against frozen actual source/build, then production-browser, actual Tauri and packaged smoke. Exercise complete peaceful and defensive sessions, interruption/restart, two native clients and separately two physical LAN/VPN devices with approved installed models. Fix owned regressions before completion and clean up owned test processes.
+
+  **Verification / acceptance:** All implemented tasks have functional/visual evidence, 100 selected masters with real consumers, and no forgotten dependency/capability approval. Keep UI/transport, real persistence, native packaging, semantic model quality, physical LAN, CI and publication verdicts separate. If model/device prerequisites remain unavailable or fail, those acceptance items stay open; never claim the whole product playable from fixture success. No push, release or deployment is authorized by this plan.
+
+  **Logging:** INFO named acceptance layer/result and revision; DEBUG safe checkpoint IDs/counts; WARN unavailable prerequisites and existing warnings; ERROR real regressions. Docs contain no private campaign content, keys or invitations.
+
+- Physical DPI follow-up (2026-10-14): human applied Windows125/150/200percent on DISPLAY1; actual native scales1.25/1.5/2 and WebView DPR matched. Detached header controls and document width passed, but strict outer-work-area checks failed (journal at125, all windows at150, auxiliaries at200). Original observations/screenshots retained. Cause: focus/scale recovery only covered main and accepted a visible title strip; cold placement already clamps whole bounds. Prepared per-window recovery after the settled Windows DPI rectangle, retaining title-strip recovery for ordinary focus/drag. Native corrected build queued; no scale acceptance claimed. Human restored100percent; native1.0 and all three bounds verified. Tasks34/42 remain open.
+
+- Physical two-device acceptance (2026-10-14): user confirms a second Windows computer exists, but explicitly defers that test until later. Do not request it again during the current local verification. Task44's physical LAN/VPN acceptance remains deferred/open; two native clients on this machine are separate evidence. Continue all independent authorized local work.
+
+- Task43 comparable checkpoint measurement (2026-10-14): rebuilt actual frontend from committed6345b9a in an artifact-only source copy; five fresh DPR2/1920x1080/20actor contexts per baseline/current build, alternating order,180 RAF samples each and actual pan. Medians730.2/759.3ms ready (+4.0%),16.7/16.7ms frame,16.7/16.8ms p95 (+0.6%), all <=10percent regression. Unique loaded raster dimensions*4=38,367,488bytes both (<96MiB); not GPU/process allocation. Long frame counts11/13 across900frames and SwiftShader explicitly retained; concurrent Cargo/frontend load, no hardware GPU/model or stall-free acceptance. assets:check145PASS. Initial comparative harness cwd was wrong; corrected config uses explicit repo cwd, original failed log retained. docs/visual/PERFORMANCE.md documents limits. Task43 remains open.
+
+- Task43 hardware repetition (2026-10-14): Chromium documented enable-gpu + Windows ANGLE D3D11 flags, exact NVIDIA RTX3080 renderer asserted in all ten contexts. Same20actor/DPR2/1920x1080,5alternating baseline/current samples and180frames each: ready medians594.0/582.9ms (-1.9percent),frame median/p95both16.7ms,0intervals>50ms per900frames perbuild,nominal loadedrasters38,367,488bytes. Native WebView independently reports sameRTX3080/D3D11. Software SwiftShader long-frame counts remain recorded, not overwritten. Real model contention/transitions/offlinepackage acceptance remain open. Rust1.94 all-target workspace check PASS21m35s. Current native46PASS/1ignored; OS-denied IO previously executed separately. Nativeall-targetClippy initially exposed map_or lint after raising MSRV; equivalent is_none_or fix and correctedClippyPASS. Fast gatesPASS with3existingwarnings/1info. Full frontend thread run stillpending; original fork run aborted after one RoomExperience failure, focused6threadcasesPASS. Quiet stdout is normal default reporter behavior, not evidence of a hung run.
+
+- Checkpoint12 qualified checks (2026-10-14): full frontend224files/1404testsPASS using one thread worker,910.23s; same RoomExperience six cases passed separately. Initial default fork run was stopped after one failure; quiet successful-file output is normal reporter behavior, and no hang diagnosis is asserted. Native46PASS/1ignored, current all-targetClippy correctedPASS, fastgatesPASS, production software/hardware comparative testsPASS. Forty-three original dirty baseline paths remain byte-identical;19owned paths prepared for a separate local checkpoint. DPI-fixed native app61824 is live at verified100percent; human125percent follow-up pending. Its equivalent map_or/is_none_or validation cleanup happened after its build; exact final frozen native/package acceptance is separate. Cloud QA backend releasePASS; NSIS/native release build still compiling. No install/publication. Tasks6/34/42/43/44 remain open and physical two-device testing is explicitly deferred by the user.
+
+- Task43 real-model contention (after checkpoint12=5f1edc9): installed Qwen3.5-9B Q4_K_M runtime recovered by adding existing torch CUDA DLL directory to the child PATH (initial DLL-not-found0xc0000135 retained); authenticated loopback server with reasoningoff passed a real JSON-schema readiness request. This is not gameplay recovery acceptance. During2048token/39.7second actual generation, same hardware20actor/DPR2 comparisonPASS. Four matched pairs wholly inside the inference interval: ready785.4/659.2ms,frame16.7/16.7ms,p9516.7/16.8ms,0>50ms intervals over720frames perbuild. All5 original rows/timestamps retained; only4 matched pairs used for the full-overlap summary. GPU snapshot94percent combined utilization. Owned model49824 stopped after inference to release video memory; launch helper retained for Task6. Native app61824 remains100percent pending human125 reply. Release cloud NSIS/native and Python3.12 PyInstaller builds still running; Python build reads the already installed sidecar environment without modifying it. Task43 stillopen for transitions/offline packages; Task6 actual post-effect native recovery stillopen.
+
+- Checkpoint13 current qualification (2026-10-14): Tasks6/34/42/43 now checked;43of44 complete, Task44 remains open. User waived repeated manual DPI and deferred physical two-device LAN/VPN. Current consolidated --ci-lintPASS and repaired full workspace Rust1065PASS/1ignored (OS-denied IO separately executed earlier); frontend224files/1404casesPASS and Python3.12 Ruff/offline23PASS/5GPUskips. No single new default full-gates run is claimed: these are separate successful layers, with the earlier interrupted fork run retained. Real cold Qwen after-effect replay completed on a further continuation with unchanged canonical state/draft; intermittent narration rejection remains in the AI mechanics plan. Cloud extracted47.7MB NSIS and local3,518,492,717byte four-file portable payload boot/assets/scene/owned-media/lifecycle checks passed; all owned QA apps/model/media/proxy processes are stopped. Compatible managed LLM weights are absent, so orchestration/generation and full AI-led peaceful/defensive sessions remain unproven. No model was relabelled or newly downloaded. Both package manifests identify source5f1edc9 plus the unchanged inherited dirty baseline, not a clean-head-only build. Original43 paths remain byte-identical, only four owned documentation/progress paths are staged; no publication.
+
+## Cross-cutting acceptance matrix
+
+| Dimension | Required coverage |
+|---|---|
+| Roles | Solo, host, guest; own/other human actor; no accepted hero |
+| Locales | RU/EN, long Russian labels, mixed-script names, symbols and Cyrillic font subsets |
+| Screens | 960x640, 1280x800, 1920x1080 at DPR2; native 125/150/200% scale; removed monitor |
+| Motion | Normal/reduced; hidden/unfocused; reload/rejoin without event replay |
+| Recovery | Before/after effect commit; compound partial; EOF/error/empty/malformed response; clarification; cancel; cold restart; timeline restore; delayed old response |
+| Rules | Movement, range, ownership, canonical weapons/armor/spells/resources, dying/dead/withdrawn actors; rejected actions |
+| Art | True alpha, light/dark background, 30/48/64px miniatures, crop/tiling, all 100 consumers, missing/corrupt reference, offline fonts/media |
+| Native | One instance, warm/cold link, expiry/single-use/rotation, denied notification, import/export/cancel, auxiliary close/main exit, process cleanup |
+| Persistence | Same-request replay, current-state continuation, asset IDs, legacy migration, transaction rollback; no base64/secrets in normal preferences |
+| Model/transport | Deterministic provider first; separate installed-model quality, actual Tauri, packaged profile, two-device LAN/VPN |
+
+## Verification commands and evidence layers
+
+1. Iterate with focused Vitest/Rust tests and behavior/contract regressions. RED/GREEN is appropriate for recovery and authority changes; do not add tests merely duplicating reversible text/CSS.
+2. At relevant checkpoints run `bun run lint`, `bun run typecheck`, `bun run architecture:check`, `bun run build` and `bun run gates` according to scripts/gates.sh. Keep full gates distinct from focused tests.
+3. Serve the freshly built production bundle using e2e preview mode. Run applicable existing specs plus new shared-table/layout/link/portability/auxiliary-window cases. Use unique ports/output directories and sequential runners when they share artifacts.
+
+   ```powershell
+   $env:DMAI_E2E_PREVIEW = '1'
+   $env:DMAI_E2E_PORT = '<owned-free-port>'
+   bun run e2e -- <selected-spec-paths>
+   ```
+
+4. Run `bun run e2e:tauri` and `bun run e2e:tauri:campaign` with isolated profiles. Existing native harnesses must drive actual controls/APIs, not inject Zustand state as proof.
+5. Build applicable cloud/local Tauri packages and inspect clean-profile offline art/fonts, OS links, dialogs, notifications, second launch and process/window cleanup. Record each actually tested platform; macOS/Linux cannot be claimed from Windows browser tests.
+6. If sidecar code changes, run Python 3.12 Ruff and offline pytest. Real GPU/media tests remain opt-in with `RUN_GPU_TESTS=1` and owned model/process cleanup.
+7. Complete real-model peaceful/defensive sessions, durable restart/recovery and two physical LAN/VPN devices separately. Existing planning/narration failures require continued owning-model work; do not weaken validators or substitute a fixture provider to call them passed.
+8. Keep CI/release/deployment outside the local plan's authorization. Record current branch plus actual build/source hashes and explicit unavailable prerequisites.
+
+## Definition of done
+
+- All 44 task boxes describe delivered behavior and are checked only after their stated evidence exists.
+- The selected 100-master catalog is coherent, optimized, persisted with stable IDs and consumed by real product surfaces; generations alone are not completion.
+- Real production-root tests cover both mode adapters and all auxiliary entrypoints with their default labels/actor identities; lint, production build and local production-browser smoke pass.
+- Recovery cannot reroll/repeat effects, lose scope or invent readiness; current state and canonical public outcomes determine controls.
+- One readable, keyboard-accessible table serves solo/co-op with short truthful entry and optional technical details.
+- Native additions meet narrowly approved dependency/capability decisions and actual packaged/native checks; auxiliary closure cannot stop the game.
+- Current documentation describes actual shortcuts, recovery, portability, visuals and runtime limits.
+- No unrelated source change, private data leakage, automatic model download or unauthorized publication is included.
+- UI/transport delivery and overall AI-led/physical-LAN playability are reported separately. A missing prerequisite leaves its acceptance open and prevents an unqualified whole-product completion claim.
+
+## Primary references verified for this plan
+
+- Local `.ai-factory/ARCHITECTURE.md`, `AGENTS.md`, current source, `.ai-factory/RESEARCH.md`, owning active plans and docs/visual/LIVING_TABLETOP_ASSETS.md.
+- [Manrope source and Cyrillic font history](https://github.com/google/fonts/blob/main/ofl/manrope/FONTLOG.txt). Pin and inspect the actual distributed font/metadata/license during Task 10.
+- [Literata source, Cyrillic coverage and OFL](https://github.com/googlefonts/literata). The project repository is archived; use a verified pinned distributed font rather than assuming active upstream maintenance.
+- [Tauri deep linking and single-instance integration](https://v2.tauri.app/plugin/deep-linking/). Validate the actual supported release/toolchain before package additions.
+- [Tauri window-state](https://v2.tauri.app/plugin/window-state/) and [native dialogs](https://v2.tauri.app/plugin/dialog/). Their existence is not approval to install them.
+
+## Planning handoff
+
+Planning artifacts only: this active full plan and the byte-for-byte preserved completed foundation plan. No application source, tests, dependencies, art assets, config, research or roadmap is modified in this turn.
+Next authorized workflow is `$aif-implement` when requested. Start at Task 1 using this worktree and actual dirty baseline; do not switch back to the older main checkout or execute historical superpowers instructions in the preserved foundation record.
+
+## Execution record
+
+- 2026-10-12 Task 1: captured 45 inherited file snapshots/hashes (39 dirty source files plus plan/untracked tests), actual HEAD and status in `.artifacts/product-uiux/baseline.json`. Production build and architecture guard pass; lint has 7 existing warnings/1 information item. Current production-browser baseline: 20 pass, 1 known retry-fixture failure, bounded 30s timeout. Sixteen screen captures cover 1280x800 and 960x640; fresh-context library readiness measured 406ms/259ms. Art/font payloads: 33 frontend images 6,295,143 bytes, 16 bundled images 1,891,590 bytes, 34 font files 989,052 bytes. This is browser/fixture evidence, not native/model acceptance.
+- 2026-10-12 Task 2: fixture outbox is persisted before DM streaming, retained across errors and reconciled on terminal/clarification frames. Controller regressions cover before/after committed state, definitive rejection and unavailable pending reads. Focused Vitest 19/19, production co-op browser 8/8, native transport integration 17/17 and native parser unit tests 4/4 pass; TypeScript passes. Browser uses IPC fixtures; native integration proves supported service/storage boundaries, not actual Tauri UI or real-model quality. Rust uses the installed 1.96.0 toolchain explicitly because cargo is absent from the default PATH.
+- 2026-10-12 Task 3: versioned player progress and owner-only continuation input are implemented for solo and authenticated native rooms. Canonical read does not repair delivery; hidden fields are excluded. Additive migration 0022 captures actor before planning and rejects replacement-hero resume. Focused projection 7/7, SQLite human-command contracts 22/22, authenticated real HTTP recovery, renderer parsing/native scope tests and production browser 21/21 pass. Full consolidated gates passed, including all Rust workspace tests and 173 frontend files/1146 tests; production build passes. Actual Tauri UI/model/physical LAN acceptance remains in Task 6/44.
+- 2026-10-12 verification environment: preserved 115.87GiB target cache relocated from this worktree's C target to D:/codex-builds/dmai-uiux-20261012/target with a junction restoring the original path after C filled. Final full gates use installed Rust 1.96.0, CARGO_PROFILE_TEST_DEBUG=0 (Windows PDB limit), TEMP/TMP on the owned D directory, RUST_LOG=info (telemetry smoke requires INFO), and DMAI_SKIP_SIDECAR_BUILD=1 (unit gates only; real native checks rebuild sidecar separately). Three equivalent Clippy boolean expressions were simplified; no lint exception or test assertion was removed. New migration count/actor columns are asserted. Evidence: .artifacts/product-uiux/checkpoint-1-verified-gates.log and checkpoint-1-browser.
+- 2026-10-12 checkpoint 1 committed as 92142a6. Full gates: 976 Rust tests and 1146 frontend tests pass; production build and browser 21/21 pass. Explicit owned-only patches for inherited-dirty route/turn/workflow/room-test files validated against HEAD. All original unrelated changes remain unstaged. No push/publication or real-model/Tauri-UI completion claim.
+- 2026-10-12 Task 4: proactive solo read plus original-input hydration, shared recovery notice, exact-ID continuation and unsent-draft retention are wired into the production root. Native-room controller reads public progress for its durable DM request; app composition provides the same notice through a ReactNode slot without sibling feature imports. Delayed scopes/mixed snapshots/unavailable reads are guarded; configured VITE_RECOVERY_TRACE=1 emits only safe scope/phase IDs. Actual-root regression passes, focused UI/controller tests pass, production build and architecture pass; production-browser proactive/room coverage 10/10 passes. Actual Tauri/model restart proof remains Task 6. One inherited room-failure test label now expects Continue answer; preserve its pre-existing uncommitted test body when staging checkpoint 2.
+
+- 2026-10-13 checkpoint6: four identities for each fighter/rogue/wizard/cleric (32 paired derivatives,1909008 frontend bytes). Stable legacy IDs/order and generic fallback pool preserved. Full-size/alpha and production table30/48/64px light/dark QA, all-class gallery/cold selection, same-name host/guest realSQLite public refs, and canonical cleric life-state rendering pass. Native QA discovered/fixed missing settings-wizard Cancel and late older preference writes; preferences serialize/coalesce independently of secrets, preserving explicit draft disk barriers. Final consolidated gates PASS1005Rust/200frontendfiles1246tests; final production browser51PASS; actual fresh Windows Tauri decoded16portraits, persisted cleric04 and restored it after normal close/cold launch with unchanged campaign/hero IDs,revision2,HP12,AC18 and sheet hash,exceptions0. No model/media inference, physical LAN, CI or publication claim. Evidence: checkpoint-6-persistence-full-gates.log, checkpoint-6-persistence-browser.log and hero-native/proof-{warm,cold}.json.
+
+- 2026-10-13 Task25: eight generic768px NPC portraits773516bytes integrated with stable device-scoped IDs. Existing assignments remain unchanged; absent-role fallback keeps the original8-way order, RU/EN initial role selection and missing-assigned-image state are explicit. Shared portrait dialog preserves full face/crop, Escape/focus and parent context. Production restore regression proved same-name NPCs collapsed under name keys; fixed to canonical record IDs. Focused28tests and full frontend201files1267testsPASS; architecture/assets/buildPASS; six production-root browser RU/EN x960/1280/1920 scenarios select all8, preserve legacy identity and cold restore with changed role. Source/provenance retained. Checkpoint7 native/full gates remain grouped with Tasks26-28.
+
+- 2026-10-13 Task26: six authored Bell768px portraits525690bytes produced from public role information with cosmetic appearance only, no secret/quest props. Application-owned public_npcs projection uses confirmed visits/find/roster/echo facts, exposes only id+portrait_asset_id and survives domain serialization/actual SQLite snapshot restore. Renderer consumes the permitted list without inferring future identities; shared full-portrait dialog reused. Three Rust projection/privacy tests, real SQLite restore and authenticated host/guest shared initial projection pass; focused UI and two production-root RU/EN revealed/hidden/all6/cold consumers pass, generic6browser scenarios remaingreen. Architecture/typecheck/assets/build pass. Fresh native/full checkpoint7 remains grouped with Tasks27-28.
+
+- 2026-10-13 Task27 implementation and renderer QA: eight explicit cosmetic opponent IDs,648452bytes, application-owned public UUID bindings, typed start_combat appearance allowlist and canonical WaterEcho assignment. Actual SQLite sorted-ID persistence tests7PASS; application old-projection/tool-boundary tests2PASS. Frontend47PASS, production build/static gatesPASS, all workspace Rust test targets compile. RU/EN real-root production browser2PASS: board/initiative selection, adjacent overlapping art, conditions/death, missing-ID marker, two-cell10ft ruler, low zoom and cold reload. Reviewed actual-frame light/dark30/48/64 screenshots. Stationary selection/pan capture defect reproduced RED, corrected GREEN. Actual authenticated canonical host/guest acceptance still running; Task27 box remains open until it passes. Native/full checkpoint7 gates remain grouped afterTask28.
+
+- 2026-10-13 Task27 final authenticated projection gatePASS: actualcanonical Quay->Archive->LocateTikhon->StartDefense in each of16 real-room setups, both authenticated subjects receive the same2 WaterEcho UUID bindings, each boundID exists in the public combat snapshot. The initial public NPC list remains unchanged before discovery. Firstdirect authored creation was correctly rejected by authored_encounter_mismatch; no authority validator was weakened. Newselectedmastercount71, catalogue120entries14881631bytes. Task28 started with retainedsplashcandidate; native/fullcheckpoint7 evidence stillpending25-28grouped.
+
+- 2026-10-13 Task28: seven selected key/save paintings1293284bytes integrated in KEY_ART/SAVE_ART and real startup/onboarding/table/library/save consumers. Existing IDs remain; generic artwork adds no narrative facts. Optional DecorativeImage failures retain usable labels/actions and recover for new sources; Loading status localized. Save fullpreview clipping discovered visually and fixed to contained192px-max frame; long campaign heading uses existing smaller token with an owned class, preserving inheritedCSS. Focused26PASS, production build/fastgatesPASS, final17RU/EN production-root browser cases960/1280/1920PASS inclall7 resources, longactualmetadata, startuphealth, missingart, reducedmotion and library. Selectedmastercount78; catalogue127entries16174915bytes. Checkpoint7 integratedfullgates are running; actualfreshTauri and ownedlocalcommit remainpending.
+
+- 2026-10-13 Checkpoint7 integrated gatesPASS:1011Rust tests,204files1282frontend tests, static/clippy/assets/typechecks. Initial smoke-log test was filtered by inherited RUST_LOG=warn; exact reproduction with info and full corrected gates pass, no production logging change. Fresh backend built; TauriQA build and real warm/cold acceptance pending.
+
+- 2026-10-13 Checkpoint7 nativePASS: fresh debugTauri exe/backend/frontend hashes retained in checkpoint-7-native/build-provenance.json; real first entry/Bell creation,8 offline-seeded public generic NPC fullviews and device assignment persistence,6 namedBell faces reached through canonical UI actions,2 authoredWaterEcho miniatures,4 current-state snapshots via realHTTP and UIcategory views. Normalclose/coldrestart afterofflinegeneric-role changes retainedall8faces,6publicidentities,2bindings and canonicalrev15/HP12/AC18/characterhash. UncaughtJSexceptions0, localLLM/image statesoff. EmptyDEBUGimage-sidecar was never invoked; no GPU/live-model/physicalLAN/releaseclaim. QAapp closed normally; no owned processes remain. Localownedcheckpointcommit pending.
+
+- 2026-10-13 Task29: six publicBell locationpaintings1234548bytes, explicit optionalcurrent-location scene_asset_id, shared non-tactical stage/fullpreview and location-bound catalogue check. No actor/rule/tacticalgeometry inferred frompaint. Archivearena unchanged, paintingpreview reachable. Previewbehindchat defect reproduced onrealroot, fixed viaexistingModal bodyportal; scopechangesclosestalepreviews and future/mismatchedID staysneutral. Application4tests, actualSQLitecheckpointrestore, authenticatedhost/guest/rejoin16roomsetups, focused19UItests, productionbuild/finalfastgatesPASS. Real-backend production browser6RU/EN x960/1280/1920 scenarios traverseall6 viaUI and realsave/restorePASS; additionalRU960 failed-image request/fallback/closePASS. Allsources/prompts/jobs/current-consumer screens retained; all6actualviews inspected. Selectedmasters84,catalogue133entries17409463bytes. Ownbackend/tests stopped; checkpoint8 full/native/localcommit groupedafterTasks30-31.
+
+- 2026-10-14 Task30: eight stablebundledmapIDs upgraded1280x720/2408582bytes, originalpixelsretainedunderlegacyIDs and512KiBcontractunchanged. ExistingArchivepilot map.bell_archive.v2 boundbyexplicitpublicskinID+exactgeometry12x8/wall6exceptrow3/exit1,3; mismatch/imagefailure stayneutralvector, noart-derivedcollision. Uncalibratedmapmedia nowshareddecorativescene/fullpreview, activeunmappedcombatusesneutralgrid. Focused19UI/calibration testsPASS, actualpackagedprovider5testsPASS inclall8wireexports. Productionbrowserall8image-eventfallbackconsumersPASS and scopedownedmediareloadPASS (stalefixtureopening-scene corrected). Actualbackend3DPRcases1/1.5/2PASS throughzoom/fit/layers, 10ftruler, realhero drag+server5ftmovementcost and reload. Stroke-boundhalf-pixel measurement correctedtoSVGgeometrycoordinates, no weakenedalignment. All8actualviews+Archivecaptureinspected. Publiclegacy9modeltestsPASS; skinSQLitecheckpointrestore pendingcollection. Build/fastgatesPASS. Selectedmasters92,catalogue141entries19818045bytes. Native/fullcheckpoint8+localcommit groupedafterTask31.
+
+- 2026-10-14 Task30 closing gates: actualskinSQLitecheckpointrestorePASS, public/legacy9modelchecksPASS; finalactualbackendDPR1/1.5/2 geometry/ruler/movement/reloadcases3PASS. Ownbackend49940 andalltest/build/imagehandles stopped/terminal. Sourceall8fullconsumerimages+ArchiveDPRcaptureviewed. Checkpoint8 native/full/localcommit andTask31 remain pending; fullgoalactive.
+
+- 2026-10-14 Task31 provider/browser: eight new1280x720 scenic illustrations2064188bytes, stable IDs/order/512KiB limit, original pixels retained as explicit legacy entries. Exact jobs/prompts/master hashes and inspected full-view captures retained. Real resilient-provider tests cover8x5 failure outcomes and packaged-byte/category equality; existing authentication/cancel and portrait separation pass. Actual exported fallback bytes render through production chat consumers; all8 full views inspected. Old lightbox Escape defect reproduced and fixed using common Modal/Button/body portal with focus return and stale-image closure. Focused ToolCallCard8tests and production buildPASS. Catalogue149entries21882233bytes, selectednewmasters100; final master/consumer coverage audit remains Tasks43-44. Native acceptance pending before Task31 closure.
+
+- 2026-10-14 Checkpoint8 integration: full campaign journeyPASS after stale initial scene/provenance/dialog fixture updates to the current prepared scene and shared context regions; authoritative movement/heal/attack/save/restore assertions retained. All8 maps, all8 illustrations and owned-media reload browserPASS. Actual-backend repeat7PASS initially, with two960 reduced-motion modal checks failing. Scoped Modal CSS explicitly disables animations under reduced motion; bothRU/EN960 real-backend cases nowPASS, including all6 transitions, actualrestore and missing-image fallback. FinalfastgatesPASS. Original38dirtytracked files match checkpoint7 baseline;5untracked source tests preserved. Fullgates/native/localownedcommit pending, goalACTIVE.
+
+- 2026-10-14 Checkpoint8 acceptancePASS: fullgates1014Rust/207frontendfiles1292tests, finalfastgates/buildPASS, completecampaign journey and actualbackend scenes/restore/missing-art/DPRcalibrationPASS. FreshTauri ownprofile art20261014 verifies6canonicalscenes, missing-artstatus/close, Archivecalibratedskin/twoWaterEcho sprites, all8illustrations+8maps fromactualbackend fallback with exactpackagedbytes throughfixturechat delivery, category-correctportrait, Escape/focus/fullviews andcoldsameSQLite revision13/HP12/heroHash/skin. RuntimeLLM/imageoff, JSexceptions0; allownedprocessesclosed. Harness repairs: page-targetCDP, focus beforecontrolactivation, CORSpreflight and nativebridgereadiness; screenshots waitforanimationend. Source/API/native/model layers remain distinct. All16settlednativefullviews inspected. Task31checked; selectednewmasters100/globalcoverageaudit stillTasks43-44. Localownedcheckpointcommit next; Task32 then.
+
+- 2026-10-14 Task33 local acceptance: ordinary scene changes update in-table painting/caption and retain composer/actions; no fullscreen transition or per-scene video-off nag. Optional canonical combat begin/end cards use public art, pointer passthrough, no autofocus, immediate Skip and encounter/scope dedup. Shared reactive motion preference pauses decoration and suppresses reduced/background replay; reduced close/splash timers settle immediately. Validated live adventure commits retain transient presentationGeneration while request transitionGeneration still advances; load/restore/clear reset visual scope. Four original transition files archived with identical hashes outside shipping imports, four roles mapped to selected illustrations; catalogue145entries21128951bytes, selectedmasters100 unchanged and globalaudit still43-44. Focused55 and additional18 cases PASS; fullfrontend209files1304 PASS; productionbuild/fast/architecture PASS. Real-backend major/held combat-response focus-sensor case PASS (OS focus remains native checkpoint9), ordinary normal scenes6RU/EN×width plus3DPRmap cases9PASS and reduced scenes6PASS including real restore/drafts/missing art. Compact major screenshot inspected. Owned backend/procs stopped. Tasks32-33 uncommitted, checkpoint9 full/native/localcommit follows32-35. Task34 next; fullgoal active.
+
+- 2026-10-14 Task34 implementation/progress: versioned safe workspace_v1 with pane widths, context/expansion, reading and split/table/chat views; old flat preferences load compatibly, reset preserves campaign/draft and invokes main-only native geometry reset. Shared resizer visual reused; no dependencies added. Focused74 and fullfrontend210files1306PASS, productionbuild/architecture/fastgatesPASS, browserworkspace2PASS. Native store/TauriCore geometry normal logical dimensions/monitor offsets/max state/work-area/nonclient clamp, main-only capture and safe invalid/missing-monitor fallback implemented. Rust tests3PASS include simulated125/150/200 calculations. Actual freshTauri atOS100% resize1100x700, maximize preservingnormal, coldmaximize/unmaximize, realUIreset, malformedversion/oversize and non-existent-monitor recoveryPASS, JSexceptions0, runtimesoff and allownedprocessesclosed. Physical native125/150/200 matrix missing in current environment, so Task34 remains open; do not treat simulation as fullacceptance. Docs WORKSPACE.md and TASK34-CURRENT receipt updated. Goal active, Task35 next available work; groupedcheckpoint9/full/native/ownedcommit remains pending.
+- 2026-10-14 Task35 and checkpoint9 local acceptance: localized app-composed palette and Ctrl/Meta registry bind existing solo/room controllers; private/host settings and local room saves are refused, end-turn requires an owned living current actor and no pending recovery, absent room map has no focus command. Typing/IME/repeats, nested Escape, draft/focus and settings/layout behavior verified. Diagnostics remain advanced. Full consolidated gate PASS with VITEST_MAX_WORKERS=1: Rust1017 and frontend213files1328tests; four fork startup timeouts at configured4 were separately recorded and no assertions were skipped. Native actual CtrlS creates exactly one save (revision2→3), F11 toggles/restores, map/chat focus and draft/character hash survive, JSexceptions0; all captured QA processes and WebView descendants stopped. Production browser45distinct cases covered, final map availability focused15/root tests and2browser cases PASS, productionbuild/fastgates PASS. Geometry uses MSRV1.81-compatible map_or; provider cancellation fixture waits for actual HTTP arrival before cancellation (9round tests PASS), production provider unchanged. Checkpoint9 preserves inherited38tracked/5untracked via89whole+4mixed owned staging. Actual125/150/200 DPI, real-model after-effect recovery and36-44 remain open; no release/push/dependencies authorized.
+- 2026-10-14 Task36 local acceptance: auxiliary disposal leaves backend/runtime/canonical state alive; main exit owns exactly-once RunEvent cleanup and partial-startup cleanup. Runtime shutdown rejects queued/late starts and obsolete children. Existing root Modal guards host/guest/pending exits, Cancel and current scope; mounted latest drafts flush strictly. Unconfirmed departure needs a second explicit recovery-preserving choice, guest uses existing postpone selection. No production dependency/capability expansion. Windows private JobObject before startup contains children on crash; Linux/macOS crash delivery not claimed. Native29testsPASS, fullfrontend215files1339PASS (serial), focused20/16/18PASS, productionbuild/fast/architecture/nativeClippyPASS, productionbrowser6PASS. Actual current-source Tauri twoaux close/destroy/reopen and aux main-exit denial PASS, backend/campaign unchanged. ActualhostCancel preserves server; confirmedExit marks coop_rooms.active=0 and stops all captured10processes, application cleanup once. HealthyGUI forced crash stops captured10, deliberately missing backend triggers one cleanup/exit and file restored. Actual deterministic-provider interruption commits2receipts/600seconds then Cancel/confirmedClose/coldrestart retains sameUUID, HP/inventory hash/location/history/clock/messages anddraft, no repeated effects, JSexceptions0. Initial misconfigured QAfrontend absoluteC URL directory listing is separately recorded, not UI acceptance; corrected relative path current GUI passed. All owned apps/fixture stopped, no live handles. Task36 uncommitted, checkpoint10 follows36-39; Task37 next, Task6 realmodel and34DPI still open.
+
+- 2026-10-14 Tasks37-38 local acceptance: three exact Rust Tauri plugins approved and added; notify-rust lock pinned4.11.7 to avoid its newer1.89 minimum. Official single-instance first, bounded native focus/invitation broker and Windows initialization guard; native33/36tests and ClippyPASS. Actual cold/second/concurrent launches one backend, focus/minimize recovery preserves pending UUID/effects/draft; independent QA IDs retain separate healthy backends. Invitation links use strict native version/fields/address/token validation, bounded main-only inbox, explicit preview and opt-in dynamic OS protocol. Existing room UI shares/checks one link, advanced manual/listen controls collapsed, current scope/pending/room guards and stale clipboard protection. Frontend realroot+newtests35 and share2PASS; production build/fastgatesPASS; browser4focused+12role/language/width controlsPASS; room_capabilities25PASS. Actual own Windows protocol cold/warm opens preview without joining; explicit join created one member/receipt, first GUI delivery unconfirmed; native existing recovery and then canonical UI cold recovery retain exact join/member and healthy subscription. Diagnostic recovery called outside the UI invalidated a stream; that capture excluded, corrected healthy UI/protected-repeat capture inspected. Native readiness and stale RU labels were harness repairs, not successful initial checks. Twenty final owned processes stopped and only owned QA protocol removed; no native handles live. No physicalLAN/model/GPU/installer/otherOS/push claim. Task38checked,36-38source uncommitted for checkpoint10. Task39 pinned desktop API lacks click/error/real-permission reporting; audit recorded, no fourth dependency added. Task40 contracts remain separate incomplete preparation.
+- 2026-10-14 Task39 implementation progress: user approved WinRT direct dependency and then all necessary packages. Native Windows SDK reads actual notifier setting; direct WinRT sender handles errors/activation, main-only scope/focus/opt-in and monotonic durable dedup. COM delegate non-Send compile failure corrected with creating-thread retention. Generic bodies use existing RU/EN catalogs. Source binds canonical own turns/established connection failures, opt-in control in existing settings/room slots, scoped click targets, producer UUIDs for completed downloads and current-generation runtime-ready. Policy11, focused realroot/provider/preferences27, native39, all-target cargo check, productionbuild/fastgates and4browser regressionsPASS at recorded stages. Completion-UUID backend test52464 live in link stage; current native QA build24289 waiting for that lock, both verified live. QA notification app/OS proof not started; TASK39-CURRENT.md records exact handles/setup. Task39 remains OPEN, no stage/commit/push. All necessary dependency authorization persists; do not ask again. Tasks6/34 and40-44 remain incomplete.
+
+- 2026-10-14 Task39 local native acceptance: Windows SDK actual permission, opt-in identity registration and per-profile COM activation replaced sender-only callbacks after a real user click failed. Fresh current production frontend/native builds, native39 tests, Clippy and fast gates PASS; frontend19 notification checks PASS across original combined15 and separately rerun4 after one recorded fork-start timeout. Production-browser3 invitation/root regressions PASS. Actual Windows delivery, user click/callback1/main-visible-unminimized, real OS denial/offer denied, cold same campaign revision3/projection+draft hashes/duplicate event and actual UI RU-to-native-language synchronization PASS. Focus suppression from the earlier native policy proof remains valid; no instantaneous focus claim after returning to Codex. QA opt-in disabled, captured descendants closed and only own AUMID/CLSID/settings/shortcuts removed after ownership checks. Final current-source native cold proof repeats the same state/draft/dedup. MSI/otherOS/model/download-semantic proof is separate. Task39 checked; full checkpoint10 equivalent gates running as gates.sh --ci-lint plus cargo test workspace and explicit CLI serial Vitest; no tests removed. No stage/commit/push yet. Task40 contracts remain outside checkpoint10.
+
+- 2026-10-14 Checkpoint10 verification: gates.sh --ci-lint PASS, corrected-env Rust workspace1026 PASS. Full serial frontend222files/1386cases executed:221files/1385cases PASS and one stale raw-invitation expectation failed. The owned RoomExperience fixture was updated to assert validated URI creation, token rotation, identical room and no replacement host; its current6cases plus share2cases PASS, completing all current frontend cases without omitted assertions. Latest typecheck PASS. Original failed logs retained: telemetry under inherited RUST_LOG=warn, then corrected with INFO and actual built-test PASS; frontend stale fixture. No production workaround or validators weakened. Final production build, browser3, current-source native cold/draft/replay/language and real OS click/refusal/cleanup remain PASS. Owned57paths staged through baseline9 extraction,35inherited paths/5untracked tests and Task40 contracts retained. Qualified integration acceptance is complete; owned local checkpoint10 commit follows.
+
+- 2026-10-14 Task40 strict-media preparation: image0.25.10 (already locked, necessary packages approved) direct PNG/JPEG/WebP-only decoder added in outbound media adapter. Default verify_decoded fails closed; container-only inspector cannot grant VerifiedBundleMedia. Actual3codec tests and10application contract tests PASS; architecture/all-target adapter-media+application Clippy PASS. Output buffer explicitly capped96MiB, library internal allocation limit documented as best-effort. Full backup/dossier serialization, canonical hidden-state inclusion, transactional new-campaign import/ID remap and role-authenticated wire/UI remain incomplete. Task40 OPEN, source uncommitted; checkpoint10 already committed100ad73 with qualified checks. All current build/test handles terminal.
+
+- 2026-10-14 Task40 core acceptance: discriminated full backup/own player dossier, canonical payload+declaration SHA256, base64 opaque media and explicit file/metadata/entry/pixel limits. Read-only consistent capture preserves private seed/adventure and accepted party docs only in full backup; confirmed text/image history retained, system/tool/intermediate/infrastructure excluded. Native owner-token routes reject body-role claims; room endpoint derives own actor from authenticated lease, denies revoked access and cannot export full backups. Import validates all media via full PNG/JPEG/WebP decoder and bundled manifest, remaps structured IDs, binds imported portraits, restores canonical state inside one transaction, aligns combat/session revisions and rolls back errors. Migration0026 durable operation+digest receipt prevents duplicate copies after response loss. Current real SQLite/HTTP10tests PASS inclactualshrine/Leon900s, private party/dossier/revoke, source unchanged, geometry/HP/spentbudgets, missing/corrupt/version/hash/duplicate/final-write rollback, attached images/unstarted/idempotence. Application10+decoder3 PASS, app-bootstrap check/all-targetClippy/architecture PASS; boxed large payload afterClippy diagnostic. Docs PORTABLE_CAMPAIGNS.md added. Task40 checked; source uncommitted/indexempty forcheckpoint11. Task41 native picker/write/preview/cancel/browser/WebView remains next; no packaging/nativefile proof from core tests.
+
+- 2026-10-14 Task41 progress: Rust dialog2.7.1 added under existing package approval, no frontend filesystem capability. Main-only bounded native file selection/read/preview/confirm/cancel/export/reveal, atomic sync+persist_noclobber and opaque digest-operation recovery metadata; Guest exporter only current own dossier and private paths/bytes/token stay native. Frontend existing modal/primitives composed into library and room controls, RU/EN summary/status/explicit opening and safe retry/scope cleanup. UI7+realroot9=16PASS, nativeIO2PASS Unicode/spaces/no-clobber/missingdir, nativecheck/Clippy/types/architecture/BiomePASS. Production build/browser3 and final layout browser1PASS, screenshots inspected; fixed single-grid-column toolbar and successClose label. Browser native fixtures are not actualOSdialog proof. Task41 OPEN pending fresh nativebackend/app/profile realpicker/write/cancel/restart/cleanup; source40-41uncommitted forcheckpoint11. All current toolhandles terminal; no QAapp launched, no live test ports.
+
+- 2026-10-14 Task41 actual Windows proof: human saved `Кампания с пробелами.dmai` (2726 bytes), selected it through the real open dialog, saw the summary, then selected it again after application-preview cancellation. Confirm created new campaign 06f15c90-96fb-47df-9a2b-6b96916ba9b0 with new session/actor IDs; character/resources/adventure/history equal the source, whose revision3/projection SHA256 stayed unchanged. Real corrupt-file selection rejected without another campaign. Human confirmed the OS replace prompt for the existing export; native no-clobber rejected and original file SHA256 remained identical. Native IO tests reject 64MiB+1 and actual OS-denied directory, leaving no output. Application cancellation passed; the separate human Windows-picker Cancel request remains pending, so Task41 stays OPEN. Actual isolated QA41 app48176/backend34160 still own that picker; do not claim picker cancellation or stop them as cleanup proof. Receipt directory `.artifacts/product-uiux/task-41-native/`.
+
+- 2026-10-14 Task42 implementation/proof: extracted store-free CharacterSheetView, added separate auxiliary.html/src/auxiliary.tsx production root, app-composed scoped publications, sequence acknowledgements, bounded15s lease/5s metadata heartbeat, and main-only publication/open commands. Native per-window ACL now covers every registered application command; detached capabilities permit only own projection/close/return-focus. Private WebView profile+CSP verified with main-storage canary absence and explicit ACL messages for backend/file/room/store/Stronghold/other-window commands; loopback blocked. Both real native roots rendered, hero close kept main/backend, reopen/focus passed, real library switch replaced campaign+actor in both views, main exit removed all12 owned processes. Separate hero/journal geometry keys retained 960x720 while main retained1280x800. Native fixture build and production browser3 PASS; actual roots22 cases PASS, earlier sheet8/context1 PASS; native44 ordinary tests PASS plus separately executed OS-denied IO test, all-target nativeClippy PASS before latest close/heartbeat additions, currentcheck PASS. Fast consolidated gates PASS after owned formatting. QA harness was corrected to wait for a reopened root and select the main CDP target; original single-window close helper correctly received an auxiliary ACL denial. No product permission was broadened. QA42 app20324 closed, all12 processes gone. Source40-42 uncommitted/indexempty; Task42 OPEN for remaining uploaded/generated portraits, fresh native guest/revocation, second-monitor/DPI and final frozen-source checks. Native receipts under `.artifacts/product-uiux/task-42-native/`; full product acceptance still includes Tasks6,34,41-44.
+- 2026-10-14 Task42 network evidence correction: initial port1 fetch rejection is inconclusive as a CSP test (a closed port also rejects). Preserve native-proof.initial-port1.json. Current probe now uses the working QA backend and requires CDP Network.loadingFailed.blockedReason=csp. Do not call the initial network result accepted until this stronger fresh-build probe passes. ACL-denial messages, storage canary, lifecycle and real campaign-switch proofs remain valid.
+- 2026-10-14 Task42 stronger network acceptance: working backend GET /campaigns succeeds from the main WebView, while both detached WebViews reject the same endpoint and emit a DOM securitypolicyviolation with effectiveDirective=connect-src and that exact blockedURI. WebView2 did not emit CDP Network.loadingFailed; the direct policy event supplies the explicit cause. Fresh native-proof.json and strong-network-final.log PASS; initial-port1 result remains preserved. Cold QA42 second launch app49948 is currently live with hero/journal, canonical imported actor3cef39ee-cadc-45cc-976e-62c8fcbeddfe. Initial bootstrap unavailable state was temporary; subsequent real scoped projections are ready. Source-only UI follow-up fixed the detached sheet's scroll container and embedded accessibility by reusing ContextSurface; header actions remain visible while wheel-scrolling to inventory. New production build/browser2 and focused20 view tests PASS. The already completed full frontend run passed224files/1401cases with --maxWorkers=1; current focused view tests cover the subsequent presentation edits. Native current binary predates the final scroll presentation; do not call that final UI frozen natively yet. Frontend-only encoded art/fonts measured21,615,012bytes (20.614MiB), below32MiB target; backend-embedded art and decoded/performance/native-package budgets are still pending Task43. No full consolidated gate/current native UI/guest/physical acceptance claim.
+- 2026-10-14 Task43 preliminary measurement: conservative frontend+all backend bundled raster bytes27.915MiB. Five fresh production-library samples per viewport median176.1ms at1280x800 and190.8ms at960x640; historical one-off406/259ms retained, not a repeated baseline. Headless production table with20 validated wire-fixture actors at1920x1080/DPR2 changed pan transform, sampled120frames: median16.7ms,p95=16.8ms,3frames>50ms;18loaded raster resources nominalRGBA38,367,488bytes. This pixel-footprint estimate excludes GPU allocation/decoder caches; no hard memory cap, comparable20-actor baseline, actual GPU/model contention or native package acceptance. Task43 OPEN. Full gate current all-feature Clippy passed; workspace test stopped on stale migration-count25 versus26 in repository_contracts. Update only that owned expectation and require the new receipt table; retain failed gate log and rerun.
+- 2026-10-14 Checkpoint11 gate repair: consolidated full run passed all static gates, all-feature/all-target workspaceClippy and current frontend224files/1401cases with configured4workers; only Rust test failure was migration-count25/26. Updated owned repository_contracts expectation and added the import receipt table to required schema; all11 repository cases PASS. Original failed checkpoint-11-full-gates.log retained. Full repaired workspace Rust replay is now running; no single fresh all-green consolidated run yet.
+- 2026-10-14 Task41 accepted: human Windows-picker Cancel completed; real UI returned to library with no busy/error/dialog, original revision3/hash and campaign count2 unchanged. Actual saved file hash unchanged. Normal exit cleared all owned processes, cold native relaunch56724 retained the imported campaign/session/actor and identical source/character/resources/adventure/history; second exit cleared all owned children again. Added path-free INFO for picker and preview cancellation. All explicit Task41 native-file acceptance layers now recorded; Task41 checked. Source40-42 still uncommitted; Task42/43/44 and6/34 remain open. Repaired full Rust workspace replay PASS1064 tests/1environment-dependent ignored test, with that actual OS-denied IO test separately PASS; current frontend224files1401cases PASS. Failed full-gate log retained; final nativeClippy after cancellation logging in progress.
+- 2026-10-14 Task42 follow-up after checkpoint11=6345b9a: authorized main media port verifies owned portrait and creates <=256px ephemeral derivative; native binds its asset ID to the current own sheet, bounds payload and strips portrait from journal. Real production main browser large-image derivation/no-preference-bytes PASS; actual Tauri main full-sheet button rendered owned256x256 preview25015chars, source campaign unchanged, native CSP/ACL/storage isolation stillPASS; actual wheel scroll kept header visible and inventory reachable. Two real native clients accepted a guest with uploaded own portrait/private biography; guest update/aux projection excluded host biography, then host closing the room removed native guest projection and rendered hero. Owned portrait/RU-EN types/architecture/lint, focused16 roots and3 native projection cases PASS; nativeall-targetClippyPASS. Both initial native clients23808/53456 closed normally, guest explicitly retained recovery after unconfirmed departure, all owned children gone. Task42 remains OPEN only for physical geometry/DPI acceptance and final checks; actual API reports TWO monitors at100percent, not an unavailable second monitor. Physical scale question pending. Fresh owner QA geometry run started for second-monitor/removed-monitor restore. No dependency approval repeated; no publication.
+- 2026-10-14 Physical geometry follow-up: actual native API enumerated DISPLAY1=2560x1440 and DISPLAY2=1920x1080, bothscale1. Cold restored main/hero/journal to actual DISPLAY2 and verified each physical outer rectangle inside its work area. A persisted removed-monitor fixture (nonexistent name/coordinates) then cold-restored all three to DISPLAY1 inside bounds; this tests actual preference recovery, not physical cable removal. Owner QA32972 is live on DISPLAY1 pending human scale availability. Second-monitor and missing-monitor receipts saved;125/150/200percent pending. Package preparation also found workspace rust-version1.81 contradicts the existing SQLx0.9 dependency floor1.94, verified from filtered Cargo metadata. Workspace/README minimum updated1.94; installed1.94 all-target workspace check running, existing1.96 tests remain valid. No toolchain download or publication.
+
+- 2026-10-14 Task44 fresh actual native/model sessions: real Qwen3.5-9B Q4_K_M, unchanged authority/faithfulness checks, rendered Russian composer and actual mouse clicks. Peaceful11 delivered commands reached repaired clapper/town; repair needed2 same-UUID continuations. Command12 moveQuay remainedactions_pending after the bounded2 resumes. One separate diagnostic continuation later committed it once but narration remainedwithheld: finalrev14/quay/HP12/history12/oneconfirmed effect. Defensive5 model-led setup commands passed (firstmove1resume), then3 actualEndTurn clicks let server NPC automation resolve defenseHeld; finalrev11/Archive/HP4, activecombatcleared. PostcombatRescueTikhon failed initial+2bounded+2diagnostic resumes beforeeffects; actualstructured plan chose correctrescue_tikhon but independentvalid=false. Both adventures remainopen: no full peaceful/defensive pass. The harness text/occlusion/cleared-projection mistakes are retained and distinguished from product outcomes. Metadata/screens/unchanged-proxy modelstructure under .artifacts/product-uiux/task-44-sessions; details docs/REAL_MODEL_SESSION_ACCEPTANCE.md. No gameplay API mutation was used after fixturecreation. New matchingGemma modeldownload proposal prepared; pendingexplicit authorization per AImechanicsplan. Userpackageapprovalretained; no new DPI/LANrequest. Task44 staysopen.
+
+- 2026-10-15 Task44 installed-model alternative: the already installed Ternary Bonsai2 27B PTQ1_0 (5,946,648,928bytes, SHA25653107f530aa52eb00912263ab1ee29bd199261c87cd7b4ad4ca1318c1fe33ee3) loaded in the existing Prism runtime, context16384/reasoningoff. Fresh actual native composer/click route completed8 bounded commands; action9 recovered the clapper once but narration failed after2 continuations. One separate diagnostic continuation localized unconfirmed_effect/public_state; prose repair passed faithful=true with no repeated action. Continuing the same campaign completed5 more commands, including repair and locating Tikhon. Fourteen commands eventually completed; the initial bounded failure remains recorded. Command15 RescueTikhon reproduced Qwen's rejection: correct structured proposal then valid=false on initial+2resumes, no effects. Finalrev17/Archive/HP12/history14/open adventure. No specific programming cause established and no validator weakened. New artifacts/provenance/screens/safe metadata: .artifacts/product-uiux/task-44-bonsai; qualified account in docs/REAL_MODEL_SESSION_ACCEPTANCE.md. No weights downloaded; matching managed-model authorization still pending. Original QA provider restored via UI; native/model/proxy stopped, zero profile/runtime processes and closed ports9243/31809/31810. No full Bonsai defensive or whole-product pass claimed; Task44 stays open. DPI remains waived and physical LAN deferred.

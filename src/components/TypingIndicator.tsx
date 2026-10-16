@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 /**
- * Three Cinzel diamond glyphs pulsing in a 1.4s staggered loop.
+ * Three diamond glyphs pulsing in a 1.4s staggered loop.
  *
  * Animation uses CSS @keyframes typing-dot (defined in src/styles/combat.css)
  * with animation-delay staggered by 0.2s per diamond so they pulse sequentially.

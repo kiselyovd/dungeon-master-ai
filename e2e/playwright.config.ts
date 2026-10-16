@@ -10,6 +10,8 @@ const webServerCommand = usePreview
 export default defineConfig({
   testDir: './',
   testMatch: '**/*.spec.ts',
+  // Visual specimens use a separate dev-only config and never ship in dist.
+  testIgnore: '**/fixtures/visual-pilot/**',
   // Force vite's cold pre-bundle to finish once, before any spec navigates.
   ...(usePreview ? {} : { globalSetup: './global-setup.ts' }),
   fullyParallel: false,

@@ -30,15 +30,8 @@
   z-index: var(--z-overlay-1);
 }
 
-.overlay .container {
-  animation: journalSlideIn var(--t-slow) ease both;
-}
-
-.overlay[data-state="closing"] .container {
-  animation: journalSlideOut var(--t-slow) ease both;
-}
-
 .container {
+  position: relative;
   background: var(--color-bg-overlay);
   border: 1px solid var(--color-border-accent);
   border-radius: var(--radius-lg);
@@ -48,6 +41,21 @@
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+}
+
+.container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--space-3) solid transparent;
+  border-image: var(--dm-frame-journal) 15% / var(--space-3) stretch;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .container::after {
+    display: none;
+  }
 }
 
 .header {
@@ -88,6 +96,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-overlay) 98%, transparent),
+      color-mix(in srgb, var(--color-bg-overlay) 98%, transparent)
+    ),
+    var(--dm-texture-pale-paper);
+  background-size:
+    auto,
+    384px 384px;
 }
 
 .empty {
@@ -112,15 +129,44 @@
 }
 
 .prose {
-  font-size: var(--text-sm);
+  font-family: var(--font-narrative);
+  font-size: var(--text-reading);
+  font-optical-sizing: auto;
+  max-width: 65ch;
   line-height: var(--leading-relaxed);
   color: var(--color-fg-primary);
 }
 
 .timestamp {
   display: block;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-fg-muted);
   margin-top: var(--space-2);
+}
+
+.embedded .container {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  animation: none;
+}
+.embedded .scroll {
+  overflow: visible;
+}
+.embedded .header {
+  display: none;
+}
+.embedded .container::after {
+  display: none;
+}
+
+.overlay .container {
+  animation: journalSlideIn var(--t-slow) ease both;
+}
+.overlay[data-state="closing"] .container {
+  animation: journalSlideOut var(--t-slow) ease both;
 }

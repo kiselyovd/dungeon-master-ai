@@ -1,7 +1,7 @@
 # Playable solo and LAN/VPN cooperative sessions
 
 Date: 2026-10-06
-Status: proposed design and authored adventure draft; not executable game content.
+Status: canon retained; campaign foundation and explicit authored-adventure progression implemented locally. Full AI/mechanics and LAN/VPN acceptance remain active.
 
 ## Agreed intent
 
@@ -14,7 +14,7 @@ Status: proposed design and authored adventure draft; not executable game conten
 
 Working assumptions: 1 player in solo; 2-4 players in cooperative play; AI is the Dungeon Master; a player hosts campaign storage and inference. These assumptions remain adjustable. Initial host migration, public matchmaking, voice chat and public Internet relay are outside this first delivery.
 
-## Current evidence and gaps
+## Initial audit evidence and gaps (before implementation)
 
 - Production build and TypeScript passed in the preceding audit.
 - Architecture guard and Rust formatting passed after selecting installed toolchains explicitly.
@@ -206,4 +206,8 @@ For each implementation checkpoint: focused tests, relevant gates, production bu
 - Decide whether the first guest is a Tauri client, browser client, or both; browser joining is a proposal, not an agreed requirement.
 - Define measurable response-time targets after a bounded Bonsai benchmark.
 
-This document captures exploration and authored content only. It does not mark implementation tasks complete and does not make the adventure selectable in the application.
+The original audit above is historical. The completed foundation is recorded in
+`.ai-factory/plans/codex-solo-coop-playability.md`; the selectable executable
+adventure stage is recorded in `.ai-factory/plans/codex-bell-adventure.md` and
+`docs/AUTHORED_ADVENTURE.md`. Remaining sequence and real-model/co-op requirements
+are unchanged; authored menu progression does not replace complete AI gameplay.

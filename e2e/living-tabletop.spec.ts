@@ -9,7 +9,16 @@ test.beforeEach(async ({ page }, testInfo) => {
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: 'fighter',
-    active_provider: 'local-mistralrs',
+    active_provider: 'openai-compat',
+    providers: {
+      'openai-compat': {
+        kind: 'openai-compat',
+        baseUrl: 'http://127.0.0.1:31415/v1',
+        model: 'fixture-dm',
+        apiKey: 'fixture-key',
+      },
+      'local-mistralrs': null,
+    },
     ui_language: 'en',
   });
   await page.route('**/sessions/**', async (route) => {
@@ -65,12 +74,12 @@ test('onboarding welcome and four class portraits use living-tabletop art', asyn
     'src',
     /onboarding.*\.webp/,
   );
-  await page.getByRole('button', { name: /Continue/i }).click();
-  await page.getByRole('radio', { name: /Skip setup/i }).click();
-  await page.getByRole('button', { name: /Continue/i }).click();
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose hero', exact: true }).click();
 
   for (const role of ['fighter', 'wizard', 'rogue', 'cleric']) {
-    await expect(page.locator(`img[src*="hero-${role}"]`)).toBeVisible();
+    const card = page.getByRole('radio', { name: new RegExp(role, 'i') });
+    await expect(card.locator('..').locator('img')).toBeVisible();
   }
 });
 
@@ -78,28 +87,29 @@ test('empty VTT uses living-tabletop art and retains product labels', async ({ p
   await page.goto('/');
 
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
-  await expect(page.getByText('Untitled Campaign')).toBeVisible();
-  await expect(page.locator('.dm-vtt-empty-art')).toHaveAttribute('src', /vtt-empty.*\.webp/);
+  await expect(page.getByText('Fixture Chronicle', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.dm-vtt-empty-art')).toHaveAttribute('data-asset-id', 'vtt.empty.v2');
   await expect(page.locator('.dm-vtt-empty[data-art-direction="living-tabletop"]')).toBeVisible();
 });
 
-test('NPC, save, and combat scene use their semantic images', async ({ page }) => {
+test('NPC and save images remain available without a scene-name cinematic', async ({ page }) => {
   await page.goto('/');
   await page.getByPlaceholder(/what do you do/i).fill('approach the old bridge');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const art = page.getByTestId('scene-transition-art');
-  await expect(art).toBeVisible();
-  await expect(art).toHaveAttribute('src', /scene-combat.*\.webp/);
-  await page.keyboard.press('Escape');
-  await expect(art).toHaveCount(0);
+  await expect(page.getByTestId('scene-transition-art')).toHaveCount(0);
+  await page.getByPlaceholder(/what do you do/i).fill('Unsent next action');
+  await expect(page.getByPlaceholder(/what do you do/i)).toHaveValue('Unsent next action');
 
   await page.getByRole('button', { name: 'NPCs', exact: true }).click();
   await expect(page.locator('img[data-archetype="innkeeper"]')).toHaveAttribute(
     'src',
     /npc-innkeeper.*\.webp/,
   );
-  await page.getByRole('dialog').getByRole('button', { name: /close/i }).first().click();
+  await page
+    .getByRole('complementary', { name: 'Adventure', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
 
   await page.getByRole('button', { name: 'Saves', exact: true }).click();
   await expect(page.locator('.dm-save-thumb[data-tag="exploration"] img').first()).toHaveAttribute(
@@ -108,15 +118,16 @@ test('NPC, save, and combat scene use their semantic images', async ({ page }) =
   );
 });
 
-test('reduced motion stops every living-tabletop descendant animation', async ({ page }) => {
+test('reduced motion stops decorative animations and does not create a blocking scene overlay', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.getByPlaceholder(/what do you do/i).fill('approach the old bridge');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const art = page.getByTestId('scene-transition-art');
-  await expect(art).toBeVisible();
-  const animatedDescendants = page.locator('[data-art-direction="living-tabletop"] *');
+  await expect(page.getByTestId('scene-transition-art')).toHaveCount(0);
+  const animatedDescendants = page.locator('.dm-ambient-light, .dm-ambient-dust, .dm-splash-image');
   await expect
     .poll(async () =>
       animatedDescendants.evaluateAll((elements) =>

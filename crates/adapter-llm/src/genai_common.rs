@@ -89,6 +89,23 @@ pub(crate) fn convert_messages(messages: Vec<ChatMessage>, tools: Vec<Tool>) -> 
 const LEAKED_TOOL_MARKER: &str = "<|tool_call>";
 static LEAKED_STREAM_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
+/// Normalize the same legacy tool markers for complete OpenAI-compatible replies.
+pub(crate) fn completed_text_tool_calls(content: &str) -> Vec<GToolCall> {
+    let stream_id = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    parse_leaked_tool_calls(content)
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, (name, args))| {
+            Some(GToolCall {
+                call_id: leaked_tool_call_id(stream_id, index),
+                fn_name: name,
+                fn_arguments: serde_json::from_str(&args).ok()?,
+                thought_signatures: None,
+            })
+        })
+        .collect()
+}
+
 fn leaked_tool_call_id(stream_id: u64, index: usize) -> String {
     format!("leaked-{stream_id}-{index}")
 }
@@ -222,6 +239,7 @@ pub(crate) async fn pump_genai_stream(
 ) {
     let leaked_stream_id = LEAKED_STREAM_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut args_seen: HashMap<String, String> = HashMap::new();
+    let mut call_order: Vec<String> = Vec::new();
     let mut content_mode = ContentMode::Undecided;
     let mut pending = String::new();
     let mut tool_text = String::new();
@@ -277,6 +295,9 @@ pub(crate) async fn pump_genai_stream(
                 };
                 let prev_args = args_seen.get(&call_id).cloned().unwrap_or_default();
 
+                if !args_seen.contains_key(&call_id) {
+                    call_order.push(call_id.clone());
+                }
                 if !args_seen.contains_key(&call_id)
                     && tx
                         .send(Ok(ChatChunk::ToolCallStart {
@@ -318,7 +339,27 @@ pub(crate) async fn pump_genai_stream(
                 args_seen.insert(call_id, current_args);
             }
             Ok(ChatStreamEvent::Start) => continue,
-            Ok(ChatStreamEvent::End(_end)) => {
+            Ok(ChatStreamEvent::End(end)) => {
+                use genai::chat::StopReason;
+                match &end.captured_stop_reason {
+                    Some(StopReason::MaxTokens(_)) => {
+                        let _ = tx
+                            .send(Ok(ChatChunk::Done {
+                                reason: FinishReason::Length,
+                            }))
+                            .await;
+                        return;
+                    }
+                    Some(StopReason::ContentFilter(_) | StopReason::Other(_)) | None => {
+                        let _ = tx
+                            .send(Ok(ChatChunk::Done {
+                                reason: FinishReason::Error,
+                            }))
+                            .await;
+                        return;
+                    }
+                    _ => {}
+                }
                 // Undecided content that never became a tool call is narration.
                 if matches!(content_mode, ContentMode::Undecided) && !pending.is_empty() {
                     let text = std::mem::take(&mut pending);
@@ -362,10 +403,20 @@ pub(crate) async fn pump_genai_stream(
                     }
                 }
                 let had_tool_calls = !args_seen.is_empty() || synthesized;
-                for id in std::mem::take(&mut args_seen).into_keys() {
+                for id in call_order {
                     if tx.send(Ok(ChatChunk::ToolCallDone { id })).await.is_err() {
                         return;
                     }
+                }
+                if matches!(end.captured_stop_reason, Some(StopReason::ToolCall(_)))
+                    && !had_tool_calls
+                {
+                    let _ = tx
+                        .send(Ok(ChatChunk::Done {
+                            reason: FinishReason::Error,
+                        }))
+                        .await;
+                    return;
                 }
                 let reason = if had_tool_calls {
                     FinishReason::ToolUse

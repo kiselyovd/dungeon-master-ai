@@ -164,7 +164,7 @@ describe('ModelSelector', () => {
     expect(onChange).toHaveBeenCalledWith('qwen3-7b-q4_k_m');
   });
 
-  it('renders the Custom HF repo section as a disabled placeholder', () => {
+  it('omits Hugging Face instructions when no local custom model action is available', () => {
     render(
       <ModelSelector
         value=""
@@ -176,8 +176,8 @@ describe('ModelSelector', () => {
         lastCachedAt={null}
       />,
     );
-    expect(screen.getByText(/Custom HF repo/i)).toBeInTheDocument();
-    expect(screen.getByText(/point local-mistralrs/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Custom HF repo/i)).toBeNull();
+    expect(screen.queryByText(/enter the repository and gguf file/i)).toBeNull();
   });
 
   it('marks the selected row with aria-selected=true', () => {

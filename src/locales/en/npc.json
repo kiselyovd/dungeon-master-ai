@@ -1,5 +1,9 @@
 {
   "title": "NPC Memory",
+  "open_portrait": "Open portrait of {{name}}",
+  "close_portrait": "Close portrait",
+  "portrait_alt": "Portrait of {{name}}",
+  "portrait_unavailable": "Portrait unavailable",
   "close": "Close NPC memory",
   "search_placeholder": "Search by name or role...",
   "no_npcs": "No NPCs recorded yet. Encounter someone interesting.",

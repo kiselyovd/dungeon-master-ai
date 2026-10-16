@@ -161,3 +161,52 @@ fn end_turn_advances_order_and_refreshes_next_actor() {
     assert_eq!(resolver.order.current().id, b_id);
     assert!(resolver.combatants[&b_id].budget.action);
 }
+
+#[test]
+fn ordinary_downing_is_not_a_death_event_and_close_hits_on_a_dying_hero_are_critical() {
+    use app_domain::{
+        combat::{conditions::Condition, types::CharacterId},
+        dice::{roll_one, Die},
+    };
+    for downed in [false, true] {
+        let (a, b, mut resolver) = two_combatants();
+        let victim = resolver.combatants.get_mut(&b).unwrap();
+        victim.character_id = Some(CharacterId(b.0));
+        victim.max_hp = 100;
+        victim.current_hp = if downed { 0 } else { 1 };
+        if downed {
+            victim.add_condition(Condition::Unconscious);
+        }
+        // A non-natural critical hit; unconscious proximity must promote it.
+        let seed = (0..10000)
+            .find(|s| roll_one(Die::D20, &mut SeededRng::from_seed(*s)) == 10)
+            .unwrap();
+        resolver = CombatResolver::new(
+            resolver.combatants,
+            resolver.order,
+            SeededRng::from_seed(seed),
+        );
+        let result = resolver
+            .resolve(CombatAction::Attack {
+                attacker: a,
+                target: b,
+                attack_modifier: 100,
+                damage_expr: DiceExpr {
+                    count: 1,
+                    die: Die::D4,
+                    modifier: 0,
+                },
+                damage_type: DamageType::Slashing,
+            })
+            .unwrap();
+        assert!(result.deaths.is_empty());
+        assert_eq!(resolver.combatants[&b].current_hp, 0);
+        assert!(!resolver.combatants[&b].is_dead);
+        assert!(resolver.combatants[&b].has_condition(Condition::Unconscious));
+        assert_eq!(result.damage[0].was_critical, downed);
+        assert_eq!(
+            resolver.combatants[&b].death_saves.failures,
+            if downed { 2 } else { 0 }
+        );
+    }
+}

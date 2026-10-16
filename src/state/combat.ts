@@ -20,8 +20,10 @@ export const DEFAULT_SPEED_FT = 30;
 export interface CombatSlice {
   combat: {
     active: boolean;
+    authored: CombatProjectionDto['authored'];
     encounterId: string | null;
     revision: number;
+    events: readonly unknown[];
     tokens: CombatToken[];
     initiativeOrder: string[];
     currentTurnId: string | null;
@@ -45,8 +47,10 @@ export interface CombatSlice {
 export function emptyCombatProjectionState() {
   return {
     active: false,
+    authored: null,
     encounterId: null,
     revision: -1,
+    events: [] as unknown[],
     tokens: [] as CombatToken[],
     initiativeOrder: [] as string[],
     currentTurnId: null,
@@ -64,10 +68,14 @@ export function combatProjectionState(projection: CombatProjectionDto) {
   const active = tokens.find((token) => token.id === projection.snapshot.current_combatant);
   return {
     active: projection.snapshot.active,
+    authored: projection.authored ?? null,
     encounterId: projection.encounter_id,
     revision: projection.revision,
+    events: projection.events,
     tokens,
-    initiativeOrder: projection.snapshot.initiative.map((entry) => entry.id),
+    initiativeOrder: projection.snapshot.initiative
+      .map((entry) => entry.id)
+      .filter((id) => tokens.some((token) => token.id === id)),
     currentTurnId: projection.snapshot.current_combatant,
     round: projection.snapshot.round,
     actionUsed: active ? active.actionAvailable === false : false,
@@ -95,9 +103,11 @@ export function legacyCombatProjectionState(snapshot: SnapshotCombat) {
     movementRemaining: DEFAULT_SPEED_FT,
   }));
   return {
+    authored: null,
     active: snapshot.active,
     encounterId: snapshot.encounter_id,
     revision: 0,
+    events: [] as unknown[],
     tokens,
     initiativeOrder: [...snapshot.initiative],
     currentTurnId: snapshot.current_turn_id,

@@ -7,6 +7,86 @@ use uuid::Uuid;
 
 use crate::SqliteStore;
 
+pub struct OperationMessages {
+    pub store: SqliteStore,
+    pub request_id: Uuid,
+}
+
+#[async_trait]
+impl MessageRepository for OperationMessages {
+    async fn append(
+        &self,
+        session_id: Uuid,
+        message: ChatMessage,
+    ) -> Result<StoredMessage, RepositoryError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM agent_turn_operations WHERE request_id=?1)",
+        )
+        .bind(self.request_id.to_string())
+        .fetch_one(self.store.pool())
+        .await
+        .map_err(|_| repository_error("read_message_operation"))?;
+        if exists {
+            self.store
+                .append_turn_message(self.request_id, session_id, message)
+                .await
+        } else {
+            self.store.append(session_id, message).await
+        }
+    }
+    async fn list(&self, session_id: Uuid) -> Result<Vec<StoredMessage>, RepositoryError> {
+        self.store.list(session_id).await
+    }
+}
+
+impl SqliteStore {
+    pub async fn append_turn_message(
+        &self,
+        request_id: Uuid,
+        session_id: Uuid,
+        message: ChatMessage,
+    ) -> Result<StoredMessage, RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_turn_message"))?;
+        let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM agent_turn_operations WHERE request_id=?1 AND session_id=?2 AND status='running')").bind(request_id.to_string()).bind(session_id.to_string()).fetch_one(&mut *tx).await.map_err(|_|repository_error("validate_turn_message"))?;
+        if !valid {
+            return Err(repository_error("turn_message_not_active"));
+        }
+        let sequence: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(sequence)+1,0) FROM agent_turn_messages WHERE request_id=?1",
+        )
+        .bind(request_id.to_string())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| repository_error("turn_message_sequence"))?;
+        let id = Uuid::new_v4();
+        let (role, parts, tool_calls, tool_call_id, is_error) = encode_message(&message);
+        sqlx::query("INSERT INTO messages(id,session_id,role,parts,tool_calls,tool_call_id,is_error,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)")
+            .bind(id.to_string()).bind(session_id.to_string()).bind(role).bind(parts).bind(tool_calls).bind(tool_call_id).bind(i64::from(is_error)).bind(chrono::Utc::now().to_rfc3339()).execute(&mut *tx).await.map_err(|_|repository_error("insert_turn_message"))?;
+        sqlx::query(
+            "INSERT INTO agent_turn_messages(request_id,sequence,message_json) VALUES(?1,?2,?3)",
+        )
+        .bind(request_id.to_string())
+        .bind(sequence)
+        .bind(serde_json::to_string(&message).map_err(|_| repository_error("encode_turn_message"))?)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| repository_error("checkpoint_turn_message"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_turn_message"))?;
+        Ok(StoredMessage {
+            id,
+            session_id,
+            sequence,
+            message,
+        })
+    }
+}
+
 #[async_trait]
 impl MessageRepository for SqliteStore {
     #[tracing::instrument(skip_all, fields(session_id = %session_id, repository = "messages"))]

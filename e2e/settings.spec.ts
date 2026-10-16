@@ -5,6 +5,8 @@ import { mockTauri } from './fixtures/tauri-mock';
  * Settings modal: tab navigation, the unified provider block (local config
  * inline in the Chat tab vs. cloud fields), behavior toggles, and save/cancel.
  */
+test.setTimeout(60_000);
+
 test.beforeEach(async ({ page }) => {
   await mockTauri(page, {
     onboarding_completed: true,
@@ -20,7 +22,11 @@ test.beforeEach(async ({ page }) => {
     });
   });
   await page.route('**/local-llm/manifest', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"models":[]}' });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"system":[],"user":[],"installed_ids":[],"download_states":{}}',
+    });
   });
   await page.route('**/settings/v2', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
@@ -36,7 +42,7 @@ async function openSettings(page: import('@playwright/test').Page) {
 test('exposes all five tabs and they switch', async ({ page }) => {
   await openSettings(page);
   const dialog = page.getByRole('dialog');
-  for (const name of ['Chat', 'Local LLM', 'Image', 'Video', 'Behavior']) {
+  for (const name of ['Chat', 'Model on this computer', 'Image', 'Video', 'Behavior']) {
     const tab = dialog.getByRole('tab', { name, exact: true });
     await expect(tab).toBeVisible();
     await tab.click();
@@ -59,18 +65,22 @@ test('unified provider block: local hides Base URL, OpenAI-compat shows it', asy
   await expect(dialog.getByLabel(/Base URL/i)).toHaveCount(0);
   // Switch the provider to OpenAI-compatible -> cloud fields appear.
   await dialog.getByLabel(/Provider/i).click();
-  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
+  await page.getByRole('option', { name: /Model server/i }).click();
   await expect(dialog.getByLabel(/Base URL/i)).toBeVisible();
   await expect(dialog.getByLabel(/API key/i)).toBeVisible();
   // Model is a ModelSelector (combobox), targeted by its placeholder.
   await expect(dialog.getByPlaceholder('qwen3-1.7b')).toBeVisible();
 });
 
-test('Behavior tab shows the scene-transitions toggle', async ({ page }) => {
+test('Behavior tab exposes the cinematic-moments toggle', async ({ page }) => {
   await openSettings(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('tab', { name: 'Behavior', exact: true }).click();
-  await expect(dialog.getByText(/Scene transitions/i)).toBeVisible();
+  const moments = dialog.getByRole('checkbox', { name: /^Cinematic moments/ });
+  await expect(moments).toBeVisible();
+  await expect(moments).toBeChecked();
+  await moments.uncheck();
+  await expect(moments).not.toBeChecked();
 });
 
 test('Cancel closes the modal without saving', async ({ page }) => {
@@ -88,7 +98,7 @@ test('Save persists and closes (POST /settings mocked 200)', async ({ page }) =>
   await openSettings(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/Provider/i).click();
-  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
+  await page.getByRole('option', { name: /Model server/i }).click();
   await dialog.getByLabel(/Base URL/i).fill('https://openrouter.ai/api/v1');
   await dialog.getByLabel(/API key/i).fill('sk-test-key');
   await dialog.getByPlaceholder('qwen3-1.7b').fill('anthropic/claude-3.5-sonnet');

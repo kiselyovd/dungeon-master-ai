@@ -10,6 +10,16 @@ pub const SNAPSHOT_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotProjection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub map_media_ref: Option<super::media_asset::MediaReference>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_message_indices: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub party: Option<super::party::PartySnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adventuring: Option<super::rest::AdventuringState>,
+    #[serde(default)]
+    pub adventure: Option<super::adventure::AdventureProjection>,
     pub messages: Vec<ChatMessage>,
     pub character: Value,
     pub combat: Option<Value>,
@@ -20,7 +30,29 @@ pub struct SnapshotProjection {
 
 impl SnapshotProjection {
     pub fn is_complete(&self) -> bool {
-        self.character.is_object()
+        self.map_media_ref.as_ref().is_none_or(|reference|reference.valid() && !matches!(reference,super::media_asset::MediaReference::Owned{category,..} if *category!=super::media_asset::MediaCategory::Map)) && self.shared_message_indices
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            == self.shared_message_indices.len()
+            && self.shared_message_indices.iter().all(|index| {
+                self.messages.get(*index).is_some_and(|message| {
+                    matches!(
+                        message,
+                        ChatMessage::User { .. } | ChatMessage::Assistant { .. }
+                    )
+                })
+            })
+            && self
+                .party
+                .as_ref()
+                .is_none_or(|party| party.validate(&self.character).is_ok())
+            && self
+                .adventuring
+                .as_ref()
+                .is_none_or(|state| state.elapsed_seconds <= i64::MAX as u64)
+            && self.character.is_object()
             && self.combat.as_ref().is_none_or(|value| {
                 serde_json::from_value::<CombatProjection>(value.clone()).is_ok()
             })

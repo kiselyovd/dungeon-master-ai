@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { ImageSource } from '../api/contracts/agent';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 
 export interface ToolLogEntry {
   id: string;
@@ -16,6 +17,7 @@ export interface ToolLogEntry {
   handledBy: string;
   /** Data URL of an image produced by this tool call, if any. */
   imageDataUrl?: string;
+  imageMediaRef?: MediaReference;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
   /** Provenance for the ephemeral generated or bundled image. */
@@ -31,6 +33,12 @@ export interface ToolLogSlice {
     addPending: (id: string, toolName: string, args: unknown, round: number) => void;
     settle: (id: string, result: unknown, isError: boolean, handledBy: string) => void;
     attachImage: (id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource) => void;
+    attachMedia: (
+      id: string,
+      reference: MediaReference,
+      kind: 'map' | 'chat',
+      source: ImageSource,
+    ) => void;
     clear: () => void;
     open: () => void;
     close: () => void;
@@ -72,6 +80,23 @@ export const createToolLogSlice: StateCreator<ToolLogSlice, [], [], ToolLogSlice
         },
       })),
 
+    attachMedia: (id, reference, kind, source) =>
+      set((s) => ({
+        toolLog: {
+          ...s.toolLog,
+          entries: s.toolLog.entries.map((entry) =>
+            entry.id === id
+              ? {
+                  ...entry,
+                  imageDataUrl: '',
+                  imageMediaRef: reference,
+                  imageKind: kind,
+                  imageSource: source,
+                }
+              : entry,
+          ),
+        },
+      })),
     attachImage: (id, dataUrl, kind, source) =>
       set((s) => ({
         toolLog: {

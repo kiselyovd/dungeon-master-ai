@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { recordCampaignVisit } from './campaignVisits';
 import type { DiscoveredCatalog, DiscoveredCatalogsMap } from './discoveredCatalogs';
 import type {
   LocalMistralRsConfig,
@@ -7,6 +8,26 @@ import type {
   ProviderKind,
 } from './providers';
 import type { ImagePreset, ReasoningBudget, VideoMode } from './settingsMigration';
+import {
+  DEFAULT_CHAT_WIDTH,
+  DEFAULT_READING_FONT_SIZE,
+  defaultWorkspace,
+  MAX_CHAT_WIDTH,
+  MIN_CHAT_WIDTH,
+  READING_FONT_SIZES,
+  type ReadingFontSize,
+  type WorkspacePreferences,
+  workspacePreferences,
+} from './workspacePreferences';
+
+export {
+  DEFAULT_CHAT_WIDTH,
+  DEFAULT_READING_FONT_SIZE,
+  MAX_CHAT_WIDTH,
+  MIN_CHAT_WIDTH,
+  READING_FONT_SIZES,
+  type ReadingFontSize,
+} from './workspacePreferences';
 
 export type Language = 'en' | 'ru';
 
@@ -20,9 +41,10 @@ export interface ProvidersMap {
  * as named constants so the drag handle, keyboard nudge, and persisted-value
  * sanitiser all share a single source of truth.
  */
-export const MIN_CHAT_WIDTH = 360;
-export const MAX_CHAT_WIDTH = 640;
-export const DEFAULT_CHAT_WIDTH = 480;
+
+export function readingFontSize(value: number): ReadingFontSize {
+  return READING_FONT_SIZES.find((size) => size === value) ?? DEFAULT_READING_FONT_SIZE;
+}
 
 /**
  * Runtime app state for the settings slice. FLAT shape, canonical for every
@@ -35,6 +57,7 @@ export const DEFAULT_CHAT_WIDTH = 480;
  * network boundary in `src/api/settings.ts::postSettingsV2`.
  */
 export interface SettingsData {
+  workspace: WorkspacePreferences;
   activeProvider: ProviderKind;
   providers: ProvidersMap;
   uiLanguage: Language;
@@ -46,6 +69,9 @@ export interface SettingsData {
   // P3.21 - chat panel width (px). Clamped to [MIN_CHAT_WIDTH, MAX_CHAT_WIDTH]
   // by setChatPanelWidth and by the persistStorage sanitiser on load.
   chatPanelWidth: number;
+  /** Device-local reading preference; never sent to the campaign or model. */
+  readingFontSize: ReadingFontSize;
+  campaignVisits: Record<string, string>;
   /** Play scene-transition video clips when the active scene changes. */
   sceneTransitionsEnabled: boolean;
 
@@ -74,6 +100,8 @@ export interface SettingsData {
 }
 
 export interface SettingsActions {
+  setWorkspace: (patch: Partial<WorkspacePreferences>) => void;
+  resetWorkspace: () => void;
   setActiveProvider: (kind: ProviderKind) => void;
   setProviderConfig: (config: ProviderConfig) => void;
   clearProviderConfig: (kind: ProviderKind) => void;
@@ -83,6 +111,8 @@ export interface SettingsActions {
   setTemperature: (temp: number) => void;
   setReplicateApiKey: (key: string | null) => void;
   setChatPanelWidth: (width: number) => void;
+  setReadingFontSize: (size: number) => void;
+  recordCampaignVisit: (campaignId: string) => void;
   setSceneTransitionsEnabled: (enabled: boolean) => void;
 
   // M7-DM
@@ -106,7 +136,7 @@ export interface SettingsActions {
   dismissProviderMigrationNotice: () => void;
 }
 
-function clampChatWidth(width: number): number {
+export function clampChatWidth(width: number): number {
   if (!Number.isFinite(width)) return DEFAULT_CHAT_WIDTH;
   if (width < MIN_CHAT_WIDTH) return MIN_CHAT_WIDTH;
   if (width > MAX_CHAT_WIDTH) return MAX_CHAT_WIDTH;
@@ -174,6 +204,7 @@ const DEFAULT_PROVIDERS: ProvidersMap = {
 
 export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSlice> = (set) => ({
   settings: {
+    workspace: defaultWorkspace(),
     activeProvider: 'openai-compat',
     providers: DEFAULT_PROVIDERS,
     uiLanguage: 'ru',
@@ -182,6 +213,8 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
     temperature: 0.7,
     replicateApiKey: null,
     chatPanelWidth: DEFAULT_CHAT_WIDTH,
+    readingFontSize: DEFAULT_READING_FONT_SIZE,
+    campaignVisits: {},
     sceneTransitionsEnabled: true,
 
     // M7-DM defaults
@@ -231,7 +264,50 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
 
     setChatPanelWidth: (width) =>
       set((s) => ({
-        settings: { ...s.settings, chatPanelWidth: clampChatWidth(width) },
+        settings: {
+          ...s.settings,
+          chatPanelWidth: clampChatWidth(width),
+          workspace: { ...s.settings.workspace, chatWidth: clampChatWidth(width) },
+        },
+      })),
+
+    setReadingFontSize: (size) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          readingFontSize: readingFontSize(size),
+          workspace: { ...s.settings.workspace, readingFontSize: readingFontSize(size) },
+        },
+      })),
+
+    setWorkspace: (patch) =>
+      set((s) => {
+        const workspace = workspacePreferences({ ...s.settings.workspace, ...patch });
+        return {
+          settings: {
+            ...s.settings,
+            workspace,
+            chatPanelWidth: workspace.chatWidth,
+            readingFontSize: workspace.readingFontSize,
+          },
+        };
+      }),
+    resetWorkspace: () =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          workspace: defaultWorkspace(),
+          chatPanelWidth: DEFAULT_CHAT_WIDTH,
+          readingFontSize: DEFAULT_READING_FONT_SIZE,
+        },
+      })),
+
+    recordCampaignVisit: (campaignId) =>
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          campaignVisits: recordCampaignVisit(s.settings.campaignVisits, campaignId),
+        },
       })),
 
     setSceneTransitionsEnabled: (sceneTransitionsEnabled) =>

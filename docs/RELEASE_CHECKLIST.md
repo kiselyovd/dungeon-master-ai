@@ -20,6 +20,12 @@ Copy this checklist into the release issue or PR and record command output or ar
 - [ ] Save/load restores session, messages, PC, combat, and scene atomically.
 - [ ] Combat commands do not mutate client mechanics before a newer server revision.
 - [ ] Settings persist without exposing provider credentials.
+- [ ] Full backups and player dossiers enforce their distinct roles; import preview/cancel, failed writes and retry receipts preserve existing campaigns.
+- [ ] Actual native open/save dialogs handle Cyrillic paths, corrupt/large files, denied writes and existing destinations.
+- [ ] Detached hero/journal production roots follow own actor, room/campaign and access scope; guest views exclude another player's private biography.
+- [ ] Detached windows cannot invoke game, filesystem, store or Stronghold commands or fetch the private backend directly.
+- [ ] Main exit closes every owned view/process; auxiliary close preserves the game; cold window restore covers a second/missing monitor and actual 125/150/200-percent scale.
+- [ ] Encoded art/fonts, decoded image footprint, cold startup and 20-actor rendering are measured separately from real GPU/model contention.
 
 ## Cloud bundle matrix
 

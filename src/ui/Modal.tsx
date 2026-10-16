@@ -1,6 +1,13 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react';
 import styles from './Modal.module.css';
 
+const openDialogs: HTMLDivElement[] = [];
+function topDialog() {
+  return openDialogs
+    .filter((dialog) => !openDialogs.some((other) => other !== dialog && dialog.contains(other)))
+    .at(-1);
+}
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -38,6 +45,8 @@ export function Modal({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +54,8 @@ export function Modal({
     previousFocusRef.current = document.activeElement as HTMLElement | null;
 
     const dialog = dialogRef.current;
-    if (dialog) {
+    if (dialog) openDialogs.push(dialog);
+    if (dialog && topDialog() === dialog) {
       const first = focusableElements(dialog)[0];
       if (first) {
         first.focus();
@@ -55,9 +65,10 @@ export function Modal({
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (dialog && topDialog() !== dialog) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (!disableClose) onClose();
+        if (!disableClose) onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !dialog) return;
@@ -84,9 +95,13 @@ export function Modal({
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      if (dialog) {
+        const index = openDialogs.indexOf(dialog);
+        if (index >= 0) openDialogs.splice(index, 1);
+      }
       previousFocusRef.current?.focus?.();
     };
-  }, [open, onClose, disableClose]);
+  }, [open, disableClose]);
 
   if (!open) return null;
 
@@ -96,7 +111,8 @@ export function Modal({
       data-testid="modal-backdrop"
       className={styles.backdrop}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !disableClose) onClose();
+        if (e.target === e.currentTarget && !disableClose && topDialog() === dialogRef.current)
+          onCloseRef.current();
       }}
       {...(closing !== undefined ? { 'data-state': closing ? 'closing' : 'open' } : {})}
     >

@@ -54,6 +54,40 @@ impl IntoResponse for HttpServiceError {
 pub trait MediaHttpService: Send + Sync {
     async fn generate_image(&self, prompt: ImagePrompt) -> Result<ImageBytes, HttpServiceError>;
     async fn generate_video(&self, prompt: VideoPrompt) -> Result<VideoStream, HttpServiceError>;
+    async fn register_asset(
+        &self,
+        _owner: app_application::models::media_asset::MediaOwner,
+        _category: app_application::models::media_asset::MediaCategory,
+        _origin: app_application::models::media_asset::MediaOrigin,
+        _mime_type: &str,
+        _bytes: Vec<u8>,
+    ) -> Result<app_application::models::media_asset::MediaReference, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn read_asset(
+        &self,
+        _asset_id: Uuid,
+        _scope: app_application::models::media_asset::MediaReadScope,
+    ) -> Result<app_application::models::media_asset::OwnedMediaAsset, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+}
+#[async_trait]
+pub trait NativeCampaignBundleHttpService: Send + Sync {
+    async fn preview(
+        &self,
+        bytes: &[u8],
+    ) -> Result<app_application::models::portable_campaign::CampaignBundlePreview, HttpServiceError>;
+    async fn export(
+        &self,
+        campaign: app_application::models::identity::CampaignId,
+        kind: app_application::models::campaign_bundle::BundleKind,
+    ) -> Result<Vec<u8>, HttpServiceError>;
+    async fn import(
+        &self,
+        bytes: &[u8],
+        operation_id: Uuid,
+    ) -> Result<app_application::models::portable_campaign::CampaignImportResult, HttpServiceError>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +103,54 @@ pub enum SrdSection {
 
 #[async_trait]
 pub trait CampaignHttpService: Send + Sync {
+    async fn migrate_portrait(
+        &self,
+        _command: app_application::media_assets::migrate_portrait::MigratePortrait,
+    ) -> Result<crate::routes::campaigns::PortraitMigrationResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn recovery_status(
+        &self,
+        _id: Uuid,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryStatus, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn recover_solo(
+        &self,
+        _command: app_application::models::solo_recovery::SoloRecoveryCommand,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryResult, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn rest_status(
+        &self,
+        _id: Uuid,
+    ) -> Result<app_application::models::rest::RestStatus, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn rest(
+        &self,
+        _command: app_application::models::rest::RestCommand,
+    ) -> Result<app_application::models::rest::RestResult, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn adventure_action(
+        &self,
+        _command: app_application::models::adventure::AdventureCommand,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn state(
+        &self,
+        _id: Uuid,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
+    async fn commit_character(
+        &self,
+        _command: app_application::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<crate::routes::campaigns::CampaignStateResponse, HttpServiceError> {
+        Err(HttpServiceError::NotFound)
+    }
     async fn create_campaign(
         &self,
         command: app_application::campaigns::CreateCampaignCommand,
@@ -105,12 +187,15 @@ pub struct CombatActionCommand {
 
 #[async_trait]
 pub trait CombatHttpService: Send + Sync {
-    async fn start(&self, command: CombatStartCommand) -> Result<Uuid, HttpServiceError>;
+    async fn start(
+        &self,
+        command: CombatStartCommand,
+    ) -> Result<CombatProjection, HttpServiceError>;
     async fn action(
         &self,
         command: CombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError>;
-    async fn end(&self, encounter_id: Uuid) -> Result<(), HttpServiceError>;
+    async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, HttpServiceError>;
 }
 
 #[derive(Debug, Clone)]
@@ -141,8 +226,8 @@ pub trait SavesHttpService: Send + Sync {
         &self,
         session_id: Uuid,
         metadata: SaveMetadataCommand,
-    ) -> Result<Uuid, HttpServiceError>;
-    async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError>;
+    ) -> Result<SaveCreated, HttpServiceError>;
+    async fn quick(&self, session_id: Uuid) -> Result<SaveCreated, HttpServiceError>;
     async fn get(&self, save_id: Uuid) -> Result<Value, HttpServiceError>;
     async fn delete(&self, save_id: Uuid) -> Result<bool, HttpServiceError>;
     async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError>;
@@ -151,6 +236,12 @@ pub trait SavesHttpService: Send + Sync {
         save_id: Uuid,
         metadata: SaveMetadataCommand,
     ) -> Result<bool, HttpServiceError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct SaveCreated {
+    pub id: Uuid,
+    pub revision: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -177,12 +268,48 @@ pub trait SettingsHttpService: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct AgentTurnHttpCommand {
+    pub clarification:
+        Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
+    pub resume: bool,
+    pub request_id: Option<Uuid>,
     pub request: AgentTurnRequest,
     pub model: Option<String>,
 }
 
 #[async_trait]
 pub trait AgentHttpService: Send + Sync {
+    async fn recovery_input(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
+    async fn recovery(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
+    async fn pending_clarification(
+        &self,
+        _campaign_id: Uuid,
+        _session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        Ok(None)
+    }
     async fn turn(
         &self,
         command: AgentTurnHttpCommand,
@@ -265,6 +392,94 @@ pub struct HttpServices {
     pub chat: Arc<dyn ChatHttpService>,
     pub character_assist: Arc<dyn CharacterAssistHttpService>,
     pub local_control: Arc<dyn LocalControlHttpService>,
+}
+
+#[async_trait]
+pub trait RoomDmHttpService: Send + Sync {
+    async fn recovery(
+        &self,
+        _subject: app_application::rooms::RoomSubject,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        Err(HttpServiceError::Internal {
+            code: "agent_recovery_unavailable",
+        })
+    }
+    async fn turn_with_clarification(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+        clarification: Option<
+            app_application::agent::human_commands::HumanCommandClarificationReply,
+        >,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        if clarification.is_some() {
+            return Err(HttpServiceError::BadRequest {
+                code: "human_command_clarification_unavailable",
+            });
+        }
+        self.turn(subject, request_id, player_message, resume).await
+    }
+    async fn turn(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError>;
+}
+
+#[async_trait]
+pub trait NativeRoomHostHttpService: Send + Sync {
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_host::NativeHostRoomGrant>, HttpServiceError>;
+    async fn start(
+        &self,
+        request: app_application::models::room_host::NativeHostRoomRequest,
+    ) -> Result<app_application::models::room_host::NativeHostRoomGrant, HttpServiceError>;
+    async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError>;
+}
+
+#[async_trait]
+pub trait NativeRoomClientHttpService: Send + Sync {
+    async fn saved(
+        &self,
+    ) -> Result<
+        Vec<app_application::models::room_client::NativeGuestRecoveryChoice>,
+        HttpServiceError,
+    >;
+    async fn postpone(&self) -> Result<(), HttpServiceError>;
+
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_client::NativeGuestConnection>, HttpServiceError>;
+    async fn join(
+        &self,
+        request: app_application::models::room_client::NativeGuestJoinRequest,
+    ) -> Result<app_application::models::room_client::NativeGuestConnection, HttpServiceError>;
+    async fn resume(
+        &self,
+        request: app_application::models::room_client::NativeGuestResumeRequest,
+    ) -> Result<app_application::models::room_client::NativeGuestConnection, HttpServiceError>;
+}
+
+#[async_trait::async_trait]
+pub trait NativeRoomTransportHttpService: Send + Sync {
+    async fn stream(
+        &self,
+        request: app_application::models::room_transport::NativeRoomTransportRequest,
+    ) -> Result<
+        futures::stream::BoxStream<'static, Result<Vec<u8>, HttpServiceError>>,
+        HttpServiceError,
+    >;
+
+    async fn execute(
+        &self,
+        request: app_application::models::room_transport::NativeRoomTransportRequest,
+    ) -> Result<app_application::models::room_transport::NativeRoomTransportResult, HttpServiceError>;
 }
 
 #[cfg(test)]

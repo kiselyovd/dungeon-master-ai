@@ -6,59 +6,48 @@
   "step_image": "Image setup",
   "step_video": "Video setup",
   "step_counter": "Step {{current}} of {{total}}",
-
   "next": "Continue",
   "back": "Back",
   "skip": "Skip for now",
   "begin": "Begin adventure",
-
   "preset_recommended": "Recommended",
-
-  "preset_local_only_name": "Local only",
-  "preset_local_only_desc": "Everything runs on your machine. Private, offline, no recurring cost.",
+  "preset_local_only_name": "On this computer",
+  "preset_local_only_desc": "Download models for chat and images.",
   "preset_local_only_providers": "Qwen3.5-4B + SDXL-Turbo",
   "preset_local_only_download": "~6.5 GB download",
-
   "preset_cloud_cinematic_name": "Cloud cinematic",
-  "preset_cloud_cinematic_desc": "OpenRouter (Claude / GPT) + Replicate FLUX-Pro + Kling. Best quality.",
+  "preset_cloud_cinematic_desc": "Chat, images and video through selected services. API keys and their usage fees apply.",
   "preset_cloud_cinematic_providers": "OpenRouter + FLUX-Pro + Kling",
-
   "preset_hybrid_name": "Hybrid",
-  "preset_hybrid_desc": "Cloud conversation, local image. Balance quality and cost.",
+  "preset_hybrid_desc": "Chat through a server, images on this computer.",
   "preset_hybrid_providers": "OpenRouter + SDXL-Lightning",
   "preset_hybrid_download": "~3.4 GB download",
-
   "preset_text_only_name": "Text only",
   "preset_text_only_desc": "Pure narrative, no image/video. Choose any chat provider.",
   "preset_text_only_providers": "Chat provider only",
-
   "preset_manual_name": "Skip setup",
   "preset_manual_desc": "Pick a hero now; configure providers later in Settings.",
   "preset_manual_providers": "Configure later in Settings",
-
   "preset_step_tag": "Pick your setup",
   "preset_step_title": "Choose a preset",
   "preset_step_desc": "Pick a starting configuration. You can change everything later in Settings.",
-
   "step1_tag": "Step 1 - A new tale begins",
   "step1_title": "Pull up a chair by the fire",
   "step1_desc": "Your AI Game Master is waiting at the table. They will weave the story, run the world, and roll the dice. No party required - just bring your imagination.",
-
   "chat_step_tag": "Connect AI",
   "chat_step_title": "Choose a chat provider",
-  "chat_local_desc": "Download Qwen3.5-4B Q4_K_M (~2.5 GB) to run the AI locally. Private, offline, no API cost.",
+  "chat_local_desc": "Download and start a model to play on this computer.",
   "chat_local_download_cta": "Download Qwen3.5-4B Q4_K_M (~2.5 GB)",
   "chat_local_starting": "Checking installed models...",
   "chat_local_downloading": "Downloading model...",
   "chat_local_downloading_progress": "Downloading... {{percent}}%",
-  "chat_local_download_done": "Model ready - download complete.",
-  "chat_local_already_exists": "Model ready - already installed.",
+  "chat_local_download_done": "Model downloaded",
+  "chat_local_already_exists": "Model found",
   "chat_local_download_failed": "Download failed. Please try again.",
   "chat_local_add_hf_token": "Add HuggingFace token",
   "chat_cloud_desc": "Configure an OpenAI-compatible cloud provider (OpenRouter recommended) to run the Dungeon Master.",
   "chat_text_only_desc": "Configure an OpenAI-compatible cloud provider, or skip to set one up later.",
   "retry": "Retry",
-
   "image_step_tag": "Image setup",
   "image_step_title": "Choose an image provider",
   "image_step_desc": "Generate scene art alongside your adventure. You can change this later in Settings.",
@@ -72,7 +61,6 @@
   "image_cpu_offload_enabled": "CPU offload is enabled automatically to free VRAM for the LLM when both are loaded.",
   "replicate_key_label": "Replicate API key",
   "replicate_key_hint": "Get one at replicate.com - used for FLUX-Pro image generation.",
-
   "video_step_tag": "Video setup",
   "video_step_title": "Enable AI video generation",
   "video_step_desc": "Generate short cinematic clips during scene transitions. Powered by Kling via Replicate.",
@@ -81,9 +69,7 @@
   "video_key_missing_hint": "A Replicate API key is needed to enable video generation. Go back to the image step to enter one.",
   "video_skip": "Skip for now",
   "video_enable_cta": "Enable video",
-
   "step_hero_title": "Create your hero",
-
   "cloud_base_url_label": "Base URL",
   "cloud_base_url_placeholder": "https://openrouter.ai/api/v1",
   "cloud_base_url_hint": "OpenRouter is recommended (one key, 100+ models). Any OpenAI-compatible endpoint works.",
@@ -92,15 +78,15 @@
   "cloud_api_key_hint": "Get an OpenRouter key at openrouter.ai/keys",
   "cloud_model_label": "Model",
   "cloud_model_placeholder": "e.g. anthropic/claude-3.5-sonnet",
-
   "class_fighter_name": "Fighter",
   "class_wizard_name": "Wizard",
   "class_rogue_name": "Rogue",
   "class_cleric_name": "Cleric",
-
   "hero_step_tag": "Who are you?",
   "hero_build_from_scratch": "Build from scratch (advanced)",
-
   "dialog_label": "First-run setup",
-  "stepper_label": "Onboarding progress"
+  "stepper_label": "Onboarding progress",
+  "entry_title": "Your next adventure",
+  "entry_adventure": "Start adventure",
+  "entry_join": "Join game"
 }

@@ -1,0 +1,152 @@
+{
+  "cursor": 5,
+  "head": 5,
+  "timeline_reset_cursor": 0,
+  "reset": true,
+  "events": [
+    {
+      "sequence": 1,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 2,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 3,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 4,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 5,
+      "kind": "state",
+      "payload": {}
+    }
+  ],
+  "state": {
+    "campaign": {
+      "id": "03952c8d-e47d-40ca-b29d-6d2881b16e29",
+      "schema_version": 1,
+      "ruleset_id": "srd-5.2.1",
+      "title": "DM lane",
+      "premise": "Road",
+      "seed": {
+        "kind": "collaborative",
+        "answers": {}
+      },
+      "last_session_id": "29ca7c1b-bdc4-43c6-ae0b-bc71e3597237",
+      "revision": 4,
+      "created_at_epoch_ms": 1791411607654,
+      "updated_at_epoch_ms": 1791411607665
+    },
+    "room": {
+      "room_id": "974be9f5-fd84-49bc-b298-ae21a94c3c84",
+      "campaign_id": "03952c8d-e47d-40ca-b29d-6d2881b16e29",
+      "session_id": "29ca7c1b-bdc4-43c6-ae0b-bc71e3597237",
+      "active": true,
+      "members": [
+        {
+          "member_id": "df0a57ad-3e81-4a91-8419-854136ef3796",
+          "display_name": "Mira",
+          "role": "host",
+          "active": true
+        },
+        {
+          "member_id": "4361fcf2-0513-455b-88e4-08f1aeca14b3",
+          "display_name": "Guest",
+          "role": "player",
+          "active": true
+        }
+      ]
+    },
+    "title": "DM lane",
+    "revision": 4,
+    "actors": [
+      {
+        "member_id": "df0a57ad-3e81-4a91-8419-854136ef3796",
+        "character_id": "c561333c-5f99-4596-a1e4-edb8bb805ed9",
+        "role": "host",
+        "name": "Mira",
+        "class_id": "fighter",
+        "level": 20,
+        "hp": 12,
+        "max_hp": 12,
+        "ac": 14
+      },
+      {
+        "member_id": "4361fcf2-0513-455b-88e4-08f1aeca14b3",
+        "character_id": "da4f9b0b-a474-4cee-b5ce-f9ec876d53ce",
+        "role": "player",
+        "name": "Tara",
+        "class_id": "fighter",
+        "level": 1,
+        "hp": 0,
+        "max_hp": 12,
+        "ac": 14
+      }
+    ],
+    "recovery": [
+      {
+        "character_id": "c561333c-5f99-4596-a1e4-edb8bb805ed9",
+        "status": "healthy",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": []
+      },
+      {
+        "character_id": "da4f9b0b-a474-4cee-b5ce-f9ec876d53ce",
+        "status": "dying",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": [
+          {
+            "kind": "aid",
+            "target_character_id": "da4f9b0b-a474-4cee-b5ce-f9ec876d53ce"
+          }
+        ]
+      }
+    ],
+    "own_character": {
+      "abilities": {
+        "cha": 8,
+        "con": 13,
+        "dex": 14,
+        "int": 12,
+        "str": 15,
+        "wis": 30
+      },
+      "ac": 14,
+      "characterId": "c561333c-5f99-4596-a1e4-edb8bb805ed9",
+      "heroClass": "fighter",
+      "hp": 12,
+      "hpMax": 12,
+      "inventory": [],
+      "level": 20,
+      "name": "Mira",
+      "skillProfs": {
+        "medicine": true
+      }
+    },
+    "own_proposal": null,
+    "pending_proposals": [],
+    "messages": [],
+    "combat": null,
+    "scene": null,
+    "adventure": null,
+    "clock": {
+      "elapsed_seconds": 0
+    },
+    "journal": [],
+    "npcs": [],
+    "agent_busy": false
+  }
+}

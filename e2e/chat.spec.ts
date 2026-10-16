@@ -10,7 +10,16 @@ test.beforeEach(async ({ page }) => {
   await mockTauri(page, {
     onboarding_completed: true,
     hero_class: 'fighter',
-    active_provider: 'local-mistralrs',
+    active_provider: 'openai-compat',
+    providers: {
+      'openai-compat': {
+        kind: 'openai-compat',
+        baseUrl: 'http://127.0.0.1:31415/v1',
+        model: 'fixture-dm',
+        apiKey: 'fixture-key',
+      },
+      'local-mistralrs': null,
+    },
     ui_language: 'en',
   });
   await page.route('**/sessions/**', async (route) => {

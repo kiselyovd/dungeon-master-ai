@@ -62,3 +62,26 @@ describe('Select', () => {
     expect(screen.getByRole('combobox', { name: 'Provider' })).toBeDisabled();
   });
 });
+
+it('does not display the first option as a selected value when the controlled target is absent', async () => {
+  const change = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <Select
+      value="missing"
+      options={[{ value: 'live', label: 'Available actor' }]}
+      onChange={change}
+      ariaLabel="Target"
+    />,
+  );
+  const trigger = screen.getByRole('combobox', { name: 'Target' });
+  expect(trigger).not.toHaveTextContent('Available actor');
+  expect(change).not.toHaveBeenCalled();
+  await user.click(trigger);
+  expect(screen.getByRole('option', { name: 'Available actor' })).toHaveAttribute(
+    'aria-selected',
+    'false',
+  );
+  await user.click(screen.getByRole('option', { name: 'Available actor' }));
+  expect(change).toHaveBeenCalledWith('live');
+});

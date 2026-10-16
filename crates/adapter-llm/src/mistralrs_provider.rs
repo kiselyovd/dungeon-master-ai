@@ -47,6 +47,10 @@ impl MistralrsLocalProvider {
 
 #[async_trait]
 impl LlmProvider for MistralrsLocalProvider {
+    // Native runtime ports change after restart. The hosted model is the identity.
+    fn execution_origin(&self) -> Option<String> {
+        Some(format!("local-mistralrs:{}", self.model))
+    }
     fn name(&self) -> &'static str {
         "local-mistralrs"
     }
@@ -60,6 +64,15 @@ impl LlmProvider for MistralrsLocalProvider {
         // `self.model` is kept only for capabilities/display, not the wire.
         req.model = "default".to_string();
         self.inner.stream_chat(req).await
+    }
+
+    async fn stream_chat_json(
+        &self,
+        mut req: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        req.model = "default".into();
+        self.inner.stream_chat_json(req, schema).await
     }
 
     fn capabilities_for_model(&self, model_id: &str) -> Capabilities {

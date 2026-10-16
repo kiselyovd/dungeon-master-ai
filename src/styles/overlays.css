@@ -1,4 +1,4 @@
-/* overlays.css - splash + scene-transition full-screen overlays. */
+/* Splash and optional, nonblocking in-table cinematic accents. */
 
 .dm-splash {
   position: fixed;
@@ -33,56 +33,51 @@
   animation: dm-ambient-breathe 12s ease-in-out infinite;
 }
 
-/* Scene transition overlay - sits over the VTT, click/Esc to skip. */
+/* Major-event card leaves composer/actions available and never takes focus. */
 .dm-scene-transition {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-overlay-2);
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 1;
-  transition: opacity 280ms ease;
-}
-
-.dm-scene-transition.is-fading {
-  opacity: 0;
+  position: absolute;
+  top: calc(var(--space-8) * 2);
+  right: var(--space-4);
+  width: min(280px, 32%);
+  z-index: 4;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-3);
   pointer-events: none;
-}
-
-.dm-scene-transition-art,
-.dm-scene-transition-image {
-  width: 100%;
-  height: 100%;
-}
-
-.dm-scene-transition-art {
-  position: relative;
   overflow: hidden;
+  animation: dm-art-enter var(--t-base) ease both;
 }
 
 .dm-scene-transition-image {
   display: block;
-  object-fit: cover;
-  animation: dm-ambient-breathe 12s ease-in-out infinite;
+  width: 100%;
+  max-height: calc(var(--space-8) * 4);
+  object-fit: contain;
 }
-
-.dm-scene-transition-skip {
-  position: absolute;
-  bottom: 24px;
-  right: 24px;
-  background: rgba(20, 16, 26, 0.85);
-  color: var(--color-fg-secondary);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-pill);
-  padding: 8px 16px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-family: var(--font-display);
+.dm-scene-transition-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+.dm-scene-transition .dm-scene-transition-skip {
   pointer-events: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+}
+@media (max-height: 740px) {
+  .dm-scene-transition-image {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dm-scene-transition {
+    animation: none;
+  }
 }
 
 /* Video-disabled toast - fixed bottom-right, same genre as .dm-saves-toast. */

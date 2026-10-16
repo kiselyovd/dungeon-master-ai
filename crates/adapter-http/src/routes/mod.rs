@@ -7,6 +7,7 @@ pub mod health;
 pub mod image;
 pub mod journal;
 pub mod local_control;
+pub mod media_assets;
 pub mod messages;
 pub mod npc;
 pub mod providers;

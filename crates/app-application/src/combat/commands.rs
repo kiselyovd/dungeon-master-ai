@@ -2,8 +2,24 @@ use app_domain::combat::types::{CombatantId, DamageType, Position};
 use app_domain::dice::DiceExpr;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CombatActionCommand {
+    Retreat {
+        combatant: CombatantId,
+    },
+    Spell {
+        caster: CombatantId,
+        spell_id: String,
+        targets: Vec<CombatantId>,
+        slot_level: u8,
+    },
+    WeaponAttack {
+        attacker: CombatantId,
+        target: CombatantId,
+        weapon_id: Option<String>,
+        mode: app_domain::combat::loadout::WeaponMode,
+        two_handed: bool,
+    },
     Attack {
         attacker: CombatantId,
         target: CombatantId,

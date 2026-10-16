@@ -10,6 +10,7 @@
 //! - [`context_builder`]: assembles the system prompt for each round.
 //! - [`tools`]: tool catalog (`all_tools()`) exposed to the LLM.
 
+mod checkpoint_tools;
 pub mod context_builder;
 pub mod orchestrator;
 pub mod tool_executor;

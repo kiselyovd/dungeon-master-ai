@@ -1,0 +1,759 @@
+{
+  "cursor": 22,
+  "head": 22,
+  "timeline_reset_cursor": 0,
+  "reset": true,
+  "events": [
+    {
+      "sequence": 1,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 2,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 3,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 4,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 5,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 6,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 7,
+      "kind": "state",
+      "payload": {
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+        "operation": "adventure",
+        "receipt_revision": 5,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 8,
+      "kind": "message",
+      "payload": {
+        "message_id": "d39e7067-0d1a-4828-a04a-e95e2108209a"
+      }
+    },
+    {
+      "sequence": 9,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 10,
+      "kind": "state",
+      "payload": {
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+        "operation": "adventure",
+        "receipt_revision": 6,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 11,
+      "kind": "message",
+      "payload": {
+        "message_id": "7b4f7888-8bc0-46e0-adbb-b461ed1ccab5"
+      }
+    },
+    {
+      "sequence": 12,
+      "kind": "message",
+      "payload": {
+        "message_id": "43d1a0c0-6e1d-4a28-b870-974222bf2a0e"
+      }
+    },
+    {
+      "sequence": 13,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 14,
+      "kind": "state",
+      "payload": {
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+        "operation": "adventure",
+        "receipt_revision": 7,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 15,
+      "kind": "message",
+      "payload": {
+        "message_id": "e107a1d2-ba10-4fab-b613-1559c6fed0f4"
+      }
+    },
+    {
+      "sequence": 16,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 17,
+      "kind": "state",
+      "payload": {
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+        "operation": "adventure",
+        "receipt_revision": 8,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 18,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 19,
+      "kind": "state",
+      "payload": {
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+        "operation": "adventure",
+        "receipt_revision": 9,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 20,
+      "kind": "state",
+      "payload": {}
+    },
+    {
+      "sequence": 21,
+      "kind": "state",
+      "payload": {
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+        "operation": "adventure",
+        "receipt_revision": 10,
+        "rolls": null
+      }
+    },
+    {
+      "sequence": 22,
+      "kind": "state",
+      "payload": {}
+    }
+  ],
+  "state": {
+    "campaign": {
+      "id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
+      "schema_version": 1,
+      "ruleset_id": "srd-5.2.1",
+      "title": "Room agent",
+      "premise": "Ferry",
+      "seed": {
+        "kind": "bundled",
+        "adventure_id": "bell-beneath-water"
+      },
+      "last_session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
+      "revision": 11,
+      "created_at_epoch_ms": 1791410807646,
+      "updated_at_epoch_ms": 1791410807763
+    },
+    "room": {
+      "room_id": "dd3044b3-9dc8-41ed-9196-5f01e3333407",
+      "campaign_id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
+      "session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
+      "active": true,
+      "members": [
+        {
+          "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+          "display_name": "Mira",
+          "role": "host",
+          "active": true
+        },
+        {
+          "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+          "display_name": "Guest",
+          "role": "player",
+          "active": true
+        }
+      ]
+    },
+    "title": "Room agent",
+    "revision": 11,
+    "actors": [
+      {
+        "member_id": "b5843b6c-d8a5-4c63-ab48-3faa47cd81da",
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+        "role": "host",
+        "name": "Mira",
+        "class_id": "fighter",
+        "level": 1,
+        "hp": 12,
+        "max_hp": 12,
+        "ac": 14
+      },
+      {
+        "member_id": "d333cbd2-0c61-4566-aa15-186fc93e0d34",
+        "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+        "role": "player",
+        "name": "Mira",
+        "class_id": "fighter",
+        "level": 1,
+        "hp": 12,
+        "max_hp": 12,
+        "ac": 14
+      }
+    ],
+    "recovery": [
+      {
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+        "status": "healthy",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": []
+      },
+      {
+        "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+        "status": "healthy",
+        "successes": 0,
+        "failures": 0,
+        "ready_at_seconds": null,
+        "actions": []
+      }
+    ],
+    "own_character": {
+      "abilities": {
+        "cha": 8,
+        "con": 13,
+        "dex": 14,
+        "int": 12,
+        "str": 15,
+        "wis": 10
+      },
+      "ac": 14,
+      "backstory": "GUEST_PRIVATE_STORY",
+      "characterId": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+      "combatResources": {
+        "arrows": 0,
+        "quantities": {},
+        "spellSlots": {},
+        "vitality": {
+          "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+          "combatant_id": "6c86c757-f815-40bd-b409-44d711b64d22",
+          "conditions": [],
+          "death_saves": {
+            "failures": 0,
+            "stable": false,
+            "successes": 0
+          },
+          "is_dead": false,
+          "natural_recovery": null
+        }
+      },
+      "heroClass": "fighter",
+      "hp": 12,
+      "hpMax": 12,
+      "inventory": [],
+      "level": 1,
+      "name": "Mira"
+    },
+    "own_proposal": null,
+    "pending_proposals": null,
+    "messages": [
+      {
+        "id": "d39e7067-0d1a-4828-a04a-e95e2108209a",
+        "role": "user",
+        "text": "Иду в архив",
+        "truncated": false
+      },
+      {
+        "id": "7b4f7888-8bc0-46e0-adbb-b461ed1ccab5",
+        "role": "assistant",
+        "text": "Мы достигли архива.",
+        "truncated": false
+      },
+      {
+        "id": "43d1a0c0-6e1d-4a28-b870-974222bf2a0e",
+        "role": "user",
+        "text": "Возвращаюсь к причалу",
+        "truncated": false
+      },
+      {
+        "id": "e107a1d2-ba10-4fab-b613-1559c6fed0f4",
+        "role": "assistant",
+        "text": "Мы достигли архива.",
+        "truncated": false
+      }
+    ],
+    "combat": {
+      "authored": {
+        "kind": "bell_archive_defense",
+        "map": {
+          "width": 12,
+          "height": 8,
+          "blocked": [
+            {
+              "x": 6,
+              "y": 0
+            },
+            {
+              "x": 6,
+              "y": 1
+            },
+            {
+              "x": 6,
+              "y": 2
+            },
+            {
+              "x": 6,
+              "y": 4
+            },
+            {
+              "x": 6,
+              "y": 5
+            },
+            {
+              "x": 6,
+              "y": 6
+            },
+            {
+              "x": 6,
+              "y": 7
+            }
+          ],
+          "exits": [
+            {
+              "x": 1,
+              "y": 3
+            }
+          ]
+        },
+        "outcome": null
+      },
+      "adventure": {
+        "map": {
+          "width": 12,
+          "height": 8,
+          "blocked": [
+            {
+              "x": 6,
+              "y": 0
+            },
+            {
+              "x": 6,
+              "y": 1
+            },
+            {
+              "x": 6,
+              "y": 2
+            },
+            {
+              "x": 6,
+              "y": 4
+            },
+            {
+              "x": 6,
+              "y": 5
+            },
+            {
+              "x": 6,
+              "y": 6
+            },
+            {
+              "x": 6,
+              "y": 7
+            }
+          ],
+          "exits": [
+            {
+              "x": 1,
+              "y": 3
+            }
+          ]
+        },
+        "state": {
+          "defense": "active",
+          "defense_encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
+          "package_id": "bell-beneath-water",
+          "location": "archive",
+          "facts": ["ferry_route", "tikhon_located"],
+          "ending": null,
+          "closed": false,
+          "history": [
+            {
+              "kind": "move",
+              "location": "quay"
+            },
+            {
+              "kind": "move",
+              "location": "archive"
+            },
+            {
+              "kind": "move",
+              "location": "quay"
+            },
+            {
+              "kind": "move",
+              "location": "archive"
+            },
+            {
+              "kind": "locate_tikhon"
+            },
+            {
+              "kind": "start_defense"
+            }
+          ]
+        },
+        "available_actions": []
+      },
+      "campaign_scope": {
+        "campaign_id": "20b21fa4-14b0-4cec-99b1-df3fca29a6f4",
+        "session_id": "c37b4efb-61bb-4438-a367-7f66eb28a184",
+        "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+        "revision": 11
+      },
+      "schema_version": 1,
+      "encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
+      "revision": 1,
+      "snapshot": {
+        "active": true,
+        "round": 1,
+        "current_combatant": "6c86c757-f815-40bd-b409-44d711b64d22",
+        "initiative": [
+          {
+            "id": "c6accaf7-74ed-45c6-9bc7-909b1de4a95a",
+            "roll": 19,
+            "dex_tiebreak": 2
+          },
+          {
+            "id": "6c86c757-f815-40bd-b409-44d711b64d22",
+            "roll": 10,
+            "dex_tiebreak": 2
+          },
+          {
+            "id": "a5de2a3e-a10b-4305-ab5d-e62812db5fc6",
+            "roll": 0,
+            "dex_tiebreak": 0
+          },
+          {
+            "id": "34ef08d4-8e6d-4419-8096-69f72f1ca39d",
+            "roll": 0,
+            "dex_tiebreak": 0
+          }
+        ],
+        "combatants": [
+          {
+            "id": "c6accaf7-74ed-45c6-9bc7-909b1de4a95a",
+            "character_id": "eaecadcc-b364-4157-a627-dd60e229683c",
+            "name": "Mira",
+            "max_hp": 12,
+            "current_hp": 12,
+            "temp_hp": 0,
+            "ac": 14,
+            "speed_ft": 30,
+            "initiative_roll": 19,
+            "dex_mod": 2,
+            "conditions": [],
+            "budget": {
+              "spell_slot_used": false,
+              "action": true,
+              "bonus_action": true,
+              "reaction": true,
+              "movement_ft": 30
+            },
+            "death_saves": {
+              "successes": 0,
+              "failures": 0,
+              "stable": false
+            },
+            "is_dead": false,
+            "position": {
+              "x": 3,
+              "y": 3
+            }
+          },
+          {
+            "id": "6c86c757-f815-40bd-b409-44d711b64d22",
+            "character_id": "e39b1aee-c88f-41ca-bb60-14e6f14bd9fb",
+            "loadout": {
+              "default_weapon": "unarmed",
+              "attacks": [
+                {
+                  "weapon_id": "unarmed",
+                  "attack_bonus": 4,
+                  "damage": {
+                    "count": 0,
+                    "die": "D4",
+                    "modifier": 3
+                  },
+                  "damage_type": "bludgeoning",
+                  "reach_ft": 5,
+                  "normal_range_ft": 0,
+                  "long_range_ft": 0,
+                  "ranged": false,
+                  "thrown": false,
+                  "ammunition": false,
+                  "two_handed": false,
+                  "versatile_damage": null,
+                  "heavy_disadvantage": false
+                }
+              ],
+              "quantities": {},
+              "arrows": 0,
+              "shield": false
+            },
+            "casting": {
+              "choices": [],
+              "level": 1,
+              "ability_modifier": 1,
+              "attack_bonus": 3,
+              "save_dc": 11,
+              "prepared": [],
+              "slots": {}
+            },
+            "name": "Mira",
+            "max_hp": 12,
+            "current_hp": 12,
+            "temp_hp": 0,
+            "ac": 14,
+            "speed_ft": 30,
+            "initiative_roll": 10,
+            "dex_mod": 2,
+            "conditions": [],
+            "budget": {
+              "spell_slot_used": false,
+              "action": true,
+              "bonus_action": true,
+              "reaction": true,
+              "movement_ft": 30
+            },
+            "death_saves": {
+              "successes": 0,
+              "failures": 0,
+              "stable": false
+            },
+            "is_dead": false,
+            "position": {
+              "x": 1,
+              "y": 3
+            }
+          },
+          {
+            "display_name_key": "authored.water_echo_1",
+            "id": "a5de2a3e-a10b-4305-ab5d-e62812db5fc6",
+            "loadout": {
+              "default_weapon": "echo-pulse",
+              "attacks": [
+                {
+                  "weapon_id": "echo-pulse",
+                  "attack_bonus": 3,
+                  "damage": {
+                    "count": 1,
+                    "die": "D4",
+                    "modifier": 1
+                  },
+                  "damage_type": "bludgeoning",
+                  "reach_ft": 5,
+                  "normal_range_ft": 5,
+                  "long_range_ft": 5,
+                  "ranged": false,
+                  "thrown": false,
+                  "ammunition": false,
+                  "two_handed": false,
+                  "versatile_damage": null,
+                  "heavy_disadvantage": false
+                }
+              ],
+              "quantities": {
+                "echo-pulse": 1
+              },
+              "arrows": 0,
+              "shield": false
+            },
+            "name": "Water echo 1",
+            "max_hp": 6,
+            "current_hp": 6,
+            "temp_hp": 0,
+            "ac": 11,
+            "speed_ft": 15,
+            "initiative_roll": 0,
+            "dex_mod": 0,
+            "conditions": [],
+            "budget": {
+              "spell_slot_used": false,
+              "action": true,
+              "bonus_action": true,
+              "reaction": true,
+              "movement_ft": 15
+            },
+            "death_saves": {
+              "successes": 0,
+              "failures": 0,
+              "stable": false
+            },
+            "is_dead": false,
+            "position": {
+              "x": 9,
+              "y": 1
+            }
+          },
+          {
+            "display_name_key": "authored.water_echo_2",
+            "id": "34ef08d4-8e6d-4419-8096-69f72f1ca39d",
+            "loadout": {
+              "default_weapon": "echo-pulse",
+              "attacks": [
+                {
+                  "weapon_id": "echo-pulse",
+                  "attack_bonus": 3,
+                  "damage": {
+                    "count": 1,
+                    "die": "D4",
+                    "modifier": 1
+                  },
+                  "damage_type": "bludgeoning",
+                  "reach_ft": 5,
+                  "normal_range_ft": 5,
+                  "long_range_ft": 5,
+                  "ranged": false,
+                  "thrown": false,
+                  "ammunition": false,
+                  "two_handed": false,
+                  "versatile_damage": null,
+                  "heavy_disadvantage": false
+                }
+              ],
+              "quantities": {
+                "echo-pulse": 1
+              },
+              "arrows": 0,
+              "shield": false
+            },
+            "name": "Water echo 2",
+            "max_hp": 6,
+            "current_hp": 6,
+            "temp_hp": 0,
+            "ac": 11,
+            "speed_ft": 15,
+            "initiative_roll": 0,
+            "dex_mod": 0,
+            "conditions": [],
+            "budget": {
+              "spell_slot_used": false,
+              "action": true,
+              "bonus_action": true,
+              "reaction": true,
+              "movement_ft": 15
+            },
+            "death_saves": {
+              "successes": 0,
+              "failures": 0,
+              "stable": false
+            },
+            "is_dead": false,
+            "position": {
+              "x": 9,
+              "y": 5
+            }
+          }
+        ]
+      },
+      "events": []
+    },
+    "scene": null,
+    "adventure": {
+      "map": {
+        "width": 12,
+        "height": 8,
+        "blocked": [
+          {
+            "x": 6,
+            "y": 0
+          },
+          {
+            "x": 6,
+            "y": 1
+          },
+          {
+            "x": 6,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 4
+          },
+          {
+            "x": 6,
+            "y": 5
+          },
+          {
+            "x": 6,
+            "y": 6
+          },
+          {
+            "x": 6,
+            "y": 7
+          }
+        ],
+        "exits": [
+          {
+            "x": 1,
+            "y": 3
+          }
+        ]
+      },
+      "state": {
+        "defense": "active",
+        "defense_encounter_id": "db97c6ab-a921-4239-8a86-9e4c271a170f",
+        "package_id": "bell-beneath-water",
+        "location": "archive",
+        "facts": ["ferry_route", "tikhon_located"],
+        "ending": null,
+        "closed": false,
+        "history": [
+          {
+            "kind": "move",
+            "location": "quay"
+          },
+          {
+            "kind": "move",
+            "location": "archive"
+          },
+          {
+            "kind": "move",
+            "location": "quay"
+          },
+          {
+            "kind": "move",
+            "location": "archive"
+          },
+          {
+            "kind": "locate_tikhon"
+          },
+          {
+            "kind": "start_defense"
+          }
+        ]
+      },
+      "available_actions": []
+    },
+    "clock": {
+      "elapsed_seconds": 1500
+    },
+    "journal": [],
+    "npcs": [],
+    "agent_busy": false
+  }
+}

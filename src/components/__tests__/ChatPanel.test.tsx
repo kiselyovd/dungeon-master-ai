@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../api/agentPending', () => ({ getPendingAgentClarification: async () => null }));
+
 import { type AgentTurnOptions, streamAgentTurn } from '../../api/agent';
 import { fetchSessionMessages } from '../../api/chat';
 import { ChatError } from '../../api/errors';
@@ -9,6 +12,7 @@ import { ChatPanel } from '../ChatPanel';
 import toolCardStyles from '../ToolCallCard.module.css';
 import '../../i18n';
 
+vi.mock('../../app/providerStartup', () => ({ prepareBackendProvider: vi.fn(async () => {}) }));
 vi.mock('../../api/agent', () => ({
   streamAgentTurn: vi.fn(),
 }));
@@ -21,17 +25,38 @@ const streamAgentTurnMock = vi.mocked(streamAgentTurn);
 const fetchSessionMessagesMock = vi.mocked(fetchSessionMessages);
 
 describe('ChatPanel', () => {
+  it('opens setup before dispatch and retains the unsent text', async () => {
+    const configure = vi.fn();
+    const send = vi.fn();
+    render(
+      <ChatPanel needsSetup onRequireSetup={configure} controller={{ send, cancel: vi.fn() }} />,
+    );
+    const composer = screen.getByPlaceholderText('What do you do?');
+    await userEvent.type(composer, 'Unsent adventure action');
+    await userEvent.click(screen.getByRole('button', { name: 'Configure Dungeon Master' }));
+    expect(configure).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
+    expect(composer).toHaveValue('Unsent adventure action');
+  });
+  it('keeps private model reasoning out of the player chat', () => {
+    useStore.setState((state) => ({
+      chat: {
+        ...state.chat,
+        isStreaming: true,
+        streamingReasoning: 'fixture private model reasoning',
+        streamingReasoningTokens: 120,
+      },
+    }));
+    render(<ChatPanel />);
+    expect(screen.queryByText(/fixture private model reasoning/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show reasoning/i })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
-    useStore
-      .getState()
-      .session.activate(
-        '62ba8579-904b-4460-a68a-df6268ed404a',
-        'b5271021-b82c-40c4-aa9f-554af0d79b22',
-      );
+    useStore.getState().session.activate(crypto.randomUUID(), crypto.randomUUID());
     streamAgentTurnMock.mockReset();
     fetchSessionMessagesMock.mockReset();
-    fetchSessionMessagesMock.mockResolvedValue([]);
+    fetchSessionMessagesMock.mockImplementation(async () => useStore.getState().chat.messages);
   });
 
   it('renders empty state with placeholder when no messages', () => {
@@ -360,7 +385,7 @@ describe('ChatPanel', () => {
               sequenceIndex: 0,
               status: 'success',
               args: { target: 'goblin', amount: 5 },
-              result: { hp: 42 },
+              result: { new_hp: 42 },
               isError: false,
               round: 1,
             },
@@ -372,7 +397,7 @@ describe('ChatPanel', () => {
       const card = screen.getByTestId('tool-call-card-call_settled');
       expect(card).toHaveAttribute('data-status', 'success');
       // The card must render the actual result value in the DOM.
-      expect(card).toHaveTextContent('"hp": 42');
+      expect(card).toHaveTextContent('Hit points remaining: 42');
     });
 
     it('(c) tool card appears between assistant text bubbles ordered by sequenceIndex', () => {

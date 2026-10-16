@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { RuntimeState } from '../state/localMode';
 import styles from './RuntimeStatusPill.module.css';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function RuntimeStatusPill({ label, state }: Props) {
+  const { t } = useTranslation('local_mode');
   const className =
     state.state === 'ready'
       ? styles.ready
@@ -15,12 +17,7 @@ export function RuntimeStatusPill({ label, state }: Props) {
         : state.state === 'starting'
           ? styles.starting
           : styles.off;
-  const text =
-    state.state === 'failed'
-      ? state.reason
-      : state.state === 'ready'
-        ? `ready :${state.port}`
-        : state.state;
+  const text = t(`runtime_status_${state.state}`);
 
   return (
     <span className={`${styles.pill} ${className}`}>

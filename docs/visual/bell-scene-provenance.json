@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "scene.bell.town.v2",
+      "generationId": "exec-cfb24140-af3a-40c6-b1b1-97352ead5758",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy location scene for the public town VERESK in Dungeon Master AI's Bell Beneath Water adventure, opaque wide landscape16:9. Quiet river-town waterfront, a single EMPTY modest wooden ferry boat tied at the near bank, worn timber-and-stone buildings with a small simple inn frontage and a modest distant stone sanctuary, ordinary town architecture only. Soft cool river mist and restrained warm early-morning window light, fine realistic traditional brushwork, tactile wood/stone/water, layered believable depth, rich muted olive/brown/blue palette matching a warm fantasy tabletop. No people or new named faces, enemies, quest artifacts, heraldry, secret doors, readable sign, inscription, writing, numerals or symbols. Do not invent any quest clue or imply a new tactical route. The empty boat and central waterfront remain intact inside the middle60percent for crop-safe viewing; quiet peripheral scenery. No title, caption, logo, text, UI, controls, panels, grid or frame. Atmospheric painting only, not a calibrated gameplay map.",
+      "master": ".artifacts/visual-production/masters/bell-scene-town.png",
+      "masterSha256": "700a161b7282b8c615e5bba2a8b637a87269aa0454e9df5d877462e2938d9fc0",
+      "publicSource": "src/locales/ru/adventure.json:scenes.town",
+      "publicDescription": "Мила ждёт у пустой лодки. В трактире Агаты и святилище Леона можно найти помощь. Городской совет готов выслушать свидетельства, принесённые с реки.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 274392
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    },
+    {
+      "assetId": "scene.bell.quay.v2",
+      "generationId": "exec-bab4d5b1-9e17-4330-9a1d-8da27f1e3f28",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy public location OLD QUAY for Dungeon Master AI Bell Beneath Water, opaque landscape16:9. An old deserted wooden river dock with wet weathered planks, worn mooring posts and a muted bronze bell mounted modestly near the dock, distant damp riverbank and softly rising dry hillside path far in background. The bell is seen from the outside at a distance with an eroded UNREADABLE plain band: no readable inscription, glyphs, visible clapper detail or invented quest object. Do not add footprints as a new clue, named people, boats with people, enemies, doors, treasure or faction signs. Fine realistic painterly brushwork, tactile wet wood/metal/water, cool overcast river light with subtle warm lantern reflection, muted brown/blue/green depth. Central dock/bell inside middle60percent for contained viewing, calm edges. Atmospheric public scene only; does not define a legal tactical route, collision or water crossing. No title, text, numbers, symbols, UI, controls, grid, panels, arrows or frame.",
+      "master": ".artifacts/visual-production/masters/bell-scene-quay.png",
+      "masterSha256": "89f2aa584b4f52eb0dacd70d9fc526becba723bb449170a62a51057ed9d2f74f",
+      "publicSource": "src/locales/ru/adventure.json:scenes.quay",
+      "publicDescription": "Следы босых ног пересекают мокрые доски против течения. Надпись на колоколе повреждена. К архиву ведёт верхняя тропа; затопленный короткий путь необязателен.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 219826
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    },
+    {
+      "assetId": "scene.bell.shrine.v2",
+      "generationId": "exec-a55b34be-8491-4787-8b02-bbf6faabe38e",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy public location TOWN SHRINE for Dungeon Master AI Bell Beneath Water, opaque wide landscape16:9. A modest peaceful stone sanctuary interior beside a river town: simple arched masonry, a plain wooden lectern holding an unmarked parchment sheet, a few ordinary candles, soft daylight through a small clear window and restrained warm light. No priest/person or new named identity. No deity statue, religious/faction emblem, magic rune, secret, readable rescued-person list, inscription, readable text, quest artifact or ornate altar object. The papers are seen at a distance with NO legible marks. Fine realistic traditional brushwork, tactile worn stone/wood/linen/wax, warm gold/cool grey-blue, dignified calm composition with layered depth. Central lectern and quiet sanctuary inside middle60percent, whole focal objects intact, crop-safe margins. Public atmospheric painting only, not tactical geometry and not proof of any unseen document's contents. No title, caption, logo, words, numbers, UI, controls, panels, grid or frame.",
+      "master": ".artifacts/visual-production/masters/bell-scene-shrine.png",
+      "masterSha256": "dfad76323789c1cea1f79f23b627530bf6cf1074eb5e4576389efccd3e9a6159",
+      "publicSource": "src/locales/ru/adventure.json:scenes.shrine",
+      "publicDescription": "Леон ухаживает за списком спасённых. Спросите его о защите реки: рабочую копию списка можно получить без обязательного броска.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 196980
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    },
+    {
+      "assetId": "scene.bell.warehouse.v2",
+      "generationId": "exec-5d518b4b-7530-42f7-b59d-7c983e3cf292",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy public location WARDEN'S WAREHOUSE for Dungeon Master AI Bell Beneath Water, opaque landscape16:9. A practical small river-town storage interior, ordinary stacked wooden crates and barrels, rough timber posts and plank floor, a simple empty work counter, soft daylight from a high open window and a few warm lanterns. No person or named face, no unique metal part, bell clapper, ledger, document, treasure, clue, contraband, symbol, hidden compartment, special locked door or readable labels. Crates/barrels are generic unmarked everyday storage only. Fine realistic traditional brushwork, tactile oak/rope/dust/metal lanterns, muted brown/ochre against cool grey-blue light, inviting but businesslike depth. Central storage/counter inside middle60percent, complete focal objects and quiet edges. Public atmosphere only, not proof of warehouse contents or tactical walkability. No text, letters, numbers, title, caption, logo, UI, grid, arrows, controls, panels or frame.",
+      "master": ".artifacts/visual-production/masters/bell-scene-warehouse.png",
+      "masterSha256": "33d95283ebe736c6ce1924dab027a7620852ab48f5115f7e3a883786f60aa7ee",
+      "publicSource": "src/locales/ru/adventure.json:scenes.warehouse",
+      "publicDescription": "Варден учтиво приветствует вас и предлагает условия. Переговоры или публичное вмешательство помогут вернуть пропавшую деталь колокола. Единственный неудачный бросок не перекрывает путь.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 214958
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    },
+    {
+      "assetId": "scene.bell.archive.v2",
+      "generationId": "exec-193d6f87-5bf6-4cc2-a0d7-a9bed89bd92f",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy public location FLOODED ARCHIVE for Dungeon Master AI Bell Beneath Water, opaque landscape16:9. A quiet old stone archive interior with its LOWER HALL visibly flooded by dark clear river water, ordinary shelves far from view with no readable books or papers, and a clearly DRY upper stone stair and landing rising above the flood level. No person, Tikhon portrait, enemy, roster, ledger, treasure, unique artifact, clue, secret door, inscription or faction symbol. Do not recreate or contradict the tactical12x8 map: use an oblique atmospheric architectural view, not a top-down plan or legal-route diagram. Fine realistic traditional brushwork, tactile damp masonry/water/dry worn stair, cool river-grey and muted blue with a little warm daylight on the upper landing, solemn but navigable-by-text mood. Central flood/upper stair within middle60percent; intact crop-safe focal shapes. Public atmospheric painting only, actual geometry supplied separately by the engine. No title, caption, words, numbers, runes, logo, UI, controls, arrows, grid, panels or frame.",
+      "master": ".artifacts/visual-production/masters/bell-scene-archive.png",
+      "masterSha256": "baa9dfd7359ed9071e7596cf2471f903c5a17c8c932c4a3d075c8b2fbec63abf",
+      "publicSource": "src/locales/ru/adventure.json:scenes.archive",
+      "publicDescription": "Нижний зал затоплен. Верхняя лестница суха. Окликните Тихона и осмотрите верхнюю комнату, прежде чем выбирать опасную переправу.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 161910
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    },
+    {
+      "assetId": "scene.bell.belfry.v2",
+      "generationId": "exec-6ed7ca4b-a4f3-4d19-be06-17719684f015",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy public location LOWER BELFRY for Dungeon Master AI Bell Beneath Water, opaque wide landscape16:9. A low old stone bell chamber partly flooded by still dark river water, one aged bronze bell hanging above the water from plain weathered timber supports, damp masonry and restrained cool light from a small high opening. The bell is generic externally viewed bronze; hide interior clapper detail, no legible writing or inscription. No person, visible ghost, named echo, secret artifact, repaired mechanism, quest solution, unique sluice controls, symbols, secret doors, treasure, clues or new route. Its condition must not imply that the protection is repaired or any ending achieved. Fine realistic traditional brushwork, tactile bronze/timber/damp stone/water, muted blue-grey and subtle warm reflected light, solemn quiet depth. Bell and water wholly within middle60percent, safe margins and calm edges. Atmosphere only, not tactical geometry. No title, caption, words, numbers, runes, logo, UI, controls, arrows, grid, panels or frame.",
+      "master": ".artifacts/visual-production/masters/bell-scene-belfry.png",
+      "masterSha256": "828a26639de6ee3fe347b8039971607edaf72ddaf888ac53e2d6b35cd6cda679",
+      "publicSource": "src/locales/ru/adventure.json:scenes.belfry",
+      "publicDescription": "Эхо повторяет обрывки слов о последней лодке. Ремонт и память могут восстановить защиту; закрытие нижнего шлюза решает проблему иначе. Один бой колокол не починит.",
+      "consumers": [
+        "VttCanvas.public-current-scene",
+        "SceneArtwork.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 166482
+      },
+      "selection": "accepted: source and real-production full-view RU/EN960/1280/1920; actual backend canonical transitions, SQLite save/restore, current authenticated reconnect, neutral unavailable art and reduced-motion checks"
+    }
+  ]
+}

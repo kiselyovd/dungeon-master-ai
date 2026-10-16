@@ -3,6 +3,8 @@
  * Used by persistStorage to validate the stored char_creation_draft JSON.
  */
 import * as v from 'valibot';
+import { DefenseChoiceSchema } from '../api/contracts/defense';
+import { MediaReferenceSchema } from '../api/contracts/mediaAsset';
 import { CURRENT_CHARACTER_RULESET_ID } from './charCreation';
 import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 
@@ -64,6 +66,7 @@ export const StrictCharCreationDraftSchema = v.object({
     cantrips: v.array(v.string()),
     level1: v.array(v.string()),
   }),
+  defenseChoice: v.nullable(DefenseChoiceSchema),
   equipmentMode: EquipmentModeSchema,
   equipmentSlots: v.array(EquipmentSlotSchema),
   equipmentInventory: v.array(InventoryItemSchema),
@@ -76,6 +79,21 @@ export const StrictCharCreationDraftSchema = v.object({
   name: v.string(),
   alignment: v.nullable(v.string()),
   portraitUrl: v.nullable(v.string()),
+  portraitAssetId: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(160)))),
+  portraitMediaRef: v.optional(v.nullable(MediaReferenceSchema)),
+  mediaDraftId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
+  draftScope: v.optional(
+    v.nullable(
+      v.variant('kind', [
+        v.strictObject({
+          kind: v.literal('campaign'),
+          campaignId: v.pipe(v.string(), v.uuid()),
+          characterId: v.nullable(v.pipe(v.string(), v.uuid())),
+        }),
+        v.strictObject({ kind: v.literal('room'), roomId: v.pipe(v.string(), v.uuid()) }),
+      ]),
+    ),
+  ),
   portraitPrompt: v.nullable(v.string()),
   activeTab: WizardTabSchema,
 });

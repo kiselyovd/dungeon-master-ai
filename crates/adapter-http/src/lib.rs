@@ -1,5 +1,8 @@
 //! Axum inbound adapter and stable wire mappers.
 
+pub mod native_bundles;
+pub mod room_owner;
+pub mod rooms;
 pub mod routes;
 pub mod services;
 pub mod sse;
@@ -24,6 +27,15 @@ pub fn router(services: HttpServices) -> Router {
     let router = Router::new()
         .route("/health", get(routes::health::health))
         .route("/agent/turn", post(routes::agent::post_agent_turn))
+        .route("/agent/recovery", get(routes::agent::get_recovery))
+        .route(
+            "/agent/recovery-input",
+            get(routes::agent::get_recovery_input),
+        )
+        .route(
+            "/agent/pending",
+            get(routes::agent::get_pending_clarification),
+        )
         .route(
             "/campaigns",
             get(routes::campaigns::get_campaigns).post(routes::campaigns::post_campaign),
@@ -32,7 +44,31 @@ pub fn router(services: HttpServices) -> Router {
             "/campaigns/{campaign_id}",
             get(routes::campaigns::get_campaign),
         )
+        .route(
+            "/campaigns/{campaign_id}/state",
+            get(routes::campaigns::get_campaign_state),
+        )
+        .route(
+            "/campaigns/{campaign_id}/recovery",
+            get(routes::campaigns::get_recovery_status).post(routes::campaigns::post_recovery),
+        )
+        .route(
+            "/campaigns/{campaign_id}/rest",
+            get(routes::campaigns::get_rest_status).post(routes::campaigns::post_rest),
+        )
+        .route(
+            "/campaigns/{campaign_id}/character",
+            axum::routing::put(routes::campaigns::put_campaign_character),
+        )
         .route("/chat", post(routes::chat::chat))
+        .route(
+            "/campaigns/{campaign_id}/media/portrait/migrate",
+            post(routes::campaigns::migrate_portrait),
+        )
+        .route(
+            "/campaigns/{campaign_id}/adventure/actions",
+            post(routes::campaigns::post_adventure_action),
+        )
         .route("/providers", get(routes::settings::get_providers))
         .route("/combat/start", post(routes::combat::post_combat_start))
         .route("/combat/action", post(routes::combat::post_combat_action))
@@ -83,6 +119,16 @@ pub fn router(services: HttpServices) -> Router {
         )
         .route("/settings/v2", post(routes::settings::post_settings_v2))
         .route("/image/generate", post(routes::image::post_image_generate))
+        .route(
+            "/media/assets",
+            post(routes::media_assets::upload_asset).layer(DefaultBodyLimit::max(
+                routes::media_assets::MAX_UPLOAD_BODY_BYTES,
+            )),
+        )
+        .route(
+            "/media/assets/{asset_id}",
+            get(routes::media_assets::read_asset),
+        )
         .route("/video/generate", post(routes::video::post_video_generate))
         .route(
             "/local-llm/manifest",

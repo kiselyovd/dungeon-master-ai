@@ -100,8 +100,8 @@ describe('SettingsForm', () => {
     const select = screen.getByRole('combobox', { name: /Provider/i });
     await user.click(select);
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'OpenAI-compatible (cloud or local server)',
-      'Local mistralrs (embedded, on-device)',
+      'Model server',
+      'Model on this computer',
     ]);
   });
 
@@ -110,18 +110,19 @@ describe('SettingsForm', () => {
     seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
 
-    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
+    await user.click(screen.getByRole('tab', { name: /Model on this computer/i }));
 
     // The manifest-driven picker renders a radio per installed model; the
     // image model card (SDXL-Turbo) still renders below it.
     expect(screen.getByRole('radio', { name: /Qwen3\.5-4B/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
     expect(screen.getByText(/SDXL-Turbo/i)).toBeInTheDocument();
     // Runtime controls are reachable from this tab without the keyboard
     // shortcut now.
-    expect(screen.getByRole('button', { name: /start runtimes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /stop runtimes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start model/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /stop models/i })).toBeInTheDocument();
     // VRAM strategy select rendered too.
-    expect(screen.getByRole('combobox', { name: /VRAM strategy/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Graphics memory/i })).toBeInTheDocument();
   });
 
   it('updates localMode.selectedLlm when the user picks a different model', async () => {
@@ -130,7 +131,7 @@ describe('SettingsForm', () => {
     // is now picked from the manifest-driven LocalLlmModelSelector's radios.
     seedInstalledLocalLlms();
     render(<SettingsForm onSubmit={() => {}} />);
-    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
+    await user.click(screen.getByRole('tab', { name: /Model on this computer/i }));
 
     // Default selection is qwen3_5_4b - pick the 0.8B radio from the picker.
     const radio = screen.getByRole('radio', { name: /Qwen3\.5-0\.8B/i });
@@ -142,10 +143,11 @@ describe('SettingsForm', () => {
   it('updates localMode.vramStrategy when the user changes the strategy select', async () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
-    await user.click(screen.getByRole('tab', { name: /Local LLM/i }));
+    await user.click(screen.getByRole('tab', { name: /Model on this computer/i }));
 
-    await user.click(screen.getByRole('combobox', { name: /VRAM strategy/i }));
-    await user.click(screen.getByRole('option', { name: /Keep both loaded/i }));
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
+    await user.click(screen.getByRole('combobox', { name: /Graphics memory/i }));
+    await user.click(screen.getByRole('option', { name: /Keep models loaded/i }));
 
     expect(useStore.getState().localMode.vramStrategy).toBe('keep-both-loaded');
   });
@@ -162,7 +164,7 @@ describe('SettingsForm', () => {
 
     render(<SettingsForm formId="f" onSubmit={onSubmit} />);
     await user.click(screen.getByRole('combobox', { name: /Provider/i }));
-    await user.click(screen.getByRole('option', { name: /Local mistralrs/i }));
+    await user.click(screen.getByRole('option', { name: /Model on this computer/i }));
 
     fireEvent.submit(document.getElementById('f') as HTMLFormElement);
 
@@ -256,6 +258,33 @@ describe('VideoTab license-restricted gating', () => {
 });
 
 describe('SettingsForm model discovery integration', () => {
+  it('keeps cloud setup free of local HF instructions and masks provider response details', async () => {
+    postDiscoverMock.mockRejectedValueOnce(new Error('PRIVATE_PROVIDER_RESPONSE'));
+    render(<SettingsForm onSubmit={() => {}} />);
+    expect(screen.queryByText(/Hugging Face|GGUF/i)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /check connection/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Verify the address and key/);
+    expect(screen.queryByText('PRIVATE_PROVIDER_RESPONSE')).toBeNull();
+  });
+  it('does not call a curated fallback a verified provider connection', async () => {
+    postDiscoverMock.mockResolvedValueOnce({
+      models: [],
+      cached_at: new Date().toISOString(),
+      source: 'curated',
+      next_cursor: null,
+    });
+    render(<SettingsForm onSubmit={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /check connection/i }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /connection has not been confirmed/,
+    );
+  });
+  it('gates model changes during a room turn without discarding drafts', () => {
+    render(<SettingsForm agentTurnInFlight onSubmit={vi.fn()} />);
+    expect(screen.getByRole('combobox', { name: /Provider/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /check connection/i })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(/Wait for the current turn/);
+  });
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
     postDiscoverMock.mockReset();
@@ -267,7 +296,7 @@ describe('SettingsForm model discovery integration', () => {
   it('renders a ModelSelector inside the default openai-compat sub-form (Discover button visible)', () => {
     render(<SettingsForm onSubmit={() => {}} />);
     // Default provider is openai-compat - Discover button should be visible.
-    expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /check connection/i })).toBeInTheDocument();
   });
 
   it('clicking a discovered model row updates the model draft', async () => {
@@ -292,7 +321,7 @@ describe('SettingsForm model discovery integration', () => {
     });
 
     render(<SettingsForm onSubmit={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
+    fireEvent.click(screen.getByRole('button', { name: /check connection/i }));
     const row = await screen.findByRole('option', { name: /claude haiku 4\.5/i });
     fireEvent.click(row);
 
@@ -306,9 +335,9 @@ describe('SettingsForm model discovery integration', () => {
     const user = userEvent.setup();
     render(<SettingsForm onSubmit={() => {}} />);
     await user.click(screen.getByRole('combobox', { name: /Provider/i }));
-    await user.click(screen.getByRole('option', { name: /OpenAI-compatible/i }));
+    await user.click(screen.getByRole('option', { name: /Model server/i }));
     // The Discover button is still present in the openai-compat sub-form.
-    expect(screen.getByRole('button', { name: /discover models/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /check connection/i })).toBeInTheDocument();
 
     postDiscoverMock.mockResolvedValueOnce({
       models: [],
@@ -316,7 +345,7 @@ describe('SettingsForm model discovery integration', () => {
       source: 'discovered-api',
       next_cursor: null,
     });
-    fireEvent.click(screen.getByRole('button', { name: /discover models/i }));
+    fireEvent.click(screen.getByRole('button', { name: /check connection/i }));
     await waitFor(() => expect(postDiscoverMock).toHaveBeenCalled());
     const call = postDiscoverMock.mock.calls[0]?.[0] as { provider_id: string };
     expect(call.provider_id).toBe('openai-compat');

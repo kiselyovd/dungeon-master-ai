@@ -1,0 +1,170 @@
+{
+  "after": {
+    "rest": {
+      "campaign_id": "0adcf4f9-402d-410e-9908-c04b0f236283",
+      "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+      "combat_active": false,
+      "elapsed_seconds": 6,
+      "hit_dice_remaining": 1,
+      "hit_die": 10,
+      "hp": 0,
+      "long_rest_ready_in_seconds": 0,
+      "max_hp": 12,
+      "revision": 3,
+      "safe": true,
+      "session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7",
+      "slots": {}
+    },
+    "result": {
+      "receipt": {
+        "death_saves": [
+          {
+            "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+            "result": {
+              "combatant": "6acc9ebf-8110-45c2-ac1f-b8e8e0e50cc3",
+              "dead": false,
+              "failures_total": 0,
+              "roll": 13,
+              "stable": false,
+              "success": true,
+              "successes_total": 1
+            }
+          }
+        ],
+        "duplicate": false,
+        "medicine": null,
+        "ready_at_seconds": null,
+        "receipt_revision": 3,
+        "recovered": false,
+        "stabilized": false,
+        "target_character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29"
+      },
+      "status": {
+        "campaign_id": "0adcf4f9-402d-410e-9908-c04b0f236283",
+        "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+        "combat_active": false,
+        "elapsed_seconds": 6,
+        "hp": 0,
+        "max_hp": 12,
+        "recovery": {
+          "actions": [
+            {
+              "kind": "death_save"
+            }
+          ],
+          "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+          "failures": 0,
+          "ready_at_seconds": null,
+          "status": "dying",
+          "successes": 1
+        },
+        "revision": 3,
+        "safe": true,
+        "session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7"
+      }
+    }
+  },
+  "before": {
+    "rest": {
+      "campaign_id": "0adcf4f9-402d-410e-9908-c04b0f236283",
+      "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+      "combat_active": false,
+      "elapsed_seconds": 0,
+      "hit_dice_remaining": 1,
+      "hit_die": 10,
+      "hp": 0,
+      "long_rest_ready_in_seconds": 0,
+      "max_hp": 12,
+      "revision": 2,
+      "safe": true,
+      "session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7",
+      "slots": {}
+    },
+    "state": {
+      "campaign": {
+        "created_at": "2026-10-07T23:48:01.028Z",
+        "id": "0adcf4f9-402d-410e-9908-c04b0f236283",
+        "last_session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7",
+        "premise": "Bridge",
+        "revision": 2,
+        "ruleset_id": "srd-5.2.1",
+        "schema_version": 1,
+        "seed": {
+          "answers": {
+            "world": ["Bridge"]
+          },
+          "kind": "collaborative"
+        },
+        "title": "Solo death save",
+        "updated_at": "2026-10-07T23:48:01.030Z"
+      },
+      "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+      "projection": {
+        "adventure": null,
+        "character": {
+          "abilities": {
+            "cha": 8,
+            "con": 14,
+            "dex": 14,
+            "int": 10,
+            "str": 16,
+            "wis": 12
+          },
+          "ac": 16,
+          "characterId": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+          "combatResources": {
+            "vitality": {
+              "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+              "combatant_id": "6acc9ebf-8110-45c2-ac1f-b8e8e0e50cc3",
+              "conditions": ["unconscious"],
+              "death_saves": {
+                "failures": 0,
+                "stable": false,
+                "successes": 0
+              },
+              "is_dead": false,
+              "natural_recovery": null
+            }
+          },
+          "heroClass": "fighter",
+          "hp": 0,
+          "hpMax": 12,
+          "inventory": [],
+          "level": 1,
+          "name": "Mira"
+        },
+        "combat": null,
+        "journal": [],
+        "messages": [],
+        "npcs": [],
+        "scene": null
+      },
+      "ruleset_id": "srd-5.2.1",
+      "schema_version": 1,
+      "session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7"
+    },
+    "status": {
+      "campaign_id": "0adcf4f9-402d-410e-9908-c04b0f236283",
+      "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+      "combat_active": false,
+      "elapsed_seconds": 0,
+      "hp": 0,
+      "max_hp": 12,
+      "recovery": {
+        "actions": [
+          {
+            "kind": "death_save"
+          }
+        ],
+        "character_id": "b864d545-3546-4a8c-8271-3b0f4d2b3b29",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "dying",
+        "successes": 0
+      },
+      "revision": 2,
+      "safe": true,
+      "session_id": "f4d07fa8-5f26-4308-a1a0-4c4df6f8ece7"
+    }
+  }
+}

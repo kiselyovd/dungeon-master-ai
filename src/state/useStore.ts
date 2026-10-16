@@ -5,7 +5,12 @@ import { type CharCreationSlice, createCharCreationSlice } from './charCreation'
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
 import { createJournalSlice, type JournalSlice } from './journal';
-import { createLocalModeSlice, type LocalModeSlice } from './localMode';
+import {
+  ALL_MODEL_IDS,
+  createLocalModeSlice,
+  type LocalModeSlice,
+  type ModelId,
+} from './localMode';
 import { createNpcSlice, type NpcSlice } from './npc';
 import { createOnboardingSlice, type OnboardingSlice } from './onboarding';
 import { createPcSlice, type PcSlice } from './pc';
@@ -67,6 +72,7 @@ export const useStore = create<AppState>()(
       },
       partialize: (state): PersistedSettings => ({
         settings: {
+          workspace: state.settings.workspace,
           activeProvider: state.settings.activeProvider,
           providers: state.settings.providers,
           uiLanguage: state.settings.uiLanguage,
@@ -75,6 +81,8 @@ export const useStore = create<AppState>()(
           temperature: state.settings.temperature,
           replicateApiKey: state.settings.replicateApiKey,
           chatPanelWidth: state.settings.chatPanelWidth,
+          readingFontSize: state.settings.readingFontSize,
+          campaignVisits: state.settings.campaignVisits,
           sceneTransitionsEnabled: state.settings.sceneTransitionsEnabled,
           discoveredCatalogs: state.settings.discoveredCatalogs,
           // M7-DM additions (now persisted)
@@ -96,8 +104,19 @@ export const useStore = create<AppState>()(
         },
         onboarding: {
           completed: state.onboarding.completed,
+          version: state.onboarding.version,
+          entry: state.onboarding.entry,
         },
         pc: {
+          ...(state.pc.defense ? { defense: state.pc.defense } : {}),
+          ...(state.pc.baseSpeedFt !== undefined ? { baseSpeedFt: state.pc.baseSpeedFt } : {}),
+          characterId: state.pc.characterId ?? null,
+          backstory: state.pc.backstory ?? '',
+          ideals: state.pc.ideals ?? '',
+          bonds: state.pc.bonds ?? '',
+          flaws: state.pc.flaws ?? '',
+          spells: state.pc.spells ?? { cantrips: [], level1: [] },
+          personalityFlags: state.pc.personalityFlags ?? [],
           heroClass: state.pc.heroClass,
           name: state.pc.name,
           race: state.pc.race,
@@ -118,8 +137,12 @@ export const useStore = create<AppState>()(
           skillProfs: state.pc.skillProfs,
           inventory: state.pc.inventory,
           portraitUrl: state.pc.portraitUrl,
+          portraitAssetId: state.pc.portraitAssetId ?? null,
+          portraitMediaRef: state.pc.portraitMediaRef ?? null,
         },
         charCreation: {
+          rulesetId: state.charCreation.rulesetId,
+          defenseChoice: state.charCreation.defenseChoice,
           classId: state.charCreation.classId,
           subclassId: state.charCreation.subclassId,
           raceId: state.charCreation.raceId,
@@ -143,6 +166,10 @@ export const useStore = create<AppState>()(
           name: state.charCreation.name,
           alignment: state.charCreation.alignment,
           portraitUrl: state.charCreation.portraitUrl,
+          portraitAssetId: state.charCreation.portraitAssetId ?? null,
+          portraitMediaRef: state.charCreation.portraitMediaRef ?? null,
+          mediaDraftId: state.charCreation.mediaDraftId ?? null,
+          draftScope: state.charCreation.draftScope ?? null,
           portraitPrompt: state.charCreation.portraitPrompt,
           activeTab: state.charCreation.activeTab,
         },
@@ -159,8 +186,23 @@ export const useStore = create<AppState>()(
         const persistedSettings = applyProviderMigration(
           applyD8Migration(persisted.settings ?? {}),
         );
+        const savedLocal = persistedSettings.providers?.['local-mistralrs'];
         return {
           ...currentState,
+          localMode: {
+            ...currentState.localMode,
+            ...(savedLocal && ALL_MODEL_IDS.includes(savedLocal.modelPath as ModelId)
+              ? {
+                  selectedLlm: savedLocal.modelPath as ModelId,
+                  contextWindow:
+                    Number.isInteger(savedLocal.contextWindow) &&
+                    savedLocal.contextWindow >= 512 &&
+                    savedLocal.contextWindow <= 65536
+                      ? savedLocal.contextWindow
+                      : 8192,
+                }
+              : {}),
+          },
           settings: {
             ...currentState.settings,
             ...persistedSettings,

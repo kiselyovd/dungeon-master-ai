@@ -3,13 +3,21 @@
   border: 1px solid var(--color-border-accent);
   border-radius: var(--radius-md);
   padding: var(--space-3);
-  font-family: "JetBrains Mono", monospace;
-  font-size: var(--text-xs);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
   transition: border-color var(--t-base);
 }
 
 .cardError {
   border-color: var(--color-danger);
+}
+
+.compact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
 }
 
 @keyframes gold-flash {
@@ -41,10 +49,19 @@
 }
 
 .statusBadge {
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-bg-deep);
+}
+
+.inspectButton {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  color: var(--color-fg-secondary);
 }
 
 .status_pending {
@@ -66,6 +83,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.compact .header {
+  display: contents;
+}
+.compact .toolName {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.compact .body {
+  flex-basis: 100%;
 }
 
 .section {
@@ -178,19 +206,10 @@
   max-height: 320px;
   object-fit: contain;
 }
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  cursor: zoom-out;
-}
 .lightboxImg {
-  max-width: 92vw;
-  max-height: 92vh;
+  display: block;
+  width: 100%;
+  max-height: 65vh;
   object-fit: contain;
 }
 @media (prefers-reduced-motion: reduce) {

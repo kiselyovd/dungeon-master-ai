@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "skins": [
+    {
+      "assetId": "map.bell_archive.v2",
+      "geometrySource": "crates/app-domain/src/combat/geometry.rs::bell_archive_map",
+      "widthCells": 12,
+      "heightCells": 8,
+      "sourceFrame": {
+        "x": 0,
+        "y": 0,
+        "width": 1536,
+        "height": 1024
+      },
+      "blocked": [
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 2
+        },
+        {
+          "x": 6,
+          "y": 4
+        },
+        {
+          "x": 6,
+          "y": 5
+        },
+        {
+          "x": 6,
+          "y": 6
+        },
+        {
+          "x": 6,
+          "y": 7
+        }
+      ],
+      "exits": [
+        {
+          "x": 1,
+          "y": 3
+        }
+      ],
+      "landmarks": {
+        "wallColumnSourceX": [
+          768,
+          896
+        ],
+        "passageRowSourceY": [
+          384,
+          512
+        ],
+        "exitCellSourceRect": [
+          128,
+          384,
+          128,
+          128
+        ]
+      },
+      "mapping": "full frame to the same 12x8 SVG origin; no inferred paths or collision",
+      "review": "accepted: actual-backend DPR1/1.5/2, SVG geometry coordinates independent of stroke, zoom/fit/layers, two-cell10ft ruler, server-confirmed one-cell5ft movement and reload"
+    }
+  ]
+}

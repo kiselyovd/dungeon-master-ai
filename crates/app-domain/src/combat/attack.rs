@@ -27,7 +27,16 @@ pub fn roll_attack(
     advantage: AttackModifier,
     rng: &mut SeededRng,
 ) -> AttackOutcome {
-    let (total_with_mod, _rolls) = match advantage {
+    roll_attack_detailed(attack_modifier, target_ac, advantage, rng).outcome
+}
+
+pub fn roll_attack_detailed(
+    attack_modifier: i32,
+    target_ac: i32,
+    advantage: AttackModifier,
+    rng: &mut SeededRng,
+) -> AttackRoll {
+    let (total_with_mod, rolls) = match advantage {
         AttackModifier::Advantage => {
             let (t, r) = roll_with_advantage(Die::D20, attack_modifier, rng);
             (t, r.to_vec())
@@ -45,7 +54,7 @@ pub fn roll_attack(
     // The natural value is the kept die face (without modifier).
     let natural = total_with_mod - attack_modifier;
 
-    if natural == 20 {
+    let outcome = if natural == 20 {
         AttackOutcome::CriticalHit {
             natural,
             total: total_with_mod,
@@ -62,5 +71,6 @@ pub fn roll_attack(
             natural,
             total: total_with_mod,
         }
-    }
+    };
+    AttackRoll { outcome, rolls }
 }

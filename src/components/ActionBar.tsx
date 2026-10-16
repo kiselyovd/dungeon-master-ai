@@ -1,21 +1,28 @@
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 
 interface Props {
+  /** Room adapters expose only commands they can actually dispatch. */
+  supportedOnly?: boolean;
+  blockedReason?: string | null | undefined;
+  slots?: Record<string, { maximum: number; remaining: number }> | undefined;
   actionUsed?: boolean;
   bonusUsed?: boolean;
   reactionUsed?: boolean;
   movementFt?: number;
   speedFt?: number;
   pending?: boolean;
+  castAvailable?: boolean | undefined;
   onAttack?: (() => void) | undefined;
   onCast?: (() => void) | undefined;
   onMove?: (() => void) | undefined;
   onDash?: (() => void) | undefined;
   onDodge?: (() => void) | undefined;
   onDisengage?: (() => void) | undefined;
+  onRetreat?: (() => void) | undefined;
+  retreatAvailable?: boolean | undefined;
   onUseObject?: (() => void) | undefined;
   onEndTurn?: (() => void) | undefined;
   /**
@@ -46,6 +53,9 @@ interface ActionButton {
  * Explicit props always win via `??` so the existing override path still works.
  */
 export function ActionBar({
+  supportedOnly = false,
+  blockedReason,
+  slots,
   actionUsed: actionUsedProp,
   bonusUsed: bonusUsedProp,
   reactionUsed: reactionUsedProp,
@@ -57,12 +67,16 @@ export function ActionBar({
   onDash,
   onDodge,
   onDisengage,
+  onRetreat,
+  retreatAvailable,
   onUseObject,
   onEndTurn,
   onIntent,
   pending = false,
+  castAvailable,
 }: Props) {
   const { t } = useTranslation('combat');
+  const reasonId = useId();
 
   const storeActionUsed = useStore((s) => s.combat.actionUsed);
   const storeBonusUsed = useStore((s) => s.combat.bonusUsed);
@@ -88,7 +102,7 @@ export function ActionBar({
   const effectiveMovementFt = movementFt;
   const moveLabel = `${t('move')} (${t('movement_label', { remaining: effectiveMovementFt, total: speedFt })})`;
   const actionUsedTitle = t('action_used_tooltip');
-  const actionDisabled = actionUsed || pending;
+  const actionDisabled = actionUsed || pending || Boolean(blockedReason);
   const actionTitle = actionUsed ? actionUsedTitle : undefined;
 
   const actions: ActionButton[] = [
@@ -105,11 +119,11 @@ export function ActionBar({
     {
       key: 'cast',
       label: t('cast'),
-      title: actionTitle ?? t('cast'),
+      title: castAvailable === undefined ? (actionTitle ?? t('cast')) : t('cast'),
       icon: <Icons.Wand size={20} />,
       kind: 'magic',
       kbd: 'C',
-      disabled: actionDisabled,
+      disabled: pending || (castAvailable === undefined ? actionUsed : !castAvailable),
       onClick: actionHandler(onCast, 'intent_cast'),
     },
     {
@@ -143,12 +157,15 @@ export function ActionBar({
     },
     {
       key: 'disengage',
-      label: t('disengage'),
-      title: actionTitle ?? t('disengage'),
+      label: t(onRetreat ? 'retreat' : 'disengage'),
+      title:
+        onRetreat && !retreatAvailable
+          ? t('retreat_exit_required')
+          : (actionTitle ?? t(onRetreat ? 'retreat' : 'disengage')),
       icon: <Icons.ArrowReverse size={20} />,
       kbd: 'X',
-      disabled: actionDisabled,
-      onClick: actionHandler(onDisengage, 'intent_disengage'),
+      disabled: actionDisabled || Boolean(onRetreat && !retreatAvailable),
+      onClick: actionHandler(onRetreat ?? onDisengage, 'intent_disengage'),
     },
     {
       key: 'use_object',
@@ -171,23 +188,71 @@ export function ActionBar({
     },
   ];
 
+  const explicitHandlers: Record<string, (() => void) | undefined> = {
+    attack: onAttack,
+    cast: onCast,
+    move: onMove,
+    dash: onDash,
+    dodge: onDodge,
+    disengage: onRetreat ?? onDisengage,
+    use_object: onUseObject,
+    end_turn: onEndTurn,
+  };
+  const visibleActions = supportedOnly
+    ? actions.filter((action) => explicitHandlers[action.key] !== undefined)
+    : actions;
+  const unavailableReason = (action: ActionButton): string | null => {
+    if (blockedReason) return blockedReason;
+    if (pending) return t('action_pending');
+    if (!action.disabled) return null;
+    if (action.key === 'move') return t('movement_exhausted');
+    if (action.key === 'disengage' && onRetreat && !retreatAvailable)
+      return t('retreat_exit_short');
+    if (action.key === 'cast' && castAvailable === false) return t('casting_unavailable_short');
+    return actionUsed ? actionUsedTitle : t('action_turn_unavailable');
+  };
+  const reasons = [
+    ...new Set(
+      visibleActions.map(unavailableReason).filter((reason): reason is string => reason !== null),
+    ),
+  ];
+
   return (
     <div className="dm-actionbar" role="toolbar" aria-label={t('action_bar')}>
       <div className="dm-actionbar-econ">
         <EconChip label={t('action')} used={actionUsed} />
         <EconChip label={t('bonus_action')} used={bonusUsed} />
         <EconChip label={t('reaction')} used={reactionBlocked} />
+        <span className="dm-econ-chip">
+          {t('movement_label', { remaining: movementFt, total: speedFt })}
+        </span>
+        {slots &&
+          Object.entries(slots).map(([level, stock]) => (
+            <span
+              key={level}
+              className="dm-econ-chip"
+              title={t('spell_slot_stock', { level, ...stock })}
+            >
+              {t('slot_budget', { level, remaining: stock.remaining, maximum: stock.maximum })}
+            </span>
+          ))}
       </div>
       <div className="dm-actionbar-buttons">
-        {actions.map((a) => (
+        {visibleActions.map((a) => (
           <button
             key={a.key}
             type="button"
             data-testid={`action-btn-${a.key}`}
             className={`dm-action-btn dm-action-${a.kind ?? 'default'}`}
-            disabled={a.disabled === true}
+            disabled={a.disabled === true || Boolean(blockedReason)}
             onClick={a.onClick}
-            title={a.title}
+            aria-label={a.label}
+            aria-describedby={
+              unavailableReason(a)
+                ? `${reasonId}-${reasons.indexOf(unavailableReason(a) ?? '')}`
+                : undefined
+            }
+            title={unavailableReason(a) ?? a.title}
           >
             <span className="dm-action-icon">{a.icon}</span>
             <span className="dm-action-label">{a.label}</span>
@@ -195,6 +260,21 @@ export function ActionBar({
           </button>
         ))}
       </div>
+      {reasons.length > 0 && (
+        <div className="dm-action-reasons" aria-live="polite">
+          {reasons.map((reason, index) => {
+            const affected = visibleActions.filter(
+              (action) => unavailableReason(action) === reason,
+            );
+            return (
+              <span key={reason} id={`${reasonId}-${index}`}>
+                {affected.length === 1 ? `${affected[0]?.label}: ` : ''}
+                {reason}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

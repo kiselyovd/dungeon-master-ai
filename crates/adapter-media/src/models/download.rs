@@ -19,6 +19,7 @@ pub enum DownloadEvent {
         total_bytes: Option<u64>,
     },
     Completed {
+        event_id: uuid::Uuid,
         id: ModelId,
         bytes_total: u64,
     },

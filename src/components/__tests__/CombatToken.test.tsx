@@ -1,3 +1,4 @@
+import '../../i18n';
 import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatToken as TokenData } from '../../state/combat';
@@ -6,6 +7,7 @@ import { CombatToken } from '../CombatToken';
 
 const baseToken: TokenData = {
   id: 'tok-1',
+  characterId: 'pc-stable',
   name: 'Hero',
   hp: 10,
   maxHp: 15,
@@ -27,7 +29,7 @@ beforeEach(() => {
     ).releasePointerCapture = () => {};
   }
   // Reset pc.name so drag-gating tests that set it don't bleed across tests.
-  useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: null } }));
+  useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: null, name: null } }));
 });
 
 describe('CombatToken', () => {
@@ -39,18 +41,63 @@ describe('CombatToken', () => {
   it('uses the living tabletop class token for the player character', () => {
     useStore.setState((s) => ({
       ...s,
-      pc: { ...s.pc, name: 'Hero', heroClass: 'fighter' },
+      pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero', heroClass: 'fighter' },
     }));
     const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
-    const token = getByTestId('combat-token-tok-1');
-    const portrait = token.firstElementChild as HTMLElement;
-    expect(portrait.style.backgroundImage).toContain('token-fighter');
+    expect(getByTestId('miniature-tok-1')).toHaveAttribute(
+      'data-asset-id',
+      'miniature.fighter.legacy.v1',
+    );
+    expect(getByTestId('miniature-tok-1').querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('token-fighter'),
+    );
   });
 
   it('renders AC chip with the AC value', () => {
     const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
     const ac = getByTestId('combat-token-tok-1-ac');
     expect(ac.textContent).toBe('14');
+  });
+
+  it.each([
+    '01',
+    '02',
+    '03',
+    '04',
+  ])('cleric %s retains identity through canonical life-state changes', (number) => {
+    const presentation = {
+      characterId: 'pc-stable',
+      heroClass: 'cleric',
+      portraitAssetId: `hero.cleric.${number}.v2`,
+      portraitUrl: null,
+    };
+    const phases: TokenData[] = [
+      { ...baseToken, hp: 5 },
+      { ...baseToken, hp: 0, conditions: ['unconscious'], isDead: false },
+      { ...baseToken, hp: 0, conditions: ['dead'], isDead: true },
+      // A later server projection is living again; the renderer does not grant resurrection.
+      { ...baseToken, hp: 8, conditions: [], isDead: false },
+    ];
+    const view = render(
+      <CombatToken token={baseToken} playerPresentation={presentation} cellSize={30} />,
+    );
+    for (const token of phases) {
+      view.rerender(<CombatToken token={token} playerPresentation={presentation} cellSize={30} />);
+      expect(view.getByTestId('miniature-tok-1')).toHaveAttribute(
+        'data-asset-id',
+        `miniature.cleric.${number}.v2`,
+      );
+      const cell = view.getByTestId('combat-token-tok-1');
+      expect(cell.style.width).toBe('30px');
+      expect(cell.style.left).toBe('60px');
+      expect(cell.style.top).toBe('90px');
+      expect(cell.hasAttribute('data-dead')).toBe(token.isDead === true);
+      expect(view.queryByTestId('combat-token-skull') !== null).toBe(token.isDead === true);
+      expect(view.getByTestId('combat-token-tok-1-hpbar').style.width).toBe(
+        `${(token.hp / token.maxHp) * 100}%`,
+      );
+    }
   });
 
   it('active token has data-active attribute', () => {
@@ -79,7 +126,7 @@ describe('CombatToken', () => {
 
   it('calls onMove with snapped grid coordinates on pointer release', () => {
     // Seed store so the token is recognised as the active PC token (W1.2).
-    useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+    useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
     const onMove = vi.fn();
     const { getByTestId } = render(
       <CombatToken token={baseToken} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
@@ -95,7 +142,7 @@ describe('CombatToken', () => {
 
   it('Escape cancels drag and does not call onMove', () => {
     // Seed store so the token is recognised as the active PC token (W1.2).
-    useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+    useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
     const onMove = vi.fn();
     const { getByTestId } = render(
       <CombatToken token={baseToken} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
@@ -109,7 +156,7 @@ describe('CombatToken', () => {
 
   it('ghost token renders during drag', () => {
     // Seed store so the token is recognised as the active PC token (W1.2).
-    useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+    useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
     const onMove = vi.fn();
     const token = { ...baseToken, x: 0, y: 0 };
     const { container, getByTestId } = render(
@@ -124,7 +171,7 @@ describe('CombatToken', () => {
 
   it('ghost disappears after pointer release', () => {
     // Seed store so the token is recognised as the active PC token (W1.2).
-    useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+    useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
     const onMove = vi.fn();
     const token = { ...baseToken, x: 0, y: 0 };
     const { container, getByTestId } = render(
@@ -140,7 +187,7 @@ describe('CombatToken', () => {
 
   it('right-click does not start a drag', () => {
     // Seed store so the token is recognised as the active PC token (W1.2).
-    useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+    useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
     const onMove = vi.fn();
     const { getByTestId } = render(
       <CombatToken token={baseToken} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
@@ -153,13 +200,13 @@ describe('CombatToken', () => {
   });
 
   it('dead token (hp=0) has data-dead="true" on container', () => {
-    const dead = { ...baseToken, hp: 0 };
+    const dead = { ...baseToken, hp: 0, isDead: true };
     const { getByTestId } = render(<CombatToken token={dead} cellSize={30} />);
     expect(getByTestId('combat-token-tok-1').dataset.dead).toBe('true');
   });
 
   it('dead token shows skull icon overlay', () => {
-    const dead = { ...baseToken, hp: 0 };
+    const dead = { ...baseToken, hp: 0, isDead: true };
     const { container } = render(<CombatToken token={dead} cellSize={30} />);
     expect(container.querySelector('[data-testid="combat-token-skull"]')).toBeTruthy();
   });
@@ -248,21 +295,34 @@ describe('CombatToken', () => {
 
   // W1.7a - token move animation: transition enabled when not dragging
   describe('move animation (W1.7a)', () => {
-    it('transition is set on left/top when token is not being dragged', () => {
-      const { getByTestId } = render(<CombatToken token={baseToken} cellSize={30} />);
+    it('animates left/top only for a confirmed movement cue', () => {
+      const { getByTestId, rerender } = render(<CombatToken token={baseToken} cellSize={30} />);
       const el = getByTestId('combat-token-tok-1') as HTMLElement;
-      // When not dragging, inline transition should be set to animate moves.
+      expect(el.style.transition).not.toContain('left');
+      rerender(
+        <CombatToken
+          token={baseToken}
+          cellSize={30}
+          effects={[{ id: 'revision-5:move', actorId: baseToken.id, kind: 'move' }]}
+        />,
+      );
       expect(el.style.transition).toContain('left');
       expect(el.style.transition).toContain('top');
     });
 
     it('transition is cleared during an active drag so pointer tracking has zero lag', () => {
       // Seed the store so the token is the active PC and draggable.
-      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
       const onMove = vi.fn();
       const token = { ...baseToken, x: 0, y: 0 };
       const { getByTestId } = render(
-        <CombatToken token={token} cellSize={30} onMove={onMove} currentTurnId="tok-1" />,
+        <CombatToken
+          token={token}
+          cellSize={30}
+          onMove={onMove}
+          currentTurnId="tok-1"
+          effects={[{ id: 'revision-5:move', actorId: token.id, kind: 'move' }]}
+        />,
       );
       const el = getByTestId('combat-token-tok-1') as HTMLElement;
       // Before drag: transition is set.
@@ -278,7 +338,7 @@ describe('CombatToken', () => {
   // W1.7b - whose-turn visual: "Your turn" label and PC active ring
   describe('whose-turn visuals (W1.7b)', () => {
     it('shows "Your turn" label when PC token is active and alive', () => {
-      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
       const activeToken = { ...baseToken, isActive: true };
       const { getByTestId } = render(<CombatToken token={activeToken} cellSize={40} />);
       const label = getByTestId('combat-token-tok-1-your-turn');
@@ -294,17 +354,118 @@ describe('CombatToken', () => {
     });
 
     it('does not show "Your turn" label when the PC token is dead (hp=0)', () => {
-      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
       const deadActive = { ...baseToken, hp: 0, isActive: true };
       const { queryByTestId } = render(<CombatToken token={deadActive} cellSize={40} />);
       expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
     });
 
     it('does not show "Your turn" label when PC token is not the active turn', () => {
-      useStore.setState((s) => ({ ...s, pc: { ...s.pc, name: 'Hero' } }));
+      useStore.setState((s) => ({ ...s, pc: { ...s.pc, characterId: 'pc-stable', name: 'Hero' } }));
       const inactiveToken = { ...baseToken, isActive: false };
       const { queryByTestId } = render(<CombatToken token={inactiveToken} cellSize={40} />);
       expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
     });
   });
+});
+
+it('discards an unconfirmed drag when room permission disappears', () => {
+  const token = { ...baseToken, characterId: 'own-character', isActive: true };
+  const player = { characterId: 'own-character', heroClass: 'fighter', portraitUrl: null };
+  const move = vi.fn();
+  const { getByTestId, rerender, container } = render(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      playerPresentation={player}
+      currentTurnId={token.id}
+      onMove={move}
+    />,
+  );
+  const element = getByTestId(`combat-token-${token.id}`);
+  fireEvent.pointerDown(element, { pointerId: 1, button: 0, clientX: 60, clientY: 90 });
+  fireEvent.pointerMove(element, { pointerId: 1, clientX: 120, clientY: 90 });
+  rerender(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      playerPresentation={player}
+      currentTurnId={token.id}
+    />,
+  );
+  fireEvent.pointerUp(element, { pointerId: 1, clientX: 120, clientY: 90 });
+  expect(container.querySelector('[data-ghost]')).toBeNull();
+  expect(element.style.left).toBe('60px');
+  expect(move).not.toHaveBeenCalled();
+});
+
+it('a dying bound human has no death marker and cannot move or show an actionable turn', () => {
+  const token = {
+    ...baseToken,
+    characterId: 'human',
+    hp: 0,
+    isDead: false,
+    isActive: true,
+    conditions: ['unconscious'],
+  };
+  const move = vi.fn();
+  const { getByTestId, queryByTestId } = render(
+    <CombatToken
+      token={token}
+      cellSize={30}
+      currentTurnId={token.id}
+      onMove={move}
+      playerPresentation={{ characterId: 'human', heroClass: 'fighter', portraitUrl: null }}
+    />,
+  );
+  const element = getByTestId('combat-token-tok-1');
+  expect(element).toHaveAttribute('data-downed', 'true');
+  expect(element).not.toHaveAttribute('data-dead');
+  expect(queryByTestId('combat-token-skull')).toBeNull();
+  expect(queryByTestId('combat-token-tok-1-your-turn')).toBeNull();
+  fireEvent.pointerDown(element, { button: 0, pointerId: 1, clientX: 75, clientY: 105 });
+  fireEvent.pointerMove(element, { pointerId: 1, clientX: 120, clientY: 120 });
+  fireEvent.pointerUp(element, { pointerId: 1, clientX: 120, clientY: 120 });
+  expect(move).not.toHaveBeenCalled();
+});
+it('a confirmed dead human keeps the death marker', () => {
+  const { getByTestId } = render(
+    <CombatToken
+      token={{ ...baseToken, characterId: 'human', hp: 0, isDead: true }}
+      cellSize={30}
+    />,
+  );
+  expect(getByTestId('combat-token-tok-1')).toHaveAttribute('data-dead', 'true');
+  expect(getByTestId('combat-token-skull')).toBeVisible();
+});
+
+it('uses other public actors by ID without granting ownership to an equal display name', () => {
+  useStore.setState((s) => ({
+    pc: { ...s.pc, characterId: 'own', name: 'Mira', heroClass: 'fighter' },
+  }));
+  const move = vi.fn();
+  const { getByTestId } = render(
+    <CombatToken
+      token={{ ...baseToken, characterId: 'other', name: 'Mira', isActive: true }}
+      cellSize={48}
+      currentTurnId="tok-1"
+      onMove={move}
+      actorVisual={{
+        characterId: 'other',
+        heroClass: 'fighter',
+        portraitAssetId: 'hero.fighter.01.v2',
+      }}
+    />,
+  );
+  const cell = getByTestId('combat-token-tok-1');
+  expect(cell).toHaveStyle({ width: '48px', height: '48px', left: '96px', top: '144px' });
+  expect(getByTestId('miniature-tok-1')).toHaveAttribute(
+    'data-asset-id',
+    'miniature.fighter.01.v2',
+  );
+  expect(getByTestId('miniature-tok-1')).toHaveStyle({ pointerEvents: 'none' });
+  fireEvent.pointerDown(cell, { button: 0, pointerId: 1, clientX: 100, clientY: 150 });
+  fireEvent.pointerMove(cell, { pointerId: 1, clientX: 148, clientY: 150 });
+  fireEvent.pointerUp(cell, { pointerId: 1, clientX: 148, clientY: 150 });
+  expect(move).not.toHaveBeenCalled();
 });

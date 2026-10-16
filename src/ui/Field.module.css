@@ -2,6 +2,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-raised) 98%, transparent),
+      color-mix(in srgb, var(--color-bg-raised) 98%, transparent)
+    ),
+    var(--dm-texture-cloth);
+  background-size:
+    auto,
+    256px 256px;
 }
 
 .label {

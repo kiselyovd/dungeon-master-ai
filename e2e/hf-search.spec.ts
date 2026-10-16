@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 /**
- * Hugging Face model search inside Settings -> Local LLM. Validates the wire
+ * Hugging Face model search inside Settings -> Model on this computer. Validates the wire
  * contract fix (audit blocker 2): the backend returns `repo_id` / `last_modified`
  * / `siblings[].filename`, and the result cards must render the repo id (it was
  * `undefined` before the fix, so every card came up blank).
@@ -64,7 +64,7 @@ test('HF search renders result cards with the repo id (blocker 2 fix)', async ({
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('tab', { name: 'Local LLM', exact: true }).click();
+  await dialog.getByRole('tab', { name: 'Model on this computer', exact: true }).click();
 
   // Expand the "Search Hugging Face" collapsible (collapsed by default).
   await dialog.getByRole('button', { name: /Search Hugging Face/i }).click();

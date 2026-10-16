@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use app_domain::combat::resolver::{CombatAction, CombatResolver, ValidationError};
 use app_domain::rng::SeededRng;
 use thiserror::Error;
-use tokio::sync::Mutex;
 
 use crate::models::combat::CombatProjection;
 use crate::ports::repositories::{CombatRepository, RepositoryError};
@@ -22,6 +20,10 @@ pub struct ResolveCombatResult {
 pub enum ResolveCombatError {
     #[error("combat encounter not found")]
     NotFound,
+    #[error("combat request identity or state is invalid")]
+    InvalidState,
+    #[error("combat request ID was reused for another intention")]
+    RequestMismatch,
     #[error("stale combat revision: expected {expected}, actual {actual}")]
     StaleRevision { expected: u64, actual: u64 },
     #[error("combat action rejected: {0}")]
@@ -32,15 +34,11 @@ pub enum ResolveCombatError {
 
 pub struct ResolveCombatAction {
     repository: Arc<dyn CombatRepository>,
-    completed: Mutex<HashMap<String, CombatProjection>>,
 }
 
 impl ResolveCombatAction {
     pub fn new(repository: Arc<dyn CombatRepository>) -> Self {
-        Self {
-            repository,
-            completed: Mutex::new(HashMap::new()),
-        }
+        Self { repository }
     }
 
     #[tracing::instrument(skip_all, fields(
@@ -52,68 +50,319 @@ impl ResolveCombatAction {
         &self,
         command: ResolveCombatCommand,
     ) -> Result<ResolveCombatResult, ResolveCombatError> {
-        let mut completed = self.completed.lock().await;
-        if let Some(projection) = completed.get(&command.request_id) {
+        if command.request_id.trim().is_empty() || command.request_id.len() > 256 {
+            return Err(ResolveCombatError::InvalidState);
+        }
+        // RNG is an execution input, not a client's immutable intention. A
+        // retry may receive a fresh server seed but must reuse recorded rolls.
+        let signature = serde_json::to_string(&serde_json::json!({
+            "encounter_id":command.encounter_id,
+            "expected_revision":command.expected_revision,
+            "action":command.action,
+        }))
+        .map_err(|_| ResolveCombatError::InvalidState)?;
+        if let Some(projection) = self
+            .repository
+            .find_action(command.encounter_id, &command.request_id, &signature)
+            .await
+            .map_err(repository_error)?
+        {
             return Ok(ResolveCombatResult {
-                projection: projection.clone(),
+                projection,
                 duplicate: true,
             });
         }
 
-        let mut projection = self
+        let current = self
             .repository
             .get(command.encounter_id)
             .await
-            .map_err(|_| ResolveCombatError::Persistence)?
-            .ok_or(ResolveCombatError::NotFound)?;
+            .map_err(|_| ResolveCombatError::Persistence)?;
+        let projection = match current {
+            Some(projection) => projection,
+            None => {
+                if let Some(projection) = self
+                    .repository
+                    .find_action(command.encounter_id, &command.request_id, &signature)
+                    .await
+                    .map_err(repository_error)?
+                {
+                    return Ok(ResolveCombatResult {
+                        projection,
+                        duplicate: true,
+                    });
+                }
+                return Err(ResolveCombatError::NotFound);
+            }
+        };
         if projection.revision != command.expected_revision {
+            // An exact simultaneous request may have committed after the
+            // initial receipt read but before this projection read.
+            if let Some(projection) = self
+                .repository
+                .find_action(command.encounter_id, &command.request_id, &signature)
+                .await
+                .map_err(repository_error)?
+            {
+                return Ok(ResolveCombatResult {
+                    projection,
+                    duplicate: true,
+                });
+            }
             return Err(ResolveCombatError::StaleRevision {
                 expected: command.expected_revision,
                 actual: projection.revision,
             });
         }
 
-        let (combatants, order) = resolver_state(&projection.snapshot);
-        let mut resolver =
-            CombatResolver::new(combatants, order, SeededRng::from_seed(command.rng_seed));
-        let action = match command.action {
-            CombatActionCommand::Attack {
-                attacker,
-                target,
-                attack_modifier,
-                damage_expr,
-                damage_type,
-            } => CombatAction::Attack {
-                attacker,
-                target,
-                attack_modifier,
-                damage_expr,
-                damage_type,
-            },
-            CombatActionCommand::Cast { combatant } => CombatAction::Cast { combatant },
-            CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
-            CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
-        };
-        let events = resolver.resolve(action)?;
-        replace_resolved_state(&mut projection, resolver.combatants, resolver.order, events);
+        let projection = prepare_action(projection, command.action, command.rng_seed)?;
 
-        self.repository
-            .compare_and_set(command.expected_revision, projection.clone())
+        let committed = self
+            .repository
+            .commit_action(
+                command.expected_revision,
+                projection,
+                &command.request_id,
+                &signature,
+            )
             .await
-            .map_err(|error| match error {
-                RepositoryError::RevisionConflict { actual, .. } => {
-                    ResolveCombatError::StaleRevision {
-                        expected: command.expected_revision,
-                        actual,
-                    }
-                }
-                _ => ResolveCombatError::Persistence,
-            })?;
-        completed.insert(command.request_id, projection.clone());
-        tracing::info!(revision = projection.revision, "combat action committed");
+            .map_err(repository_error)?;
+        tracing::info!(
+            revision = committed.projection.revision,
+            duplicate = committed.duplicate,
+            "combat action committed"
+        );
         Ok(ResolveCombatResult {
-            projection,
-            duplicate: false,
+            projection: committed.projection,
+            duplicate: committed.duplicate,
         })
+    }
+}
+
+/// Pure mechanics shared by solo and transaction-scoped authenticated rooms.
+pub fn prepare_action(
+    mut projection: CombatProjection,
+    action: CombatActionCommand,
+    rng_seed: u64,
+) -> Result<CombatProjection, ResolveCombatError> {
+    if !projection.snapshot.active {
+        return Err(ResolveCombatError::InvalidState);
+    }
+    let (combatants, order) =
+        resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
+    let mut resolver = CombatResolver::new(combatants, order, SeededRng::from_seed(rng_seed));
+    if let Some(authored) = &projection.authored {
+        resolver
+            .set_map(authored.map.clone())
+            .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    resolver.set_turn_boundary(
+        projection.authored.as_ref().map(|_| 4),
+        projection.authored.is_some(),
+    );
+    let retreat = matches!(&action, CombatActionCommand::Retreat { .. });
+    let action = match action {
+        CombatActionCommand::Retreat { combatant } => CombatAction::Retreat { combatant },
+        CombatActionCommand::Spell {
+            caster,
+            spell_id,
+            targets,
+            slot_level,
+        } => CombatAction::Spell {
+            caster,
+            spell_id,
+            targets,
+            slot_level,
+        },
+        CombatActionCommand::WeaponAttack {
+            attacker,
+            target,
+            weapon_id,
+            mode,
+            two_handed,
+        } => CombatAction::WeaponAttack {
+            attacker,
+            target,
+            weapon_id,
+            mode,
+            two_handed,
+        },
+        CombatActionCommand::Attack {
+            attacker,
+            target,
+            attack_modifier,
+            damage_expr,
+            damage_type,
+        } => CombatAction::Attack {
+            attacker,
+            target,
+            attack_modifier,
+            damage_expr,
+            damage_type,
+        },
+        CombatActionCommand::Cast { combatant } => CombatAction::Cast { combatant },
+        CombatActionCommand::Move { combatant, to } => CombatAction::Move { combatant, to },
+        CombatActionCommand::EndTurn { combatant } => CombatAction::EndTurn { combatant },
+    };
+    let first = resolver.resolve(action)?;
+    let mut events = vec![first];
+    super::automation::settle_npcs_until(
+        &mut resolver,
+        &mut events,
+        projection.authored.as_ref().map(|_| 4),
+    )
+    .map_err(|_| ResolveCombatError::InvalidState)?;
+    replace_resolved_state(
+        &mut projection,
+        resolver.combatants,
+        resolver.order,
+        Default::default(),
+    );
+    projection.events = events;
+    super::automation::finish_if_resolved(&mut projection);
+    super::authored::finalize(&mut projection, retreat);
+
+    Ok(projection)
+}
+
+/// Explicit membership changes withdraw absent humans; no player action is synthesized.
+pub fn reconcile_participants(
+    mut projection: CombatProjection,
+    present: &std::collections::BTreeSet<uuid::Uuid>,
+    seed: u64,
+) -> Result<CombatProjection, ResolveCombatError> {
+    if projection
+        .campaign_scope
+        .as_ref()
+        .is_some_and(|scope| !present.contains(&scope.character_id))
+    {
+        return Err(ResolveCombatError::InvalidState);
+    }
+    let mut occupied = projection
+        .snapshot
+        .combatants
+        .iter()
+        .filter(|actor| {
+            !actor.withdrawn
+                && actor.current_hp > 0
+                && !actor.is_dead
+                && actor.character_id.is_none_or(|id| present.contains(&id.0))
+        })
+        .map(|actor| actor.position)
+        .collect::<std::collections::HashSet<_>>();
+    let mut changed = false;
+    for actor in &mut projection.snapshot.combatants {
+        if let Some(owner) = actor.character_id {
+            let withdrawn = !present.contains(&owner.0);
+            if actor.withdrawn != withdrawn {
+                if !withdrawn && actor.current_hp > 0 && !actor.is_dead {
+                    let origin = actor.position;
+                    if occupied.contains(&origin) {
+                        let candidate = if let Some(authored) = &projection.authored {
+                            let blocked = authored
+                                .map
+                                .blocked
+                                .iter()
+                                .copied()
+                                .collect::<std::collections::HashSet<_>>();
+                            (0..i32::from(authored.map.width))
+                                .flat_map(|x| {
+                                    (0..i32::from(authored.map.height))
+                                        .map(move |y| app_domain::combat::types::Position { x, y })
+                                })
+                                .filter(|p| !blocked.contains(p) && !occupied.contains(p))
+                                .min_by_key(|p| (origin.distance_ft(*p), p.x, p.y))
+                        } else {
+                            (1..=occupied.len().saturating_add(1))
+                                .flat_map(|r| {
+                                    let r = i32::try_from(r).unwrap_or(i32::MAX);
+                                    [(r, 0), (-r, 0), (0, r), (0, -r)]
+                                })
+                                .map(|(x, y)| app_domain::combat::types::Position {
+                                    x: origin.x.saturating_add(x),
+                                    y: origin.y.saturating_add(y),
+                                })
+                                .find(|p| !occupied.contains(p))
+                        }
+                        .ok_or(ResolveCombatError::InvalidState)?;
+                        actor.position = candidate;
+                    }
+                    occupied.insert(actor.position);
+                }
+                actor.withdrawn = withdrawn;
+                changed = true;
+            }
+        }
+    }
+    if !changed {
+        return Ok(projection);
+    }
+    let (actors, order) =
+        resolver_state(&projection.snapshot).ok_or(ResolveCombatError::InvalidState)?;
+    let mut engine = CombatResolver::new(actors, order, SeededRng::from_seed(seed));
+    if let Some(authored) = &projection.authored {
+        engine
+            .set_map(authored.map.clone())
+            .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    engine.set_turn_boundary(
+        projection.authored.as_ref().map(|_| 4),
+        projection.authored.is_some(),
+    );
+    let mut events = vec![];
+    if engine.combatants[&engine.order.current().id].withdrawn {
+        events.push(
+            engine
+                .begin_current_turn()
+                .map_err(|_| ResolveCombatError::InvalidState)?,
+        );
+        super::automation::settle_npcs_until(
+            &mut engine,
+            &mut events,
+            projection.authored.as_ref().map(|_| 4),
+        )
+        .map_err(|_| ResolveCombatError::InvalidState)?;
+    }
+    replace_resolved_state(
+        &mut projection,
+        engine.combatants,
+        engine.order,
+        Default::default(),
+    );
+    projection.events = events;
+    super::automation::finish_if_resolved(&mut projection);
+    super::authored::finalize(&mut projection, false);
+    Ok(projection)
+}
+
+fn repository_error(error: RepositoryError) -> ResolveCombatError {
+    match error {
+        RepositoryError::RevisionConflict { expected, actual } => {
+            ResolveCombatError::StaleRevision { expected, actual }
+        }
+        RepositoryError::Operation {
+            code: "combat_request_mismatch",
+            ..
+        } => ResolveCombatError::RequestMismatch,
+        _ => ResolveCombatError::Persistence,
+    }
+}
+
+pub fn validation_code(error: &app_domain::combat::resolver::ValidationError) -> &'static str {
+    use app_domain::combat::resolver::ValidationError::*;
+    match error {
+        Obstructed => "combat_obstructed",
+        OutOfRange => "combat_out_of_range",
+        ExitRequired => "combat_exit_required",
+        SpellUnavailable => "combat_spell_unavailable",
+        SpellSlotUnavailable => "combat_slot_unavailable",
+        Incapacitated => "combat_incapacitated",
+        WeaponUnavailable => "combat_weapon_unavailable",
+        AmmunitionExhausted => "combat_ammunition_exhausted",
+        HandsOccupied => "combat_hands_occupied",
+        NotYourTurn => "combat_not_your_turn",
+        InvalidTarget | TargetNotFound => "combat_target_invalid",
+        ActionEconomy(_) | ActionExhausted => "combat_budget_unavailable",
+        _ => "hero_combat_rejected",
     }
 }

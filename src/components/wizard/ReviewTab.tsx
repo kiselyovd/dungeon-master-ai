@@ -3,18 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { Compendium } from '../../api/srd';
 import { useCharacterAssist } from '../../hooks/useCharacterAssist';
 import type { TestChatTurn } from '../../state/charCreation';
+import { emptyPcData } from '../../state/pc';
 import { useStore } from '../../state/useStore';
 import type { CharacterWizardMode } from '../CharacterWizard';
 import { DmConfirmModal } from '../DmConfirmModal';
 import { computeLiveSheet } from './computeLiveSheet';
-import {
-  computeGoldRows,
-  mergeInventoryRows,
-  parseEquipmentString,
-  promoteIcon,
-  readBackgroundStartingEquipment,
-  resolveEquipmentSlots,
-} from './equipmentResolver';
+import { parseEquipmentString, resolveDraftInventory } from './equipmentResolver';
 
 interface Warning {
   code: string;
@@ -22,16 +16,23 @@ interface Warning {
 }
 
 export interface ReviewTabProps {
+  completeSoloOnboarding?: boolean;
+  onCommitCharacter?: (character: Record<string, unknown>) => Promise<void>;
   compendium: Compendium;
   mode: CharacterWizardMode;
   onClose?: () => void;
 }
 
-export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
+export function ReviewTab({
+  compendium,
+  mode,
+  onClose,
+  onCommitCharacter,
+  completeSoloOnboarding = true,
+}: ReviewTabProps) {
   const { t } = useTranslation('wizard');
   const draft = useStore((s) => s.charCreation);
   const resetDraft = useStore((s) => s.charCreation.resetDraft);
-  const replaceFromDraft = useStore((s) => s.pc.replaceFromDraft);
   const completeOnboarding = useStore((s) => s.onboarding.complete);
   const { runTestChat, cancel } = useCharacterAssist();
 
@@ -39,6 +40,8 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
   const [userInput, setUserInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   const warnings: Warning[] = [];
   if (!draft.classId) warnings.push({ code: 'no_class', severity: 'block' });
@@ -60,6 +63,9 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
     if (unresolved) warnings.push({ code: 'unresolved_wildcard', severity: 'warn' });
   }
 
+  if (computeLiveSheet(draft, compendium).defense?.valid === false)
+    warnings.push({ code: 'defense_invalid', severity: 'block' });
+
   const blocking = warnings.some((w) => w.severity === 'block');
 
   async function sendTestChat() {
@@ -79,40 +85,13 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       setConfirmOpen(true);
       return;
     }
-    beginConfirmed();
+    void beginConfirmed();
   }
 
-  function beginConfirmed() {
+  async function beginConfirmed() {
+    if (committing || blocking) return;
     setConfirmOpen(false);
-    const bg = draft.backgroundId
-      ? (compendium.backgrounds.find((b) => b.id === draft.backgroundId) ?? null)
-      : null;
-    const bgItems = readBackgroundStartingEquipment(bg);
-
-    const resolvedFromSlots =
-      draft.equipmentMode === 'package'
-        ? resolveEquipmentSlots(draft.equipmentSlots, bgItems, compendium)
-        : [];
-
-    const fromGold =
-      draft.equipmentMode === 'gold'
-        ? draft.equipmentInventory.map((it) => promoteIcon(it, compendium))
-        : [];
-
-    const bgItemsForGold =
-      draft.equipmentMode === 'gold' && bg ? resolveEquipmentSlots([], bgItems, compendium) : [];
-
-    const goldRows = computeGoldRows(
-      { equipmentMode: draft.equipmentMode, goldRemaining: draft.goldRemaining },
-      bg,
-    );
-
-    const inventory = mergeInventoryRows([
-      ...resolvedFromSlots,
-      ...fromGold,
-      ...bgItemsForGold,
-      ...goldRows,
-    ]);
+    const inventory = resolveDraftInventory(draft, compendium);
 
     // Derive the real combat stats from the same live-sheet math the preview
     // uses, so a wizard-built character commits non-zero HP and a real AC
@@ -127,9 +106,10 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       cha: sheet.abilities.cha.score,
     };
 
-    replaceFromDraft({
+    const character = {
+      ...emptyPcData(),
       heroClass: draft.classId,
-      name: draft.name || 'Hero',
+      name: draft.name.trim() || t('placeholder_hero'),
       race: draft.raceId,
       subclass: draft.subclassId,
       background: draft.backgroundId,
@@ -139,15 +119,45 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       hp: sheet.hp ?? 0,
       hpMax: sheet.hpMax ?? 0,
       ac: sheet.ac ?? 10,
+      ...(sheet.defense ? { defense: sheet.defense.choice } : {}),
+      baseSpeedFt: sheet.baseSpeedFt ?? 30,
       initiative: sheet.initiative ?? 0,
       speedFt: sheet.speedFt ?? 30,
       proficiencyBonus: sheet.proficiencyBonus,
       portraitUrl: draft.portraitUrl,
+      portraitAssetId: draft.portraitAssetId ?? null,
+      portraitMediaRef: draft.portraitMediaRef ?? null,
       inventory,
-    });
-    resetDraft();
-    completeOnboarding();
-    onClose?.();
+      savingThrowProfs: Object.fromEntries(
+        Object.entries(sheet.savingThrows).map(([key, value]) => [key, value.proficient]),
+      ),
+      skillProfs: Object.fromEntries(
+        Object.entries(sheet.skills).map(([key, value]) => [key, value.proficient]),
+      ),
+      backstory: draft.backstory,
+      ideals: draft.ideals,
+      bonds: draft.bonds,
+      flaws: draft.flaws,
+      personalityFlags: draft.personalityFlags,
+      spells: draft.spells,
+    };
+    if ((character.portraitUrl?.length ?? 0) > 8 * 1024 * 1024) {
+      setCommitError('portrait_too_large');
+      return;
+    }
+    setCommitting(true);
+    setCommitError(null);
+    try {
+      if (!onCommitCharacter) throw new Error('campaign_required');
+      await onCommitCharacter(character);
+      resetDraft();
+      if (completeSoloOnboarding) completeOnboarding();
+      onClose?.();
+    } catch {
+      setCommitError('character_commit_failed');
+    } finally {
+      setCommitting(false);
+    }
   }
 
   return (
@@ -155,7 +165,7 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       <h2>{t('review_title')}</h2>
 
       <div className="dm-wizard-card" style={{ cursor: 'default', marginBottom: 16 }}>
-        <h3 style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>
           {draft.name || t('placeholder_hero')}
         </h3>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
@@ -234,8 +244,18 @@ export function ReviewTab({ compendium, mode, onClose }: ReviewTabProps) {
       )}
 
       <div className="dm-wizard-action-bar">
-        <button type="button" className="dm-wizard-btn-primary" disabled={blocking} onClick={begin}>
-          {mode === 'edit' ? t('replace_character') : t('begin_adventure')}
+        {commitError && <p role="alert">{t(commitError)}</p>}
+        <button
+          type="button"
+          className="dm-wizard-btn-primary"
+          disabled={blocking || committing}
+          onClick={begin}
+        >
+          {committing
+            ? t('character_committing')
+            : mode === 'edit'
+              ? t('replace_character')
+              : t('begin_adventure')}
         </button>
       </div>
 

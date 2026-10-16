@@ -1,9 +1,32 @@
+pub mod adventure;
 pub mod agent;
 pub mod campaign;
+pub mod campaign_bundle;
+pub mod campaign_state;
 pub mod chat;
 pub mod combat;
 pub mod identity;
 pub mod local_models;
+pub mod media_asset;
+pub mod party;
+pub mod rest;
+pub mod room;
+pub mod room_agent;
+pub mod room_character;
+pub mod room_combat;
+pub mod room_state;
+pub mod room_world;
 pub mod session;
 pub mod settings;
 pub mod snapshot;
+
+pub mod room_host;
+
+pub mod room_client;
+
+pub mod room_transport;
+
+pub mod room_recovery;
+
+pub mod portable_campaign;
+pub mod solo_recovery;

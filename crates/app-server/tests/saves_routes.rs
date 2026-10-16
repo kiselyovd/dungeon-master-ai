@@ -78,7 +78,7 @@ async fn save_round_trip_returns_and_restores_one_complete_revision_projection()
         .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0]["campaign_id"], campaign_id.to_string());
-    assert_eq!(listed[0]["revision"], 4);
+    assert_eq!(listed[0]["revision"], 5);
 
     let loaded = client
         .get(server.url(&format!("/saves/{save_id}")))
@@ -99,7 +99,7 @@ async fn save_round_trip_returns_and_restores_one_complete_revision_projection()
         .json(&json!({
             "campaign_id": campaign_id,
             "session_id": session_id,
-            "expected_revision": 4,
+            "expected_revision": 5,
             "causation_id": "http-restore-1"
         }))
         .send()
@@ -109,6 +109,10 @@ async fn save_round_trip_returns_and_restores_one_complete_revision_projection()
     let restored = restored.json::<Value>().await.unwrap();
     assert_eq!(restored["schema_version"], 1);
     assert_eq!(restored["ruleset_id"], "srd-5.2.1");
+    assert_eq!(
+        restored["current_revision"], 6,
+        "legacy restore also invalidates pending writes"
+    );
     for required in [
         "messages",
         "character",

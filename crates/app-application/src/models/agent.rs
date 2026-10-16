@@ -39,6 +39,8 @@ pub enum AgentEvent {
         text: String,
     },
     ImageGenerated {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_ref: Option<Box<super::media_asset::MediaReference>>,
         tool_call_id: String,
         round: usize,
         mime_type: String,
@@ -53,7 +55,14 @@ pub enum AgentEvent {
         video_b64: String,
         kind: String,
     },
+    /// Delivery-only failure marker; never a successful or replayable outcome.
+    AgentFailed,
     AgentDone {
+        total_rounds: usize,
+    },
+    AgentNeedsInput {
+        clarification_id: Uuid,
+        command_id: u16,
         total_rounds: usize,
     },
 }

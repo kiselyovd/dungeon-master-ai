@@ -14,7 +14,7 @@ describe('living tabletop materials', () => {
     'bronze',
   ])('maps the %s semantic material to living-tabletop art', (name) => {
     expect(css).toContain(`--dm-texture-${name}`);
-    expect(css).toContain(`material-${name}.webp`);
+    expect(css).toContain(`material-${name}-v2.webp`);
   });
 
   it('retains reduced-transparency fallback', () => {

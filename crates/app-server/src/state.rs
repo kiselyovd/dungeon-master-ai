@@ -1,8 +1,9 @@
 use app_application::models::local_models::{RuntimeStartRequest, RuntimeStatus};
 use app_application::ports::runtime::{RuntimeControl, RuntimeError};
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use app_domain::srd::retriever::SrdRetriever;
 use app_llm::LlmProvider;
@@ -28,6 +29,10 @@ pub struct AppState {
 }
 
 struct AppStateInner {
+    native_guest_selection_lane: Arc<tokio::sync::Mutex<()>>,
+    player_verification_enabled: std::sync::atomic::AtomicBool,
+    campaign_lanes: Mutex<HashMap<uuid::Uuid, Weak<tokio::sync::Mutex<()>>>>,
+    process_id: uuid::Uuid,
     settings_runtime: RwLock<RuntimeSettingsSnapshot>,
     db: SqlitePool,
     srd_retriever: RwLock<Option<Arc<SrdRetriever>>>,
@@ -45,6 +50,7 @@ struct AppStateInner {
     runtime_control: RwLock<Arc<dyn RuntimeControl>>,
     models_dir: RwLock<PathBuf>,
     secrets_repo: RwLock<Arc<dyn SecretsRepo>>,
+    media_assets: RwLock<Option<Arc<app_application::media_assets::MediaAssets>>>,
 }
 
 pub struct PreparedRuntimeSettings {
@@ -61,6 +67,18 @@ struct RuntimeSettingsSnapshot {
 }
 
 impl AppState {
+    /// Production composition enables semantic checks; isolated mechanical fixtures
+    /// inject their own policy ports instead of claiming real-model acceptance.
+    pub fn enable_player_verification(&self) {
+        self.inner
+            .player_verification_enabled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    pub fn player_verification_enabled(&self) -> bool {
+        self.inner
+            .player_verification_enabled
+            .load(std::sync::atomic::Ordering::SeqCst)
+    }
     pub fn new(llm: Arc<dyn LlmProvider>, default_model: String, db: SqlitePool) -> Self {
         let models_dir = std::env::temp_dir().join("dmai-models");
         // One shared secrets repo: the download manager reads the HF token from
@@ -82,6 +100,10 @@ impl AppState {
         let initial_registry = Arc::new(crate::providers::ProviderRegistry::new(llm));
         Self {
             inner: Arc::new(AppStateInner {
+                native_guest_selection_lane: Arc::new(tokio::sync::Mutex::new(())),
+                player_verification_enabled: std::sync::atomic::AtomicBool::new(false),
+                campaign_lanes: Mutex::new(HashMap::new()),
+                process_id: uuid::Uuid::new_v4(),
                 settings_runtime: RwLock::new(RuntimeSettingsSnapshot {
                     registry: initial_registry,
                     default_model: Arc::new(default_model),
@@ -97,6 +119,7 @@ impl AppState {
                 runtime_control: RwLock::new(Arc::new(UnavailableRuntimeControl)),
                 models_dir: RwLock::new(models_dir),
                 secrets_repo: RwLock::new(secrets),
+                media_assets: RwLock::new(None),
             }),
         }
     }
@@ -112,6 +135,53 @@ impl AppState {
             .registry
             .chat
             .clone()
+    }
+    /// One coherent configuration for planning, checking and narration.
+    pub fn agent_environment(&self) -> (Arc<dyn LlmProvider>, AgentConfig) {
+        let snapshot = self
+            .inner
+            .settings_runtime
+            .read()
+            .expect("settings runtime lock poisoned");
+        (
+            snapshot.registry.chat.clone(),
+            snapshot.agent_config.clone(),
+        )
+    }
+
+    pub fn process_id(&self) -> uuid::Uuid {
+        self.inner.process_id
+    }
+    pub fn set_media_assets(&self, assets: Arc<app_application::media_assets::MediaAssets>) {
+        *self
+            .inner
+            .media_assets
+            .write()
+            .expect("media asset slot poisoned") = Some(assets);
+    }
+    pub fn media_assets(&self) -> Option<Arc<app_application::media_assets::MediaAssets>> {
+        self.inner
+            .media_assets
+            .read()
+            .expect("media asset slot poisoned")
+            .clone()
+    }
+    pub(crate) fn native_guest_selection_lane(&self) -> Arc<tokio::sync::Mutex<()>> {
+        self.inner.native_guest_selection_lane.clone()
+    }
+    pub fn campaign_lane(&self, id: uuid::Uuid) -> Arc<tokio::sync::Mutex<()>> {
+        let mut lanes = self
+            .inner
+            .campaign_lanes
+            .lock()
+            .expect("campaign lane registry poisoned");
+        if let Some(lane) = lanes.get(&id).and_then(Weak::upgrade) {
+            return lane;
+        }
+        lanes.retain(|_, lane| lane.strong_count() > 0);
+        let lane = Arc::new(tokio::sync::Mutex::new(()));
+        lanes.insert(id, Arc::downgrade(&lane));
+        lane
     }
 
     pub fn set_provider(&self, llm: Arc<dyn LlmProvider>) {

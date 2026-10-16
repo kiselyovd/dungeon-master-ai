@@ -3,10 +3,12 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::conditions::Condition;
-use super::types::{CombatantId, Position};
+use super::types::{CharacterId, CombatantId, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBudget {
+    #[serde(default)]
+    pub spell_slot_used: bool,
     pub action: bool,
     pub bonus_action: bool,
     pub reaction: bool,
@@ -16,6 +18,7 @@ pub struct ActionBudget {
 impl ActionBudget {
     pub fn fresh(speed_ft: i32) -> Self {
         Self {
+            spell_slot_used: false,
             action: true,
             bonus_action: true,
             reaction: true,
@@ -24,6 +27,7 @@ impl ActionBudget {
     }
 
     pub fn refresh_for_new_turn(&mut self, speed_ft: i32) {
+        self.spell_slot_used = false;
         self.action = true;
         self.bonus_action = true;
         // Reaction refreshes at start of turn (RAW).
@@ -49,9 +53,9 @@ impl DeathSaves {
     }
 
     pub fn record_success(&mut self) -> bool {
-        self.successes += 1;
+        self.successes = self.successes.saturating_add(1).min(3);
         if self.successes >= 3 {
-            self.stable = true;
+            self.stabilize();
             true
         } else {
             false
@@ -59,8 +63,13 @@ impl DeathSaves {
     }
 
     pub fn record_failure(&mut self) -> bool {
-        self.failures += 1;
+        self.failures = self.failures.saturating_add(1).min(3);
         self.failures >= 3
+    }
+    pub fn stabilize(&mut self) {
+        self.successes = 0;
+        self.failures = 0;
+        self.stable = true;
     }
 }
 
@@ -72,7 +81,19 @@ impl Default for DeathSaves {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Combatant {
+    #[serde(default)]
+    pub withdrawn: bool,
+    #[serde(default)]
+    pub untrained_armor: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name_key: Option<String>,
     pub id: CombatantId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub character_id: Option<CharacterId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loadout: Option<super::loadout::CombatLoadout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub casting: Option<super::magic::CastingProfile>,
     pub name: String,
     pub max_hp: i32,
     pub current_hp: i32,
@@ -92,7 +113,13 @@ pub struct Combatant {
 impl Combatant {
     pub fn new(id: CombatantId, name: String, max_hp: i32, current_hp: i32, ac: i32) -> Self {
         Self {
+            display_name_key: None,
             id,
+            character_id: None,
+            withdrawn: false,
+            untrained_armor: false,
+            loadout: None,
+            casting: None,
             name,
             max_hp,
             current_hp,
@@ -111,10 +138,32 @@ impl Combatant {
 
     /// Apply damage after resistances have been computed. Returns effective HP change.
     pub fn apply_raw_damage(&mut self, amount: i32) -> i32 {
-        let bleed_through = (amount - self.temp_hp).max(0);
-        self.temp_hp = (self.temp_hp - amount).max(0);
-        let actual = bleed_through.min(self.current_hp);
-        self.current_hp = (self.current_hp - bleed_through).max(0);
+        self.apply_raw_damage_with_critical(amount, false)
+    }
+
+    pub fn apply_raw_damage_with_critical(&mut self, amount: i32, critical: bool) -> i32 {
+        let amount = amount.max(0);
+        if amount == 0 || self.is_dead {
+            return 0;
+        }
+        let hp_before = self.current_hp;
+        let bleed_through = amount.saturating_sub(self.temp_hp).max(0);
+        self.temp_hp = self.temp_hp.saturating_sub(amount).max(0);
+        let actual = bleed_through.min(hp_before);
+        self.current_hp = hp_before.saturating_sub(bleed_through).max(0);
+        if hp_before == 0 {
+            self.death_saves.stable = false;
+            for _ in 0..if critical { 2 } else { 1 } {
+                self.is_dead |= self.death_saves.record_failure();
+            }
+            self.is_dead |= amount >= self.max_hp;
+        } else if self.current_hp == 0 {
+            self.death_saves = DeathSaves::default();
+            self.is_dead = bleed_through.saturating_sub(hp_before) >= self.max_hp;
+        }
+        if self.current_hp == 0 {
+            self.add_condition(Condition::Unconscious);
+        }
         actual
     }
 

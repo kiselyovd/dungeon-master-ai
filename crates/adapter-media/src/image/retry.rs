@@ -44,6 +44,9 @@ impl RetryableImageProvider {
 
 #[async_trait]
 impl ImageProvider for RetryableImageProvider {
+    fn needs_native_runtime(&self) -> bool {
+        self.inner.needs_native_runtime()
+    }
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
         let inner = self.inner.clone();
         let op = move || {

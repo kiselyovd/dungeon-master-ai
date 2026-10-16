@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "illustration-tavern",
+      "generationId": "exec-3c86f162-4a54-42c4-ab9d-d26a7189323e",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic TAVERN illustration for an offline Dungeon Master AI image collection, opaque landscape16:9. A cozy anonymous timber-and-stone inn common room seen at natural eye-level oblique angle, worn oak tables and benches, warm hearth and candles, soft blue dusk through small windows, no people. Fine realistic traditional brushwork and tactile wood/linen/stone/wax/brushed metal, layered depth, restrained gold/brown/cool-blue palette, calm welcoming mood. Central hearth/table composition fully within safe middle60percent; quiet peripheral details, balanced readable exposure at small thumbnail sizes. Generic atmosphere only, no named venue, quest clue, unique artifact, faction emblem, secret, recognizable character, readable sign, writing, letters or numerals. No title/caption/logo/UI/buttons/panels/counters/grid/map diagram/frame. Complete beautiful scenic painting, clearly not an overhead battle map or character portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-tavern.png",
+      "masterSha256": "373efa57a8b36d22eb635d2caedbb3be933ef204bae1f73616c72534006aa319",
+      "legacyAssetId": "illustration-tavern.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 234824
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-village",
+      "generationId": "exec-c98c10c6-e676-4a1e-b632-5d6377c2310a",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic VILLAGE illustration for an offline Dungeon Master AI collection, opaque landscape16:9. A quiet generic riverside village of modest timber-and-stone cottages, a small stone bridge in the distance, an empty winding cobbled lane, soft morning mist and warm sunlight on roofs. Natural eye-level scenic view with layered depth, delicate realistic traditional brushwork, tactile weathered stone/wood/grass/water, restrained amber/green/blue palette and calm inviting mood. No people, named place, faction sign, readable writing, unique clue, treasure, quest object or invented specific story event. Central cottages/lane safely within middle60percent, quiet edges and balanced thumbnail exposure. No title, caption, letters, numbers, logo, UI, counters, buttons, panels, map grid, coordinates, icons, arrows or frame. Clearly scenic atmosphere, not overhead map or portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-village.png",
+      "masterSha256": "081175af35bc92bf1127b00106bf25559797e0436ccf02ad64c153f4b7a9f3c6",
+      "legacyAssetId": "illustration-village.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 306238
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-forest-road",
+      "generationId": "exec-8b47e80d-b1fa-4c60-8308-4676078e5cbb",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic FOREST ROAD illustration for offline Dungeon Master AI, opaque landscape16:9. An empty winding woodland trail under old mossy trees leading toward soft distant hills, small natural stream to one side, warm morning light filtering through muted green canopy, a little distant cool mist. Natural eye-level scenic perspective with layered believable depth, fine realistic traditional brushwork and tactile bark/soil/stone/water/leaf detail, restrained gold/olive/blue palette, calm travel mood. Main trail and distant clearing inside safe middle60percent, quiet peripheral scenery, readable thumbnail contrast. No people, creatures, treasure, hidden entrance, named location, faction sign, quest clue, unique artifact or readable writing. No letters, numbers, title, caption, logo, UI, panels, buttons, counters, map grid, coordinates, arrows, icons or frame. Scenic atmosphere only, not overhead map or portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-forest-road.png",
+      "masterSha256": "4fe5d0f3d24b5693fa887be5ad0c2bf67dd308cae786ae942d78e0a455858611",
+      "legacyAssetId": "illustration-forest-road.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 349636
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-ruins",
+      "generationId": "exec-6378ff3b-c3f4-4803-8eae-6577234ced84",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic RUINS illustration for offline Dungeon Master AI, opaque landscape16:9. Quiet weathered stone courtyard and broken ordinary arches overgrown with moss and ivy, a small dry fountain in the middle distance, soft warm sunset against subdued cool hills. Natural eye-level scenic perspective with layered depth, delicate realistic traditional brushwork, tactile old stone/grass/wood, restrained bronze/green/blue palette and dignified calm mood. Complete central ruined arch/fountain inside crop-safe middle60percent, balanced thumbnail readability. No people, creatures, corpses, treasure, secret door, unique statue, readable inscription, faction symbol, magic, quest clue or specific named site. Generic atmosphere only. No text, letters, numerals, title, caption, logo, UI, panels, buttons, counters, map grid, coordinates, icons, arrows or frame. Clearly a scenic painting, not an overhead map or portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-ruins.png",
+      "masterSha256": "673d2deb408dd1e9c30d72bfc13140f6405017bce5b5953140f1a1fe4941b337",
+      "legacyAssetId": "illustration-ruins.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 290952
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-cave",
+      "generationId": "exec-c3222a7c-ede3-494c-b42e-511b69da2dcd",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic CAVE illustration for offline Dungeon Master AI, opaque landscape16:9. A quiet natural limestone cavern viewed at eye level, small clear blue-grey pool beside a broad stone/gravel floor, irregular natural stalactites and rock arches, soft cool light from a distant ordinary cave opening with slight warm reflected edge light. Fine realistic traditional brushwork, tactile damp stone/water/mineral surfaces, layered depth and restrained grey-blue/amber palette, solemn readable balanced exposure. Main cavern/pool safely within crop-safe middle60percent with quiet edges. No people, creatures, bones, treasure, glowing crystals, hidden portal, unique artifact, inscription, runes, quest clue or named site. Generic atmosphere only. No text, letters, numerals, title, caption, logo, UI, buttons, panels, counters, map grid, coordinates, icons, arrows or frame. Scenic painting, clearly not overhead map or portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-cave.png",
+      "masterSha256": "3bfff79e9d9227529f44be2a00ff8f7188705273978a12678e389f3ce138248f",
+      "legacyAssetId": "illustration-cave.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 288452
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-dungeon",
+      "generationId": "exec-07f2564f-7e6b-4e22-8b80-0275aeecdf1f",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic DUNGEON illustration for offline Dungeon Master AI, opaque landscape16:9. A quiet ordinary old stone hall and adjoining visible masonry corridor, worn flagstone floor, plain support columns and modest iron torch sconces, restrained warm torchlight with cool blue-grey depth. Natural eye-level oblique scenic view, fine realistic traditional brushwork, tactile damp stone/soot/metal, balanced readable exposure and solemn atmosphere. Main hall/arch composition completely inside middle60percent with quiet safe edges. No people, creatures, bones, torture, bodies, treasure, traps, secret entrance, magic/faction symbol, readable inscription, unique artifact or quest clue. Generic scene only. No text, letters, numbers, title, caption, logo, UI, counters, buttons, panels, map grid, coordinates, arrows, icons or frame. Clearly a scenic painting, not overhead map or character portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-dungeon.png",
+      "masterSha256": "7fa121ba7222a82b4ec020ca51c6a30b64c2620f382feb9d74decaaae469e24d",
+      "legacyAssetId": "illustration-dungeon.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 202388
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-temple",
+      "generationId": "exec-b05c2fa4-ede9-4d02-8c03-5c515d3e8b07",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy scenic TEMPLE illustration for offline Dungeon Master AI, opaque landscape16:9. A modest peaceful old stone sanctuary interior, plain wooden lectern and benches, ordinary candles and simple cloth, soft morning daylight through clear windows with restrained warm/cool contrast. Natural eye-level scenic view with layered depth, fine realistic traditional brushwork, tactile limestone/oak/linen/wax, calm dignified mood and readable balanced exposure. Central lectern/windows safely within middle60percent, full focal composition and quiet margins. No priest/person, recognizable deity statue, faction/religious emblem, runes, magic circle, readable paper, inscription, named temple, secret, unique artifact, treasure or quest clue. Generic atmosphere only. No title, caption, letters, numbers, writing, logo, UI, controls, panels, counters, map grid, coordinates, arrows, icons or frame. Clearly scenic painting, not overhead map or portrait.",
+      "master": ".artifacts/visual-production/masters/illustration-temple.png",
+      "masterSha256": "20e717630a517b433ccf92432a487f27c9a50fc0695ff12de3018adc54371624",
+      "legacyAssetId": "illustration-temple.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 166256
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    },
+    {
+      "assetId": "illustration-wizard-tower",
+      "generationId": "exec-947fcd60-7a1f-4da5-93a6-0d38d5fd4ae1",
+      "prompt": "Use-case: precise-object-edit. Preserve this same anonymous stone study tower, roof design, external stairs, ivy, warm windows, dusk valley and painterly materials. Correct framing ONLY: make the whole tower smaller within the landscape canvas and add generous visible sky above the highest roof/spire plus quiet foreground below its base. The COMPLETE spire/roof/base must be inside the frame with at least6percent canvas-height safety margin, no edge contact or clipped roof. Keep natural eye-level scenic perspective, balanced warm/cool lighting, same restrained traditional fantasy painting style. No people, symbols, lettering, numerals, runes, new artifact, secret, quest clue, UI, map grid, caption or frame. Opaque complete scenic illustration, cosmetic atmosphere only.",
+      "master": ".artifacts/visual-production/masters/illustration-wizard-tower.png",
+      "masterSha256": "e48cd3171a677c884207ec317659007e4135236fa58314ce1ef03d485d2223e2",
+      "legacyAssetId": "illustration-wizard-tower.legacy.v1",
+      "consumers": [
+        "ResilientImageProvider.illustration-fallback",
+        "ToolCallCard",
+        "image-preview"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 225442
+      },
+      "selection": "accepted: source and actual browser/native full views inspected; real fallback bytes, category, keyboard/focus and cold restore checks passed"
+    }
+  ]
+}

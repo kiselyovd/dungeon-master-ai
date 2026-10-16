@@ -8,13 +8,21 @@ export class SseStreamDecoder {
   private readonly decoder = new TextDecoder();
   private buffer = '';
 
+  constructor(private readonly maxBufferedChars = Number.POSITIVE_INFINITY) {}
+
+  private assertBound(): void {
+    if (this.buffer.length > this.maxBufferedChars) throw new Error('sse_frame_too_large');
+  }
+
   push(chunk: Uint8Array): SseEvent[] {
     this.buffer += this.decoder.decode(chunk, { stream: true });
+    this.assertBound();
     return this.consume(false);
   }
 
   finish(): SseEvent[] {
     this.buffer += this.decoder.decode();
+    this.assertBound();
     return this.consume(true);
   }
 

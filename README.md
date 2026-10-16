@@ -11,14 +11,17 @@ It runs a solo D&D 5e session for you: an agentic Dungeon Master narrates, drive
   <img src="docs/screenshots/onboarding.jpg" width="49%" alt="Guided hero creation with class presets and character art" />
 </p>
 
-> **Status: v0.12.1 (real engine).** Real server-rolled combat (initiative,
-> turn-gating, conditions, damage resistance, spell resolution), SRD rules
-> retrieval (RAG), real scene persistence and saves, and video generation. The
-> app completes end to end: onboard by any preset, create or pick a character,
-> chat with the DM, resolve a combat round on the VTT, generate an image, save,
-> and restart with state preserved. Both the local-only path (embedded LLM +
-> image sidecars) and the cloud path (any OpenAI-compatible endpoint, OpenRouter
-> recommended) work.
+> **Status: v0.12.1, experimental.** The rules engine, character wizard, tabletop
+> and campaign persistence are implemented. Complete solo-adventure acceptance
+> and LAN/VPN cooperative play remain active development work. Model and media
+> behavior depends on the configured runtime and hardware; fixture tests do not
+> establish real-model playability. See [campaign continuation and recovery](docs/CAMPAIGN_STATE.md)
+> for current persistence behavior and its verification boundaries.
+
+The bundled [Bell Beneath the Water adventure](docs/AUTHORED_ADVENTURE.md) now
+has executable scene choices, discoveries and persistent authored outcomes.
+Recoverable AI-driven actions, complete mechanics and cooperative sessions remain
+the next development stages.
 
 ## Features
 
@@ -65,7 +68,7 @@ docs/           architecture + milestone specs/plans (planning dir, gitignored)
 
 Prerequisites:
 
-- Rust stable: `rustup default stable`
+- Rust 1.94 or newer: `rustup default stable` (SQLx 0.9 sets the dependency minimum).
 - [Bun](https://bun.com/) 1.3+
 - Tauri prerequisites for your OS: https://tauri.app/start/prerequisites/
 - For the cloud path: an OpenAI-compatible endpoint + key (OpenRouter recommended).
@@ -114,6 +117,32 @@ python -m pytest sidecar/tests -q
 
 Hooks (installed via `bun run install-hooks`): **pre-commit** runs `gates.sh --fast` (seconds), **pre-push** runs the full `gates.sh`. Bypass once with `--no-verify`.
 
+## Documentation
+
+| Topic | Guide |
+|---|---|
+| Campaign continuation and saves | [Campaign state](docs/CAMPAIGN_STATE.md) |
+| Durable requests and safe recovery reads | [AI turn recovery](docs/AI_TURN_RECOVERY.md) |
+| Human intentions and confirmed effects | [Human command ledger](docs/HUMAN_COMMAND_LEDGER.md) |
+| Native co-op evidence and limits | [Co-op acceptance](docs/COOP_ACCEPTANCE.md) |
+| Built-in portraits and whole miniatures | [Hero identities](docs/visual/HERO_IDENTITIES.md) |
+| Stable NPC faces and public reveal | [NPC portraits](docs/visual/NPC_PORTRAITS.md) |
+| Public opponent art and tactical anchors | [Opponent miniatures](docs/visual/OPPONENT_MINIATURES.md) |
+| Startup, library and save paintings | [Key and save art](docs/visual/KEY_SAVE_ART.md) |
+| Canonical current-location atmosphere | [Bell scene paintings](docs/visual/BELL_SCENES.md) |
+| Map artwork and exact tactical calibration | [Map skins](docs/visual/MAP_SKINS.md) |
+| Bundled scenic images and fallback behavior | [Offline illustrations](docs/visual/OFFLINE_ILLUSTRATIONS.md) |
+| Confirmed combat cues and motion preferences | [Gameplay motion](docs/visual/CONFIRMED_MOTION.md) |
+| Scene changes, cinematic preferences and ambient pause | [Scene transitions](docs/visual/SCENE_TRANSITIONS.md) |
+| Command palette, shortcuts and role limits | [Commands](docs/COMMANDS.md) |
+| Main/auxiliary closure, recovery and process cleanup | [Desktop lifecycle](docs/DESKTOP_LIFECYCLE.md) |
+| Pasteable links, native opening and explicit room joining | [Room invitations](docs/ROOM_INVITATIONS.md) |
+| Opt-in events, Windows permissions and notification clicks | [Desktop notifications](docs/NOTIFICATIONS.md) |
+| Saved panes, view modes and native window restore | [Workspace preferences](docs/WORKSPACE.md) |
+| Backup/dossier roles, validation and atomic import | [Portable campaigns](docs/PORTABLE_CAMPAIGNS.md) |
+| Read-only hero/journal views, scope and access limits | [Detached windows](docs/DETACHED_WINDOWS.md) |
+| Measured art payload and rendering acceptance limits | [Visual performance](docs/visual/PERFORMANCE.md) |
+
 ## Build
 
 ```bash
@@ -124,9 +153,8 @@ bun run tauri build
 
 - Distribution: signed installers + GitHub Releases with bundled binaries.
 - Branching saves + the Chronicles tome UI (v1 is linear saves).
-- VTT zoom/pan, light theme, density toggle.
+- Light theme and density toggle.
 - Live scene-transition video generation (pre-recorded mp4 is canonical today).
-- A self-hosted Cyrillic fantasy-serif display face (headings currently fall back to a serif with Cyrillic; the display face is Latin-only).
 - mistralrs reasoning/thinking surfacing (blocked on upstream).
 - Additional / regional cloud providers.
 

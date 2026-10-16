@@ -1,10 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useConfirmedCombatMotion } from '../features/combat/useConfirmedCombatMotion';
 import type { AoeTemplateEntry, CombatToken } from '../state/combat';
 import { useStore } from '../state/useStore';
 import { AoeTemplate } from './AoeTemplate';
-import { CombatToken as CombatTokenComponent } from './CombatToken';
+import type { ActorVisualMap } from './actorVisuals';
+import { CombatToken as CombatTokenComponent, type PlayerTokenPresentation } from './CombatToken';
 
 interface Props {
+  events?: readonly unknown[];
+  selectedTokenId?: string | null | undefined;
+  onSelectToken?: ((id: string) => void) | undefined;
+  actorVisuals?: ActorVisualMap | undefined;
+  playerPresentation?: PlayerTokenPresentation;
+  movableTokenId?: string | null;
   active: boolean;
   tokens: CombatToken[];
   cellSize: number;
@@ -17,7 +25,10 @@ interface Props {
   /** The id of the token whose turn it currently is. Passed to each CombatToken to gate dragging. */
   currentTurnId?: string | null;
   revision?: number;
+  round?: number;
+  motionScopeKey?: string;
 }
+const NO_EVENTS: readonly unknown[] = [];
 
 /**
  * CombatOverlay sits above the PixiJS grid. It renders HTML token overlays
@@ -30,8 +41,13 @@ interface Props {
  * immediately; the rest are scheduled via setTimeout and cleared on unmount.
  */
 export function CombatOverlay({
+  selectedTokenId,
+  onSelectToken,
+  actorVisuals,
   active,
   tokens,
+  playerPresentation,
+  movableTokenId,
   cellSize,
   zoom = 1,
   widthCells,
@@ -40,11 +56,32 @@ export function CombatOverlay({
   aoeTemplates = [],
   currentTurnId,
   revision,
+  round = 1,
+  motionScopeKey,
+  events = NO_EVENTS,
 }: Props) {
   const width = widthCells * cellSize;
   const height = heightCells * cellSize;
 
   const removeAoeTemplate = useStore((s) => s.combat.removeAoeTemplate);
+  const storedCharacterId = useStore((s) => s.pc.characterId);
+  const characterId = playerPresentation ? playerPresentation.characterId : storedCharacterId;
+  const ownActorId =
+    tokens.find((token) => characterId && token.characterId === characterId)?.id ?? null;
+  const motionFrame = useMemo(
+    () => ({
+      scopeKey: motionScopeKey ?? '',
+      revision: revision ?? -1,
+      round,
+      active: active && Boolean(motionScopeKey),
+      tokens,
+      events,
+      ownActorId,
+      currentTurnId: currentTurnId ?? null,
+    }),
+    [motionScopeKey, revision, round, active, tokens, events, ownActorId, currentTurnId],
+  );
+  const motion = useConfirmedCombatMotion(motionFrame);
 
   useEffect(() => {
     if (aoeTemplates.length === 0) return;
@@ -87,10 +124,18 @@ export function CombatOverlay({
         <CombatTokenComponent
           key={token.id}
           token={token}
+          selected={selectedTokenId === token.id}
+          onSelect={onSelectToken}
+          actorVisual={actorVisuals?.[token.characterId ?? token.id]}
+          effects={motion.filter((effect) => effect.actorId === token.id)}
+          {...(revision !== undefined ? { revision } : {})}
           cellSize={cellSize}
           zoom={zoom}
           currentTurnId={currentTurnId}
-          {...(onMoveToken ? { onMove: onMoveToken } : {})}
+          {...(playerPresentation ? { playerPresentation } : {})}
+          {...(onMoveToken && (movableTokenId === undefined || movableTokenId === token.id)
+            ? { onMove: onMoveToken }
+            : {})}
         />
       ))}
       {aoeTemplates.map((tmpl) => (

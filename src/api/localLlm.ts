@@ -42,6 +42,8 @@ export interface ManifestResponse {
 
 /** Wire shape for download events streamed over GET /local-llm/download-events. */
 export interface DownloadEventWire {
+  /** Server-generated completion identity; absent on progress/legacy events. */
+  event_id?: string;
   /** Dotted wire id matching manifest keys, e.g. "qwen3.5-4b". */
   id: string;
   /** One of: "progress" | "completed" | "failed". */

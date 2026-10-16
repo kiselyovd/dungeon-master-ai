@@ -62,7 +62,8 @@
 }
 
 .eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
@@ -70,6 +71,7 @@
 }
 
 .heroCard {
+  position: relative;
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: 7fr 5fr;
@@ -79,6 +81,21 @@
   border-radius: var(--radius-lg);
   background: var(--color-bg-raised);
   box-shadow: var(--shadow-3);
+}
+
+.heroCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--space-3) solid transparent;
+  border-image: var(--dm-frame-campaign) 15% / var(--space-3) stretch;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .heroCard::after {
+    display: none;
+  }
 }
 
 .heroArt {
@@ -128,7 +145,8 @@
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: var(--color-accent-deep);
   color: var(--color-fg-inverse);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   box-shadow: var(--shadow-1);
 }
@@ -144,6 +162,20 @@
 
 .heroCopy p {
   margin: 0;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-fg-secondary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.location {
+  color: var(--color-accent-soft);
+  font-weight: 600;
 }
 
 .primaryAction,
@@ -215,6 +247,41 @@
   color: var(--color-accent);
 }
 
+.emptyScene {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(var(--space-8) * 8);
+  align-content: end;
+  overflow: hidden;
+}
+
+.emptyScene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-deep) 8%, transparent) 30%,
+    color-mix(in srgb, var(--color-bg-deep) 92%, transparent)
+  );
+}
+
+.emptyArt {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 56%;
+}
+
+.heroCopy .heroTitle {
+  font-size: var(--text-xl);
+}
+
 .empty p {
   margin: 0;
 }
@@ -240,7 +307,8 @@
 
 .archiveHeading span {
   color: var(--color-fg-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
 }
 
@@ -277,7 +345,8 @@
 
 .archiveRevision {
   color: var(--color-accent-soft);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
 }
 

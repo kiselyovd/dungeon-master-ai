@@ -15,13 +15,18 @@ import type { StateCreator } from 'zustand';
 
 export interface OnboardingData {
   completed: boolean;
+  version: 2;
+  entry: OnboardingEntry | null;
 }
+
+export type OnboardingEntry = 'adventure' | 'guest';
 
 export interface OnboardingActions {
   /** Mark the wizard as finished. Idempotent. */
   complete: () => void;
   /** Reset the flag back to false so the wizard shows again. */
   reset: () => void;
+  chooseEntry: (entry: OnboardingEntry) => void;
 }
 
 export interface OnboardingSlice {
@@ -33,13 +38,22 @@ export const createOnboardingSlice: StateCreator<OnboardingSlice, [], [], Onboar
 ) => ({
   onboarding: {
     completed: false,
+    version: 2,
+    entry: null,
     complete: () =>
       set((s) => ({
-        onboarding: { ...s.onboarding, completed: true },
+        onboarding: {
+          ...s.onboarding,
+          completed: true,
+          version: 2,
+          entry: s.onboarding.entry ?? 'adventure',
+        },
       })),
     reset: () =>
       set((s) => ({
-        onboarding: { ...s.onboarding, completed: false },
+        onboarding: { ...s.onboarding, completed: false, entry: null },
       })),
+    chooseEntry: (entry) =>
+      set((state) => ({ onboarding: { ...state.onboarding, completed: true, version: 2, entry } })),
   },
 });

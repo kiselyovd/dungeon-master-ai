@@ -29,7 +29,7 @@ export function BackgroundTab({ compendium }: BackgroundTabProps) {
             className={`dm-wizard-card${backgroundId === b.id ? ' is-selected' : ''}`}
             onClick={() => setDraftField('backgroundId', b.id)}
           >
-            <div style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>
+            <div style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>
               {b.name_key
                 ? i18n.t(b.name_key, {
                     ns: 'character',

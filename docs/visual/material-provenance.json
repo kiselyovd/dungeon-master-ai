@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "name": "material-leather-v2",
+      "generationId": "exec-fb747650-a244-4c04-8a63-04343cca9016",
+      "prompt": "Production bitmap game material: one perfectly seamless square tiling texture of finely pebbled aged dark umber leather. Rich painted realistic tabletop fantasy craft, tangible soft leather pores, subtle wear, dark warm brown charcoal palette, very low contrast. Orthographic flat overhead surface with uniform diffuse illumination. Fine varied details evenly distributed across the whole image; edges must tile smoothly horizontally and vertically. No object, no frame, no stitches, no border, no isolated scratch or focal point, no vignette, no text, no symbols, no baked lighting gradient. Intended as a subdued repeating margin texture behind a solid readable UI surface. Output a single square opaque material image, no contact sheet.",
+      "master": ".artifacts/product-uiux/materials/originals/material-leather-v2.png",
+      "assetId": "material.leather.v2",
+      "consumers": [
+        "application shell",
+        "chat margins"
+      ]
+    },
+    {
+      "name": "material-stone-v2",
+      "prompt": "Production bitmap game material: one perfectly seamless square tiling texture of cool slate-grey close-grained limestone, tiny mineral specks and fine natural stone grain. No paving pattern, no masonry joints, no cracks. Rich painted realistic fantasy tabletop craft, tactile fine details, very low contrast. Orthographic flat overhead surface and completely uniform diffuse illumination. Even detail density across the entire tile, matching left/right and top/bottom edges. No object, no frame, no border, no focal point, no vignette, no large symbols, no writing or watermark, no baked shadows or lighting gradient. Intended for quiet repeating UI margin surfaces behind separate solid readable text layers. Single square opaque image, no contact sheet.",
+      "generationId": "exec-1215defa-f696-4b30-89c7-456034b80367",
+      "master": ".artifacts/product-uiux/materials/originals/material-stone-v2.png",
+      "assetId": "material.stone.v2",
+      "consumers": [
+        "character sheet surface"
+      ]
+    },
+    {
+      "name": "material-parchment-v2",
+      "prompt": "Production bitmap game material: one perfectly seamless square tiling texture of warm aged cream parchment, very fine natural paper fibres, a subdued ochre tint, tiny evenly distributed age variation. No stains, no burnt edges, no dramatic mottling. Rich painted realistic fantasy tabletop craft, tactile fine details, very low contrast. Orthographic flat overhead surface and completely uniform diffuse illumination. Even detail density across the entire tile, matching left/right and top/bottom edges. No object, no frame, no border, no focal point, no vignette, no large symbols, no writing or watermark, no baked shadows or lighting gradient. Intended for quiet repeating UI margin surfaces behind separate solid readable text layers. Single square opaque image, no contact sheet.",
+      "generationId": "exec-21e6461f-75c9-4ea0-a9a0-a1ab397178eb",
+      "master": ".artifacts/product-uiux/materials/originals/material-parchment-v2.png",
+      "assetId": "material.parchment.v2",
+      "consumers": [
+        "save tome pages"
+      ]
+    },
+    {
+      "name": "material-velvet-v2",
+      "prompt": "Production bitmap game material: one perfectly seamless square tiling texture of fine deep muted aubergine velvet, extremely small dense pile, quiet fabric softness, warm charcoal-purple palette. Rich painted realistic fantasy tabletop craft, subtle fine variation, very low contrast, no prominent folds or fibre direction. Orthographic flat overhead with perfectly uniform diffuse illumination. Edge-matched horizontally and vertically. No object, no border, no vignette, no ornate pattern, no text, no lighting gradient, no folds, no wrinkles. Single opaque square material image for subdued UI margins, no contact sheet.",
+      "generationId": "exec-8e19c27f-ec51-4307-9a6d-b4041fd10a0d",
+      "master": ".artifacts/product-uiux/materials/originals/material-velvet-v2.png",
+      "assetId": "material.velvet.v2",
+      "consumers": [
+        "shared buttons",
+        "action controls"
+      ]
+    },
+    {
+      "name": "material-bronze-v2",
+      "prompt": "Production bitmap game material: one seamless square tiling texture of old lightly brushed warm bronze, restrained muted gold brown metallic patina, very fine evenly dispersed hairline scratches and minute hammer grain. Fantasy tabletop crafted physical material, realistic painted fine surface, low contrast. Orthographic flat overhead, diffuse illumination uniform across the full tile, edges match horizontally and vertically. No gradients, no specular hotspot, no object, no frame, no bolts, no border, no stamped insignia, no text, no large scratches or focal point. Single opaque square texture to enrich small UI edges and button surfaces, no contact sheet.",
+      "generationId": "exec-19c0155c-6635-42d2-8933-b9061bf881b8",
+      "master": ".artifacts/product-uiux/materials/originals/material-bronze-v2.png",
+      "assetId": "material.bronze.v2",
+      "consumers": [
+        "primary buttons",
+        "application crest"
+      ]
+    },
+    {
+      "name": "material-stone-floor-v2",
+      "prompt": "Single square perfectly tileable top-down material texture of quiet old limestone paving in a fantasy archive: modest varied rectangular slabs, narrow flush seams, gentle grey beige mineral grain and small natural wear. Seamless square pattern whose slab joints continue correctly at all four repeating edges. Flat diffuse uniform light, low contrast, orthographic overhead, realistic painted tactile quality. No border, no vignette, no loose objects, no deep cracks, no moss, no dramatic stains, no labels, no grid numbers, no text, no baked directional shadows. This is a decorative floor surface, no gameplay map. Opaque square image, no contact sheet.",
+      "generationId": "exec-52af8926-e29f-41e9-8575-81d5cf0720d9",
+      "master": ".artifacts/product-uiux/materials/originals/material-stone-floor-v2.png",
+      "assetId": "material.stone_floor.v2",
+      "consumers": [
+        "table surface outside authored map"
+      ]
+    },
+    {
+      "name": "material-river-masonry-v2",
+      "prompt": "Single square seamless tileable material, weathered pale grey-green river limestone masonry, small fine densely distributed stone and mortar grain with traces of soft desaturated moss patina embedded in the stone. A quiet close surface texture, NOT a wall photograph or paving diagram: no visible large blocks, no distinct mortar joints, no long cracks, no objects. Flat orthographic overhead texture, uniform diffuse illumination, uniformly subtle detail from edge to edge with horizontally and vertically matching edges. Realistic painted fantasy tabletop craft, very low contrast, no shadow, no vignette, no border, no writing. Opaque square tile, no contact sheet.",
+      "generationId": "exec-fbd50c83-7bb8-45f9-b7a8-cd0a20f1c8e5",
+      "master": ".artifacts/product-uiux/materials/originals/material-river-masonry-v2.png",
+      "assetId": "material.river_masonry.v2",
+      "consumers": [
+        "map layer controls"
+      ]
+    },
+    {
+      "name": "material-pale-paper-v2",
+      "prompt": "Production bitmap: one seamless square tile of pale ivory handmade laid paper, extremely subtle fine fibres and faint cream flecks, quiet matte off-white paper texture. Uniform low contrast everywhere, perfectly flat diffuse lighting, matching left/right and top/bottom edges. Realistic tactile painted fantasy tabletop quality, clean enough to serve as reading-paper margins. No sheet edges, no stains, no folds, no watermark, no writing, no ornate pattern, no vignette, no lighting gradient. Single opaque square image, no contact sheet.",
+      "generationId": "exec-6280eb36-eaa7-4ac5-b02c-4e268de8bd43",
+      "master": ".artifacts/product-uiux/materials/originals/material-pale-paper-v2.png",
+      "assetId": "material.pale_paper.v2",
+      "consumers": [
+        "journal reading surface"
+      ]
+    },
+    {
+      "name": "material-worn-board-v2",
+      "prompt": "One perfectly seamless square texture of smooth worn walnut game board wood, fine long quiet dark brown grain, warm grey umber, tiny shallow even wear, distinct from oak. A single continuous close-up surface with no planks or board boundaries, no knots, no objects. Uniform flat diffuse light and consistent color at all edges, orthographic top down, richly painted realistic fantasy craft. Very low contrast, no vignette, no large scratches, no writing or markings. Horizontal and vertical seamless tiling. Opaque square bitmap, no contact sheet.",
+      "generationId": "exec-8839be69-f0d5-467f-9097-64f242062cb0",
+      "master": ".artifacts/product-uiux/materials/originals/material-worn-board-v2.png",
+      "assetId": "material.worn_board.v2",
+      "consumers": [
+        "save tome spine"
+      ]
+    },
+    {
+      "name": "material-cloth-v2",
+      "prompt": "One perfectly seamless square texture of fine desaturated indigo linen cloth, small regular natural warp and weft fibres, gentle worn soft fabric grain, matte blue charcoal palette. Flat cloth with no folds or seams, no directional shading, no vignette or lighting gradient. Uniform diffuse top-down orthographic material photography with realistic painted fantasy craft detail, low contrast across entire surface, all opposite edges tile seamlessly. No objects, embroidered patterns, buttons, stitches or writing. Opaque square bitmap texture for quiet card backs and form margins, no contact sheet.",
+      "generationId": "exec-5904ba99-3861-43c6-b324-0dcc47d55047",
+      "master": ".artifacts/product-uiux/materials/originals/material-cloth-v2.png",
+      "assetId": "material.cloth.v2",
+      "consumers": [
+        "shared field margins"
+      ]
+    },
+    {
+      "name": "material-oxidized-metal-v2",
+      "prompt": "One square seamless tiling texture of dark aged oxidized bronze, gentle desaturated verdigris patina mixed evenly through warm umber metal, tiny stippled corrosion and fine smooth wear. Fantasy tabletop realistic painted craft, subdued dark teal-brown, very low contrast, no large corrosion patches or prominent scratches. Uniform flat diffuse lighting from orthographic overhead, edges match seamlessly in both directions. No border, no vignetting, no object, no plate seams, no rivets, no writing or insignia. Single opaque square bitmap, no contact sheet.",
+      "generationId": "exec-02af15b8-27ac-4abb-b272-75f713b42fe9",
+      "master": ".artifacts/product-uiux/materials/originals/material-oxidized-metal-v2.png",
+      "assetId": "material.oxidized_metal.v2",
+      "consumers": [
+        "status bar"
+      ]
+    },
+    {
+      "name": "frame-panel-v2",
+      "prompt": "Production fantasy tabletop UI frame asset, one straight-on SQUARE hollow frame ONLY, transparent alpha center and transparent background outside. A restrained thin dark aged bronze bevel with tiny quiet engraved leaf detail in the four corners, warm muted gold highlights, hand-painted realistic physical craft. The frame occupies the outermost 8 percent of the canvas, four corners within 12 percent; long middle stretches of each side are straight simple continuous metal so CSS nine-slice can stretch them. Identical corner thickness, symmetrical structure, no top crest or bottom protrusion, no inner panel or solid backing, no writing, no symbols, no objects, no large ornaments. Center 76 percent completely empty transparent. Entire frame intact within canvas with tiny even transparent outer margin, no clipped edges, no glow, no baked shadow behind center. Single square image with genuine transparency, not a checkerboard illustration.",
+      "generationId": "exec-4a9db13b-c68a-471f-9555-f9becc6d9ad4",
+      "master": ".artifacts/product-uiux/materials/originals/frame-panel-v2.png",
+      "assetId": "frame.panel.v2",
+      "consumers": [
+        "shared modal",
+        "character sheet"
+      ]
+    },
+    {
+      "name": "frame-journal-v2",
+      "prompt": "One square hollow journal page-edge frame asset for a premium painted fantasy tabletop UI. Only a narrow continuous ivory parchment and aged brown leather binding rim around all four edges, very subtle tiny stitch grain and small restrained bronze corner tabs. Front-on orthographic square, consistent thickness, corners all alike; long side middles are straight and plain for CSS nine-slice scaling. Rim stays in outer 8 percent, corner details inside outer 12 percent. Huge central 76 percent is genuinely transparent empty alpha, also transparent outside tiny even outer margin. No filled page, no letters, no lines, no symbols, no text, no objects, no glow, no folded parts protruding into center, no baked shadow in the opening. Crisp painted material edges with gentle neutral practical light, quiet realistic craft. Complete frame contained, single square PNG with real transparency, no checkerboard.",
+      "generationId": "exec-d746c296-9bff-4a99-9a7c-ae7e8ba27376",
+      "master": ".artifacts/product-uiux/materials/originals/frame-journal-v2.png",
+      "assetId": "frame.journal.v2",
+      "consumers": [
+        "journal container",
+        "save tome"
+      ]
+    },
+    {
+      "name": "frame-portrait-v2",
+      "prompt": "One premium fantasy tabletop portrait rim bitmap: a completely circular hollow thin aged bronze ring viewed perfectly straight on, concentric circles, no perspective distortion. Restrained tiny alternating engraved leaf cuts in bronze, dark warm metal with soft muted gold edges, painted realistic physical craft. Circle diameter 94 percent of square canvas, ring thickness 5 percent of canvas; center is completely empty transparent alpha. Whole ring and a tiny even outside margin fit within image. Genuinely transparent center and exterior, no portrait, no panel, no square plate, no crest, no characters, no letters, no symbols, no writing, no glow, no shadow in the hollow center. Quiet edges that stay readable at 64 and 128 pixels. Single square image, real transparency, not painted checkerboard.",
+      "generationId": "exec-6768eda4-f7eb-4ba2-a922-fbf0d60e4fab",
+      "master": ".artifacts/product-uiux/materials/originals/frame-portrait-v2.png",
+      "assetId": "frame.portrait.v2",
+      "consumers": [
+        "character portrait rim"
+      ]
+    },
+    {
+      "name": "frame-campaign-v2",
+      "prompt": "One square hollow campaign-card edge frame for premium hand-painted fantasy tabletop UI. Restrained dark carved walnut rim with a thin inset antique bronze line and four modest bronze corner brackets. Straight-on orthographic square with thin consistent edges occupying outer 8 percent, identical compact corner blocks within 12 percent. Long middle stretches of sides have simple straight grain/metal for CSS nine-slice scaling. A tiny transparent even outside margin; center 76 percent entirely empty transparent alpha. No solid backing, no inner artwork, no crest, no lettering, no symbols, no writing, no objects, no shiny glow, no baked center shadow. Warm quiet physical material detail, complete frame intact, real transparent square image, no checkerboard.",
+      "generationId": "exec-945a51da-b0bc-4668-95b8-3b4daf4a6dcf",
+      "master": ".artifacts/product-uiux/materials/originals/frame-campaign-v2.png",
+      "assetId": "frame.campaign.v2",
+      "consumers": [
+        "recent campaign card"
+      ]
+    }
+  ]
+}

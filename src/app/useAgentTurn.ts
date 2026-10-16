@@ -1,15 +1,33 @@
 import { useMemo } from 'react';
+import * as v from 'valibot';
+import { RestStatusSchema } from '../api/contracts/rest';
 import type { AgentTurnPorts } from '../features/agent-turn/model/ports';
 import { useAgentTurn as useFeatureAgentTurn } from '../features/agent-turn/useAgentTurn';
 import { projectionFromToolResult } from '../features/combat/model/combatProjection';
+import { applyAdventureToolOutcome } from '../state/adventureOutcome';
+import { applyCombatOutcome } from '../state/combatOutcome';
 import type { Disposition } from '../state/npc';
+import { applyRestOutcome } from '../state/restOutcome';
 import { useStore } from '../state/useStore';
+import { prepareBackendProvider } from './providerStartup';
 
 /** Application composition adapter; feature logic only receives narrow ports. */
 export function useAgentTurn() {
   const ports = useMemo<AgentTurnPorts>(
     () => ({
+      prepareProvider: prepareBackendProvider,
       chat: {
+        prepareReplay: (historyLength) =>
+          useStore.setState((state) => ({
+            chat: {
+              ...state.chat,
+              messages: state.chat.messages.slice(0, historyLength),
+              _nextSeq: historyLength,
+              streamingAssistant: null,
+              streamingReasoning: null,
+              chatStreamEvents: [],
+            },
+          })),
         isStreaming: () => useStore.getState().chat.isStreaming,
         history: () => useStore.getState().chat.messages,
         appendUser: (text, images) => useStore.getState().chat.appendUser(text, images),
@@ -27,6 +45,8 @@ export function useAgentTurn() {
           useStore.getState().chat.settleToolCallEvent(id, result, isError),
         attachImage: (id, dataUrl, kind, source) =>
           useStore.getState().chat.attachStreamEventImage(id, dataUrl, kind, source),
+        attachMedia: (id, reference, kind, source) =>
+          useStore.getState().chat.attachStreamEventMedia(id, reference, kind, source),
         attachVideo: (id, dataUrl) => useStore.getState().chat.attachStreamEventVideo(id, dataUrl),
       },
       toolLog: {
@@ -36,6 +56,8 @@ export function useAgentTurn() {
           useStore.getState().toolLog.settle(id, result, isError, handledBy),
         attachImage: (id, dataUrl, kind, source) =>
           useStore.getState().toolLog.attachImage(id, dataUrl, kind, source),
+        attachMedia: (id, reference, kind, source) =>
+          useStore.getState().toolLog.attachMedia(id, reference, kind, source),
       },
       journal: {
         append: (entry) =>
@@ -61,17 +83,43 @@ export function useAgentTurn() {
           }),
       },
       session: {
+        acceptRevision: (value) => {
+          if (!value || typeof value !== 'object') return;
+          const result = value as Record<string, unknown>;
+          const state = useStore.getState();
+          const active = state.campaigns.active;
+          if (
+            active &&
+            result.campaign_id === active.id &&
+            result.session_id === state.session.activeSessionId &&
+            typeof result.revision === 'number' &&
+            Number.isSafeInteger(result.revision) &&
+            result.revision >= active.revision
+          )
+            state.campaigns.setActive({ ...active, revision: result.revision });
+        },
+        acceptAdventureOutcome: (value) => {
+          if (!applyAdventureToolOutcome(value))
+            console.warn('[agent.adventure]', { code: 'adventure_outcome_ignored' });
+        },
+        generation: () => useStore.getState().session.transitionGeneration,
+        mutationPending: () => useStore.getState().session.mutationId !== null,
         current: () => useStore.getState().session.current(),
         currentSceneName: () => useStore.getState().session.currentScene?.name,
         setScene: (title) =>
           useStore.getState().session.setCurrentScene({ name: title, stepCounter: 0 }),
         setMapImage: (dataUrl) => useStore.getState().session.setMapImage(dataUrl),
+        setMapMedia: (reference) => useStore.getState().session.setMapMedia(reference),
       },
       combat: {
         boardState: () => useStore.getState().combat,
         acceptToolResult: (_toolName, _args, result) => {
           const projection = projectionFromToolResult(result);
-          if (projection) useStore.getState().combat.replaceProjection(projection);
+          if (projection) applyCombatOutcome(projection);
+          if (typeof result === 'object' && result !== null && 'rest_status' in result) {
+            const parsed = v.safeParse(RestStatusSchema, result.rest_status);
+            if (parsed.success) applyRestOutcome(parsed.output);
+          }
         },
       },
       now: () => new Date().toISOString(),

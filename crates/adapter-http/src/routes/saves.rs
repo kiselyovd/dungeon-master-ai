@@ -34,6 +34,7 @@ pub struct UpdateSaveRequest {
 #[derive(Debug, Serialize)]
 pub struct CreateSaveResponse {
     pub id: Uuid,
+    pub revision: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,14 +93,20 @@ pub async fn create_save(
     Path(session_id): Path<String>,
     Json(body): Json<CreateSaveRequest>,
 ) -> Result<(StatusCode, Json<CreateSaveResponse>), HttpServiceError> {
-    let id = services
+    let created = services
         .saves
         .create(
             parse_id(&session_id, "session_id_invalid")?,
             metadata(body)?,
         )
         .await?;
-    Ok((StatusCode::CREATED, Json(CreateSaveResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateSaveResponse {
+            id: created.id,
+            revision: created.revision,
+        }),
+    ))
 }
 
 pub async fn quick_save(
@@ -108,14 +115,20 @@ pub async fn quick_save(
     Json(mut body): Json<CreateSaveRequest>,
 ) -> Result<(StatusCode, Json<CreateSaveResponse>), HttpServiceError> {
     body.kind = "auto".into();
-    let id = services
+    let created = services
         .saves
         .create(
             parse_id(&session_id, "session_id_invalid")?,
             metadata(body)?,
         )
         .await?;
-    Ok((StatusCode::CREATED, Json(CreateSaveResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateSaveResponse {
+            id: created.id,
+            revision: created.revision,
+        }),
+    ))
 }
 
 pub async fn get_save(

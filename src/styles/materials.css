@@ -1,11 +1,21 @@
 /* Unified dark-fantasy material system. */
 :root {
-  --dm-texture-leather: url("../assets/living-tabletop/material-leather.webp");
-  --dm-texture-stone: url("../assets/living-tabletop/material-stone.webp");
-  --dm-texture-oak: url("../assets/living-tabletop/material-oak.webp");
-  --dm-texture-parchment: url("../assets/living-tabletop/material-parchment.webp");
-  --dm-texture-velvet: url("../assets/living-tabletop/material-velvet.webp");
-  --dm-texture-bronze: url("../assets/living-tabletop/material-bronze.webp");
+  --dm-texture-leather: url("../assets/living-tabletop/v2/material-leather-v2.webp");
+  --dm-texture-stone: url("../assets/living-tabletop/v2/material-stone-v2.webp");
+  --dm-texture-oak: url("../assets/living-tabletop/v2/material-oak-v2.webp");
+  --dm-texture-parchment: url("../assets/living-tabletop/v2/material-parchment-v2.webp");
+  --dm-texture-velvet: url("../assets/living-tabletop/v2/material-velvet-v2.webp");
+  --dm-texture-bronze: url("../assets/living-tabletop/v2/material-bronze-v2.webp");
+  --dm-texture-stone-floor: url("../assets/living-tabletop/v2/material-stone-floor-v2.webp");
+  --dm-texture-river-masonry: url("../assets/living-tabletop/v2/material-river-masonry-v2.webp");
+  --dm-texture-pale-paper: url("../assets/living-tabletop/v2/material-pale-paper-v2.webp");
+  --dm-texture-worn-board: url("../assets/living-tabletop/v2/material-worn-board-v2.webp");
+  --dm-texture-cloth: url("../assets/living-tabletop/v2/material-cloth-v2.webp");
+  --dm-texture-oxidized-metal: url("../assets/living-tabletop/v2/material-oxidized-metal-v2.webp");
+  --dm-frame-panel: url("../assets/living-tabletop/v2/frame-panel-v2.webp");
+  --dm-frame-journal: url("../assets/living-tabletop/v2/frame-journal-v2.webp");
+  --dm-frame-portrait: url("../assets/living-tabletop/v2/frame-portrait-v2.webp");
+  --dm-frame-campaign: url("../assets/living-tabletop/v2/frame-campaign-v2.webp");
 }
 
 html,
@@ -38,8 +48,12 @@ body,
 
 .dm-vtt {
   background-image:
-    radial-gradient(circle at 50% 40%, rgba(54, 43, 70, 0.2), rgba(10, 9, 14, 0.86)),
-    var(--dm-texture-stone);
+    radial-gradient(
+      circle at 50% 40%,
+      color-mix(in srgb, var(--color-bg-base) 88%, transparent),
+      color-mix(in srgb, var(--color-bg-deep) 96%, transparent)
+    ),
+    var(--dm-texture-stone-floor);
   background-size:
     cover,
     512px 512px;
@@ -53,6 +67,49 @@ body,
   background-size:
     auto,
     420px 420px;
+}
+
+.dm-vtt-layers {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-overlay) 92%, transparent),
+      color-mix(in srgb, var(--color-bg-deep) 96%, transparent)
+    ),
+    var(--dm-texture-river-masonry);
+}
+
+.dm-char {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-raised) 96%, transparent),
+      color-mix(in srgb, var(--color-bg-base) 97%, transparent)
+    ),
+    var(--dm-texture-stone);
+  background-size:
+    auto,
+    384px 384px;
+}
+
+.dm-char::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--space-3) solid transparent;
+  border-image: var(--dm-frame-panel) 15% / var(--space-3) stretch;
+  pointer-events: none;
+}
+
+.dm-char-portrait {
+  position: relative;
+  padding: var(--space-1);
+}
+
+.dm-char-portrait::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--dm-frame-portrait) center / contain no-repeat;
+  pointer-events: none;
 }
 
 .dm-app-mark-glyph,
@@ -99,5 +156,13 @@ body,
   .dm-vtt-controls,
   .dm-vtt-layers {
     background-image: none;
+  }
+}
+
+/* System high contrast remains authoritative. Ornament never carries state. */
+@media (forced-colors: active) {
+  .dm-char::after,
+  .dm-char-portrait::after {
+    display: none;
   }
 }

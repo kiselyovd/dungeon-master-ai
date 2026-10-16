@@ -2,8 +2,10 @@ import {
   type KeyboardEvent,
   type ClipboardEvent as ReactClipboardEvent,
   type DragEvent as ReactDragEvent,
+  type ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,16 +14,19 @@ import { useAgentTurn } from '../hooks/useAgentTurn';
 import { useSession } from '../hooks/useSession';
 import { useStickyScroll } from '../hooks/useStickyScroll';
 import { fileToDataUrl } from '../lib/fileToDataUrl';
-import type { ChatMessage, ChatStreamEvent, MessagePart, StagedImage } from '../state/chat';
+import type { ChatMessage, ChatStreamEvent, MessagePart } from '../state/chat';
+import { MAX_CONVERSATION_DRAFT_LENGTH } from '../state/conversationDrafts';
+import { READING_FONT_SIZES } from '../state/settings';
 import type { ToolLogEntry } from '../state/toolLog';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
+import { Select } from '../ui/Select';
 import styles from './ChatPanel.module.css';
 import { ComposerAttachments } from './ComposerAttachments';
 import { MessageBubble } from './MessageBubble';
-import { ReasoningPill } from './ReasoningPill';
 import { ToolCallCard } from './ToolCallCard';
 import { TypingIndicator } from './TypingIndicator';
+import { useConversationDraft } from './useConversationDraft';
 
 const VALID_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -42,6 +47,7 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
     handledBy: 'engine',
   };
   if (event.imageDataUrl !== undefined) entry.imageDataUrl = event.imageDataUrl;
+  if (event.imageMediaRef !== undefined) entry.imageMediaRef = event.imageMediaRef;
   if (event.imageKind !== undefined) entry.imageKind = event.imageKind;
   if (event.imageSource !== undefined) entry.imageSource = event.imageSource;
   return entry;
@@ -49,16 +55,36 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
 
 type MergedItem = { kind: 'message'; item: ChatMessage } | { kind: 'event'; item: ChatStreamEvent };
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  controller?: Pick<ReturnType<typeof useAgentTurn>, 'send' | 'cancel'>;
+  recoveryNotice?: ReactNode;
+  recoveryBlocked?: boolean;
+  onInspect?: (() => void) | undefined;
+  needsSetup?: boolean;
+  onRequireSetup?: (() => void) | undefined;
+}
+export function ChatPanel({
+  controller,
+  recoveryNotice,
+  recoveryBlocked = false,
+  onInspect,
+  needsSetup = false,
+  onRequireSetup,
+}: ChatPanelProps = {}) {
   const { t } = useTranslation('chat');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tSettings } = useTranslation('settings');
   const { t: tTools } = useTranslation('tools');
-  const { send, cancel } = useAgentTurn();
+  const fallbackController = useAgentTurn();
+  const { send, cancel } = controller ?? fallbackController;
   const messages = useStore((s) => s.chat.messages);
+  const readingSize = useStore((s) => s.settings.readingFontSize);
+  const setReadingSize = useStore((s) => s.settings.setReadingFontSize);
   const truncateTo = useStore((s) => s.chat.truncateTo);
   const chatStreamEvents = useStore((s) => s.chat.chatStreamEvents);
   const streamingAssistant = useStore((s) => s.chat.streamingAssistant);
   const isStreaming = useStore((s) => s.chat.isStreaming);
+  const campaignMutation = useStore((s) => s.session.mutationId);
   const lastError = useStore((s) => s.chat.lastError);
   const { refetch: refetchSession } = useSession();
   const sessionLoadError = useStore((s) => s.session.loadError);
@@ -67,14 +93,25 @@ export function ChatPanel() {
   // paperclip is hidden and paste/drag of image files is rejected with a hint
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
-  const streamingReasoning = useStore((s) => s.chat.streamingReasoning);
-  const streamingReasoningTokens = useStore((s) => s.chat.streamingReasoningTokens);
-  const [draft, setDraft] = useState('');
-  const [staged, setStaged] = useState<StagedImage[]>([]);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const sessionId = useStore((s) => s.session.activeSessionId);
+  const composerDraft = useConversationDraft(`solo:${campaignId}:${sessionId}`);
+  const draft = composerDraft.text;
+  const setDraft = composerDraft.setText;
+  const staged = composerDraft.attachments;
+  const setStaged = composerDraft.setAttachments;
+  const sending = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
-  const { ref: historyRef, onScroll, scrollToBottom, reset: resetScroll } = useStickyScroll(100);
+  const {
+    ref: historyRef,
+    onScroll,
+    scrollToBottom,
+    reset: resetScroll,
+    shouldScroll,
+    jumpToBottom,
+  } = useStickyScroll(100);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom intentionally re-fires only when conversation length changes
   useEffect(() => {
@@ -126,14 +163,18 @@ export function ChatPanel() {
       }
       if (didError !== null) setStagingError(didError);
     },
-    [staged.length, t],
+    [staged.length, t, setStaged],
   );
 
-  const removeStaged = useCallback((index: number) => {
+  const removeStaged = (index: number) => {
     setStaged((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  };
 
-  const canSend = !isStreaming && draft.trim().length > 0;
+  const canSend =
+    !isStreaming &&
+    !campaignMutation &&
+    !recoveryBlocked &&
+    (draft.trim().length > 0 || needsSetup);
 
   // Build a retry handler for a finalized assistant bubble identified by its
   // message id. Clicking Retry must:
@@ -180,9 +221,14 @@ export function ChatPanel() {
   );
 
   const onSend = async () => {
-    if (!canSend) return;
+    if (!canSend || sending.current) return;
+    if (needsSetup) {
+      onRequireSetup?.();
+      return;
+    }
     const text = draft;
-    setDraft('');
+    const before = new Set(useStore.getState().chat.messages.map((message) => message.id));
+    sending.current = true;
     // Convert staged images to wire MessageParts (strip the data-URL prefix to
     // the bare base64 the backend expects). They ride the dedicated `images`
     // field of the agent turn (F2 - vision wired end to end).
@@ -192,13 +238,28 @@ export function ChatPanel() {
       data_b64: img.dataUrl.replace(/^data:[^;]+;base64,/, ''),
       name: img.name ?? null,
     }));
-    setStaged([]);
     setStagingError(null);
-    await send(text, images.length > 0 ? images : undefined);
+    try {
+      await send(text, images.length > 0 ? images : undefined);
+      const accepted = useStore
+        .getState()
+        .chat.messages.some(
+          (message) =>
+            !before.has(message.id) && message.role === 'user' && message.content === text,
+        );
+      if (accepted) {
+        setDraft((current) => (current === text ? '' : current));
+        setStaged((current) => (current === staged ? [] : current));
+      }
+    } catch {
+      setStagingError(t('send_failed'));
+    } finally {
+      sending.current = false;
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void onSend();
     } else if (e.key === 'Escape' && isStreaming) {
@@ -249,7 +310,12 @@ export function ChatPanel() {
   useEffect(() => {
     if (!isStreaming) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        !e.isComposing &&
+        !document.querySelector('[role="dialog"]')
+      ) {
         cancel();
         resetScroll();
       }
@@ -263,7 +329,9 @@ export function ChatPanel() {
   // Merge finalized messages and inline tool-call events into one ordered list.
   // Both draw sequenceIndex from the shared _nextSeq counter in the slice.
   const mergedStream: MergedItem[] = [
-    ...messages.map((m) => ({ kind: 'message' as const, item: m })),
+    ...messages
+      .filter((message) => message.role !== 'system')
+      .map((m) => ({ kind: 'message' as const, item: m })),
     ...chatStreamEvents.map((e) => ({ kind: 'event' as const, item: e })),
   ].sort((a, b) => (a.item.sequenceIndex ?? 0) - (b.item.sequenceIndex ?? 0));
 
@@ -280,6 +348,13 @@ export function ChatPanel() {
           <Icons.Sparkle size={14} />
           <span>{t('header_title')}</span>
         </span>
+        <Select
+          className={styles.readingSize ?? ''}
+          ariaLabel={t('reading_size')}
+          value={String(readingSize)}
+          options={READING_FONT_SIZES.map((size) => ({ value: String(size), label: `${size}px` }))}
+          onChange={(size) => setReadingSize(Number(size))}
+        />
       </div>
 
       <div
@@ -313,6 +388,7 @@ export function ChatPanel() {
                 key={entry.item.id}
                 entry={streamEventToLogEntry(entry.item)}
                 label={toolLabel}
+                onInspect={onInspect}
               />
             );
           }
@@ -342,11 +418,6 @@ export function ChatPanel() {
         )}
         {(isStreaming || streamingAssistant !== null) && (
           <div aria-live="polite" className={styles.streamWrapper}>
-            <ReasoningPill
-              text={streamingReasoning ?? ''}
-              isStreaming={isStreaming && streamingReasoning === null}
-              totalTokens={streamingReasoningTokens}
-            />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
                 <TypingIndicator />
@@ -365,11 +436,24 @@ export function ChatPanel() {
             data-testid="chat-error"
             data-error-code={lastError.code}
           >
-            {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
+            {tErrors(lastError.code as ChatErrorCode, {
+              message:
+                lastError.message === 'chat_runtime_unavailable' ||
+                lastError.message === 'chat_runtime_model_changed'
+                  ? tSettings(lastError.message)
+                  : lastError.message,
+            })}
           </div>
         )}
       </div>
 
+      {recoveryNotice}
+      {!shouldScroll && (
+        <button type="button" className={styles.sessionLoadErrorRetry} onClick={jumpToBottom}>
+          {t('scroll_latest')}
+        </button>
+      )}
+      {composerDraft.failure && <p role="status">{t('draft_save_failed')}</p>}
       <div className={styles.composer}>
         <div className={styles.composerCol}>
           {stagingError !== null && (
@@ -379,16 +463,21 @@ export function ChatPanel() {
           )}
           <ComposerAttachments items={staged} onRemove={removeStaged} />
           <textarea
+            data-command-target="chat"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder={t('placeholder')}
             rows={2}
+            maxLength={MAX_CONVERSATION_DRAFT_LENGTH}
+            onBlur={() => void composerDraft.flush()}
             className={styles.draft}
             aria-label={t('placeholder')}
           />
-          <div className={styles.hint}>{t('hint_keyboard')}</div>
+          <div className={styles.hint}>
+            {campaignMutation ? t('campaign_action_pending') : t('hint_keyboard')}
+          </div>
         </div>
         <div className={styles.composerActions}>
           {isStreaming ? (
@@ -410,10 +499,10 @@ export function ChatPanel() {
               className={styles.sendBtn}
               onClick={() => void onSend()}
               disabled={!canSend}
-              aria-label={t('send')}
+              aria-label={t(needsSetup ? 'configure_dm' : 'send')}
             >
               <Icons.Send size={14} />
-              <span>{t('send')}</span>
+              <span>{t(needsSetup ? 'configure_dm' : 'send')}</span>
             </button>
           )}
         </div>

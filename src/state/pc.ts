@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 
 /**
  * Player character (PC) slice (M5 P2.14). Stores the canonical character
@@ -63,6 +64,15 @@ export interface InventoryItem {
 }
 
 export interface PcData {
+  defense?: import('../api/contracts/defense').DefenseChoice;
+  baseSpeedFt?: number;
+  characterId?: string | null;
+  backstory?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  personalityFlags?: import('./charCreation').PersonalityFlag[];
+  spells?: { cantrips: string[]; level1: string[] };
   heroClass: string | null;
   // Identity (null when no character has been created yet).
   name: string | null;
@@ -90,6 +100,9 @@ export interface PcData {
   inventory: InventoryItem[];
   /** Generated/selected portrait (data URL or http(s)); null falls back to class art. */
   portraitUrl: string | null;
+  /** Immutable built-in portrait identity. Missing means legacy/default selection. */
+  portraitAssetId?: string | null;
+  portraitMediaRef?: MediaReference | null;
 }
 
 /**
@@ -102,6 +115,15 @@ export interface PcData {
  * further down the file. Keep this in sync with `PcData` and `EMPTY_PC`.
  */
 export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
+  'defense',
+  'baseSpeedFt',
+  'characterId',
+  'backstory',
+  'ideals',
+  'bonds',
+  'flaws',
+  'personalityFlags',
+  'spells',
   'heroClass',
   'name',
   'race',
@@ -122,6 +144,8 @@ export const PC_DATA_KEYS: ReadonlySet<keyof PcData> = new Set<keyof PcData>([
   'skillProfs',
   'inventory',
   'portraitUrl',
+  'portraitAssetId',
+  'portraitMediaRef',
 ]);
 
 export interface PcActions {
@@ -305,7 +329,9 @@ export const PRESETS: Record<HeroClassId, ClassPreset> = {
   cleric: CLERIC_PRESET,
 };
 
-function presetToData(klass: HeroClassId): Omit<PcData, 'heroClass'> & { heroClass: string } {
+export function presetToData(
+  klass: HeroClassId,
+): Omit<PcData, 'heroClass'> & { heroClass: string } {
   const preset = PRESETS[klass];
   return {
     heroClass: klass,
@@ -330,6 +356,8 @@ function presetToData(klass: HeroClassId): Omit<PcData, 'heroClass'> & { heroCla
     // Preset heroes have no generated portrait; CharacterSheet falls back to
     // the class art via HERO_PORTRAIT.
     portraitUrl: null,
+    portraitAssetId: null,
+    portraitMediaRef: null,
   };
 }
 
@@ -345,6 +373,13 @@ const EMPTY_ABILITIES: AbilityScores = {
 };
 
 const EMPTY_PC: PcData = {
+  characterId: null,
+  backstory: '',
+  ideals: '',
+  bonds: '',
+  flaws: '',
+  personalityFlags: [],
+  spells: { cantrips: [], level1: [] },
   heroClass: null,
   name: null,
   race: null,
@@ -365,7 +400,21 @@ const EMPTY_PC: PcData = {
   skillProfs: {},
   inventory: [],
   portraitUrl: null,
+  portraitAssetId: null,
+  portraitMediaRef: null,
 };
+
+export function emptyPcData(): PcData {
+  return {
+    ...EMPTY_PC,
+    abilities: { ...EMPTY_PC.abilities },
+    savingThrowProfs: {},
+    skillProfs: {},
+    inventory: [],
+    personalityFlags: [],
+    spells: { cantrips: [], level1: [] },
+  };
+}
 
 function isHeroClassId(value: string | null): value is HeroClassId {
   return value === 'fighter' || value === 'wizard' || value === 'rogue' || value === 'cleric';

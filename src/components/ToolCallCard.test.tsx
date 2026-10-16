@@ -41,11 +41,11 @@ describe('ToolCallCard - non-image tools (pending indicator)', () => {
     expect(document.body.innerHTML).toBe(before);
   });
 
-  it('settled non-image tool shows real JSON result and no pending indicator', () => {
+  it('settled non-image tool shows the confirmed number without raw JSON or pending indicator', () => {
     render(<ToolCallCard entry={settledRollDice} />);
     expect(screen.queryByTestId('tool-pending-indicator')).toBeNull();
-    // Real result must appear in a pre element
-    expect(screen.getByText(/"total": 16/)).toBeInTheDocument();
+    expect(screen.getByText('Roll: 16')).toBeInTheDocument();
+    expect(document.querySelector('pre')).toBeNull();
   });
 });
 
@@ -112,7 +112,7 @@ describe('ToolCallCard - image tools', () => {
 
   it('settled generate_map with imageDataUrl renders an img with the data URL', () => {
     render(<ToolCallCard entry={settledMapEntry} />);
-    const img = screen.getByRole('img', { name: /generated image|image_alt/i });
+    const img = screen.getByRole('img', { name: 'Image' });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', TEST_DATA_URL);
     // No drawing indicator once settled
@@ -123,20 +123,20 @@ describe('ToolCallCard - image tools', () => {
 
   it('settled generate_illustration with imageDataUrl renders an img with the data URL', () => {
     render(<ToolCallCard entry={settledIllustrationEntry} />);
-    const img = screen.getByRole('img', { name: /generated image|image_alt/i });
+    const img = screen.getByRole('img', { name: 'Image' });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', TEST_DATA_URL);
   });
 
-  it('labels bundled images while keeping the map routing note', () => {
+  it('retains source and map routing metadata without repeating source captions', () => {
     render(<ToolCallCard entry={bundledMapEntry} />);
     const card = screen.getByTestId('tool-call-card-call_img_1');
     expect(card).toHaveAttribute('data-tool-name', 'generate_map');
     expect(card).toHaveAttribute('data-image-kind', 'map');
     expect(card).toHaveAttribute('data-image-source', 'bundled');
     expect(card).toHaveAttribute('data-image-asset-id', 'map-tavern-interior');
-    expect(screen.getByText('From the built-in collection')).toBeInTheDocument();
-    expect(screen.getByText('Map updated')).toBeInTheDocument();
+    expect(screen.queryByText('From the built-in collection')).toBeNull();
+    expect(screen.queryByText('Map updated')).toBeNull();
   });
 
   it('does not label generated or legacy images as bundled', () => {

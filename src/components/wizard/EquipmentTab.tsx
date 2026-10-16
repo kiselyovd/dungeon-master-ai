@@ -13,6 +13,7 @@ import type { EquipmentMode, EquipmentSlot } from '../../state/charCreation';
 import type { InventoryItem } from '../../state/pc';
 import { useStore } from '../../state/useStore';
 import { Icons } from '../../ui/Icons';
+import { DefenseControls } from './DefenseControls';
 import { filterCompendiumByWildcard, parseEquipmentString } from './equipmentResolver';
 
 interface RawStartingEquipmentEntry {
@@ -317,6 +318,7 @@ export function EquipmentTab({ compendium }: { compendium: Compendium }) {
           }}
         />
       )}
+      {mode !== null && <DefenseControls compendium={compendium} />}
     </section>
   );
 }
@@ -576,7 +578,7 @@ function GoldMode({
           const canAfford = gold >= entry.costGp;
           return (
             <div key={entry.id} className="dm-wizard-card" style={{ cursor: 'default' }}>
-              <div style={{ fontFamily: 'Cinzel, serif', color: '#fff' }}>{name}</div>
+              <div style={{ fontFamily: 'var(--font-display)', color: '#fff' }}>{name}</div>
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
                 {entry.costGp.toFixed(2)} {t('gp')} - {entry.weightLb} {t('lb')}
               </div>

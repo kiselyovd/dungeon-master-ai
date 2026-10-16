@@ -5,10 +5,12 @@ use axum::response::sse::Event;
 /// Pure mapping from application events to the stable frontend SSE contract.
 pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Value) {
     match event {
+        AgentEvent::AgentFailed => ("error", serde_json::json!({"code":"agent_turn_failed"})),
         AgentEvent::ReasoningText { text } => {
             ("reasoning_text", serde_json::json!({ "text": text }))
         }
         AgentEvent::ImageGenerated {
+            media_ref,
             tool_call_id,
             round,
             mime_type,
@@ -31,6 +33,10 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
             if let Some(asset_id) = asset_id {
                 payload["asset_id"] = serde_json::Value::String(asset_id);
             }
+            if let Some(reference) = media_ref {
+                payload["media_ref"] =
+                    serde_json::to_value(reference).expect("media reference serializable")
+            };
             ("image_generated", payload)
         }
         AgentEvent::TextDelta { text } => ("text_delta", serde_json::json!({ "text": text })),
@@ -81,6 +87,14 @@ pub fn agent_event_to_wire(event: AgentEvent) -> (&'static str, serde_json::Valu
         AgentEvent::AgentDone { total_rounds } => (
             "agent_done",
             serde_json::json!({ "total_rounds": total_rounds }),
+        ),
+        AgentEvent::AgentNeedsInput {
+            clarification_id,
+            command_id,
+            total_rounds,
+        } => (
+            "agent_needs_input",
+            serde_json::json!({"clarification_id":clarification_id,"command_id":command_id,"total_rounds":total_rounds}),
         ),
     }
 }

@@ -1,0 +1,138 @@
+{
+  "families": [
+    {
+      "family": "Manrope",
+      "version": "4.504",
+      "role": "controls",
+      "license": "SIL-OFL-1.1"
+    },
+    {
+      "family": "Literata",
+      "version": "3.103",
+      "role": "narrative and headings",
+      "license": "SIL-OFL-1.1"
+    }
+  ],
+  "files": [
+    {
+      "family": "Literata",
+      "style": "italic",
+      "subset": "cyrillic-ext",
+      "file": "literata-italic-cyrillic-ext.woff2",
+      "bytes": 16232,
+      "sha256": "e82b185e364c280300a247fe7949691b299f4f9baf61b37c7b778cc85dfaa2f5",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3NQ6P12-iJxAIgLYT1PLs1a-t7PU0AbeE9KPxYzNiCp1OUedn8VrLmQ0iSh8g.woff2",
+      "path": "public/fonts/literata-italic-cyrillic-ext.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "italic",
+      "subset": "cyrillic",
+      "file": "literata-italic-cyrillic.woff2",
+      "bytes": 48828,
+      "sha256": "55a5eae3905de419effe79dc973f4afa59da2bc76216d7067b78ddb22ca7eff8",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3NQ6P12-iJxAIgLYT1PLs1a-t7PU0AbeE9KPxYzNiCp1OUedn8VrLmSkiSh8g.woff2",
+      "path": "public/fonts/literata-italic-cyrillic.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "italic",
+      "subset": "latin-ext",
+      "file": "literata-italic-latin-ext.woff2",
+      "bytes": 71460,
+      "sha256": "265ad511d5de5b7d3641283bd4a3153e41ea45d714237d1af5bf86faa138af31",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3NQ6P12-iJxAIgLYT1PLs1a-t7PU0AbeE9KPxYzNiCp1OUedn8VrLmQEiSh8g.woff2",
+      "path": "public/fonts/literata-italic-latin-ext.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "italic",
+      "subset": "latin",
+      "file": "literata-italic-latin.woff2",
+      "bytes": 88756,
+      "sha256": "88716d1d508846fb4152ee7f7e05b034b334c84206322efd828402e9a18d9265",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3NQ6P12-iJxAIgLYT1PLs1a-t7PU0AbeE9KPxYzNiCp1OUedn8VrLmTkiS.woff2",
+      "path": "public/fonts/literata-italic-latin.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "normal",
+      "subset": "cyrillic-ext",
+      "file": "literata-normal-cyrillic-ext.woff2",
+      "bytes": 16548,
+      "sha256": "e7dd3038c6f29995387cc89858e3b073eb55fd060c05c277f390334d0bdbe8ac",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3PQ6P12-iJxAIgLa78DkTtAoDhk0oVpaK3YLanFLHpPf2TbLi4J_zWTFCW.woff2",
+      "path": "public/fonts/literata-normal-cyrillic-ext.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "normal",
+      "subset": "cyrillic",
+      "file": "literata-normal-cyrillic.woff2",
+      "bytes": 48068,
+      "sha256": "9e1faecc45e112755363617c4963371d53b66b409f2ca626e57e7d9cd4b9bd06",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3PQ6P12-iJxAIgLa78DkTtAoDhk0oVpaK3YLanFLHpPf2TbLi4J_XWTFCW.woff2",
+      "path": "public/fonts/literata-normal-cyrillic.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "normal",
+      "subset": "latin-ext",
+      "file": "literata-normal-latin-ext.woff2",
+      "bytes": 70804,
+      "sha256": "334990a82ce173e5169f5f0946c679f7d8c1ee8608eb29b56f85284802c712c9",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3PQ6P12-iJxAIgLa78DkTtAoDhk0oVpaK3YLanFLHpPf2TbLi4J__WTFCW.woff2",
+      "path": "public/fonts/literata-normal-latin-ext.woff2"
+    },
+    {
+      "family": "Literata",
+      "style": "normal",
+      "subset": "latin",
+      "file": "literata-normal-latin.woff2",
+      "bytes": 85672,
+      "sha256": "7478e1920209e51dcc235d151d2056a0a6e3c54b4436f7030d256f231fe09b58",
+      "source": "https://fonts.gstatic.com/s/literata/v40/or3PQ6P12-iJxAIgLa78DkTtAoDhk0oVpaK3YLanFLHpPf2TbLi4J_HWTA.woff2",
+      "path": "public/fonts/literata-normal-latin.woff2"
+    },
+    {
+      "family": "Manrope",
+      "style": "normal",
+      "subset": "cyrillic-ext",
+      "file": "manrope-normal-cyrillic-ext.woff2",
+      "bytes": 2552,
+      "sha256": "de37de877dc17e4577341fa68bb5cb526b53d54cb29721e674208546a3c7849d",
+      "source": "https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggqxSuXd.woff2",
+      "path": "public/fonts/manrope-normal-cyrillic-ext.woff2"
+    },
+    {
+      "family": "Manrope",
+      "style": "normal",
+      "subset": "cyrillic",
+      "file": "manrope-normal-cyrillic.woff2",
+      "bytes": 14500,
+      "sha256": "c268b459a9329e59fecf39a17618efd44c71735532048d60b12aab76a8c14914",
+      "source": "https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggOxSuXd.woff2",
+      "path": "public/fonts/manrope-normal-cyrillic.woff2"
+    },
+    {
+      "family": "Manrope",
+      "style": "normal",
+      "subset": "latin-ext",
+      "file": "manrope-normal-latin-ext.woff2",
+      "bytes": 15120,
+      "sha256": "3911b66d9f2e005a4b989223405d0e5032619c668597ba467cc76a23c8fffcfb",
+      "source": "https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggmxSuXd.woff2",
+      "path": "public/fonts/manrope-normal-latin-ext.woff2"
+    },
+    {
+      "family": "Manrope",
+      "style": "normal",
+      "subset": "latin",
+      "file": "manrope-normal-latin.woff2",
+      "bytes": 24836,
+      "sha256": "a30ddcd349703aff7464c34bef3fffdff405ee50c113440d7c8693c02d210972",
+      "source": "https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2",
+      "path": "public/fonts/manrope-normal-latin.woff2"
+    }
+  ]
+}

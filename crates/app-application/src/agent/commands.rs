@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AdventureActionCommand {
+    pub action: crate::models::adventure::Action,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RollDiceCommand {
     pub dice: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -10,7 +16,11 @@ pub struct RollDiceCommand {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advantage: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disadvantage: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<crate::hero_checks::HeroSkillCheck>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -29,6 +39,10 @@ pub struct ApplyHealingCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct InitiativeEntryCommand {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<crate::models::combat::OpponentArchetype>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<CombatParticipantRole>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hp: Option<i32>,
@@ -45,6 +59,12 @@ pub struct InitiativeEntryCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StartCombatCommand {
     pub initiative_entries: Vec<InitiativeEntryCommand>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CombatParticipantRole {
+    Npc,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -189,6 +209,9 @@ pub struct GenerateVideoCommand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentToolCommand {
+    CombatAction(super::hero_intentions::HeroCombatIntent),
+    RestAction(crate::models::rest::RestIntent),
+    AdventureAction(AdventureActionCommand),
     RollDice(RollDiceCommand),
     ApplyDamage(ApplyDamageCommand),
     ApplyHealing(ApplyHealingCommand),
@@ -212,6 +235,9 @@ pub enum AgentToolCommand {
 impl AgentToolCommand {
     pub const fn tool_name(&self) -> &'static str {
         match self {
+            Self::CombatAction(_) => "combat_action",
+            Self::RestAction(_) => "rest_action",
+            Self::AdventureAction(_) => "adventure_action",
             Self::RollDice(_) => "roll_dice",
             Self::ApplyDamage(_) => "apply_damage",
             Self::ApplyHealing(_) => "apply_healing",
@@ -235,6 +261,9 @@ impl AgentToolCommand {
 
     pub fn to_args(&self) -> Value {
         match self {
+            Self::CombatAction(value) => serde_json::to_value(value),
+            Self::RestAction(value) => serde_json::to_value(value),
+            Self::AdventureAction(value) => serde_json::to_value(value),
             Self::RollDice(value) => serde_json::to_value(value),
             Self::ApplyDamage(value) => serde_json::to_value(value),
             Self::ApplyHealing(value) => serde_json::to_value(value),

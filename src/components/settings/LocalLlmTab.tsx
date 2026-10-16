@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  fetchLocalRuntimeStatus,
   persistLocalModeConfig,
   startLocalRuntimes,
   stopLocalRuntimes,
 } from '../../api/localRuntime';
 import { useLocalRuntimeStatus } from '../../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../../hooks/useModelDownload';
-import type { ModelId, VramStrategy } from '../../state/localMode';
+import { useLocalLlmStore } from '../../state/localLlm';
+import {
+  type ModelId,
+  selectedLocalModelIsRunning,
+  type VramStrategy,
+} from '../../state/localMode';
 import { useStore } from '../../state/useStore';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
@@ -16,6 +22,7 @@ import { Select } from '../../ui/Select';
 import { ModelDownloadCard } from '../ModelDownloadCard';
 import { RuntimeStatusPill } from '../RuntimeStatusPill';
 import styles from '../SettingsForm.module.css';
+import { CollapsibleCard } from './local-llm/CollapsibleCard';
 import { ModelSelector as LocalLlmModelSelector } from './local-llm/ModelSelector';
 
 /**
@@ -55,11 +62,17 @@ type RuntimeActionStatus = 'idle' | 'pending' | 'error';
  * Promoted out of the Chat tab in D8: this panel is now ALWAYS visible as its
  * own tab, regardless of which chat provider is active.
  */
-export function LocalLlmTab() {
+export function LocalLlmTab({ agentTurnInFlight = false }: { agentTurnInFlight?: boolean } = {}) {
   const { t } = useTranslation('settings');
   const { t: tLocal } = useTranslation('local_mode');
   const lm = useStore((s) => s.localMode);
-  const isStreaming = useStore((s) => s.chat.isStreaming);
+  const soloBusy = useStore((s) => s.chat.isStreaming);
+  const isStreaming = soloBusy || agentTurnInFlight;
+  const installedIds = useLocalLlmStore((s) => s.installedIds);
+  const catalog = useLocalLlmStore((s) => s.system);
+  const catalogError = useLocalLlmStore((s) => s.error);
+  const catalogLoading = useLocalLlmStore((s) => s.loading);
+  const [checking, setChecking] = useState(false);
   // Poll runtime status so the pills + the toWireConfig port lookup reflect
   // the current sidecar state. While the Local LLM panel is mounted we always
   // poll - the user is actively configuring it, so the original `enabled`
@@ -70,7 +83,6 @@ export function LocalLlmTab() {
   const [stopStatus, setStopStatus] = useState<RuntimeActionStatus>('idle');
   // Capture the backend's actual failure reason (e.g. a 0-byte/missing sidecar
   // binary) so "runtime won't start" is debuggable instead of a mute chip.
-  const [startError, setStartError] = useState<string | null>(null);
   const startResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -97,25 +109,38 @@ export function LocalLlmTab() {
   );
 
   const handleStart = useCallback(async () => {
+    if (isStreaming || startStatus === 'pending') return;
     clearStartReset();
     setStartStatus('pending');
-    setStartError(null);
+    lm.markRuntimeStatusUnknown();
     try {
+      if (lm.runtime.llm.state === 'ready' || lm.runtime.llm.state === 'failed')
+        await stopLocalRuntimes();
       await persistLocalModeConfig({
+        context_window: lm.contextWindow,
         selected_llm: lm.selectedLlm,
         vram_strategy: lm.vramStrategy,
       });
       await startLocalRuntimes();
       setStartStatus('idle');
-    } catch (e) {
-      setStartError(e instanceof Error ? e.message : String(e));
+    } catch {
+      console.warn('[LocalLlmTab]', { code: 'runtime_start_failed', modelId: lm.selectedLlm });
       setStartStatus('error');
       startResetRef.current = setTimeout(() => {
         setStartStatus('idle');
         startResetRef.current = null;
       }, RUNTIME_RESET_DELAY_MS);
     }
-  }, [clearStartReset, lm.selectedLlm, lm.vramStrategy]);
+  }, [
+    clearStartReset,
+    lm.selectedLlm,
+    lm.vramStrategy,
+    lm.contextWindow,
+    lm.runtime.llm.state,
+    lm.markRuntimeStatusUnknown,
+    isStreaming,
+    startStatus,
+  ]);
 
   const handleStop = useCallback(async () => {
     clearStopReset();
@@ -137,64 +162,75 @@ export function LocalLlmTab() {
   // user-added models to the manifest the backend picker reads. The legacy
   // LOCAL_LLMS cards + CustomHfRepoModal were removed in M11 Batch D.
   const activeWireId = LOCAL_MODEL_WIRE_ID[lm.selectedLlm] ?? null;
+  const installed = activeWireId !== null && installedIds.has(activeWireId);
+  const selectedName =
+    catalog.find((entry) => entry.id === activeWireId)?.display_name ?? t('model_not_selected');
+  async function checkStatus() {
+    if (checking) return;
+    setChecking(true);
+    try {
+      lm.setRuntimeStatus(await fetchLocalRuntimeStatus());
+    } catch {
+      lm.markRuntimeStatusUnknown();
+    } finally {
+      setChecking(false);
+    }
+  }
   const onActiveLocalChange = (wireId: string) => {
     const mapped = WIRE_ID_TO_LOCAL_MODEL[wireId];
     if (mapped) lm.selectModel(mapped);
+    else setStartStatus('error');
   };
 
   return (
     <div className={styles.localFields}>
-      <div className={styles.localHint}>{t('local_runtime_hint')}</div>
-
-      <LocalLlmModelSelector
-        activeId={activeWireId}
-        onActiveChange={onActiveLocalChange}
-        agentTurnInFlight={isStreaming}
-      />
-
-      <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
-      <LocalModelCard
-        entry={{ id: 'sdxl_turbo', name: 'SDXL-Turbo (fp16)', size: 7e9 }}
-        isLlm={false}
-      />
-
-      <Field label={tLocal('vram_strategy')}>
-        {({ id }) => (
-          <Select
-            id={id}
-            value={lm.vramStrategy}
-            onChange={(value) => lm.setVramStrategy(value as VramStrategy)}
-            ariaLabel={tLocal('vram_strategy')}
-            options={[
-              { value: 'auto-swap', label: tLocal('strategy_auto_swap') },
-              { value: 'keep-both-loaded', label: tLocal('strategy_keep_both') },
-              { value: 'disable-image-gen', label: tLocal('strategy_disable_image') },
-            ]}
-          />
-        )}
-      </Field>
-
+      <section aria-label={t('model_status')}>
+        <strong>{selectedName}</strong>
+        <p>
+          {installed
+            ? t('model_installed')
+            : catalogError
+              ? t('catalog_unavailable')
+              : t('model_missing')}
+        </p>
+      </section>
+      {(!Number.isInteger(lm.contextWindow) ||
+        lm.contextWindow < 512 ||
+        lm.contextWindow > 65536) && <p role="alert">{t('context_window_invalid')}</p>}
       <h3 className={styles.localHeading}>{t('local_runtime_section')}</h3>
       <div className={styles.localRuntimeRow}>
         <Button
           variant="primary"
-          disabled={startStatus === 'pending'}
+          disabled={
+            isStreaming ||
+            !installed ||
+            Boolean(catalogError) ||
+            catalogLoading ||
+            !Number.isInteger(lm.contextWindow) ||
+            lm.contextWindow < 512 ||
+            lm.contextWindow > 65536 ||
+            startStatus === 'pending' ||
+            lm.runtime.llm.state === 'starting'
+          }
           data-status={startStatus}
           onClick={() => {
             void handleStart();
           }}
         >
           <Icons.Sparkle size={16} />
-          {startStatus === 'pending' ? tLocal('runtime_starting') : tLocal('start_runtimes')}
+          {startStatus === 'pending'
+            ? tLocal('runtime_starting')
+            : lm.runtime.llm.state === 'failed' || startStatus === 'error'
+              ? t('repair_model')
+              : t('start_model')}
         </Button>
         {startStatus === 'error' && (
-          <span role="alert" className={styles.localErrorChip} title={startError ?? undefined}>
+          <span role="alert" className={styles.localErrorChip}>
             {tLocal('runtime_start_error')}
-            {startError ? `: ${startError}` : ''}
           </span>
         )}
         <Button
-          disabled={stopStatus === 'pending'}
+          disabled={isStreaming || stopStatus === 'pending' || startStatus === 'pending'}
           data-status={stopStatus}
           onClick={() => {
             void handleStop();
@@ -208,9 +244,64 @@ export function LocalLlmTab() {
             {tLocal('runtime_stop_error')}
           </span>
         )}
-        <RuntimeStatusPill label={tLocal('runtime_pill_llm')} state={lm.runtime.llm} />
-        <RuntimeStatusPill label={tLocal('runtime_pill_image')} state={lm.runtime.image} />
+        {lm.runtimeStatusKnown &&
+        lm.runtime.llm.state === 'ready' &&
+        !selectedLocalModelIsRunning(lm) ? (
+          <span role="status">{t('different_model_running')}</span>
+        ) : lm.runtimeStatusKnown ? (
+          <RuntimeStatusPill label={tLocal('runtime_pill_llm')} state={lm.runtime.llm} />
+        ) : (
+          <span role="status">{t('runtime_unknown')}</span>
+        )}
+        <Button disabled={checking} onClick={() => void checkStatus()}>
+          {checking ? t('checking') : t('check_status')}
+        </Button>
       </div>
+
+      <LocalLlmModelSelector
+        activeModelIds={Object.keys(WIRE_ID_TO_LOCAL_MODEL)}
+        activeId={activeWireId}
+        onActiveChange={onActiveLocalChange}
+        agentTurnInFlight={isStreaming || startStatus === 'pending' || stopStatus === 'pending'}
+      />
+
+      <CollapsibleCard title={t('advanced')}>
+        <Field label={t('context_window')} helper={t('context_restart_hint')}>
+          {(props) => (
+            <input
+              {...props}
+              type="number"
+              min={512}
+              max={65536}
+              step={512}
+              value={lm.contextWindow}
+              onChange={(event) => lm.setContextWindow(Number(event.target.value))}
+              disabled={isStreaming || startStatus === 'pending'}
+            />
+          )}
+        </Field>
+        <h3 className={styles.localHeading}>{tLocal('image_model')}</h3>
+        <LocalModelCard
+          entry={{ id: 'sdxl_turbo', name: 'SDXL-Turbo (fp16)', size: 7e9 }}
+          isLlm={false}
+        />
+
+        <Field label={tLocal('vram_strategy')}>
+          {({ id }) => (
+            <Select
+              id={id}
+              value={lm.vramStrategy}
+              onChange={(value) => lm.setVramStrategy(value as VramStrategy)}
+              ariaLabel={tLocal('vram_strategy')}
+              options={[
+                { value: 'auto-swap', label: tLocal('strategy_auto_swap') },
+                { value: 'keep-both-loaded', label: tLocal('strategy_keep_both') },
+                { value: 'disable-image-gen', label: tLocal('strategy_disable_image') },
+              ]}
+            />
+          )}
+        </Field>
+      </CollapsibleCard>
       {lm.runtime.llm.state !== 'ready' && (
         <div className={styles.localHint}>{t('local_runtime_not_ready')}</div>
       )}

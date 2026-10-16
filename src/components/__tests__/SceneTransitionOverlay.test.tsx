@@ -1,102 +1,129 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import '../../i18n';
 import { useStore } from '../../state/useStore';
 import { SceneTransitionOverlay } from '../SceneTransitionOverlay';
 
-function changeScene(name: string): void {
-  act(() => {
-    useStore.setState((state) => ({
-      session: { ...state.session, currentScene: { name, stepCounter: 1 } },
-    }));
-  });
-}
-
-function renderAfterScene(name = 'Quiet village'): ReturnType<typeof render> {
-  useStore.setState((state) => ({
-    session: { ...state.session, currentScene: { name, stepCounter: 1 } },
+const initial = { scopeKey: 'campaign:timeline-1:archive', active: false, encounterId: null };
+let reduced = false;
+let changed: (() => void) | undefined;
+beforeEach(() => {
+  vi.useFakeTimers();
+  reduced = false;
+  changed = undefined;
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  vi.stubGlobal('matchMedia', () => ({
+    get matches() {
+      return reduced;
+    },
+    addEventListener: (_event: string, listener: () => void) => {
+      changed = listener;
+    },
+    removeEventListener: vi.fn(),
   }));
-  return render(<SceneTransitionOverlay />);
-}
+  useStore.setState(useStore.getInitialState());
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
-describe('SceneTransitionOverlay', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-12T10:00:00Z'));
-    useStore.setState(useStore.getInitialState());
-    useStore.setState((state) => ({
-      settings: { ...state.settings, sceneTransitionsEnabled: true },
-      session: { ...state.session, currentScene: null },
-    }));
+it('does not display a dialog or take composer focus on ordinary movement', () => {
+  const view = render(
+    <>
+      <input aria-label="Composer" />
+      <SceneTransitionOverlay {...initial} />
+    </>,
+  );
+  screen.getByLabelText('Composer').focus();
+  const timersBeforeMove = vi.getTimerCount();
+  view.rerender(
+    <>
+      <input aria-label="Composer" />
+      <SceneTransitionOverlay {...initial} scopeKey="campaign:timeline-1:quay" />
+    </>,
+  );
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByLabelText('Composer')).toHaveFocus();
+  expect(vi.getTimerCount()).toBe(timersBeforeMove);
+});
+
+it('shows a canonical major moment with selected art and expires without an exit wait', () => {
+  const view = render(<SceneTransitionOverlay {...initial} />);
+  view.rerender(<SceneTransitionOverlay {...initial} active encounterId="fight-1" />);
+  expect(screen.getByTestId('scene-transition-art')).toHaveAttribute(
+    'data-asset-id',
+    'illustration-ruins',
+  );
+  expect(screen.queryByRole('dialog')).toBeNull();
+  act(() => vi.advanceTimersByTime(3200));
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  view.rerender(<SceneTransitionOverlay {...initial} active encounterId="fight-1" />);
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+});
+
+it('keeps the supplied public location binding and dismisses immediately', () => {
+  const view = render(<SceneTransitionOverlay {...initial} />);
+  view.rerender(
+    <SceneTransitionOverlay
+      {...initial}
+      active
+      encounterId="fight-1"
+      art={{ id: 'scene.bell.archive.v2', uri: '/public-archive.webp' }}
+    />,
+  );
+  expect(screen.getByTestId('scene-transition-art')).toHaveAttribute(
+    'data-asset-id',
+    'scene.bell.archive.v2',
+  );
+  fireEvent.click(screen.getByRole('button', { name: /skip|пропустить/i }));
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('suppresses initial hydration, restored timeline and reduced/background replay', () => {
+  const hydrated = { ...initial, active: true, encounterId: 'fight-1' };
+  const view = render(<SceneTransitionOverlay {...hydrated} />);
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  view.rerender(<SceneTransitionOverlay {...hydrated} scopeKey="restored:timeline-2" />);
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  view.unmount();
+  const next = render(<SceneTransitionOverlay {...initial} />);
+  act(() => {
+    reduced = true;
+    changed?.();
   });
-
-  afterEach(() => {
-    cleanup();
-    vi.clearAllTimers();
-    vi.useRealTimers();
+  next.rerender(<SceneTransitionOverlay {...initial} active encounterId="fight-2" />);
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  act(() => {
+    reduced = false;
+    changed?.();
   });
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+});
 
-  it('cleans pending timers when unmounted', () => {
-    const { unmount } = renderAfterScene();
-    changeScene('Combat beyond the walls');
-    expect(screen.getByTestId('scene-transition-art')).toBeInTheDocument();
-    expect(vi.getTimerCount()).toBeGreaterThan(0);
-    unmount();
-    expect(vi.getTimerCount()).toBe(0);
+it('cleans the current moment on blur and does not replay on focus or preference toggle', () => {
+  const focused = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  const view = render(<SceneTransitionOverlay {...initial} />);
+  view.rerender(<SceneTransitionOverlay {...initial} active encounterId="fight-1" />);
+  expect(screen.getByTestId('scene-transition-art')).toBeInTheDocument();
+  act(() => {
+    focused.mockReturnValue(false);
+    window.dispatchEvent(new Event('blur'));
   });
-
-  it('shows semantic still art and dismisses after its calm display window', () => {
-    renderAfterScene();
-    changeScene('Combat at the old bridge');
-
-    expect(screen.getByTestId('scene-transition-art')).toHaveAttribute(
-      'src',
-      expect.stringContaining('scene-combat'),
-    );
-
-    act(() => vi.advanceTimersByTime(3_200));
-    expect(screen.getByRole('dialog')).toHaveClass('is-fading');
-
-    act(() => vi.advanceTimersByTime(280));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+  act(() => {
+    focused.mockReturnValue(true);
+    window.dispatchEvent(new Event('focus'));
   });
-
-  it('shows the first scene created after an initially empty session', () => {
-    render(<SceneTransitionOverlay />);
-    changeScene('Combat at the old bridge');
-    expect(screen.getByTestId('scene-transition-art')).toHaveAttribute(
-      'src',
-      expect.stringContaining('scene-combat'),
-    );
-  });
-
-  it('supports Escape and the skip button', () => {
-    const { rerender } = renderAfterScene();
-    changeScene('Ancient crypt');
-    fireEvent.keyDown(window, { key: 'Escape' });
-    act(() => vi.advanceTimersByTime(280));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(30_000));
-    changeScene('Forest road');
-    rerender(<SceneTransitionOverlay />);
-    fireEvent.click(screen.getByRole('button', { name: /skip|пропустить/i }));
-    act(() => vi.advanceTimersByTime(280));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('respects the debounce and disabled setting', () => {
-    renderAfterScene();
-    changeScene('Battle outside the gate');
-    fireEvent.click(screen.getByRole('button', { name: /skip|пропустить/i }));
-    act(() => vi.advanceTimersByTime(280));
-
-    changeScene('Dialog with the council');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(30_000));
-    act(() => useStore.getState().settings.setSceneTransitionsEnabled(false));
-    changeScene('Dungeon below the keep');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  act(() => useStore.getState().settings.setSceneTransitionsEnabled(false));
+  view.rerender(<SceneTransitionOverlay {...initial} encounterId="fight-1" />);
+  expect(screen.queryByTestId('scene-transition-art')).toBeNull();
+  view.unmount();
+  expect(vi.getTimerCount()).toBe(0);
 });

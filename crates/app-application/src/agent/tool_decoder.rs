@@ -25,6 +25,15 @@ pub fn decode_tool_call(
     }
 
     let command = match tool_name {
+        "combat_action" => {
+            strict_intention_fields(args, false)?;
+            AgentToolCommand::CombatAction(decode(args)?)
+        }
+        "rest_action" => {
+            strict_intention_fields(args, true)?;
+            AgentToolCommand::RestAction(decode(args)?)
+        }
+        "adventure_action" => AgentToolCommand::AdventureAction(decode(args)?),
         "roll_dice" => AgentToolCommand::RollDice(decode(args)?),
         "apply_damage" => AgentToolCommand::ApplyDamage(decode(args)?),
         "apply_healing" => AgentToolCommand::ApplyHealing(decode(args)?),
@@ -54,6 +63,32 @@ fn decode<T: DeserializeOwned>(args: &Value) -> Result<T, ToolDecodeError> {
     serde_json::from_value(args.clone()).map_err(|error| {
         ToolDecodeError::InvalidArgs(format!("payload does not match tool schema: {error}"))
     })
+}
+
+// Serde unit variants ignore extra fields, even with deny_unknown_fields.
+fn strict_intention_fields(args: &Value, rest: bool) -> Result<(), ToolDecodeError> {
+    let allowed: &[&str] = match (rest, args["kind"].as_str()) {
+        (false, Some("end_turn" | "retreat")) | (true, Some("long")) => &["kind"],
+        (false, Some("move")) => &["kind", "x", "y"],
+        (false, Some("weapon")) => &["kind", "target", "weapon_id", "mode", "two_handed"],
+        (false, Some("spell")) => &["kind", "spell_id", "targets", "slot_level"],
+        (true, Some("short")) => &["kind", "hit_dice"],
+        (true, Some("wait")) => &["kind", "minutes"],
+        _ => {
+            return Err(ToolDecodeError::InvalidArgs(
+                "unknown hero intention".into(),
+            ))
+        }
+    };
+    if args
+        .as_object()
+        .is_some_and(|object| object.keys().any(|key| !allowed.contains(&key.as_str())))
+    {
+        return Err(ToolDecodeError::InvalidArgs(
+            "unexpected hero intention field".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn decode_scene(args: &Value) -> Result<SetSceneCommand, ToolDecodeError> {
@@ -96,7 +131,28 @@ fn require_text(value: &str, field: &str) -> Result<(), ToolDecodeError> {
 
 fn validate(command: &AgentToolCommand) -> Result<(), ToolDecodeError> {
     match command {
-        AgentToolCommand::RollDice(command) => require_text(&command.dice, "dice"),
+        AgentToolCommand::CombatAction(_) | AgentToolCommand::RestAction(_) => Ok(()),
+        AgentToolCommand::AdventureAction(_) => Ok(()),
+        AgentToolCommand::RollDice(command) => {
+            require_text(&command.dice, "dice")?;
+            if let Some(check) = &command.check {
+                if check.character_id.is_nil()
+                    || check.dc.is_some_and(|dc| dc > 40)
+                    || command.modifier.is_some()
+                    || !matches!(command.dice.to_ascii_lowercase().as_str(), "d20" | "1d20")
+                {
+                    return Err(ToolDecodeError::ValidationFailed("hero check requires an identified character, single d20 and server-derived modifier".into()));
+                }
+            }
+            if (command.advantage.unwrap_or(false) || command.disadvantage.unwrap_or(false))
+                && !matches!(command.dice.to_ascii_lowercase().as_str(), "d20" | "1d20")
+            {
+                return Err(ToolDecodeError::ValidationFailed(
+                    "advantage/disadvantage require a single d20".into(),
+                ));
+            }
+            Ok(())
+        }
         AgentToolCommand::ApplyDamage(command) => {
             require_text(&command.token_id, "token_id")?;
             if command.amount < 0 {

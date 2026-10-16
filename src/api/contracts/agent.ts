@@ -1,6 +1,7 @@
 import type { ChatErrorCode } from '../errors';
 import {
   safeParseAgentDone,
+  safeParseAgentNeedsInput,
   safeParseDone,
   safeParseImageGenerated,
   safeParseReasoningText,
@@ -10,6 +11,7 @@ import {
   safeParseToolCallStart,
   safeParseVideoGenerated,
 } from '../schemas';
+import type { MediaReference } from './mediaAsset';
 
 export type AgentMessagePart =
   | { type: 'text'; text: string }
@@ -26,10 +28,14 @@ export type AgentWireMessage =
   | { role: 'assistant' | 'system'; content: string };
 
 export interface AgentTurnRequest {
+  clarification?: { id: string; reply: string };
+  requestId?: string;
+  resume?: boolean;
   campaignId: string;
   sessionId: string;
   playerMessage: string;
   history: AgentHistoryMessage[];
+  wireHistory?: AgentWireMessage[];
   images?: AgentMessagePart[];
   board?: string;
   model?: string;
@@ -54,6 +60,7 @@ export type AgentEvent =
     }
   | {
       type: 'image_generated';
+      mediaRef?: MediaReference;
       dataUrl: string;
       toolCallId?: string;
       kind: 'map' | 'chat';
@@ -61,6 +68,7 @@ export type AgentEvent =
     }
   | { type: 'video_generated'; dataUrl: string; toolCallId?: string; kind: 'chat' }
   | { type: 'agent_done'; totalRounds: number }
+  | { type: 'agent_needs_input'; clarificationId: string; commandId: number; totalRounds: number }
   | { type: 'done' }
   | { type: 'error'; code: ChatErrorCode; message: string };
 
@@ -82,6 +90,17 @@ export function toAgentWireMessage(message: AgentHistoryMessage): AgentWireMessa
 
 export function decodeAgentEvent(raw: RawAgentEvent): AgentEvent | null {
   switch (raw.event) {
+    case 'agent_needs_input': {
+      const payload = safeParseAgentNeedsInput(raw.data);
+      return payload
+        ? {
+            type: 'agent_needs_input',
+            clarificationId: payload.clarification_id,
+            commandId: payload.command_id,
+            totalRounds: payload.total_rounds,
+          }
+        : null;
+    }
     case 'text_delta': {
       const payload = safeParseText(raw.data);
       return payload ? { type: 'text_delta', text: payload.text } : null;
@@ -121,7 +140,8 @@ export function decodeAgentEvent(raw: RawAgentEvent): AgentEvent | null {
       if (!payload) return null;
       return {
         type: 'image_generated',
-        dataUrl: `data:${payload.mime_type};base64,${payload.image_b64}`,
+        dataUrl: payload.media_ref ? '' : `data:${payload.mime_type};base64,${payload.image_b64}`,
+        ...(payload.media_ref ? { mediaRef: payload.media_ref } : {}),
         ...(payload.tool_call_id ? { toolCallId: payload.tool_call_id } : {}),
         kind: payload.kind === 'map' ? 'map' : 'chat',
         source:

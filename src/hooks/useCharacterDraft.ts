@@ -15,6 +15,7 @@ export function useCharacterDraft(): CharacterDraft {
     pointBuyRemaining: s.charCreation.pointBuyRemaining,
     skillProfs: s.charCreation.skillProfs,
     spells: s.charCreation.spells,
+    defenseChoice: s.charCreation.defenseChoice,
     equipmentMode: s.charCreation.equipmentMode,
     equipmentSlots: s.charCreation.equipmentSlots,
     equipmentInventory: s.charCreation.equipmentInventory,
@@ -27,6 +28,10 @@ export function useCharacterDraft(): CharacterDraft {
     name: s.charCreation.name,
     alignment: s.charCreation.alignment,
     portraitUrl: s.charCreation.portraitUrl,
+    portraitAssetId: s.charCreation.portraitAssetId ?? null,
+    portraitMediaRef: s.charCreation.portraitMediaRef ?? null,
+    mediaDraftId: s.charCreation.mediaDraftId ?? null,
+    draftScope: s.charCreation.draftScope ?? null,
     portraitPrompt: s.charCreation.portraitPrompt,
   }));
 }

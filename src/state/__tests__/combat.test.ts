@@ -109,3 +109,22 @@ describe('authoritative combat projection slice', () => {
     expect(useStore.getState().combat.aoeTemplates).toHaveLength(1);
   });
 });
+
+it('keeps recorded withdrawn actors off the active tabletop and initiative', () => {
+  const next = projection(0);
+  const first = next.snapshot.combatants[0];
+  if (!first) throw new Error('combat fixture needs a hero');
+  const guest = {
+    ...first,
+    id: 'guest',
+    name: 'Guest',
+    character_id: 'guest-character',
+    withdrawn: true,
+  };
+  next.snapshot.combatants.push(guest);
+  next.snapshot.initiative.push({ id: 'guest', roll: 12, dex_tiebreak: 1 });
+  useStore.getState().combat.replaceProjection(next);
+  expect(useStore.getState().combat.tokens.map((t) => t.id)).toEqual(['hero']);
+  expect(useStore.getState().combat.initiativeOrder).toEqual(['hero']);
+  expect(next.snapshot.combatants).toHaveLength(2);
+});

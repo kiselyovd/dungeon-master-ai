@@ -11,9 +11,12 @@ describe('living tabletop motion boundary', () => {
     expect(css).not.toContain('.dm-composer');
   });
 
-  it('stops non-essential motion for reduced-motion users', () => {
+  it('stops non-essential motion while preserving interactive geometry transforms', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(css).toContain('animation: none !important');
-    expect(css).toContain('transform: none !important');
+    expect(css).toContain('animation: none;');
+    expect(css).not.toMatch(/\[data-art-direction="living-tabletop"\]\s*\*\s*\{/);
+    expect(css).not.toMatch(
+      /\[data-art-direction="living-tabletop"\]\s*\*\s*\{[^}]*transform:\s*none/,
+    );
   });
 });

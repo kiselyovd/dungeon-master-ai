@@ -12,7 +12,8 @@
  * On `discover()` success the catalog is written into the settings slice via
  * setDiscoveredCatalog so it persists to settings.json (Task 4).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ModelSource } from '../api/discovery';
 import { postDiscover } from '../api/discovery';
 import {
   type DiscoveredCatalog,
@@ -36,11 +37,21 @@ export interface UseDiscoverProviderResult {
   models: ResolvedModelEntry[];
   error: string | null;
   lastCachedAt: string | null;
-  discover: () => Promise<void>;
+  discover: () => Promise<ModelSource | null>;
 }
 
 export function useDiscoverProvider(input: UseDiscoverProviderInput): UseDiscoverProviderResult {
   const { providerId, baseUrl, apiKey } = input;
+  const inputSignature = JSON.stringify(input);
+  const currentInput = useRef(inputSignature);
+  currentInput.current = inputSignature;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const cached = useStore((s) => s.settings.discoveredCatalogs[providerId] ?? null);
   const setDiscoveredCatalog = useStore((s) => s.settings.setDiscoveredCatalog);
@@ -48,6 +59,11 @@ export function useDiscoverProvider(input: UseDiscoverProviderInput): UseDiscove
   const [status, setStatus] = useState<DiscoverStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [cacheKey, setCacheKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (currentInput.current !== inputSignature) return;
+    setStatus('idle');
+    setError(null);
+  }, [inputSignature]);
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +92,7 @@ export function useDiscoverProvider(input: UseDiscoverProviderInput): UseDiscove
         api_key: apiKey,
       });
       const key = await deriveCacheKey({ providerId, baseUrl, apiKey });
+      if (!mounted.current || currentInput.current !== inputSignature) return null;
       const catalog: DiscoveredCatalog = {
         cacheKey: key,
         cachedAt: resp.cached_at,
@@ -85,12 +102,15 @@ export function useDiscoverProvider(input: UseDiscoverProviderInput): UseDiscove
       };
       setDiscoveredCatalog(providerId, catalog);
       setStatus('idle');
+      return resp.source;
     } catch (err) {
+      if (!mounted.current || currentInput.current !== inputSignature) return null;
       const msg = err instanceof Error ? err.message : 'discover failed';
       setError(msg);
       setStatus('error');
+      return null;
     }
-  }, [providerId, baseUrl, apiKey, setDiscoveredCatalog]);
+  }, [providerId, baseUrl, apiKey, setDiscoveredCatalog, inputSignature]);
 
   return {
     status,

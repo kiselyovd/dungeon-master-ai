@@ -108,6 +108,33 @@ async fn post_combat_action_commits_a_new_authoritative_revision() {
     assert!(body.contains("event: combat_projection"), "body: {body}");
     assert!(body.contains("\"revision\":1"), "body: {body}");
 
+    let mut retry = action.clone();
+    retry["rng_seed"] = json!(9999);
+    let replay = client
+        .post(server.url("/combat/action"))
+        .json(&retry)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), 200);
+    assert_eq!(
+        replay.text().await.unwrap(),
+        body,
+        "new HTTP resolver must deliver the same recorded rolls/result"
+    );
+    retry["args"]["damage_dice"] = json!("2d6+2");
+    let mismatch = client
+        .post(server.url("/combat/action"))
+        .json(&retry)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        mismatch.status(),
+        409,
+        "changed intention under the same ID must fail"
+    );
+
     let row = sqlx::query("SELECT revision FROM combat_encounters WHERE id = ?1")
         .bind(encounter_id)
         .fetch_one(server.state.db())

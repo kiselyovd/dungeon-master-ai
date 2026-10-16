@@ -1,4 +1,6 @@
 import type { StateCreator } from 'zustand';
+import type { AdventureProjection } from '../api/contracts/adventure';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 
 /**
  * Persistent pointer to a backend-owned campaign aggregate and its active
@@ -16,7 +18,18 @@ export interface CurrentScene {
   stepCounter: number;
 }
 
+export interface PendingRestore {
+  scope: string;
+  saveId: string;
+  request: { campaignId: string; sessionId: string; expectedRevision: number; causationId: string };
+}
+
 export interface SessionData {
+  pendingRestore: PendingRestore | null;
+  mutationId: string | null;
+  adventure: AdventureProjection | null;
+  transitionGeneration: number;
+  presentationGeneration: number;
   activeCampaignId: string | null;
   activeSessionId: string | null;
   /**
@@ -33,9 +46,14 @@ export interface SessionData {
    * lands in localStorage; it repaints on the next `generate_image`. [M11]
    */
   mapImageUrl: string | null;
+  mapMediaRef?: MediaReference | null;
 }
 
 export interface SessionActions {
+  setRestoreRetry: (pending: PendingRestore | null) => void;
+  beginMutation: (id: string) => boolean;
+  endMutation: (id: string) => void;
+  beginTransition: () => number;
   activate: (campaignId: string, sessionId: string) => void;
   current: () => { campaignId: string; sessionId: string } | null;
   clear: () => void;
@@ -47,6 +65,7 @@ export interface SessionActions {
   incrementScene: () => void;
   /** Set or clear the VTT map background image (data URL). */
   setMapImage: (dataUrl: string | null) => void;
+  setMapMedia: (reference: MediaReference | null) => void;
 }
 
 export interface SessionSlice {
@@ -55,15 +74,46 @@ export interface SessionSlice {
 
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set, get) => ({
   session: {
+    pendingRestore: null,
+    setRestoreRetry: (pendingRestore) =>
+      set((state) => ({ session: { ...state.session, pendingRestore } })),
+    mutationId: null,
+    beginMutation: (id) => {
+      const held = get().session.mutationId;
+      if (held && held !== id) return false;
+      set((state) => ({ session: { ...state.session, mutationId: id } }));
+      return true;
+    },
+    endMutation: (id) => {
+      if (get().session.mutationId === id)
+        set((state) => ({ session: { ...state.session, mutationId: null } }));
+    },
+    adventure: null,
+    transitionGeneration: 0,
+    presentationGeneration: 0,
+    beginTransition: () => {
+      const generation = get().session.transitionGeneration + 1;
+      set((state) => ({ session: { ...state.session, transitionGeneration: generation } }));
+      return generation;
+    },
     activeCampaignId: null,
     activeSessionId: null,
     loadError: null,
     currentScene: null,
     mapImageUrl: null,
+    mapMediaRef: null,
 
     activate: (campaignId, sessionId) =>
       set((s) => ({
-        session: { ...s.session, activeCampaignId: campaignId, activeSessionId: sessionId },
+        session: {
+          ...s.session,
+          activeCampaignId: campaignId,
+          mutationId: null,
+          pendingRestore: null,
+          activeSessionId: sessionId,
+          transitionGeneration: s.session.transitionGeneration + 1,
+          presentationGeneration: s.session.presentationGeneration + 1,
+        },
       })),
 
     current: () => {
@@ -74,7 +124,20 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
 
     clear: () =>
       set((s) => ({
-        session: { ...s.session, activeCampaignId: null, activeSessionId: null },
+        session: {
+          ...s.session,
+          activeCampaignId: null,
+          mutationId: null,
+          pendingRestore: null,
+          activeSessionId: null,
+          currentScene: null,
+          adventure: null,
+          mapImageUrl: null,
+          mapMediaRef: null,
+          loadError: null,
+          transitionGeneration: s.session.transitionGeneration + 1,
+          presentationGeneration: s.session.presentationGeneration + 1,
+        },
       })),
 
     setLoadError: (message) =>
@@ -98,9 +161,11 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
       }));
     },
 
+    setMapMedia: (reference) =>
+      set((s) => ({ session: { ...s.session, mapImageUrl: null, mapMediaRef: reference } })),
     setMapImage: (dataUrl) =>
       set((s) => ({
-        session: { ...s.session, mapImageUrl: dataUrl },
+        session: { ...s.session, mapImageUrl: dataUrl, mapMediaRef: null },
       })),
   },
 });

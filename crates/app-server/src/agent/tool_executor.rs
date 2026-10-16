@@ -63,14 +63,50 @@ pub async fn execute_tool(
     };
     let tool_name = command.tool_name();
     let args = command.to_args();
+    if matches!(
+        app_application::agent::tool_dispatch::capability(&command),
+        app_application::agent::tool_dispatch::ToolCapability::Combat
+    ) && store
+        .require_session_campaign(session_id, campaign_id)
+        .await
+        .is_err()
+    {
+        return (json!({"error":"combat_campaign_mismatch"}), true);
+    }
 
     // Transitional dispatch: Task 4 moves each typed variant into a use case.
     match tool_name {
-        "roll_dice" => execute_roll_dice(&args),
+        "adventure_action" => (json!({"error":"adventure_requires_turn_identity"}), true),
+        "roll_dice" => {
+            if let app_application::agent::commands::AgentToolCommand::RollDice(command) = &command
+            {
+                if let Some(check) = &command.check {
+                    use app_application::hero_checks::HeroCheckSheetRepository;
+                    let sheet = match store
+                        .check_sheet(campaign_id, session_id, check.character_id)
+                        .await
+                    {
+                        Ok(sheet) => sheet,
+                        Err(_) => return (json!({"error":"hero_check_identity_mismatch"}), true),
+                    };
+                    return match app_application::hero_checks::roll_skill(
+                        &sheet,
+                        check,
+                        command.advantage.unwrap_or(false),
+                        command.disadvantage.unwrap_or(false),
+                        &mut app_domain::rng::SeededRng::new_random(),
+                    ) {
+                        Ok(result) => (result, false),
+                        Err(code) => (json!({"error":code}), true),
+                    };
+                }
+            }
+            execute_roll_dice(&args)
+        }
         "apply_damage" => execute_apply_damage(&args, store).await,
         "apply_healing" => execute_apply_healing(&args, store).await,
         "start_combat" => execute_start_combat(&args, store, session_id).await,
-        "end_combat" => execute_end_combat(store).await,
+        "end_combat" => execute_end_combat(store, session_id).await,
         "add_token" => execute_add_token(&args, store).await,
         "update_token" => execute_update_token(&args, store).await,
         "remove_token" => execute_remove_token(&args, store).await,
@@ -89,7 +125,7 @@ pub async fn execute_tool(
 }
 
 fn execute_roll_dice(args: &Value) -> (Value, bool) {
-    use app_domain::dice::roll_expr_detailed;
+    use app_domain::dice::{roll_d20_detailed, roll_expr_detailed};
     use app_domain::rng::SeededRng;
 
     let dice_str = args["dice"].as_str().unwrap_or("1d20");
@@ -97,7 +133,16 @@ fn execute_roll_dice(args: &Value) -> (Value, bool) {
 
     let expr = parse_dice_expr(dice_str, modifier);
     let mut rng = SeededRng::new_random();
-    let detail = roll_expr_detailed(&expr, &mut rng);
+    let detail = if expr.count == 1 && expr.die == app_domain::dice::Die::D20 {
+        roll_d20_detailed(
+            modifier,
+            args["advantage"].as_bool().unwrap_or(false),
+            args["disadvantage"].as_bool().unwrap_or(false),
+            &mut rng,
+        )
+    } else {
+        roll_expr_detailed(&expr, &mut rng)
+    };
     (
         json!({ "rolls": detail.rolls, "total": detail.total, "modifier": modifier }),
         false,
@@ -286,6 +331,13 @@ async fn execute_start_combat(
     };
 
     let mut rng = SeededRng::new_random();
+    if store.has_durable_hero(session_id).await.unwrap_or(true)
+        && entries_raw
+            .iter()
+            .any(|entry| entry["role"].as_str() != Some("npc"))
+    {
+        return (json!({"error":"combat_participant_role_required"}), true);
+    }
     let d20 = DiceExpr {
         count: 1,
         die: Die::D20,
@@ -294,6 +346,7 @@ async fn execute_start_combat(
 
     // Build domain entries and a parallel id->name map in one pass.
     let mut id_to_name: HashMap<uuid::Uuid, String> = HashMap::new();
+    let mut appearances = std::collections::BTreeMap::new();
     let mut domain_entries: Vec<InitiativeEntry> = Vec::with_capacity(entries_raw.len());
 
     for entry in entries_raw {
@@ -312,6 +365,14 @@ async fn execute_start_combat(
         };
 
         let id = CombatantId(uuid::Uuid::new_v4());
+        if let Some(value) = entry.get("appearance") {
+            let Ok(archetype) = serde_json::from_value::<
+                app_application::models::combat::OpponentArchetype,
+            >(value.clone()) else {
+                return (json!({"error":"combat_appearance_invalid"}), true);
+            };
+            appearances.insert(id.0, archetype);
+        }
         id_to_name.insert(id.0, name);
         domain_entries.push(InitiativeEntry {
             id,
@@ -322,16 +383,6 @@ async fn execute_start_combat(
 
     // Sort descending by roll, tiebreak by dex_tiebreak (via InitiativeOrder::build).
     let order = InitiativeOrder::build(domain_entries);
-
-    // Produce the `ordered` array: [{name, roll}, ...] in sorted initiative order.
-    let ordered: Vec<Value> = order
-        .as_slice()
-        .iter()
-        .map(|e| {
-            let name = id_to_name.get(&e.id.0).cloned().unwrap_or_default();
-            json!({ "name": name, "roll": e.roll })
-        })
-        .collect();
 
     let encounter_id = uuid::Uuid::new_v4();
     let combatants = order
@@ -354,6 +405,10 @@ async fn execute_start_combat(
         })
         .collect();
     let projection = CombatProjection {
+        authored: None,
+        adventure: None,
+        campaign_scope: None,
+        appearances,
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,
@@ -366,10 +421,28 @@ async fn execute_start_combat(
         },
         events: Vec::new(),
     };
-    if let Err(e) = store.create(session_id, projection.clone()).await {
-        tracing::warn!(error = %e, "persistence failed in execute_start_combat");
-        return (json!({ "error": e.to_string() }), true);
+    let projection = match store.create(session_id, projection).await {
+        Ok(projection) => projection,
+        Err(error) => return (json!({"error":error.to_string()}), true),
+    };
+    for archetype in projection.appearances.values() {
+        tracing::info!(archetype = ?archetype, "public combat appearance bound");
     }
+    let ordered: Vec<Value> = projection
+        .snapshot
+        .initiative
+        .iter()
+        .map(|entry| {
+            let name = projection
+                .snapshot
+                .combatants
+                .iter()
+                .find(|actor| actor.id == entry.id)
+                .map(|actor| actor.name.clone())
+                .unwrap_or_default();
+            json!({"name":name,"roll":entry.roll})
+        })
+        .collect();
     (
         json!({
             "encounter_id": encounter_id.to_string(),
@@ -380,8 +453,8 @@ async fn execute_start_combat(
     )
 }
 
-async fn execute_end_combat(store: &SqliteStore) -> (Value, bool) {
-    let encounter_id = match store.active_combat_id().await {
+async fn execute_end_combat(store: &SqliteStore, session_id: uuid::Uuid) -> (Value, bool) {
+    let encounter_id = match store.active_combat_in_session(session_id).await {
         Ok(Some(encounter_id)) => encounter_id,
         Ok(None) => return (json!({ "status": "combat_ended" }), false),
         Err(e) => return (json!({ "error": e.to_string() }), true),
@@ -1475,6 +1548,64 @@ mod query_rules_tests {
 mod start_combat_tests {
     use super::*;
 
+    #[tokio::test]
+    async fn explicit_appearances_follow_sorted_ids_and_persist_without_inferred_rules() {
+        let pool = make_pool().await;
+        let store = SqliteStore::new(pool);
+        let session = Uuid::new_v4();
+        let names = [
+            "water_echo",
+            "goblin",
+            "skeleton",
+            "zombie",
+            "wolf",
+            "bandit",
+            "orc",
+            "giant_rat",
+        ];
+        let entries: Vec<_> = names.iter().enumerate().map(|(index, appearance)| {
+            json!({"role":"npc", "name":"Unrelated identical label", "roll":index, "appearance":appearance})
+        }).collect();
+        let (value, failed) =
+            execute_start_combat(&json!({"initiative_entries":entries}), &store, session).await;
+        assert!(!failed, "{value}");
+        let projection: CombatProjection =
+            serde_json::from_value(value["projection"].clone()).unwrap();
+        assert_eq!(projection.appearances.len(), names.len());
+        for (index, actor) in projection.snapshot.combatants.iter().enumerate() {
+            assert_eq!(
+                serde_json::to_value(projection.appearances[&actor.id.0]).unwrap(),
+                names[7 - index]
+            );
+            assert_eq!((actor.max_hp, actor.ac), (10, 10));
+        }
+        let restored = store.get(projection.encounter_id).await.unwrap().unwrap();
+        assert_eq!(restored.appearances, projection.appearances);
+    }
+
+    #[tokio::test]
+    async fn unknown_appearance_rejects_before_commit_and_names_do_not_assign_art() {
+        let pool = make_pool().await;
+        let store = SqliteStore::new(pool.clone());
+        let session = Uuid::new_v4();
+        let (error, failed) = execute_start_combat(&json!({"initiative_entries":[{"name":"Goblin","appearance":"https://remote.invalid/art.png"}]}), &store, session).await;
+        assert!(failed);
+        assert_eq!(error["error"], "combat_appearance_invalid");
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM combat_encounters")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
+        let (value, failed) = execute_start_combat(
+            &json!({"initiative_entries":[{"name":"Goblin"}]}),
+            &store,
+            session,
+        )
+        .await;
+        assert!(!failed);
+        assert!(value["projection"].get("appearances").is_none());
+    }
+
     async fn make_pool() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:")
             .await
@@ -1611,7 +1742,7 @@ mod start_combat_tests {
         let (_, start_error) = execute_start_combat(&args, &store, session_id).await;
         assert!(!start_error);
 
-        let (ended, end_error) = execute_end_combat(&store).await;
+        let (ended, end_error) = execute_end_combat(&store, session_id).await;
 
         assert!(!end_error, "end_combat must not error: {ended}");
         assert_eq!(ended["status"], "combat_ended");
@@ -1646,6 +1777,10 @@ mod cast_spell_tests {
             .create(
                 uuid::Uuid::new_v4(),
                 CombatProjection {
+                    authored: None,
+                    adventure: None,
+                    campaign_scope: None,
+                    appearances: Default::default(),
                     schema_version: COMBAT_PROJECTION_VERSION,
                     encounter_id,
                     revision: 0,
@@ -1901,5 +2036,44 @@ mod cast_spell_tests {
         assert_eq!(val["status"].as_str(), Some("resolved"));
         let targets = val["targets"].as_array().unwrap();
         assert_eq!(targets.len(), 0, "no targets -> empty array");
+    }
+}
+
+#[cfg(test)]
+mod dice_mode_tests {
+    use super::*;
+
+    #[test]
+    fn tool_honors_advantage_and_disadvantage_instead_of_ignoring_flags() {
+        for (flag, higher) in [("advantage", true), ("disadvantage", false)] {
+            for _ in 0..20 {
+                let (result, error) =
+                    execute_roll_dice(&json!({"dice":"1d20","modifier":3,flag:true}));
+                assert!(!error);
+                let rolls = result["rolls"].as_array().unwrap();
+                assert_eq!(rolls.len(), 2);
+                let a = rolls[0].as_i64().unwrap();
+                let b = rolls[1].as_i64().unwrap();
+                assert_eq!(
+                    result["total"],
+                    if higher { a.max(b) } else { a.min(b) } + 3
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn advantage_and_disadvantage_cancel_and_damage_dice_stay_additive() {
+        let (result, error) =
+            execute_roll_dice(&json!({"dice":"1d20","advantage":true,"disadvantage":true}));
+        assert!(!error);
+        assert_eq!(result["rolls"].as_array().unwrap().len(), 1);
+        let (result, error) = execute_roll_dice(&json!({"dice":"2d6","modifier":2}));
+        assert!(!error);
+        let rolls = result["rolls"].as_array().unwrap();
+        assert_eq!(
+            result["total"],
+            rolls.iter().map(|n| n.as_i64().unwrap()).sum::<i64>() + 2
+        );
     }
 }

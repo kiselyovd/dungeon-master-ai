@@ -232,9 +232,9 @@ export interface Armor {
   category: string;
   cost: Cost;
   ac_base: number;
-  ac_dex_bonus_cap?: number;
+  ac_dex_bonus_cap?: number | null;
   stealth_disadvantage: boolean;
-  str_req?: number;
+  str_req?: number | null;
   weight_lb: number;
   don_time?: string;
   doff_time?: string;

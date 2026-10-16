@@ -12,6 +12,15 @@
   font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: 600;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-bg-overlay) 95%, transparent),
+      color-mix(in srgb, var(--color-bg-deep) 95%, transparent)
+    ),
+    var(--dm-texture-velvet);
+  background-size:
+    auto,
+    256px 256px;
   cursor: pointer;
   transition:
     border-color var(--t-fast),
@@ -46,6 +55,12 @@
   background: linear-gradient(180deg, var(--color-accent), var(--color-accent-deep));
   color: var(--color-bg-deep);
   box-shadow: var(--shadow-1);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-accent) 94%, transparent),
+      color-mix(in srgb, var(--color-accent-deep) 96%, transparent)
+    ),
+    var(--dm-texture-bronze);
 }
 
 .button[data-variant="primary"]:hover:not(:disabled) {

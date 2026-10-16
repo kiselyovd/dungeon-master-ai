@@ -97,6 +97,7 @@
 }
 
 .dm-app-mark-name {
+  white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
@@ -111,12 +112,35 @@
 }
 
 .dm-titlebar-campaign {
+  min-width: 0;
+  max-width: 22vw;
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: var(--text-xs);
   color: var(--color-fg-secondary);
   font-weight: 500;
+}
+
+.dm-titlebar-campaign span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dm-titlebar-left {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.dm-titlebar-right {
+  flex-shrink: 0;
+}
+@media (max-width: 1280px) {
+  .dm-titlebar .dm-btn-tb:has(svg) > span {
+    display: none;
+  }
+  .dm-titlebar-campaign {
+    max-width: 24vw;
+  }
 }
 
 .dm-scene-pill {
@@ -146,7 +170,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   letter-spacing: 0.04em;
   background: transparent;
   border: 1px solid transparent;
@@ -177,6 +201,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.dm-titlebar .dm-btn-tb {
+  white-space: nowrap;
 }
 
 .dm-window-controls {
@@ -216,9 +244,9 @@
   color: white;
 }
 
-.dm-mono {
-  font-family: var(--font-mono);
-  font-feature-settings: "tnum";
+.dm-numeric {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   letter-spacing: var(--tracking-mono);
 }
 

@@ -1,0 +1,53 @@
+html,
+body,
+#root {
+  height: auto;
+  overflow: visible;
+}
+.material-specimen {
+  max-width: 1080px;
+  margin: auto;
+  padding: 24px;
+}
+.material-specimen section {
+  margin-bottom: 32px;
+}
+.material-specimen-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.material-specimen-single,
+.material-specimen-repeated,
+.material-specimen-alpha {
+  width: 512px;
+  height: 512px;
+}
+.material-specimen-single {
+  background-size: 512px 512px;
+}
+.material-specimen-repeated {
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}
+.material-specimen-alpha img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.material-specimen-alpha.light {
+  background: #f0e6c8;
+}
+.material-specimen-alpha.dark {
+  background: #14101a;
+}
+.material-specimen-stretch {
+  border: 16px solid transparent;
+  border-image-slice: 15%;
+  border-image-repeat: stretch;
+  width: 800px;
+  padding: 24px;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}

@@ -1,6 +1,8 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { persistStorage } from '../persistStorage';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EMPTY_DRAFT } from '../charCreation';
+import { emptyPcData } from '../pc';
+import { persistStorage, preserveLegacyCharacter } from '../persistStorage';
 import type { ApiKey, BaseUrl, OpenaiCompatConfig } from '../providers';
 import type { SettingsData } from '../settings';
 import { strongholdSecretsStore } from '../strongholdSecretsStore';
@@ -20,6 +22,153 @@ import { strongholdSecretsStore } from '../strongholdSecretsStore';
 const legacySecrets = new LazyStore('secrets.json');
 const settings = new LazyStore('settings.json');
 
+it('preserves the latest draft when an older native store write completes late', async () => {
+  const originalSet = LazyStore.prototype.set;
+  vi.spyOn(LazyStore.prototype, 'set').mockImplementation(async function (
+    this: LazyStore,
+    key,
+    value,
+  ) {
+    if (
+      key === 'char_creation_draft' &&
+      (value as { portraitAssetId?: string }).portraitAssetId === 'hero.fighter.01.v2'
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+    return originalSet.call(this, key, value);
+  });
+  const write = (portraitAssetId: string) =>
+    persistStorage.setItem('any', {
+      state: {
+        charCreation: { ...structuredClone(EMPTY_DRAFT), classId: 'fighter', portraitAssetId },
+      },
+      version: 0,
+    });
+  const older = write('hero.fighter.01.v2');
+  const newer = write('hero.fighter.04.v2');
+  await Promise.all([older, newer]);
+  expect(
+    (await settings.get<{ portraitAssetId: string }>('char_creation_draft'))?.portraitAssetId,
+  ).toBe('hero.fighter.04.v2');
+  await settings.delete('char_creation_draft');
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
+
+it('flushes newer preferences while an older vault write is pending', async () => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(strongholdSecretsStore, 'set').mockImplementation(async () => gate);
+  const older = persistStorage.setItem('any', {
+    state: {
+      settings: {
+        uiLanguage: 'en',
+        providers: { 'openai-compat': null, 'local-mistralrs': null },
+      },
+    },
+    version: 0,
+  });
+  const newer = persistStorage.setItem('any', {
+    state: { settings: { uiLanguage: 'ru' } },
+    version: 0,
+  });
+  try {
+    await newer;
+    expect(await settings.get('ui_language')).toBe('ru');
+  } finally {
+    release();
+    await older;
+    await settings.delete('ui_language');
+  }
+});
+
+it('waits for a slow but healthy encrypted provider read instead of hydrating it as absent', async () => {
+  vi.useFakeTimers();
+  const providers = {
+    'openai-compat': {
+      kind: 'openai-compat',
+      baseUrl: 'http://fixture.invalid/v1',
+      apiKey: 'fixture-key',
+      model: 'fixture',
+    },
+    'local-mistralrs': null,
+  };
+  vi.spyOn(strongholdSecretsStore, 'get').mockImplementation(async (key) =>
+    key === 'providers'
+      ? new Promise((resolve) => setTimeout(() => resolve(providers), 3500))
+      : undefined,
+  );
+  const load = persistStorage.getItem('any');
+  await vi.advanceTimersByTimeAsync(3500);
+  expect((await load)?.state.settings?.providers).toEqual(providers);
+});
+
+it('never overwrites unreadable encrypted providers with unconfigured defaults', async () => {
+  const providers = {
+    'openai-compat': {
+      kind: 'openai-compat',
+      baseUrl: 'http://fixture.invalid/v1',
+      apiKey: 'fixture-key',
+      model: 'fixture',
+    },
+    'local-mistralrs': null,
+  };
+  await strongholdSecretsStore.set('providers', providers);
+  const read = vi.spyOn(strongholdSecretsStore, 'get').mockRejectedValue(new Error('vault_locked'));
+  await persistStorage.getItem('any');
+  const write = vi.spyOn(strongholdSecretsStore, 'set');
+  await persistStorage.setItem('any', {
+    state: {
+      settings: { uiLanguage: 'ru', providers: { 'openai-compat': null, 'local-mistralrs': null } },
+    },
+    version: 0,
+  });
+  expect(write.mock.calls.filter(([key]) => key === 'providers')).toHaveLength(0);
+  read.mockRestore();
+  expect(await strongholdSecretsStore.get('providers')).toEqual(providers);
+});
+
+it('preserves a legacy hero separately from the active PC before campaign replacement', async () => {
+  await settings.delete('legacy_character_backups');
+  const hero = {
+    ...emptyPcData(),
+    heroClass: 'fighter',
+    name: 'Legacy Mira',
+    backstory: 'An old promise',
+  };
+  await preserveLegacyCharacter(hero, null);
+  await preserveLegacyCharacter(hero, null);
+  const backups = await settings.get<Array<{ character: { name: string; backstory: string } }>>(
+    'legacy_character_backups',
+  );
+  expect(backups).toHaveLength(1);
+  expect(backups?.[0]?.character).toMatchObject({
+    name: 'Legacy Mira',
+    backstory: 'An old promise',
+  });
+});
+
+it('retains canonical character identity and biography during renderer hydration', async () => {
+  const characterId = '92414394-f4b1-477f-9278-10f75c3c4fb7';
+  await settings.set('pc', {
+    ...emptyPcData(),
+    characterId,
+    backstory: 'The ferry debt',
+    spells: { cantrips: ['light'], level1: [] },
+  });
+  const restored = await persistStorage.getItem('any');
+  expect(restored?.state.pc).toMatchObject({
+    characterId,
+    backstory: 'The ferry debt',
+    spells: { cantrips: ['light'], level1: [] },
+  });
+});
+
 async function clearStores() {
   strongholdSecretsStore._resetForTests();
   await Promise.all([
@@ -38,6 +187,7 @@ async function clearStores() {
     settings.delete('current_scene'),
     settings.delete('onboarding_completed'),
     settings.delete('hero_class'),
+    settings.delete('pc'),
     settings.delete('discovered_catalogs'),
     settings.delete('image_enabled'),
     settings.delete('image_preset'),

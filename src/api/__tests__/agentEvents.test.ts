@@ -119,6 +119,7 @@ describe('streamAgentTurn event framing', () => {
     await consume(
       [
         'event: image_generated\ndata: {"tool_call_id":"legacy-1","mime_type":"image/png","image_b64":"aQ==","kind":"chat"}\n\n',
+        'event: done\ndata: {}\n\n',
       ],
       events,
     );

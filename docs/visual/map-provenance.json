@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "map-tavern-interior",
+      "generationId": "exec-f016ef1d-7851-4880-87d7-e83f8f4bd4fb",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative map of a TAVERN INTERIOR, opaque landscape16:9, exact vertical overhead orthographic camera, no tilted perspective. A modest rectangular common room with worn dark oak floor, several simple tables/benches arranged clearly around a broad quiet open central area, small hearth at an edge, ordinary barrels at the side. Rich realistic painted tabletop materials, tactile wood/stone/leather, restrained warm amber light, crisp readable silhouettes and balanced exposure. Keep room focal features centered with safe margins, quiet layout for later code-drawn tokens. Generic cosmetic location only, no named venue, quest clues, unique artifacts, faction emblems, people or creatures. Do NOT bake a grid, squares, coordinates, numbers, writing, letters, labels, legend, counters, UI, buttons, icons, arrows, borders or title. No cinematic eye-level view. This raster supplies atmosphere and does not establish authoritative walkability/collision; no invented game rules. Complete high-quality overhead scene.",
+      "master": ".artifacts/visual-production/masters/map-tavern-interior.png",
+      "masterSha256": "b37fa10082524ae63c5e937f9af426634c2582da0cba72a839f95f87e161c991",
+      "legacyAssetId": "map-tavern-interior.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 210126
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-forest-crossing",
+      "generationId": "exec-c6a554a6-5a35-4943-97b8-cd76c5cfeaad",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative FOREST CROSSING map, opaque wide landscape16:9, exact vertical overhead orthographic camera looking straight down, no perspective. A quiet woodland clearing crossed by a narrow natural stream and one modest ordinary wooden footbridge; mossy rocks, soft earth paths, mature green tree canopies around edges, large readable central open ground. Fine realistic painted tabletop materials, tactile bark/soil/water, restrained warm daylight and muted olive/blue, coherent gentle shadows, crisp clear small-size landmarks. No named region, people, creatures, treasure, secret entrances, quest clue, magic or faction marks. Complete crop-safe overhead environment with calm peripheral detail. No baked grid, squares, coordinates, numbering, text, letters, labels, legend, icons, arrows, UI, controls, counters, border or title. Generic raster atmosphere only; this image supplies no authoritative collision, movement or legal-route rules.",
+      "master": ".artifacts/visual-production/masters/map-forest-crossing.png",
+      "masterSha256": "314195827439e70909e35103efc3515b015a887a83233f6ac55f3c4bea5e4781",
+      "legacyAssetId": "map-forest-crossing.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 394128
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-ruined-courtyard",
+      "generationId": "exec-80857954-83da-4716-a52e-42d4ab7bf895",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative RUINED COURTYARD map, opaque landscape16:9, exact vertical overhead orthographic view looking straight down. Weathered limestone courtyard with an ordinary shallow dry circular fountain near center, broken low perimeter masonry, moss between large paving slabs, sparse ivy and a few worn stone fragments along edges. Broad open central space, calm readable material detail. Fine realistic painted tabletop style, tactile pale stone/moss/metal, restrained warm daylight/cool shadows, rich believable texture without glossy CGI. Generic abandoned place only, no people, creatures, skulls, treasure, glyphs, sacred/faction emblem, readable inscription, hidden door or story-specific clue. Entire courtyard/fountain composition safely in frame. No baked grid, coordinate lines, labels, letters, text, numbers, icons, UI, arrows, border or title. No perspective/cinematic angle. Raster atmosphere only, not authoritative collision or legal-route geometry.",
+      "master": ".artifacts/visual-production/masters/map-ruined-courtyard.png",
+      "masterSha256": "ce10706b0088c38e3dac227e96cbfa3fa083a4675217afd9440019dd59b813a4",
+      "legacyAssetId": "map-ruined-courtyard.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 364892
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-cave-chamber",
+      "generationId": "exec-ec46b406-2784-4bdc-a349-afd86e78b53e",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative CAVE CHAMBER map, opaque landscape16:9, exact vertical overhead orthographic camera straight down. A broad natural cavern with quiet uneven stone and gravel floor, one small clear blue-grey pool near a side, dark irregular rock edges and a few natural stalagmites around perimeter leaving central ground readable. Fine realistic painted tabletop texture, tactile limestone/wet stone/water, restrained cool cave light and a little warm lantern-like light spilling from outside the frame, coherent shadows. No bodies, people, creatures, treasure, glowing crystals, inscriptions, runes, secret portal or quest-specific clue. No actual room number or legal-route promise. Complete centered overhead environment with safe margins. No baked grid, coordinates, labels, writing, numbers, icons, UI, controls, arrows, frame or title. No isometric/eye-level perspective. Generic decorative raster only; gameplay geometry must come separately from the engine.",
+      "master": ".artifacts/visual-production/masters/map-cave-chamber.png",
+      "masterSha256": "b85de4d09e9b207106d26f5d0bc67f6dcf80bc37aab0e4db5c0f14e596710065",
+      "legacyAssetId": "map-cave-chamber.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 271598
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-dungeon-hall",
+      "generationId": "exec-188e3601-c355-4835-9ef6-a8d1663a6726",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative DUNGEON HALL map, opaque wide landscape16:9, exact vertical overhead orthographic view straight down. An old ordinary rectangular stone hall, damp rough limestone walls around perimeter, worn irregular flagstone floor, a few plain square support pillars toward edges, modest torch sconces and broad quiet central ground. Fine realistic painted tabletop materials, tactile stone/iron/soot, controlled amber torch light and cool blue-grey shadow with readable balanced exposure. No people, creatures, bones, torture, treasure, secret entrances, traps, readable inscriptions, magic/faction marks or quest objects. Complete center and safe peripheral margins. No baked grid, coordinate lines, letters, numbers, labels, legend, tokens, icons, arrows, UI, panels, border or title. No tilted/isometric perspective. Generic atmosphere only; actual collision, walls and legal movement must be defined separately by the engine.",
+      "master": ".artifacts/visual-production/masters/map-dungeon-hall.png",
+      "masterSha256": "88db2112f7a365df11850c4b7030fa4de4f9381a4c59cde192304b454ebe5eb5",
+      "legacyAssetId": "map-dungeon-hall.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 262204
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-temple-floor",
+      "generationId": "exec-de7ea202-8c25-48c4-a252-20bf0e34d325",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative TEMPLE FLOOR map, opaque wide landscape16:9, exact vertical overhead orthographic camera straight down. A modest quiet rectangular stone sanctuary floor, broad central open limestone paving, plain low raised platform at one edge, a few simple benches and ordinary candle stands toward perimeter, restrained cloth runners. Fine realistic painted tabletop detail, tactile worn stone/wood/linen/wax, soft warm daylight and cool shadows, balanced readable exposure. No deity/faction statue, religious symbol, runes, inscription, magic circle, readable text, quest artifact, trap, treasure, people or creatures. Generic architecture and materials only. Keep complete focal layout centered with safe edges. No baked grid, numbering, coordinates, letters, labels, legend, token, icon, arrows, UI, title or border. No tilted perspective. Raster is decorative atmosphere, never a rules source for collision or legal paths.",
+      "master": ".artifacts/visual-production/masters/map-temple-floor.png",
+      "masterSha256": "527c0ca834f2c57bb32d57e19d175f88322508a9b4d55a6ebecd96ee5204e4b6",
+      "legacyAssetId": "map-temple-floor.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 261418
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-village-square",
+      "generationId": "exec-f410d0a3-3b51-4ed6-bf0c-a9e542c95bd4",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy VTT decorative VILLAGE SQUARE map, opaque landscape16:9, exact vertical overhead orthographic camera straight down with cutaway roofs only at edges. A small generic timber-and-stone village square, broad worn cobblestone center, ordinary circular well near the side, a few unmarked market stalls and barrels toward edges, soft trees and simple building outlines. Fine realistic painted tabletop textures, tactile stone/oak/linen, restrained warm daylight, readable coherent shadows and calm central space. No people, animals, named place, legible shop sign, crest, quest clue, unique object, treasure or secret route. Complete crop-safe composition. No baked grid, coordinates, labels, writing, letters, numbers, legends, tokens, icons, arrows, UI, controls, border or title. No perspective tilt/cinematic view. This is generic atmosphere and supplies no authoritative collision or legal-route geometry.",
+      "master": ".artifacts/visual-production/masters/map-village-square.png",
+      "masterSha256": "9e72706bff3c41345b01c1e41ce4d59ac2453b0d6e42c1b15b66aa74879efbf9",
+      "legacyAssetId": "map-village-square.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 376786
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    },
+    {
+      "assetId": "map-tower-chamber",
+      "generationId": "exec-f34e5102-b4fb-4296-8bfc-da77cd22e1e8",
+      "prompt": "Use-case: precise-object-edit. Preserve this same vertical-overhead round fantasy tower chamber, furniture/materials/lighting, simple closed books, plain desk and carpet. Correct FRAMING ONLY: make the whole circular tower/cutaway smaller within the wide landscape canvas so the COMPLETE outer stone circumference is visible on ALL sides with generous quiet background margins, especially above and below. No outer wall, stair or room furnishing may touch or cross any canvas edge. Keep genuine straight-down orthographic camera and same readable painterly tactile style. Do not add people, symbols, text, runes, grid, UI, labels, coordinates, secret objects or routes. Opaque scenery, complete circle intact, peripheral quiet natural texture. Cosmetic decorative map; no gameplay geometry inferred.",
+      "master": ".artifacts/visual-production/masters/map-tower-chamber.png",
+      "masterSha256": "d787d2ace965e9c994c34a6c6aa1bbaef43034c9c827aee0627d5510b94a598c",
+      "legacyAssetId": "map-tower-chamber.legacy.v1",
+      "consumers": [
+        "BundledImageProvider.map",
+        "VttCanvas.decorative-scene-preview",
+        "ToolCallCard"
+      ],
+      "codec": {
+        "width": 1280,
+        "height": 720,
+        "quality": 86,
+        "bytes": 267430
+      },
+      "selection": "accepted: full source and actual production contained consumer reviewed; actual packaged provider bytes/IDs/category/512KiB and image-event routing validated"
+    }
+  ]
+}

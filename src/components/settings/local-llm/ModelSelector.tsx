@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadEvents } from '../../../hooks/useDownloadEvents';
 import { mergeManifests } from '../../../state/local_llm/manifest';
 import { useLocalLlmStore } from '../../../state/localLlm';
+import { Button } from '../../../ui/Button';
 import { Icons } from '../../../ui/Icons';
 import { ActiveModelPicker } from './ActiveModelPicker';
 import { CollapsibleCard } from './CollapsibleCard';
@@ -21,6 +22,7 @@ export interface ModelSelectorProps {
    * mid-turn. Wired by the parent from `session.agentTurnInFlight`.
    */
   agentTurnInFlight: boolean;
+  activeModelIds?: readonly string[];
 }
 
 /**
@@ -35,8 +37,16 @@ export interface ModelSelectorProps {
  * the result into all three children. The container itself is purely glue;
  * the per-section UI lives in the sibling components.
  */
-export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: ModelSelectorProps) {
+export function ModelSelector({
+  activeId,
+  onActiveChange,
+  agentTurnInFlight,
+  activeModelIds,
+}: ModelSelectorProps) {
   const { t } = useTranslation('local_llm');
+  const { t: ts } = useTranslation('settings');
+  const { t: tc } = useTranslation('common');
+  const error = useLocalLlmStore((s) => s.error);
   const loadManifest = useLocalLlmStore((s) => s.loadManifest);
   const startDownload = useLocalLlmStore((s) => s.startDownload);
   const deleteModel = useLocalLlmStore((s) => s.deleteModel);
@@ -76,10 +86,18 @@ export function ModelSelector({ activeId, onActiveChange, agentTurnInFlight }: M
 
   return (
     <div className={styles.modelSelector}>
+      {error && (
+        <div role="alert">
+          <p>{ts('catalog_unavailable')}</p>
+          <Button onClick={() => void loadManifest()}>{tc('retry')}</Button>
+        </div>
+      )}
       <section>
         <h4 className={styles.sectionTitle}>{t('active_model_section')}</h4>
         <ActiveModelPicker
-          installedModels={installed}
+          installedModels={installed.filter(
+            (model) => !activeModelIds || activeModelIds.includes(model.id),
+          )}
           activeId={activeId}
           onChange={onActiveChange}
           disabled={agentTurnInFlight}

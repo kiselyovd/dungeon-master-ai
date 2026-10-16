@@ -5,6 +5,8 @@ import { WizardLiveSheet } from '../WizardLiveSheet';
 import type { LiveSheet } from '../wizard/computeLiveSheet';
 
 const emptySheet: LiveSheet = {
+  defense: null,
+  baseSpeedFt: null,
   name: null,
   className: null,
   raceName: null,

@@ -28,11 +28,15 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import * as v from 'valibot';
 import type { PersistStorage, StorageValue } from 'zustand/middleware';
+import { DefenseChoiceSchema } from '../api/contracts/defense';
+import { MediaReferenceSchema } from '../api/contracts/mediaAsset';
 import { withTimeout } from '../lib/withTimeout';
+import { campaignVisits } from './campaignVisits';
 import type { CharacterDraft, WizardTab } from './charCreation';
-import { CharCreationDraftSchema } from './charCreationSchema';
+import { CharCreationDraftSchema, StrictCharCreationDraftSchema } from './charCreationSchema';
+import { createCoalescingWriter } from './coalescingWriter';
 import type { OnboardingData } from './onboarding';
-import type { PcData } from './pc';
+import { PC_DATA_KEYS, type PcData } from './pc';
 import { LocalMistralRsConfigSchema, OpenaiCompatConfigSchema } from './providers';
 import type { CurrentScene, SessionData } from './session';
 import {
@@ -44,13 +48,16 @@ import {
 } from './settings';
 import { AbilityScoresSchema, InventoryItemSchema } from './sharedSchemas';
 import { strongholdSecretsStore } from './strongholdSecretsStore';
+import { workspacePreferences } from './workspacePreferences';
 
 /** Upper bound on a single encrypted-secrets read during hydration. The argon2
  * vault open is deliberately slow and has been observed to hang on corrupt
  * snapshots; bounding it keeps `getItem` (and the app's hydration gate) from
- * stalling forever, at the cost of treating a too-slow read as "absent" for
- * this load. The secret is re-read lazily on next access. (Audit blocker 1.) */
-const SECRET_READ_TIMEOUT_MS = 3_000;
+ * stalling forever. An unavailable read is unknown, not permission to overwrite
+ * the encrypted value with defaults. Native cold opens can exceed three seconds. */
+const SECRET_READ_TIMEOUT_MS = 15_000;
+const SECRET_READ_UNKNOWN = Symbol('secret_read_unknown');
+const unreadSecrets = new Set<string>();
 
 const LEGACY_SECRETS_FILE = 'secrets.json';
 const SETTINGS_FILE = 'settings.json';
@@ -63,11 +70,16 @@ const KEY_SYSTEM_PROMPT = 'system_prompt';
 const KEY_TEMPERATURE = 'temperature';
 const KEY_REPLICATE_API_KEY = 'replicate_api_key';
 const KEY_CHAT_PANEL_WIDTH = 'chat_panel_width';
+const KEY_READING_FONT_SIZE = 'reading_font_size';
+const KEY_CAMPAIGN_VISITS = 'campaign_visits';
 const KEY_SCENE_TRANSITIONS_ENABLED = 'scene_transitions_enabled';
+const KEY_WORKSPACE = 'workspace_v1';
 const KEY_ACTIVE_CAMPAIGN_ID = 'active_campaign_id';
 const KEY_ACTIVE_SESSION_ID = 'active_session_id';
 const KEY_CURRENT_SCENE = 'current_scene';
 const KEY_ONBOARDING_COMPLETED = 'onboarding_completed';
+const KEY_ONBOARDING_VERSION = 'onboarding_version';
+const KEY_ONBOARDING_ENTRY = 'onboarding_entry';
 const KEY_HERO_CLASS = 'hero_class';
 const KEY_PC = 'pc';
 const KEY_CHAR_CREATION_DRAFT = 'char_creation_draft';
@@ -87,6 +99,39 @@ const KEY_AGENT_MAX_ROUNDS = 'agent_max_rounds';
 const secretsStore = strongholdSecretsStore;
 const legacySecretsStore = new LazyStore(LEGACY_SECRETS_FILE);
 const settingsStore = new LazyStore(SETTINGS_FILE);
+
+/** Disk barrier before committing a campaign sheet; uses the existing draft
+ * surface and drops methods/unknown fields through the data schema. */
+export async function persistCharacterDraft(draft: CharacterDraft & { activeTab: WizardTab }) {
+  const parsed = v.parse(StrictCharCreationDraftSchema, draft) as CharacterDraft & {
+    activeTab: WizardTab;
+  };
+  // Drain earlier UI snapshots before the explicit disk acknowledgement.
+  await writePreferences({ state: { charCreation: parsed }, version: 0 });
+  await settingsStore.set(KEY_CHAR_CREATION_DRAFT, parsed);
+  await settingsStore.save();
+}
+
+/** Preserve pre-campaign sheets independently of the active PC. No credentials
+ * or actions are copied, and a failed backup prevents the destructive transition. */
+export async function preserveLegacyCharacter(
+  character: PcData,
+  campaignId: string | null,
+): Promise<void> {
+  const document = Object.fromEntries(
+    Object.entries(character).filter(([key]) => PC_DATA_KEYS.has(key as keyof PcData)),
+  );
+  const entry = { campaignId, character: document };
+  const raw = await settingsStore.get<unknown>('legacy_character_backups');
+  if (raw !== undefined && raw !== null && !Array.isArray(raw))
+    throw new Error('legacy_backup_invalid');
+  const entries: unknown[] = Array.isArray(raw) ? raw : [];
+  const signature = JSON.stringify(entry);
+  if (!entries.some((candidate) => JSON.stringify(candidate) === signature)) {
+    await settingsStore.set('legacy_character_backups', [...entries, entry]);
+    await settingsStore.save();
+  }
+}
 
 /**
  * Pull a secret with one-shot migration from the pre-M5 plaintext
@@ -110,9 +155,17 @@ async function getSecret(key: string): Promise<unknown> {
  */
 async function getSecretSafe(key: string): Promise<unknown> {
   try {
-    return await withTimeout(getSecret(key), SECRET_READ_TIMEOUT_MS, undefined);
-  } catch (err) {
-    console.error(`[persistStorage] failed to read secret "${key}":`, err);
+    const result = await withTimeout(getSecret(key), SECRET_READ_TIMEOUT_MS, SECRET_READ_UNKNOWN);
+    if (result === SECRET_READ_UNKNOWN) {
+      unreadSecrets.add(key);
+      console.warn('[persistStorage]', { code: 'secret_read_timeout', key });
+      return undefined;
+    }
+    unreadSecrets.delete(key);
+    return result;
+  } catch {
+    unreadSecrets.add(key);
+    console.error('[persistStorage]', { code: 'secret_read_failed', key });
     return undefined;
   }
 }
@@ -238,6 +291,30 @@ const SkillProfSchema = v.object({
 });
 
 const PcSchema = v.object({
+  defense: v.optional(DefenseChoiceSchema),
+  baseSpeedFt: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(120))),
+  characterId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
+  backstory: v.optional(v.string()),
+  ideals: v.optional(v.string()),
+  bonds: v.optional(v.string()),
+  flaws: v.optional(v.string()),
+  spells: v.optional(v.object({ cantrips: v.array(v.string()), level1: v.array(v.string()) })),
+  personalityFlags: v.optional(
+    v.array(
+      v.object({
+        slotId: v.picklist([
+          'bg-trait',
+          'bg-bond',
+          'align-trait',
+          'align-quirk',
+          'race-trait',
+          'race-quirk',
+        ]),
+        source: v.picklist(['background', 'alignment', 'race']),
+        flag: v.string(),
+      }),
+    ),
+  ),
   heroClass: v.nullable(v.string()),
   name: v.nullable(v.string()),
   race: v.nullable(v.string()),
@@ -258,6 +335,8 @@ const PcSchema = v.object({
   skillProfs: SkillProfSchema,
   inventory: v.array(InventoryItemSchema),
   portraitUrl: v.optional(v.nullable(v.string())),
+  portraitAssetId: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(160)))),
+  portraitMediaRef: v.optional(v.nullable(MediaReferenceSchema)),
 });
 
 export interface PersistedSettings {
@@ -267,6 +346,159 @@ export interface PersistedSettings {
   pc?: Partial<PcData>;
   charCreation?: Partial<CharacterDraft & { activeTab: WizardTab }>;
 }
+
+type PersistedValue = StorageValue<PersistedSettings>;
+function mergePreferenceSnapshots(
+  previous: PersistedValue,
+  latest: PersistedValue,
+): PersistedValue {
+  return {
+    ...latest,
+    state: {
+      ...previous.state,
+      ...latest.state,
+      settings: { ...previous.state.settings, ...latest.state.settings },
+      session: { ...previous.state.session, ...latest.state.session },
+      onboarding: { ...previous.state.onboarding, ...latest.state.onboarding },
+    },
+  };
+}
+// Keep preferences independent of a slow or unavailable vault. Each lane writes
+// one complete group at a time; bursts retain the latest pending snapshot.
+const writePreferences = createCoalescingWriter<PersistedValue>(async (value) => {
+  const settings = value.state.settings ?? {};
+  const session = value.state.session ?? {};
+  const onboarding = value.state.onboarding ?? {};
+  const pc = value.state.pc ?? {};
+  const charCreation = value.state.charCreation;
+  const settingsWrites: Promise<unknown>[] = [];
+  if (settings.workspace !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_WORKSPACE, workspacePreferences(settings.workspace)));
+  if (settings.activeProvider !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_PROVIDER, settings.activeProvider));
+  }
+  if (settings.uiLanguage !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_UI_LANGUAGE, settings.uiLanguage));
+  }
+  if (settings.narrationLanguage !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_NARRATION_LANGUAGE, settings.narrationLanguage));
+  }
+  if (settings.systemPrompt !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_SYSTEM_PROMPT, settings.systemPrompt));
+  }
+  if (settings.temperature !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_TEMPERATURE, settings.temperature));
+  }
+  if (settings.chatPanelWidth !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
+  }
+  if (settings.readingFontSize !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_READING_FONT_SIZE, settings.readingFontSize));
+  }
+  if (settings.campaignVisits !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CAMPAIGN_VISITS, settings.campaignVisits));
+  }
+  if (settings.sceneTransitionsEnabled !== undefined) {
+    settingsWrites.push(
+      settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
+    );
+  }
+  if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
+  }
+  if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
+    settingsWrites.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
+  }
+  if (session.currentScene !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
+  }
+  if (onboarding.completed !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
+  }
+  if (onboarding.version !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_VERSION, onboarding.version));
+  if (onboarding.entry !== undefined)
+    settingsWrites.push(settingsStore.set(KEY_ONBOARDING_ENTRY, onboarding.entry));
+  // PC: partialize always sends the whole `pc` slice, so the full JSON
+  // entry and the legacy `hero_class` scalar are written together
+  // (atomic) or not at all (audit F6). They live in the same flush
+  // group, so they cannot diverge.
+  if (value.state.pc !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_PC, pc));
+    settingsWrites.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass ?? null));
+  }
+  if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
+    settingsWrites.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
+  }
+  if (settings.discoveredCatalogs !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
+  }
+  if (settings.imageEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_ENABLED, settings.imageEnabled));
+  }
+  if (settings.imagePreset !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_PRESET, settings.imagePreset));
+  }
+  if (settings.imageStyleLora !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_IMAGE_STYLE_LORA, settings.imageStyleLora));
+  }
+  if (settings.videoEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VIDEO_ENABLED, settings.videoEnabled));
+  }
+  if (settings.videoMode !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VIDEO_MODE, settings.videoMode));
+  }
+  if (settings.visionEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_VISION_ENABLED, settings.visionEnabled));
+  }
+  if (settings.reasoningEnabled !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_REASONING_ENABLED, settings.reasoningEnabled));
+  }
+  if (settings.reasoningBudget !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_REASONING_BUDGET, settings.reasoningBudget));
+  }
+  if (settings.licenseRestrictedMode !== undefined) {
+    settingsWrites.push(
+      settingsStore.set(KEY_LICENSE_RESTRICTED_MODE, settings.licenseRestrictedMode),
+    );
+  }
+  if (settings.agentMaxRounds !== undefined) {
+    settingsWrites.push(settingsStore.set(KEY_AGENT_MAX_ROUNDS, settings.agentMaxRounds));
+  }
+
+  await flushGroup('settings', settingsWrites, settingsStore);
+}, mergePreferenceSnapshots);
+const writeSecrets = createCoalescingWriter<NonNullable<PersistedSettings['settings']>>(
+  async (settings) => {
+    const secretWrites: Promise<unknown>[] = [];
+    if (
+      settings.providers !== undefined &&
+      !(
+        unreadSecrets.has(KEY_PROVIDERS) &&
+        Object.values(settings.providers).every((provider) => provider === null)
+      )
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_PROVIDERS, settings.providers).then(() => {
+          unreadSecrets.delete(KEY_PROVIDERS);
+        }),
+      );
+    }
+    if (
+      settings.replicateApiKey !== undefined &&
+      !(unreadSecrets.has(KEY_REPLICATE_API_KEY) && !settings.replicateApiKey)
+    ) {
+      secretWrites.push(
+        secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey).then(() => {
+          unreadSecrets.delete(KEY_REPLICATE_API_KEY);
+        }),
+      );
+    }
+
+    if (secretWrites.length) await flushGroup('secrets', secretWrites, secretsStore);
+  },
+  (previous, latest) => ({ ...previous, ...latest }),
+);
 
 export const persistStorage: PersistStorage<PersistedSettings> = {
   async getItem(_name): Promise<StorageValue<PersistedSettings> | null> {
@@ -279,11 +511,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       tempRaw,
       replicateRaw,
       chatWidthRaw,
+      workspaceRaw,
+      readingSizeRaw,
+      visitsRaw,
       sceneTransitionsRaw,
       campaignRaw,
       sessionIdRaw,
       sceneRaw,
       onboardingRaw,
+      onboardingEntryRaw,
       heroClassRaw,
       pcRaw,
       charCreationRaw,
@@ -307,11 +543,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.get(KEY_TEMPERATURE),
       getSecretSafe(KEY_REPLICATE_API_KEY),
       settingsStore.get(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.get(KEY_WORKSPACE),
+      settingsStore.get(KEY_READING_FONT_SIZE),
+      settingsStore.get(KEY_CAMPAIGN_VISITS),
       settingsStore.get(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.get(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.get(KEY_ACTIVE_SESSION_ID),
       settingsStore.get(KEY_CURRENT_SCENE),
       settingsStore.get(KEY_ONBOARDING_COMPLETED),
+      settingsStore.get(KEY_ONBOARDING_ENTRY),
       settingsStore.get(KEY_HERO_CLASS),
       settingsStore.get(KEY_PC),
       settingsStore.get(KEY_CHAR_CREATION_DRAFT),
@@ -336,11 +576,17 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     const tempParsed = v.safeParse(TemperatureSchema, tempRaw);
     const replicateParsed = v.safeParse(ReplicateKeySchema, replicateRaw);
     const chatWidthParsed = v.safeParse(ChatPanelWidthSchema, chatWidthRaw);
+    const readingSizeParsed = v.safeParse(v.picklist([16, 17, 18]), readingSizeRaw);
+    const visits = campaignVisits(visitsRaw);
     const sceneTransitionsParsed = v.safeParse(SceneTransitionsEnabledSchema, sceneTransitionsRaw);
     const campaignParsed = v.safeParse(SessionIdSchema, campaignRaw);
     const sessionIdParsed = v.safeParse(SessionIdSchema, sessionIdRaw);
     const sceneParsed = v.safeParse(CurrentSceneSchema, sceneRaw);
     const onboardingParsed = v.safeParse(OnboardingCompletedSchema, onboardingRaw);
+    const onboardingEntryParsed = v.safeParse(
+      v.picklist(['adventure', 'guest']),
+      onboardingEntryRaw,
+    );
     const heroClassParsed = v.safeParse(HeroClassSchema, heroClassRaw);
     const pcParsed = v.safeParse(PcSchema, pcRaw);
     const charCreationParsed = v.safeParse(CharCreationDraftSchema, charCreationRaw);
@@ -368,11 +614,14 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       !tempParsed.success &&
       !replicateParsed.success &&
       !chatWidthParsed.success &&
+      !readingSizeParsed.success &&
+      Object.keys(visits).length === 0 &&
       !sceneTransitionsParsed.success &&
       !campaignParsed.success &&
       !sessionIdParsed.success &&
       !sceneParsed.success &&
       !onboardingParsed.success &&
+      !onboardingEntryParsed.success &&
       !heroClassParsed.success &&
       !pcParsed.success &&
       !charCreationParsed.success &&
@@ -404,6 +653,17 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (tempParsed.success) settings.temperature = tempParsed.output;
     if (replicateParsed.success) settings.replicateApiKey = replicateParsed.output;
     if (chatWidthParsed.success) settings.chatPanelWidth = chatWidthParsed.output;
+    if (readingSizeParsed.success) settings.readingFontSize = readingSizeParsed.output;
+    if (workspaceRaw != null || chatWidthParsed.success || readingSizeParsed.success) {
+      const workspace = workspacePreferences(workspaceRaw, {
+        chatWidth: settings.chatPanelWidth,
+        readingFontSize: settings.readingFontSize,
+      });
+      settings.workspace = workspace;
+      settings.chatPanelWidth = workspace.chatWidth;
+      settings.readingFontSize = workspace.readingFontSize;
+    }
+    if (visitsRaw !== undefined && visitsRaw !== null) settings.campaignVisits = visits;
     if (sceneTransitionsParsed.success) {
       settings.sceneTransitionsEnabled = sceneTransitionsParsed.output;
     }
@@ -430,6 +690,12 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
     if (sceneParsed.success) session.currentScene = sceneParsed.output as CurrentScene | null;
 
     const onboarding: Partial<OnboardingData> = {};
+    onboarding.version = 2;
+    onboarding.entry = onboardingEntryParsed.success
+      ? onboardingEntryParsed.output
+      : onboardingParsed.success && onboardingParsed.output
+        ? 'adventure'
+        : null;
     if (onboardingParsed.success) onboarding.completed = onboardingParsed.output;
 
     // PC: prefer the full `pc` JSON entry; fall back to the legacy
@@ -454,114 +720,16 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
 
   async setItem(_name, value): Promise<void> {
     const settings = value.state.settings ?? {};
-    const session = value.state.session ?? {};
-    const onboarding = value.state.onboarding ?? {};
-    const pc = value.state.pc ?? {};
-    const charCreation = value.state.charCreation;
-
-    // Plaintext prefs and encrypted secrets flush independently. A
-    // failure in one surface must never abort the other - a Stronghold
-    // write throwing previously aborted the whole Promise.all and left
-    // settings.json unflushed (the "remembers nothing" bug, audit F1).
-    const settingsWrites: Promise<unknown>[] = [];
-    const secretWrites: Promise<unknown>[] = [];
-
-    if (settings.providers !== undefined) {
-      secretWrites.push(secretsStore.set(KEY_PROVIDERS, settings.providers));
-    }
-    if (settings.replicateApiKey !== undefined) {
-      secretWrites.push(secretsStore.set(KEY_REPLICATE_API_KEY, settings.replicateApiKey));
-    }
-
-    if (settings.activeProvider !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_PROVIDER, settings.activeProvider));
-    }
-    if (settings.uiLanguage !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_UI_LANGUAGE, settings.uiLanguage));
-    }
-    if (settings.narrationLanguage !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_NARRATION_LANGUAGE, settings.narrationLanguage));
-    }
-    if (settings.systemPrompt !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_SYSTEM_PROMPT, settings.systemPrompt));
-    }
-    if (settings.temperature !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_TEMPERATURE, settings.temperature));
-    }
-    if (settings.chatPanelWidth !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_CHAT_PANEL_WIDTH, settings.chatPanelWidth));
-    }
-    if (settings.sceneTransitionsEnabled !== undefined) {
-      settingsWrites.push(
-        settingsStore.set(KEY_SCENE_TRANSITIONS_ENABLED, settings.sceneTransitionsEnabled),
-      );
-    }
-    if (session.activeCampaignId !== undefined && session.activeCampaignId !== null) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_CAMPAIGN_ID, session.activeCampaignId));
-    }
-    if (session.activeSessionId !== undefined && session.activeSessionId !== null) {
-      settingsWrites.push(settingsStore.set(KEY_ACTIVE_SESSION_ID, session.activeSessionId));
-    }
-    if (session.currentScene !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_CURRENT_SCENE, session.currentScene));
-    }
-    if (onboarding.completed !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_ONBOARDING_COMPLETED, onboarding.completed));
-    }
-    // PC: partialize always sends the whole `pc` slice, so the full JSON
-    // entry and the legacy `hero_class` scalar are written together
-    // (atomic) or not at all (audit F6). They live in the same flush
-    // group, so they cannot diverge.
-    if (value.state.pc !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_PC, pc));
-      settingsWrites.push(settingsStore.set(KEY_HERO_CLASS, pc.heroClass ?? null));
-    }
-    if (charCreation !== undefined && Object.keys(charCreation).length > 0) {
-      settingsWrites.push(settingsStore.set(KEY_CHAR_CREATION_DRAFT, charCreation));
-    }
-    if (settings.discoveredCatalogs !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_DISCOVERED_CATALOGS, settings.discoveredCatalogs));
-    }
-    if (settings.imageEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_ENABLED, settings.imageEnabled));
-    }
-    if (settings.imagePreset !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_PRESET, settings.imagePreset));
-    }
-    if (settings.imageStyleLora !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_IMAGE_STYLE_LORA, settings.imageStyleLora));
-    }
-    if (settings.videoEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VIDEO_ENABLED, settings.videoEnabled));
-    }
-    if (settings.videoMode !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VIDEO_MODE, settings.videoMode));
-    }
-    if (settings.visionEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_VISION_ENABLED, settings.visionEnabled));
-    }
-    if (settings.reasoningEnabled !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_REASONING_ENABLED, settings.reasoningEnabled));
-    }
-    if (settings.reasoningBudget !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_REASONING_BUDGET, settings.reasoningBudget));
-    }
-    if (settings.licenseRestrictedMode !== undefined) {
-      settingsWrites.push(
-        settingsStore.set(KEY_LICENSE_RESTRICTED_MODE, settings.licenseRestrictedMode),
-      );
-    }
-    if (settings.agentMaxRounds !== undefined) {
-      settingsWrites.push(settingsStore.set(KEY_AGENT_MAX_ROUNDS, settings.agentMaxRounds));
-    }
-
-    // Settings flush first and unconditionally - it must survive a
-    // secrets failure. Each group logs its own failures and never throws.
-    await flushGroup('settings', settingsWrites, settingsStore);
-    await flushGroup('secrets', secretWrites, secretsStore);
+    await Promise.all([
+      writePreferences(value),
+      settings.providers !== undefined || settings.replicateApiKey !== undefined
+        ? writeSecrets(settings)
+        : Promise.resolve(),
+    ]);
   },
 
   async removeItem(_name): Promise<void> {
+    unreadSecrets.clear();
     await Promise.all([
       secretsStore.delete(KEY_PROVIDERS),
       secretsStore.delete(KEY_REPLICATE_API_KEY),
@@ -573,11 +741,15 @@ export const persistStorage: PersistStorage<PersistedSettings> = {
       settingsStore.delete(KEY_SYSTEM_PROMPT),
       settingsStore.delete(KEY_TEMPERATURE),
       settingsStore.delete(KEY_CHAT_PANEL_WIDTH),
+      settingsStore.delete(KEY_READING_FONT_SIZE),
+      settingsStore.delete(KEY_CAMPAIGN_VISITS),
       settingsStore.delete(KEY_SCENE_TRANSITIONS_ENABLED),
       settingsStore.delete(KEY_ACTIVE_CAMPAIGN_ID),
       settingsStore.delete(KEY_ACTIVE_SESSION_ID),
       settingsStore.delete(KEY_CURRENT_SCENE),
       settingsStore.delete(KEY_ONBOARDING_COMPLETED),
+      settingsStore.delete(KEY_ONBOARDING_VERSION),
+      settingsStore.delete(KEY_ONBOARDING_ENTRY),
       settingsStore.delete(KEY_HERO_CLASS),
       settingsStore.delete(KEY_PC),
       settingsStore.delete(KEY_CHAR_CREATION_DRAFT),

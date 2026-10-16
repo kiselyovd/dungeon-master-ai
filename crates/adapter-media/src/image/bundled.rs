@@ -11,6 +11,7 @@ use super::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageS
 pub enum BundledAssetCategory {
     Map,
     Illustration,
+    Portrait,
 }
 
 impl BundledAssetCategory {
@@ -18,12 +19,16 @@ impl BundledAssetCategory {
         match self {
             Self::Map => "map",
             Self::Illustration => "illustration",
+            Self::Portrait => "portrait",
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct BundledAsset {
+    /// Explicit gallery identities are addressable by ID but never reshuffle
+    /// the previously stable generic generation fallback pool.
+    pub gallery_only: bool,
     pub id: &'static str,
     pub category: BundledAssetCategory,
     pub keywords: &'static [&'static str],
@@ -36,6 +41,7 @@ pub struct BundledAsset {
 macro_rules! asset {
     ($id:literal, $category:expr, [$($keyword:literal),+ $(,)?], $path:literal) => {
         BundledAsset {
+            gallery_only: false,
             id: $id,
             category: $category,
             keywords: &[$($keyword),+],
@@ -47,7 +53,150 @@ macro_rules! asset {
     };
 }
 
+macro_rules! gallery_portrait {
+    ($id:literal, $path:literal) => {
+        BundledAsset {
+            gallery_only: true,
+            id: $id,
+            category: BundledAssetCategory::Portrait,
+            keywords: &[],
+            mime_type: "image/webp",
+            bytes: include_bytes!($path),
+            width: 512,
+            height: 512,
+        }
+    };
+}
+
 static ASSETS: &[BundledAsset] = &[
+    BundledAsset {
+        id: "portrait-fighter-legacy-v1",
+        gallery_only: false,
+        category: BundledAssetCategory::Portrait,
+        keywords: &["fighter", "warrior", "paladin", "воин", "паладин"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-wizard-legacy-v1",
+        gallery_only: false,
+        category: BundledAssetCategory::Portrait,
+        keywords: &["wizard", "mage", "волшебник", "маг"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-wizard-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-rogue-legacy-v1",
+        gallery_only: false,
+        category: BundledAssetCategory::Portrait,
+        keywords: &["rogue", "thief", "плут", "вор"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-rogue-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-cleric-legacy-v1",
+        gallery_only: false,
+        category: BundledAssetCategory::Portrait,
+        keywords: &["cleric", "priest", "жрец"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-cleric-legacy.webp"),
+        width: 1024,
+        height: 1024,
+    },
+    BundledAsset {
+        id: "portrait-fighter-01-v2",
+        gallery_only: false,
+        category: BundledAssetCategory::Portrait,
+        keywords: &["fighter", "warrior", "воин"],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-01-v2.webp"),
+        width: 512,
+        height: 512,
+    },
+    BundledAsset {
+        id: "portrait-fighter-02-v2",
+        gallery_only: true,
+        category: BundledAssetCategory::Portrait,
+        keywords: &[],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-02-v2.webp"),
+        width: 512,
+        height: 512,
+    },
+    BundledAsset {
+        id: "portrait-fighter-03-v2",
+        gallery_only: true,
+        category: BundledAssetCategory::Portrait,
+        keywords: &[],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-03-v2.webp"),
+        width: 512,
+        height: 512,
+    },
+    BundledAsset {
+        id: "portrait-fighter-04-v2",
+        gallery_only: true,
+        category: BundledAssetCategory::Portrait,
+        keywords: &[],
+        mime_type: "image/webp",
+        bytes: include_bytes!("../../assets/bundled/portraits/portrait-fighter-04-v2.webp"),
+        width: 512,
+        height: 512,
+    },
+    gallery_portrait!(
+        "portrait-rogue-01-v2",
+        "../../assets/bundled/portraits/portrait-rogue-01-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-rogue-02-v2",
+        "../../assets/bundled/portraits/portrait-rogue-02-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-rogue-03-v2",
+        "../../assets/bundled/portraits/portrait-rogue-03-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-rogue-04-v2",
+        "../../assets/bundled/portraits/portrait-rogue-04-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-wizard-01-v2",
+        "../../assets/bundled/portraits/portrait-wizard-01-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-wizard-02-v2",
+        "../../assets/bundled/portraits/portrait-wizard-02-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-wizard-03-v2",
+        "../../assets/bundled/portraits/portrait-wizard-03-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-wizard-04-v2",
+        "../../assets/bundled/portraits/portrait-wizard-04-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-cleric-01-v2",
+        "../../assets/bundled/portraits/portrait-cleric-01-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-cleric-02-v2",
+        "../../assets/bundled/portraits/portrait-cleric-02-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-cleric-03-v2",
+        "../../assets/bundled/portraits/portrait-cleric-03-v2.webp"
+    ),
+    gallery_portrait!(
+        "portrait-cleric-04-v2",
+        "../../assets/bundled/portraits/portrait-cleric-04-v2.webp"
+    ),
     asset!(
         "map-tavern-interior",
         BundledAssetCategory::Map,
@@ -168,11 +317,7 @@ pub fn bundled_image_provider() -> Arc<dyn ImageProvider> {
 #[async_trait]
 impl ImageProvider for BundledImageProvider {
     async fn generate(&self, prompt: ImagePrompt) -> Result<ImageBytes, ImageError> {
-        let category = if prompt.style_preset.eq_ignore_ascii_case("map") {
-            BundledAssetCategory::Map
-        } else {
-            BundledAssetCategory::Illustration
-        };
+        let category = category_for_style(&prompt.style_preset);
         let normalized_prompt = normalize(&prompt.content_prompt);
         let input_hash = fnv1a64(&format!(
             "{}\0{}\0{}",
@@ -220,7 +365,10 @@ fn select_asset(
 ) -> Option<&'static BundledAsset> {
     let mut best_score = 0usize;
     let mut candidates = Vec::new();
-    for asset in ASSETS.iter().filter(|asset| asset.category == category) {
+    for asset in ASSETS
+        .iter()
+        .filter(|asset| asset.category == category && !asset.gallery_only)
+    {
         let score = asset
             .keywords
             .iter()
@@ -234,9 +382,24 @@ fn select_asset(
             candidates.push(asset);
         }
     }
+    if candidates.is_empty() {
+        return None;
+    }
     candidates
         .get((input_hash as usize) % candidates.len())
         .copied()
+}
+
+pub(crate) fn category_for_style(style: &str) -> BundledAssetCategory {
+    if style.eq_ignore_ascii_case("map") {
+        BundledAssetCategory::Map
+    } else if style.eq_ignore_ascii_case("character_portrait")
+        || style.eq_ignore_ascii_case("portrait")
+    {
+        BundledAssetCategory::Portrait
+    } else {
+        BundledAssetCategory::Illustration
+    }
 }
 
 fn normalize(value: &str) -> String {
@@ -254,4 +417,38 @@ fn fnv1a64(value: &str) -> u64 {
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
     hash
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_gallery_choices_do_not_change_existing_unknown_portrait_fallbacks() {
+        let original = [
+            "portrait-fighter-legacy-v1",
+            "portrait-wizard-legacy-v1",
+            "portrait-rogue-legacy-v1",
+            "portrait-cleric-legacy-v1",
+            "portrait-fighter-01-v2",
+        ];
+        for seed in 0..32 {
+            assert_eq!(
+                select_asset(BundledAssetCategory::Portrait, "", seed)
+                    .unwrap()
+                    .id,
+                original[seed as usize % original.len()]
+            );
+        }
+        for id in [
+            "portrait-rogue-01-v2",
+            "portrait-rogue-02-v2",
+            "portrait-rogue-03-v2",
+            "portrait-rogue-04-v2",
+        ] {
+            let asset = ASSETS.iter().find(|asset| asset.id == id).unwrap();
+            assert!(asset.gallery_only);
+            assert_eq!((asset.width, asset.height), (512, 512));
+        }
+    }
 }

@@ -1,4 +1,6 @@
 import type { StateCreator } from 'zustand';
+import type { DefenseChoice } from '../api/contracts/defense';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 import type { AbilityScores, InventoryItem } from './pc';
 
 export const CURRENT_CHARACTER_RULESET_ID = 'srd-5.2.1' as const;
@@ -18,6 +20,14 @@ export type WizardTab =
 
 export type AbilityMethod = 'point_buy' | 'standard_array' | '4d6_drop_lowest';
 export type EquipmentMode = 'package' | 'gold';
+export type CharacterDraftScope =
+  | { kind: 'campaign'; campaignId: string; characterId: string | null }
+  | { kind: 'room'; roomId: string };
+export function sameDraftScope(a: CharacterDraftScope, b: CharacterDraftScope): boolean {
+  return a.kind === 'room'
+    ? b.kind === 'room' && a.roomId === b.roomId
+    : b.kind === 'campaign' && a.campaignId === b.campaignId && a.characterId === b.characterId;
+}
 
 export interface EquipmentSlot {
   slotId: string;
@@ -67,6 +77,7 @@ export interface CharacterDraft {
   pointBuyRemaining: number;
   skillProfs: string[];
   spells: { cantrips: string[]; level1: string[] };
+  defenseChoice: DefenseChoice | null;
   equipmentMode: EquipmentMode | null;
   equipmentSlots: EquipmentSlot[];
   equipmentInventory: InventoryItem[];
@@ -79,6 +90,10 @@ export interface CharacterDraft {
   name: string;
   alignment: string | null;
   portraitUrl: string | null;
+  portraitAssetId?: string | null;
+  portraitMediaRef?: MediaReference | null;
+  mediaDraftId?: string | null;
+  draftScope?: CharacterDraftScope | null;
   portraitPrompt: string | null;
 }
 
@@ -95,6 +110,7 @@ export const EMPTY_DRAFT: CharacterDraft = {
   pointBuyRemaining: 27,
   skillProfs: [],
   spells: { cantrips: [], level1: [] },
+  defenseChoice: null,
   equipmentMode: null,
   equipmentSlots: [],
   equipmentInventory: [],
@@ -107,10 +123,15 @@ export const EMPTY_DRAFT: CharacterDraft = {
   name: '',
   alignment: null,
   portraitUrl: null,
+  portraitAssetId: null,
+  portraitMediaRef: null,
+  mediaDraftId: null,
+  draftScope: null,
   portraitPrompt: null,
 };
 
 export interface CharCreationActions {
+  bindScope: (scope: CharacterDraftScope) => void;
   setActiveTab: (tab: WizardTab) => void;
   setDraftField: <K extends keyof CharacterDraft>(key: K, value: CharacterDraft[K]) => void;
   setAbilityScore: (ability: keyof AbilityScores, value: number) => void;
@@ -155,6 +176,16 @@ export const createCharCreationSlice: StateCreator<CharCreationSlice, [], [], Ch
     ...EMPTY_DRAFT,
     activeTab: 'class',
     isAssisting: false,
+    bindScope: (scope) =>
+      set((s) => ({
+        charCreation: {
+          ...s.charCreation,
+          ...(s.charCreation.draftScope && !sameDraftScope(s.charCreation.draftScope, scope)
+            ? { ...structuredClone(EMPTY_DRAFT), activeTab: 'class' as const, isAssisting: false }
+            : {}),
+          draftScope: scope,
+        },
+      })),
     setActiveTab: (tab) => set((s) => ({ charCreation: { ...s.charCreation, activeTab: tab } })),
     setDraftField: (key, value) =>
       set((s) => ({ charCreation: { ...s.charCreation, [key]: value } })),

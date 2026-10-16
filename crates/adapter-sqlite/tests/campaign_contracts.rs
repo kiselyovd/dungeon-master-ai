@@ -39,6 +39,7 @@ fn initial_campaign(
         updated_at_epoch_ms: 1_700_000_000_000,
     };
     InitialCampaign {
+        opening_scene: None,
         session: CampaignSession {
             id: session_id,
             campaign_id,

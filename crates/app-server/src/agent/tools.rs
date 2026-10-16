@@ -25,6 +25,15 @@ pub fn all_tools() -> Vec<Tool> {
 /// modality is disabled.
 pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
     let mut tools = all_tools_core();
+    tools.extend(hero_intention_tools());
+    tools.push(Tool {
+        name:"adventure_action".into(),
+        description:"Confirm one currently available intention in a prepared adventure. The engine owns identity, requirements, resources and consequences. Narrate only the confirmed outcome; never invent success for a rejected action.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"oneOf":[
+            {"type":"object","additionalProperties":false,"required":["kind","location"],"properties":{"kind":{"type":"string","const":"move"},"location":{"type":"string","enum":["town","quay","shrine","warehouse","archive","belfry"]}}},
+            {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"type":"string","enum":["inspect_quay","talk_agata","consult_leon","negotiate_clapper","retrieve_clapper_publicly","repair_clapper","locate_tikhon","start_defense","rescue_tikhon","escort_tikhon_home","recover_roster","recover_ledger","acknowledge_echo","restore_ward","seal_sluice","publish_ledger","finish"]}}}
+        ]}}}),
+    });
     if availability.image {
         tools.push(generate_map_tool());
         tools.push(generate_illustration_tool());
@@ -41,6 +50,7 @@ pub fn all_tools_with(availability: ToolAvailability) -> Vec<Tool> {
 /// calling the right tool and drowning in deliberation. `start_combat` is NOT in
 /// this set: the model needs it available to BEGIN combat.
 const COMBAT_ONLY_TOOLS: &[&str] = &[
+    "combat_action",
     "apply_damage",
     "apply_healing",
     "end_combat",
@@ -49,6 +59,18 @@ const COMBAT_ONLY_TOOLS: &[&str] = &[
     "remove_token",
     "cast_spell",
 ];
+
+fn hero_intention_tools() -> Vec<Tool> {
+    vec![Tool {
+        name:"combat_action".into(),
+        description:"Execute the saved hero's intention through canonical rules. Choose only current targets, prepared supported spells/equipment and walkable map cells. The engine owns actor, rolls, HP, budgets and resources, and automatically executes NPC turns. Narrate the confirmed result; never invent success. End-turn ends the hero turn; retreat requires the marked exit.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"enum":["weapon","spell","move","end_turn","retreat"]},"target":{"type":"string","format":"uuid"},"weapon_id":{"type":"string"},"mode":{"enum":["default","melee","ranged","thrown"]},"two_handed":{"type":"boolean"},"spell_id":{"type":"string"},"targets":{"type":"array","items":{"type":"string","format":"uuid"},"maxItems":32},"slot_level":{"type":"integer","minimum":0,"maximum":9},"x":{"type":"integer"},"y":{"type":"integer"}}}),
+    },Tool {
+        name:"rest_action".into(),
+        description:"Request Short Rest with chosen hit_dice, Long Rest, or wait with minutes for the saved hero. The server validates safety/cooldown, owns time and restores canonical HP/resources. Never grant recovery before confirmation.".into(),
+        parameters:json!({"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"enum":["short","long","wait"]},"hit_dice":{"type":"integer","minimum":0,"maximum":20},"minutes":{"type":"integer","minimum":1,"maximum":1440}}}),
+    }]
+}
 
 /// Select the tools to expose for this turn. Outside combat, the
 /// combat-management tools are withheld so the model sees only the
@@ -71,8 +93,16 @@ fn all_tools_core() -> Vec<Tool> {
                 "properties": {
                     "dice": { "type": "string", "description": "Dice expression e.g. 2d6, 1d20, 4d6" },
                     "modifier": { "type": "integer", "description": "Flat bonus/penalty to add to total" },
-                    "advantage": { "type": "boolean", "description": "Roll twice, take higher" },
-                    "reason": { "type": "string", "description": "Short description of why we are rolling" }
+                    "advantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take higher. Cancels disadvantage." },
+                    "disadvantage": { "type": "boolean", "description": "For a single d20 only: roll twice, take lower. Cancels advantage." },
+                    "reason": { "type": "string", "description": "Short description of why we are rolling" },
+                    "check": { "type": "object", "additionalProperties": false,
+                      "description": "For every player hero skill check, identify the canonical character from current context. Use dice 1d20 and omit modifier; server derives ability, proficiency and armor/condition penalties.",
+                      "properties": { "character_id": { "type": "string", "format": "uuid" },
+                        "skill": { "type": "string", "enum": ["acrobatics","animal_handling","arcana","athletics","deception","history","insight","intimidation","investigation","medicine","nature","perception","performance","persuasion","religion","sleight_of_hand","stealth","survival"] },
+                        "dc": { "type": "integer", "minimum": 0, "maximum": 40 } },
+                      "required": ["character_id","skill"] }
+
                 },
                 "required": ["dice"]
             }),
@@ -104,24 +134,30 @@ fn all_tools_core() -> Vec<Tool> {
         },
         Tool {
             name: "start_combat".into(),
-            description: "Begin combat. Pass one initiative entry per combatant (the player plus each enemy). ONLY `name` is required - the engine auto-rolls initiative and fills sensible default stats (HP/AC) for anything you omit. Call this immediately when a fight starts; never ask the player for stats or initiative.".into(),
+            description: "Begin combat with NPC entries only. Set role=npc for every entry. The engine adds the saved player character automatically; never include a player surrogate. Initiative is rolled by the engine when omitted.".into(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "initiative_entries": {
                         "type": "array",
-                        "description": "One entry per combatant. Just the name is enough, e.g. [{\"name\":\"Hero\"},{\"name\":\"Skeleton\"}].",
+                        "description": "NPCs only, e.g. [{\"role\":\"npc\",\"name\":\"Skeleton\"}]. The saved hero is added by the engine.",
                         "items": {
                             "type": "object",
                             "properties": {
+                                "role": {"type":"string","enum":["npc"]},
                                 "name": { "type": "string", "description": "Combatant name (required)." },
+                                "appearance": {
+                                    "type": "string",
+                                    "enum": ["water_echo","goblin","skeleton","zombie","wolf","bandit","orc","giant_rat"],
+                                    "description": "Optional cosmetic miniature for a publicly visible NPC. Choose only an established visible appearance; omit for unknown actors. This supplies no monster statistics or rules."
+                                },
                                 "hp": { "type": "integer", "description": "Optional; defaults to a sane value." },
                                 "max_hp": { "type": "integer", "description": "Optional; defaults to hp." },
                                 "ac": { "type": "integer", "description": "Optional; defaults to 10." },
                                 "roll": { "type": "integer", "description": "Optional initiative roll; the engine rolls one if omitted." },
                                 "dex_mod": { "type": "integer", "description": "Optional dexterity modifier." }
                             },
-                            "required": ["name"]
+                            "required": ["role","name"]
                         }
                     }
                 },
@@ -337,6 +373,76 @@ fn generate_video_tool() -> Tool {
 mod tests {
     use super::*;
 
+    fn matches_schema(schema: &serde_json::Value, value: &serde_json::Value) -> bool {
+        if let Some(branches) = schema["oneOf"].as_array() {
+            return branches
+                .iter()
+                .filter(|branch| matches_schema(branch, value))
+                .count()
+                == 1;
+        }
+        if let Some(expected) = schema.get("const") {
+            if value != expected {
+                return false;
+            }
+        }
+        if let Some(values) = schema["enum"].as_array() {
+            if !values.contains(value) {
+                return false;
+            }
+        }
+        if schema["type"] == "string" && !value.is_string() {
+            return false;
+        }
+        if schema["type"] == "object" {
+            let Some(object) = value.as_object() else {
+                return false;
+            };
+            if schema["required"].as_array().is_some_and(|fields| {
+                fields
+                    .iter()
+                    .any(|field| !object.contains_key(field.as_str().unwrap()))
+            }) {
+                return false;
+            }
+            let properties = schema["properties"].as_object().unwrap();
+            for (key, value) in object {
+                match properties.get(key) {
+                    Some(child) if !matches_schema(child, value) => return false,
+                    None if schema["additionalProperties"] == false => return false,
+                    _ => {}
+                }
+            }
+        }
+        true
+    }
+
+    #[test]
+    fn adventure_schema_rejects_location_for_unit_actions_and_requires_it_for_move() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        let schema = &tools
+            .iter()
+            .find(|tool| tool.name == "adventure_action")
+            .unwrap()
+            .parameters;
+        assert!(matches_schema(
+            schema,
+            &json!({"action":{"kind":"seal_sluice"}})
+        ));
+        assert!(!matches_schema(
+            schema,
+            &json!({"action":{"kind":"seal_sluice","location":"belfry"}})
+        ));
+        assert!(!matches_schema(schema, &json!({"action":{"kind":"move"}})));
+        assert!(matches_schema(
+            schema,
+            &json!({"action":{"kind":"move","location":"quay"}})
+        ));
+    }
+
     #[test]
     fn all_tools_default_includes_image_tools() {
         let tools = all_tools();
@@ -461,5 +567,23 @@ mod tests {
     fn all_tools_includes_apply_healing() {
         let tools = all_tools();
         assert!(tools.iter().any(|t| t.name == "apply_healing"));
+    }
+
+    #[test]
+    fn adventure_schema_allows_the_authored_defense_intention() {
+        let tools = all_tools_with(ToolAvailability {
+            image: false,
+            video: false,
+        });
+        let tool = tools
+            .iter()
+            .find(|tool| tool.name == "adventure_action")
+            .unwrap();
+        let action =
+            serde_json::to_value(app_application::models::adventure::Action::StartDefense).unwrap();
+        assert!(
+            matches_schema(&tool.parameters, &json!({"action":action})),
+            "A legal defense must be expressible through the model's advertised schema"
+        );
     }
 }

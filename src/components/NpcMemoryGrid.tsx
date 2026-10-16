@@ -1,64 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NPC_ART } from '../assets/livingTabletop';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
+import { genericNpcPortraitId, npcArchetype } from '../lib/npcPortraits';
 import { DISPOSITIONS, type Disposition, type NpcRecord } from '../state/npc';
+import { npcAppearance } from '../state/npcAppearance';
+import { ContextSurface } from './ContextSurface';
 import styles from './NpcMemoryGrid.module.css';
-
-type NpcArchetype =
-  | 'innkeeper'
-  | 'guard'
-  | 'merchant'
-  | 'rogue'
-  | 'mage'
-  | 'priestess'
-  | 'knight'
-  | 'peasant';
-
-const ARCHETYPE_PORTRAIT: Record<NpcArchetype, string> = NPC_ART;
-
-const ARCHETYPE_ORDER: readonly NpcArchetype[] = [
-  'innkeeper',
-  'guard',
-  'merchant',
-  'rogue',
-  'mage',
-  'priestess',
-  'knight',
-  'peasant',
-];
-
-// Keyword -> archetype heuristic. Order matters: more specific roles win.
-const ROLE_KEYWORD_MAP: ReadonlyArray<readonly [RegExp, NpcArchetype]> = [
-  [/innkeep|tavern|barkeep|bartender|host/i, 'innkeeper'],
-  [/priest|cleric|nun|abbot|bishop|temple|shrine/i, 'priestess'],
-  [/wizard|mage|sorcer|warlock|witch|arcanist|scholar/i, 'mage'],
-  [/knight|paladin|champion|captain|baron|lord/i, 'knight'],
-  [/guard|soldier|sentinel|watchman|sergeant|warden/i, 'guard'],
-  [/rogue|thief|bandit|brigand|cutpurse|assassin|spy/i, 'rogue'],
-  [/merchant|trader|shopkeep|vendor|smith|fletcher|alchem|crafts/i, 'merchant'],
-  [/farm|peasant|villager|commoner|laborer|miner|sailor/i, 'peasant'],
-];
-
-// FNV-1a 32-bit; deterministic, no external deps.
-function hash(str: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i += 1) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function npcArchetype(npc: Pick<NpcRecord, 'id' | 'role'>): NpcArchetype {
-  for (const [pattern, archetype] of ROLE_KEYWORD_MAP) {
-    if (pattern.test(npc.role)) return archetype;
-  }
-  const idx = hash(npc.id) % ARCHETYPE_ORDER.length;
-  return ARCHETYPE_ORDER[idx] ?? 'peasant';
-}
+import { NpcPortraitButton } from './NpcPortraitButton';
 
 interface Props {
+  embedded?: boolean;
   npcs: NpcRecord[];
   onClose: () => void;
 }
@@ -70,7 +21,7 @@ const DISPOSITION_COLORS: Record<Disposition, string> = {
   unknown: 'var(--color-fg-muted)',
 };
 
-export function NpcMemoryGrid({ npcs, onClose }: Props) {
+export function NpcMemoryGrid({ npcs, onClose, embedded = false }: Props) {
   const { t } = useTranslation('npc');
   const containerRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
@@ -78,8 +29,8 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   const { isClosing, triggerClose } = useClosingAnimation(onClose);
 
   useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
+    if (!embedded) containerRef.current?.focus();
+  }, [embedded]);
 
   const filtered = npcs.filter((n) => {
     const matchSearch =
@@ -90,17 +41,12 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
   });
 
   return (
-    <div
-      className={styles.overlay}
-      data-state={isClosing ? 'closing' : 'open'}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('title')}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          triggerClose();
-        }
-      }}
+    <ContextSurface
+      embedded={embedded}
+      label={t('title')}
+      className={embedded ? styles.embedded : styles.overlay}
+      state={isClosing ? 'closing' : 'open'}
+      onEscape={triggerClose}
     >
       <div className={styles.container} tabIndex={-1} ref={containerRef}>
         <div className={styles.header}>
@@ -153,23 +99,39 @@ export function NpcMemoryGrid({ npcs, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </ContextSurface>
   );
 }
 
 function NpcCard({ npc }: { npc: NpcRecord }) {
   const { t } = useTranslation('npc');
   const archetype = npcArchetype(npc);
+  const suggestedId = genericNpcPortraitId(npc);
+  const key = `${npc.campaign_id}:${npc.id}`;
+  const [assigned, setAssigned] = useState<{ key: string; id: string } | null>(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void npcAppearance(key, suggestedId)
+      .then((id) => {
+        if (alive) setAssigned({ key, id });
+      })
+      .catch(() => {
+        if (alive) setFailedKey(key);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [key, suggestedId]);
+  const assetId = assigned?.key === key ? assigned.id : null;
   return (
     <article className={styles.card}>
-      <div className={styles.cardBanner}>
-        <img
-          src={ARCHETYPE_PORTRAIT[archetype]}
-          alt=""
-          className={styles.cardPortrait}
-          data-archetype={archetype}
-        />
-      </div>
+      <NpcPortraitButton
+        assetId={assetId}
+        name={npc.name}
+        archetype={archetype}
+        unavailable={failedKey === key}
+      />
       <div className={styles.cardBody}>
         <h3 className={styles.cardName}>{npc.name}</h3>
         {npc.role && <p className={styles.cardRole}>{npc.role}</p>}

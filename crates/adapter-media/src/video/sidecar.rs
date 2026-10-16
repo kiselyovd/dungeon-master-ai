@@ -39,6 +39,9 @@ impl LocalVideoSidecarProvider {
 
 #[async_trait]
 impl VideoProvider for LocalVideoSidecarProvider {
+    fn needs_native_runtime(&self) -> bool {
+        true
+    }
     async fn generate(&self, prompt: VideoPrompt) -> Result<VideoStream, VideoError> {
         if prompt.init_image_b64.is_some() {
             return Err(VideoError::UnsupportedInitImage);

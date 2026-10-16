@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "auxiliary",
+  "description": "Detached views can read their own ephemeral projection, close and return focus.",
+  "windows": ["hero", "journal"],
+  "permissions": ["allow-desktop-aux-read", "allow-desktop-aux-focus-main", "allow-desktop-aux-close"]
+}

@@ -1,7 +1,10 @@
 pub mod backend;
 pub mod control;
+pub mod lifecycle;
 pub mod media_runtime;
 pub mod model_runtime;
+pub mod owned_job;
+pub mod startup_guard;
 
 use std::sync::{Arc, Mutex};
 
@@ -11,6 +14,7 @@ use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
 struct RuntimeInner {
+    shutting_down: bool,
     generation: u64,
     model_child: Option<CommandChild>,
     media_child: Option<CommandChild>,
@@ -26,6 +30,7 @@ impl Default for RuntimeProcesses {
     fn default() -> Self {
         Self {
             inner: Arc::new(Mutex::new(RuntimeInner {
+                shutting_down: false,
                 generation: 0,
                 model_child: None,
                 media_child: None,
@@ -62,6 +67,9 @@ impl RuntimeProcesses {
 
     fn reserve_start(&self, request: &RuntimeStartRequest) -> Option<RuntimeStatus> {
         let mut inner = self.inner.lock().expect("runtime process lock poisoned");
+        if inner.shutting_down {
+            return None;
+        }
         if matches!(
             inner.status.state,
             RuntimeState::Starting | RuntimeState::Running | RuntimeState::Degraded
@@ -80,6 +88,9 @@ impl RuntimeProcesses {
         );
         let (media, model, generation) = {
             let mut inner = self.inner.lock().expect("runtime process lock poisoned");
+            if inner.shutting_down {
+                return inner.status.clone();
+            }
             inner.generation = inner.generation.wrapping_add(1);
             inner.status = starting_status(&request);
             (
@@ -115,28 +126,33 @@ impl RuntimeProcesses {
             "process_role=model-runtime pid={} lifecycle=spawned port={llm_port}",
             model_child.pid()
         );
+        if !self.retain_child(model_child, generation, false) {
+            return self.status();
+        }
         self.monitor_child(app.clone(), model_events, generation, "model-runtime");
-        self.inner
-            .lock()
-            .expect("runtime process lock poisoned")
-            .model_child = Some(model_child);
 
         if !model_runtime::probe(llm_port).await {
             log::error!(
                 "[FIX:runtime-control-executor] process_role=model-runtime lifecycle=health-failed port={llm_port}"
             );
-            self.stop().await;
+            if !self.is_current(generation) {
+                return self.status();
+            }
+            self.stop_generation(Some(generation), false);
             return self.fail(generation.wrapping_add(1), "llm_health_failed");
+        }
+        if !self.is_current(generation) {
+            return self.status();
         }
 
         let mut media_port = None;
         if request.enable_image || request.enable_video {
             let port = match media_runtime::free_loopback_port() {
                 Ok(port) => port,
-                Err(_) => return self.degrade(generation, llm_port, "media_port_unavailable"),
+                Err(_) => return self.degrade(app, generation, llm_port, "media_port_unavailable"),
             };
             let Some(weights_dir) = request.weights_dir else {
-                return self.degrade(generation, llm_port, "media_weights_missing");
+                return self.degrade(app, generation, llm_port, "media_weights_missing");
             };
             let (media_events, media_child) = match app
                 .shell()
@@ -149,20 +165,19 @@ impl RuntimeProcesses {
                 Ok(pair) => pair,
                 Err(error) => {
                     log::error!("media runtime spawn failed: {error}");
-                    return self.degrade(generation, llm_port, "media_spawn_failed");
+                    return self.degrade(app, generation, llm_port, "media_spawn_failed");
                 }
             };
             log::info!(
                 "process_role=media-runtime pid={} lifecycle=spawned port={port}",
                 media_child.pid()
             );
+            if !self.retain_child(media_child, generation, true) {
+                return self.status();
+            }
             self.monitor_child(app.clone(), media_events, generation, "media-runtime");
-            self.inner
-                .lock()
-                .expect("runtime process lock poisoned")
-                .media_child = Some(media_child);
             if !media_runtime::probe(port).await {
-                return self.degrade(generation, llm_port, "media_health_failed");
+                return self.degrade(app, generation, llm_port, "media_health_failed");
             }
             media_port = Some(port);
         }
@@ -176,14 +191,26 @@ impl RuntimeProcesses {
             llm_port: Some(llm_port),
             media_port,
         };
-        self.set_status_if_current(generation, status.clone());
-        log::info!("process_role=runtime lifecycle=ready");
+        if self.set_status_if_current(generation, status.clone()) {
+            crate::commands::notifications::runtime_ready(app);
+            log::info!("process_role=runtime lifecycle=ready");
+        }
         status
     }
 
     pub async fn stop(&self) -> RuntimeStatus {
+        self.stop_generation(None, false)
+    }
+
+    fn stop_generation(&self, expected: Option<u64>, permanently: bool) -> RuntimeStatus {
         let (media, model) = {
             let mut inner = self.inner.lock().expect("runtime process lock poisoned");
+            if expected.is_some_and(|generation| generation != inner.generation) {
+                return inner.status.clone();
+            }
+            if permanently {
+                inner.shutting_down = true;
+            }
             inner.generation = inner.generation.wrapping_add(1);
             inner.status = RuntimeStatus::default();
             (inner.media_child.take(), inner.model_child.take())
@@ -198,6 +225,25 @@ impl RuntimeProcesses {
         RuntimeStatus::default()
     }
 
+    pub async fn shutdown(&self) -> RuntimeStatus {
+        self.stop_generation(None, true)
+    }
+
+    fn retain_child(&self, child: CommandChild, generation: u64, media: bool) -> bool {
+        let mut inner = self.inner.lock().expect("runtime process lock poisoned");
+        if inner.shutting_down || inner.generation != generation {
+            drop(inner);
+            let _ = child.kill();
+            return false;
+        }
+        if media {
+            inner.media_child = Some(child);
+        } else {
+            inner.model_child = Some(child);
+        }
+        true
+    }
+
     fn fail(&self, generation: u64, code: &'static str) -> RuntimeStatus {
         let current = self.status();
         let status = RuntimeStatus {
@@ -209,7 +255,13 @@ impl RuntimeProcesses {
         status
     }
 
-    fn degrade(&self, generation: u64, llm_port: u16, code: &'static str) -> RuntimeStatus {
+    fn degrade(
+        &self,
+        app: &AppHandle,
+        generation: u64,
+        llm_port: u16,
+        code: &'static str,
+    ) -> RuntimeStatus {
         let current = self.status();
         let status = RuntimeStatus {
             state: RuntimeState::Degraded,
@@ -217,23 +269,24 @@ impl RuntimeProcesses {
             llm_port: Some(llm_port),
             ..current
         };
-        self.set_status_if_current(generation, status.clone());
+        if self.set_status_if_current(generation, status.clone()) {
+            crate::commands::notifications::runtime_ready(app);
+        }
         status
     }
 
-    fn set_status_if_current(&self, generation: u64, status: RuntimeStatus) {
+    fn set_status_if_current(&self, generation: u64, status: RuntimeStatus) -> bool {
         let mut inner = self.inner.lock().expect("runtime process lock poisoned");
-        if inner.generation == generation {
+        if !inner.shutting_down && inner.generation == generation {
             inner.status = status;
+            return true;
         }
+        false
     }
 
     fn is_current(&self, generation: u64) -> bool {
-        self.inner
-            .lock()
-            .expect("runtime process lock poisoned")
-            .generation
-            == generation
+        let inner = self.inner.lock().expect("runtime process lock poisoned");
+        !inner.shutting_down && inner.generation == generation
     }
 
     fn monitor_child(
@@ -289,6 +342,36 @@ fn starting_status(request: &RuntimeStartRequest) -> RuntimeStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn terminal_shutdown_prevents_a_queued_runtime_restart() {
+        let processes = RuntimeProcesses::default();
+        let request = RuntimeStartRequest {
+            model_id: "fixture".into(),
+            enable_image: false,
+            enable_video: false,
+            llm_args: vec![],
+            weights_dir: None,
+        };
+        assert!(processes.reserve_start(&request).is_some());
+        processes.shutdown().await;
+        assert!(processes.reserve_start(&request).is_none());
+        assert!(!processes.is_current(1));
+        assert_eq!(processes.status().state, RuntimeState::Stopped);
+    }
+
+    #[test]
+    fn late_health_failure_cannot_stop_a_replacement_generation() {
+        let processes = RuntimeProcesses::default();
+        {
+            let mut inner = processes.inner.lock().unwrap();
+            inner.generation = 3;
+            inner.status.state = RuntimeState::Running;
+        }
+        processes.stop_generation(Some(2), false);
+        assert_eq!(processes.status().state, RuntimeState::Running);
+        assert_eq!(processes.inner.lock().unwrap().generation, 3);
+    }
 
     #[test]
     fn stale_generation_cannot_replace_newer_status() {

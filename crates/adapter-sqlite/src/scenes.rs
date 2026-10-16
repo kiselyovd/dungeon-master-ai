@@ -12,7 +12,7 @@ impl SceneRepository for SqliteStore {
     async fn current(&self, campaign_id: Uuid) -> Result<Option<SceneRecord>, RepositoryError> {
         let row = sqlx::query(
             "SELECT id, title, subtitle FROM scenes WHERE campaign_id = ?1 \
-             ORDER BY created_at DESC LIMIT 1",
+             ORDER BY created_at DESC, id DESC LIMIT 1",
         )
         .bind(campaign_id.to_string())
         .fetch_optional(&self.pool)

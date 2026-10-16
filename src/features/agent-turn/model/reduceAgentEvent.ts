@@ -4,7 +4,13 @@ import type { AgentTurnPorts } from './ports';
 const DISPOSITIONS = new Set(['friendly', 'neutral', 'hostile', 'unknown']);
 
 type PendingMedia =
-  | { kind: 'image'; dataUrl: string; imageKind: 'map' | 'chat'; source: ImageSource }
+  | {
+      kind: 'image';
+      dataUrl: string;
+      imageKind: 'map' | 'chat';
+      source: ImageSource;
+      mediaRef?: import('../../../api/contracts/mediaAsset').MediaReference;
+    }
   | { kind: 'video'; dataUrl: string };
 
 export interface AgentEventReducerState {
@@ -35,8 +41,13 @@ function recordMedia(
     return;
   }
   if (media.kind === 'image') {
-    ports.chat.attachImage(id, media.dataUrl, media.imageKind, media.source);
-    ports.toolLog.attachImage(id, media.dataUrl, media.imageKind, media.source);
+    if (media.mediaRef) {
+      ports.chat.attachMedia?.(id, media.mediaRef, media.imageKind, media.source);
+      ports.toolLog.attachMedia?.(id, media.mediaRef, media.imageKind, media.source);
+    } else {
+      ports.chat.attachImage(id, media.dataUrl, media.imageKind, media.source);
+      ports.toolLog.attachImage(id, media.dataUrl, media.imageKind, media.source);
+    }
   } else ports.chat.attachVideo(id, media.dataUrl);
 }
 
@@ -56,6 +67,8 @@ function reduceToolResult(
   ports.toolLog.settle(event.id, event.result, event.isError, event.handledBy);
   ports.chat.settleTool(event.id, event.result, event.isError);
   if (event.isError) return;
+  if (event.toolName === 'adventure_action') ports.session.acceptAdventureOutcome?.(event.result);
+  if (event.toolName === 'quick_save') ports.session.acceptRevision?.(event.result);
 
   const args =
     event.args && typeof event.args === 'object' ? (event.args as Record<string, unknown>) : {};
@@ -134,16 +147,26 @@ export function reduceAgentEvent(
     case 'image_generated':
       recordMedia(
         event.toolCallId,
-        { kind: 'image', dataUrl: event.dataUrl, imageKind: event.kind, source: event.source },
+        {
+          kind: 'image',
+          dataUrl: event.dataUrl,
+          imageKind: event.kind,
+          source: event.source,
+          ...(event.mediaRef ? { mediaRef: event.mediaRef } : {}),
+        },
         state,
         ports,
       );
-      if (event.kind === 'map') ports.session.setMapImage(event.dataUrl);
+      if (event.kind === 'map') {
+        if (event.mediaRef) ports.session.setMapMedia?.(event.mediaRef);
+        else ports.session.setMapImage(event.dataUrl);
+      }
       break;
     case 'video_generated':
       recordMedia(event.toolCallId, { kind: 'video', dataUrl: event.dataUrl }, state, ports);
       break;
     case 'agent_done':
+    case 'agent_needs_input':
     case 'done':
     case 'error':
       break;

@@ -35,7 +35,7 @@ impl Default for CharacterId {
 
 // ---- Grid ----
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -44,13 +44,14 @@ pub struct Position {
 impl Position {
     /// Chebyshev distance (5e diagonal rule: every other diagonal = 10ft).
     pub fn chebyshev(self, other: Position) -> i32 {
-        let dx = (self.x - other.x).abs();
-        let dy = (self.y - other.y).abs();
-        dx.max(dy)
+        self.x
+            .abs_diff(other.x)
+            .max(self.y.abs_diff(other.y))
+            .min(i32::MAX as u32) as i32
     }
     /// Cell distance in feet (5-foot squares).
     pub fn distance_ft(self, other: Position) -> i32 {
-        self.chebyshev(other) * 5
+        self.chebyshev(other).saturating_mul(5)
     }
 }
 

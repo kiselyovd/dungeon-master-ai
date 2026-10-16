@@ -35,6 +35,14 @@ async function getBackendPort(): Promise<number> {
   });
 }
 
+const backendReadyObservers = new Set<() => void>();
+export function subscribeBackendReady(observer: () => void): () => void {
+  backendReadyObservers.add(observer);
+  return () => {
+    backendReadyObservers.delete(observer);
+  };
+}
+
 export async function initBackendListener(): Promise<UnlistenFn> {
   return listen<number>('backend-ready', (e) => {
     cachedPort = e.payload;
@@ -42,6 +50,9 @@ export async function initBackendListener(): Promise<UnlistenFn> {
       r(e.payload);
     });
     waitingResolvers = [];
+    backendReadyObservers.forEach((observer) => {
+      observer();
+    });
   });
 }
 

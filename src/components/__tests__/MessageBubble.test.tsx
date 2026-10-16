@@ -12,7 +12,8 @@ beforeEach(() => {
 describe('MessageBubble', () => {
   it('renders children when no parts are provided', () => {
     render(<MessageBubble chatRole="assistant">hello</MessageBubble>);
-    expect(screen.getByTestId('bubble').textContent).toBe('hello');
+    expect(screen.getByText('Dungeon Master')).toBeVisible();
+    expect(screen.getByText('hello')).toBeVisible();
   });
 
   it('renders text and image parts in order', () => {
@@ -27,7 +28,9 @@ describe('MessageBubble', () => {
       </MessageBubble>,
     );
     const bubble = screen.getByTestId('bubble');
-    const children = Array.from(bubble.children);
+    const body = bubble.querySelector('[data-message-body]');
+    if (!body) throw Error('message body missing');
+    const children = Array.from(body.children);
     expect(children).toHaveLength(3);
     expect(children[0]?.textContent).toBe('before');
     // Image is wrapped in a <button> so the click target is keyboard-reachable.

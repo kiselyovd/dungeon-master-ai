@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use adapter_http::routes::campaigns::{CampaignResponse, CampaignSummaryResponse};
+use adapter_http::routes::campaigns::{
+    CampaignResponse, CampaignStateResponse, CampaignSummaryResponse,
+};
 use adapter_http::services::{
     AgentHttpService, AgentTurnHttpCommand, CampaignHttpService, CharacterAssistHttpService,
     ChatHttpCommand, ChatHttpService, CombatActionCommand as HttpCombatActionCommand,
     CombatHttpService, CombatStartCommand, HttpOutcome, HttpServiceError, LocalControlHttpService,
     LocalControlOperation, LocalEventStream, MediaHttpService, ProviderDiscoveryCommand,
-    RestoreSaveCommand, SaveMetadataCommand, SavesHttpService, SettingsHttpService, SrdSection,
+    RestoreSaveCommand, SaveCreated, SaveMetadataCommand, SavesHttpService, SettingsHttpService,
+    SrdSection,
 };
 use adapter_sqlite::SqliteStore;
 use app_application::campaigns::{
@@ -75,6 +78,33 @@ impl AppStateMediaHttpService {
 
 #[async_trait]
 impl MediaHttpService for AppStateMediaHttpService {
+    async fn register_asset(
+        &self,
+        owner: app_application::models::media_asset::MediaOwner,
+        category: app_application::models::media_asset::MediaCategory,
+        origin: app_application::models::media_asset::MediaOrigin,
+        mime_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<app_application::models::media_asset::MediaReference, HttpServiceError> {
+        self.state
+            .media_assets()
+            .ok_or(HttpServiceError::NotFound)?
+            .register(owner, category, origin, mime_type, bytes)
+            .await
+            .map_err(media_asset_http_error)
+    }
+    async fn read_asset(
+        &self,
+        id: Uuid,
+        scope: app_application::models::media_asset::MediaReadScope,
+    ) -> Result<app_application::models::media_asset::OwnedMediaAsset, HttpServiceError> {
+        self.state
+            .media_assets()
+            .ok_or(HttpServiceError::NotFound)?
+            .read(id, &scope)
+            .await
+            .map_err(media_asset_http_error)
+    }
     async fn generate_image(&self, prompt: ImagePrompt) -> Result<ImageBytes, HttpServiceError> {
         let provider = self
             .state
@@ -95,6 +125,12 @@ impl MediaHttpService for AppStateMediaHttpService {
                 code: "video_generation_failed",
             })
     }
+}
+
+fn media_asset_http_error(
+    error: app_application::models::media_asset::MediaAssetError,
+) -> HttpServiceError {
+    adapter_http::routes::media_assets::media_asset_error(error)
 }
 
 fn image_http_error(error: ImageError) -> HttpServiceError {
@@ -139,6 +175,173 @@ fn serialization_error() -> HttpServiceError {
 
 #[async_trait]
 impl CampaignHttpService for AppStateCampaignHttpService {
+    async fn migrate_portrait(
+        &self,
+        command: app_application::media_assets::migrate_portrait::MigratePortrait,
+    ) -> Result<adapter_http::routes::campaigns::PortraitMigrationResponse, HttpServiceError> {
+        use app_application::ports::repositories::CampaignStateRepository;
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let current = repository
+            .load_current(command.campaign_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "media_asset_storage_unavailable",
+            })?;
+        let room_active: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM coop_rooms WHERE campaign_id=?1 AND active=1)",
+        )
+        .bind(command.campaign_id.0.to_string())
+        .fetch_one(self.state.db())
+        .await
+        .map_err(|_| HttpServiceError::Internal {
+            code: "media_asset_storage_unavailable",
+        })?;
+        let pending = repository
+            .solo_agent_recovery(
+                command.campaign_id.0,
+                current.session_id.0,
+                self.state.process_id(),
+            )
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "media_asset_storage_unavailable",
+            })?;
+        if room_active || pending.is_some() {
+            return Err(HttpServiceError::Conflict {
+                code: "media_migration_pending",
+            });
+        };
+        let migrated =
+            app_application::media_assets::migrate_portrait::MigrateCampaignPortrait::new(
+                self.state
+                    .media_assets()
+                    .ok_or(HttpServiceError::NotFound)?,
+                repository,
+            )
+            .execute(command)
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Conflict { .. } => {
+                    HttpServiceError::Conflict {
+                        code: "media_migration_scope_changed",
+                    }
+                }
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "media_asset_denied",
+                    ..
+                } => HttpServiceError::Unauthorized {
+                    code: "media_asset_denied",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "media_asset_storage_unavailable",
+                },
+            })?;
+        Ok(adapter_http::routes::campaigns::PortraitMigrationResponse {
+            state: campaign_state_response(migrated.state)?,
+            changed: migrated.changed,
+            retained: migrated.retained,
+        })
+    }
+    async fn recovery_status(
+        &self,
+        id: Uuid,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryStatus, HttpServiceError> {
+        app_application::solo_recovery::RecoverSolo::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .status(CampaignId(id))
+        .await
+        .map_err(recovery_error)
+    }
+    async fn recover_solo(
+        &self,
+        command: app_application::models::solo_recovery::SoloRecoveryCommand,
+    ) -> Result<app_application::models::solo_recovery::SoloRecoveryResult, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        app_application::solo_recovery::RecoverSolo::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .execute(command)
+        .await
+        .map_err(recovery_error)
+    }
+    async fn rest_status(
+        &self,
+        id: Uuid,
+    ) -> Result<app_application::models::rest::RestStatus, HttpServiceError> {
+        app_application::rest::RestCampaign::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .status(CampaignId(id))
+        .await
+        .map_err(rest_error)
+    }
+    async fn rest(
+        &self,
+        command: app_application::models::rest::RestCommand,
+    ) -> Result<app_application::models::rest::RestResult, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        app_application::rest::RestCampaign::new(Arc::new(SqliteStore::new(
+            self.state.db().clone(),
+        )))
+        .execute(command)
+        .await
+        .map_err(rest_error)
+    }
+    async fn adventure_action(
+        &self,
+        command: app_application::models::adventure::AdventureCommand,
+    ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::ActInAdventure::new(repository)
+            .execute(command)
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
+    async fn state(&self, id: Uuid) -> Result<CampaignStateResponse, HttpServiceError> {
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::LoadCampaignSession::new(repository)
+            .execute(CampaignId(id))
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
+
+    async fn commit_character(
+        &self,
+        command: app_application::models::campaign_state::CommitCampaignCharacter,
+    ) -> Result<CampaignStateResponse, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id.0)
+            .lock_owned()
+            .await;
+        let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
+        let state = app_application::campaigns::CommitCharacter::new(repository)
+            .execute(command)
+            .await
+            .map_err(campaign_use_case_error)?;
+        campaign_state_response(state)
+    }
     async fn create_campaign(
         &self,
         command: CreateCampaignCommand,
@@ -224,19 +427,107 @@ fn campaign_use_case_error(error: app_application::campaigns::CampaignError) -> 
             HttpServiceError::UnprocessableEntity { code }
         }
         app_application::campaigns::CampaignError::Persistence {
-            code: "snapshot_revision_conflict",
+            code: "snapshot_revision_conflict" | "campaign_revision_conflict",
         } => HttpServiceError::Conflict {
             code: "snapshot_revision_conflict",
         },
         app_application::campaigns::CampaignError::Persistence {
-            code: "snapshot_not_found",
+            code: "snapshot_not_found" | "campaign_not_found",
         } => HttpServiceError::NotFound,
+        app_application::campaigns::CampaignError::Persistence {
+            code:
+                code @ ("hero_defense_invalid"
+                | "hero_armor_unknown"
+                | "hero_armor_unavailable"
+                | "hero_shield_unavailable"
+                | "character_invalid"
+                | "character_identity_mismatch"
+                | "character_session_mismatch"
+                | "character_causation_mismatch"
+                | "character_too_large"
+                | "snapshot_causation_mismatch"
+                | "adventure_action_unavailable"
+                | "adventure_character_downed"
+                | "adventure_session_mismatch"
+                | "adventure_character_mismatch"
+                | "adventure_causation_mismatch"
+                | "adventure_combat_active"
+                | "adventure_not_initialized"),
+        } => HttpServiceError::UnprocessableEntity { code },
         app_application::campaigns::CampaignError::Persistence { .. } => {
             HttpServiceError::Internal {
                 code: "campaign_operation_failed",
             }
         }
     }
+}
+
+fn recovery_error(
+    error: app_application::ports::repositories::RepositoryError,
+) -> HttpServiceError {
+    use app_application::ports::repositories::RepositoryError;
+    match error {
+        RepositoryError::Operation {
+            code: code @ ("recovery_requires_room" | "recovery_in_combat"),
+            ..
+        } => HttpServiceError::Conflict { code },
+        RepositoryError::Operation {
+            code:
+                code @ ("hero_recovery_not_needed"
+                | "hero_aid_invalid"
+                | "room_action_invalid"
+                | "hero_vitality_invalid"
+                | "hero_vitality_identity_mismatch"),
+            ..
+        } => HttpServiceError::UnprocessableEntity { code },
+        other => rest_error(other),
+    }
+}
+
+fn rest_error(error: app_application::ports::repositories::RepositoryError) -> HttpServiceError {
+    use app_application::ports::repositories::RepositoryError;
+    match error {
+        RepositoryError::NotFound => HttpServiceError::NotFound,
+        RepositoryError::Conflict { .. } | RepositoryError::RevisionConflict { .. } => {
+            HttpServiceError::Conflict {
+                code: "campaign_revision_conflict",
+            }
+        }
+        RepositoryError::Operation {
+            code: "rest_causation_mismatch",
+            ..
+        } => HttpServiceError::Conflict {
+            code: "rest_causation_mismatch",
+        },
+        RepositoryError::Operation {
+            code:
+                code @ ("rest_intention_invalid"
+                | "rest_character_required"
+                | "rest_character_invalid"
+                | "rest_resources_invalid"
+                | "rest_identity_mismatch"
+                | "rest_unsafe"
+                | "rest_character_downed"
+                | "rest_too_soon"),
+            ..
+        } => HttpServiceError::UnprocessableEntity { code },
+        _ => HttpServiceError::Internal {
+            code: "rest_operation_failed",
+        },
+    }
+}
+
+fn campaign_state_response(
+    state: app_application::models::campaign_state::CampaignSessionState,
+) -> Result<CampaignStateResponse, HttpServiceError> {
+    Ok(CampaignStateResponse {
+        schema_version: 1,
+        ruleset_id: "srd-5.2.1".into(),
+        campaign: campaign_response(state.campaign)?,
+        session_id: state.session_id.0,
+        character_id: state.character_id,
+        projection: state.projection,
+    })
 }
 
 fn campaign_response(detail: CampaignDetail) -> Result<CampaignResponse, HttpServiceError> {
@@ -266,6 +557,7 @@ fn campaign_summary_response(
         last_session_id: summary.last_session_id.0,
         revision: summary.revision.0,
         updated_at: campaign_timestamp(summary.updated_at_epoch_ms)?,
+        current_location: summary.current_location,
     })
 }
 
@@ -307,6 +599,28 @@ struct ActorActionArgs {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WeaponActionArgs {
+    attacker_id: Uuid,
+    target_id: Uuid,
+    #[serde(default)]
+    weapon_id: Option<String>,
+    #[serde(default)]
+    mode: app_domain::combat::loadout::WeaponMode,
+    #[serde(default)]
+    two_handed: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SpellActionArgs {
+    caster_id: Uuid,
+    spell_id: String,
+    target_ids: Vec<Uuid>,
+    slot_level: u8,
+}
+
+#[derive(Debug, Deserialize)]
 struct MoveActionArgs {
     combatant_id: Uuid,
     x: i32,
@@ -315,7 +629,21 @@ struct MoveActionArgs {
 
 #[async_trait]
 impl CombatHttpService for AppStateCombatHttpService {
-    async fn start(&self, command: CombatStartCommand) -> Result<Uuid, HttpServiceError> {
+    async fn start(
+        &self,
+        command: CombatStartCommand,
+    ) -> Result<CombatProjection, HttpServiceError> {
+        SqliteStore::new(self.state.db().clone())
+            .require_session_campaign(command.session_id, command.campaign_id)
+            .await
+            .map_err(|_| HttpServiceError::BadRequest {
+                code: "combat_campaign_mismatch",
+            })?;
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id)
+            .lock_owned()
+            .await;
         let encounter_id = Uuid::new_v4();
         let projection = projection_from_start(encounter_id, &command.initiative_entries);
         let repository = adapter_sqlite::SqliteStore::new(self.state.db().clone());
@@ -324,8 +652,7 @@ impl CombatHttpService for AppStateCombatHttpService {
             .await
             .map_err(|_| HttpServiceError::Internal {
                 code: "combat_start_failed",
-            })?;
-        Ok(encounter_id)
+            })
     }
 
     async fn action(
@@ -333,6 +660,44 @@ impl CombatHttpService for AppStateCombatHttpService {
         command: HttpCombatActionCommand,
     ) -> Result<Option<CombatProjection>, HttpServiceError> {
         let action = match command.action_type.as_str() {
+            "retreat" => {
+                let args: ActorActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_action_invalid",
+                    }
+                })?;
+                CombatActionCommand::Retreat {
+                    combatant: CombatantId(args.combatant_id),
+                }
+            }
+            "spell" => {
+                let args: SpellActionArgs = serde_json::from_value(command.args).map_err(|_| {
+                    HttpServiceError::BadRequest {
+                        code: "combat_spell_intention_invalid",
+                    }
+                })?;
+                CombatActionCommand::Spell {
+                    caster: CombatantId(args.caster_id),
+                    spell_id: args.spell_id,
+                    targets: args.target_ids.into_iter().map(CombatantId).collect(),
+                    slot_level: args.slot_level,
+                }
+            }
+            "weapon_attack" => {
+                let args: WeaponActionArgs =
+                    serde_json::from_value(command.args).map_err(|_| {
+                        HttpServiceError::BadRequest {
+                            code: "combat_weapon_intention_invalid",
+                        }
+                    })?;
+                CombatActionCommand::WeaponAttack {
+                    attacker: CombatantId(args.attacker_id),
+                    target: CombatantId(args.target_id),
+                    weapon_id: args.weapon_id,
+                    mode: args.mode,
+                    two_handed: args.two_handed,
+                }
+            }
             "attack" => {
                 let args: AttackActionArgs =
                     serde_json::from_value(command.args).map_err(|_| {
@@ -400,7 +765,9 @@ impl CombatHttpService for AppStateCombatHttpService {
                     .unwrap_or_else(|| Uuid::new_v4().to_string()),
                 encounter_id: command.encounter_id,
                 expected_revision: command.expected_revision.unwrap_or(0),
-                rng_seed: command.rng_seed.unwrap_or(0),
+                // Production rolls are generated by the host. The legacy
+                // transport seed is not an authority for game outcomes.
+                rng_seed: Uuid::new_v4().as_u128() as u64,
                 action,
             })
             .await
@@ -408,15 +775,22 @@ impl CombatHttpService for AppStateCombatHttpService {
         Ok(Some(result.projection))
     }
 
-    async fn end(&self, encounter_id: Uuid) -> Result<(), HttpServiceError> {
+    async fn end(&self, encounter_id: Uuid) -> Result<Option<CombatProjection>, HttpServiceError> {
         let repository = adapter_sqlite::SqliteStore::new(self.state.db().clone());
         repository
             .end(encounter_id)
             .await
-            .map_err(|_| HttpServiceError::Internal {
-                code: "combat_end_failed",
-            })?;
-        Ok(())
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "authored_exit_required",
+                    ..
+                } => HttpServiceError::UnprocessableEntity {
+                    code: "authored_exit_required",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "combat_end_failed",
+                },
+            })
     }
 }
 
@@ -454,6 +828,10 @@ fn projection_from_start(
         })
         .collect();
     CombatProjection {
+        authored: None,
+        adventure: None,
+        campaign_scope: None,
+        appearances: Default::default(),
         schema_version: COMBAT_PROJECTION_VERSION,
         encounter_id,
         revision: 0,
@@ -500,6 +878,12 @@ fn parse_damage_dice(input: &str) -> Option<DiceExpr> {
 
 fn combat_error(error: ResolveCombatError) -> HttpServiceError {
     match error {
+        ResolveCombatError::RequestMismatch => HttpServiceError::Conflict {
+            code: "combat_request_mismatch",
+        },
+        ResolveCombatError::InvalidState => HttpServiceError::BadRequest {
+            code: "combat_state_invalid",
+        },
         ResolveCombatError::NotFound => HttpServiceError::BadRequest {
             code: "combat_not_found",
         },
@@ -544,7 +928,12 @@ impl SavesHttpService for AppStateSavesHttpService {
         &self,
         session_id: Uuid,
         metadata: SaveMetadataCommand,
-    ) -> Result<Uuid, HttpServiceError> {
+    ) -> Result<SaveCreated, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(metadata.campaign_id)
+            .lock_owned()
+            .await;
         let save_id = Uuid::new_v4();
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
         let snapshot = CreateSnapshot::new(repository)
@@ -562,10 +951,13 @@ impl SavesHttpService for AppStateSavesHttpService {
             })
             .await
             .map_err(campaign_use_case_error)?;
-        Ok(snapshot.save_id)
+        Ok(SaveCreated {
+            id: snapshot.save_id,
+            revision: snapshot.snapshot.revision.0,
+        })
     }
 
-    async fn quick(&self, session_id: Uuid) -> Result<Uuid, HttpServiceError> {
+    async fn quick(&self, session_id: Uuid) -> Result<SaveCreated, HttpServiceError> {
         let row = sqlx::query("SELECT campaign_id, revision FROM sessions WHERE id = ?1")
             .bind(session_id.to_string())
             .fetch_optional(self.state.db())
@@ -616,8 +1008,13 @@ impl SavesHttpService for AppStateSavesHttpService {
     }
 
     async fn restore(&self, command: RestoreSaveCommand) -> Result<Value, HttpServiceError> {
+        let _lane = self
+            .state
+            .campaign_lane(command.campaign_id)
+            .lock_owned()
+            .await;
         let repository = Arc::new(SqliteStore::new(self.state.db().clone()));
-        let snapshot = RestoreSnapshot::new(repository)
+        let snapshot = RestoreSnapshot::new(repository.clone())
             .execute(RestoreSnapshotCommand {
                 save_id: command.save_id,
                 campaign_id: CampaignId(command.campaign_id),
@@ -627,7 +1024,32 @@ impl SavesHttpService for AppStateSavesHttpService {
             })
             .await
             .map_err(campaign_use_case_error)?;
-        serde_json::to_value(snapshot).map_err(|_| serialization_error())
+        let current = app_application::campaigns::LoadCampaignSession::new(repository.clone())
+            .execute(CampaignId(command.campaign_id))
+            .await;
+        let mut response = serde_json::to_value(snapshot).map_err(|_| serialization_error())?;
+        match current {
+            Ok(current) => {
+                response["current_state"] = serde_json::to_value(campaign_state_response(current)?)
+                    .map_err(|_| serialization_error())?;
+            }
+            Err(app_application::campaigns::CampaignError::Persistence {
+                code: "campaign_not_found",
+            }) => {
+                // Legacy saves predate the campaign-created seed event. Do not
+                // invent a seed or report failure after a committed restoration.
+                let session = app_application::ports::repositories::SessionRepository::get(
+                    repository.as_ref(),
+                    SessionId(command.session_id),
+                )
+                .await
+                .map_err(snapshot_repository_error)?
+                .ok_or(HttpServiceError::NotFound)?;
+                response["current_revision"] = json!(session.revision.0);
+            }
+            Err(error) => return Err(campaign_use_case_error(error)),
+        }
+        Ok(response)
     }
 
     async fn update(
@@ -719,6 +1141,9 @@ impl SettingsHttpService for AppStateSettingsHttpService {
             ),
         );
         let result = update.execute(config).await.map_err(|error| match error {
+            SettingsUpdateError::Prepare {
+                code: code @ ("chat_runtime_unavailable" | "chat_runtime_model_changed"),
+            } => HttpServiceError::BadRequest { code },
             SettingsUpdateError::Prepare { .. } => HttpServiceError::BadRequest {
                 code: "settings_prepare_failed",
             },
@@ -828,15 +1253,61 @@ impl AppStateAgentHttpService {
 
 #[async_trait]
 impl AgentHttpService for AppStateAgentHttpService {
+    async fn recovery_input(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        SqliteStore::new(self.state.db().clone())
+            .solo_recovery_input(campaign_id, session_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
+    async fn recovery(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        SqliteStore::new(self.state.db().clone())
+            .solo_agent_recovery(campaign_id, session_id, self.state.process_id())
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
+    async fn pending_clarification(
+        &self,
+        campaign_id: Uuid,
+        session_id: Uuid,
+    ) -> Result<
+        Option<app_application::agent::human_commands::PendingHumanCommandClarification>,
+        HttpServiceError,
+    > {
+        SqliteStore::new(self.state.db().clone())
+            .pending_solo_clarification(campaign_id, session_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "human_command_read_failed",
+            })
+    }
     async fn turn(
         &self,
         command: AgentTurnHttpCommand,
     ) -> Result<mpsc::Receiver<AgentEvent>, HttpServiceError> {
-        let provider = self.state.provider();
-        let mut config = self.state.agent_config();
-        if let Some(model) = command.model {
-            config.model = model;
+        let (provider, mut config) = self.state.agent_environment();
+        if let Some(model) = &command.model {
+            config.model = model.clone();
         }
+        let environment = crate::providers::execution_environment::environment(
+            provider.as_ref(),
+            config.model.clone(),
+        );
         let retriever = self.state.srd_retriever();
         let image_provider = self.state.image_provider();
         let video_provider = self.state.video_provider();
@@ -844,22 +1315,133 @@ impl AgentHttpService for AppStateAgentHttpService {
         // restart the model child, so no legacy in-process GPU swap is built.
         let gpu_swap = None;
         let pool = self.state.db().clone();
-        let (sender, receiver) = mpsc::channel::<AgentEvent>(64);
-        tokio::spawn(async move {
-            let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
-                provider,
-                pool,
-                config,
-                retriever,
-                image_provider,
-            )
-            .with_gpu_swap(gpu_swap)
-            .with_video_provider(video_provider);
-            if let Err(error) = orchestrator.run(command.request, sender).await {
-                tracing::warn!(error = %error, "agent loop error");
-            }
+        let player_verifier = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                app_application::agent::intentions::LlmPlayerIntentionVerifier::new(
+                    provider.clone(),
+                    config.model.clone(),
+                ),
+            ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
         });
-        Ok(receiver)
+        let orchestrator = crate::agent::orchestrator::AgentOrchestrator::new(
+            provider.clone(),
+            pool.clone(),
+            config,
+            retriever,
+            image_provider,
+        )
+        .with_gpu_swap(gpu_swap)
+        .with_media_assets(self.state.media_assets())
+        .with_video_provider(video_provider);
+        let orchestrator = if let Some(verifier) = player_verifier {
+            orchestrator
+                .with_human_command_owner(self.state.process_id())
+                .with_player_verifier(verifier)
+                .with_narration_verifier(Arc::new(
+                    app_application::agent::narration::LlmNarrationVerifier::new(provider.clone()),
+                ))
+        } else {
+            orchestrator
+        };
+        let driver = Arc::new(DurableOrchestratorDriver {
+            orchestrator,
+            lane: self.state.campaign_lane(command.request.campaign_id),
+            clarification: command.clarification,
+            store: SqliteStore::new(pool.clone()),
+            owner: self.state.process_id(),
+        });
+        let service = app_application::agent::operations::DurableAgentTurns::new(
+            Arc::new(SqliteStore::new(pool)),
+            driver,
+            self.state.process_id(),
+        )
+        .with_environment(environment);
+        service
+            .execute_mode(
+                app_application::agent::operations::AgentOperation {
+                    request_id: command.request_id.unwrap_or_else(Uuid::new_v4),
+                    request: command.request,
+                    model: command.model,
+                },
+                command.resume,
+            )
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_request_mismatch"
+                        | "agent_turn_running"
+                        | "agent_turn_interrupted"
+                        | "agent_turn_superseded"
+                        | "agent_turn_recovery_unavailable"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_original_environment_changed"
+                        | "agent_original_environment_unavailable"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                _ => HttpServiceError::Internal {
+                    code: "agent_operation_failed",
+                },
+            })
+    }
+}
+
+struct DurableOrchestratorDriver {
+    orchestrator: crate::agent::orchestrator::AgentOrchestrator,
+    lane: Arc<tokio::sync::Mutex<()>>,
+    clarification: Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
+    store: SqliteStore,
+    owner: Uuid,
+}
+#[async_trait]
+impl app_application::agent::operations::AgentOperationDriver for DurableOrchestratorDriver {
+    async fn acquire(&self) -> Box<dyn Send> {
+        Box::new(self.lane.clone().lock_owned().await)
+    }
+    async fn resume(
+        &self,
+        input: app_application::agent::operations::AgentOperation,
+        messages: Vec<app_application::models::chat::ChatMessage>,
+        events: mpsc::Sender<AgentEvent>,
+        cancellation: Arc<app_application::agent::operations::TurnCancellation>,
+    ) -> Result<(), &'static str> {
+        if let Some(reply) = &self.clarification {
+            let ledger = adapter_sqlite::human_commands::SoloHumanCommandLedger::new(
+                self.store.clone(),
+                input.request_id,
+                self.owner,
+            );
+            app_application::agent::human_commands::HumanCommandLedgerRepository::submit_clarification_reply(&ledger,reply.id,reply.reply.clone()).await.map_err(|_|"human_command_clarification_invalid")?;
+        }
+        self.orchestrator
+            .run_recovered(
+                input.request,
+                events,
+                input.request_id.to_string(),
+                cancellation,
+                Some(messages),
+            )
+            .await
+            .map_err(|_| "agent_turn_failed")
+    }
+    async fn run(
+        &self,
+        input: app_application::agent::operations::AgentOperation,
+        events: mpsc::Sender<AgentEvent>,
+        cancellation: Arc<app_application::agent::operations::TurnCancellation>,
+    ) -> Result<(), &'static str> {
+        self.orchestrator
+            .run_with_id(
+                input.request,
+                events,
+                input.request_id.to_string(),
+                cancellation,
+            )
+            .await
+            .map_err(|_| "agent_turn_failed")
     }
 }
 
@@ -1150,8 +1732,16 @@ impl LocalControlHttpService for AppStateLocalControlHttpService {
                     .runtime_control()
                     .start(RuntimeStartRequest {
                         model_id,
-                        enable_image: media_enabled,
-                        enable_video: media_enabled,
+                        enable_image: media_enabled
+                            && self
+                                .state
+                                .image_provider()
+                                .is_some_and(|provider| provider.needs_native_runtime()),
+                        enable_video: media_enabled
+                            && self
+                                .state
+                                .video_provider()
+                                .is_some_and(|provider| provider.needs_native_runtime()),
                         llm_args,
                         weights_dir: Some(self.state.models_dir().to_string_lossy().into_owned()),
                     })
@@ -1266,9 +1856,623 @@ fn runtime_wire_status(status: &RuntimeStatus) -> Value {
             }
         }
     };
-    json!({ "llm": llm, "image": image })
+    json!({ "llm": llm, "image": image, "model_id": status.model_id })
 }
 
 pub fn local_control_http_service(state: AppState) -> Arc<dyn LocalControlHttpService> {
     Arc::new(AppStateLocalControlHttpService::new(state))
+}
+
+/// Compatibility factory; concrete host state is supplied by app-bootstrap.
+pub fn room_dm_http_service(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+) -> Arc<dyn adapter_http::services::RoomDmHttpService> {
+    Arc::new(AppStateRoomDmHttpService { state, rooms })
+}
+struct AppStateRoomDmHttpService {
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+}
+#[async_trait]
+impl adapter_http::services::RoomDmHttpService for AppStateRoomDmHttpService {
+    async fn recovery(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+    ) -> Result<Option<app_application::agent::recovery::AgentRecoveryProjection>, HttpServiceError>
+    {
+        SqliteStore::new(self.state.db().clone())
+            .room_agent_recovery(subject.lease(), self.state.process_id())
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "agent_recovery_read_failed",
+            })
+    }
+    async fn turn(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        self.turn_with_clarification(subject, request_id, player_message, resume, None)
+            .await
+    }
+    async fn turn_with_clarification(
+        &self,
+        subject: app_application::rooms::RoomSubject,
+        request_id: Uuid,
+        player_message: String,
+        resume: bool,
+        clarification: Option<
+            app_application::agent::human_commands::HumanCommandClarificationReply,
+        >,
+    ) -> Result<futures::stream::BoxStream<'static, AgentEvent>, HttpServiceError> {
+        use app_application::{
+            agent::{tools::AgentToolCatalog, turn::AgentTurnConfig},
+            rooms::{agent::RoomAgentPorts, dm_turns::RoomDmRunner},
+        };
+        let (provider, config) = self.state.agent_environment();
+        let environment = crate::providers::execution_environment::environment(
+            provider.as_ref(),
+            config.model.clone(),
+        );
+        let lane = self.state.campaign_lane(subject.lease().campaign_id().0);
+        let tools = AgentToolCatalog {
+            exploration: crate::agent::tools::tools_for_phase(config.tool_availability, false),
+            combat: crate::agent::tools::tools_for_phase(config.tool_availability, true),
+        };
+        let system_prompt = crate::agent::context_builder::compose_system_prompt(
+            &config.system_prompt,
+            config.tool_availability,
+        );
+        let player_verifier = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                app_application::agent::intentions::LlmPlayerIntentionVerifier::new(
+                    provider.clone(),
+                    config.model.clone(),
+                ),
+            ) as Arc<dyn app_application::agent::intentions::PlayerIntentionVerifier>
+        });
+        let human_commands = self.state.player_verification_enabled().then(|| {
+            Arc::new(
+                adapter_sqlite::room_human_commands::RoomHumanCommandLedger::new(
+                    SqliteStore::new(self.state.db().clone()),
+                    subject.lease().clone(),
+                    request_id,
+                    self.state.process_id(),
+                ),
+            )
+                as Arc<dyn app_application::agent::human_commands::HumanCommandLedgerRepository>
+        });
+        let runner = RoomDmRunner::new(
+            Arc::new(RoomAgentPorts::new(self.rooms.clone(), subject, request_id)),
+            provider.clone(),
+            AgentTurnConfig {
+                model: config.model,
+                system_prompt,
+                temperature: config.temperature,
+                max_rounds: config.max_rounds,
+                embedding_model: config.embedding_model,
+                reasoning_enabled: config.reasoning_enabled,
+                reasoning_budget: config.reasoning_budget,
+                tool_availability: config.tool_availability,
+                tools,
+                player_verifier,
+                narration_verifier: self.state.player_verification_enabled().then(|| {
+                    Arc::new(
+                        app_application::agent::narration::LlmNarrationVerifier::new(
+                            provider.clone(),
+                        ),
+                    )
+                        as Arc<dyn app_application::agent::narration::NarrationVerifier>
+                }),
+            },
+            lane,
+            self.state.process_id(),
+        )
+        .with_environment(environment);
+        let runner = if let Some(repository) = human_commands {
+            runner.with_human_commands(repository)
+        } else {
+            runner
+        };
+        runner
+            .with_clarification_reply(clarification)
+            .execute(player_message, resume)
+            .await
+            .map_err(|error| match error {
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "room_access_denied",
+                    ..
+                } => HttpServiceError::Unauthorized {
+                    code: "room_access_denied",
+                },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_request_mismatch"
+                        | "agent_turn_running"
+                        | "agent_turn_interrupted"
+                        | "agent_turn_superseded"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code:
+                        code @ ("agent_original_environment_changed"
+                        | "agent_original_environment_unavailable"),
+                    ..
+                } => HttpServiceError::Conflict { code },
+                app_application::ports::repositories::RepositoryError::Operation {
+                    code: "room_dm_request_invalid",
+                    ..
+                } => HttpServiceError::BadRequest {
+                    code: "room_dm_request_invalid",
+                },
+                _ => HttpServiceError::Internal {
+                    code: "room_dm_unavailable",
+                },
+            })
+    }
+}
+
+pub fn native_room_host_http_service(
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+    listener: Arc<dyn app_application::ports::room_listener::RoomListenerControl>,
+) -> Arc<dyn adapter_http::services::NativeRoomHostHttpService> {
+    Arc::new(AppStateNativeRoomHostService {
+        state,
+        rooms,
+        listener,
+        active: tokio::sync::Mutex::new(None),
+        pending_creation: tokio::sync::Mutex::new(None),
+    })
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedNativeHostBinding {
+    request: app_application::models::room_host::NativeHostRoomRequest,
+    address: std::net::SocketAddr,
+}
+struct ActiveNativeHost {
+    request: app_application::models::room_host::NativeHostRoomRequest,
+    grant: app_application::models::room_host::NativeHostRoomGrant,
+    running: bool,
+    closed: bool,
+    transport_stopped: bool,
+    pending_lane: Option<tokio::sync::OwnedMutexGuard<()>>,
+}
+struct AppStateNativeRoomHostService {
+    state: AppState,
+    rooms: Arc<app_application::rooms::RoomService>,
+    listener: Arc<dyn app_application::ports::room_listener::RoomListenerControl>,
+    active: tokio::sync::Mutex<Option<ActiveNativeHost>>,
+    pending_creation: tokio::sync::Mutex<
+        Option<(
+            app_application::models::room_host::NativeHostRoomRequest,
+            tokio::sync::OwnedMutexGuard<()>,
+        )>,
+    >,
+}
+impl AppStateNativeRoomHostService {
+    fn creation(
+        request: &app_application::models::room_host::NativeHostRoomRequest,
+    ) -> app_application::models::room::CreateLocalRoom {
+        app_application::models::room::CreateLocalRoom {
+            campaign_id: request.campaign_id,
+            session_id: request.session_id,
+            expected_revision: request.expected_revision,
+            causation_id: format!("native-host:{}", request.request_id),
+        }
+    }
+    async fn reconcile_creation(&self) -> Result<(), HttpServiceError> {
+        let mut pending = self.pending_creation.lock().await;
+        if let Some((request, _)) = pending.as_ref() {
+            self.rooms
+                .cancel_local_creation(&Self::creation(request))
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_cleanup_failed",
+                })?;
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_binding")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_request")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            *pending = None;
+        }
+        Ok(())
+    }
+    async fn cleanup(&self, active: &mut Option<ActiveNativeHost>) -> Result<(), HttpServiceError> {
+        use app_application::ports::repositories::RoomRepository;
+        let Some(current) = active.as_mut() else {
+            return Ok(());
+        };
+        current.running = false;
+        if !current.closed {
+            let record = SqliteStore::new(self.state.db().clone())
+                .room(current.grant.room.room_id)
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_close_failed",
+                })?
+                .ok_or(HttpServiceError::Conflict {
+                    code: "native_room_scope_changed",
+                })?;
+            if record.host_member_id != current.grant.member_id
+                || record.campaign_id != current.request.campaign_id
+                || record.session_id != current.request.session_id
+            {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_scope_changed",
+                });
+            }
+            if record.active {
+                let secret = app_application::rooms::RoomSecret::from_input(
+                    current.grant.capability.clone(),
+                )
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_credentials_invalid",
+                })?;
+                let subject = self
+                    .rooms
+                    .authenticate(record.room_id, record.host_member_id, &secret)
+                    .await
+                    .map_err(|_| HttpServiceError::Conflict {
+                        code: "native_host_room_closed",
+                    })?;
+                self.rooms
+                    .close(&subject)
+                    .await
+                    .map_err(|_| HttpServiceError::Internal {
+                        code: "native_room_close_failed",
+                    })?;
+            }
+            current.closed = true;
+        }
+        if !current.transport_stopped {
+            self.listener
+                .stop(current.grant.room.room_id)
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_room_stop_failed",
+                })?;
+            current.transport_stopped = true;
+        }
+        self.state
+            .secrets_repo()
+            .delete("native:host_room_binding")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        self.state
+            .secrets_repo()
+            .delete("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        *active = None;
+        Ok(())
+    }
+    async fn refresh_invitation(
+        &self,
+        current: &mut ActiveNativeHost,
+    ) -> Result<(), HttpServiceError> {
+        use app_application::ports::repositories::RoomRepository;
+        let record = SqliteStore::new(self.state.db().clone())
+            .room(current.grant.room.room_id)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_recovery_failed",
+            })?
+            .ok_or(HttpServiceError::Conflict {
+                code: "native_host_room_closed",
+            })?;
+        let subject = self
+            .rooms
+            .authenticate(
+                record.room_id,
+                current.grant.member_id,
+                &app_application::rooms::RoomSecret::from_input(current.grant.capability.clone())
+                    .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_credentials_invalid",
+                })?,
+            )
+            .await
+            .map_err(|_| HttpServiceError::Conflict {
+                code: "native_host_room_closed",
+            })?;
+        if record.invitation.consumed_by.is_some()
+            || app_application::rooms::RoomClock::now(&app_application::rooms::SystemRoomClock)
+                >= record.invitation.expires_at
+        {
+            self.rooms.rotate_invitation(&subject).await.map_err(|_| {
+                HttpServiceError::Internal {
+                    code: "native_host_invitation_failed",
+                }
+            })?;
+        }
+        // Reload the canonical secret: repeated recovery preserves a usable code.
+        let refreshed = self
+            .rooms
+            .create_local_room(Self::creation(&current.request))
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_recovery_failed",
+            })?;
+        current.grant.room = refreshed.grant.room;
+        current.grant.invitation = refreshed.invitation.expose().into();
+        Ok(())
+    }
+    fn copy_grant(
+        grant: &app_application::models::room_host::NativeHostRoomGrant,
+    ) -> app_application::models::room_host::NativeHostRoomGrant {
+        app_application::models::room_host::NativeHostRoomGrant {
+            room: grant.room.clone(),
+            member_id: grant.member_id,
+            capability: grant.capability.clone(),
+            invitation: grant.invitation.clone(),
+            address: grant.address,
+        }
+    }
+}
+#[async_trait]
+impl adapter_http::services::NativeRoomHostHttpService for AppStateNativeRoomHostService {
+    async fn recover(
+        &self,
+    ) -> Result<Option<app_application::models::room_host::NativeHostRoomGrant>, HttpServiceError>
+    {
+        let saved = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        let Some(saved) = saved else {
+            return Ok(None);
+        };
+        let request = serde_json::from_str(&saved).map_err(|_| HttpServiceError::Internal {
+            code: "native_host_record_invalid",
+        })?;
+        self.start(request).await.map(Some)
+    }
+
+    async fn start(
+        &self,
+        request: app_application::models::room_host::NativeHostRoomRequest,
+    ) -> Result<app_application::models::room_host::NativeHostRoomGrant, HttpServiceError> {
+        use app_application::{
+            models::room_host::NativeHostRoomGrant, ports::room_listener::RoomListenerSpec,
+        };
+        let mut active = self.active.lock().await;
+        self.reconcile_creation().await?;
+        if active.as_ref().is_some_and(|current| !current.running) {
+            self.cleanup(&mut active).await?;
+        }
+        if let Some(current) = active.as_mut() {
+            if current.request != request {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_already_hosted",
+                });
+            }
+            self.rooms
+                .authenticate(
+                    current.grant.room.room_id,
+                    current.grant.member_id,
+                    &app_application::rooms::RoomSecret::from_input(
+                        current.grant.capability.clone(),
+                    )
+                    .map_err(|_| HttpServiceError::Internal {
+                        code: "native_host_credentials_invalid",
+                    })?,
+                )
+                .await
+                .map_err(|_| HttpServiceError::Conflict {
+                    code: "native_host_room_closed",
+                })?;
+            self.refresh_invitation(current).await?;
+            return Ok(Self::copy_grant(&current.grant));
+        }
+        let persisted = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_request")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        if let Some(saved) = persisted {
+            let selected: app_application::models::room_host::NativeHostRoomRequest =
+                serde_json::from_str(&saved).map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_invalid",
+                })?;
+            if selected != request {
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_already_hosted",
+                });
+            }
+        }
+        let binding = self
+            .state
+            .secrets_repo()
+            .get("native:host_room_binding")
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?
+            .map(|saved| serde_json::from_str::<SavedNativeHostBinding>(&saved))
+            .transpose()
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_invalid",
+            })?;
+        if binding
+            .as_ref()
+            .is_some_and(|saved| saved.request != request || saved.address.port() == 0)
+        {
+            return Err(HttpServiceError::Conflict {
+                code: "native_room_scope_changed",
+            });
+        }
+        let bind_addr = binding
+            .as_ref()
+            .map_or(request.bind_addr, |saved| saved.address);
+        let lane = self
+            .state
+            .campaign_lane(request.campaign_id.0)
+            .try_lock_owned()
+            .map_err(|_| HttpServiceError::Conflict {
+                code: "agent_turn_running",
+            })?;
+        let saved = serde_json::to_string(&request).map_err(|_| HttpServiceError::Internal {
+            code: "native_host_record_invalid",
+        })?;
+        self.state
+            .secrets_repo()
+            .set("native:host_room_request", &saved)
+            .await
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_failed",
+            })?;
+        let created = match self.rooms.create_local_room(Self::creation(&request)).await {
+            Ok(created) => created,
+            Err(_) if binding.is_some() => {
+                return Err(HttpServiceError::Internal {
+                    code: "native_host_recovery_failed",
+                });
+            }
+            Err(_) => {
+                *self.pending_creation.lock().await = Some((request, lane));
+                self.reconcile_creation().await?;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_create_failed",
+                });
+            }
+        };
+        if !created.grant.room.active {
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_binding")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            self.state
+                .secrets_repo()
+                .delete("native:host_room_request")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?;
+            return Err(HttpServiceError::Conflict {
+                code: "native_host_request_superseded",
+            });
+        }
+        let room_id = created.grant.room.room_id;
+        *active = Some(ActiveNativeHost {
+            request: request.clone(),
+            grant: NativeHostRoomGrant {
+                room: created.grant.room,
+                member_id: created.grant.member_id,
+                capability: created.grant.capability.expose().into(),
+                invitation: created.invitation.expose().into(),
+                address: request.bind_addr,
+            },
+            running: false,
+            closed: false,
+            transport_stopped: false,
+            pending_lane: Some(lane),
+        });
+        let address = match self
+            .listener
+            .start(RoomListenerSpec { room_id, bind_addr })
+            .await
+        {
+            Ok(address) => address,
+            Err(_) if binding.is_some() => {
+                // A temporarily occupied saved port must not close the durable room.
+                *active = None;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_rebind_failed",
+                });
+            }
+            Err(_) => {
+                self.cleanup(&mut active).await?;
+                return Err(HttpServiceError::Conflict {
+                    code: "native_room_bind_failed",
+                });
+            }
+        };
+        if binding.is_none() {
+            let saved = serde_json::to_string(&SavedNativeHostBinding {
+                request: request.clone(),
+                address,
+            })
+            .map_err(|_| HttpServiceError::Internal {
+                code: "native_host_record_invalid",
+            })?;
+            if self
+                .state
+                .secrets_repo()
+                .set("native:host_room_binding", &saved)
+                .await
+                .is_err()
+            {
+                // Listener is live, so cleanup must stop it before reporting failure.
+                self.cleanup(&mut active).await?;
+                return Err(HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                });
+            }
+        }
+        let current = active
+            .as_mut()
+            .expect("native start retained its scoped state");
+        current.grant.address = address;
+        current.running = true;
+        current.pending_lane.take();
+        self.refresh_invitation(current).await?;
+        Ok(Self::copy_grant(&current.grant))
+    }
+    async fn stop(&self, room_id: Uuid) -> Result<(), HttpServiceError> {
+        let mut active = self.active.lock().await;
+        self.reconcile_creation().await?;
+        if active.is_none()
+            && self
+                .state
+                .secrets_repo()
+                .get("native:host_room_request")
+                .await
+                .map_err(|_| HttpServiceError::Internal {
+                    code: "native_host_record_failed",
+                })?
+                .is_some()
+        {
+            // No scoped in-process grant: never claim a persisted room was closed.
+            return Err(HttpServiceError::Conflict {
+                code: "native_host_recovery_required",
+            });
+        }
+        if active
+            .as_ref()
+            .is_some_and(|current| current.grant.room.room_id != room_id)
+        {
+            return Err(HttpServiceError::Conflict {
+                code: "native_room_scope_changed",
+            });
+        }
+        self.cleanup(&mut active).await
+    }
 }

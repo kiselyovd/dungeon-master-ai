@@ -1,0 +1,16 @@
+[[permission]]
+identifier = "main-application"
+description = "Game, provider and filesystem commands belong to the primary window."
+commands.allow = [
+    "desktop_aux_heartbeat",
+    "backend_port", "desktop_reset_geometry", "desktop_confirm_exit",
+    "desktop_parse_invitation", "desktop_take_invitation", "desktop_create_invitation",
+    "desktop_register_invitation_protocol", "desktop_notification_preferences",
+    "desktop_bundle_export", "desktop_bundle_pick_import", "desktop_bundle_confirm_import",
+    "desktop_bundle_cancel", "desktop_bundle_reveal", "desktop_set_notifications",
+    "desktop_notification_context", "desktop_offer_notification", "desktop_notification_qa_counts",
+    "desktop_notification_qa_shortcut", "desktop_notification_qa_enroll",
+    "host_room", "recover_host_room", "stop_host_room", "join_room", "resume_room",
+    "recover_guest_room", "saved_guest_rooms", "postpone_guest_room", "room_operation",
+    "stream_room", "cancel_room_stream", "desktop_aux_open", "desktop_aux_publish"
+]

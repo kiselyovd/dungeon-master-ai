@@ -4,6 +4,18 @@ Approved direction: calm classic high fantasy, painterly oil and gouache, warm p
 
 Approval date: 2026-08-12.
 
+## Evolved tabletop pilot, 2026-10-12
+
+The user-approved rich material/painting/miniature direction is specified in
+[PRODUCT_UIUX.md](PRODUCT_UIUX.md). Four selected versioned derivatives live in
+`src/assets/living-tabletop/v2/`; they preserve old asset identities. Combined
+encoded payload is 683274 bytes. Portrait and miniature use the same fighter
+face/costume; miniature alpha and actual-size readability were verified. The
+Archive skin matches the existing 12x8 domain layout and adds no rules. The
+dev-only fixture has a dedicated browser config and is excluded from normal
+production-browser discovery. Stable IDs/provenance and production binding are
+Task 8; no completed production renderer is claimed by this specimen.
+
 ## Wave 1
 
 | Role | Final path | Candidate | Pixels | Old bytes | New bytes | QA |

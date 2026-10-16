@@ -106,7 +106,7 @@ async function main(): Promise<void> {
 
     const noOnboarding = await evaluateInPage<boolean>(
       cdp,
-      `!(/Step\s+\d+\s+of\s+\d+/i.test(document.body.innerText))`,
+      String.raw`!(/(?:Step|Шаг)\s+\d+\s+(?:of|из)\s+\d+/i.test(document.body.innerText))`,
     );
     record('persisted onboarding state does not regress', noOnboarding);
 

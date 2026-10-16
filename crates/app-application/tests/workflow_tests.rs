@@ -41,6 +41,8 @@ use uuid::Uuid;
 struct FakeProvider {
     rounds: Mutex<VecDeque<Result<Vec<ChatChunk>, LlmError>>>,
     calls: AtomicUsize,
+    requests: Mutex<Vec<ChatRequest>>,
+    schemas: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeProvider {
@@ -48,6 +50,8 @@ impl FakeProvider {
         Self {
             rounds: Mutex::new(rounds.into_iter().map(Ok).collect()),
             calls: AtomicUsize::new(0),
+            requests: Mutex::new(vec![]),
+            schemas: Mutex::new(vec![]),
         }
     }
 
@@ -55,13 +59,24 @@ impl FakeProvider {
         Self {
             rounds: Mutex::new(VecDeque::from([Err(LlmError::Network("offline".into()))])),
             calls: AtomicUsize::new(0),
+            requests: Mutex::new(vec![]),
+            schemas: Mutex::new(vec![]),
         }
     }
 }
 
 #[async_trait]
 impl LlmProvider for FakeProvider {
-    async fn stream_chat(&self, _request: ChatRequest) -> Result<ChunkStream, LlmError> {
+    async fn stream_chat_json(
+        &self,
+        request: ChatRequest,
+        schema: serde_json::Value,
+    ) -> Result<ChunkStream, LlmError> {
+        self.schemas.lock().unwrap().push(schema);
+        self.stream_chat(request).await
+    }
+    async fn stream_chat(&self, request: ChatRequest) -> Result<ChunkStream, LlmError> {
+        self.requests.lock().unwrap().push(request);
         self.calls.fetch_add(1, Ordering::SeqCst);
         let chunks = self.rounds.lock().unwrap().pop_front().unwrap_or_else(|| {
             Ok(vec![ChatChunk::Done {
@@ -94,8 +109,11 @@ struct FakeContext;
 impl AgentContextPort for FakeContext {
     async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
         Ok(AgentContext {
+            reasoning_is_private: false,
+            adventure_active: false,
             system_prompt: request.base_system_prompt,
             combat_active: false,
+            public_intention_context: serde_json::Value::Null,
         })
     }
 }
@@ -141,6 +159,12 @@ struct FakeToolDispatcher {
 
 #[async_trait]
 impl ToolDispatcher for FakeToolDispatcher {
+    async fn replay(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Ok(None)
+    }
     async fn execute(
         &self,
         _request: ToolDispatchRequest,
@@ -184,7 +208,852 @@ fn config() -> AgentTurnConfig {
         reasoning_budget: ReasoningSpec::Medium,
         tool_availability: ToolAvailability::all(),
         tools: AgentToolCatalog::default(),
+        player_verifier: None,
+        narration_verifier: None,
     }
+}
+
+#[derive(Debug)]
+struct DraftFixtureVerifier {
+    checks: Mutex<Vec<app_application::agent::narration::NarrationCheck>>,
+}
+#[async_trait]
+impl app_application::agent::narration::NarrationVerifier for DraftFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::narration::NarrationCheck,
+    ) -> Result<
+        app_application::agent::narration::NarrationVerdict,
+        app_application::agent::narration::NarrationError,
+    > {
+        use app_application::agent::narration::{
+            NarrationVerdict, NarrationViolation, NarrationViolationCode,
+        };
+        let bad = check.draft.contains("воды") || check.draft.contains("летит");
+        self.checks.lock().unwrap().push(check.clone());
+        Ok(if bad {
+            NarrationVerdict::rejected(vec![NarrationViolation {
+                fact_id: check
+                    .evidence
+                    .facts
+                    .iter()
+                    .find(|fact| fact.id.starts_with("blocked_shot:"))
+                    .map(|fact| fact.id.clone())
+                    .unwrap_or_else(|| "public_state".into()),
+                code: NarrationViolationCode::InventedMechanism,
+                quote: check.draft.clone(),
+            }])
+        } else {
+            NarrationVerdict::verified()
+        })
+    }
+}
+fn narrated_service(
+    provider: Arc<FakeProvider>,
+    messages: Arc<FakeMessages>,
+    dispatcher: Arc<FakeToolDispatcher>,
+    checker: Arc<dyn app_application::agent::narration::NarrationVerifier>,
+) -> Arc<AgentTurnService> {
+    let mut settings = config();
+    settings.system_prompt = "PRIVATE_DM_SECRET".into();
+    settings.player_verifier = Some(Arc::new(SingleFixtureVerifier));
+    settings.narration_verifier = Some(checker);
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "combat_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages,
+        dispatcher,
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ))
+}
+fn narration_round(text: &str) -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::ThinkingDelta {
+            text: "PRIVATE_REPAIR_REASONING".into(),
+        },
+        ChatChunk::TextDelta { text: text.into() },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]
+}
+fn narration_repair_round(text: &str) -> Vec<ChatChunk> {
+    narration_round(&json!({"narration":text}).to_string())
+}
+fn refused_shot_dispatcher() -> Arc<FakeToolDispatcher> {
+    Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"error":"combat_obstructed","resolution":"rejected","messages":["PRIVATE_RESULT_HISTORY"],"private_sheet":"PRIVATE_OTHER_HERO"}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    })
+}
+#[tokio::test]
+async fn narration_correction_is_prose_only_and_bad_drafts_never_publish() {
+    let bad = "Твоя стрела летит в стену воды";
+    let good = "Препятствие перекрывает линию атаки. Выстрел не выполнен. Что делаешь?";
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "shot",
+            "combat_action",
+            json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+        )),
+        narration_round(bad),
+        narration_repair_round(good),
+    ]));
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = refused_shot_dispatcher();
+    let checker = Arc::new(DraftFixtureVerifier {
+        checks: Mutex::new(vec![]),
+    });
+    let events = narrated_service(
+        provider.clone(),
+        messages.clone(),
+        dispatcher.clone(),
+        checker.clone(),
+    )
+    .execute(command("narration-corrected"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, Ok(AgentEvent::TextDelta { .. })))
+            .count(),
+        1
+    );
+    assert!(events
+        .iter()
+        .any(|event| matches!(event,Ok(AgentEvent::TextDelta {text}) if text==good)));
+    assert!(!format!("{events:?}").contains(bad));
+    assert!(!format!("{events:?}").contains("PRIVATE_REPAIR_REASONING"));
+    let saved = messages.values.lock().unwrap();
+    assert!(matches!(saved.last(),Some(ChatMessage::Assistant {content}) if content==good));
+    assert!(!saved
+        .iter()
+        .any(|message| matches!(message,ChatMessage::Assistant {content} if content==bad)));
+    let requests = provider.requests.lock().unwrap();
+    let repair = requests.last().unwrap();
+    assert!(repair.tools.is_empty());
+    assert!(repair.reasoning.is_none());
+    let repair_text = serde_json::to_string(&repair.messages).unwrap();
+    for secret in [
+        "PRIVATE_DM_SECRET",
+        "PRIVATE_RESULT_HISTORY",
+        "PRIVATE_OTHER_HERO",
+        "PRIVATE_REPAIR_REASONING",
+    ] {
+        assert!(
+            !repair_text.contains(secret),
+            "repair request contains private information"
+        );
+    }
+    assert_eq!(checker.checks.lock().unwrap().len(), 2);
+    assert_eq!(
+        provider.schemas.lock().unwrap()[0]["required"],
+        json!(["narration"])
+    );
+    assert_eq!(
+        provider.schemas.lock().unwrap()[0]["additionalProperties"],
+        false
+    );
+    assert!(checker.checks.lock().unwrap()[0]
+        .evidence
+        .facts
+        .iter()
+        .any(|fact| fact.id.starts_with("blocked_shot:") && fact.required));
+}
+
+#[tokio::test]
+async fn unlocalized_negative_allows_only_one_checked_prose_correction_without_new_effects() {
+    use app_application::agent::narration::LlmNarrationVerifier;
+    for cleared in [false, true] {
+        for accepted in [false, true] {
+            let bad = "Ты чувствуешь страх и стреляешь снова.";
+            let good = "Препятствие перекрывает линию атаки. Выстрел не выполнен. Что делаешь?";
+            let provider = Arc::new(FakeProvider::scripted(vec![
+                agency_round(agency_tool(
+                    "shot",
+                    "combat_action",
+                    json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+                )),
+                narration_round(bad),
+                narration_repair_round(good),
+            ]));
+            let mut checks = vec![narration_round(r#"{"faithful":false}"#)];
+            if cleared {
+                checks.push(narration_round(r#"{"violations":[{"fact_id":"blocked_shot:shot","code":"required_discovery_omitted","quote":""}]}"#));
+                checks.push(narration_round(r#"{"conveyed":true}"#));
+            } else {
+                checks.push(narration_round(r#"{"violations":[]}"#));
+            }
+            if accepted {
+                checks.extend([
+                    narration_round(r#"{"faithful":true}"#),
+                    narration_round(r#"{"narration":true}"#),
+                    narration_round(r#"{"conveyed":true}"#),
+                ]);
+            } else {
+                checks.extend([
+                    narration_round(r#"{"faithful":false}"#),
+                    narration_round(r#"{"violations":[]}"#),
+                ]);
+            }
+            let checker_provider = Arc::new(FakeProvider::scripted(checks));
+            let dispatcher = refused_shot_dispatcher();
+            let messages = Arc::new(FakeMessages::default());
+            let events = narrated_service(
+                provider.clone(),
+                messages.clone(),
+                dispatcher.clone(),
+                Arc::new(LlmNarrationVerifier::new(checker_provider)),
+            )
+            .execute(command("unlocalized-narration"))
+            .collect::<Vec<_>>()
+            .await;
+            assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                accepted,
+                "{events:?}"
+            );
+            assert!(!format!("{events:?}").contains(bad));
+            let final_texts = events
+                .iter()
+                .filter_map(|event| match event {
+                    Ok(AgentEvent::TextDelta { text }) => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(final_texts, if accepted { vec![good] } else { vec![] });
+            let saved = messages.values.lock().unwrap();
+            assert!(!saved
+                .iter()
+                .any(|message| matches!(message,ChatMessage::Assistant {content} if content==bad)));
+            assert_eq!(
+                saved.iter().any(
+                    |message| matches!(message,ChatMessage::Assistant {content} if content==good)
+                ),
+                accepted
+            );
+            let requests = provider.requests.lock().unwrap();
+            assert_eq!(
+                requests.len(),
+                3,
+                "one correction, never a third generation after a second refusal"
+            );
+            assert!(requests[2].tools.is_empty());
+            let ChatMessage::User { parts } = &requests[2].messages[0] else {
+                panic!("repair data")
+            };
+            let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+                panic!("text data")
+            };
+            let input: serde_json::Value = serde_json::from_str(text).unwrap();
+            assert_eq!(input["unverified"], true);
+            assert_eq!(
+                input["rejected_claims"],
+                json!([]),
+                "no invented localization"
+            );
+            assert!(!text.contains(bad));
+            assert!(!text.contains("PRIVATE_DM_SECRET"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn malformed_or_truncated_diagnostics_never_enable_generic_correction() {
+    use app_application::agent::narration::LlmNarrationVerifier;
+    for (diagnostics, reason) in [
+        (r#"{"violations":[],"unverified":true}"#, FinishReason::Stop),
+        (r#"{"violations":[]}"#, FinishReason::Length),
+        ("bad JSON", FinishReason::Stop),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "shot",
+                "combat_action",
+                json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+            )),
+            narration_round("Ты чувствуешь страх."),
+        ]));
+        let checker = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
+            vec![
+                ChatChunk::TextDelta {
+                    text: diagnostics.into(),
+                },
+                ChatChunk::Done { reason },
+            ],
+        ]));
+        let dispatcher = refused_shot_dispatcher();
+        let events = narrated_service(
+            provider.clone(),
+            Arc::new(FakeMessages::default()),
+            dispatcher.clone(),
+            Arc::new(LlmNarrationVerifier::new(checker)),
+        )
+        .execute(command("invalid-diagnostics"))
+        .collect::<Vec<_>>()
+        .await;
+        assert!(matches!(events.last(), Some(Err(_))));
+        assert!(!events.iter().any(|e| matches!(
+            e,
+            Ok(AgentEvent::TextDelta { .. } | AgentEvent::AgentDone { .. })
+        )));
+        assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            provider.requests.lock().unwrap().len(),
+            2,
+            "no correction on malformed assessment"
+        );
+    }
+}
+
+#[test]
+fn clearing_localized_claims_cannot_upgrade_a_negative_verdict() {
+    use app_application::agent::narration::{
+        NarrationVerdict, NarrationViolation, NarrationViolationCode,
+    };
+    let mut verdict = NarrationVerdict::rejected(vec![NarrationViolation {
+        fact_id: "public_state".into(),
+        code: NarrationViolationCode::UnconfirmedEffect,
+        quote: "claim".into(),
+    }]);
+    verdict.violations.clear();
+    assert!(verdict.is_unverified());
+    assert!(!verdict.publishable());
+    assert!(NarrationVerdict::verified().publishable());
+}
+
+#[test]
+fn required_discovery_keeps_its_quay_origin_after_later_travel_in_the_same_request() {
+    use app_application::{
+        agent::{intentions::ResolvedPlayerIntention, narration::narration_evidence},
+        models::adventure::{AdventureState, Fact, Location},
+    };
+    let mut state = AdventureState::new();
+    state.location = Location::Archive;
+    state.facts.insert(Fact::WardDamaged);
+    let attempts = vec![
+        ResolvedPlayerIntention {
+            tool_call_id: "inspect".into(),
+            tool_name: "adventure_action".into(),
+            args: json!({"action":{"kind":"inspect_quay"}}),
+            rejected: false,
+            result: json!({}),
+        },
+        ResolvedPlayerIntention {
+            tool_call_id: "move".into(),
+            tool_name: "adventure_action".into(),
+            args: json!({"action":{"kind":"move","location":"archive"}}),
+            rejected: false,
+            result: json!({}),
+        },
+    ];
+    let context = json!({"adventure":{"state":state}});
+    let evidence = narration_evidence(&context, &attempts);
+    let fact = evidence
+        .facts
+        .iter()
+        .find(|f| f.id == "ward_inspection")
+        .unwrap();
+    assert!(fact.required);
+    assert!(fact.text.contains("OLD QUAY"));
+    assert!(fact.text.contains("НА СТАРОМ ПРИЧАЛЕ"));
+    assert!(fact
+        .text
+        .contains("not a new inspection at another location"));
+    assert!(fact.text.contains("No material, plate construction"));
+    assert!(
+        !narration_evidence(&context, &[])
+            .facts
+            .iter()
+            .find(|f| f.id == "ward_inspection")
+            .unwrap()
+            .required
+    );
+}
+#[tokio::test]
+async fn rejected_narration_resumes_confirmed_attempt_without_dispatching_again() {
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "shot",
+            "combat_action",
+            json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+        )),
+        narration_round("Стрела летит"),
+        narration_repair_round("Возникает стена воды"),
+        narration_round("Препятствие перекрывает линию атаки. Выстрел не выполнен."),
+    ]));
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = refused_shot_dispatcher();
+    let checker = Arc::new(DraftFixtureVerifier {
+        checks: Mutex::new(vec![]),
+    });
+    let service = narrated_service(provider, messages.clone(), dispatcher.clone(), checker);
+    let original = command("narration-resume");
+    let events = service
+        .clone()
+        .execute(original.clone())
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(
+            events.last(),
+            Some(Err(AgentTurnError::Runtime("narration_unfaithful")))
+        ),
+        "{events:?}"
+    );
+    assert!(!events.iter().any(|event| matches!(
+        event,
+        Ok(AgentEvent::TextDelta { .. } | AgentEvent::AgentDone { .. })
+    )));
+    let checkpoint = messages.values.lock().unwrap().clone();
+    assert!(matches!(
+        checkpoint.last(),
+        Some(ChatMessage::ToolResult(_))
+    ));
+    let resumed = service
+        .execute_recovered(original, Some(checkpoint))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(resumed.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{resumed:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        messages
+            .values
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| matches!(m, ChatMessage::User { .. }))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn narration_checker_validates_schema_fact_ids_terminal_and_privacy() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationVerifier,
+    };
+    for (text, reason, valid) in [
+        (r#"{"violations":[]}"#, FinishReason::Stop, true),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
+            FinishReason::Stop,
+            true,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"invented","code":"unconfirmed_effect","quote":"Препятствие"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unknown","quote":"Препятствие"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":"invented quote"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect","quote":""}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"required_discovery_omitted","quote":""}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+            FinishReason::Stop,
+            true,
+        ),
+        (
+            r#"{"violations":[{"fact_id":"public_state","code":"unconfirmed_effect"}]}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"violations":[],"allowed":true}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (r#"{"violations":[]}"#, FinishReason::Length, false),
+    ] {
+        let mut rounds = vec![
+            narration_round(r#"{"faithful":false}"#),
+            vec![
+                ChatChunk::ThinkingDelta {
+                    text: "PRIVATE_CHECK_REASONING".into(),
+                },
+                ChatChunk::TextDelta { text: text.into() },
+                ChatChunk::Done { reason },
+            ],
+        ];
+        if valid && text.contains("required_discovery_omitted") {
+            rounds.push(narration_round(r#"{"conveyed":false}"#));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
+        let result = LlmNarrationVerifier::new(provider.clone())
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Стреляю".into(),
+                draft: "Препятствие мешает выстрелу".into(),
+                evidence: {
+                    let mut evidence = narration_evidence(&json!({"hero_name":"Федор"}), &[]);
+                    evidence
+                        .facts
+                        .push(app_application::agent::narration::NarrationFact {
+                            id: "discovery".into(),
+                            text: "A required confirmed discovery".into(),
+                            required: true,
+                        });
+                    evidence
+                },
+            })
+            .await;
+        assert_eq!(result.is_ok(), valid, "{text}");
+        let requests = provider.requests.lock().unwrap();
+        assert!(requests[0].tools.is_empty());
+        assert_eq!(requests[0].model, "saved-A");
+        assert!(!serde_json::to_string(&requests[0])
+            .unwrap()
+            .contains("PRIVATE_CHECK_REASONING"));
+    }
+}
+
+#[tokio::test]
+async fn faithful_narration_still_requires_each_discovery_and_complete_typed_verdict() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    for (decision, terminal, coverage, expected) in [
+        (
+            r#"{"faithful":true}"#,
+            FinishReason::Stop,
+            Some(true),
+            Some(0),
+        ),
+        (
+            r#"{"faithful":true}"#,
+            FinishReason::Stop,
+            Some(false),
+            Some(1),
+        ),
+        (r#"{"faithful":"yes"}"#, FinishReason::Stop, None, None),
+        (
+            r#"{"faithful":true,"extra":1}"#,
+            FinishReason::Stop,
+            None,
+            None,
+        ),
+        (r#"{"faithful":true}"#, FinishReason::Length, None, None),
+        ("", FinishReason::Stop, None, None),
+    ] {
+        let mut rounds = vec![vec![
+            ChatChunk::TextDelta {
+                text: decision.into(),
+            },
+            ChatChunk::Done { reason: terminal },
+        ]];
+        if let Some(conveyed) = coverage {
+            rounds.push(narration_round(r#"{"narration":true}"#));
+            rounds.push(narration_round(&json!({"conveyed":conveyed}).to_string()));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "ward_inspection".into(),
+            text: "Fresh tool marks on the ward where the clapper was removed.".into(),
+            required: true,
+        });
+        let result = LlmNarrationVerifier::new(provider.clone())
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю оберег".into(),
+                draft: "На обереге свежие следы инструмента там, где сняли язык колокола.".into(),
+                evidence,
+            })
+            .await;
+        assert_eq!(
+            result.ok().map(|v| v.violations.len()),
+            expected,
+            "{decision}"
+        );
+        assert!(provider
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|r| r.tools.is_empty() && r.model == "saved-A"));
+    }
+}
+
+#[tokio::test]
+async fn negative_faithfulness_cannot_be_overridden_by_cleared_diagnostics() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        narration_round(r#"{"faithful":false}"#),
+        narration_round(
+            r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+        ),
+        narration_round(r#"{"conveyed":true}"#),
+    ]));
+    let mut evidence = narration_evidence(&json!({}), &[]);
+    evidence.facts.push(NarrationFact {
+        id: "discovery".into(),
+        text: "Confirmed discovery".into(),
+        required: true,
+    });
+    let verdict = LlmNarrationVerifier::new(provider)
+        .assess(NarrationCheck {
+            model: "saved-A".into(),
+            player_message: "Осматриваю".into(),
+            draft: "Улика обнаружена, и герой сам ушёл в архив.".into(),
+            evidence,
+        })
+        .await
+        .unwrap();
+    assert!(!verdict.publishable());
+    assert!(verdict.is_unverified());
+    assert!(verdict.violations.is_empty(), "no fabricated localization");
+}
+
+#[tokio::test]
+async fn faithful_facts_do_not_publish_internal_planning_or_ignore_a_second_discovery() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+        NarrationViolationCode,
+    };
+    for narration in [false, true] {
+        let mut rounds = vec![
+            narration_round(r#"{"faithful":true}"#),
+            narration_round(&json!({"narration":narration}).to_string()),
+        ];
+        if narration {
+            rounds.push(narration_round(r#"{"conveyed":true}"#));
+            rounds.push(narration_round(r#"{"conveyed":false}"#));
+        }
+        let provider = Arc::new(FakeProvider::scripted(rounds));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        for id in ["first", "second"] {
+            evidence.facts.push(NarrationFact {
+                id: id.into(),
+                text: format!("Confirmed {id} discovery"),
+                required: true,
+            });
+        }
+        let verdict = LlmNarrationVerifier::new(provider)
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю".into(),
+                draft: "Нужно написать об обнаруженной улике, затем задать вопрос.".into(),
+                evidence,
+            })
+            .await
+            .unwrap();
+        assert_eq!(verdict.violations.len(), 1);
+        if narration {
+            assert_eq!(verdict.violations[0].fact_id, "second");
+            assert!(matches!(
+                verdict.violations[0].code,
+                NarrationViolationCode::RequiredDiscoveryOmitted
+            ));
+        } else {
+            assert!(matches!(
+                verdict.violations[0].code,
+                NarrationViolationCode::NonNarrationText
+            ));
+        }
+    }
+}
+
+#[test]
+fn narration_repair_rejects_prose_planning_empty_or_extra_fields() {
+    use app_application::agent::narration::parse_repair;
+    assert_eq!(
+        parse_repair(r#"{"narration":"Оберег повреждён. Язык снят. Что делаешь?"}"#).unwrap(),
+        "Оберег повреждён. Язык снят. Что делаешь?"
+    );
+    for invalid in [
+        "Let me analyze the draft",
+        r#"{"narration":"   "}"#,
+        r#"{"analysis":"private","narration":"story"}"#,
+        r#"{"narration":42}"#,
+        r#"{"text":"story"}"#,
+    ] {
+        assert!(parse_repair(invalid).is_err(), "{invalid}");
+    }
+}
+
+#[tokio::test]
+async fn positive_discovery_coverage_can_clear_only_reported_omissions() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+        NarrationViolationCode,
+    };
+    for conveyed in [false, true] {
+        let first = json!({"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"discovery","code":"required_discovery_omitted","quote":""},{"fact_id":"public_state","code":"unconfirmed_effect","quote":"Стрела летит"}]});
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
+            narration_round(&first.to_string()),
+            narration_round(&json!({"conveyed":conveyed}).to_string()),
+        ]));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "discovery".into(),
+            text: "Fresh tool marks on the ward; the clapper was removed.".into(),
+            required: true,
+        });
+        let verdict = LlmNarrationVerifier::new(provider.clone())
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "PRIVATE_UNRELATED_HISTORY".into(),
+                draft: "На обереге следы инструмента, язык снят. Стрела летит".into(),
+                evidence,
+            })
+            .await
+            .unwrap();
+        assert_eq!(verdict.violations.len(), if conveyed { 1 } else { 3 });
+        assert!(verdict
+            .violations
+            .iter()
+            .any(|v| matches!(v.code, NarrationViolationCode::UnconfirmedEffect)));
+        let requests = provider.requests.lock().unwrap();
+        assert_eq!(
+            requests.len(),
+            3,
+            "duplicate omission should reuse coverage"
+        );
+        assert_eq!(requests[2].model, "saved-A");
+        assert!(requests[2].tools.is_empty());
+        let payload = serde_json::to_string(&requests[2].messages).unwrap();
+        assert!(!payload.contains("PRIVATE_UNRELATED_HISTORY"));
+        assert!(!payload.contains("public_context"));
+    }
+}
+#[tokio::test]
+async fn incomplete_or_malformed_discovery_coverage_never_accepts_the_draft() {
+    use app_application::agent::narration::{
+        narration_evidence, LlmNarrationVerifier, NarrationCheck, NarrationFact, NarrationVerifier,
+    };
+    for (body, terminal) in [
+        (r#"{"conveyed":"yes"}"#, FinishReason::Stop),
+        (r#"{"conveyed":true,"extra":"ignore"}"#, FinishReason::Stop),
+        (r#"{"conveyed":true}"#, FinishReason::Length),
+        ("", FinishReason::Stop),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![
+            narration_round(r#"{"faithful":false}"#),
+            narration_round(
+                r#"{"violations":[{"fact_id":"discovery","code":"required_discovery_omitted","quote":""}]}"#,
+            ),
+            vec![
+                ChatChunk::TextDelta { text: body.into() },
+                ChatChunk::Done { reason: terminal },
+            ],
+        ]));
+        let mut evidence = narration_evidence(&json!({}), &[]);
+        evidence.facts.push(NarrationFact {
+            id: "discovery".into(),
+            text: "Confirmed discovery".into(),
+            required: true,
+        });
+        assert!(LlmNarrationVerifier::new(provider)
+            .assess(NarrationCheck {
+                model: "saved-A".into(),
+                player_message: "Осматриваю".into(),
+                draft: "Ответ".into(),
+                evidence
+            })
+            .await
+            .is_err());
+    }
+}
+
+#[test]
+fn narration_obstructions_are_attempt_scoped_and_distinguish_movement_weapons_and_spells() {
+    use app_application::agent::{
+        intentions::ResolvedPlayerIntention, narration::narration_evidence,
+    };
+    let resolved = [
+        ("move", json!({"kind":"move","x":6,"y":2}), "blocked_move:"),
+        (
+            "bow",
+            json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow"}),
+            "blocked_shot:",
+        ),
+        (
+            "sword",
+            json!({"kind":"weapon","mode":"melee","weapon_id":"longsword"}),
+            "blocked_attack:",
+        ),
+        (
+            "spell",
+            json!({"kind":"spell","spell_id":"fire-bolt"}),
+            "blocked_spell:",
+        ),
+    ]
+    .map(|(id, args, _)| ResolvedPlayerIntention {
+        tool_call_id: id.into(),
+        tool_name: "combat_action".into(),
+        args,
+        rejected: true,
+        result: json!({"error":"combat_obstructed","resolution":"rejected"}),
+    });
+    let evidence = narration_evidence(&json!({}), &resolved);
+    for (id, prefix) in [
+        ("move", "blocked_move:"),
+        ("bow", "blocked_shot:"),
+        ("sword", "blocked_attack:"),
+        ("spell", "blocked_spell:"),
+    ] {
+        assert!(evidence
+            .facts
+            .iter()
+            .any(|fact| fact.id == format!("{prefix}{id}") && fact.required));
+    }
+    let moved = evidence
+        .facts
+        .iter()
+        .find(|fact| fact.id == "blocked_move:move")
+        .unwrap();
+    assert!(!moved.text.contains("projectile flight"));
+    assert!(!moved.text.contains("before any shot"));
+    let spell = evidence
+        .facts
+        .iter()
+        .find(|fact| fact.id == "blocked_spell:spell")
+        .unwrap();
+    assert!(spell.text.contains("before casting"));
 }
 
 fn command(request_id: &str) -> AgentTurnCommand {
@@ -202,7 +1071,7 @@ fn command(request_id: &str) -> AgentTurnCommand {
 }
 
 fn service(
-    provider: Arc<FakeProvider>,
+    provider: Arc<dyn LlmProvider>,
     messages: Arc<FakeMessages>,
     dispatcher: Arc<FakeToolDispatcher>,
     events: Arc<dyn ApplicationEventSink>,
@@ -220,6 +1089,143 @@ fn service(
     ))
 }
 
+#[tokio::test]
+async fn recovered_final_reply_is_delivered_without_generating_or_appending_again() {
+    let provider = Arc::new(FakeProvider::failing());
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let events = service(
+        provider.clone(),
+        messages.clone(),
+        dispatcher,
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+    )
+    .execute_recovered(
+        command("final-checkpoint"),
+        Some(vec![
+            ChatMessage::user_text("act"),
+            ChatMessage::Assistant {
+                content: "Confirmed reply".into(),
+            },
+        ]),
+    )
+    .collect::<Vec<_>>()
+    .await;
+    assert!(events
+        .iter()
+        .any(|event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text=="Confirmed reply")));
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    assert!(messages.values.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn provider_eof_does_not_commit_an_unfinished_assistant_reply() {
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let output = service(
+        Arc::new(FakeProvider::scripted(vec![vec![ChatChunk::TextDelta {
+            text: "Unfinished draft".into(),
+        }]])),
+        messages.clone(),
+        dispatcher,
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+    )
+    .execute(command("partial-eof"))
+    .collect::<Vec<_>>()
+    .await;
+    assert_eq!(output.last(), Some(&Err(AgentTurnError::Provider)));
+    assert!(!output
+        .iter()
+        .any(|event| matches!(event, Ok(AgentEvent::AgentDone { .. }))));
+    assert!(matches!(
+        messages.values.lock().unwrap().as_slice(),
+        [ChatMessage::User { .. }]
+    ));
+}
+
+struct HangingProvider {
+    before_stream: bool,
+    entered: tokio::sync::Notify,
+}
+#[async_trait]
+impl LlmProvider for HangingProvider {
+    async fn stream_chat(&self, _: ChatRequest) -> Result<ChunkStream, LlmError> {
+        self.entered.notify_one();
+        if self.before_stream {
+            futures::future::pending().await
+        } else {
+            Ok(stream::pending().boxed())
+        }
+    }
+    fn name(&self) -> &'static str {
+        "hanging"
+    }
+    fn active_model(&self) -> &str {
+        "hanging"
+    }
+    fn capabilities_for_model(&self, _: &str) -> Capabilities {
+        Capabilities::default()
+    }
+}
+#[tokio::test]
+async fn cancellation_wakes_both_provider_connection_and_chunk_waits() {
+    for before_stream in [true, false] {
+        let provider = Arc::new(HangingProvider {
+            before_stream,
+            entered: tokio::sync::Notify::new(),
+        });
+        let cancellation =
+            Arc::new(app_application::agent::operations::TurnCancellation::default());
+        let dispatcher = Arc::new(FakeToolDispatcher {
+            execution: ToolExecution {
+                result: json!({}),
+                is_error: false,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+            calls: AtomicUsize::new(0),
+        });
+        let events = service(
+            provider.clone(),
+            Arc::new(FakeMessages::default()),
+            dispatcher,
+            Arc::new(NoopApplicationEventSink),
+            cancellation.clone(),
+        )
+        .execute(command("hanging"));
+        let task = tokio::spawn(events.collect::<Vec<_>>());
+        provider.entered.notified().await;
+        cancellation.cancel();
+        let output = tokio::time::timeout(std::time::Duration::from_millis(500), task)
+            .await
+            .expect("cancel must wake provider wait")
+            .unwrap();
+        assert_eq!(output.last(), Some(&Err(AgentTurnError::Cancelled)));
+    }
+}
+
 fn event_kind(event: &AgentEvent) -> &'static str {
     match event {
         AgentEvent::TextDelta { .. } => "text_delta",
@@ -229,6 +1235,8 @@ fn event_kind(event: &AgentEvent) -> &'static str {
         AgentEvent::ImageGenerated { .. } => "image_generated",
         AgentEvent::VideoGenerated { .. } => "video_generated",
         AgentEvent::AgentDone { .. } => "agent_done",
+        AgentEvent::AgentNeedsInput { .. } => "agent_needs_input",
+        AgentEvent::AgentFailed => "agent_failed",
     }
 }
 
@@ -267,6 +1275,7 @@ async fn agent_turn_orders_media_before_tool_result_and_persists_each_role() {
             is_error: false,
             handled_by: "image-provider".into(),
             media: vec![GeneratedAgentMedia::Image {
+                media_ref: None,
                 mime_type: "image/png".into(),
                 data_b64: "AA==".into(),
                 kind: "map".into(),
@@ -363,9 +1372,14 @@ async fn agent_turn_rejects_unknown_tool_without_calling_dispatcher() {
                 reason: FinishReason::ToolUse,
             },
         ],
-        vec![ChatChunk::Done {
-            reason: FinishReason::Stop,
-        }],
+        vec![
+            ChatChunk::TextDelta {
+                text: "The requested tool is unavailable.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
     ]));
     let dispatcher = Arc::new(FakeToolDispatcher {
         execution: ToolExecution {
@@ -453,9 +1467,14 @@ async fn agent_turn_surfaces_provider_persistence_cancellation_and_duplicate_fai
     assert_eq!(cancelled, [Err(AgentTurnError::Cancelled)]);
 
     let duplicate_service = service(
-        Arc::new(FakeProvider::scripted(vec![vec![ChatChunk::Done {
-            reason: FinishReason::Stop,
-        }]])),
+        Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta {
+                text: "Confirmed.".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ]])),
         Arc::new(FakeMessages::default()),
         dispatcher,
         Arc::new(NoopApplicationEventSink),
@@ -473,20 +1492,83 @@ async fn agent_turn_surfaces_provider_persistence_cancellation_and_duplicate_fai
 
 struct FakeCombatRepository {
     projection: Mutex<CombatProjection>,
+    receipts: Mutex<std::collections::HashMap<(Uuid, String), (String, CombatProjection)>>,
     writes: AtomicUsize,
     fail_write: AtomicBool,
 }
 
 #[async_trait]
 impl CombatRepository for FakeCombatRepository {
+    async fn find_action(
+        &self,
+        encounter_id: Uuid,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<Option<CombatProjection>, RepositoryError> {
+        match self
+            .receipts
+            .lock()
+            .unwrap()
+            .get(&(encounter_id, request_id.into()))
+        {
+            Some((original, projection)) if original == signature => Ok(Some(projection.clone())),
+            Some(_) => Err(RepositoryError::Operation {
+                operation: "combat_receipt",
+                code: "combat_request_mismatch",
+            }),
+            None => Ok(None),
+        }
+    }
+    async fn commit_action(
+        &self,
+        expected_revision: u64,
+        projection: CombatProjection,
+        request_id: &str,
+        signature: &str,
+    ) -> Result<app_application::models::combat::CombatActionCommit, RepositoryError> {
+        let mut receipts = self.receipts.lock().unwrap();
+        let key = (projection.encounter_id, request_id.into());
+        if let Some((original, recorded)) = receipts.get(&key) {
+            if original != signature {
+                return Err(RepositoryError::Operation {
+                    operation: "combat_receipt",
+                    code: "combat_request_mismatch",
+                });
+            }
+            return Ok(app_application::models::combat::CombatActionCommit {
+                projection: recorded.clone(),
+                duplicate: true,
+            });
+        }
+        if self.fail_write.load(Ordering::SeqCst) {
+            return Err(RepositoryError::Operation {
+                operation: "combat_cas",
+                code: "injected",
+            });
+        }
+        let mut current = self.projection.lock().unwrap();
+        if current.revision != expected_revision {
+            return Err(RepositoryError::RevisionConflict {
+                expected: expected_revision,
+                actual: current.revision,
+            });
+        }
+        *current = projection.clone();
+        self.writes.fetch_add(1, Ordering::SeqCst);
+        receipts.insert(key, (signature.into(), projection.clone()));
+        Ok(app_application::models::combat::CombatActionCommit {
+            projection,
+            duplicate: false,
+        })
+    }
     async fn create(
         &self,
         _session_id: Uuid,
         projection: CombatProjection,
-    ) -> Result<(), RepositoryError> {
-        *self.projection.lock().unwrap() = projection;
+    ) -> Result<CombatProjection, RepositoryError> {
+        *self.projection.lock().unwrap() = projection.clone();
         self.writes.fetch_add(1, Ordering::SeqCst);
-        Ok(())
+        Ok(projection)
     }
 
     async fn get(&self, _encounter_id: Uuid) -> Result<Option<CombatProjection>, RepositoryError> {
@@ -529,7 +1611,15 @@ fn combat_fixture() -> (Arc<FakeCombatRepository>, CombatantId, CombatantId, Uui
     let attacker = CombatantId(Uuid::new_v4());
     let target = CombatantId(Uuid::new_v4());
     let repository = Arc::new(FakeCombatRepository {
+        receipts: Mutex::new(std::collections::HashMap::new()),
         projection: Mutex::new(CombatProjection {
+            authored: None,
+
+            adventure: None,
+
+            campaign_scope: None,
+
+            appearances: Default::default(),
             schema_version: COMBAT_PROJECTION_VERSION,
             encounter_id,
             revision: 4,
@@ -631,4 +1721,1188 @@ async fn combat_resolution_rejects_stale_revision_and_has_no_partial_write() {
     assert!(matches!(failed, Err(ResolveCombatError::Persistence)));
     assert_eq!(repository.projection.lock().unwrap().revision, 4);
     assert_eq!(repository.writes.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn invalid_provider_terminal_rounds_never_commit_or_dispatch() {
+    let call = || {
+        vec![
+            ChatChunk::ToolCallStart {
+                id: "call-1".into(),
+                name: "roll_dice".into(),
+            },
+            ChatChunk::ToolCallArgsDelta {
+                id: "call-1".into(),
+                args_fragment: r#"{"dice":"1d20"}"#.into(),
+            },
+            ChatChunk::ToolCallDone {
+                id: "call-1".into(),
+            },
+        ]
+    };
+    let mut cases = vec![
+        (
+            "length",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Length,
+                },
+            ],
+        ),
+        (
+            "error",
+            vec![
+                ChatChunk::TextDelta {
+                    text: "unfinished".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::Error,
+                },
+            ],
+        ),
+        (
+            "empty-stop",
+            vec![ChatChunk::Done {
+                reason: FinishReason::Stop,
+            }],
+        ),
+        (
+            "blank-stop",
+            vec![
+                ChatChunk::TextDelta { text: " \n".into() },
+                ChatChunk::Done {
+                    reason: FinishReason::Stop,
+                },
+            ],
+        ),
+        (
+            "empty-tool-use",
+            vec![ChatChunk::Done {
+                reason: FinishReason::ToolUse,
+            }],
+        ),
+        (
+            "unfinished-tool",
+            vec![
+                ChatChunk::ToolCallStart {
+                    id: "call-1".into(),
+                    name: "roll_dice".into(),
+                },
+                ChatChunk::Done {
+                    reason: FinishReason::ToolUse,
+                },
+            ],
+        ),
+    ];
+    for (label, reason) in [
+        ("truncated-tools", FinishReason::Length),
+        ("stop-with-tools", FinishReason::Stop),
+    ] {
+        let mut chunks = call();
+        chunks.push(ChatChunk::Done { reason });
+        cases.push((label, chunks));
+    }
+    for (label, chunks) in cases {
+        let messages = Arc::new(FakeMessages::default());
+        let dispatcher = Arc::new(FakeToolDispatcher {
+            execution: ToolExecution {
+                result: json!({}),
+                is_error: false,
+                handled_by: "engine".into(),
+                media: vec![],
+            },
+            calls: AtomicUsize::new(0),
+        });
+        let output = service(
+            Arc::new(FakeProvider::scripted(vec![chunks])),
+            messages.clone(),
+            dispatcher.clone(),
+            Arc::new(NoopApplicationEventSink),
+            Arc::new(NeverCancelled),
+        )
+        .execute(command(label))
+        .collect::<Vec<_>>()
+        .await;
+        assert!(
+            matches!(output.last(), Some(Err(AgentTurnError::Provider))),
+            "{label}: {output:?}"
+        );
+        assert!(
+            !output
+                .iter()
+                .any(|event| matches!(event, Ok(AgentEvent::AgentDone { .. }))),
+            "{label}"
+        );
+        assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 0, "{label}");
+        assert_eq!(
+            messages.values.lock().unwrap().len(),
+            1,
+            "only user persists: {label}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn exhausted_rounds_resume_confirmed_tools_without_repeating_dispatch() {
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        vec![
+            ChatChunk::ToolCallStart {
+                id: "confirmed-roll".into(),
+                name: "roll_dice".into(),
+            },
+            ChatChunk::ToolCallArgsDelta {
+                id: "confirmed-roll".into(),
+                args_fragment: r#"{"dice":"1d20"}"#.into(),
+            },
+            ChatChunk::ToolCallDone {
+                id: "confirmed-roll".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::ToolUse,
+            },
+        ],
+        vec![
+            ChatChunk::TextDelta {
+                text: "Confirmed result".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+    ]));
+    let messages = Arc::new(FakeMessages::default());
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"total":14}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let mut one_round = config();
+    one_round.max_rounds = 1;
+    let service = Arc::new(AgentTurnService::new(
+        provider.clone(),
+        Arc::new(FakeContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        one_round,
+    ));
+    let original = command("round-limit");
+    let first = service
+        .clone()
+        .execute(original.clone())
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(first.last(), Some(Err(AgentTurnError::Provider))),
+        "{first:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let checkpoint = messages.values.lock().unwrap().clone();
+    assert!(matches!(
+        checkpoint.last(),
+        Some(ChatMessage::ToolResult(_))
+    ));
+    let resumed = service
+        .execute_recovered(original, Some(checkpoint))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(resumed.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{resumed:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        messages
+            .values
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| matches!(m, ChatMessage::User { .. }))
+            .count(),
+        1
+    );
+}
+
+struct AuthoredAgencyContext;
+#[async_trait]
+impl AgentContextPort for AuthoredAgencyContext {
+    async fn build(&self, request: AgentContextRequest) -> Result<AgentContext, AgentContextError> {
+        Ok(AgentContext {
+            reasoning_is_private: true,
+            adventure_active: true,
+            system_prompt: request.base_system_prompt,
+            combat_active: false,
+            public_intention_context: serde_json::Value::Null,
+        })
+    }
+}
+fn agency_tool(id: &str, name: &str, args: serde_json::Value) -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::ToolCallStart {
+            id: id.into(),
+            name: name.into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: id.into(),
+            args_fragment: args.to_string(),
+        },
+        ChatChunk::ToolCallDone { id: id.into() },
+    ]
+}
+fn agency_round(mut chunks: Vec<ChatChunk>) -> Vec<ChatChunk> {
+    chunks.push(ChatChunk::Done {
+        reason: FinishReason::ToolUse,
+    });
+    chunks
+}
+fn agency_final() -> Vec<ChatChunk> {
+    vec![
+        ChatChunk::TextDelta {
+            text: "Confirmed player choice".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]
+}
+#[derive(Debug)]
+struct SingleFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for SingleFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.resolved.is_empty(),
+                further_requested: false,
+            },
+        )
+    }
+}
+fn agency_service(
+    provider: Arc<dyn LlmProvider>,
+    messages: Arc<FakeMessages>,
+    dispatcher: Arc<FakeToolDispatcher>,
+    max_rounds: usize,
+) -> Arc<AgentTurnService> {
+    let mut settings = config();
+    settings.max_rounds = max_rounds;
+    settings.player_verifier = Some(Arc::new(SingleFixtureVerifier));
+    settings.tools.exploration = [
+        "adventure_action",
+        "combat_action",
+        "rest_action",
+        "roll_dice",
+        "query_rules",
+        "end_combat",
+        "quick_save",
+    ]
+    .iter()
+    .map(|name| app_application::models::chat::Tool {
+        name: (*name).into(),
+        description: String::new(),
+        parameters: json!({}),
+    })
+    .collect();
+    Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages,
+        dispatcher,
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ))
+}
+fn agency_dispatcher() -> Arc<FakeToolDispatcher> {
+    Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"confirmed":true}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    })
+}
+#[tokio::test]
+async fn authored_player_choice_cannot_expand_into_another_hero_action() {
+    for (name, args) in [
+        (
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        ),
+        ("combat_action", json!({"kind":"move","x":8,"y":8})),
+        ("rest_action", json!({"kind":"wait","minutes":1})),
+    ] {
+        for same_round in [false, true] {
+            let first = agency_tool(
+                "chosen",
+                "adventure_action",
+                json!({"action":{"kind":"move","location":"quay"}}),
+            );
+            let second = agency_tool("unchosen", name, args.clone());
+            let rounds = if same_round {
+                let mut both = first;
+                both.extend(second);
+                vec![agency_round(both), agency_final()]
+            } else {
+                vec![agency_round(first), agency_round(second), agency_final()]
+            };
+            let dispatcher = agency_dispatcher();
+            let events = agency_service(
+                Arc::new(FakeProvider::scripted(rounds)),
+                Arc::new(FakeMessages::default()),
+                dispatcher.clone(),
+                3,
+            )
+            .execute(command("agency"))
+            .collect::<Vec<_>>()
+            .await;
+            assert!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                "{events:?}"
+            );
+            assert_eq!(
+                dispatcher.calls.load(Ordering::SeqCst),
+                1,
+                "{name}, same_round={same_round}"
+            );
+            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,result,..}) if id=="unchosen" && result["error"]=="player_intention_already_resolved")));
+        }
+    }
+}
+#[tokio::test]
+async fn authored_choice_budget_survives_interrupted_turn_but_not_prior_turn_history() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let original = command("agency-resume");
+    let first = agency_service(
+        Arc::new(FakeProvider::scripted(vec![agency_round(agency_tool(
+            "chosen",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        ))])),
+        messages.clone(),
+        dispatcher.clone(),
+        1,
+    )
+    .execute(original.clone())
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(first.last(), Some(Err(AgentTurnError::Provider))));
+    let saved = messages.values.lock().unwrap().clone();
+    let resumed = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "unchosen",
+                "rest_action",
+                json!({"kind":"wait","minutes":1}),
+            )),
+            agency_final(),
+        ])),
+        messages.clone(),
+        dispatcher.clone(),
+        3,
+    )
+    .execute_recovered(original, Some(saved.clone()))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        resumed.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let mut next = command("agency-next");
+    next.request.history = saved;
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(agency_tool(
+                "new-choice",
+                "adventure_action",
+                json!({"action":{"kind":"inspect_quay"}}),
+            )),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(next)
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+}
+#[tokio::test]
+async fn rejected_authored_action_can_be_corrected_and_rules_remain_available() {
+    let dispatcher = agency_dispatcher();
+    let mut calls = agency_tool(
+        "invalid",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"moon"}}),
+    );
+    calls.extend(agency_tool(
+        "chosen",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    ));
+    calls.extend(agency_tool(
+        "rules",
+        "query_rules",
+        json!({"question":"Armor class"}),
+    ));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(calls),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("agency-corrected"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(matches!(
+        events.last(),
+        Some(Ok(AgentEvent::AgentDone { .. }))
+    ));
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+    assert!(events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:false,..}) if id=="rules")
+    ));
+}
+
+#[tokio::test]
+async fn definitive_engine_refusal_does_not_authorize_end_turn_or_new_dice() {
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"error":"hero_combat_rejected"}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let first = agency_round(agency_tool(
+        "requested-attack",
+        "combat_action",
+        json!({"kind":"weapon","target":Uuid::new_v4(),"weapon_id":"longbow"}),
+    ));
+    let mut other = agency_tool(
+        "unasked-end-turn",
+        "combat_action",
+        json!({"kind":"end_turn"}),
+    );
+    other.extend(agency_tool(
+        "unasked-dice",
+        "roll_dice",
+        json!({"dice":"1d20"}),
+    ));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![
+            first,
+            agency_round(other),
+            agency_final(),
+        ])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("refused-attack"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    for expected in ["unasked-end-turn", "unasked-dice"] {
+        assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,result,..}) if id==expected && result["error"]=="player_intention_already_resolved")));
+    }
+}
+
+#[derive(Debug)]
+struct CompoundFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for CompoundFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        assert_eq!(check.player_message, "Move to the quay and inspect it");
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.resolved.is_empty(),
+            },
+        )
+    }
+}
+
+#[derive(Debug)]
+struct IncorrectForecastFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier
+    for IncorrectForecastFixtureVerifier
+{
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.candidate.is_none() && check.resolved.len() < 2,
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn final_completion_ledger_can_correct_a_false_single_action_forecast() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.max_rounds = 4;
+    settings.player_verifier = Some(Arc::new(IncorrectForecastFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "move",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        vec![
+            ChatChunk::TextDelta {
+                text: "Premature completion after only movement".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+        agency_round(agency_tool(
+            "inspect",
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("false-forecast");
+    input.request.player_message = "Move to quay and inspect it".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+    assert!(!events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("Premature"))
+    ));
+    assert!(!messages.values.lock().unwrap().iter().any(|message|matches!(message,ChatMessage::Assistant {content} if content.contains("Premature"))));
+}
+#[tokio::test]
+async fn explicitly_requested_compound_intentions_are_not_reduced_to_one_action() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.player_verifier = Some(Arc::new(CompoundFixtureVerifier));
+    settings.narration_verifier = Some(Arc::new(DraftFixtureVerifier {
+        checks: Mutex::new(vec![]),
+    }));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let mut both = agency_tool(
+        "travel",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    );
+    both.extend(agency_tool(
+        "inspect",
+        "adventure_action",
+        json!({"action":{"kind":"inspect_quay"}}),
+    ));
+    let service = Arc::new(AgentTurnService::new(
+        Arc::new(FakeProvider::scripted(vec![
+            agency_round(both),
+            narration_round("Из ниоткуда возникает стена воды"),
+            narration_repair_round("Confirmed player choice"),
+        ])),
+        Arc::new(AuthoredAgencyContext),
+        messages,
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("compound");
+    input.request.player_message = "Move to the quay and inspect it".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 2);
+    assert!(!format!("{events:?}").contains("Из ниоткуда"));
+}
+#[derive(Debug)]
+struct PendingActionFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for PendingActionFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check.candidate.is_some(),
+                further_requested: check.candidate.is_none() && check.resolved.is_empty(),
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn prose_cannot_complete_an_unexecuted_player_action_or_leak_a_phantom_arrival() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.player_verifier = Some(Arc::new(PendingActionFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let phantom = vec![
+        ChatChunk::TextDelta {
+            text: "You have arrived, but no tool ran".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        phantom,
+        agency_round(agency_tool(
+            "actual",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let events = service
+        .execute(command("missing-action"))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(!events.iter().any(
+        |event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("no tool ran"))
+    ));
+    assert!(!messages.values.lock().unwrap().iter().any(|message|matches!(message,ChatMessage::Assistant{content} if content.contains("no tool ran"))));
+}
+
+#[derive(Debug)]
+struct DeniedProposalFixtureVerifier;
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for DeniedProposalFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: check
+                    .candidate
+                    .as_ref()
+                    .is_some_and(|(_, args)| args["action"]["kind"] == "move"),
+                further_requested: check.candidate.is_none() && check.resolved.is_empty(),
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn permission_denial_cannot_resolve_the_human_request_or_publish_phantom_progress() {
+    let dispatcher = agency_dispatcher();
+    let messages = Arc::new(FakeMessages::default());
+    let mut settings = config();
+    settings.max_rounds = 4;
+    settings.player_verifier = Some(Arc::new(DeniedProposalFixtureVerifier));
+    settings.tools.exploration = vec![app_application::models::chat::Tool {
+        name: "adventure_action".into(),
+        description: String::new(),
+        parameters: json!({}),
+    }];
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "denied",
+            "adventure_action",
+            json!({"action":{"kind":"inspect_quay"}}),
+        )),
+        vec![
+            ChatChunk::TextDelta {
+                text: "Phantom arrival without movement".into(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ],
+        agency_round(agency_tool(
+            "requested",
+            "adventure_action",
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        agency_final(),
+    ]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(AuthoredAgencyContext),
+        messages.clone(),
+        dispatcher.clone(),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let mut input = command("denial-is-not-an-outcome");
+    input.request.player_message = "I go to quay".into();
+    let events = service.execute(input).collect::<Vec<_>>().await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(!events
+        .iter()
+        .any(|event| matches!(event,Ok(AgentEvent::TextDelta{text}) if text.contains("Phantom"))));
+    assert!(!messages.values.lock().unwrap().iter().any(
+        |message| matches!(message,ChatMessage::Assistant {content} if content.contains("Phantom"))
+    ));
+}
+
+#[tokio::test]
+async fn confirmed_obstruction_supplies_the_actual_refusal_cause_to_the_narrator() {
+    let dispatcher = Arc::new(FakeToolDispatcher {
+        execution: ToolExecution {
+            result: json!({"error":"combat_obstructed","resolution":"rejected"}),
+            is_error: true,
+            handled_by: "engine".into(),
+            media: vec![],
+        },
+        calls: AtomicUsize::new(0),
+    });
+    let provider = Arc::new(FakeProvider::scripted(vec![
+        agency_round(agency_tool(
+            "shot",
+            "combat_action",
+            json!({"kind":"weapon","mode":"ranged","weapon_id":"longbow","target":Uuid::new_v4()}),
+        )),
+        agency_final(),
+    ]));
+    let events = agency_service(
+        provider.clone(),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        2,
+    )
+    .execute(command("blocked-shot-cause"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    let requests = provider.requests.lock().unwrap();
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("a physical obstacle blocks the requested attack"));
+    assert!(requests[1]
+        .system_prompt
+        .as_ref()
+        .unwrap()
+        .contains("препятствие перекрывает линию атаки"));
+    assert!(!requests[1]
+        .tools
+        .iter()
+        .any(|tool| tool.name == "combat_action"));
+}
+#[tokio::test]
+async fn intention_verifier_accepts_only_complete_boolean_json_without_tool_or_terminal_errors() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    let check = || PlayerIntentionCheck {
+        player_message: "I go to quay".into(),
+        candidate: Some((
+            "adventure_action".into(),
+            json!({"action":{"kind":"move","location":"quay"}}),
+        )),
+        resolved: vec![],
+        conversation: vec![],
+        public_context: json!({}),
+    };
+    for (text, reason, valid) in [
+        (
+            r#"{"allowed":true,"further_requested":false}"#,
+            FinishReason::Stop,
+            true,
+        ),
+        (
+            r#"{"allowed":"yes","further_requested":false}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"allowed":true,"further_requested":false,"extra":"ignore human"}"#,
+            FinishReason::Stop,
+            false,
+        ),
+        (
+            r#"{"allowed":true,"further_requested":false}"#,
+            FinishReason::Length,
+            false,
+        ),
+        ("allowed", FinishReason::Stop, false),
+    ] {
+        let provider = Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta { text: text.into() },
+            ChatChunk::Done { reason },
+        ]]));
+        assert_eq!(
+            LlmPlayerIntentionVerifier::new(provider, "fake".into())
+                .assess(check())
+                .await
+                .is_ok(),
+            valid,
+            "{text}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn verifier_rejects_permission_without_a_candidate_and_omits_images_from_its_input() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+    };
+    let provider = Arc::new(FakeProvider::scripted(vec![vec![
+        ChatChunk::TextDelta {
+            text: r#"{"allowed":true,"further_requested":false}"#.into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::Stop,
+        },
+    ]]));
+    let checker = LlmPlayerIntentionVerifier::new(provider.clone(), "fake".into());
+    let check = PlayerIntentionCheck {
+        player_message: "Иду в архив".into(),
+        candidate: None,
+        resolved: vec![],
+        conversation: vec![ChatMessage::User {
+            parts: vec![
+                app_application::models::chat::MessagePart::Text {
+                    text: "reference".repeat(1000),
+                },
+                app_application::models::chat::MessagePart::Image {
+                    mime: "image/png".into(),
+                    data_b64: "PRIVATE_IMAGE_CONTENT".into(),
+                    name: None,
+                },
+            ],
+        }],
+        public_context: json!({}),
+    };
+    assert!(checker.assess(check).await.is_err());
+    let requests = provider.requests.lock().unwrap();
+    let ChatMessage::User { parts } = &requests[0].messages[0] else {
+        panic!("expected quoted input")
+    };
+    let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+        panic!("text only")
+    };
+    assert!(!text.contains("PRIVATE_IMAGE_CONTENT"));
+    let value: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(
+        value["conversation"][0]["text"]
+            .as_str()
+            .unwrap()
+            .chars()
+            .count(),
+        1200
+    );
+    assert_eq!(value["player_message"], "Иду в архив");
+    assert!(value["candidate"].is_null());
+}
+
+#[tokio::test]
+async fn completion_ledger_preserves_skill_success_and_failure_for_conditional_commands() {
+    use app_application::agent::intentions::{
+        LlmPlayerIntentionVerifier, PlayerIntentionCheck, PlayerIntentionVerifier,
+        ResolvedPlayerIntention,
+    };
+    for success in [true, false] {
+        let pending = if success {
+            vec![]
+        } else {
+            vec!["перемещаюсь к выходу"]
+        };
+        let provider = Arc::new(FakeProvider::scripted(vec![vec![
+            ChatChunk::TextDelta {
+                text: json!({"remaining_commands":pending}).to_string(),
+            },
+            ChatChunk::Done {
+                reason: FinishReason::Stop,
+            },
+        ]]));
+        let decision=LlmPlayerIntentionVerifier::new(provider.clone(),"fixture".into()).assess(PlayerIntentionCheck {
+            player_message:"Проверяю Скрытность; если проверка провалится, перемещаюсь к выходу".into(),candidate:None,conversation:vec![],
+            resolved:vec![ResolvedPlayerIntention {tool_call_id:"skill".into(),tool_name:"roll_dice".into(),args:json!({"dice":"1d20","check":{"skill":"stealth"}}),rejected:false,result:json!({"success":success,"total":if success {18} else {7},"dc":12,"skill":"stealth","rolls":[if success {14} else {3}],"modifier":4})}],
+            public_context:json!({"adventure":{"available_actions":[{"kind":"finish"}]},"authored_map":{"blocked":[1]},"targets":[]}),
+        }).await.unwrap();
+        assert!(!decision.allowed);
+        assert_eq!(decision.further_requested, !success);
+        let requests = provider.requests.lock().unwrap();
+        let ChatMessage::User { parts } = &requests[0].messages[0] else {
+            panic!("input missing")
+        };
+        let app_application::models::chat::MessagePart::Text { text } = &parts[0] else {
+            panic!("text input required")
+        };
+        let input: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(
+            input["completed_attempts"][0]["check_result"]["success"],
+            success
+        );
+        assert_eq!(
+            input["completed_attempts"][0]["check_result"]["total"],
+            if success { 18 } else { 7 }
+        );
+        assert_eq!(input["completed_attempts"][0]["check_result"]["dc"], 12);
+        assert!(input["public_context"].is_null());
+        assert!(input["reference_labels"]["adventure"].is_null());
+    }
+}
+
+#[tokio::test]
+async fn legacy_end_combat_cannot_bypass_a_resolved_human_intention() {
+    let dispatcher = agency_dispatcher();
+    let first = agency_round(agency_tool(
+        "asked",
+        "adventure_action",
+        json!({"action":{"kind":"move","location":"quay"}}),
+    ));
+    let extra = agency_round(agency_tool("unasked-close", "end_combat", json!({})));
+    let events = agency_service(
+        Arc::new(FakeProvider::scripted(vec![first, extra, agency_final()])),
+        Arc::new(FakeMessages::default()),
+        dispatcher.clone(),
+        3,
+    )
+    .execute(command("don't-close"))
+    .collect::<Vec<_>>()
+    .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(dispatcher.calls.load(Ordering::SeqCst), 1);
+    assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{id,is_error:true,..}) if id=="unasked-close")));
+}
+
+#[derive(Debug)]
+struct RawConsequenceFixtureVerifier {
+    allowed: bool,
+    candidates: AtomicUsize,
+}
+
+struct ConfirmedRawReceipt;
+#[async_trait]
+impl ToolDispatcher for ConfirmedRawReceipt {
+    async fn replay(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        assert_eq!(request.tool_call_id, "committed-raw");
+        Ok(Some(ToolExecution {
+            result: json!({"hp":7,"confirmed":true}),
+            is_error: false,
+            handled_by: "engine".into(),
+            media: vec![],
+        }))
+    }
+    async fn execute(&self, _: ToolDispatchRequest) -> Result<ToolExecution, ToolDispatchError> {
+        panic!("confirmed raw damage must not execute again")
+    }
+}
+#[tokio::test]
+async fn confirmed_raw_receipt_precedes_a_new_denial_and_is_delivered_truthfully() {
+    let verifier = Arc::new(RawConsequenceFixtureVerifier {
+        allowed: false,
+        candidates: AtomicUsize::new(0),
+    });
+    let mut settings = config();
+    settings.player_verifier = Some(verifier.clone());
+    let provider = Arc::new(FakeProvider::scripted(vec![agency_final()]));
+    let service = Arc::new(AgentTurnService::new(
+        provider,
+        Arc::new(FakeContext),
+        Arc::new(FakeMessages::default()),
+        Arc::new(ConfirmedRawReceipt),
+        Arc::new(NoopRuntimeCoordinator),
+        Arc::new(NoopApplicationEventSink),
+        Arc::new(NeverCancelled),
+        settings,
+    ));
+    let checkpoint = vec![
+        ChatMessage::user_text("Watch the NPC"),
+        ChatMessage::AssistantWithToolCalls {
+            content: None,
+            tool_calls: vec![app_application::models::chat::ToolCall {
+                id: "committed-raw".into(),
+                name: "apply_damage".into(),
+                args: json!({"token_id":"npc","amount":3,"type":"fire"}),
+            }],
+        },
+    ];
+    let events = service
+        .execute_recovered(command("recover-raw"), Some(checkpoint))
+        .collect::<Vec<_>>()
+        .await;
+    assert!(
+        matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+        "{events:?}"
+    );
+    assert_eq!(verifier.candidates.load(Ordering::SeqCst), 0);
+    assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error:false,result,..}) if result["hp"]==7)));
+}
+#[async_trait]
+impl app_application::agent::intentions::PlayerIntentionVerifier for RawConsequenceFixtureVerifier {
+    async fn assess(
+        &self,
+        check: app_application::agent::intentions::PlayerIntentionCheck,
+    ) -> Result<
+        app_application::agent::intentions::PlayerIntentionDecision,
+        app_application::agent::intentions::PlayerIntentionError,
+    > {
+        if let Some((name, _)) = check.candidate {
+            assert!(matches!(name.as_str(), "apply_damage" | "apply_healing"));
+            self.candidates.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(
+            app_application::agent::intentions::PlayerIntentionDecision {
+                allowed: self.allowed,
+                further_requested: false,
+            },
+        )
+    }
+}
+#[tokio::test]
+async fn raw_npc_effects_require_source_authorization_without_consuming_a_hero_action() {
+    for (name, args) in [
+        (
+            "apply_damage",
+            json!({"token_id":"npc","amount":3,"type":"fire"}),
+        ),
+        ("apply_healing", json!({"token_id":"npc","amount":3})),
+    ] {
+        for allowed in [false, true] {
+            let dispatcher = agency_dispatcher();
+            let verifier = Arc::new(RawConsequenceFixtureVerifier {
+                allowed,
+                candidates: AtomicUsize::new(0),
+            });
+            let mut settings = config();
+            settings.player_verifier = Some(verifier.clone());
+            let service = Arc::new(AgentTurnService::new(
+                Arc::new(FakeProvider::scripted(vec![
+                    agency_round(agency_tool("raw", name, args.clone())),
+                    agency_final(),
+                ])),
+                Arc::new(FakeContext),
+                Arc::new(FakeMessages::default()),
+                dispatcher.clone(),
+                Arc::new(NoopRuntimeCoordinator),
+                Arc::new(NoopApplicationEventSink),
+                Arc::new(NeverCancelled),
+                settings,
+            ));
+            let events = service
+                .execute(command("raw-source"))
+                .collect::<Vec<_>>()
+                .await;
+            assert!(
+                matches!(events.last(), Some(Ok(AgentEvent::AgentDone { .. }))),
+                "{events:?}"
+            );
+            assert_eq!(verifier.candidates.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                dispatcher.calls.load(Ordering::SeqCst),
+                usize::from(allowed)
+            );
+            assert!(events.iter().any(|event|matches!(event,Ok(AgentEvent::ToolCallResult{is_error,..}) if *is_error != allowed)));
+        }
+    }
 }

@@ -5,7 +5,11 @@
  * Linear-save model only - branching deferred to v2.
  */
 
+import * as v from 'valibot';
 import { backendUrl } from './client';
+import { parseAdventureProjection } from './contracts/adventure';
+import { type CampaignStateResponse, CampaignStateSchema } from './contracts/campaignState';
+import { parseMediaReference } from './contracts/mediaAsset';
 import { ChatError } from './errors';
 import { discardResponseBody } from './response';
 
@@ -38,6 +42,8 @@ export interface CreateSaveRequest {
 }
 
 export interface RestoreSaveResponse {
+  current_revision?: number;
+  current_state?: CampaignStateResponse;
   id: string;
   campaign_id: string;
   session_id: string;
@@ -45,6 +51,8 @@ export interface RestoreSaveResponse {
   schema_version: 1;
   ruleset_id: 'srd-5.2.1';
   projection: {
+    map_media_ref?: import('./contracts/mediaAsset').MediaReference | null;
+    adventure?: import('./contracts/adventure').AdventureProjection | null;
     messages: SessionMessageWire[];
     character: unknown;
     combat: unknown | null;
@@ -59,6 +67,22 @@ export interface SnapshotContext {
   expectedRevision: number;
   character: unknown;
   causationId: string;
+}
+
+export interface SaveCreated {
+  id: string;
+  revision?: number;
+}
+
+function parseSaveCreated(value: unknown): SaveCreated {
+  const row = record(value, 'create save');
+  const result: SaveCreated = { id: stringField(row.id, 'create save.id') };
+  if (row.revision !== undefined) {
+    const revision = numberField(row.revision, 'create save.revision');
+    if (!Number.isSafeInteger(revision) || revision < 1) invalidResponse('create save.revision');
+    result.revision = revision;
+  }
+  return result;
 }
 
 function invalidResponse(label: string): never {
@@ -103,7 +127,7 @@ function parseSaveSummary(value: unknown): SaveSummary {
   };
 }
 
-function parseMessage(value: unknown): SessionMessageWire {
+export function parseMessage(value: unknown): SessionMessageWire {
   const message = record(value, 'message');
   const role = stringField(message.role, 'message.role');
   if (
@@ -116,7 +140,12 @@ function parseMessage(value: unknown): SessionMessageWire {
     invalidResponse('message.role');
   }
   const parsed: SessionMessageWire = { role };
-  if (message.content !== undefined)
+  // Assistant tool envelopes legitimately serialize absent narration as null.
+  // They stay non-renderable; public user/assistant text remains strict.
+  if (
+    message.content !== undefined &&
+    !(role === 'assistant_with_tool_calls' && message.content === null)
+  )
     parsed.content = stringField(message.content, 'message.content');
   if (message.parts !== undefined) {
     if (!Array.isArray(message.parts)) invalidResponse('message.parts');
@@ -151,7 +180,7 @@ async function readError(resp: Response, label: string): Promise<ChatError> {
   } catch {
     // Body may be empty or non-JSON; the default `message` covers it.
   }
-  return new ChatError('http_error', message);
+  return new ChatError(resp.status >= 500 ? 'provider_error' : 'http_error', message);
 }
 
 export async function fetchSessionSaves(sessionId: string): Promise<SaveSummary[]> {
@@ -167,7 +196,7 @@ export async function createSave(
   sessionId: string,
   body: CreateSaveRequest,
   context: SnapshotContext,
-): Promise<{ id: string }> {
+): Promise<SaveCreated> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves`);
   const resp = await fetch(url, {
     method: 'POST',
@@ -181,14 +210,13 @@ export async function createSave(
     }),
   });
   if (!resp.ok) throw await readError(resp, 'create save');
-  const json = record(await resp.json(), 'create save');
-  return { id: stringField(json.id, 'create save.id') };
+  return parseSaveCreated(await resp.json());
 }
 
 export async function quickSaveSession(
   sessionId: string,
   context: SnapshotContext,
-): Promise<{ id: string }> {
+): Promise<SaveCreated> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/saves/quick`);
   const resp = await fetch(url, {
     method: 'POST',
@@ -205,8 +233,7 @@ export async function quickSaveSession(
     }),
   });
   if (!resp.ok) throw await readError(resp, 'quick save');
-  const json = record(await resp.json(), 'quick save');
-  return { id: stringField(json.id, 'quick save.id') };
+  return parseSaveCreated(await resp.json());
 }
 
 export async function fetchSaveById(saveId: string): Promise<SaveRow> {
@@ -259,13 +286,20 @@ export async function restoreSave(
   if (json.ruleset_id !== 'srd-5.2.1') invalidResponse('restore save.ruleset_id');
   return {
     id: stringField(json.id, 'restore save.id'),
+    ...(json.current_revision == null
+      ? {}
+      : { current_revision: numberField(json.current_revision, 'restore save.current_revision') }),
+    ...(json.current_state == null ? {} : { current_state: parseCurrentState(json.current_state) }),
     campaign_id: stringField(json.campaign_id, 'restore save.campaign_id'),
     session_id: stringField(json.session_id, 'restore save.session_id'),
     revision: numberField(json.revision, 'restore save.revision'),
     schema_version: 1,
     ruleset_id: 'srd-5.2.1',
     projection: {
+      map_media_ref:
+        projection.map_media_ref == null ? null : parseMediaReference(projection.map_media_ref),
       messages: projection.messages.map(parseMessage),
+      adventure: parseAdventureProjection(projection.adventure),
       character: projection.character,
       combat: projection.combat ?? null,
       scene: projection.scene ?? null,
@@ -273,6 +307,12 @@ export async function restoreSave(
       npcs: projection.npcs,
     },
   };
+}
+
+function parseCurrentState(value: unknown): CampaignStateResponse {
+  const parsed = v.safeParse(CampaignStateSchema, value);
+  if (!parsed.success) invalidResponse('restore save.current_state');
+  return parsed.output;
 }
 
 /** Overwrite an existing save's metadata in place (PUT /saves/{id}). [F3] */

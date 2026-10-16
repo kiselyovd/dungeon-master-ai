@@ -1,6 +1,6 @@
 use app_application::models::agent::{AgentEvent, AgentTurnRequest};
 use app_application::models::chat::{ChatMessage, MessagePart};
-use axum::extract::Extension;
+use axum::extract::{Extension, Query};
 use axum::http::{header, HeaderValue};
 use axum::response::sse::{KeepAlive, Sse};
 use axum::response::IntoResponse;
@@ -12,9 +12,76 @@ use uuid::Uuid;
 
 use crate::services::{AgentTurnHttpCommand, HttpServiceError, HttpServices};
 use crate::sse::agent_event_to_sse;
+#[derive(Deserialize)]
+pub struct AgentPendingQuery {
+    campaign_id: Uuid,
+    session_id: Uuid,
+}
+pub async fn get_recovery(
+    Extension(services): Extension<HttpServices>,
+    Query(input): Query<AgentPendingQuery>,
+) -> Result<Json<Option<app_application::agent::recovery::AgentRecoveryProjection>>, HttpServiceError>
+{
+    if input.campaign_id.is_nil() || input.session_id.is_nil() {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    Ok(Json(
+        services
+            .agent
+            .recovery(input.campaign_id, input.session_id)
+            .await?,
+    ))
+}
+pub async fn get_recovery_input(
+    Extension(services): Extension<HttpServices>,
+    Query(input): Query<AgentPendingQuery>,
+) -> Result<
+    Json<Option<app_application::agent::human_commands::PendingHumanCommandClarification>>,
+    HttpServiceError,
+> {
+    if input.campaign_id.is_nil() || input.session_id.is_nil() {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    Ok(Json(
+        services
+            .agent
+            .recovery_input(input.campaign_id, input.session_id)
+            .await?,
+    ))
+}
+pub async fn get_pending_clarification(
+    Extension(services): Extension<HttpServices>,
+    Query(input): Query<AgentPendingQuery>,
+) -> Result<
+    Json<Option<app_application::agent::human_commands::PendingHumanCommandClarification>>,
+    HttpServiceError,
+> {
+    if input.campaign_id.is_nil() || input.session_id.is_nil() {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    Ok(Json(
+        services
+            .agent
+            .pending_clarification(input.campaign_id, input.session_id)
+            .await?,
+    ))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct AgentTurnHttpRequest {
+    #[serde(default)]
+    pub clarification:
+        Option<app_application::agent::human_commands::HumanCommandClarificationReply>,
+    #[serde(default)]
+    pub resume: bool,
+    #[serde(default)]
+    pub request_id: Option<Uuid>,
     pub campaign_id: Uuid,
     pub session_id: Uuid,
     pub player_message: String,
@@ -35,9 +102,26 @@ pub async fn post_agent_turn(
             code: "player_message_empty",
         });
     }
+    if request.request_id.is_some_and(|id| id.is_nil()) {
+        return Err(HttpServiceError::BadRequest {
+            code: "agent_request_invalid",
+        });
+    }
+    if request
+        .clarification
+        .as_ref()
+        .is_some_and(|reply| !reply.valid() || !request.resume || request.request_id.is_none())
+    {
+        return Err(HttpServiceError::BadRequest {
+            code: "human_command_clarification_invalid",
+        });
+    }
     let events = services
         .agent
         .turn(AgentTurnHttpCommand {
+            clarification: request.clarification,
+            resume: request.resume,
+            request_id: request.request_id,
             model: request.model,
             request: AgentTurnRequest {
                 campaign_id: request.campaign_id,
@@ -77,5 +161,7 @@ fn agent_event_kind(event: &AgentEvent) -> &'static str {
         AgentEvent::ImageGenerated { .. } => "image_generated",
         AgentEvent::VideoGenerated { .. } => "video_generated",
         AgentEvent::AgentDone { .. } => "agent_done",
+        AgentEvent::AgentNeedsInput { .. } => "agent_needs_input",
+        AgentEvent::AgentFailed => "agent_failed",
     }
 }

@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { type CampaignFixtureFailures, mockCampaignState } from './campaign-state';
 
 /**
  * Seed the renderer with a fake `__TAURI_INTERNALS__` that satisfies the
@@ -34,7 +35,20 @@ export function pipeBrowserConsole(page: Page): void {
   });
 }
 
-export async function mockTauri(page: Page, seed: Record<string, unknown> = {}): Promise<void> {
+export async function mockTauri(
+  page: Page,
+  seed: Record<string, unknown> = {},
+  failures: CampaignFixtureFailures = {},
+): Promise<void> {
+  await page.route('**/agent/pending?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.route('**/agent/recovery?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.route('**/agent/recovery-input?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
   pipeBrowserConsole(page);
 
   const effectiveSeed = { ...seed };
@@ -47,42 +61,10 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
     effectiveSeed.active_session_id ??= '53a7fa02-cfb6-4717-b7fe-e6408f81a569';
   }
 
-  const activeCampaignId = effectiveSeed.active_campaign_id;
-  const activeSessionId = effectiveSeed.active_session_id;
-  await page.route(/^https?:\/\/[^/]+\/campaigns(?:\/[^/?]+)?(?:\?|$)/, async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.fallback();
-      return;
-    }
-    if (typeof activeCampaignId !== 'string' || typeof activeSessionId !== 'string') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-      return;
-    }
-    const summary = {
-      id: activeCampaignId,
-      schema_version: 1,
-      ruleset_id: 'srd-5.2.1',
-      title: 'Fixture Chronicle',
-      premise: 'A deterministic campaign used by the browser acceptance suite.',
-      last_session_id: activeSessionId,
-      revision: 2,
-      updated_at: '2026-08-13T03:21:00.000Z',
-    };
-    const isDetail = new URL(route.request().url()).pathname !== '/campaigns';
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(
-        isDetail
-          ? {
-              ...summary,
-              seed: { kind: 'collaborative', answers: { genre: ['classic_fantasy'] } },
-              created_at: '2026-08-13T03:21:00.000Z',
-            }
-          : [summary],
-      ),
-    });
-  });
+  await page.route('**/settings/v2', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
+  await mockCampaignState(page, effectiveSeed, failures);
 
   // SplashOverlay polls /health every 250ms and only dismisses once it gets
   // a 200 OK (or after a 30-second timeout). Return a benign 200 so the

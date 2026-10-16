@@ -1844,7 +1844,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 2,
         "properties": [
@@ -1868,7 +1868,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 1,
         "properties": [
@@ -1877,7 +1877,10 @@
           "thrown"
         ],
         "mastery": "nick",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1894,7 +1897,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 2,
         "properties": [
@@ -1902,7 +1905,10 @@
           "thrown"
         ],
         "mastery": "vex",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1919,14 +1925,17 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
           "thrown"
         ],
         "mastery": "slow",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 30,
+          "long": 120
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -1943,7 +1952,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 4,
         "properties": [],
@@ -1965,7 +1974,8 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "bludgeoning",
+          "versatile_dice": "1d8"
         },
         "weight_lb": 4,
         "properties": [
@@ -1989,7 +1999,7 @@
         },
         "damage": {
           "dice": "1d4",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2013,7 +2023,8 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing",
+          "versatile_dice": "1d8"
         },
         "weight_lb": 3,
         "properties": [
@@ -2021,7 +2032,10 @@
           "versatile"
         ],
         "mastery": "sap",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 20,
+          "long": 60
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -2038,7 +2052,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2046,7 +2060,10 @@
           "two-handed"
         ],
         "mastery": "vex",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 80,
+          "long": 320
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
@@ -2063,7 +2080,7 @@
         },
         "damage": {
           "dice": "1d12",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 7,
         "properties": [
@@ -2088,7 +2105,7 @@
         },
         "damage": {
           "dice": "2d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 6,
         "properties": [
@@ -2113,7 +2130,7 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "bludgeoning"
         },
         "weight_lb": 2,
         "properties": [],
@@ -2135,7 +2152,8 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "slashing",
+          "versatile_dice": "1d10"
         },
         "weight_lb": 3,
         "properties": [
@@ -2159,7 +2177,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "slashing"
         },
         "weight_lb": 3,
         "properties": [
@@ -2184,7 +2202,7 @@
         },
         "damage": {
           "dice": "1d6",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2209,7 +2227,7 @@
         },
         "damage": {
           "dice": "1d8",
-          "type": "physical"
+          "type": "piercing"
         },
         "weight_lb": 2,
         "properties": [
@@ -2218,13 +2236,33 @@
           "two-handed"
         ],
         "mastery": "slow",
-        "range_ft": {},
+        "range_ft": {
+          "normal": 150,
+          "long": 600
+        },
         "source_url": "https://www.dndbeyond.com/srd",
         "source_page": 90,
         "srd_section": "Equipment / Weapons"
       }
     ],
     "armor": [
+      {
+        "id": "padded-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.padded-armor",
+        "name_en": "Padded Armor",
+        "name_ru": "Стёганый доспех",
+        "category": "light",
+        "cost": {
+          "gp": 5
+        },
+        "ac_base": 11,
+        "stealth_disadvantage": true,
+        "weight_lb": 8,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
       {
         "id": "leather-armor",
         "ruleset_id": "srd-5.2.1",
@@ -2236,9 +2274,10 @@
           "gp": 10
         },
         "ac_base": 11,
+        "stealth_disadvantage": false,
         "weight_lb": 10,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2249,12 +2288,31 @@
         "name_ru": "Клёпаный кожаный доспех",
         "category": "light",
         "cost": {
+          "gp": 45
+        },
+        "ac_base": 12,
+        "stealth_disadvantage": false,
+        "weight_lb": 13,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "hide-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.hide-armor",
+        "name_en": "Hide Armor",
+        "name_ru": "Шкурный доспех",
+        "category": "medium",
+        "cost": {
           "gp": 10
         },
         "ac_base": 12,
-        "weight_lb": 13,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
+        "weight_lb": 12,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2265,12 +2323,86 @@
         "name_ru": "Кольчужная рубаха",
         "category": "medium",
         "cost": {
-          "gp": 10
+          "gp": 50
         },
         "ac_base": 13,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
         "weight_lb": 20,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "scale-mail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.scale-mail",
+        "name_en": "Scale Mail",
+        "name_ru": "Чешуйчатый доспех",
+        "category": "medium",
+        "cost": {
+          "gp": 50
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": true,
+        "weight_lb": 45,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "breastplate",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.breastplate",
+        "name_en": "Breastplate",
+        "name_ru": "Кираса",
+        "category": "medium",
+        "cost": {
+          "gp": 400
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": false,
+        "weight_lb": 20,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "half-plate-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.half-plate-armor",
+        "name_en": "Half Plate Armor",
+        "name_ru": "Полулаты",
+        "category": "medium",
+        "cost": {
+          "gp": 750
+        },
+        "ac_base": 15,
+        "ac_dex_bonus_cap": 2,
+        "stealth_disadvantage": true,
+        "weight_lb": 40,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "ring-mail",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.ring-mail",
+        "name_en": "Ring Mail",
+        "name_ru": "Колечный доспех",
+        "category": "heavy",
+        "cost": {
+          "gp": 30
+        },
+        "ac_base": 14,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "weight_lb": 40,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2281,12 +2413,53 @@
         "name_ru": "Кольчуга",
         "category": "heavy",
         "cost": {
-          "gp": 10
+          "gp": 75
         },
         "ac_base": 16,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "str_req": 13,
         "weight_lb": 55,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "splint-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.splint-armor",
+        "name_en": "Splint Armor",
+        "name_ru": "Наборный доспех",
+        "category": "heavy",
+        "cost": {
+          "gp": 200
+        },
+        "ac_base": 17,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "str_req": 15,
+        "weight_lb": 60,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
+        "srd_section": "Equipment / Armor"
+      },
+      {
+        "id": "plate-armor",
+        "ruleset_id": "srd-5.2.1",
+        "name_key": "catalog.equipment.plate-armor",
+        "name_en": "Plate Armor",
+        "name_ru": "Латы",
+        "category": "heavy",
+        "cost": {
+          "gp": 1500
+        },
+        "ac_base": 18,
+        "ac_dex_bonus_cap": 0,
+        "stealth_disadvantage": true,
+        "str_req": 15,
+        "weight_lb": 65,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       },
       {
@@ -2300,9 +2473,10 @@
           "gp": 10
         },
         "ac_base": 2,
+        "stealth_disadvantage": false,
         "weight_lb": 6,
-        "source_url": "https://www.dndbeyond.com/srd",
-        "source_page": 93,
+        "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf",
+        "source_page": 92,
         "srd_section": "Equipment / Armor"
       }
     ],

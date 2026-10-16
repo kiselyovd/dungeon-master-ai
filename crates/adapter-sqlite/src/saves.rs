@@ -70,6 +70,11 @@ impl SnapshotRepository for SqliteStore {
         if let Some(existing) =
             snapshot_by_causation(&mut transaction, &record.causation_id).await?
         {
+            if existing.snapshot.campaign_id != record.campaign_id
+                || existing.snapshot.session_id != record.session_id
+            {
+                return Err(repository_error("snapshot_causation_mismatch"));
+            }
             transaction
                 .commit()
                 .await
@@ -85,54 +90,73 @@ impl SnapshotRepository for SqliteStore {
             &record.ruleset_id,
         )
         .await?;
+        let character = crate::campaign_state::snapshot_character(
+            &mut transaction,
+            record.campaign_id,
+            record.character,
+        )
+        .await?;
         let projection = capture_projection(
             &mut transaction,
             record.campaign_id,
             record.session_id,
-            record.character,
+            character,
         )
         .await?;
         let created_at = chrono::Utc::now().to_rfc3339();
-        let snapshot = match snapshot_by_revision(
+        crate::campaign_state::persist_snapshot_character(
             &mut transaction,
             record.campaign_id,
-            record.expected_revision,
+            &projection.character,
+            false,
         )
-        .await?
-        {
-            Some(snapshot) => snapshot,
-            None => {
-                let snapshot = CampaignSnapshot {
-                    id: Uuid::new_v4(),
-                    campaign_id: record.campaign_id,
-                    session_id: record.session_id,
-                    revision: record.expected_revision,
-                    schema_version: record.schema_version,
-                    ruleset_id: record.ruleset_id,
-                    projection,
-                };
-                let projection_json = serde_json::to_string(&snapshot.projection)
-                    .map_err(|_| repository_error("encode_snapshot_projection"))?;
-                sqlx::query(
-                    "INSERT INTO campaign_snapshots \
+        .await?;
+        let snapshot_revision = crate::campaigns::advance_session_revision(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+            record.expected_revision,
+            "snapshot_created",
+            &record.causation_id,
+        )
+        .await?;
+        let snapshot =
+            match snapshot_by_revision(&mut transaction, record.campaign_id, snapshot_revision)
+                .await?
+            {
+                Some(snapshot) => snapshot,
+                None => {
+                    let snapshot = CampaignSnapshot {
+                        id: Uuid::new_v4(),
+                        campaign_id: record.campaign_id,
+                        session_id: record.session_id,
+                        revision: snapshot_revision,
+                        schema_version: record.schema_version,
+                        ruleset_id: record.ruleset_id,
+                        projection,
+                    };
+                    let projection_json = serde_json::to_string(&snapshot.projection)
+                        .map_err(|_| repository_error("encode_snapshot_projection"))?;
+                    sqlx::query(
+                        "INSERT INTO campaign_snapshots \
                      (id, campaign_id, session_id, revision, schema_version, ruleset_id, \
                       projection_json, created_at) \
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                )
-                .bind(snapshot.id.to_string())
-                .bind(record.campaign_id.0.to_string())
-                .bind(record.session_id.0.to_string())
-                .bind(revision_i64(record.expected_revision)?)
-                .bind(i64::from(record.schema_version))
-                .bind(&snapshot.ruleset_id)
-                .bind(projection_json)
-                .bind(&created_at)
-                .execute(&mut *transaction)
-                .await
-                .map_err(|_| repository_error("insert_campaign_snapshot"))?;
-                snapshot
-            }
-        };
+                    )
+                    .bind(snapshot.id.to_string())
+                    .bind(record.campaign_id.0.to_string())
+                    .bind(record.session_id.0.to_string())
+                    .bind(revision_i64(snapshot_revision)?)
+                    .bind(i64::from(record.schema_version))
+                    .bind(&snapshot.ruleset_id)
+                    .bind(projection_json)
+                    .bind(&created_at)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|_| repository_error("insert_campaign_snapshot"))?;
+                    snapshot
+                }
+            };
         sqlx::query(
             "INSERT INTO saves \
              (id, campaign_id, session_id, snapshot_id, revision, title, kind, summary, tag, causation_id, created_at) \
@@ -142,7 +166,7 @@ impl SnapshotRepository for SqliteStore {
         .bind(record.campaign_id.0.to_string())
         .bind(record.session_id.0.to_string())
         .bind(snapshot.id.to_string())
-        .bind(revision_i64(record.expected_revision)?)
+        .bind(revision_i64(snapshot_revision)?)
         .bind(record.title)
         .bind(record.kind)
         .bind(record.summary)
@@ -209,8 +233,22 @@ impl SnapshotRepository for SqliteStore {
             return Err(repository_error("snapshot_identity_mismatch"));
         }
         apply_projection(&mut transaction, &snapshot).await?;
+        crate::party::restore_snapshot(
+            &mut transaction,
+            record.campaign_id,
+            snapshot.projection.party.as_ref(),
+            &snapshot.projection.character,
+        )
+        .await?;
+        crate::campaign_state::persist_snapshot_character(
+            &mut transaction,
+            record.campaign_id,
+            &snapshot.projection.character,
+            true,
+        )
+        .await?;
         let updated = sqlx::query(
-            "UPDATE sessions SET active_snapshot_id = ?1 WHERE id = ?2 AND revision = ?3",
+            "UPDATE sessions SET active_snapshot_id = ?1, restore_generation = restore_generation + 1 WHERE id = ?2 AND revision = ?3",
         )
         .bind(snapshot.id.to_string())
         .bind(record.session_id.0.to_string())
@@ -224,6 +262,21 @@ impl SnapshotRepository for SqliteStore {
                 actual: current_revision(&mut transaction, record.session_id).await?,
             });
         }
+        crate::campaigns::advance_session_revision(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+            record.expected_revision,
+            "snapshot_restored",
+            &record.causation_id,
+        )
+        .await?;
+        crate::combat_binding::reconcile_membership(
+            &mut transaction,
+            record.campaign_id,
+            record.session_id,
+        )
+        .await?;
         sqlx::query(
             "INSERT INTO snapshot_restores \
              (causation_id, save_id, session_id, snapshot_id, created_at) \
@@ -420,20 +473,25 @@ async fn current_revision(
     parse_revision(revision)
 }
 
-async fn capture_projection(
+pub(crate) async fn capture_projection(
     transaction: &mut Transaction<'_, Sqlite>,
     campaign_id: CampaignId,
     session_id: SessionId,
     character: Value,
 ) -> Result<SnapshotProjection, RepositoryError> {
     let message_rows = sqlx::query(
-        "SELECT role, parts, tool_calls, tool_call_id, is_error FROM messages \
+        "SELECT m.role, m.parts, m.tool_calls, m.tool_call_id, m.is_error, EXISTS(SELECT 1 FROM shared_messages sm WHERE sm.message_id=m.id AND sm.session_id=m.session_id) AS is_shared FROM messages m \
          WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
     )
     .bind(session_id.0.to_string())
     .fetch_all(&mut **transaction)
     .await
     .map_err(|_| repository_error("snapshot_messages"))?;
+    let shared_message_indices = message_rows
+        .iter()
+        .enumerate()
+        .filter_map(|(index, row)| (row.get::<i64, _>("is_shared") != 0).then_some(index))
+        .collect();
     let messages = message_rows
         .into_iter()
         .map(|row| {
@@ -446,7 +504,7 @@ async fn capture_projection(
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let combat = sqlx::query_scalar::<_, Option<String>>(
+    let mut combat: Option<serde_json::Value> = sqlx::query_scalar::<_, Option<String>>(
         "SELECT projection FROM combat_encounters \
          WHERE session_id = ?1 AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
     )
@@ -458,6 +516,13 @@ async fn capture_projection(
     .map(|value| serde_json::from_str(&value))
     .transpose()
     .map_err(|_| repository_error("decode_snapshot_combat"))?;
+    if let Some(value) = &mut combat {
+        let mut projection = serde_json::from_value(value.clone())
+            .map_err(|_| repository_error("decode_snapshot_combat"))?;
+        crate::combat_binding::recover_loadouts(transaction, &mut projection).await?;
+        *value = serde_json::to_value(projection)
+            .map_err(|_| repository_error("encode_snapshot_combat"))?;
+    }
     let scene = sqlx::query(
         "SELECT id, title, subtitle, mode FROM scenes WHERE campaign_id = ?1 \
          ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -512,6 +577,12 @@ async fn capture_projection(
     )
     .await?;
     Ok(SnapshotProjection {
+        map_media_ref: crate::media_assets::current_map(transaction, campaign_id.0, session_id.0)
+            .await?,
+        shared_message_indices,
+        party: crate::party::capture_snapshot(transaction, campaign_id, &character).await?,
+        adventuring: crate::rest::read_clock(transaction, session_id).await?,
+        adventure: crate::adventure::read(transaction, campaign_id).await?,
         messages,
         character,
         combat,
@@ -652,17 +723,29 @@ fn map_snapshot(row: sqlx::sqlite::SqliteRow) -> Result<CampaignSnapshot, Reposi
     })
 }
 
-async fn apply_projection(
+pub(crate) async fn apply_projection(
     transaction: &mut Transaction<'_, Sqlite>,
     snapshot: &CampaignSnapshot,
 ) -> Result<(), RepositoryError> {
+    crate::rest::restore_clock(
+        transaction,
+        snapshot.session_id,
+        snapshot.projection.adventuring.as_ref(),
+    )
+    .await?;
     let session_id = snapshot.session_id.0.to_string();
+    sqlx::query("INSERT INTO room_restore_guard(session_id) VALUES(?1)")
+        .bind(&session_id)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("guard_restore_messages"))?;
     sqlx::query("DELETE FROM messages WHERE session_id = ?1")
         .bind(&session_id)
         .execute(&mut **transaction)
         .await
         .map_err(|_| repository_error("clear_snapshot_messages"))?;
     for (index, message) in snapshot.projection.messages.iter().enumerate() {
+        let restored_message_id = Uuid::new_v4().to_string();
         let (role, parts, tool_calls, tool_call_id, is_error) =
             crate::messages::encode_message(message);
         sqlx::query(
@@ -670,7 +753,7 @@ async fn apply_projection(
              (id, session_id, role, parts, tool_calls, tool_call_id, is_error, created_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )
-        .bind(Uuid::new_v4().to_string())
+        .bind(&restored_message_id)
         .bind(&session_id)
         .bind(role)
         .bind(parts)
@@ -681,11 +764,44 @@ async fn apply_projection(
         .execute(&mut **transaction)
         .await
         .map_err(|_| repository_error("restore_snapshot_message"))?;
+        if snapshot.projection.shared_message_indices.contains(&index) {
+            sqlx::query("INSERT INTO shared_messages(message_id,session_id) VALUES(?1,?2)")
+                .bind(restored_message_id)
+                .bind(&session_id)
+                .execute(&mut **transaction)
+                .await
+                .map_err(|_| repository_error("restore_message_visibility"))?;
+        }
     }
     restore_scene(transaction, snapshot).await?;
+    crate::media_assets::select_map(
+        transaction,
+        snapshot.campaign_id.0,
+        snapshot.session_id.0,
+        snapshot.projection.map_media_ref.as_ref(),
+        "snapshot-restored",
+        true,
+    )
+    .await?;
     restore_journal(transaction, snapshot).await?;
     restore_npcs(transaction, snapshot).await?;
-    restore_combat(transaction, snapshot).await
+    crate::adventure::persist(
+        transaction,
+        snapshot.campaign_id,
+        snapshot
+            .projection
+            .adventure
+            .as_ref()
+            .map(|projection| &projection.state),
+    )
+    .await?;
+    restore_combat(transaction, snapshot).await?;
+    sqlx::query("DELETE FROM room_restore_guard WHERE session_id=?1")
+        .bind(session_id)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("clear_restore_message_guard"))?;
+    Ok(())
 }
 
 async fn restore_scene(
@@ -775,6 +891,10 @@ async fn restore_combat(
     transaction: &mut Transaction<'_, Sqlite>,
     snapshot: &CampaignSnapshot,
 ) -> Result<(), RepositoryError> {
+    // Every encounter in this session belongs to the superseded timeline,
+    // including an encounter absent from the restored snapshot.
+    sqlx::query("DELETE FROM combat_action_receipts WHERE encounter_id IN (SELECT id FROM combat_encounters WHERE session_id=?1)")
+        .bind(snapshot.session_id.0.to_string()).execute(&mut **transaction).await.map_err(|_|repository_error("clear_snapshot_combat_receipts"))?;
     sqlx::query(
         "UPDATE combat_encounters SET ended_at = ?1 WHERE session_id = ?2 AND ended_at IS NULL",
     )
@@ -786,9 +906,64 @@ async fn restore_combat(
     let Some(value) = &snapshot.projection.combat else {
         return Ok(());
     };
-    let projection: app_application::models::combat::CombatProjection =
+    let mut projection: app_application::models::combat::CombatProjection =
         serde_json::from_value(value.clone())
             .map_err(|_| repository_error("decode_snapshot_combat_projection"))?;
+    if let Some(scope) = &projection.campaign_scope {
+        let bound = projection
+            .snapshot
+            .combatants
+            .iter()
+            .filter_map(|actor| actor.character_id.map(|id| id.0))
+            .collect::<std::collections::BTreeSet<_>>();
+        if !bound.contains(&scope.character_id) {
+            return Err(repository_error("combat_hero_identity_mismatch"));
+        }
+        let mut sheets = vec![(scope.character_id, &snapshot.projection.character)];
+        if let Some(party) = &snapshot.projection.party {
+            sheets.extend(
+                party
+                    .members
+                    .iter()
+                    .filter(|member| bound.contains(&member.character_id))
+                    .map(|member| (member.character_id, &member.character)),
+            );
+        }
+        app_application::combat::hero::recover_party_loadouts(&sheets, &mut projection)
+            .map_err(repository_error)?;
+    }
+    let previous: Option<i64> =
+        sqlx::query_scalar("SELECT revision FROM combat_encounters WHERE id=?1")
+            .bind(projection.encounter_id.to_string())
+            .fetch_optional(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_restored_combat_revision"))?;
+    let previous = u64::try_from(previous.unwrap_or(0))
+        .map_err(|_| repository_error("combat_revision_invalid"))?;
+    projection.revision = projection
+        .revision
+        .max(previous)
+        .checked_add(1)
+        .filter(|revision| *revision <= i64::MAX as u64)
+        .ok_or_else(|| repository_error("combat_revision_invalid"))?;
+    if let Some(scope) = &mut projection.campaign_scope {
+        let current: i64 = sqlx::query_scalar("SELECT revision FROM sessions WHERE id=?1")
+            .bind(snapshot.session_id.0.to_string())
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(|_| repository_error("read_restored_combat_campaign_revision"))?;
+        scope.revision = u64::try_from(current)
+            .ok()
+            .and_then(|revision| revision.checked_add(1))
+            .ok_or_else(|| repository_error("combat_campaign_revision_invalid"))?;
+    }
+    // Old receipt payloads belong to the superseded timeline. A fresh combat
+    // revision prevents their original expected revisions from being reapplied.
+    sqlx::query("DELETE FROM combat_action_receipts WHERE encounter_id=?1")
+        .bind(projection.encounter_id.to_string())
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| repository_error("clear_restored_combat_receipts"))?;
     let initiative = serde_json::to_string(&projection.snapshot.initiative)
         .map_err(|_| repository_error("encode_snapshot_initiative"))?;
     let active_turn = projection

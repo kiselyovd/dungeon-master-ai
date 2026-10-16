@@ -1,0 +1,181 @@
+{
+  "cursor": 9,
+  "events": [
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 1
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 2
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 3
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 4
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 5
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 6
+    },
+    {
+      "kind": "message",
+      "payload": {
+        "message_id": "6801229e-32cf-431b-a006-fcb5ca900a83"
+      },
+      "sequence": 7
+    },
+    {
+      "kind": "message",
+      "payload": {
+        "message_id": "93fd7697-d8f4-48cb-8781-52628167a093"
+      },
+      "sequence": 8
+    },
+    {
+      "kind": "state",
+      "payload": {},
+      "sequence": 9
+    }
+  ],
+  "head": 9,
+  "reset": true,
+  "state": {
+    "actors": [
+      {
+        "ac": 14,
+        "character_id": "34fcc647-e584-47a9-80a3-4b093b5368f1",
+        "class_id": "fighter",
+        "hp": 12,
+        "level": 1,
+        "max_hp": 12,
+        "member_id": "f59808dd-fc36-4d2f-a44d-c9aac87b391c",
+        "name": "Mira",
+        "role": "host"
+      },
+      {
+        "ac": 14,
+        "character_id": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
+        "class_id": "fighter",
+        "hp": 12,
+        "level": 1,
+        "max_hp": 12,
+        "member_id": "10a493ba-a699-41df-8cdc-57d13f5d4d81",
+        "name": "Tara",
+        "role": "player"
+      }
+    ],
+    "adventure": null,
+    "agent_busy": false,
+    "campaign": {
+      "created_at_epoch_ms": 1791410803005,
+      "id": "a77fcf8e-7a58-420c-bcce-dbdd024c6cbd",
+      "last_session_id": "fc9eb102-20b5-4406-a730-8b646687d752",
+      "premise": "Road",
+      "revision": 4,
+      "ruleset_id": "srd-5.2.1",
+      "schema_version": 1,
+      "seed": {
+        "answers": {},
+        "kind": "collaborative"
+      },
+      "title": "DM lane",
+      "updated_at_epoch_ms": 1791410803016
+    },
+    "clock": {
+      "elapsed_seconds": 0
+    },
+    "combat": null,
+    "journal": [],
+    "messages": [
+      {
+        "id": "6801229e-32cf-431b-a006-fcb5ca900a83",
+        "role": "user",
+        "text": "Осматриваюсь",
+        "truncated": false
+      },
+      {
+        "id": "93fd7697-d8f4-48cb-8781-52628167a093",
+        "role": "assistant",
+        "text": "Перед вами дорога. Что вы делаете?",
+        "truncated": false
+      }
+    ],
+    "npcs": [],
+    "own_character": {
+      "abilities": {
+        "cha": 8,
+        "con": 13,
+        "dex": 14,
+        "int": 12,
+        "str": 15,
+        "wis": 10
+      },
+      "ac": 14,
+      "characterId": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
+      "heroClass": "fighter",
+      "hp": 12,
+      "hpMax": 12,
+      "inventory": [],
+      "level": 1,
+      "name": "Tara"
+    },
+    "own_proposal": null,
+    "pending_proposals": null,
+    "recovery": [
+      {
+        "actions": [],
+        "character_id": "34fcc647-e584-47a9-80a3-4b093b5368f1",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "healthy",
+        "successes": 0
+      },
+      {
+        "actions": [],
+        "character_id": "33b5b60f-9b21-4b54-be4b-2e6c80d6adc7",
+        "failures": 0,
+        "ready_at_seconds": null,
+        "status": "healthy",
+        "successes": 0
+      }
+    ],
+    "revision": 4,
+    "room": {
+      "active": true,
+      "campaign_id": "a77fcf8e-7a58-420c-bcce-dbdd024c6cbd",
+      "members": [
+        {
+          "active": true,
+          "display_name": "Mira",
+          "member_id": "f59808dd-fc36-4d2f-a44d-c9aac87b391c",
+          "role": "host"
+        },
+        {
+          "active": true,
+          "display_name": "Guest",
+          "member_id": "10a493ba-a699-41df-8cdc-57d13f5d4d81",
+          "role": "player"
+        }
+      ],
+      "room_id": "8a88becf-823d-4e7f-a6d0-8dc20eebe16a",
+      "session_id": "fc9eb102-20b5-4406-a730-8b646687d752"
+    },
+    "scene": null,
+    "title": "DM lane"
+  },
+  "timeline_reset_cursor": 0
+}

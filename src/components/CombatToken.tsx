@@ -5,13 +5,37 @@ import {
   useRef,
   useState,
 } from 'react';
-import { TOKEN_ART } from '../assets/livingTabletop';
+import { useTranslation } from 'react-i18next';
+import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
+import type { ConfirmedCombatEffect } from '../features/combat/model/confirmedMotion';
+import { isDeadToken, isIncapacitatedToken } from '../features/combat/model/selectors';
+import { useMediaImage } from '../features/media/useMediaImage';
+import { legacyPortraitUrl } from '../lib/heroPortraits';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
+import {
+  type ActorVisualPresentation,
+  actorBuiltinAppearance,
+  opponentAppearance,
+  opponentFrame,
+} from './actorVisuals';
 
-const CLASS_TOKEN: Partial<Record<string, string>> = TOKEN_ART;
+export interface PlayerTokenPresentation {
+  characterId: string | null;
+  heroClass: string | null;
+  portraitUrl: string | null;
+  portraitAssetId?: string | null;
+  portraitMediaRef?: MediaReference | null;
+  mediaScope?: MediaScope | null;
+}
 
 interface Props {
+  effects?: readonly ConfirmedCombatEffect[];
+  selected?: boolean | undefined;
+  onSelect?: ((id: string) => void) | undefined;
+  actorVisual?: ActorVisualPresentation | undefined;
+  playerPresentation?: PlayerTokenPresentation;
+  revision?: number;
   token: TokenData;
   cellSize: number;
   /** Viewport scale; screen-px drag deltas divide by this to reach world px. */
@@ -63,17 +87,73 @@ function conditionColor(condition: string): string {
  * flight. Without `onMove`, no handlers attach and the token stays static
  * (the "view-only" mode the chat replay and screenshot tooling rely on).
  */
-export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }: Props) {
-  const pcName = useStore((s) => s.pc.name);
-  const pcHeroClass = useStore((s) => s.pc.heroClass);
-  const pcPortraitUrl = useStore((s) => s.pc.portraitUrl);
+export function CombatToken({
+  selected,
+  onSelect,
+  actorVisual,
+  token,
+  cellSize,
+  zoom = 1,
+  onMove,
+  currentTurnId,
+  playerPresentation,
+  revision,
+  effects = [],
+}: Props) {
+  const { t } = useTranslation('combat');
+  const displayName = token.displayNameKey
+    ? t(token.displayNameKey, { defaultValue: token.name })
+    : token.name;
+  const storedHeroClass = useStore((s) => s.pc.heroClass);
+  const pcHeroClass = playerPresentation ? playerPresentation.heroClass : storedHeroClass;
+  const storedPortrait = useStore((s) => s.pc.portraitUrl);
+  const storedPortraitAsset = useStore((s) => s.pc.portraitAssetId);
+  const storedMedia = useStore((s) => s.pc.portraitMediaRef);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const portraitMediaRef = playerPresentation ? playerPresentation.portraitMediaRef : storedMedia;
+  const mediaScope = playerPresentation
+    ? (playerPresentation.mediaScope ?? null)
+    : campaignId
+      ? { kind: 'campaign' as const, campaign_id: campaignId }
+      : null;
+  const portraitAssetId = playerPresentation
+    ? playerPresentation.portraitAssetId
+    : storedPortraitAsset;
+  const pcPortraitUrl = playerPresentation ? playerPresentation.portraitUrl : storedPortrait;
   const originLeft = token.x * cellSize;
   const originTop = token.y * cellSize;
   const hpPct = token.maxHp > 0 ? (token.hp / token.maxHp) * 100 : 0;
   const visibleConditions = token.conditions.slice(0, 3);
   const extraConditions = token.conditions.length > 3 ? token.conditions.length - 3 : 0;
-  const isDead = token.hp === 0;
-  const isPcToken = pcName !== null && token.name === pcName;
+  const isDead = isDeadToken(token);
+  const incapacitated = isIncapacitatedToken(token);
+  const storedCharacterId = useStore((s) => s.pc.characterId);
+  const pcCharacterId = playerPresentation ? playerPresentation.characterId : storedCharacterId;
+  const isPcToken = Boolean(pcCharacterId && token.characterId === pcCharacterId);
+  const visual: ActorVisualPresentation | null =
+    actorVisual ??
+    (isPcToken
+      ? {
+          characterId: pcCharacterId ?? null,
+          heroClass: pcHeroClass,
+          portraitAssetId: portraitAssetId ?? null,
+          portraitMediaRef: portraitMediaRef ?? null,
+          portraitUrl: pcPortraitUrl,
+          mediaScope,
+        }
+      : null);
+  const builtin = visual ? actorBuiltinAppearance(visual) : null;
+  const media = useMediaImage(
+    visual?.portraitMediaRef ?? null,
+    visual?.mediaScope ?? null,
+    'portrait',
+  );
+  const opponent = !token.characterId ? opponentAppearance(token.opponentAppearance) : null;
+  useEffect(() => {
+    if (token.opponentAppearance && !token.characterId && !opponent)
+      console.warn('[art:WARN] opponent_miniature_unavailable');
+  }, [token.opponentAppearance, token.characterId, opponent]);
+  const miniatureSrc = builtin?.miniature ?? opponent?.uri ?? null;
   // Respect the OS-level "prefers-reduced-motion" setting so animations do not
   // play for users who have requested less motion. Checked once at render time;
   // does not need to be reactive since the media-query match value is stable for
@@ -83,10 +163,14 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const healthEffect = effects.find((effect) => effect.kind === 'damage' || effect.kind === 'heal');
+  const moveConfirmed = effects.some((effect) => effect.kind === 'move');
+  const turnArrived = effects.some((effect) => effect.kind === 'own_turn');
+  const resourceEffect = effects.find((effect) => effect.kind === 'resource');
   // The PC's own token prefers the generated/selected portrait over class art (E4).
-  const portraitSrc = isPcToken
-    ? (pcPortraitUrl ?? (pcHeroClass !== null ? (CLASS_TOKEN[pcHeroClass] ?? null) : null))
-    : null;
+  const portraitSrc = visual?.portraitMediaRef
+    ? media.url
+    : (builtin?.portrait ?? (visual?.portraitUrl ? legacyPortraitUrl(visual.portraitUrl) : null));
 
   const dragRef = useRef<DragSession | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +185,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   }, []);
 
   const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       // Primary button only; right/middle/aux clicks must not start a drag
       // so the canvas context menu and middle-pan can layer on later.
       if (event.button !== 0) return;
@@ -130,7 +214,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   );
 
   const onPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
       // Screen-px delta -> world px: the token lives inside the zoom-scaled
@@ -144,7 +228,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   );
 
   const onPointerEnd = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag === null || drag.pointerId !== event.pointerId) return;
       try {
@@ -189,7 +273,39 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
   const currentLeft = isDragging && liveLeft !== null ? liveLeft : originLeft;
   const currentTop = isDragging && liveTop !== null ? liveTop : originTop;
   // A token is draggable only when it is the active PC token on its turn and alive.
-  const draggable = onMove !== undefined && isPcToken && token.id === currentTurnId && !isDead;
+  const draggable =
+    onMove !== undefined && isPcToken && token.id === currentTurnId && !incapacitated;
+  useEffect(() => {
+    if (!draggable) cancelDrag();
+  }, [draggable, cancelDrag]);
+  const dragAuthority = useRef({
+    id: token.id,
+    x: token.x,
+    y: token.y,
+    turn: currentTurnId,
+    character: pcCharacterId,
+    revision,
+  });
+  useEffect(() => {
+    const old = dragAuthority.current;
+    if (
+      old.id !== token.id ||
+      old.x !== token.x ||
+      old.y !== token.y ||
+      old.turn !== currentTurnId ||
+      old.character !== pcCharacterId ||
+      old.revision !== revision
+    )
+      cancelDrag();
+    dragAuthority.current = {
+      id: token.id,
+      x: token.x,
+      y: token.y,
+      turn: currentTurnId,
+      character: pcCharacterId,
+      revision,
+    };
+  }, [token.id, token.x, token.y, currentTurnId, pcCharacterId, revision, cancelDrag]);
 
   return (
     <>
@@ -204,86 +320,198 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
             width: cellSize,
             height: cellSize,
             borderRadius: '50%',
-            background: 'var(--color-bg-raised)',
+            background: miniatureSrc ? 'transparent' : 'var(--color-bg-raised)',
             border: '2px dashed var(--color-accent)',
             opacity: 0.3,
             pointerEvents: 'none',
           }}
         />
       )}
-      <div
+      <button
         data-testid={`combat-token-${token.id}`}
+        type="button"
+        data-selected={selected ? 'true' : undefined}
+        data-confirmed-effect={healthEffect?.kind}
+        data-resource-spent={
+          effects.some((effect) => effect.kind === 'resource') ? 'true' : undefined
+        }
+        data-motion-event={effects[0]?.id}
+        tabIndex={onSelect ? 0 : -1}
+        aria-disabled={!onSelect}
+        aria-label={t('token_aria', {
+          name: displayName,
+          hp: token.hp,
+          maxHp: token.maxHp,
+          ac: token.ac,
+        })}
+        aria-pressed={Boolean(selected)}
+        onClick={
+          onSelect
+            ? (event) => {
+                event.stopPropagation();
+                onSelect(token.id);
+              }
+            : undefined
+        }
+        onKeyDown={
+          onSelect
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect(token.id);
+                }
+              }
+            : undefined
+        }
+        title={displayName}
         data-active={token.isActive ? 'true' : undefined}
         data-dead={isDead ? 'true' : undefined}
-        onPointerDown={draggable ? onPointerDown : undefined}
+        data-downed={token.hp <= 0 && !isDead ? 'true' : undefined}
+        onPointerDown={(event) => {
+          if (draggable) onPointerDown(event);
+          // A stationary token still owns its primary selection click. If the
+          // map starts panning and captures this pointer, the eventual click
+          // is retargeted to the canvas instead of selecting the actor.
+          else if (event.button === 0) event.stopPropagation();
+        }}
         onPointerMove={draggable ? onPointerMove : undefined}
         onPointerUp={draggable ? onPointerEnd : undefined}
         onPointerCancel={draggable ? onPointerEnd : undefined}
         style={{
+          padding: 0,
+          border: 0,
+          background: 'transparent',
+          textAlign: 'inherit',
           position: 'absolute',
           left: currentLeft,
           top: currentTop,
           width: cellSize,
           height: cellSize,
+          outline: selected ? '2px solid var(--color-accent-soft)' : undefined,
+          outlineOffset: selected ? 2 : undefined,
           // Animate model-driven and drop-committed moves (left/top change when
           // isDragging=false). Suppress transition during live drag so the token
           // tracks the pointer with zero lag. [W1.7a]
-          transition: isDragging ? undefined : 'left 0.25s ease, top 0.25s ease',
+          transition:
+            !isDragging && !prefersReducedMotion
+              ? `${moveConfirmed ? 'left var(--t-base) ease, top var(--t-base) ease, ' : ''}outline-color var(--t-fast) ease, outline-offset var(--t-fast) ease`
+              : undefined,
           // Pulse pauses during drag so the active-token glow does not
           // visually compete with the ghost + live position feedback. Dead
           // tokens never pulse - the skull overlay is the only motion cue.
           // Suppressed when the user prefers reduced motion. [W1.7b]
           animation:
-            token.isActive && !isDragging && !isDead && !prefersReducedMotion
-              ? 'token-pulse 1.6s ease-in-out infinite'
+            turnArrived && !isDragging && !incapacitated && !prefersReducedMotion
+              ? 'token-pulse var(--t-slow) ease-in-out'
               : undefined,
           cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
-          zIndex: isDragging ? 10 : undefined,
+          zIndex: isDragging ? 10000 : Math.round(token.y * 10 + 10),
           touchAction: 'none',
           filter: isDead ? 'grayscale(100%)' : undefined,
           opacity: isDead ? 0.7 : undefined,
         }}
       >
+        {resourceEffect && (
+          <span key={resourceEffect.id} className="dm-token-resource-feedback" aria-hidden="true" />
+        )}
+        {healthEffect && (
+          <span
+            key={healthEffect.id}
+            className={`dm-token-health-feedback ${healthEffect.kind}`}
+            aria-hidden="true"
+          >
+            {healthEffect.kind === 'heal' ? '+' : '-'}
+            {healthEffect.amount}
+          </span>
+        )}
+        {miniatureSrc && (
+          <div
+            data-testid={`miniature-${token.id}`}
+            data-asset-id={builtin?.miniatureId ?? opponent?.id ?? ''}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: cellSize * 0.08,
+              width: cellSize * 1.65,
+              height: cellSize * 2.15,
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+              zIndex: 2,
+              ...(opponent ? opponentFrame(opponent, cellSize) : {}),
+            }}
+          >
+            <img
+              src={miniatureSrc}
+              alt=""
+              draggable={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center bottom',
+                filter: 'drop-shadow(0 4px 3px rgba(0,0,0,.5))',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+        )}
         <div
           style={{
             width: cellSize - 4,
             height: cellSize - 4,
             borderRadius: '50%',
-            background: 'var(--color-bg-raised)',
+            background: miniatureSrc ? 'transparent' : 'var(--color-bg-raised)',
+            marginTop: miniatureSrc ? cellSize * 0.2 : undefined,
             // PC active turn: thicker gold ring + outer glow ring to make it
             // unmistakable at a glance. Enemy/NPC active: standard accent ring.
             // [W1.7b]
             border:
               token.isActive && isPcToken
-                ? '3px solid var(--color-accent)'
+                ? `${miniatureSrc ? 1 : 3}px solid var(--color-accent)`
                 : token.isActive
                   ? '2px solid var(--color-accent)'
                   : '1px solid var(--color-border-subtle)',
             boxShadow:
               token.isActive && isPcToken
-                ? '0 0 0 2px var(--color-accent), var(--glow-accent)'
+                ? miniatureSrc
+                  ? 'var(--glow-accent)'
+                  : '0 0 0 2px var(--color-accent), var(--glow-accent)'
                 : token.isActive
                   ? 'var(--glow-accent)'
                   : undefined,
             position: 'relative',
+            zIndex: 3,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 'var(--text-xs)',
             color: 'var(--color-fg-primary)',
-            overflow: 'hidden',
-            backgroundImage: portraitSrc !== null ? `url(${portraitSrc})` : undefined,
+            overflow: miniatureSrc ? 'visible' : 'hidden',
+            backgroundImage:
+              !miniatureSrc && portraitSrc !== null ? `url(${portraitSrc})` : undefined,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
         >
-          {portraitSrc === null && token.name.charAt(0).toUpperCase()}
+          {!miniatureSrc && portraitSrc === null && (
+            <svg
+              aria-hidden="true"
+              width={cellSize * 0.65}
+              height={cellSize * 0.65}
+              viewBox="0 0 32 32"
+              style={{ pointerEvents: 'none' }}
+            >
+              <circle cx="16" cy="9" r="5" fill="var(--color-accent-soft)" />
+              <path d="M10 15h12l3 12H7z" fill="var(--color-fg-muted)" />
+            </svg>
+          )}
 
           {isDead && (
             <div
               data-testid="combat-token-skull"
               role="img"
-              aria-label="Dead"
+              aria-label={t('dead')}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -304,14 +532,14 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
             style={{
               position: 'absolute',
               top: -4,
-              right: -4,
+              right: miniatureSrc ? -cellSize * 0.25 : -4,
               width: 18,
               height: 18,
               borderRadius: '50%',
               background: 'var(--color-bg-deep)',
               border: '1px solid var(--color-border-strong)',
               fontSize: 'var(--text-xs)',
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'var(--font-body)',
               letterSpacing: 'var(--tracking-mono)',
               display: 'flex',
               alignItems: 'center',
@@ -381,7 +609,8 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
               width: `${hpPct}%`,
               height: '100%',
               background: hpColor(token.hp, token.maxHp),
-              transition: 'width var(--t-base) ease',
+              transition:
+                healthEffect && !prefersReducedMotion ? 'width var(--t-base) ease' : undefined,
             }}
           />
         </div>
@@ -389,7 +618,7 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
         {/* "Your turn" cue: shown only when the PC's own token is active and
             alive. Floats above the token circle so it does not overlap
             conditions or the HP bar. [W1.7b] */}
-        {isPcToken && token.isActive && !isDead && (
+        {isPcToken && token.isActive && !incapacitated && (
           <div
             data-testid={`combat-token-${token.id}-your-turn`}
             className="token-your-turn"
@@ -410,10 +639,10 @@ export function CombatToken({ token, cellSize, zoom = 1, onMove, currentTurnId }
               textShadow: '0 1px 4px rgba(0,0,0,0.7)',
             }}
           >
-            Your turn
+            {t('your_turn')}
           </div>
         )}
-      </div>
+      </button>
     </>
   );
 }

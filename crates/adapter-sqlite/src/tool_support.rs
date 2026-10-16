@@ -41,6 +41,33 @@ pub struct TokenInsert<'a> {
 }
 
 impl SqliteStore {
+    pub async fn require_session_campaign(
+        &self,
+        session_id: Uuid,
+        campaign_id: Uuid,
+    ) -> Result<(), RepositoryError> {
+        let owner: Option<String> =
+            sqlx::query_scalar("SELECT campaign_id FROM sessions WHERE id=?1")
+                .bind(session_id.to_string())
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|_| repository_error("read_combat_session_owner"))?;
+        if owner.is_some_and(|owner| owner != campaign_id.to_string()) {
+            return Err(repository_error("combat_campaign_mismatch"));
+        }
+        Ok(())
+    }
+    pub async fn has_durable_hero(&self, session_id: Uuid) -> Result<bool, RepositoryError> {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions s JOIN campaign_characters c ON c.campaign_id=s.campaign_id WHERE s.id=?1)").bind(session_id.to_string()).fetch_one(&self.pool).await.map_err(|_|repository_error("read_combat_hero_presence"))
+    }
+    pub async fn active_combat_in_session(
+        &self,
+        session_id: Uuid,
+    ) -> Result<Option<Uuid>, RepositoryError> {
+        let id:Option<String>=sqlx::query_scalar("SELECT id FROM combat_encounters WHERE session_id=?1 AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1").bind(session_id.to_string()).fetch_optional(&self.pool).await.map_err(|_|repository_error("read_session_combat"))?;
+        id.map(|id| Uuid::parse_str(&id).map_err(|_| repository_error("combat_identity_invalid")))
+            .transpose()
+    }
     pub async fn is_combat_active(&self) -> Result<bool, RepositoryError> {
         sqlx::query("SELECT id FROM combat_encounters WHERE ended_at IS NULL LIMIT 1")
             .fetch_optional(&self.pool)
@@ -101,20 +128,36 @@ impl SqliteStore {
     }
 
     pub async fn set_token_hp(&self, token_id: &str, hp: i32) -> Result<(), RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_legacy_token_hp"))?;
+        ensure_unbound_token(&mut tx, token_id).await?;
         sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
             .bind(hp)
             .bind(token_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|_| repository_error("update_combat_token_hp"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_legacy_token_hp"))?;
         Ok(())
     }
 
     pub async fn add_token(&self, token: TokenInsert<'_>) -> Result<(), RepositoryError> {
-        let encounter_id = self
-            .active_combat_id()
-            .await?
-            .ok_or(RepositoryError::NotFound)?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_legacy_token_add"))?;
+        ensure_unbound_token(&mut tx, token.id).await?;
+        let encounter_id:String=sqlx::query_scalar("SELECT id FROM combat_encounters WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1").fetch_optional(&mut *tx).await.map_err(|_|repository_error("read_legacy_encounter"))?.ok_or(RepositoryError::NotFound)?;
+        let bound:bool=sqlx::query_scalar("SELECT COALESCE(json_type(projection,'$.campaign_scope')='object',0) FROM combat_encounters WHERE id=?1").bind(&encounter_id).fetch_one(&mut *tx).await.map_err(|_|repository_error("read_legacy_encounter_binding"))?;
+        if bound {
+            return Err(repository_error("bound_combat_requires_action"));
+        }
         sqlx::query(
             "INSERT OR REPLACE INTO combat_tokens \
              (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, \
@@ -132,9 +175,12 @@ impl SqliteStore {
         .bind(token.resistances)
         .bind(token.immunities)
         .bind(token.vulnerabilities)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|_| repository_error("add_combat_token"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_legacy_token_add"))?;
         Ok(())
     }
 
@@ -145,9 +191,10 @@ impl SqliteStore {
     ) -> Result<(), RepositoryError> {
         let mut transaction = self
             .pool
-            .begin()
+            .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|_| repository_error("begin_update_combat_token"))?;
+        ensure_unbound_token(&mut transaction, token_id).await?;
         if let Some(hp) = patch.hp {
             sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
                 .bind(hp)
@@ -197,11 +244,20 @@ impl SqliteStore {
     }
 
     pub async fn mark_token_dead(&self, token_id: &str) -> Result<(), RepositoryError> {
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(|_| repository_error("begin_legacy_token_remove"))?;
+        ensure_unbound_token(&mut tx, token_id).await?;
         sqlx::query("UPDATE combat_tokens SET is_dead = 1 WHERE id = ?1")
             .bind(token_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|_| repository_error("remove_combat_token"))?;
+        tx.commit()
+            .await
+            .map_err(|_| repository_error("commit_legacy_token_remove"))?;
         Ok(())
     }
 
@@ -231,6 +287,18 @@ impl SqliteStore {
         .execute(&self.pool)
         .await
         .map_err(|_| repository_error("insert_quick_save"))?;
+        Ok(())
+    }
+}
+
+async fn ensure_unbound_token(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    token_id: &str,
+) -> Result<(), RepositoryError> {
+    let bound:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM combat_tokens t JOIN combat_encounters e ON e.id=t.encounter_id WHERE t.id=?1 AND json_type(e.projection,'$.campaign_scope')='object')").bind(token_id).fetch_one(&mut **tx).await.map_err(|_|repository_error("read_legacy_token_binding"))?;
+    if bound {
+        Err(repository_error("bound_combat_requires_action"))
+    } else {
         Ok(())
     }
 }

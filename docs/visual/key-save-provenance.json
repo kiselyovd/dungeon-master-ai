@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "generator": "imagegen_builtin",
+  "assets": [
+    {
+      "assetId": "splash.v2",
+      "generationId": "exec-03127433-5cfc-432b-be9d-27b903e3a8c2",
+      "prompt": "Use-case: precise-object-edit. Upgrade this existing Dungeon Master AI splash painting into one premium, beautifully composed landscape16:9 fantasy tabletop key painting. Preserve the established oak table, warm hearth, cool blue night window, parchment map and four small fantasy tabletop miniatures. Improve tactile brushed metal, worn leather books, candle wax, carved wood, coherent warm/cool lighting and sharp believable miniature anatomy. Keep the main map and party safely in the CENTRAL60percent so desktop16:9 and narrower crops retain the subject; peripheral candle/books add atmosphere, no essential content at edges. Remove ALL writing, numerals, pseudo-text and dice face markings: the map has only unlabeled ink geography; dice may be plain faceted objects with no symbols. Calm painterly realistic fantasy, not glossy CGI, restrained gold highlights, dark velvety corners, layered depth, fine brushwork, balanced exposure. No title, logo, captions, UI, buttons, panels, decorative text, real product screenshots, story secrets or critical quest props. Opaque fully painted scene, wide landscape composition, central subject completely intact.",
+      "referenceAssetId": "src/assets/living-tabletop/splash.webp",
+      "master": ".artifacts/visual-production/masters/key-splash.png",
+      "masterSha256": "77581d89c5720fe9bd0670b503e8e61a8ad9441312c6d08912bf3d257e44864c",
+      "consumers": [
+        "SplashOverlay"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 286958
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "onboarding.v2",
+      "generationId": "exec-9fb0f33a-0160-437e-bc67-260b90c1b176",
+      "prompt": "Use-case: stylized-concept. ONE premium fantasy tabletop ONBOARDING welcome painting, wide landscape16:9. A worn oak adventurer's desk in a cozy candlelit study, an inviting OPEN blank leather book and unlabeled parchment map, one small elegant blue-cloaked traveller miniature standing centrally, a plain brass compass and warm candle at the edges. The traveller is cosmetic tabletop art, no named person, faction, secret or quest prop. Fine painterly realism with tactile linen/parchment/leather/brushed brass and controlled rich warm gold/cool blue contrast, layered depth, calm optimistic mood. Main subject/book/miniature entirely within central60percent width AND central50percent height so a very wide16:7 band preserves them. The peripheral study stays quiet and dark. ALL paper pages and surfaces without letters, pseudo-writing, numbers, runes or diagrams that resemble UI. No logo/title/text/caption/button/panel/screenshot/frame. No busy magic particles or bright glow. Composition suitable behind real code-rendered welcome controls; no baked UI. Opaque painting, landscape.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/key-onboarding.png",
+      "masterSha256": "902e908828bb2532ace3d5c3b6d89a9b144c99d2fe25896446f12c4fdea284cd",
+      "consumers": [
+        "Onboarding",
+        "WelcomeStep",
+        "CampaignHome.empty"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 640,
+        "bytes": 124242
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "vtt.empty.v2",
+      "generationId": "exec-31343dbb-4a18-4bad-9391-47a625e40d48",
+      "prompt": "Use-case: stylized-concept. ONE peaceful EXPLORATION / empty tabletop key painting for premium fantasy game UI, opaque wide landscape16:9. A quiet winding country road through soft mossy green hills toward a small distant generic timber-and-stone village by a river; early golden morning, low natural mist in distant valley, warm sunlit roofs, mature trees framing edges. No characters, enemies, quest clue, sign, readable writing, secret door, faction symbol or story-specific critical object. Paint with fine traditional brushwork, tactile grass/bark/stone, layered convincing depth, restrained gold/green/cool-blue palette, calm inviting mood. Main path/village centered within central50percent width and central60percent height, generous crop-safe calm peripheral space for real adjacent labels. Nature is beautiful but not neon or glossy CGI. No text, logo, caption, numbers, map grid, UI, buttons, cards, panels, arrows or controls. This is atmospheric art only, not tactical geometry or a real campaign location. Complete wide landscape scene.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/key-exploration.png",
+      "masterSha256": "dde9942ba1a799d8ea5e6bbdc186507ac5c428300c032ab466e1a218ee519755",
+      "consumers": [
+        "VttCanvas.empty",
+        "GameTable.exploration",
+        "CampaignHeroCard"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1440,
+        "height": 810,
+        "bytes": 371294
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "save.combat.v2",
+      "generationId": "exec-33954b7b-6b46-4088-b988-47974e371d03",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy SAVE CATEGORY COMBAT illustration, opaque landscape16:9. A worn steel sword and round dark wood shield resting together on mossy stones beneath a generic ruined arch after sunset, small warm campfire off to one side, distant indigo clouds and old stone road. The central sword/shield silhouette is wholly inside the middle45percent width, remains clearly recognizable in a tiny square or4:3 save thumbnail. Tactile brushed metal, scratched leather straps, believable moss and stone, fine traditional painterly brushwork, restrained amber/bronze against blue dusk, layered depth, calm aftermath mood. No people, gore, corpses, quest artifacts, faction emblem, narrative clues or implied specific campaign event. This is generic cosmetic category art, not evidence of a battle or actual map. No readable letters/numbers, pseudo-writing, symbols, title, logo, UI, controls, panel, grid or frame. Keep peripheral composition quiet and all central props intact.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/save-combat.png",
+      "masterSha256": "9354b72234c1609f00b35c9f689c2da9a6b24f612ff0fe71f5baa6a121dd275b",
+      "consumers": [
+        "SavesScreen.row",
+        "SavesScreen.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1024,
+        "height": 576,
+        "bytes": 143860
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "save.exploration.v2",
+      "generationId": "exec-db6f09cb-68c0-4fc1-a71d-76114717b8f7",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy SAVE CATEGORY EXPLORATION illustration, opaque wide landscape16:9. A small warm brass travel lantern and a neatly rolled unmarked parchment map resting centrally on a mossy stone beside an inviting woodland path, distant soft mountains and early morning light through old trees. Main lantern/map fully inside middle45percent width, unmistakable in a small square/4:3 thumbnail; scenery has layered depth and quiet peripheral space. Tactile brushed brass/glass/parchment/moss, delicate painterly brushwork, restrained green and amber against misty blue, warm optimistic travel mood. No people, creatures, hidden doors, quest clue, story-specific destination or faction marks. The rolled map has no writing or legible diagram; generic cosmetic category illustration, not an actual route or campaign event. No words, pseudo-text, numbers, runes, labels, title, logo, UI, controls, cards, panels, arrows, grid or border.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/save-exploration.png",
+      "masterSha256": "f2117a5414d03c0a8fec21e79e9200cda7c16f228b2c5537643391548efc52e1",
+      "consumers": [
+        "SavesScreen.row",
+        "SavesScreen.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1024,
+        "height": 576,
+        "bytes": 171014
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "save.dialog.v2",
+      "generationId": "exec-134ec0fe-19ec-42e9-b0b3-3d2119043270",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy SAVE CATEGORY DIALOG illustration, opaque landscape16:9. Two anonymous adult travellers seated across a small oak tavern table in warm candlelight, quietly conversing in calm attentive poses. One dark-blue cloak, one plain muted brown coat, no recognizable named hero, faction insignia, weapons, quest item or secret document. Their complete upper bodies and central candle/table lie within the middle50percent width, faces remain readable in a small square/4:3 thumbnail; hands mostly resting naturally on lap or obscured by table, no gestures with prominent fingers. Fine realistic traditional brushwork, tactile cloth/wood/wax, warm amber against subdued cool background, soft layered depth and welcoming mood. Quiet edges. This is generic cosmetic conversation-category art, not a canonical meeting or actual campaign event. No written signs, letters, pseudo-text, numbers, runes, captions, title, logo, UI, buttons, panels, cards, grids, borders or speech bubbles.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/save-dialog.png",
+      "masterSha256": "af81c19f163603aa69769a9556694b43933c0e398510911c5ddf7d678a99aafb",
+      "consumers": [
+        "SavesScreen.row",
+        "SavesScreen.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1024,
+        "height": 576,
+        "bytes": 87118
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    },
+    {
+      "assetId": "save.npc.v2",
+      "generationId": "exec-df1d420f-15e0-41ae-b37a-21b68d56ab00",
+      "prompt": "Use-case: stylized-concept. ONE premium painted fantasy SAVE CATEGORY NPC illustration, opaque wide landscape16:9. An anonymous friendly older human innkeeper with olive skin, greying curly hair and short beard, attentive warm eyes, simple cream linen shirt and dark brown wool waistcoat behind a worn oak counter in a cozy candlelit tavern. Face and entire upper torso completely within central45percent width and central65percent height, clear tiny-square/4:3 thumbnail silhouette. Hands below counter out of view, no held props. Fine realistic traditional painted brushwork, tactile linen/leather/wood, warm restrained gold light, subdued blue shadow, rich layered background with soft bokeh. No named identity, faction emblem, biography, affiliation, intention, quest artifact or secret. Generic cosmetic people-category illustration; does not identify any actual campaign NPC. No sign, words, pseudo-writing, numerals, letters, runes, caption, title, logo, UI, buttons, panels, cards, grid or decorative frame. Quiet crop-safe edges, calm welcoming expression.",
+      "referenceAssetId": null,
+      "master": ".artifacts/visual-production/masters/save-npc.png",
+      "masterSha256": "1e32d16fc204ed14f2250cca02b95ccb3b5d1b9ef6804dab53bf74e8e0ab61cf",
+      "consumers": [
+        "SavesScreen.row",
+        "SavesScreen.preview"
+      ],
+      "codec": {
+        "quality": 86,
+        "width": 1024,
+        "height": 576,
+        "bytes": 108798
+      },
+      "selection": "accepted: full-size and production RU/EN960/1280/1920 crop review, real long metadata/actions, missing-resource recovery and reduced-motion checks"
+    }
+  ]
+}

@@ -19,6 +19,8 @@ pub enum ToolCapability {
 
 pub fn capability(command: &AgentToolCommand) -> ToolCapability {
     match command {
+        AgentToolCommand::CombatAction(_) => ToolCapability::Combat,
+        AgentToolCommand::RestAction(_) => ToolCapability::Campaign,
         AgentToolCommand::RollDice(_) => ToolCapability::Dice,
         AgentToolCommand::ApplyDamage(_)
         | AgentToolCommand::ApplyHealing(_)
@@ -28,7 +30,8 @@ pub fn capability(command: &AgentToolCommand) -> ToolCapability {
         | AgentToolCommand::UpdateToken(_)
         | AgentToolCommand::RemoveToken(_)
         | AgentToolCommand::CastSpell(_) => ToolCapability::Combat,
-        AgentToolCommand::SetScene(_)
+        AgentToolCommand::AdventureAction(_)
+        | AgentToolCommand::SetScene(_)
         | AgentToolCommand::RememberNpc(_)
         | AgentToolCommand::RecallNpc(_)
         | AgentToolCommand::JournalAppend(_)
@@ -49,9 +52,11 @@ pub struct ToolDispatchRequest {
     pub command: AgentToolCommand,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GeneratedAgentMedia {
     Image {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_ref: Option<Box<crate::models::media_asset::MediaReference>>,
         mime_type: String,
         data_b64: String,
         kind: String,
@@ -64,7 +69,7 @@ pub enum GeneratedAgentMedia {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ToolExecution {
     pub result: Value,
     pub is_error: bool,
@@ -80,6 +85,15 @@ pub struct ToolDispatchError {
 
 #[async_trait]
 pub trait ToolDispatcher: Send + Sync {
+    /// Recover a recorded outcome without claiming a new tool or executing any effect.
+    async fn replay(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Err(ToolDispatchError {
+            code: "tool_replay_unavailable",
+        })
+    }
     async fn execute(
         &self,
         request: ToolDispatchRequest,
@@ -88,6 +102,14 @@ pub trait ToolDispatcher: Send + Sync {
 
 #[async_trait]
 pub trait ToolCapabilityHandler: Send + Sync {
+    async fn replay_capability(
+        &self,
+        _request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        Err(ToolDispatchError {
+            code: "tool_replay_unavailable",
+        })
+    }
     async fn execute_capability(
         &self,
         request: ToolDispatchRequest,
@@ -122,6 +144,19 @@ impl CapabilityToolDispatcher {
 
 #[async_trait]
 impl ToolDispatcher for CapabilityToolDispatcher {
+    async fn replay(
+        &self,
+        request: ToolDispatchRequest,
+    ) -> Result<Option<ToolExecution>, ToolDispatchError> {
+        let handler = match capability(&request.command) {
+            ToolCapability::Dice => &self.dice,
+            ToolCapability::Combat => &self.combat,
+            ToolCapability::Campaign => &self.campaign,
+            ToolCapability::Rules => &self.rules,
+            ToolCapability::Media => &self.media,
+        };
+        handler.replay_capability(request).await
+    }
     async fn execute(
         &self,
         request: ToolDispatchRequest,

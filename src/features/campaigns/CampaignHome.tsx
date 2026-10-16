@@ -1,18 +1,35 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CampaignSummary } from '../../api/contracts/campaign';
+import { KEY_ART, KEY_ART_IDS } from '../../assets/livingTabletop';
+import { useStore } from '../../state/useStore';
+import { DecorativeImage } from '../../ui/DecorativeImage';
 import { Icons } from '../../ui/Icons';
 import styles from './CampaignHome.module.css';
 import { CampaignHeroCard } from './components/CampaignHeroCard';
+import { CampaignProgress } from './components/CampaignProgress';
 
 interface CampaignHomeProps {
+  nativeTools?: ReactNode;
+  errorCode?: string | null;
+  onRetry?: () => void;
   campaigns: CampaignSummary[];
   loading: boolean;
   onContinue: (campaignId: string) => void;
   onNew: () => void;
 }
 
-export function CampaignHome({ campaigns, loading, onContinue, onNew }: CampaignHomeProps) {
+export function CampaignHome({
+  nativeTools,
+  campaigns,
+  loading,
+  onContinue,
+  onNew,
+  errorCode,
+  onRetry,
+}: CampaignHomeProps) {
   const { t } = useTranslation('campaigns');
+  const visits = useStore((state) => state.settings.campaignVisits);
   const [latest, ...archive] = campaigns;
 
   return (
@@ -21,31 +38,49 @@ export function CampaignHome({ campaigns, loading, onContinue, onNew }: Campaign
       <span className="dm-ambient-dust" aria-hidden="true" />
       <div className={styles.content}>
         <header className={styles.intro}>
-          <span className={styles.eyebrow}>{t('library_eyebrow')}</span>
           <h1>{t('home_title')}</h1>
-          <p>{t('home_subtitle')}</p>
         </header>
+        {errorCode && (
+          <section role="alert" className={styles.empty}>
+            <p>{t('load_failed')}</p>
+            {onRetry && (
+              <button
+                type="button"
+                className={styles.primaryAction}
+                disabled={loading}
+                onClick={onRetry}
+              >
+                {t('retry')}
+              </button>
+            )}
+          </section>
+        )}
 
         {latest ? (
           <CampaignHeroCard
             campaign={latest}
             continueLabel={t('continue_campaign')}
-            revisionLabel={t('revision')}
+            visitedAt={visits[latest.id]}
             onContinue={onContinue}
+            disabled={loading}
           />
         ) : (
-          <section className={styles.empty} aria-live="polite">
-            <Icons.BookOpen size={28} />
+          <section className={`${styles.empty} ${styles.emptyScene}`} aria-live="polite">
+            <DecorativeImage
+              src={KEY_ART.onboarding}
+              assetId={KEY_ART_IDS.onboarding}
+              className={styles.emptyArt}
+            />
             <h2>{loading ? t('loading') : t('empty_title')}</h2>
-            <p>{loading ? t('loading_hint') : t('empty_body')}</p>
           </section>
         )}
 
-        <button type="button" className={styles.newAction} onClick={onNew}>
+        <button type="button" className={styles.newAction} onClick={onNew} disabled={loading}>
           <Icons.Plus size={16} />
           {t('new_campaign')}
         </button>
 
+        {nativeTools}
         {archive.length > 0 && (
           <section className={styles.archive} aria-labelledby="campaign-archive-title">
             <div className={styles.archiveHeading}>
@@ -58,6 +93,7 @@ export function CampaignHome({ campaigns, loading, onContinue, onNew }: Campaign
                   key={campaign.id}
                   type="button"
                   className={styles.archiveRow}
+                  disabled={loading}
                   onClick={() => onContinue(campaign.id)}
                 >
                   <Icons.Book size={15} />
@@ -65,9 +101,7 @@ export function CampaignHome({ campaigns, loading, onContinue, onNew }: Campaign
                     <strong>{campaign.title}</strong>
                     <small>{campaign.premise}</small>
                   </span>
-                  <span className={styles.archiveRevision}>
-                    {t('revision')} {campaign.revision}
-                  </span>
+                  <CampaignProgress campaign={campaign} visitedAt={visits[campaign.id]} />
                   <Icons.ChevronRight size={14} />
                 </button>
               ))}

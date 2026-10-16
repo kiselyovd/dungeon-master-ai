@@ -10,14 +10,36 @@
   position: relative;
 }
 
+.speaker {
+  color: var(--color-fg-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.delivery {
+  color: var(--color-fg-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  margin-top: var(--space-2);
+}
+
 .bubble[data-role="user"] {
   align-self: flex-end;
   background: var(--color-accent-tint);
 }
 
+.bubble[data-role="assistant"] {
+  font-family: var(--font-narrative);
+  font-size: var(--text-reading);
+  line-height: var(--leading-relaxed);
+  max-width: min(92%, 65ch);
+  font-optical-sizing: auto;
+}
+
 .bubble[data-streaming="true"] {
   border-color: var(--color-accent);
-  font-style: italic;
 }
 
 /* Drop-cap on the first letter of the first paragraph in narrator bubbles. */
@@ -80,7 +102,7 @@
   margin-top: var(--space-2);
 }
 
-/* Headings - Cinzel display font, gold accent */
+/* Headings share the bilingual display role. */
 .mdH1,
 .mdH2,
 .mdH3 {
@@ -118,7 +140,7 @@
 
 /* Inline code - monospace with subtle background */
 .inlineCode {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 0.875em;
   letter-spacing: var(--tracking-mono);
   background: var(--color-bg-overlay);

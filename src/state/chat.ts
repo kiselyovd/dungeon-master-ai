@@ -1,6 +1,7 @@
 import i18next from 'i18next';
 import type { StateCreator } from 'zustand';
 import type { ImageSource } from '../api/contracts/agent';
+import type { MediaReference } from '../api/contracts/mediaAsset';
 import type { ChatErrorPayload } from '../api/errors';
 
 export type ChatRole = 'user' | 'assistant' | 'system';
@@ -54,6 +55,7 @@ export interface ChatStreamEvent {
   round: number;
   /** Data URL of an image produced by this tool call (illustration or map). */
   imageDataUrl?: string;
+  imageMediaRef?: MediaReference;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
   /** Provenance for the ephemeral generated or bundled image. */
@@ -149,6 +151,12 @@ export interface ChatSlice {
     attachStreamEventImage: (
       id: string,
       dataUrl: string,
+      kind: 'map' | 'chat',
+      source: ImageSource,
+    ) => void;
+    attachStreamEventMedia: (
+      id: string,
+      reference: MediaReference,
       kind: 'map' | 'chat',
       source: ImageSource,
     ) => void;
@@ -377,6 +385,23 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
         },
       })),
 
+    attachStreamEventMedia: (id, reference, kind, source) =>
+      set((s) => ({
+        chat: {
+          ...s.chat,
+          chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
+            e.id === id
+              ? {
+                  ...e,
+                  imageDataUrl: '',
+                  imageMediaRef: reference,
+                  imageKind: kind,
+                  imageSource: source,
+                }
+              : e,
+          ),
+        },
+      })),
     attachStreamEventImage: (id, dataUrl, kind, source) =>
       set((s) => ({
         chat: {

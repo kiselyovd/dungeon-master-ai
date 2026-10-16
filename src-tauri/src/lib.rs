@@ -1,25 +1,63 @@
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 
 mod commands;
 mod processes;
 
 use commands::backend::{backend_port, BackendState};
+use commands::desktop::{desktop_reset_geometry, DesktopState};
+use commands::rooms::{
+    cancel_room_stream, host_room, join_room, postpone_guest_room, recover_guest_room,
+    recover_host_room, resume_room, room_operation, saved_guest_rooms, stop_host_room, stream_room,
+    NativeRoomState,
+};
 use processes::control::ControlServer;
+use processes::lifecycle::{desktop_confirm_exit, AppLifecycle};
 use processes::RuntimeProcesses;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .try_init();
+    let process_job = processes::owned_job::OwnedProcessJob::new()
+        .expect("desktop process ownership must be initialized before startup");
+    let context = tauri::generate_context!();
+    let mut startup_guard = Some(
+        processes::startup_guard::StartupGuard::acquire(&context.config().identifier)
+            .expect("desktop plugin startup must be serialized"),
+    );
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            commands::invocations::second_launch(app, args);
+        }))
+        // No configured CLI schemes: the bounded native parser owns cold/warm
+        // dispatch, avoiding the plugin's raw-URL state and debug logging.
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
+        .manage(NativeRoomState::default())
         .manage(RuntimeProcesses::default())
+        .manage(DesktopState::default())
+        .manage(AppLifecycle::default())
+        .manage(commands::invocations::InvocationBroker::default())
+        .manage(commands::invitations::InvitationInbox::default())
+        .manage(commands::notifications::NotificationState::default())
+        .manage(commands::bundles::BundleFileState::default())
+        .manage(commands::auxiliary::AuxiliaryState::default())
+        .manage(process_job)
         .setup(|app| {
+            log::info!("native launch kind=first");
+            commands::notifications::resume(app.handle());
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 {
+                commands::invocations::handle_launch(app.handle(), args, "cold");
+            }
+            commands::desktop::restore(app.handle());
             let salt_path = app
                 .path()
                 .app_local_data_dir()
@@ -33,38 +71,136 @@ pub fn run() {
                 app.handle().clone(),
                 processes,
             ))?;
-            processes::backend::spawn_backend(
+            app.manage(control);
+            let control = app.state::<ControlServer>();
+            if let Err(error) = processes::backend::spawn_backend(
                 app.handle().clone(),
                 control.endpoint(),
                 control.token(),
                 control.executor(),
-            )?;
-            app.manage(control);
+            ) {
+                processes::lifecycle::shutdown(app.handle());
+                return Err(error);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::Focused(true)) {
+                commands::desktop::recover_offscreen(window);
+            }
+            if matches!(event, WindowEvent::ScaleFactorChanged { .. }) {
+                commands::desktop::recover_after_scale_change(window);
+            }
             if matches!(
                 event,
-                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+                WindowEvent::Moved(_)
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. }
             ) {
-                let processes = window
-                    .app_handle()
-                    .state::<RuntimeProcesses>()
-                    .inner()
-                    .clone();
-                tauri::async_runtime::block_on(processes.stop());
-                processes::backend::stop(window.app_handle());
-                window.app_handle().state::<ControlServer>().shutdown();
+                commands::desktop::capture(window, false);
+                commands::desktop::capture_auxiliary(window, false);
+            }
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                commands::desktop::capture(window, true);
+                commands::desktop::capture_auxiliary(window, true);
+            }
+            if matches!(event, WindowEvent::Destroyed) {
+                log::debug!("window={} lifecycle=destroyed", window.label());
+                if processes::lifecycle::closes_application(window.label()) {
+                    processes::lifecycle::request_exit(window.app_handle());
+                }
             }
         })
-        .invoke_handler(tauri::generate_handler![backend_port])
-        .run(tauri::generate_context!())
-        .expect("error while running the Tauri application");
+        .invoke_handler(tauri::generate_handler![
+            backend_port,
+            commands::auxiliary::desktop_aux_open,
+            commands::auxiliary::desktop_aux_publish,
+            commands::auxiliary::desktop_aux_heartbeat,
+            commands::auxiliary::desktop_aux_read,
+            commands::auxiliary::desktop_aux_focus_main,
+            commands::auxiliary::desktop_aux_close,
+            desktop_reset_geometry,
+            desktop_confirm_exit,
+            commands::invitations::desktop_parse_invitation,
+            commands::invitations::desktop_take_invitation,
+            commands::invitations::desktop_create_invitation,
+            commands::invitations::desktop_register_invitation_protocol,
+            commands::notifications::desktop_notification_preferences,
+            commands::bundles::desktop_bundle_export,
+            commands::bundles::desktop_bundle_pick_import,
+            commands::bundles::desktop_bundle_confirm_import,
+            commands::bundles::desktop_bundle_cancel,
+            commands::bundles::desktop_bundle_reveal,
+            commands::notifications::desktop_set_notifications,
+            commands::notifications::desktop_notification_context,
+            commands::notifications::desktop_offer_notification,
+            commands::notifications::desktop_notification_qa_counts,
+            commands::notifications::desktop_notification_qa_shortcut,
+            commands::notifications::desktop_notification_qa_enroll,
+            host_room,
+            recover_host_room,
+            stop_host_room,
+            join_room,
+            resume_room,
+            recover_guest_room,
+            saved_guest_rooms,
+            postpone_guest_room,
+            room_operation,
+            stream_room,
+            cancel_room_stream
+        ])
+        .build(context)
+        .expect("error while building the Tauri application")
+        .run(move |app, event| {
+            if matches!(event, RunEvent::Ready) {
+                // The single-instance message window and event loop now exist.
+                let _ = startup_guard.take();
+                commands::invocations::deliver_focus(app);
+            }
+            if matches!(event, RunEvent::Exit) {
+                commands::notifications::shutdown();
+                processes::lifecycle::shutdown(app);
+            }
+        });
 }
 
 #[cfg(test)]
 mod packaging_tests {
     use serde_json::Value;
+    mod command_manifest {
+        include!("../app_commands.rs");
+    }
+
+    #[test]
+    fn every_registered_application_command_has_an_acl_manifest_entry() {
+        let source = include_str!("lib.rs");
+        let handler = source
+            .split_once("tauri::generate_handler![")
+            .unwrap()
+            .1
+            .split_once("])")
+            .unwrap()
+            .0;
+        let registered: std::collections::BTreeSet<_> = handler
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.trim_end_matches(',').rsplit("::").next().unwrap())
+            .collect();
+        let manifest: std::collections::BTreeSet<_> =
+            command_manifest::COMMANDS.iter().copied().collect();
+        assert_eq!(registered, manifest);
+        let auxiliary: Value =
+            serde_json::from_str(include_str!("../capabilities/auxiliary.json")).unwrap();
+        assert_eq!(
+            auxiliary["permissions"],
+            serde_json::json!([
+                "allow-desktop-aux-read",
+                "allow-desktop-aux-focus-main",
+                "allow-desktop-aux-close"
+            ])
+        );
+    }
 
     fn external_bins(source: &str) -> Vec<String> {
         serde_json::from_str::<Value>(source).unwrap()["bundle"]["externalBin"]

@@ -1,3 +1,6 @@
+import { DecorativeImage } from '../ui/DecorativeImage';
+// Pixi's static shader/uniform paths support the desktop CSP without eval.
+import 'pixi.js/unsafe-eval';
 import { Application, extend } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
 import { Container, Graphics } from 'pixi.js';
@@ -9,24 +12,61 @@ import type {
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KEY_ART } from '../assets/livingTabletop';
+import type { BattleMap } from '../api/contracts/battleMap';
+import type { MediaReference, MediaScope } from '../api/contracts/mediaAsset';
+import { KEY_ART, KEY_ART_IDS } from '../assets/livingTabletop';
+import type { CombatToken } from '../features/combat/model/types';
+import { useMediaImage } from '../features/media/useMediaImage';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
+import { AuthoredMap } from './AuthoredMap';
+import type { ActorVisualMap } from './actorVisuals';
 import { CombatOverlay } from './CombatOverlay';
+import type { PlayerTokenPresentation } from './CombatToken';
+import {
+  DecorativeSceneArtwork,
+  SceneArtwork,
+  type SceneArtworkPresentation,
+  sceneArtworkAsset,
+} from './SceneArtwork';
+import { SceneTransitionOverlay } from './SceneTransitionOverlay';
+export interface VttPresentation {
+  transitionScopeKey?: string;
+  encounterId?: string | null;
+  events?: readonly unknown[];
+  motionScopeKey?: string;
+  round?: number;
+  mapSkinAssetId?: string | null;
+  sceneArtwork?: SceneArtworkPresentation | null;
+  actorVisuals?: ActorVisualMap | undefined;
+  mapMediaRef?: MediaReference | null;
+  mediaScope?: MediaScope | null;
+  active: boolean;
+  tokens: CombatToken[];
+  map: BattleMap | null;
+  currentTurnId: string | null;
+  revision: number;
+  player: PlayerTokenPresentation;
+  movableTokenId: string | null;
+}
 
 extend({ Container, Graphics });
 
 interface Props {
+  selectedTokenId?: string | null | undefined;
+  onSelectToken?: ((id: string) => void) | undefined;
+  presentation?: VttPresentation;
   /** Optional override; when omitted the count is derived from the container width. */
   widthCells?: number;
   /** Optional override; when omitted the count is derived from the container height. */
   heightCells?: number;
   cellSize?: number;
-  onMoveToken?: (id: string, x: number, y: number) => void;
+  onMoveToken?: ((id: string, x: number, y: number) => void) | undefined;
 }
 
 /** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */
 const MIN_CANVAS_PX = 60;
+const NO_EVENTS: readonly unknown[] = [];
 /** Fallback dimensions when no ResizeObserver and no container size are available. */
 const FALLBACK_CELLS = 20;
 
@@ -41,16 +81,71 @@ function deriveCells(containerPx: number, cellSize: number, override: number | u
   return Math.max(1, Math.floor(containerPx / cellSize));
 }
 
-export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken }: Props) {
+export function VttCanvas({
+  selectedTokenId,
+  onSelectToken,
+  widthCells,
+  heightCells,
+  cellSize = 30,
+  onMoveToken,
+  presentation,
+}: Props) {
   const { t } = useTranslation('combat');
 
-  const combatActive = useStore((s) => s.combat.active);
-  const tokens = useStore((s) => s.combat.tokens);
-  const currentTurnId = useStore((s) => s.combat.currentTurnId);
-  const combatRevision = useStore((s) => s.combat.revision);
-  const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
-  const mapImageUrl = useStore((s) => s.session.mapImageUrl);
-  const hasMap = mapImageUrl !== null;
+  const storedEncounterId = useStore((s) => s.combat.encounterId);
+  const storedActive = useStore((s) => s.combat.active);
+  const storedTokens = useStore((s) => s.combat.tokens);
+  const authored = useStore((s) => s.combat.authored);
+  const adventureMap = useStore((s) => s.session.adventure?.map);
+  const storedAdventure = useStore((s) => s.session.adventure);
+  const scenery = presentation
+    ? presentation.sceneArtwork
+    : storedAdventure?.scene_asset_id
+      ? { assetId: storedAdventure.scene_asset_id, location: storedAdventure.state.location }
+      : null;
+  const storedTurn = useStore((s) => s.combat.currentTurnId);
+  const storedRevision = useStore((s) => s.combat.revision);
+  const storedRound = useStore((s) => s.combat.round);
+  const storedEvents = useStore((s) => s.combat.events);
+  const storedAoe = useStore((s) => s.combat.aoeTemplates);
+  const storedImage = useStore((s) => s.session.mapImageUrl);
+  const storedMedia = useStore((s) => s.session.mapMediaRef);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const storedSessionId = useStore((s) => s.session.activeSessionId);
+  const storedTimeline = useStore((s) => s.session.presentationGeneration);
+  const transitionScopeKey = presentation
+    ? (presentation.transitionScopeKey ?? '')
+    : JSON.stringify([campaignId, storedSessionId, storedTimeline, scenery?.location ?? null]);
+  const motionScopeKey = presentation
+    ? presentation.motionScopeKey
+    : JSON.stringify([campaignId, storedSessionId, storedTimeline, storedEncounterId]);
+  const reference = presentation ? presentation.mapMediaRef : storedMedia;
+  const media = useMediaImage(
+    reference,
+    presentation
+      ? (presentation.mediaScope ?? null)
+      : campaignId
+        ? { kind: 'campaign', campaign_id: campaignId }
+        : null,
+    'map',
+  );
+  const combatActive = presentation ? presentation.active : storedActive;
+  const arena = presentation ? presentation.map : combatActive ? authored?.map : adventureMap;
+  const mapSkinAssetId = presentation
+    ? presentation.mapSkinAssetId
+    : combatActive
+      ? authored?.map_skin_asset_id
+      : storedAdventure?.map_skin_asset_id;
+  const tokens = presentation
+    ? presentation.tokens
+    : !combatActive && (authored || storedEncounterId)
+      ? []
+      : storedTokens;
+  const currentTurnId = presentation ? presentation.currentTurnId : storedTurn;
+  const combatRevision = presentation ? presentation.revision : storedRevision;
+  const aoeTemplates = presentation ? [] : storedAoe;
+  const mapImageUrl = reference ? media.url : presentation ? null : storedImage;
+  const hasMap = Boolean(arena);
   const [showGrid, setShowGrid] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showSceneImage, setShowSceneImage] = useState(true);
@@ -148,20 +243,26 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
   const width = Math.max(MIN_CANVAS_PX, containerSize.width);
   const height = Math.max(MIN_CANVAS_PX, containerSize.height);
 
-  const effectiveWidthCells = deriveCells(width, cellSize, widthCells);
-  const effectiveHeightCells = deriveCells(height, cellSize, heightCells);
+  const effectiveWidthCells = arena?.width ?? deriveCells(width, cellSize, widthCells);
+  const effectiveHeightCells = arena?.height ?? deriveCells(height, cellSize, heightCells);
+  const gridWidth = arena ? arena.width * cellSize : width;
+  const gridHeight = arena ? arena.height * cellSize : height;
+  const arenaKey = arena ? `${arena.width}:${arena.height}` : null;
+  useEffect(() => {
+    if (!arenaKey) return;
+    setZoom(1);
+    setPan({ x: (width - gridWidth) / 2, y: (height - gridHeight) / 2 });
+  }, [arenaKey, width, height, gridWidth, gridHeight]);
 
   // The scene image is shown only when one exists AND its layer is enabled.
   // drawGrid paints the dark backdrop whenever the image is not visible.
-  const showMapImage = hasMap && showSceneImage;
 
   const drawGrid = useCallback(
     (g: PixiGraphics) => {
       g.clear();
-      // With a visible map image behind the canvas we paint nothing opaque so
-      // the scene art shows through; only the grid lines (drawn below) overlay
-      // it. When no image is visible we fill the dark backdrop ourselves.
-      if (!showMapImage) {
+      // A supplied arena owns its floor. Unmapped combat uses a neutral grid;
+      // decorative media never supplies terrain or collision.
+      if (!arena) {
         g.rect(0, 0, width, height).fill({ color: 0x1a1424, alpha: 1 });
       }
       if (!showGrid) return;
@@ -170,23 +271,33 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
       // unstroked strip when width is not a clean multiple of cellSize).
       for (let x = 0; x <= effectiveWidthCells; x += 1) {
         const px = x * cellSize;
-        if (px > width) break;
-        g.moveTo(px, 0).lineTo(px, height);
+        if (px > gridWidth) break;
+        g.moveTo(px, 0).lineTo(px, gridHeight);
       }
-      if (effectiveWidthCells * cellSize < width) {
-        g.moveTo(width, 0).lineTo(width, height);
+      if (effectiveWidthCells * cellSize < gridWidth) {
+        g.moveTo(gridWidth, 0).lineTo(gridWidth, gridHeight);
       }
       for (let y = 0; y <= effectiveHeightCells; y += 1) {
         const py = y * cellSize;
-        if (py > height) break;
-        g.moveTo(0, py).lineTo(width, py);
+        if (py > gridHeight) break;
+        g.moveTo(0, py).lineTo(gridWidth, py);
       }
-      if (effectiveHeightCells * cellSize < height) {
-        g.moveTo(0, height).lineTo(width, height);
+      if (effectiveHeightCells * cellSize < gridHeight) {
+        g.moveTo(0, gridHeight).lineTo(gridWidth, gridHeight);
       }
       g.stroke({ color: 0xd4af37, alpha: 0.18, width: 1 });
     },
-    [effectiveWidthCells, effectiveHeightCells, cellSize, width, height, showGrid, showMapImage],
+    [
+      effectiveWidthCells,
+      effectiveHeightCells,
+      cellSize,
+      width,
+      height,
+      gridWidth,
+      gridHeight,
+      arena,
+      showGrid,
+    ],
   );
 
   const onMeasureClick = useCallback(
@@ -221,7 +332,12 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
       return;
     }
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        !e.isComposing &&
+        !document.querySelector('[role="dialog"]')
+      ) {
         setMeasureOrigin(null);
         setMeasureCurrent(null);
       }
@@ -263,8 +379,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
 
   const fitToView = useCallback(() => {
     setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, []);
+    setPan(arena ? { x: (width - gridWidth) / 2, y: (height - gridHeight) / 2 } : { x: 0, y: 0 });
+  }, [arena, width, height, gridWidth, gridHeight]);
 
   const onWheel = useCallback(
     (e: ReactWheelEvent<HTMLDivElement>) => {
@@ -329,7 +445,19 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
   const isEmpty = tokens.length === 0 && !combatActive && !hasMap;
 
   return (
-    <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
+    <div
+      className="dm-vtt"
+      ref={containerRef}
+      data-testid="dm-vtt"
+      data-command-target="map"
+      tabIndex={-1}
+    >
+      <SceneTransitionOverlay
+        scopeKey={transitionScopeKey}
+        active={combatActive}
+        encounterId={presentation ? (presentation.encounterId ?? null) : storedEncounterId}
+        art={scenery ? sceneArtworkAsset(scenery) : null}
+      />
       <div
         className="dm-vtt-canvas"
         onWheel={onWheel}
@@ -340,20 +468,16 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
         style={{ cursor: isPanning ? 'grabbing' : measureMode ? 'crosshair' : 'grab' }}
       >
         <div className="dm-vtt-world" style={worldStyle}>
-          {showMapImage && (
-            <img
-              src={mapImageUrl ?? undefined}
-              alt=""
-              className="dm-vtt-map-bg"
-              data-testid="dm-vtt-map-bg"
+          {arena && (
+            <AuthoredMap
+              map={arena}
+              cellSize={cellSize}
+              skinAssetId={mapSkinAssetId ?? null}
+              showSkin={showSceneImage}
             />
           )}
-          {/* The canvas is always transparent; the dark backdrop is painted by
-              drawGrid's rect fill (skipped when a map image is present so the
-              art shows through). backgroundAlpha is an init-only Pixi option, so
-              a constant 0 avoids the "opaque clear hides the map" reactivity bug.
-              Keying on hasMap forces a renderer re-init if the map toggles, so a
-              late-arriving image is never occluded by a stale opaque clear. */}
+          {/* Only authoritative arena geometry shares the tactical canvas.
+              Uncalibrated raster media is rendered as a separate scene preview. */}
           <Application
             key={hasMap ? 'vtt-map' : 'vtt-grid'}
             width={width}
@@ -367,6 +491,15 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
           </Application>
           {showTokens && (
             <CombatOverlay
+              selectedTokenId={selectedTokenId}
+              onSelectToken={onSelectToken}
+              {...(presentation
+                ? {
+                    playerPresentation: presentation.player,
+                    actorVisuals: presentation.actorVisuals,
+                    movableTokenId: presentation.movableTokenId,
+                  }
+                : {})}
               active={combatActive}
               tokens={tokens}
               cellSize={cellSize}
@@ -376,6 +509,9 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
               {...(onMoveToken ? { onMoveToken } : {})}
               currentTurnId={currentTurnId}
               revision={combatRevision}
+              round={presentation ? (presentation.round ?? 1) : storedRound}
+              events={presentation ? (presentation.events ?? NO_EVENTS) : storedEvents}
+              {...(motionScopeKey ? { motionScopeKey } : {})}
               aoeTemplates={aoeTemplates}
             />
           )}
@@ -423,7 +559,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
                     y={measureCurrent.y - 8}
                     fill="var(--color-fg-primary)"
                     fontSize={12}
-                    fontFamily="var(--font-mono)"
+                    fontFamily="var(--font-body)"
                   >
                     {measureDistanceFt} ft
                   </text>
@@ -434,20 +570,37 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
         )}
       </div>
 
-      {isEmpty && (
+      {scenery && <SceneArtwork presentation={scenery} stage={isEmpty} />}
+      {!scenery && mapImageUrl && (!combatActive || showSceneImage) && (
+        <DecorativeSceneArtwork src={mapImageUrl} stage={isEmpty} />
+      )}
+      {isEmpty && !scenery && !mapImageUrl && (
         <div className="dm-vtt-empty" aria-live="polite" data-art-direction="living-tabletop">
-          <img src={KEY_ART.vttEmpty} alt="" className="dm-vtt-empty-art" />
+          <DecorativeImage
+            src={KEY_ART.vttEmpty}
+            assetId={KEY_ART_IDS.vttEmpty}
+            className="dm-vtt-empty-art"
+          />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>
         </div>
       )}
 
-      <div className="dm-vtt-scale" aria-hidden="true">
+      <div
+        className="dm-vtt-scale"
+        aria-hidden="true"
+        style={{ display: isEmpty && (scenery || mapImageUrl) ? 'none' : undefined }}
+      >
         <div className="dm-vtt-scale-bar" />
         <span>{t('map_scale_5ft')}</span>
       </div>
 
-      <div className="dm-vtt-controls" role="toolbar" aria-label={t('map_controls')}>
+      <div
+        className="dm-vtt-controls"
+        role="toolbar"
+        aria-label={t('map_controls')}
+        style={{ display: isEmpty && (scenery || mapImageUrl) ? 'none' : undefined }}
+      >
         <button
           type="button"
           className="dm-vtt-ctrl"
@@ -509,7 +662,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
         </button>
       </div>
 
-      {layersOpen && (
+      {layersOpen && !(isEmpty && (scenery || mapImageUrl)) && (
         <div className="dm-vtt-layers" role="menu" aria-label={t('map_layers')}>
           <label className="dm-vtt-layer-row">
             <input type="checkbox" checked={showGrid} onChange={() => setShowGrid((v) => !v)} />
@@ -519,7 +672,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken 
             <input
               type="checkbox"
               checked={showSceneImage}
-              disabled={!hasMap}
+              disabled={!hasMap && !mapImageUrl}
               onChange={() => setShowSceneImage((v) => !v)}
             />
             <span>{t('layer_scene')}</span>

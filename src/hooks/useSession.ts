@@ -19,31 +19,37 @@ export interface UseSessionReturn {
 }
 
 export function useSession(): UseSessionReturn {
-  const currentSession = useStore((s) => s.session.current);
+  const campaignId = useStore((s) => s.session.activeCampaignId);
+  const sessionId = useStore((s) => s.session.activeSessionId);
   const setMessages = useStore((s) => s.chat.setMessages);
   const setLoadError = useStore((s) => s.session.setLoadError);
 
   const load = useCallback(
     (signal?: AbortSignal): Promise<void> => {
-      const active = currentSession();
-      if (active === null) {
+      if (campaignId === null || sessionId === null) {
         setLoadError('campaign_required');
         return Promise.resolve();
       }
-      const { sessionId } = active;
+      const generation = useStore.getState().session.transitionGeneration;
+      const messagesAtStart = useStore.getState().chat.messages;
+      const isCurrent = () =>
+        !signal?.aborted &&
+        useStore.getState().session.transitionGeneration === generation &&
+        useStore.getState().session.activeSessionId === sessionId &&
+        useStore.getState().session.activeCampaignId === campaignId;
       return fetchSessionMessages(sessionId)
         .then((messages) => {
-          if (signal?.aborted) return;
-          if (messages.length > 0) setMessages(messages);
+          if (!isCurrent()) return;
+          if (useStore.getState().chat.messages === messagesAtStart) setMessages(messages);
           setLoadError(null);
         })
         .catch((err) => {
-          if (signal?.aborted) return;
+          if (!isCurrent()) return;
           const message = err instanceof Error ? err.message : 'failed to load session messages';
           setLoadError(message);
         });
     },
-    [currentSession, setMessages, setLoadError],
+    [campaignId, sessionId, setMessages, setLoadError],
   );
 
   useEffect(() => {

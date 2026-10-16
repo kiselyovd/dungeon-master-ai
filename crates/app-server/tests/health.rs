@@ -21,7 +21,9 @@ async fn health_returns_ok_with_version() {
 #[tokio::test]
 async fn body_limit_rejects_oversized_agent_payload_before_dispatch() {
     let server = TestServer::start().await;
-    let oversized = "x".repeat(33 * 1024 * 1024);
+    // Exercise the first rejected byte. A large unread tail can turn an early
+    // HTTP rejection into a TCP reset on Windows before reqwest receives 413.
+    let oversized = "x".repeat(32 * 1024 * 1024 + 1);
     let response = reqwest::Client::new()
         .post(server.url("/agent/turn"))
         .header("content-type", "application/json")

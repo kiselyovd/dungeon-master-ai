@@ -1,5 +1,12 @@
+pub mod command_planning;
 pub mod commands;
 pub mod context;
+pub mod hero_intentions;
+pub mod human_commands;
+pub mod intentions;
+pub mod narration;
+pub mod operations;
+pub mod recovery;
 pub mod tool_decoder;
 pub mod tool_dispatch;
 pub mod tools;

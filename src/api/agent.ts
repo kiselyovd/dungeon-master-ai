@@ -29,10 +29,13 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const startedAt = performance.now();
   const url = await backendUrl('/agent/turn');
   const body = JSON.stringify({
+    request_id: opts.requestId ?? crypto.randomUUID(),
+    resume: opts.resume ?? false,
+    ...(opts.clarification ? { clarification: opts.clarification } : {}),
     campaign_id: opts.campaignId,
     session_id: opts.sessionId,
     player_message: opts.playerMessage,
-    history: opts.history.map(toAgentWireMessage),
+    history: opts.wireHistory ?? opts.history.map(toAgentWireMessage),
     model: opts.model,
     images: opts.images ?? [],
     ...(opts.board ? { board: opts.board } : {}),
@@ -51,6 +54,21 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
     throw ChatError.from(error);
   }
   if (!response.ok || !response.body) {
+    if (response.status === 409) {
+      const failure: unknown = await response.json().catch(() => null);
+      if (failure && typeof failure === 'object' && 'error' in failure) {
+        const detail = failure.error;
+        if (
+          detail &&
+          typeof detail === 'object' &&
+          'code' in detail &&
+          (detail.code === 'agent_original_environment_changed' ||
+            detail.code === 'agent_original_environment_unavailable')
+        ) {
+          throw new ChatError(detail.code, detail.code);
+        }
+      }
+    }
     throw new ChatError('http_error', `HTTP ${response.status}`);
   }
 
@@ -58,6 +76,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
   const decoder = new SseStreamDecoder();
   let byteCount = 0;
   let eventSequence = 0;
+  let terminal = false;
   const logIndividualEvents = transportEventDebugEnabled();
 
   const dispatch = (rawEvents: ReturnType<SseStreamDecoder['finish']>): void => {
@@ -82,6 +101,12 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
         });
       }
       if (event.type === 'error') throw new ChatError(event.code, event.message);
+      if (
+        event.type === 'agent_done' ||
+        event.type === 'done' ||
+        event.type === 'agent_needs_input'
+      )
+        terminal = true;
       opts.onEvent(event);
     }
   };
@@ -94,6 +119,7 @@ export async function streamAgentTurn(opts: AgentTurnOptions): Promise<void> {
       dispatch(decoder.push(value));
     }
     dispatch(decoder.finish());
+    if (!terminal) throw new ChatError('network', 'agent_stream_incomplete');
     console.debug('[agent.transport]', {
       requestId,
       eventKind: 'stream_complete',

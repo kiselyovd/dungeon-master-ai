@@ -73,3 +73,20 @@ describe('InitiativeTracker', () => {
     expect(heroName.className).toContain('is-dead');
   });
 });
+
+it('dying humans are not crossed out as dead in initiative', () => {
+  const token = {
+    id: 'human',
+    characterId: 'owned',
+    isDead: false,
+    name: 'Dying hero',
+    hp: 0,
+    maxHp: 12,
+    ac: 12,
+    x: 1,
+    y: 1,
+    conditions: ['unconscious'],
+  };
+  const { container } = render(<InitiativeTracker tokens={[token]} order={['human']} round={1} />);
+  expect(container.querySelector('.dm-init-name')).not.toHaveClass('is-dead');
+});

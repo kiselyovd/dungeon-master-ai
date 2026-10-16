@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "mappings": [
+    {
+      "role": "combat",
+      "assetId": "illustration-ruins"
+    },
+    {
+      "role": "dialog",
+      "assetId": "illustration-tavern"
+    },
+    {
+      "role": "exploration",
+      "assetId": "illustration-forest-road"
+    },
+    {
+      "role": "dungeon",
+      "assetId": "illustration-dungeon"
+    }
+  ],
+  "archived": [
+    {
+      "id": "scene.combat.legacy.v1",
+      "version": 1,
+      "category": "scene_art",
+      "path": ".artifacts/visual-production/legacy-scene-transitions/scene-combat.webp",
+      "width": 1920,
+      "height": 1080,
+      "alpha": false,
+      "bytes": 130918,
+      "sha256": "8cdf243513fb344e48a84573853cf3202da39736e1813f71df9b0bd8c92b7451",
+      "heroClass": null,
+      "pairedAssetId": null,
+      "source": "legacy_repository",
+      "previousPath": "src/assets/living-tabletop/scene-combat.webp"
+    },
+    {
+      "id": "scene.dialog.legacy.v1",
+      "version": 1,
+      "category": "scene_art",
+      "path": ".artifacts/visual-production/legacy-scene-transitions/scene-dialog.webp",
+      "width": 1920,
+      "height": 1080,
+      "alpha": false,
+      "bytes": 149140,
+      "sha256": "0cd4030d1bcb4a67351f3754bbc3723b88315b51d0a9c80344a9f4dcc380398e",
+      "heroClass": null,
+      "pairedAssetId": null,
+      "source": "legacy_repository",
+      "previousPath": "src/assets/living-tabletop/scene-dialog.webp"
+    },
+    {
+      "id": "scene.dungeon.legacy.v1",
+      "version": 1,
+      "category": "scene_art",
+      "path": ".artifacts/visual-production/legacy-scene-transitions/scene-dungeon.webp",
+      "width": 1920,
+      "height": 1080,
+      "alpha": false,
+      "bytes": 241542,
+      "sha256": "53d3188c1a465e983886d057eab4a026e18ae48905fe2b20eaaa631e90f18eb5",
+      "heroClass": null,
+      "pairedAssetId": null,
+      "source": "legacy_repository",
+      "previousPath": "src/assets/living-tabletop/scene-dungeon.webp"
+    },
+    {
+      "id": "scene.exploration.legacy.v1",
+      "version": 1,
+      "category": "scene_art",
+      "path": ".artifacts/visual-production/legacy-scene-transitions/scene-exploration.webp",
+      "width": 1920,
+      "height": 1080,
+      "alpha": false,
+      "bytes": 231682,
+      "sha256": "e88ab46405e73d2126c3522e45077f70bdecdb2075af711c901e39bfc6cd6aae",
+      "heroClass": null,
+      "pairedAssetId": null,
+      "source": "legacy_repository",
+      "previousPath": "src/assets/living-tabletop/scene-exploration.webp"
+    }
+  ]
+}
