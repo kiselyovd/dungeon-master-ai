@@ -1,49 +1,64 @@
 # Contributing to Dungeon Master AI
 
-Thanks for your interest in contributing. This guide covers the local setup, the quality gates, and the conventions the project expects. For the system design, read [ARCHITECTURE.md](ARCHITECTURE.md).
+This guide covers development environments, quality gates and contribution boundaries. For the system design, read [ARCHITECTURE.md](ARCHITECTURE.md); for application use, start with [Getting started](docs/GETTING_STARTED.md).
 
 ## Prerequisites
 
-- Rust stable: `rustup default stable` (the workspace pins `rust-version = "1.81"`).
-- [Bun](https://bun.com/) 1.3+ (package manager and script runner).
-- Tauri prerequisites for your OS: https://tauri.app/start/prerequisites/
-- For the cloud path: any OpenAI-compatible endpoint plus an API key (OpenRouter recommended).
-- For the local path: a built `mistralrs` server binary plus the Python image sidecar (see the prebuild CI workflows and `docs/RELEASE.md`). Models download from HuggingFace on first use.
+- Rust 1.94 or newer, matching `Cargo.toml` and the locked dependencies.
+- Bun 1.3+ for package management/scripts, and a Node runtime compatible with the locked frontend tools. Use `bun.lock` without an incidental dependency upgrade.
+- Python 3.12 for the sidecar's independent offline checks.
+- For native desktop work, the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for that target OS in an approved native environment or CI runner.
+- An OpenAI-compatible endpoint and account key only when performing a real-provider acceptance run. Fixture checks do not require a paid provider.
 
-## Setup
+## Container-first setup
 
-```bash
-bun install
-bun run install-hooks   # one-time: pre-commit (fast gates) + pre-push (full gates)
-```
+Use Docker/dev containers for dependency installation, code generation, builds, lint, tests and browser automation. Reuse a compatible approved environment. The repository currently has no project Dockerfile or dev-container definition, so record the toolchain/image recipe used by the task rather than implying that `docker compose up` is available.
 
-`install-hooks` wires `scripts/gates.sh` into git: pre-commit runs the fast subset, pre-push runs the full set. You can bypass once with `--no-verify`, but CI runs the same checks, so a bypass only defers the failure.
-
-## Running the app
+Keep `node_modules`, Python environments, Cargo targets and disposable caches inside the container or task-owned named volumes. Source can be mounted from the checkout; dependency trees must not be created on that host bind mount. Install from the project's manifests and lockfiles. For example, in the approved container workspace with a separate dependency mount:
 
 ```bash
-bun run tauri dev       # Vite + the Rust backend (dmai-server) - enough for CLOUD mode
+bun install --frozen-lockfile
 ```
 
-`bun run tauri dev` builds and spawns the Rust backend automatically. It does NOT build or start the model sidecars (the `mistralrs` LLM and the Python image sidecar); those are on-demand:
+Do not install or change host runtimes/dependencies as a fallback. Record ownership and purpose for task-created containers, volumes, networks and large scratch outputs; remove disposable task resources when their consumers finish. Preserve other sessions' resources, model stores, keys, databases and release outputs. Check affected free space before allocating a build/download of 1 GiB or more and retain the workspace's 20 GiB reserve.
+
+`bun run install-hooks` installs fast pre-commit and full pre-push gates. Use it only when those hooks execute through the approved toolchain environment. The hooks do not replace CI or browser/native acceptance.
+
+## Browser and native desktop development
+
+The frontend dev server and browser automation can run in a container. Production-browser verification builds the frontend first and sets the preview flag; plain `bun run e2e` starts the development server:
 
 ```bash
-bun run setup:local            # build the mistralrs server + create the image-sidecar .venv
-bun run setup:local --cuda     # GPU build (needs the CUDA toolkit / nvcc on PATH)
-bun run dev:all                # preflights the sidecars, then runs tauri dev
+bun run build
+CI=1 DMAI_E2E_PREVIEW=1 DMAI_E2E_PORT=15165 bun run e2e -- --workers=1
 ```
 
-For cloud mode (OpenAI-compatible / OpenRouter) plain `bun run tauri dev` is all you need - no sidecars.
+Use a free task-owned port. Browser fixtures exercise the real React root with controlled transport; they do not launch Tauri or prove a real model/network session.
+
+A target-OS GUI, WebView, native signing or GPU requirement may need a native environment. Before running outside containers, obtain explicit approval for the concrete commands, expected disk use and cleanup. Preserve existing host sessions. Once that environment is approved, the native source entry is:
+
+```bash
+bun run tauri dev
+```
+
+Tauri builds/stages and owns the game backend. Standard cloud builds do not include embedded model/media runtimes. Optional local setup is a separate, potentially large native task:
+
+```bash
+bun run setup:local
+bun run setup:local --cuda
+bun run dev:all
+```
+
+`setup:local` builds mistralrs and creates a Python environment; it must not be run on the host without that separate approval. `dev:all` preflights the optional artifacts before starting Tauri. Production backend vault credentials and provider configuration are described in [Configuration](docs/CONFIGURATION.md). Windows x64, macOS arm64 and Linux x64 native cloud bundles are built on their corresponding CI runners; a container frontend build is not evidence for all three packages.
 
 ## Quality gates
 
-`scripts/gates.sh` is the single source of truth for the gates. The same script backs the git hooks and the CI `lint` job, so local and CI cannot drift.
+`scripts/gates.sh` owns the consolidated source checks and is used by hooks and CI lint. Run the following in the approved container/toolchain environment. Coverage, sidecar, security, browser and native bundle jobs have additional independent checks in `.github/workflows/`.
 
 ```bash
-bun run gates        # full: fmt, clippy, biome, architecture, tsc, Rust tests, vitest, em-dash
-bun run gates:fast   # fast subset: fmt, biome, architecture, tsc, em-dash
-bun run e2e          # Playwright (its own CI job; not part of gates.sh - needs a browser download)
-bun run e2e:tauri    # deterministic real Tauri/WebView smoke
+bun run gates
+bun run gates:fast
+bun run test -- --coverage
 ```
 
 What the gates check:
@@ -52,20 +67,21 @@ What the gates check:
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` - Rust lints (warnings are errors).
 - `biome ci .` - TypeScript / frontend lint and format.
 - `bun run architecture:check` - strict Rust workspace edges and frontend import boundaries.
+- `bun run assets:check` - versioned visual assets and declared raster metadata.
 - `bun run typecheck` (`tsc --noEmit`) - TypeScript types.
 - `cargo test --workspace` and `bun run test` (vitest) - the test suites.
 - `scripts/check-no-em-dash.sh` - the em-dash gate (see code style below).
 
-The Python 3.12 sidecar has an independent offline gate that also runs in normal CI:
+The Python 3.12 sidecar has an independent offline gate. Use the minimal test dependencies from `.github/workflows/test.yml` in its container; no model download or GPU is needed:
 
 ```bash
 python -m ruff check sidecar
-python -m pytest sidecar/tests -q
+RUN_GPU_TESTS=0 python -m pytest sidecar/tests -q
 ```
 
 GPU tests remain opt-in with `RUN_GPU_TESTS=1`.
 
-Run `bun run gates` before opening a PR; it mirrors CI's blocking checks.
+For native changes, run `bun run e2e:tauri` only in the approved actual Tauri/WebView environment. Record focused checks, full gates, CI, production-browser, native packaging and real-provider/LAN results separately. Never reuse a dated QA report as evidence that the current revision passed.
 
 ## Code style
 

@@ -1,11 +1,7 @@
 name: build-bundle
 
-# Per-push verification that the cloud-only Tauri bundle builds on all three
-# supported targets. Local Mode (mistralrs sidecar + Python SDXL sidecar)
-# is intentionally skipped here - upstream EricLBuehler/mistral.rs publishes
-# source-only releases as of v0.8.0, and the Python sidecar pulls torch +
-# diffusers (~5 GB) which would balloon CI time. Both come back in a future
-# Local-runtime binaries are verified by separate manual workflows. See docs/RELEASE.md.
+# Verify native cloud bundles and startup credential storage on all supported targets.
+# Embedded model/media binaries remain in separate workflows. See docs/RELEASE.md.
 
 on:
   pull_request:
@@ -43,13 +39,47 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install bun deps
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build cloud-only Tauri bundle
-        run: bun run tauri:build:cloud
+        env:
+          DMAI_CLOUD_ONLY: '1'
+        run: bun x tauri build --target ${{ matrix.target }} --config src-tauri/tauri.cloud.conf.json
+
+      - name: Verify native profile and credential behavior
+        shell: bash
+        env:
+          DMAI_CLOUD_ONLY: '1'
+          # The bundle step already staged this exact backend; reuse it for lib tests.
+          DMAI_SKIP_SIDECAR_BUILD: '1'
+        run: |
+          export TAURI_CONFIG="$(cat src-tauri/tauri.cloud.conf.json)"
+          cargo test --locked --release --target ${{ matrix.target }} -p dungeon-master-ai --lib backend_profile
+          cargo test --locked --release --target ${{ matrix.target }} -p dungeon-master-ai --lib backend_credentials
+
+      - name: Verify actual OS credential store
+        shell: bash
+        env:
+          DMAI_CLOUD_ONLY: '1'
+          DMAI_SKIP_SIDECAR_BUILD: '1'
+        run: |
+          export TAURI_CONFIG="$(cat src-tauri/tauri.cloud.conf.json)"
+          if [ "${{ matrix.os }}" = 'ubuntu-22.04' ]; then
+            sudo apt-get update
+            sudo apt-get install -y gnome-keyring dbus
+            dbus-run-session -- bash -e <<'KEYRING_TEST'
+          keyring_test_unlock=$(cat /proc/sys/kernel/random/uuid)
+          printf '%s\n' "$keyring_test_unlock" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+          unset keyring_test_unlock
+          cargo test --locked --release --target ${{ matrix.target }} -p dungeon-master-ai --lib real_os_credential_store_round_trip -- --ignored
+          KEYRING_TEST
+          else
+            cargo test --locked --release --target ${{ matrix.target }} -p dungeon-master-ai --lib real_os_credential_store_round_trip -- --ignored
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: bundle-${{ matrix.target }}
-          path: target/release/bundle/
+          path: target/${{ matrix.target }}/release/bundle/
+          if-no-files-found: error
           retention-days: 7

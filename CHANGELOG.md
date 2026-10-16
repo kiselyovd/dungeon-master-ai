@@ -6,6 +6,18 @@ Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk 
 
 ## Unreleased
 
+No changes recorded after 0.13.0.
+
+## [0.13.0] - 2026-10-16 - Campaigns, cooperative play and desktop workspace
+
+### Added
+
+- Campaign-scoped heroes, prepared and custom openings, authored Bell Beneath the Water progression, discoveries, rescue decisions and distinct outcomes.
+- Durable AI request identities, uncertain-delivery recovery, human command receipts and retry controls that preserve the original operation.
+- Host-owned cooperative rooms with reviewed invitations, scoped guest identities, reconnect/rejoin recovery, accepted party heroes and authoritative party combat.
+- Supported weapon, spell, equipment, rest and recovery choices backed by server-confirmed state and resource tracking.
+- OpenAI-compatible provider setup and catalog discovery for RouterAI, OpenRouter and separately managed local servers.
+
 - Add private full-campaign backups and own-player dossiers with validated media, atomic import into a new campaign and retry receipts.
 - Add native import/export dialogs, preview, cancellation and protection against replacing an existing file.
 - Add scoped read-only hero and journal windows with separate geometry, own portrait previews and access revocation.
@@ -21,6 +33,25 @@ Tags before `v1.0.0` are pre-release milestones; the public surface and on-disk 
 - Capture distinct saves at fresh revisions while keeping retries idempotent.
 - Preserve legacy local hero backups and failed wizard drafts; add campaign-library navigation and localized retry feedback.
 - Add transactional migration, rollback, HTTP and production-root campaign continuation coverage.
+
+### Changed
+
+- Separate deterministic domain behavior, application use cases and ports, concrete adapters, backend composition and native process ownership with enforced dependency boundaries.
+- Replace the stale setup overview with installation, provider configuration, development and topic guides; add versioned GitHub Wiki entry points.
+- Align application and workspace versions for this release. The signed updater manifest validates the release tag against package, Tauri and native versions.
+
+### Fixed
+
+- Provision a per-profile backend vault credential through the native OS store on clean desktop startup; preserve explicit credentials, existing snapshots and legacy profiles, and place new backend data in a writable directory separate from the frontend vault.
+- Repair the three-platform release pipeline to produce Tauri updater bundles and non-empty signatures, publish the macOS updater archive, and use matching asset names and current-version release notes.
+- Keep optional platform signing inside bundling, before updater signatures are created; preserve signed bytes during upload staging.
+- Correct CI tool invocation, coverage outputs, production browser flows and asynchronous invitation assertions without weakening authentication, privacy or recovery checks.
+
+### Distribution and acceptance limits
+
+- Standard installers target Windows x64, macOS Apple Silicon and Linux x64. They contain the desktop shell and game backend; embedded model/media runtimes and model weights are separate optional artifacts.
+- The application remains experimental. Supported mechanics do not cover every D&D 5e rule or class feature. Physical two-device LAN/VPN and complete long-form real-model acceptance remain separate open checks; repeated physical DPI checks were waived for this development cycle.
+- Updater signatures do not replace Windows Authenticode or macOS notarization. Without the optional platform certificates, the OS can show an unidentified-publisher warning.
 
 ## [v0.12.0-real-engine] - 2026-06-16 - Make everything real (W1-W4)
 

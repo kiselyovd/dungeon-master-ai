@@ -95,11 +95,17 @@ Dungeon Master AI is a Tauri desktop application for solo D&D 5e play. It combin
 
 | Document | Path | Description |
 |---|---|---|
-| README | `README.md` | Product overview, setup, development, testing, and build instructions. |
+| README | `README.md` | Product overview and installation entry. |
+| Getting started | `docs/GETTING_STARTED.md` | Installation, first adventure, saves and joining. |
+| Configuration | `docs/CONFIGURATION.md` | Providers, optional runtimes and credentials. |
+| Documentation index | `docs/README.md` | Campaign, combat, desktop and evidence guides. |
+| Architecture | `ARCHITECTURE.md` | Implemented boundaries and process ownership. |
+| Contributing | `CONTRIBUTING.md` | Container development, native exceptions and checks. |
 | Changelog | `CHANGELOG.md` | Versioned user-facing changes. |
 | Release guide | `docs/RELEASE.md` | Release workflow and operational guidance. |
 | Release checklist | `docs/RELEASE_CHECKLIST.md` | Detailed release verification checklist. |
 | Sidecar guide | `sidecar/README.md` | Python media-sidecar setup and runtime notes. |
+| Wiki source | `docs/wiki/` | Versioned GitHub Wiki entry points. |
 | Campaign state | `docs/CAMPAIGN_STATE.md` | Current-state continuation, character recovery, snapshots, and verification boundaries. |
 | Authored adventure | `docs/AUTHORED_ADVENTURE.md` | Bundled Bell adventure, state transitions, consequence rules and acceptance evidence. |
 | AI turn recovery | `docs/AI_TURN_RECOVERY.md` | Durable delivery receipts, authority, retry behavior and remaining interrupted-turn work. |

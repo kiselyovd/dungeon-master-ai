@@ -21,6 +21,8 @@ dmai-server --> Stronghold adapter
 
 Tauri is the only production process owner. It starts `dmai-server`, exposes an authenticated loopback runtime-control service, owns model/media child handles, and performs shutdown. The random control token is passed to the backend for the current launch only and is neither persisted nor logged. Cloud bundles declare only `dmai-server`; local bundles also declare `mistralrs-server` and `dmai-image-sidecar`.
 
+Before spawning the backend, the native launcher resolves its database and vault paths and obtains its vault credential. New profiles use `${appDataDir}/backend/`; existing install-relative data and explicit overrides retain their locations. Native startup uses the OS credential store for a new vault, serializes creation with a per-vault file lock, verifies the saved credential and passes it only to the child environment. An explicit environment credential has priority and is not copied into the OS store. An existing vault without its original credential fails without replacement. The frontend snapshot at `${appDataDir}/dmai-vault.hold` remains separate.
+
 ## Rust dependency direction
 
 ```text
@@ -84,7 +86,7 @@ The Python 3.12 sidecar exposes `/healthz`, `/backends`, `/generate`, `/unload`,
 
 ## Security and logging
 
-Provider credentials stay in Stronghold. Production startup requires an explicit vault passphrase source. Runtime-control bearer tokens are random per launch, loopback-only, replay-protected, and redacted.
+Provider credentials stay in Stronghold. Desktop startup obtains the backend vault credential from Windows Credential Manager, macOS Keychain or Linux Secret Service, or an explicit operator override. Standalone production backend startup requires an environment credential. No credential getter is exposed to the renderer, and unavailable stores do not trigger plaintext or ephemeral fallback. Runtime-control bearer tokens are random per launch, loopback-only, replay-protected, and redacted.
 
 Logs may include safe IDs, event kinds, revisions, lifecycle states, ports, counts, and durations. They must never contain prompts, chat content, request/response bodies, API keys, vault values or passphrases, runtime-control tokens, base64 media, or full third-party payloads.
 
