@@ -196,9 +196,31 @@ pub(super) fn snapshot_exists(path: &Path) -> Result<bool, &'static str> {
                     Err("backend_profile_not_a_file")
                 }
             }),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            validate_snapshot_parent(path).map(|()| false)
+        }
         Err(_) => Err("backend_profile_metadata_unavailable"),
     }
+}
+
+fn validate_snapshot_parent(path: &Path) -> Result<(), &'static str> {
+    // Windows can report PATH_NOT_FOUND when an ancestor is a file, unlike Unix.
+    for parent in path.ancestors().skip(1) {
+        match std::fs::symlink_metadata(parent) {
+            Ok(_) => {
+                let metadata = std::fs::metadata(parent)
+                    .map_err(|_| "backend_profile_metadata_unavailable")?;
+                return if metadata.is_dir() {
+                    Ok(())
+                } else {
+                    Err("backend_profile_parent_not_a_directory")
+                };
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err("backend_profile_metadata_unavailable"),
+        }
+    }
+    Err("backend_profile_path_invalid")
 }
 
 pub(super) fn normalize_path(
@@ -593,6 +615,9 @@ mod tests {
         let directory = fixture();
         write(&directory, "blocked");
         assert!(resolve(&directory, None, Some("blocked/vault.hold")).is_err());
+        assert!(snapshot_exists(&directory.path().join("blocked/vault.hold")).is_err());
+        assert!(snapshot_exists(&directory.path().join("blocked/missing/vault.hold")).is_err());
+        assert!(!snapshot_exists(&directory.path().join("missing/nested/vault.hold")).unwrap());
     }
 
     #[cfg(unix)]
