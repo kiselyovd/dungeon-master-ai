@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { campaignVisits, recordCampaignVisit } from './campaignVisits';
 import { persistStorage } from './persistStorage';
 
-const id = '62ba8579-904b-4460-a68a-df6268ed404a';
+const id = '11111111-904b-4460-a68a-df6268ed404a';
 afterEach(async () => {
   vi.useRealTimers();
   await new LazyStore('settings.json').delete('campaign_visits');
@@ -11,7 +11,7 @@ afterEach(async () => {
 it('retains only bounded valid device navigation metadata', () => {
   const entries = Object.fromEntries(
     Array.from({ length: 60 }, (_, i) => [
-      `62ba8579-904b-4460-a68a-${i.toString(16).padStart(12, '0')}`,
+      `11111111-904b-4460-a68a-${i.toString(16).padStart(12, '0')}`,
       new Date(Date.UTC(2026, 0, i + 1)).toISOString(),
     ]),
   );

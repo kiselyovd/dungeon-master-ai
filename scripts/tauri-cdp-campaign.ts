@@ -15,6 +15,7 @@ import {
   defaultArtifactPath,
   evaluateInPage,
   findAppPageWebSocket,
+  serializeJavaScriptLiteral,
   waitForPageCondition,
 } from './lib/cdp';
 import { evaluateDmReply, type DmReplySnapshot } from './lib/dm-reply';
@@ -906,7 +907,7 @@ async function driveCombat(
   if (
     !(await waitForPageCondition(
       cdp,
-      `(() => { const overlay=document.querySelector('[data-testid="combat-overlay"]'); return Number(overlay?.dataset.revision) > ${castRevision} && overlay?.dataset.currentTurn !== ${JSON.stringify(turnBefore)}; })()`,
+      `(() => { const overlay=document.querySelector('[data-testid="combat-overlay"]'); return Number(overlay?.dataset.revision) > ${castRevision} && overlay?.dataset.currentTurn !== ${serializeJavaScriptLiteral(turnBefore)}; })()`,
       30_000,
     ))
   ) {

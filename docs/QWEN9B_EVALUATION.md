@@ -303,7 +303,6 @@ Focused36 workflow and5 planning groups pass. Frozen consolidated gates pass:
 Clippy. Backend build passes. This backend-only scope has no new browser/native
 acceptance. User-owned source changes remain separate.
 
-
 Quantified live continuation (a62e907 plus owned planner fixes): executable
 0dbde38118bd296821bcfa5b89b84b49d344d6ab28194b56d99478b60e313b51
 completed the original "Жду минуту дважды. Ход не завершаю." after an interrupted
@@ -351,7 +350,6 @@ checks and all-feature Clippy; final backend build passes. Original32 dirty sour
 hashes preserved, owned evaluation processes stopped. No browser/native/physical
 LAN/full-adventure acceptance is inferred from these backend and model episodes.
 
-
 Unlocalized negative checkpoint (8d7f569 plus owned changes): publication requires
 an internal verified decision, not merely an empty violations list. A validated
 negative without localized claims can receive exactly one fresh tool-free prose
@@ -390,7 +388,6 @@ and backend build passes. Next quality work: supply grounded public references
 for route-qualified intentions, distinguish DM questions from hero actions, and
 reject invented investigative object details. Native/full solo/physicalLAN
 acceptance remains open; no user/default-model settings were changed.
-
 
 Grounded reference episode,3b75a3a plus owned data changes:
 Public route descriptions now explicitly map dry upper-path qualifiers to full
@@ -442,7 +439,6 @@ legacy intent remain documented. Original32 source hashes preserved; isolated QA
 processes stopped. Final-source binary proof: build-proof-final.json; executed
 older-binary evidence retains its separate proofs and captures.
 
-
 Canonical personal escort checkpoint (050f0ad plus owned implementation): separate
 escort_tikhon_home takes the hero to Town as well as returning Tikhon, while
 legacy rescue keeps Archive. Guarded route cost600s and once-reward share the
@@ -473,7 +469,6 @@ architecture/static/all-feature Clippy). All four affected production-browser
 scenarios pass, including legacy rescue, snapshot recovery and defensive ending.
 Evidence: .artifacts/escort-050f0ad/browser-all.log and gates-final.log.
 
-
 Agency diagnostic continuation after 1d1c833 (isolated Qwen9B, no production changes):
 - Per-claim extraction/support with engine context, reasoning budget1024:
   4/6 expected accept/reject decisions. It falsely accepts original farewell
@@ -500,7 +495,6 @@ Evidence: .artifacts/agency-1d1c833/{farewell,npc_only,declared_speech,
 invented_emotion,npc_speech,hero_speech,generation-*,direct-*,source-*}.json,
 budget4096/*.json. Captured original prompts and outputs are preserved. No engine
 writes, user campaigns, defaults or production dependencies changed.
-
 
 Full-draft source-support continuation after ef164fe:
 Fourteen paired controls include the actual farewell, NPC-only control, explicit
@@ -539,7 +533,6 @@ pass; architecture/static/all-feature Clippy GREEN, final backend build passes.
 Logs .artifacts/agency-full-ef164fe/{gates.log,build.log}. Independent source
 review clean; independent narrative review still FAILS broad acceptance. Owned
 QA model stopped and its port free. No UI layout or transport change in this step.
-
 
 Fresh full-session attempts after880e9bf:
 - Latest source backend64f902cceddf24b9, fresh isolated DB, canonical fixture escort

@@ -175,7 +175,6 @@ source hashes remain unchanged. Scoped AI, native/public LAN, image delivery,
 remaining solo mechanics/model quality and complete-session acceptance remain
 active work; no whole-goal completion is claimed.
 
-
 Scoped-agent progress: owner-filtered provider context, shared-only history, three
 intention tools, durable exact-argument tool preparations and private checkpoints
 are implemented in migration 0013. Real AgentTurnService/SQLite integration covers
@@ -186,7 +185,6 @@ terminal retreat regression passes. RED confirmation and final consolidated gate
 are being collected. Runner/gateway, durable turn serialization/cancellation and
 native/public LAN remain pending; no broad milestone is marked complete.
 
-
 Scoped-agent independent review: terminal combat recovery P2 is closed. The real
 pending-retreat test reproduces RED without the catalog fix
 (tool_not_available_in_authored_adventure) and GREEN with it. A separate committed
@@ -194,7 +192,6 @@ adventure intention replays without another effect. Restored snapshots invalidat
 old private checkpoints/preparations. Review found no additional actionable issue
 in this bounded ports scope; production runner/HTTP gateway remain explicitly
 outside acceptance. Final gate collection continues.
-
 
 Scoped-agent checkpoint collection: final consolidated gates passed against the
 fixed catalog (workspace Rust, architecture/static/Clippy and 1042 frontend tests).
@@ -205,7 +202,6 @@ reported no remaining actionable issue in scope. Original 32 source hashes remai
 unchanged. Production room runner/gateway, cancellation/serialization, native and
 public LAN, remaining solo mechanics/model quality and full session acceptance
 remain active; broad milestones and the overall goal remain incomplete.
-
 
 Role correction from the user: the AI is one shared Dungeon Master for narration,
 NPC portrayal and scene/combat adjudication; all heroes are human-controlled.
@@ -219,7 +215,6 @@ solo history and non-disclosure of another biography through guest RoomState.
 For future changes, keep DM knowledge, player-visible information and mechanical
 actor authority as three separate contracts; do not implement an autonomous hero.
 
-
 DM correction review found a reasoning disclosure P1 in collaborative rooms.
 A real engine fixture reproduced RED: a ThinkingDelta containing a private
 biography became ReasoningText. An explicit reasoning_is_private context policy
@@ -228,7 +223,6 @@ this policy. The regression is GREEN for stream, application event sink and save
 transcript, while role/party-knowledge and previous recovery cases remain GREEN.
 Final full gates/review closure are being collected. AGENTS.md now records the
 human-hero/shared-DM contract to prevent the role error recurring.
-
 
 Shared-DM runner acceptance remains pending. Compose one campaign-wide DM lane,
 not a provider/agent per hero. Each human request supplies its own declared action;
@@ -239,14 +233,12 @@ clients making decisions, one DM narrating/NPC responses, deterministic combat,
 disconnect recovery and host restart. No autonomous player characters are part of
 solo or co-op acceptance.
 
-
 DM-role checkpoint: final full gates passed (workspace Rust, architecture/static,
 Clippy and 1042 frontend tests). Both real-engine room regressions pass. Independent
 review closed the collaborative reasoning P1 after RED/GREEN and found no further
 actionable issue in this correction. All original 32 source hashes are unchanged.
 This verifies the role/context/output boundaries; live model narration quality and
 complete solo/co-op session acceptance remain unproven and active.
-
 
 Shared-DM runner progress: one campaign lane plus migration 0014 durable scoped
 ownership/events now execute the real agent engine and an intention-only room HTTP
@@ -265,7 +257,6 @@ read retries now handle this without unverified output. Controlled temporary and
 persistent lock tests cover recovery/fail-closed behavior. Final gates and review
 closure are being collected. Native listener/receiver/outbox/host/join UI, physical
 LAN and whole-goal solo/co-op/model acceptance remain active and incomplete.
-
 
 Shared-DM runner checkpoint collection: final clean consolidated gates passed
 (workspace Rust, architecture/static/Clippy and 1042 frontend tests), with 13 runner
@@ -294,7 +285,6 @@ must preserve the user's human intention and prevent duplicate effects. Verify t
 real production root, lint/build, browser/native host/guest and two-client session
 paths before claiming the UI or LAN milestone complete.
 
-
 Native transport progress: application-owned listener lifecycle port and backend
 implementation now support one scoped room socket in the existing backend child.
 Other valid active room IDs and all desktop admin routes return404; identical start
@@ -307,7 +297,6 @@ reported no further actionable issue. Six bootstrap tests pass; consolidated gat
 are being collected. Protected owner/Tauri commands, credentials/outbox, client,
 UI and physical LAN remain pending; native user-flow milestone stays incomplete.
 
-
 Native transport checkpoint collection: complete consolidated gates passed
 (workspace Rust, architecture/static/Clippy and 1042 frontend tests). Six bootstrap
 cases include actual TCP auth, other-live-room/admin404 isolation, repeated start,
@@ -317,7 +306,6 @@ cancelable I/O; follow-up closed it without further actionable findings. Native
 owner/Tauri invocation, client credential/outbox, host/join UI and full physical
 LAN/model/session acceptance remain active and incomplete. No public listener is
 automatically enabled by the current production bootstrap.
-
 
 Native owner progress: loopback-only protected host/stop API now drives the real
 listener service and Tauri host_room/stop_host_room commands. Capabilities remain
@@ -333,7 +321,6 @@ credential/outbox recovery, stable binding across actual restart, WebView/UI and
 complete physical LAN/session/model acceptance remain pending. Production deps
 are unchanged; bootstrap added existing workspace libraries only to dev tests.
 
-
 Native owner review closure: staged transport/secret-delete retry, failed binding
 compensation, delayed native response ordering and grant-read-after-commit recovery
 are covered by focused GREEN regressions. Compensation resolves exact immutable
@@ -347,7 +334,6 @@ commit until that running verification finishes. Guest/broker/outbox, real nativ
 WebView, native selection/binding restart and UI/full-session acceptance remain
 incomplete; the overall goal stays active.
 
-
 Native owner checkpoint collection: final post-mismatch consolidated gates passed
 (workspace Rust, architecture/static/Clippy and 1042 frontend tests). Real native
 owner HTTP cases pass; delayed lifecycle and sanitized renderer native unit cases
@@ -357,7 +343,6 @@ commands compile/register, but actual WebView invocation and user host/join flow
 remain unverified. Original 32 source hashes remain unchanged. Guest, broker,
 client/outbox persistence, native restart/binding selection and complete session/
 model/physical LAN acceptance remain active; no whole-goal completion is claimed.
-
 
 ### Native guest connection checkpoint (verified locally)
 
@@ -376,7 +361,6 @@ model/physical LAN acceptance remain active; no whole-goal completion is claimed
 - All 32 original dirty-file hashes are preserved. No new production dependencies.
   UI/action broker/outbox, subscription, WebView invocation, stable host restart
   and full two-device session acceptance remain open.
-
 
 ### Next slice: native room transport into the production UI
 
@@ -403,7 +387,6 @@ approval and shared play screen. One shared AI DM handles narration/NPCs; each
 human controls their own accepted hero. Verify the real production root, lint,
 production build and browser/native smoke. Full party-session/restart and physical
 LAN evidence remain separate acceptance gates.
-
 
 ### Native operation broker (local verification)
 
@@ -434,7 +417,6 @@ Full consolidated gates passed for this slice, including workspace Rust and
 155 frontend files/1042 tests. DM streaming/subscriptions, UI and actual
 WebView/two-device acceptance remain open.
 
-
 ### Native stream bridge (in verification)
 
 - Added protected Subscribe/DmTurn stream broker and native channel/cancel IPC.
@@ -451,7 +433,6 @@ WebView/two-device acceptance remain open.
   Full gates passed, including workspace Rust and 155 files/1042 frontend tests.
   The frontend stream adapter, production room screen and actual WebView/two-device
   session are still pending. No new production dependency.
-
 
 ### React room stream adapter (in verification)
 
@@ -471,7 +452,6 @@ WebView/two-device acceptance remain open.
   Full gates then passed, including workspace Rust and 157 files/1054 frontend tests.
   Follow-up review closed the wire mismatch. Production UI/controller integration
   and browser/WebView/physical-device acceptance remain pending.
-
 
 ### Room controller and native action adapter (focused verification)
 
@@ -493,7 +473,6 @@ WebView/two-device acceptance remain open.
   No production dependencies or local solo-state mutations were added.
 - Production room screen/root integration and browser/WebView verification remain
   pending; focused checks do not establish a playable UI or two-device session.
-
 
 ### Production room UI (in verification)
 
@@ -526,7 +505,6 @@ App changes. Original D checkout remains preserved. First-boot guest entry,
 native selection/host restart, combat/map/initiative, richer own-sheet and physical
 LAN/two-client session acceptance remain required.
 
-
 ### Room VTT/combat UI checkpoint (verified locally)
 
 Reused VttCanvas, CombatOverlay/CombatToken, InitiativeTracker and existing
@@ -551,7 +529,6 @@ stable host restart, and complete solo/co-op session acceptance are still requir
 The App-only patch .artifacts/room-app-owned.patch applies cleanly to the index
 without the inherited App changes; stage that patch separately from owned files.
 
-
 ### First-boot guest entry checkpoint
 
 Welcome now offers a localized join entry using existing onboarding controls.
@@ -565,7 +542,6 @@ browser stub scenarios pass, including clean guest entry/leave. Full browser
 wizard creation and actual IPC remain pending; follow-up review closed the issue.
 App/Onboarding inherited diffs are excluded via their firstboot-owned patches.
 Native durable selection/recovery and full two-client acceptance remain next.
-
 
 ### Native guest selection recovery checkpoint (verified locally)
 
@@ -589,7 +565,6 @@ Four production-preview browser scenarios pass using native stubs and Rust wire
 fixtures. Actual WebView IPC, stable host restart, archive management and full
 solo/co-op session acceptance remain open. No new production dependencies.
 
-
 ### Native host binding checkpoint (backend foundation)
 
 Persist the effective nonzero listener address with the immutable original host
@@ -607,7 +582,6 @@ Clippy pass. The regressions recreate service/state, not a real backend process.
 Next: protected recover/abandon of the saved host selection, Tauri IPC/UI wiring,
 real process restart and two-client acceptance. Existing generic shared-message
 publication during a detached durable room still needs a privacy audit.
-
 
 ### Saved-host recovery through native UI (verified locally)
 
@@ -635,7 +609,6 @@ or packaged production runtime proof. Busy-port abandon, guest archive managemen
 shared-publication privacy during detached rooms and the complete two-client/solo
 session remain required. Vite test server is stopped after this checkpoint.
 
-
 ### Scoped message-publication privacy (verification checkpoint)
 
 Reproduced that unscoped local chat became shared whenever durable room metadata
@@ -654,7 +627,6 @@ recompile the embedded sqlx migrator. Existing manual upgrade contracts now appl
 Two room-agent, 25 DM/native and six update/publication tests pass, including forced
 publication failure rollback, snapshot reset, backlog/reopening and private chat.
 Storage/upgrade and workspace Clippy/architecture checks pass. Independent read-only review found no actionable issue. Actual two-client/native/physical LAN session remains next.
-
 
 ### Two-native-client acceptance preparation / invitation fix
 
@@ -676,7 +648,6 @@ Clippy/architecture pass. Independent review found no actionable issue. Five cur
 Next: rebuild the isolated host/guest executables with this fix, complete native
 join/approval/ownership checks, shared DM and peaceful/defense/restart acceptance.
 Physical-device LAN remains distinct and unverified.
-
 
 ### Actual two-native-client acceptance checkpoint
 
@@ -700,11 +671,9 @@ implement authoritative stabilization/healing/recovery with owned intentions and
 verify continuing the same session without a snapshot workaround. The full
 playability goal stays active.
 
-
 Recovery continuation uses codex-hero-recovery.md. The pure SRD rule foundation is
 implemented and domain-tested; durable vitality, owned assistance/time progression,
 UI and actual held-zero-HP continuation remain required before closing the P1.
-
 
 ### Co-op held-zero-HP P1 closure (local native acceptance)
 
@@ -826,7 +795,6 @@ Full gates pass: 853 Rust tests, 1117 frontend tests; final fast gates and fresh
 production build/7 browser cases pass. Original 32-file baseline is preserved.
 These checks include inherited worktree changes, not clean-HEAD release proof.
 Physical LAN/model quality and retained-roster capacity remain open.
-
 
 ## Saved roster presence in new rooms
 

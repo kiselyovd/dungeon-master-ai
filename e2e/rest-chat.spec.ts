@@ -155,9 +155,15 @@ test('a terminal DM combat result closes the real tabletop and updates the adven
     page.getByText('You withdraw to the quay. Tikhon still needs rescue.', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('.dm-actionbar')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Adventure', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Adventure', exact: true })
+    .and(page.locator('[aria-expanded]'))
+    .click();
+  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
   await expect(
-    page.getByRole('dialog').getByRole('heading', { name: 'Old quay', exact: true }),
+    page
+      .getByRole('tabpanel', { name: 'Scene', exact: true })
+      .getByRole('heading', { name: 'Old quay', exact: true }),
   ).toBeVisible();
 });
 

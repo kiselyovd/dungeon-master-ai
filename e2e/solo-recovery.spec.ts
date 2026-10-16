@@ -5,6 +5,12 @@ import { mockTauri } from './fixtures/tauri-mock';
 const wire = JSON.parse(
   readFileSync(new URL('../src/api/__fixtures__/soloRecovery.json', import.meta.url), 'utf8'),
 );
+const scene = {
+  id: '824e4fa6-b156-444c-984b-f891fe7f578d',
+  title: 'Quiet crossing',
+  mode: 'exploration',
+};
+for (const stage of [wire.before, wire.after, wire.afterRest]) stage.state.projection.scene = scene;
 for (const loseReply of [false, true]) {
   test(`production solo recovery continues to rest${loseReply ? ' after lost reply and reload' : ''}`, async ({
     page,
@@ -104,6 +110,7 @@ for (const loseReply of [false, true]) {
     await page.goto('/');
     await expect(page.locator('.dm-char-fab')).toContainText('Mira');
     await page.locator('.dm-char-fab').click();
+    await page.getByRole('button', { name: 'Полный лист персонажа', exact: true }).click();
     await page.getByRole('button', { name: 'Отдых', exact: true }).click();
     const rest = page.getByRole('dialog', { name: 'Отдых', exact: true });
     await expect(rest.getByText('Стабилен, без сознания', { exact: true })).toBeVisible();
@@ -132,6 +139,7 @@ for (const loseReply of [false, true]) {
       await page.reload();
       await expect(page.locator('.dm-char-fab')).toContainText('Mira');
       await page.locator('.dm-char-fab').click();
+      await page.getByRole('button', { name: 'Полный лист персонажа', exact: true }).click();
       await page.getByRole('button', { name: 'Отдых', exact: true }).click();
       await rest.getByRole('button', { name: 'Повторить тот же запрос', exact: true }).click();
     }
@@ -154,6 +162,7 @@ test('production solo death-save control shows the actual recorded die', async (
     readFileSync(new URL('../src/api/__fixtures__/soloDeathSave.json', import.meta.url), 'utf8'),
   );
   const first = wire.before.state;
+  first.projection.scene = scene;
   await mockTauri(page, {
     onboarding_completed: true,
     ui_language: 'ru',
@@ -209,6 +218,7 @@ test('production solo death-save control shows the actual recorded die', async (
   await page.goto('/');
   await expect(page.locator('.dm-char-fab')).toContainText('Mira');
   await page.locator('.dm-char-fab').click();
+  await page.getByRole('button', { name: 'Полный лист персонажа', exact: true }).click();
   await page.getByRole('button', { name: 'Отдых', exact: true }).click();
   const rest = page.getByRole('dialog', { name: 'Отдых', exact: true });
   await expect(rest.getByText('При смерти', { exact: true })).toBeVisible();

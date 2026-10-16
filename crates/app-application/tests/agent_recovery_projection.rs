@@ -85,7 +85,10 @@ fn an_interrupted_effect_is_confirmed_without_serializing_private_data() {
         "bindings",
         "nonce",
     ] {
-        assert!(!json.contains(secret), "private ledger field {secret}");
+        assert!(
+            !json.contains(secret),
+            "recovery projection contains a private ledger field"
+        );
     }
 }
 

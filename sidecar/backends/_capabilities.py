@@ -16,7 +16,7 @@ class InsufficientVramError(RuntimeError):
 
 def _mem_get_info() -> tuple[int, int]:
     """Wrapper kept separate so tests can monkey-patch without importing torch."""
-    import torch  # noqa: PLC0415
+    import torch
 
     return torch.cuda.mem_get_info()
 

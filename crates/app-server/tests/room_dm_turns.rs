@@ -3442,7 +3442,7 @@ async fn delayed_departure_archive_cannot_delete_a_new_room_selection() {
         axum::serve(al, ar).await.unwrap();
     });
     let bl = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let ba = bl.local_addr().unwrap();
+    let backend_address = bl.local_addr().unwrap();
     let br = adapter_http::rooms::router(b.rooms.clone());
     let bt = tokio::spawn(async move {
         axum::serve(bl, br).await.unwrap();
@@ -3491,7 +3491,7 @@ async fn delayed_departure_archive_cannot_delete_a_new_room_selection() {
     let join_b = tokio::spawn(async move {
         client
             .join(NativeGuestJoinRequest {
-                address: ba,
+                address: backend_address,
                 room_id: b.host.room.room_id,
                 join_id: Uuid::new_v4(),
                 display_name: "B".into(),
@@ -3562,7 +3562,7 @@ async fn a_confirmed_departure_remains_returnable_after_another_room_was_selecte
         axum::serve(al, ar).await.unwrap();
     });
     let bl = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let ba = bl.local_addr().unwrap();
+    let backend_address = bl.local_addr().unwrap();
     let br = adapter_http::rooms::router(b.rooms.clone());
     let bt = tokio::spawn(async move {
         axum::serve(bl, br).await.unwrap();
@@ -3607,7 +3607,7 @@ async fn a_confirmed_departure_remains_returnable_after_another_room_was_selecte
     let join_b = tokio::spawn(async move {
         client
             .join(NativeGuestJoinRequest {
-                address: ba,
+                address: backend_address,
                 room_id: b.host.room.room_id,
                 join_id: Uuid::new_v4(),
                 display_name: "B".into(),

@@ -122,7 +122,10 @@ test('confirmed adventure tool outcome updates the production root while narrati
     });
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Adventure', exact: true })).toBeVisible();
+  const adventureToggle = page
+    .getByRole('button', { name: 'Adventure', exact: true })
+    .and(page.locator('[aria-expanded]'));
+  await expect(adventureToggle).toBeVisible();
   await page.getByRole('textbox', { name: 'What do you do?' }).fill('I go to the old quay');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(
@@ -131,9 +134,12 @@ test('confirmed adventure tool outcome updates the production root while narrati
     }),
   ).toBeVisible();
   await expect(page.getByText('I go to the old quay', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Adventure', exact: true }).click();
+  await adventureToggle.click();
+  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
   await expect(
-    page.getByRole('dialog').getByRole('heading', { name: 'Old quay', exact: true }),
+    page
+      .getByRole('tabpanel', { name: 'Scene', exact: true })
+      .getByRole('heading', { name: 'Old quay', exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: '.artifacts/ai-adventure/chat-outcome.png', fullPage: true });
 });

@@ -42,6 +42,7 @@ test('production wizard previews equipped armor and persists an explicit carried
     });
   });
   const open = async () => {
+    await page.getByRole('button', { name: 'Create your own hero', exact: true }).click();
     await expect(page.locator('.dm-wizard')).toBeVisible();
     await page.getByRole('tab', { name: /Equipment/i }).click();
   };
@@ -95,6 +96,7 @@ test('production wizard explains untrained armor and shield and retains the expl
     });
   });
   const open = async () => {
+    await page.getByRole('button', { name: 'Create your own hero', exact: true }).click();
     await expect(page.locator('.dm-wizard')).toBeVisible();
     await page.getByRole('tab', { name: /Equipment/i }).click();
   };

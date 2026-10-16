@@ -41,6 +41,22 @@ async fn fixture() -> (
 fn service(store: Arc<SqliteStore>) -> CampaignBundles<SqliteStore, DecodedRasterInspector> {
     CampaignBundles::new(store, Arc::new(DecodedRasterInspector))
 }
+async fn persisted_room_id(
+    store: &SqliteStore,
+    creation: &app_application::models::room::CreateLocalRoom,
+) -> Uuid {
+    let signature = serde_json::to_string(creation).unwrap();
+    app_application::ports::repositories::RoomRepository::find_creation(
+        store,
+        creation.campaign_id,
+        &creation.causation_id,
+        &signature,
+    )
+    .await
+    .unwrap()
+    .expect("created public room record")
+    .room_id
+}
 fn principal(actor: Uuid) -> ExportPrincipal {
     ExportPrincipal::SoloStorageOwner {
         own_actor: Some(actor),
@@ -395,15 +411,15 @@ async fn authenticated_guest_dossier_contains_only_own_sheet_and_is_denied_after
         .with_dossiers(Arc::new(service(store.clone()))),
     );
     let current = store.load_current(campaign.id).await.unwrap();
-    let created = rooms
-        .create_local_room(CreateLocalRoom {
-            campaign_id: campaign.id,
-            session_id: campaign.last_session_id,
-            expected_revision: current.campaign.revision,
-            causation_id: "fixture-room".into(),
-        })
-        .await
-        .unwrap();
+    let creation = CreateLocalRoom {
+        campaign_id: campaign.id,
+        session_id: campaign.last_session_id,
+        expected_revision: current.campaign.revision,
+        causation_id: "fixture-room".into(),
+    };
+    let created = rooms.create_local_room(creation.clone()).await.unwrap();
+    let room_id = persisted_room_id(&store, &creation).await;
+    assert!(room_id == created.grant.room.room_id);
     let guest = rooms
         .join(JoinRoom {
             room_id: created.grant.room.room_id,
@@ -457,7 +473,7 @@ async fn authenticated_guest_dossier_contains_only_own_sheet_and_is_denied_after
         .unwrap();
     let (base, task) = serve(adapter_http::rooms::router(rooms.clone())).await;
     let client = reqwest::Client::new();
-    let path = format!("{base}/rooms/{}/dossier", guest.room.room_id);
+    let path = format!("{base}/rooms/{room_id}/dossier");
     let response = client
         .get(&path)
         .header("x-room-member-id", guest.member_id.to_string())

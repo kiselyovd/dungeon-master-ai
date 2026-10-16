@@ -22,7 +22,7 @@ test('failed Save preserves the draft; Cancel discards it; ACK commits all prefe
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/Provider/i).click();
-  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
+  await dialog.getByRole('option', { name: 'Model server', exact: true }).click();
   await dialog.getByLabel(/API key/i).fill('fixture-key');
   await dialog.getByPlaceholder('qwen3-1.7b').fill('model-a');
   await dialog.getByRole('tab', { name: 'Image', exact: true }).click();
@@ -40,7 +40,7 @@ test('failed Save preserves the draft; Cancel discards it; ACK commits all prefe
   await images.uncheck();
   await dialog.getByRole('tab', { name: 'Chat', exact: true }).click();
   await dialog.getByLabel(/Provider/i).click();
-  await dialog.getByRole('option', { name: /OpenAI-compatible/i }).click();
+  await dialog.getByRole('option', { name: 'Model server', exact: true }).click();
   await dialog.getByLabel(/API key/i).fill('fixture-key');
   await dialog.getByPlaceholder('qwen3-1.7b').fill('model-a');
   reject = false;

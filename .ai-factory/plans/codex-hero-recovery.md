@@ -27,7 +27,6 @@ must not roll. Healing removes unconsciousness and resets saves.
 Current scope: pure rules foundation first; the end-to-end P1 stays open until
 persistence, authoritative commands, UI and the actual native scenario are verified.
 
-
 ## Pure rules checkpoint
 
 Three real behavioral RED cases reproduced missing natural-1 double failure,
@@ -56,7 +55,6 @@ in one transaction. Public summaries contain mechanical status only. Verify roll
 at the final receipt/event, wrong-owner/foreign-target rejection and the actual
 native held-zero-HP continuation without loading a save.
 
-
 ## Authoritative vitality persistence checkpoint
 
 Added a character-bound server vitality block to existing combatResources JSON.
@@ -82,7 +80,6 @@ help/wait command does not exist yet. Damage-at-zero, automatic death turns and
 historical contradictory vitality remain unverified. Owned assistance, clocks,
 public summary/UI and native continuation without restore are the next scope;
 the actual gameplay P1 remains open.
-
 
 ## Owned recovery command checkpoint
 
@@ -111,7 +108,6 @@ Current checks pass: 80 SQLite tests, 38 room/update regressions, three pure rec
 and real held-zero-HP continuation are next. Combat-turn death saves, damage-at-zero,
 solo endpoint and broad gameplay/model/LAN requirements still remain open.
 
-
 ## Recovery transport and room UI checkpoint
 
 Dedicated authenticated POST /rooms/{id}/recovery accepts only nonce, expected
@@ -137,7 +133,6 @@ zero-HP continuation through these buttons is next; that P1 is not yet closed.
 Solo recovery transport, active-combat death turns and full-game/model/LAN acceptance
 remain outstanding. No new production dependencies or publication.
 
-
 ## Actual native co-op continuation
 
 Both rebuilt isolated Tauri profiles run the real server/native/UI recovery path.
@@ -151,7 +146,6 @@ The concrete co-op continuation P1 is locally verified and independently reviewe
 Solo transport, active-combat death turns, damage-at-zero, real-model narration,
 remaining session UX and physical LAN acceptance still require work. Test processes
 are stopped; no release/publication or complete-goal claim.
-
 
 ## Combat turn recovery checkpoint
 
@@ -181,7 +175,6 @@ five bound-hero cases and server room/hero-route regressions pass. Clippy for al
 changed Rust crates (all targets/features) and the architecture guard pass. Native
 screenshots from the prior recovery checkpoint do not prove this new turn logic.
 
-
 ## Damage and mortality checkpoint
 
 Positive damage at zero HP removes stability and adds one death-save failure;
@@ -207,7 +200,6 @@ Magic Missile now keeps each dart as a separate damage instance while sharing th
 damage die. It cannot manufacture massive damage by summing separate darts; each
 hit at zero causes its own failure. Multi-hit spell output records a death once.
 
-
 ## Solo recovery backend checkpoint
 
 A solo owner can request a mandatory death save or wait for their own stable
@@ -230,7 +222,6 @@ identity/self-aid, active-room exclusion, restore invalidation and nonce isolati
 The fixture deliberately seeds canonical zero-HP vitality; it does not prove a
 complete native solo battle/recovery session. Frontend controls, native acceptance
 and broad model/physical-LAN/session requirements remain outstanding.
-
 
 ## Solo recovery UI checkpoint
 
@@ -258,7 +249,6 @@ or model narration. The next acceptance must drive the real Tauri/server solo pa
 from combat to recovery/rest without snapshot rollback. Full model, session UX and
 physical LAN requirements remain open; no publication or goal-completion claim.
 
-
 ## Actual native solo continuation
 
 Fresh QA Tauri profile and real UI wizard create Daren (HP11). Deliberate pre-fight
@@ -274,7 +264,6 @@ Save restores DM transport), unarmored AC despite ChainMail, and stale ended VTT
 HP0/skull after healing. These must be repaired next; the native recovery checkpoint
 does not close broad solo/co-op playability, real-model quality or physical LAN.
 
-
 ## Provider startup correction
 
 The native restart gap is fixed: production bootstrap restores hydrated provider
@@ -288,7 +277,6 @@ new UI question/reply pairs without Settings Save. The fixture proves actual
 transport; embedded cold-model startup, Bonsai quality and physical LAN remain
 separate. See PROVIDER_STARTUP.md for evidence and limits. Armor and ended VTT
 presentation are the next verified defects to repair.
-
 
 ## Tabletop mortality and ended encounters
 

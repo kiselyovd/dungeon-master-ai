@@ -54,7 +54,6 @@ Busy-port host abandon, guest archive management, remaining solo mechanics,
 real-model quality and a physical LAN/VPN session are still open. The complete
 playability goal is not achieved by this checkpoint.
 
-
 ## Independent evidence review
 
 The earlier read-only review confirmed bounded native/loopback behavior and identified a P1:
@@ -70,7 +69,6 @@ close and none after final close. These observations are saved separately in
 process-restart-observations.json. Battle proof records held as an observed value;
 the harness did not explicitly require held or a specific wrong-turn error code.
 These distinctions remain part of the acceptance limits.
-
 
 ## Native held-zero-HP recovery acceptance
 

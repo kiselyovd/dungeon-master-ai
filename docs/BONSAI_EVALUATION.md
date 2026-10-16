@@ -69,7 +69,6 @@ must cover the complete peaceful and defensive routes, narrative fidelity,
 native application/restart, and then LAN/VPN co-op. Evaluation processes were
 stopped; weights and original project files were preserved.
 
-
 Tool transport reliability checkpoint, 2026-10-08:
 The installed genai0.6.5 streaming adapter was reproduced dropping the second
 native tool when both calls arrive in one OpenAI SSE delta. A wire fixture now
@@ -94,7 +93,6 @@ issues; both repairs were confirmed. Additional waiting for a complete tool-enab
 response is the tradeoff; it may include final narration because the catalog is
 still offered for that round. No real Bonsai semantic/native acceptance claimed
 by this transport checkpoint. See .artifacts/tool-round logs and provider tests.
-
 
 Real-model continuation, 2026-10-08 (no default-provider promotion):
 Three fresh QA-route/ending observations used the installed PTQ1_0 weights and
@@ -170,7 +168,6 @@ Both isolated backend/model processes and ports31424/31808 were stopped and
 verified absent. Full native/peaceful/defensive/co-op semantic acceptance remains
 open. Separately, the current production browser suite now passes62 tests with
 one existing vision skip; see BROWSER_SESSION_ACCEPTANCE.md for its scope.
-
 
 ## Other installed Bonsai Q1_0 comparison
 

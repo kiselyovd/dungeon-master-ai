@@ -54,7 +54,6 @@ remain separate.
 - [Shared table](SHARED_TABLE.md)
 - [Durable media](MEDIA_REFERENCES.md)
 
-
 ## Checkpoint7 native evidence
 
 A freshly built debug Tauri application and backend passed real WebView and

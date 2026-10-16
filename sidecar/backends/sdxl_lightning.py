@@ -26,8 +26,8 @@ class SdxlLightningBackend:
             return
         assert_vram_free(7 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import EulerDiscreteScheduler, StableDiffusionXLPipeline  # noqa: PLC0415
+        import torch
+        from diffusers import EulerDiscreteScheduler, StableDiffusionXLPipeline
 
         base_dir = self._weights_dir / "balanced" / "sdxl-base"
         lora_path = self._weights_dir / "balanced" / "lightning-lora.safetensors"
@@ -51,7 +51,7 @@ class SdxlLightningBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -60,7 +60,7 @@ class SdxlLightningBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
+        import torch
 
         generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
         if params.style_lora:

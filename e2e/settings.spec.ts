@@ -72,11 +72,15 @@ test('unified provider block: local hides Base URL, OpenAI-compat shows it', asy
   await expect(dialog.getByPlaceholder('qwen3-1.7b')).toBeVisible();
 });
 
-test('Behavior tab shows the scene-transitions toggle', async ({ page }) => {
+test('Behavior tab exposes the cinematic-moments toggle', async ({ page }) => {
   await openSettings(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('tab', { name: 'Behavior', exact: true }).click();
-  await expect(dialog.getByText(/Scene transitions/i)).toBeVisible();
+  const moments = dialog.getByRole('checkbox', { name: /^Cinematic moments/ });
+  await expect(moments).toBeVisible();
+  await expect(moments).toBeChecked();
+  await moments.uncheck();
+  await expect(moments).not.toBeChecked();
 });
 
 test('Cancel closes the modal without saving', async ({ page }) => {

@@ -16,6 +16,7 @@ for (const width of [960, 1280]) {
     await page.goto('/');
     await expect(page.locator('.dm-splash')).toHaveCount(0);
     await page.locator('.dm-char-fab').click();
+    await page.getByRole('button', { name: 'Full character sheet', exact: true }).click();
     const sheet = page.locator('.dm-char');
     await expect(sheet).toBeVisible();
     expect(
@@ -46,7 +47,7 @@ for (const width of [960, 1280]) {
     await expect(sheet).toHaveCount(0);
     await page.emulateMedia({ forcedColors: 'none' });
     await page.getByRole('button', { name: 'Journal', exact: true }).click();
-    const journal = page.getByRole('dialog');
+    const journal = page.getByRole('region', { name: "Bard's Journal", exact: true });
     await expect(journal).toBeVisible();
     const container = journal.locator(':scope > div').first();
     expect(

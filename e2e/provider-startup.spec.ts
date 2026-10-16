@@ -8,7 +8,12 @@ const wire = JSON.parse(
 test('production startup restores persisted settings before the first DM request', async ({
   page,
 }) => {
-  const state = wire.afterRest.state;
+  const state = structuredClone(wire.afterRest.state);
+  state.projection.scene = {
+    id: '824e4fa6-b156-444c-984b-f891fe7f578d',
+    title: 'Quiet crossing',
+    mode: 'exploration',
+  };
   await mockTauri(page, {
     onboarding_completed: true,
     ui_language: 'ru',

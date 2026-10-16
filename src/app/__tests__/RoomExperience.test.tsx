@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import '../../i18n';
@@ -151,7 +151,7 @@ it('recovers an existing host selection without creating a replacement room', as
   const originalLink = await screen.findByLabelText<HTMLInputElement>('Invitation link');
   expect(new URL(originalLink.value).searchParams.get('invitation')).toBe('a'.repeat(64));
   await user.click(screen.getByRole('button', { name: 'Refresh invitation' }));
-  expect(screen.queryByLabelText('Invitation link')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByLabelText('Invitation link')).not.toBeInTheDocument());
   await user.click(screen.getByRole('button', { name: 'Create invitation link' }));
   const renewedLink = await screen.findByLabelText<HTMLInputElement>('Invitation link');
   const parsed = new URL(renewedLink.value);

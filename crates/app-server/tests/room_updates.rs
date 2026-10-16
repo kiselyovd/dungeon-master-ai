@@ -19,6 +19,20 @@ use serde_json::json;
 use std::sync::Arc;
 use uuid::Uuid;
 
+async fn persisted_room_id(store: &SqliteStore, creation: &CreateLocalRoom) -> Uuid {
+    let signature = serde_json::to_string(creation).unwrap();
+    app_application::ports::repositories::RoomRepository::find_creation(
+        store,
+        creation.campaign_id,
+        &creation.causation_id,
+        &signature,
+    )
+    .await
+    .unwrap()
+    .expect("created public room record")
+    .room_id
+}
+
 async fn fixture(
     db: sqlx::SqlitePool,
     secrets: Arc<dyn app_application::ports::secrets::SecretsStore>,
@@ -501,15 +515,15 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
         Arc::new(InMemorySecretsStore::default()),
         Arc::new(SystemRoomClock),
     ));
-    let created = service
-        .create_local_room(CreateLocalRoom {
-            campaign_id: campaign.id,
-            session_id: campaign.last_session_id,
-            expected_revision: committed.campaign.revision,
-            causation_id: "room".into(),
-        })
-        .await
-        .unwrap();
+    let creation = CreateLocalRoom {
+        campaign_id: campaign.id,
+        session_id: campaign.last_session_id,
+        expected_revision: committed.campaign.revision,
+        causation_id: "room".into(),
+    };
+    let created = service.create_local_room(creation.clone()).await.unwrap();
+    let room_id = persisted_room_id(&store, &creation).await;
+    assert!(room_id == created.grant.room.room_id);
     let guest = service
         .join(JoinRoom {
             room_id: created.grant.room.room_id,
@@ -567,7 +581,7 @@ async fn shared_state_and_durable_updates_are_scoped_and_private() {
         axum::serve(listener, router).await.unwrap();
     });
     let client = reqwest::Client::new();
-    let url = format!("http://{address}/rooms/{}", guest.room.room_id);
+    let url = format!("http://{address}/rooms/{room_id}");
     let response = client
         .get(format!("{url}/state"))
         .bearer_auth(guest.capability.expose())

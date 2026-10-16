@@ -28,3 +28,5 @@ serde = "serde"
 tauri = "tauri"
 mistralrs = "mistralrs"
 unparseable = "unparseable"
+# Character name used by the public miniature and its stable asset IDs.
+savely = "savely"

@@ -2,9 +2,8 @@ import { expect, type Locator, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 async function decoded(image: Locator, width: number) {
-  await expect
-    .poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth))
-    .toBe(width);
+  await image.evaluate((node: HTMLImageElement) => node.decode());
+  await expect(image).toHaveJSProperty('naturalWidth', width);
 }
 const sizes = [
   { width: 960, height: 640 },

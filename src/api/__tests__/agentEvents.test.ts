@@ -131,8 +131,8 @@ describe('streamAgentTurn event framing', () => {
     const events: string[] = [];
     await consume(
       [
-        'event: text_delta\r\ndata: {"text":"hel',
-        'lo"}\r\n\r\nevent: reasoning_text\rdata: {"text":"think"}\r\r',
+        'event: text_delta\r\ndata: {"text":"he',
+        'llo"}\r\n\r\nevent: reasoning_text\rdata: {"text":"think"}\r\r',
         'event: agent_done\r\ndata: {"total_rounds":2}',
       ],
       events,

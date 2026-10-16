@@ -33,21 +33,23 @@ for (const lang of ['ru', 'en'] as const) {
       }),
     );
     await page.goto('/');
-    await page
+    const adventureToggle = page
       .getByRole('button', { name: lang === 'ru' ? 'Приключение' : 'Adventure', exact: true })
-      .and(page.locator('[aria-expanded]'))
-      .click();
-    await page.getByRole('tab', { name: lang === 'ru' ? 'Сцена' : 'Scene', exact: true }).click();
+      .and(page.locator('[aria-expanded]'));
+    const selectScene = async () => {
+      await expect(adventureToggle).toBeVisible();
+      if ((await adventureToggle.getAttribute('aria-expanded')) === 'false')
+        await adventureToggle.click();
+      await expect(adventureToggle).toHaveAttribute('aria-expanded', 'true');
+      await page.getByRole('tab', { name: lang === 'ru' ? 'Сцена' : 'Scene', exact: true }).click();
+    };
+    await selectScene();
     await expect(page.locator('img[data-asset-id="npc.bell.mila.v2"]')).toHaveCount(1);
     for (const id of ids.slice(2))
       await expect(page.locator(`img[data-asset-id="npc.bell.${id}.v2"]`)).toHaveCount(0);
     adventure.public_npcs = ids.map((id) => ({ id, portrait_asset_id: `npc.bell.${id}.v2` }));
     await page.reload();
-    await page
-      .getByRole('button', { name: lang === 'ru' ? 'Приключение' : 'Adventure', exact: true })
-      .and(page.locator('[aria-expanded]'))
-      .click();
-    await page.getByRole('tab', { name: lang === 'ru' ? 'Сцена' : 'Scene', exact: true }).click();
+    await selectScene();
     for (const id of ids) {
       const image = page.locator(`img[data-asset-id="npc.bell.${id}.v2"]`).first();
       await expect(image).toHaveCount(1);
@@ -67,11 +69,7 @@ for (const lang of ['ru', 'en'] as const) {
       await expect(dialog).toHaveCount(0);
     }
     await page.reload();
-    await page
-      .getByRole('button', { name: lang === 'ru' ? 'Приключение' : 'Adventure', exact: true })
-      .and(page.locator('[aria-expanded]'))
-      .click();
-    await page.getByRole('tab', { name: lang === 'ru' ? 'Сцена' : 'Scene', exact: true }).click();
+    await selectScene();
     await expect(page.locator('img[data-asset-id="npc.bell.savely.v2"]')).toHaveCount(1);
   });
 }

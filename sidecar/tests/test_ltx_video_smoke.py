@@ -9,8 +9,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends.ltx_video import LtxVideoBackend  # noqa: E402
-from backends.protocol import PromptParams  # noqa: E402
+from backends.ltx_video import LtxVideoBackend
+from backends.protocol import PromptParams
 
 
 @pytest.mark.gpu
@@ -18,7 +18,7 @@ def test_ltx_video_smokes_on_cuda(gpu_weights_dir):
     # Auto-fetch the distilled 2B 0.9.6 single-file checkpoint if missing (~3-4 GB).
     distilled_path = gpu_weights_dir / "ltx-video" / "ltxv-2b-0.9.6-distilled-04-25.safetensors"
     if not distilled_path.exists():
-        from huggingface_hub import hf_hub_download  # noqa: PLC0415
+        from huggingface_hub import hf_hub_download
         distilled_path.parent.mkdir(parents=True, exist_ok=True)
         hf_hub_download(
             repo_id="Lightricks/LTX-Video",

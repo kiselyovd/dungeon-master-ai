@@ -230,7 +230,6 @@ rollback, stale leases, legacy combat and exact-budget guest documents for rest
 and combat creation. Scoped AI intentions, native/public LAN composition and
 complete session acceptance remain pending.
 
-
 ## Scoped agent ports and recovery
 
 RoomAgentPorts serves the shared Dungeon Master, not an AI-controlled hero.
@@ -261,14 +260,12 @@ revocation. These are engine ports, not the production room runner or HTTP agent
 endpoint. Durable scheduling/serialization, cancellation, native wiring and actual
 multi-device session acceptance remain pending.
 
-
 Trusted DM context explicitly marks provider reasoning private independently of
 adventure type. ThinkingDelta is not sent as ReasoningText to the requesting
 player, event sink or saved transcript. A real collaborative-room engine test
 injects a secret biography into a provider thinking chunk and verifies all three
 output boundaries. Ordinary narrated text remains model output; narrative quality
 and appropriate secret discovery still require model acceptance, not this wire gate.
-
 
 ## Shared Dungeon Master execution and delivery
 
@@ -306,7 +303,6 @@ bootstrap reconciliation, restore, revocation/backpressure, frozen input, comple
 and sequence guards, repaired receipts and temporary/persistent lock contention.
 These backend checks do not prove native host/join UI or a physical LAN session.
 
-
 ## Native-controlled room transport boundary
 
 The application-owned RoomListenerControl port now has a backend composition
@@ -329,7 +325,6 @@ repeated start, wrong-room stop and refusal of new connections are also verified
 Protected owner commands, Tauri invocation, native credential/outbox storage,
 host/join UI and physical-device LAN acceptance remain to be connected and tested.
 The port implementation and loopback tests do not prove those user flows.
-
 
 ## Local native owner commands
 
@@ -368,7 +363,6 @@ the native selection and stable public binding also remains pending. No UI has
 been changed in this slice. Only existing workspace libraries were added as test
 (dev) dependencies in app-bootstrap; production dependencies are unchanged.
 
-
 ## Native guest join recovery
 
 The protected loopback owner API also exposes POST `/native/room-client/join`
@@ -392,7 +386,6 @@ This checkpoint does not prove a WebView invocation or a playable guest screen.
 Native action brokering, encrypted outbox, state/event subscription, room selection
 recovery, stable host restart and physical-device LAN acceptance remain pending.
 No production dependencies were added.
-
 
 ## Native room operation broker
 
@@ -420,7 +413,6 @@ server duplicate receipt, guest own sheet, host-only rejection and plain-text
 413 cleanup. Native tests cover wildcard mapping, cached identity and strict
 unknown-field rejection. This does not yet cover DM streaming, subscriptions,
 production UI, real WebView calls or the complete two-device session.
-
 
 ## Native shared streams
 
@@ -451,7 +443,6 @@ splitting, private reasoning and invalid frames. These are transport tests;
 frontend consumption, actual Tauri WebView invocation and physical LAN gameplay
 remain pending.
 
-
 The React room controller receives narrow ports through app composition and keeps
 its state ephemeral. It discards responses from prior room generations and guards
 snapshot head/revision. Native pending requests, rather than a new frontend nonce,
@@ -460,7 +451,6 @@ consistent SQLite transaction: restore cancellation remains observable even when
 its event no longer fits the recent history window. A new marker aborts the old
 DM stream and invalidates its later callbacks; ordinary full snapshots do not.
 The controller is not yet mounted in the production room screen.
-
 
 ## Native guest selection recovery
 
@@ -480,7 +470,6 @@ Current focused HTTP/Stronghold tests prove reopen, revocation, rejected alterna
 join, post-commit local save failure and unreachable pending selection. Production
 preview smoke uses native stubs; it does not prove actual Tauri IPC or LAN play.
 
-
 ## Durable native host binding
 
 The private saved binding references the exact original host request and effective
@@ -494,7 +483,6 @@ selection exists; it does not report a closure that never occurred.
 Service-recreation regressions and static checks cover this backend foundation.
 Native saved-host recover/abandon, actual process restart and WebView proof remain
 outstanding; the current UI cannot yet select a saved host after restart.
-
 
 ## Explicit saved-host recovery
 
@@ -510,7 +498,6 @@ SQLite/Stronghold state. Real WebView IPC and the actual recovery button preserv
 room/member/port/own hero; the renderer response contained no capability. This
 establishes single-host native restart, not physical LAN or full co-op gameplay.
 Explicit abandon when the saved port remains unavailable is still outstanding.
-
 
 ## Shared narration publication
 
@@ -528,7 +515,6 @@ private tool context, failed event publication rolling back message/checkpoint,
 confirmed publication, snapshot restore, cursor backlog and database reopening.
 The adapter-sqlite build script watches migration additions to invalidate cached
 embedded migration code during incremental builds.
-
 
 ## Usable invitation on host recovery
 

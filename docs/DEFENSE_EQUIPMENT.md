@@ -38,7 +38,6 @@ Stealth checks remain pending. Wearing untrained armor and its RAW penalties,
 including spellcasting restrictions, are not supported by this declared-loadout
 subset yet; no complete-SRD claim. The overall solo/co-op goal remains active.
 
-
 Frontend checkpoint: the equipment step now exposes an explicit worn body armor
 and shield choice using existing controls. The live sheet and commit resolve the
 same package/gold inventory and use the canonical catalog for AC and Strength
@@ -57,7 +56,6 @@ Full frontend regression passes: 170 files / 1112 tests. Fast consolidated gates
 (architecture, Rust formatting, Biome, TypeScript, dash check) pass.
 This is browser fixture evidence; native creation/combat/reopen, recreation of an
 existing hero and downstream Stealth/untrained armor behavior remain pending.
-
 
 Native acceptance, 2026-10-08 (working baseline with inherited changes):
 - Rebuilt backend and Tauri with the isolated soloqa identity/profile. Created a
@@ -84,7 +82,6 @@ Shield/other armor native scenarios, existing hero recreation, full session and
 packaged release remain outside this acceptance. Stealth and untrained armor
 mechanics remain open; broader solo/co-op goal remains active.
 
-
 Dice prerequisite, 2026-10-08: reproduced the DM roll_dice advantage flag being
 ignored (one die instead of two). Domain roll_d20_detailed now retains both dice,
 selects max/min for advantage/disadvantage and cancels opposing flags before
@@ -99,7 +96,6 @@ roll modes; it does not yet derive skill modifiers/armor penalties from the hero
 Canonical checks must bind the exact current solo/active-party character, read
 abilities/proficiencies/declared defense from server data, and preserve the existing
 completed tool receipt on retry. No check result may be invented by the model.
-
 
 Canonical solo skill checks, 2026-10-08:
 - roll_dice accepts a strict check descriptor {character_id, skill, dc?}. Only a
@@ -131,7 +127,6 @@ expertise and contextual ability substitutions, untrained armor penalties. Gener
 NPC/world dice remain available; there is no semantic text heuristic deciding
 player actions. Full armor/gameplay/session acceptance remains open.
 
-
 Co-op check checkpoint, 2026-10-08:
 The room tool catalog now exposes roll_dice only with a canonical check descriptor.
 The broker/transaction verifies the current lease, accepted owner and exact prepared
@@ -158,7 +153,6 @@ logic; a revocation evidence weakness was repaired with the fresh-check case.
 Native/model shared-check delivery remains to be exercised. Existing untrained
 armor, Expertise and contextual ability substitution limitations remain; this is
 not a complete-SRD or complete-session claim.
-
 
 Two-native skill delivery acceptance, 2026-10-08:
 - Rebuilt the real host/guest Tauri binaries with separate QA identities/profiles

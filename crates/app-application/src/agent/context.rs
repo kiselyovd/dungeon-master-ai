@@ -119,7 +119,10 @@ mod tests {
             "Savely died",
             "found alive",
         ] {
-            assert!(!public.contains(secret), "{secret}");
+            assert!(
+                !public.contains(secret),
+                "public context contains private information"
+            );
         }
         state.closed = true;
         let closed =

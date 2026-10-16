@@ -69,7 +69,6 @@ cleanup-proof.json, with native screenshots and build/process logs. These are QA
 artifacts, not tracked production inputs. No new production dependency, release,
 push or deployment was introduced. Whole-goal completion remains unproven.
 
-
 ## Provider startup correction
 
 The native restart gap is fixed: production bootstrap restores hydrated provider

@@ -108,14 +108,22 @@ test('real production root switches whole campaigns and resumes the selected her
   await expect(page.getByText('Daren archive', { exact: true })).toBeVisible();
   await expect(page.getByText('Mira quay', { exact: true })).toHaveCount(0);
   await page.locator('.dm-char-fab').click();
-  await expect(page.getByText('Daren book', { exact: true })).toBeVisible();
-  await expect(page.getByText('Mira rope', { exact: true })).toHaveCount(0);
+  const heroPanel = page.getByRole('tabpanel', { name: 'Hero', exact: true });
+  await expect(heroPanel.getByRole('listitem').filter({ hasText: 'Daren book' })).toHaveText(
+    'Daren book × 1',
+  );
+  await expect(heroPanel.getByRole('listitem').filter({ hasText: 'Mira rope' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(page.locator('.dm-char-fab')).toContainText('Daren');
   await page.screenshot({ path: '.artifacts/campaign-resume.png', fullPage: true });
   await page.getByRole('button', { name: 'Campaigns', exact: true }).click();
   await page.getByRole('button', { name: /Empty chronicle/ }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Hero for this adventure', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Create your own hero', exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.dm-char-fab')).toHaveCount(0);
 });

@@ -77,6 +77,20 @@ fn secret(value: &RoomSecret) -> RoomSecret {
     RoomSecret::from_input(value.expose().into()).unwrap()
 }
 
+async fn persisted_room_id(store: &SqliteStore, creation: &CreateLocalRoom) -> Uuid {
+    let signature = serde_json::to_string(creation).unwrap();
+    app_application::ports::repositories::RoomRepository::find_creation(
+        store,
+        creation.campaign_id,
+        &creation.causation_id,
+        &signature,
+    )
+    .await
+    .unwrap()
+    .expect("created public room record")
+    .room_id
+}
+
 async fn guest_proposal(
     store: &SqliteStore,
     service: &RoomService,
@@ -1161,7 +1175,9 @@ async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_rout
         Arc::new(InMemorySecretsStore::default()),
         Arc::new(Clock(AtomicU64::new(1000))),
     ));
-    let created = service.create_local_room(command).await.unwrap();
+    let created = service.create_local_room(command.clone()).await.unwrap();
+    let room_id = persisted_room_id(&store, &command).await;
+    assert!(room_id == created.grant.room.room_id);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let router = adapter_http::rooms::router(service);
@@ -1169,7 +1185,7 @@ async fn actual_room_http_authenticates_identity_and_isolates_desktop_admin_rout
         axum::serve(listener, router).await.unwrap();
     });
     let client = reqwest::Client::new();
-    let url = format!("http://{address}/rooms/{}", created.grant.room.room_id);
+    let url = format!("http://{address}/rooms/{room_id}");
     let missing = client.get(&url).send().await.unwrap();
     assert_eq!(missing.status(), 401);
     let host = client
@@ -3261,7 +3277,9 @@ async fn remaining_host_subscription_survives_voluntary_departure_epoch_change()
         Arc::new(InMemorySecretsStore::default()),
         Arc::new(Clock(AtomicU64::new(1000))),
     ));
-    let created = service.create_local_room(command).await.unwrap();
+    let created = service.create_local_room(command.clone()).await.unwrap();
+    let room_id = persisted_room_id(&store, &command).await;
+    assert!(room_id == created.grant.room.room_id);
     let (grant, _, _) = guest_proposal(&store, &service, &created).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -3270,10 +3288,7 @@ async fn remaining_host_subscription_survives_voluntary_departure_epoch_change()
         axum::serve(listener, router).await.unwrap();
     });
     let response = reqwest::Client::new()
-        .get(format!(
-            "http://{address}/rooms/{}/events",
-            created.grant.room.room_id
-        ))
+        .get(format!("http://{address}/rooms/{room_id}/events"))
         .bearer_auth(created.grant.capability.expose())
         .header("x-room-member-id", created.grant.member_id.to_string())
         .send()

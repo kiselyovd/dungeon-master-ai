@@ -113,7 +113,6 @@ room attempts with different nonces and no third effect on replay. These checks
 establish protocol/engine behavior, not real-model quantity interpretation or
 native/physical separate-device LAN acceptance.
 
-
 Planning repair is bounded to one fresh generation for source/structure errors,
 before a manifest is saved or any effect is dispatched. The original protected
 request, public references and canonical schemas are preserved; a rejected
@@ -123,7 +122,6 @@ cannot trigger this retry. The fresh proposal passes the same exact quote,
 structure and independent semantic checks. Malformed/truncated replies, invalid
 arguments and a negative semantic decision do not receive unbounded retries.
 
-
 Narration publication now distinguishes a verified decision from an unlocalized
 negative decision. Valid negative fidelity plus valid empty/cleared diagnostics
 remains non-publishable, without inventing a fact ID or offending quotation. It
@@ -132,7 +130,6 @@ facts, followed by all fresh checks. A second denial terminates the attempt;
 malformed/truncated assessments remain errors. The private decision flag is not
 wire-deserializable, and clearing localized claims cannot promote a denial.
 Confirmed human actions are not repeated during this prose-only transition.
-
 
 Public intention context carries discovered facts, route aliases with complete
 canonical arguments, and public meanings of currently offered actions. These are
@@ -147,7 +144,6 @@ alone fulfill personal escort home. A physical escort needs supported canonical
 hero travel/composition. Old receipts and settled bindings must not be relabeled
 or retroactively execute new travel. Canonical personal escort is implemented
 below; full AI-led session acceptance remains open.
-
 
 Personal escort now uses separate `escort_tikhon_home`: it confirms the initiating
 hero and Tikhon arriving in Veresk via the safe upper path/quay, advances two

@@ -746,11 +746,11 @@ Execute tasks in dependency order, normally ascending IDs. Do not begin bulk art
 2. At relevant checkpoints run `bun run lint`, `bun run typecheck`, `bun run architecture:check`, `bun run build` and `bun run gates` according to scripts/gates.sh. Keep full gates distinct from focused tests.
 3. Serve the freshly built production bundle using e2e preview mode. Run applicable existing specs plus new shared-table/layout/link/portability/auxiliary-window cases. Use unique ports/output directories and sequential runners when they share artifacts.
 
-```powershell
-$env:DMAI_E2E_PREVIEW = '1'
-$env:DMAI_E2E_PORT = '<owned-free-port>'
-bun run e2e -- <selected-spec-paths>
-```
+   ```powershell
+   $env:DMAI_E2E_PREVIEW = '1'
+   $env:DMAI_E2E_PORT = '<owned-free-port>'
+   bun run e2e -- <selected-spec-paths>
+   ```
 
 4. Run `bun run e2e:tauri` and `bun run e2e:tauri:campaign` with isolated profiles. Existing native harnesses must drive actual controls/APIs, not inject Zustand state as proof.
 5. Build applicable cloud/local Tauri packages and inspect clean-profile offline art/fonts, OS links, dialogs, notifications, second launch and process/window cleanup. Record each actually tested platform; macOS/Linux cannot be claimed from Windows browser tests.

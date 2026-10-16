@@ -27,7 +27,6 @@ damage at zero HP, automatic death turns and the native held-zero-HP continuatio
 are still outstanding. The observed gameplay dead end is not fixed by persistence
 alone. The scheduler test uses trusted fixture state, not a production aid command.
 
-
 ## Owned recovery use case
 
 RecoveryIntent accepts Aid(target character UUID), Wait(target UUID) or an empty
@@ -49,7 +48,6 @@ zero-HP continuation to rest without loading a save. It is not yet exposed throu
 HTTP/native/frontend controls. Active-combat death turns, damage-at-zero and native
 held-defense continuation remain separate pending acceptance.
 
-
 ## Room controls and transport
 
 The public player router exposes authenticated recovery intentions; it rejects
@@ -65,7 +63,6 @@ on revision/restore or lost availability; pending/disconnected controls are bloc
 EN/RU labels reuse the existing design system. Focused HTTP/broker and production
 browser tests pass. Browser evidence uses native stubs and real Rust snapshots;
 actual Tauri continuation after held defense at zero HP remains pending.
-
 
 ## Combat turn recovery checkpoint
 
@@ -88,7 +85,6 @@ and snapshot restoration now verify the scheduled timer without manual seeding.
 Focused domain/application/storage checks pass; combat damage at zero, solo
 recovery transport/UI and full native session/model/physical-LAN acceptance remain
 open. This checkpoint changes mechanics/storage; no new UI or production dependency.
-
 
 ## Damage and mortality checkpoint
 
@@ -115,7 +111,6 @@ Magic Missile now keeps each dart as a separate damage instance while sharing th
 damage die. It cannot manufacture massive damage by summing separate darts; each
 hit at zero causes its own failure. Multi-hit spell output records a death once.
 
-
 ## Solo recovery backend checkpoint
 
 A solo owner can request a mandatory death save or wait for their own stable
@@ -138,7 +133,6 @@ identity/self-aid, active-room exclusion, restore invalidation and nonce isolati
 The fixture deliberately seeds canonical zero-HP vitality; it does not prove a
 complete native solo battle/recovery session. Frontend controls, native acceptance
 and broad model/physical-LAN/session requirements remain outstanding.
-
 
 ## Solo recovery UI checkpoint
 
@@ -166,7 +160,6 @@ or model narration. The next acceptance must drive the real Tauri/server solo pa
 from combat to recovery/rest without snapshot rollback. Full model, session UX and
 physical LAN requirements remain open; no publication or goal-completion claim.
 
-
 ## Actual native solo continuation
 
 Fresh QA Tauri profile and real UI wizard create Daren (HP11). Deliberate pre-fight
@@ -181,7 +174,6 @@ Native run also reproduced missing provider startup replay (manual same-settings
 Save restores DM transport), unarmored AC despite ChainMail, and stale ended VTT
 HP0/skull after healing. These must be repaired next; the native recovery checkpoint
 does not close broad solo/co-op playability, real-model quality or physical LAN.
-
 
 ## Tabletop mortality and ended encounters
 

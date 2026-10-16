@@ -359,7 +359,10 @@ async fn narration_correction_is_prose_only_and_bad_drafts_never_publish() {
         "PRIVATE_OTHER_HERO",
         "PRIVATE_REPAIR_REASONING",
     ] {
-        assert!(!repair_text.contains(secret), "{secret}");
+        assert!(
+            !repair_text.contains(secret),
+            "repair request contains private information"
+        );
     }
     assert_eq!(checker.checks.lock().unwrap().len(), 2);
     assert_eq!(

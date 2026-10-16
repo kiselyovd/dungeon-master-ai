@@ -36,7 +36,16 @@ for (const language of ['ru', 'en'] as const) {
         active_session_id: sessionId,
         ui_language: language,
         image_enabled: false,
-        active_provider: 'local-mistralrs',
+        active_provider: 'openai-compat',
+        providers: {
+          'openai-compat': {
+            kind: 'openai-compat',
+            baseUrl: 'http://127.0.0.1:9/v1',
+            model: 'fixture-dm',
+            apiKey: 'fixture-key',
+          },
+          'local-mistralrs': null,
+        },
       });
       const prose =
         language === 'ru'
@@ -69,7 +78,11 @@ for (const language of ['ru', 'en'] as const) {
           },
           messages: [{ id: 'narration', role: 'assistant', content: prose }],
           combat: null,
-          scene: null,
+          scene: {
+            id: '824e4fa6-b156-444c-984b-f891fe7f578d',
+            title: language === 'ru' ? 'Архив звёзд' : 'The Star Archive',
+            mode: 'exploration',
+          },
           adventure: null,
           journal: [],
           npcs: [],

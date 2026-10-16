@@ -2,10 +2,8 @@ import { expect, test } from '@playwright/test';
 import { mockTauri } from './fixtures/tauri-mock';
 
 /**
- * First-run onboarding (redesigned flow): welcome -> preset -> hero -> chat ->
- * image -> video. The "Skip setup" (manual) preset trims the flow to
- * welcome -> preset -> hero, so it is fully completable in e2e without any
- * backend (chat/image steps that need downloads/providers are skipped).
+ * First-run onboarding records adventure or guest intent. Adventure source
+ * and hero selection happen in their campaign scope before model setup.
  *
  * No `onboarding_completed` seed here so the modal mounts on load.
  */
@@ -13,38 +11,43 @@ test.beforeEach(async ({ page }) => {
   await mockTauri(page, { ui_language: 'en' });
 });
 
-test('mounts on first run and shows the welcome step', async ({ page }) => {
+test('mounts on first run with adventure and guest choices', async ({ page }) => {
   await page.goto('/');
-  // The step counter (e.g. "Step 1 of 5") is unique to the onboarding modal.
-  await expect(page.getByText(/Step 1 of 5/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+  const welcome = page.getByRole('dialog', { name: 'Your next adventure', exact: true });
+  await expect(welcome).toBeVisible();
+  await expect(welcome.getByRole('button', { name: 'Start adventure', exact: true })).toBeVisible();
+  await expect(welcome.getByRole('button', { name: 'Join game', exact: true })).toBeVisible();
   await expect(page.getByTestId('onboarding-hero-art')).toBeVisible();
 });
 
-test('Continue advances Welcome -> Preset (hero precedes the technical steps)', async ({
+test('Start adventure opens the campaign source choice before technical setup', async ({
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Continue/i }).click();
-  // Preset step heading.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Choose a preset/i);
-  await expect(page.getByText(/Step 2 of 5/i)).toBeVisible();
-  // The stepper lists "Create hero" before the technical steps (redesign).
-  await expect(page.getByText('Create hero', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Where does the story begin?' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Prepared adventure/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Choose hero', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Your next adventure', exact: true })).toHaveCount(
+    0,
+  );
 });
 
-test('"Skip setup" preset trims the flow to welcome -> preset -> hero', async ({ page }) => {
+test('prepared adventure reaches scoped hero choice without requiring model setup', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Continue/i }).click();
-  // Select the manual/"Skip setup" preset card (role=radio).
-  await page.getByRole('radio', { name: /Skip setup/i }).click();
-  // Counter now reflects the 3-step manual flow.
-  await expect(page.getByText(/Step 2 of 3/i)).toBeVisible();
-  await page.getByRole('button', { name: /Continue/i }).click();
-  // Lands directly on the Hero step (no chat/image).
-  await expect(page.getByText(/Step 3 of 3/i)).toBeVisible();
-  await expect(page.getByText(/Build from scratch/i)).toBeVisible();
-  await expect(page.locator('.dm-hero-cards[data-art-direction="living-tabletop"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose hero', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Hero for this adventure', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('radiogroup').getByRole('radio')).toHaveCount(4);
+  await expect(
+    page.getByRole('button', { name: 'Create your own hero', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Hero name', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('API key', { exact: true })).toHaveCount(0);
 });
 
 test('reduced motion keeps welcome art visible without ambient animation', async ({ page }) => {
@@ -56,15 +59,19 @@ test('reduced motion keeps welcome art visible without ambient animation', async
   await expect(page.locator('.dm-onboarding-hero')).toHaveCSS('animation-name', 'none');
 });
 
-test('completing the manual flow by picking a class dismisses onboarding', async ({ page }) => {
+test('entering with a prepared class completes onboarding and opens the production table', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Continue/i }).click();
-  await page.getByRole('radio', { name: /Skip setup/i }).click();
-  await page.getByRole('button', { name: /Continue/i }).click();
-  // Hero step: pick a class card -> finalize. The Fighter card is a button.
-  await page.getByRole('button', { name: /Fighter/i }).click();
-  // Onboarding modal unmounts once completed (step counter gone).
-  await expect(page.getByText(/Step \d of \d/i)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose hero', exact: true }).click();
+  await page.getByRole('radio', { name: /^Fighter / }).check();
+  await page.getByRole('button', { name: 'Enter first scene', exact: true }).click();
+  await expect(page.locator('.dm-vtt-panel')).toBeVisible();
+  await expect(page.locator('.dm-char-fab')).toContainText('Fighter');
+  await expect(page.getByRole('dialog', { name: 'Your next adventure', exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test('language picker flips EN/RU', async ({ page }) => {
@@ -75,6 +82,7 @@ test('language picker flips EN/RU', async ({ page }) => {
   await ru.click();
   await expect(ru).toHaveAttribute('aria-pressed', 'true');
   await expect(en).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Начать приключение', exact: true })).toBeVisible();
 });
 
 test('onboarding does NOT reappear once completed (hydration gate)', async ({ page }) => {
@@ -87,6 +95,8 @@ test('onboarding does NOT reappear once completed (hydration gate)', async ({ pa
   });
   await page.goto('/');
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
-  // The onboarding step counter must be absent (modal never mounted).
-  await expect(page.getByText(/Step \d of \d/i)).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Your next adventure', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.locator('.dm-vtt-panel')).toBeVisible();
 });

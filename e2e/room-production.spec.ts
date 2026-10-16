@@ -436,7 +436,16 @@ test('host recovers a saved room from the production screen without creation inp
   await expect(page.locator('[data-game-table]')).toHaveAttribute('data-table-mode', 'host');
   await page.getByRole('button', { name: 'Комната', exact: true }).click();
   await page.getByRole('button', { name: 'Обновить приглашение' }).click({ timeout: 5000 });
-  await expect(page.getByRole('textbox', { name: 'Приглашение' })).toHaveValue('fixture');
+  await page.getByRole('button', { name: 'Создать ссылку приглашения', exact: true }).click();
+  const link = page.getByRole('textbox', { name: 'Ссылка приглашения', exact: true });
+  await expect(link).toBeVisible();
+  const invitation = new URL(await link.inputValue());
+  expect(`${invitation.protocol}//${invitation.host}${invitation.pathname}`).toBe('dmai://join/v1');
+  expect(Object.fromEntries(invitation.searchParams)).toEqual({
+    address: '127.0.0.1:4123',
+    room: wire.state.room.room_id,
+    invitation: 'a'.repeat(64),
+  });
 });
 
 test('production recovery controls aid a dying hero and confirm waiting using real engine snapshots', async ({

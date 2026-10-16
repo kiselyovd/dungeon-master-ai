@@ -224,7 +224,6 @@ No promotion or full-goal completion. Isolated processes/listeners verified stop
 See BONSAI_EVALUATION.md. Next real-model work must address reliable narrative
 fidelity rather than treating lower temperature as an accepted fix.
 
-
 ## Installed-model comparison and approved Qwen9B candidate
 
 - [x] Compare the other installed Bonsai27B Q1_0 through real current backend.
@@ -253,7 +252,6 @@ Initial Qwen download was cancelled on finding the older no-auto-large-download
 constraint. No weight bytes arrived;196B metadata remained because automatic
 approval review rejected cleanup. User subsequently explicitly approved download,
 so the same pinned revision resumes. No production dependency is added.
-
 
 Qwen9B first current-runtime observations (no promotion): nonthinking10 completed
 replies25.564sec, eight successful actions, rescued Tikhon/10gold/sealedsluice but
@@ -671,7 +669,6 @@ with ordered per-attempt bindings/receipts and no duplicate retry or quota
 bypass; then richer conditional/refusal cases and full model/native/LAN proofs.
 Keep the broad goal and acceptance boxes open.
 
-
 Quantified-command continuation:
 - [x] Expand one explicitly quantified source clause into complete ordered
   per-attempt commands, preserving full source and private ordinal/count metadata.
@@ -692,7 +689,6 @@ room regression pass; consolidated gates pass with948 Rust and1127 frontend
 checks. Final staged independent review has no actionable finding. All32 original
 source hashes are preserved; only owned files are staged. No frontend behavior
 changed, no dependencies added, no model/default promotion or publication.
-
 
 Model/source-planning continuation:
 - [x] Real quantified request: two1-minute canonical receipts, exactly120 seconds,
@@ -718,7 +714,6 @@ ordering and confirms the next narration gap. Actual quantity and compound
 mechanics are evidenced separately from failed compound delivery. Owned QA
 backend/model/proxy are stopped; original32 source hashes remain protected.
 
-
 Unlocalized assessment verification:39 workflow groups and frozen full gates pass
 (954 Rust,1127 frontend, architecture/static/all-feature Clippy). Internal private
 verified decision cannot be supplied by wire data or upgraded by clearing claims.
@@ -732,7 +727,6 @@ scripted decisions are explicit and do not establish model quality. Archive rout
 verification and read-only question interpretation still fail on actual Qwen.
 Next: grounded public route references, DM question/action distinction, factual
 object-detail consistency, then full model/native/separate-device session proof.
-
 
 Grounded references and intent-completeness continuation:
 - [x] Public discovered facts, canonical Quay↔Archive route args and meanings of
@@ -775,7 +769,6 @@ incomplete plan before new binding, but does not rewrite old cached wrong intent
 No model/native/physicalLAN/full-session acceptance is claimed. Owned QA processes
 are stopped; original32 dirty source hashes remain preserved.
 
-
 Personal escort implementation:
 - [x] Separate EscortTikhonHome/escort_tikhon_home preserves legacy NPC-only
   RescueTikhon while taking both the human hero and ferryman home to Town.
@@ -803,7 +796,6 @@ positive fidelity verdict. A separate agency-boolean probe failed its paired
 controls and is not incorporated into production. Do not promote this model or
 claim whole-goal acceptance from correct escort mechanics.
 
-
 Agency diagnostics after escort checkpoint:
 - [x] Reproduce original farewell plus paired NPC/declared-speech/emotion controls;
   reject claim-based validator (4/6) and larger reasoning (5/6) as insufficient.
@@ -815,7 +807,6 @@ Agency diagnostics after escort checkpoint:
   distinct obligation. No new production validator until evidence supports it.
 - [ ] Fresh full AI-led peaceful/defensive, native/recovery and physical LAN/VPN
   acceptance remain required. Do not replace them with these focused probes.
-
 
 Full-draft agency follow-up:
 - [x] Test14 paired controls: extraction+source11/14, whole source11/14 and
@@ -832,7 +823,6 @@ Full-draft agency follow-up:
   Scoped local checkpoint only; whole-goal acceptance remains open.
 - [ ] Continue fresh full AI-led sessions and remaining native/physical LAN
   requirements; model quality remains open, with no rejected validator promotion.
-
 
 Fresh-session planning continuation:
 - [x] Reproduce initial compound rejection before effects; schema alone insufficient
