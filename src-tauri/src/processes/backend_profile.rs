@@ -3,7 +3,6 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::ConnectOptions;
 
 pub(super) struct BackendProfile {
     pub(super) database_url: String,
@@ -68,11 +67,7 @@ impl BackendProfile {
                 }
                 let directory = if legacy_exists { legacy } else { managed };
                 let database = directory.join("data.db");
-                let database_url = SqliteConnectOptions::new()
-                    .filename(&database)
-                    .create_if_missing(true)
-                    .to_url_lossy()
-                    .to_string();
+                let database_url = sqlite_database_url(&database)?;
                 (
                     database_url,
                     Some(directory.join("dmai-vault.hold")),
@@ -118,6 +113,23 @@ impl BackendProfile {
         }
         Ok(())
     }
+}
+
+fn sqlite_database_url(path: &Path) -> Result<String, &'static str> {
+    const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
+    let filename = path.to_str().ok_or("backend_profile_path_invalid")?;
+    let mut url = String::from("sqlite://");
+    for byte in filename.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            url.push(char::from(byte));
+        } else {
+            url.push('%');
+            url.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
+            url.push(char::from(HEX_DIGITS[usize::from(byte & 0x0f)]));
+        }
+    }
+    url.push_str("?mode=rwc");
+    Ok(url)
 }
 
 fn environment_text(value: Option<OsString>) -> Result<Option<String>, &'static str> {
@@ -332,6 +344,22 @@ mod tests {
             std::fs::read(directory.path().join("app-data/dmai-vault.hold")).unwrap(),
             b"preserve-existing-bytes"
         );
+    }
+
+    #[test]
+    fn generated_sqlite_urls_preserve_cross_platform_filenames() {
+        for filename in [
+            r"C:\Users\Player\backend\data.db",
+            r"\\server\share\Player Data\backend\data.db",
+            "/tmp/profile%name?query#fragment/Данные игрока/data.db",
+            "/tmp/backend/data.db",
+        ] {
+            let path = Path::new(filename);
+            let url = sqlite_database_url(path).unwrap();
+            let options = SqliteConnectOptions::from_str(&url).unwrap();
+            assert_eq!(options.get_filename(), path);
+            assert!(url.ends_with("?mode=rwc"));
+        }
     }
 
     #[tokio::test]
