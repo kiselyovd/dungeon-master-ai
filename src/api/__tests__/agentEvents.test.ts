@@ -96,6 +96,24 @@ describe('streamAgentTurn event framing', () => {
     ]);
   });
 
+  it('does not retain one console object per streamed event by default', async () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    const events: string[] = [];
+    const deltas = Array.from(
+      { length: 80 },
+      (_, index) => `event: text_delta\ndata: {"text":"${index}"}\n\n`,
+    ).join('');
+
+    await consume([`${deltas}event: agent_done\ndata: {"total_rounds":1}\n\n`], events);
+
+    expect(events).toHaveLength(81);
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(
+      '[agent.transport]',
+      expect.objectContaining({ eventKind: 'stream_complete', sequence: 81 }),
+    );
+  });
+
   it('defaults legacy image events without provenance to generated', async () => {
     const events: string[] = [];
     await consume(
@@ -170,7 +188,7 @@ describe('streamAgentTurn event framing', () => {
     expect(events).toEqual([]);
   });
 
-  it('cancels and releases the response reader after agent_done', async () => {
+  it('drains and releases the response reader after agent_done', async () => {
     const cancel = vi.fn(async () => undefined);
     const releaseLock = vi.fn();
     const read = vi
@@ -199,7 +217,7 @@ describe('streamAgentTurn event framing', () => {
     });
 
     expect(releaseLock).toHaveBeenCalledTimes(1);
-    expect(read).toHaveBeenCalledOnce();
-    expect(cancel).toHaveBeenCalledOnce();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(cancel).not.toHaveBeenCalled();
   });
 });

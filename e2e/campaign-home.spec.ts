@@ -25,6 +25,16 @@ test('empty campaign library owns the Russian production root and opens creation
   await expect(page.getByPlaceholder('Что ты делаешь?')).toHaveCount(0);
   await expect(page.getByText(/Anthropic|Claude|join room|создать комнату/i)).toHaveCount(0);
 
+  const campaignSurface = page.locator('main[data-art-direction="living-tabletop"]');
+  await expect(campaignSurface).toHaveCSS('overflow-x', 'hidden');
+  await expect(campaignSurface).toHaveCSS('scrollbar-width', 'none');
+  expect(
+    await page.evaluate(() => ({
+      document: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      body: document.body.scrollWidth <= document.body.clientWidth,
+    })),
+  ).toEqual({ document: true, body: true });
+
   await page.getByRole('button', { name: 'Новая кампания' }).click();
   await expect(page.getByRole('heading', { name: 'С чего начнётся история?' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Придумать вместе/ })).toBeChecked();

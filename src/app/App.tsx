@@ -248,7 +248,6 @@ function App() {
   const persistedCampaignId = useStore((s) => s.session.activeCampaignId);
   const setUiLanguage = useStore((s) => s.settings.setUiLanguage);
   const [campaignCreateOpen, setCampaignCreateOpen] = useState(false);
-  const [campaignNeedsHero, setCampaignNeedsHero] = useState<string | null>(null);
 
   // Preflight: read the settings fields needed by runPreflight in one selector
   // so we only re-render when these specific fields change.
@@ -366,7 +365,7 @@ function App() {
           ? {
               id: campaignsFeature.active.id,
               sessionId: campaignsFeature.active.last_session_id,
-              heroReady: pcHeroClass !== null && campaignsFeature.active.id !== campaignNeedsHero,
+              heroReady: pcHeroClass !== null,
               worldReady: pcHeroClass !== null,
             }
           : null,
@@ -393,7 +392,7 @@ function App() {
                 const campaign = await campaignsFeature.create(input);
                 if (campaign) {
                   useStore.getState().charCreation.resetDraft();
-                  setCampaignNeedsHero(campaign.id);
+                  useStore.getState().pc.setHeroClass(null);
                   setCampaignCreateOpen(false);
                 }
               }}
@@ -416,14 +415,13 @@ function App() {
               onRequestCharacterRecreate={() => {
                 setSettingsOpen(false);
                 if (campaignsFeature.active) {
-                  setCampaignNeedsHero(campaignsFeature.active.id);
+                  useStore.getState().pc.setHeroClass(null);
                 }
               }}
             />
             {campaignRoute.kind === 'character-create' && (
               <CharacterWizard
                 mode="initial"
-                onClose={() => setCampaignNeedsHero(null)}
                 onOpenImageSettings={handleOpenImageSettings}
                 hidden={settingsOpen}
               />
@@ -613,7 +611,6 @@ function App() {
           <CharacterSheet open={characterSheetOpen} onClose={() => setCharacterSheetOpen(false)} />
           {hydrated && !onboardingCompleted && (
             <Onboarding
-              onExitToWizard={() => setWizardReopen(true)}
               onComplete={(preset) => {
                 // The manual preset configures nothing, so it would land on the
                 // blocking PreflightModal (missing_chat). Route the user straight

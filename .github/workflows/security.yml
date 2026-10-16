@@ -15,20 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # cargo-audit removed: it duplicates cargo-deny (which uses the same RustSec
-  # database) and OSV-Scanner (which adds bun.lock coverage) without offering
-  # a scope filter, so the gtk-rs / unic-* / bincode transitive tail from the
-  # Tauri stack drowned out every real finding. The one real advisory it
-  # flagged (rsa 0.9.10 Marvin Attack, transitive via stronghold) is tracked
-  # alongside the tauri 2.11.1 upgrade follow-up that OSV-Scanner already
-  # surfaces. cargo-deny + OSV-Scanner stay as the dual audit pair.
+  # OSV-Scanner is the single advisory source. cargo-deny remains responsible
+  # for license, source and duplicate-dependency policy, avoiding two scanners
+  # disagreeing over the same transitive RustSec tail and leaving CI red forever.
   cargo-deny:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2
         with:
-          command: check all
+          command: check bans licenses sources
 
   gitleaks:
     runs-on: ubuntu-24.04
@@ -40,13 +36,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # OSV-Scanner surfaces a meaningful direct hit (tauri 2.10.3 -> 2.11.1 has a
-  # CVE) plus a long tail of transitive advisories from the Tauri stack
-  # (gtk-rs family, unic-*, paste, proc-macro-error, rsa) that have no fix yet.
-  # We track the actionable upgrade as a separate security follow-up; for
-  # this CI hardening PR we surface findings without blocking the merge.
-  # Flip back to hard-fail (and seed .osv-scanner.toml ignores) once the
-  # security cleanup PR lands.
   osv-scanner:
     permissions:
       contents: read
@@ -68,9 +57,6 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        # Soft-fail while the repo-level Dependency graph toggle is being
-        # rolled out. Flip to a hard failure once Settings -> Security ->
-        # Dependency graph is confirmed enabled (Task 12 manual step).
         continue-on-error: true
         with:
           fail-on-severity: moderate

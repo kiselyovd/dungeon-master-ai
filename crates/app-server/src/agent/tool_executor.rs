@@ -347,8 +347,8 @@ async fn execute_start_combat(
                 10,
             );
             combatant.position = app_domain::combat::types::Position {
-                x: (index % 8) as i32,
-                y: (index / 8) as i32,
+                x: 8 + (index % 8) as i32,
+                y: 8 + (index / 8) as i32,
             };
             combatant
         })
@@ -1517,6 +1517,12 @@ mod start_combat_tests {
         // Third is Goblin
         assert_eq!(ordered[2]["name"].as_str(), Some("Goblin"));
         assert_eq!(ordered[2]["roll"].as_i64(), Some(12));
+
+        let combatants = val["projection"]["snapshot"]["combatants"]
+            .as_array()
+            .expect("combatants array present");
+        assert_eq!(combatants[0]["position"], json!({ "x": 8, "y": 8 }));
+        assert_eq!(combatants[1]["position"], json!({ "x": 9, "y": 8 }));
 
         // encounter_id is present
         assert!(val["encounter_id"].as_str().is_some());

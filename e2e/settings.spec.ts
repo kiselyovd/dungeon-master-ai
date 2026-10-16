@@ -44,6 +44,13 @@ test('exposes all five tabs and they switch', async ({ page }) => {
   }
 });
 
+test('uses the themed scrollbar inside scrollable settings content', async ({ page }) => {
+  await openSettings(page);
+  const body = page.getByRole('dialog').locator(':scope > div').first();
+  await expect(body).toHaveCSS('scrollbar-width', 'thin');
+  await expect(body).toHaveCSS('scrollbar-color', /rgba?\(/);
+});
+
 test('unified provider block: local hides Base URL, OpenAI-compat shows it', async ({ page }) => {
   await openSettings(page);
   const dialog = page.getByRole('dialog');

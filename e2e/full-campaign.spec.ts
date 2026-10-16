@@ -246,7 +246,10 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
   let quickSaveCreated = false;
   const saveSummary = {
     id: 'save-quick',
+    campaign_id: CAMPAIGN_ID,
     session_id: SESSION_ID,
+    snapshot_id: 'snapshot-quick',
+    revision: 0,
     kind: 'checkpoint',
     title: 'Quick Save',
     summary: 'Moonlit Tavern',
@@ -290,14 +293,23 @@ test('a complete campaign remains authoritative, restorable, and honest about bu
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          game_state: {
-            schema_version: 2,
+          id: 'snapshot-quick',
+          campaign_id: CAMPAIGN_ID,
+          session_id: SESSION_ID,
+          revision: 0,
+          schema_version: 1,
+          ruleset_id: 'srd-5.2.1',
+          projection: {
+            messages: [
+              { role: 'user', parts: [{ type: 'text', text: 'We return to safety.' }] },
+              { role: 'assistant', content: 'The hearth burns softly.' },
+            ],
+            character: { name: 'Aria', hp: 12, hpMax: 12 },
+            combat: null,
             scene: { title: 'Moonlit Tavern', subtitle: null, mode: 'exploration' },
+            journal: [],
+            npcs: [],
           },
-          messages: [
-            { role: 'user', parts: [{ type: 'text', text: 'We return to safety.' }] },
-            { role: 'assistant', content: 'The hearth burns softly.' },
-          ],
         }),
       });
       return;

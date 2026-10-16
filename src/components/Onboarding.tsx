@@ -17,8 +17,8 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
  *
  * Mounted by `App.tsx` over the entire UI when `state.onboarding.completed`
  * is `false`. After the Hero step finalizes we flip the flag and dismount.
- * CharacterWizard is then mounted by App.tsx (condition: !pc.heroClass) to
- * let the user create their hero.
+ * Campaign routing decides whether the next screen is the campaign library or
+ * a campaign-scoped CharacterWizard.
  *
  * The step sequence is computed from `computeSteps(preset)` so optional steps
  * (image, video) are inserted or removed based on the user's preset choice.
@@ -36,14 +36,9 @@ interface OnboardingProps {
    * blocking PreflightModal). [E2]
    */
   onComplete?: (preset: PresetId) => void;
-  /**
-   * Called when the user chooses "Build from scratch" on the hero step.
-   * App.tsx uses this to open CharacterWizard in initial mode.
-   */
-  onExitToWizard?: () => void;
 }
 
-export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
+export function Onboarding({ onComplete }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
   const { t: tCommon } = useTranslation('common');
   const titleId = useId();
@@ -75,12 +70,6 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
   const finalize = (): void => {
     completeOnboarding();
-    // "Build from scratch" leaves no hero class applied: open the full
-    // CharacterWizard so the user can build a custom character. Picking a class
-    // card sets pc.heroClass, so this is skipped for the preset path.
-    if (!useStore.getState().pc.heroClass) {
-      onExitToWizard?.();
-    }
     onComplete?.(preset);
   };
 

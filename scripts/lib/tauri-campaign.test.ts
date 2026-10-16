@@ -3,11 +3,110 @@ import { describe, expect, it } from 'vitest';
 import {
   REQUIRED_CAMPAIGN_CHECKPOINTS,
   evaluateCampaignEvidence,
+  isCombatSceneVisible,
   isChatScrollContained,
   isManualHeroButtonLabel,
   parseCapturedAgentEvents,
+  resolveJournalEvidenceId,
+  resolveCampaignBootstrapAction,
+  resolveDmResponseTimeoutMs,
+  resolveRuntimeTimeoutMs,
   type CampaignEvidence,
 } from './tauri-campaign';
+
+describe('resolveRuntimeTimeoutMs', () => {
+  it('outlives the backend cold-start probe budget by default', () => {
+    expect(resolveRuntimeTimeoutMs(undefined)).toBe(780_000);
+  });
+
+  it('accepts an explicit positive timeout override', () => {
+    expect(resolveRuntimeTimeoutMs('900000')).toBe(900_000);
+  });
+
+  it('rejects malformed and non-positive overrides', () => {
+    expect(resolveRuntimeTimeoutMs('not-a-number')).toBe(780_000);
+    expect(resolveRuntimeTimeoutMs('0')).toBe(780_000);
+  });
+});
+
+describe('resolveDmResponseTimeoutMs', () => {
+  it('allows a multi-round local-model tool turn to finish by default', () => {
+    expect(resolveDmResponseTimeoutMs(undefined)).toBe(720_000);
+  });
+
+  it('accepts an explicit positive timeout override', () => {
+    expect(resolveDmResponseTimeoutMs('900000')).toBe(900_000);
+  });
+
+  it('rejects malformed and non-positive overrides', () => {
+    expect(resolveDmResponseTimeoutMs('not-a-number')).toBe(720_000);
+    expect(resolveDmResponseTimeoutMs('-1')).toBe(720_000);
+  });
+});
+
+describe('resolveJournalEvidenceId', () => {
+  it('accepts a journal entry without an optional chapter heading', () => {
+    expect(resolveJournalEvidenceId(1)).toBe('observed-journal-entry');
+  });
+
+  it('does not manufacture evidence for an empty journal', () => {
+    expect(resolveJournalEvidenceId(0)).toBeNull();
+  });
+});
+
+describe('resolveCampaignBootstrapAction', () => {
+  it('opens campaign creation before looking for the character wizard', () => {
+    expect(
+      resolveCampaignBootstrapAction({
+        wizardVisible: false,
+        campaignCreateVisible: false,
+        newCampaignAvailable: true,
+      }),
+    ).toBe('open_campaign_create');
+  });
+
+  it('prefers the stable campaign-home action over a transient wizard', () => {
+    expect(
+      resolveCampaignBootstrapAction({
+        wizardVisible: true,
+        campaignCreateVisible: false,
+        newCampaignAvailable: true,
+      }),
+    ).toBe('open_campaign_create');
+  });
+
+  it('completes an already open campaign draft before character creation', () => {
+    expect(
+      resolveCampaignBootstrapAction({
+        wizardVisible: false,
+        campaignCreateVisible: true,
+        newCampaignAvailable: false,
+      }),
+    ).toBe('complete_campaign_create');
+  });
+
+  it('leaves an already visible character wizard untouched', () => {
+    expect(
+      resolveCampaignBootstrapAction({
+        wizardVisible: true,
+        campaignCreateVisible: false,
+        newCampaignAvailable: false,
+        gameTableVisible: false,
+      }),
+    ).toBe('ready');
+  });
+
+  it('resumes an already prepared game table without reopening character creation', () => {
+    expect(
+      resolveCampaignBootstrapAction({
+        wizardVisible: false,
+        campaignCreateVisible: false,
+        newCampaignAvailable: false,
+        gameTableVisible: true,
+      }),
+    ).toBe('game_ready');
+  });
+});
 
 describe('isChatScrollContained', () => {
   const contained = {
@@ -33,6 +132,44 @@ describe('isChatScrollContained', () => {
         bodyHeight: 3_697,
         chatPanelHeight: 3_633,
         bodyOverflow: 'visible',
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('isCombatSceneVisible', () => {
+  it('accepts a cover-sized map with combatants comfortably inside the viewport', () => {
+    expect(
+      isCombatSceneVisible({
+        viewport: { x: 0, y: 40, width: 800, height: 736 },
+        map: { x: 0, y: 40, width: 800, height: 736 },
+        tokens: [
+          { x: 240, y: 280, width: 30, height: 30 },
+          { x: 270, y: 280, width: 30, height: 30 },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects the old top-left spawn that was technically rendered but visually lost', () => {
+    expect(
+      isCombatSceneVisible({
+        viewport: { x: 0, y: 40, width: 800, height: 736 },
+        map: { x: 0, y: 40, width: 800, height: 736 },
+        tokens: [
+          { x: 30, y: 40, width: 30, height: 30 },
+          { x: 90, y: 40, width: 30, height: 30 },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects a map that is letterboxed instead of filling the VTT', () => {
+    expect(
+      isCombatSceneVisible({
+        viewport: { x: 0, y: 40, width: 800, height: 736 },
+        map: { x: 150, y: 120, width: 500, height: 500 },
+        tokens: [{ x: 300, y: 300, width: 30, height: 30 }],
       }),
     ).toBe(false);
   });
