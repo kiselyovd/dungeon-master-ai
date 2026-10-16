@@ -35,7 +35,7 @@ impl Default for CharacterId {
 
 // ---- Grid ----
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Position {
     pub x: i32,
     pub y: i32,

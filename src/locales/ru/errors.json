@@ -7,5 +7,6 @@
   "http_error": "HTTP-ошибка: {{message}}",
   "aborted": "Запрос отменён.",
   "invalid_response": "Некорректный ответ от бэкенда.",
+  "campaign_required": "Сначала выберите или создайте кампанию.",
   "unknown": "Непредвиденная ошибка: {{message}}"
 }

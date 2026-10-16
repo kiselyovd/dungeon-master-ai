@@ -37,6 +37,53 @@ export function pipeBrowserConsole(page: Page): void {
 export async function mockTauri(page: Page, seed: Record<string, unknown> = {}): Promise<void> {
   pipeBrowserConsole(page);
 
+  const effectiveSeed = { ...seed };
+  if (
+    effectiveSeed.onboarding_completed === true &&
+    effectiveSeed.hero_class !== undefined &&
+    effectiveSeed.hero_class !== null
+  ) {
+    effectiveSeed.active_campaign_id ??= '2c7d0d90-e970-47a7-aac4-66a147f96e58';
+    effectiveSeed.active_session_id ??= '53a7fa02-cfb6-4717-b7fe-e6408f81a569';
+  }
+
+  const activeCampaignId = effectiveSeed.active_campaign_id;
+  const activeSessionId = effectiveSeed.active_session_id;
+  await page.route(/^https?:\/\/[^/]+\/campaigns(?:\/[^/?]+)?(?:\?|$)/, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    if (typeof activeCampaignId !== 'string' || typeof activeSessionId !== 'string') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      return;
+    }
+    const summary = {
+      id: activeCampaignId,
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      title: 'Fixture Chronicle',
+      premise: 'A deterministic campaign used by the browser acceptance suite.',
+      last_session_id: activeSessionId,
+      revision: 2,
+      updated_at: '2026-08-13T03:21:00.000Z',
+    };
+    const isDetail = new URL(route.request().url()).pathname !== '/campaigns';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        isDetail
+          ? {
+              ...summary,
+              seed: { kind: 'collaborative', answers: { genre: ['classic_fantasy'] } },
+              created_at: '2026-08-13T03:21:00.000Z',
+            }
+          : [summary],
+      ),
+    });
+  });
+
   // SplashOverlay polls /health every 250ms and only dismisses once it gets
   // a 200 OK (or after a 30-second timeout). Return a benign 200 so the
   // splash drops within the first tick and the rest of the UI becomes
@@ -197,5 +244,5 @@ export async function mockTauri(page: Page, seed: Record<string, unknown> = {}):
     ).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
       unregisterListener: () => {},
     };
-  }, seed);
+  }, effectiveSeed);
 }

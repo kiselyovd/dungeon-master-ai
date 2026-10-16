@@ -43,6 +43,7 @@ const fixture = {
       name_en: 'Acolyte',
       name_ru: 'Послушник',
       skill_proficiencies: ['insight', 'religion'],
+      ability_score_options: ['int', 'wis', 'cha'],
     },
   ],
 } as never;
@@ -128,17 +129,18 @@ describe('computeLiveSheet', () => {
     expect(sheet.inventoryOverflow).toBe(2);
   });
 
-  it('applies race ability_score_increases (Hill Dwarf +2 CON)', () => {
+  it('applies deterministic SRD 5.2.1 background ability increases', () => {
     const draft = {
       ...EMPTY_DRAFT,
       classId: 'fighter',
-      raceId: 'hill-dwarf',
+      backgroundId: 'acolyte',
       abilities: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
     };
     const sheet = computeLiveSheet(draft, fixture);
-    expect(sheet.abilities.con.score).toBe(16); // 14 + 2 from race
-    expect(sheet.abilities.con.mod).toBe(3); // (16-10)/2 = 3
-    expect(sheet.hp).toBe(13); // hit_die 10 + 3
+    expect(sheet.abilities.int.score).toBe(12);
+    expect(sheet.abilities.wis.score).toBe(11);
+    expect(sheet.abilities.con.score).toBe(14);
+    expect(sheet.hp).toBe(12);
   });
 
   it('HP floors at 1 even with extreme negative CON', () => {

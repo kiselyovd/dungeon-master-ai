@@ -3,7 +3,9 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use app_server::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+use app_server::image::provider::{
+    ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource,
+};
 use app_server::image::retry::RetryableImageProvider;
 use async_trait::async_trait;
 
@@ -36,6 +38,7 @@ impl ImageProvider for ScriptedImage {
             Ok(ImageBytes {
                 data: vec![0, 1, 2],
                 mime_type: "image/png".into(),
+                source: ImageSource::Generated,
             })
         }
     }

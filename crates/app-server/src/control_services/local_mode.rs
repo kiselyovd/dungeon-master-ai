@@ -1,0 +1,115 @@
+//! Concrete local-runtime bridge used by the composition layer.
+//!
+//! Endpoints:
+//! - `GET  /local-mode/config`            -> current selected model + VRAM strategy
+//! - `POST /local-mode/config`            -> update selected model + VRAM strategy
+//! - `POST /local/download/{id}`          -> kick off resumable HF download
+//! - `DELETE /local/download/{id}`        -> cancel + delete partial file/dir
+//! - `GET  /local/download/{id}/progress` -> SSE stream of progress/completed/failed
+//! - `POST /local/runtime/start`          -> spawn LLM (+ optional image) sidecar
+//! - `POST /local/runtime/stop`           -> stop both runtimes
+//! - `GET  /local/runtime/status`         -> snapshot of both LocalRuntime states
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::Json;
+use serde::{Deserialize, Serialize};
+
+use crate::error::AppError;
+use crate::models::manifest::{manifest_for, ModelId, ModelKind};
+use crate::state::AppState;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalModeConfig {
+    pub selected_llm: ModelId,
+    pub vram_strategy: VramStrategy,
+}
+
+impl Default for LocalModeConfig {
+    fn default() -> Self {
+        Self {
+            // Gemma 4 E2B (AutoIsq) is the default: the deprecated mistralrs-server
+            // build we ship SEGFAULTS loading a GGUF model unless stdout is a real
+            // TTY (verified live), and the backend always pipes it - so GGUF models
+            // (Qwen3-8B) cannot be the default until mistralrs is upgraded. The
+            // AutoIsq `run` path does not hit that crash.
+            selected_llm: ModelId::Gemma4E2bIt,
+            vram_strategy: VramStrategy::AutoSwap,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum VramStrategy {
+    AutoSwap,
+    KeepBothLoaded,
+    DisableImageGen,
+}
+
+pub async fn get_config(State(state): State<AppState>) -> Json<LocalModeConfig> {
+    Json(state.local_mode_config())
+}
+
+pub async fn post_config(
+    State(state): State<AppState>,
+    Json(cfg): Json<LocalModeConfig>,
+) -> Result<Json<LocalModeConfig>, AppError> {
+    state.set_local_mode_config(cfg.clone());
+    Ok(Json(cfg))
+}
+
+pub async fn post_download(
+    State(state): State<AppState>,
+    Path(model_id): Path<ModelId>,
+) -> Result<StatusCode, AppError> {
+    state
+        .download_manager()
+        .start(model_id)
+        .await
+        .map_err(AppError::BadRequest)?;
+    Ok(StatusCode::ACCEPTED)
+}
+
+pub async fn delete_download(
+    State(state): State<AppState>,
+    Path(model_id): Path<ModelId>,
+) -> StatusCode {
+    state.download_manager().cancel(model_id).await;
+    StatusCode::NO_CONTENT
+}
+
+/// Build the `mistralrs serve` spawn args for the currently-selected local LLM
+/// at `port`. AutoIsq (Gemma 4 safetensors) loads via the ISQ auto-loader and is
+/// fetched from HF on first start, so there is no local file to require; GGUF
+/// models select the file via `--format gguf` and must be downloaded first.
+/// Shared by `runtime_start` and the Auto-Swap restart path so the two never
+/// drift on how the LLM is launched.
+pub fn build_llm_spawn_args(state: &AppState, port: u16) -> Result<Vec<String>, AppError> {
+    let cfg = state.local_mode_config();
+    let model = manifest_for(&cfg.selected_llm)
+        .ok_or_else(|| AppError::BadRequest("unknown selected_llm".into()))?;
+    match &model.kind {
+        ModelKind::AutoIsq { isq } => Ok(crate::local_runtime::mistralrs_run_args(
+            port,
+            model.hf_repo,
+            isq,
+        )),
+        _ => {
+            let models_dir = state.models_dir();
+            let llm_path = models_dir.join(model.hf_filename);
+            if !llm_path.exists() {
+                return Err(AppError::BadRequest(format!(
+                    "model not downloaded: {}",
+                    model.display_name
+                )));
+            }
+            let models_dir_str = models_dir.to_string_lossy().into_owned();
+            Ok(crate::local_runtime::mistralrs_gguf_args(
+                port,
+                &models_dir_str,
+                model.hf_filename,
+            ))
+        }
+    }
+}

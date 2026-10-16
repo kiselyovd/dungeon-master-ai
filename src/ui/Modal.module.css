@@ -40,7 +40,7 @@
 
 .backdrop {
   position: fixed;
-  inset: 0;
+  inset: var(--header-height) 0 0;
   background: var(--color-overlay-scrim);
   display: flex;
   align-items: center;
@@ -63,8 +63,9 @@
   border-radius: var(--radius-lg);
   min-width: 480px;
   max-width: min(640px, 90vw);
-  max-height: 90vh;
+  max-height: calc(100vh - var(--header-height) - (2 * var(--space-4)));
   border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-3);
   animation: dialogSlideDown var(--t-slow) ease both;
 }
 
@@ -73,8 +74,13 @@
 }
 
 .title {
-  margin-top: 0;
+  margin: 0 0 var(--space-4);
   flex-shrink: 0;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
 }
 
 .body {
@@ -86,7 +92,10 @@
 .footer {
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-6);
+  margin: var(--space-4) calc(var(--space-6) * -1) calc(var(--space-6) * -1);
+  padding: var(--space-3) var(--space-6);
   justify-content: flex-end;
   flex-shrink: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.03), transparent);
 }

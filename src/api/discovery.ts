@@ -11,13 +11,33 @@
  * - 2xx body fails schema -> ChatError('invalid_response')
  */
 import * as v from 'valibot';
-import type {
-  DiscoveredCatalog,
-  ModelSource,
-  ResolvedModelEntry,
-} from '../state/discoveredCatalogs';
 import { backendUrl } from './client';
 import { ChatError } from './errors';
+
+export type ModelSource = 'curated' | 'discovered-api' | 'discovered-hf-hub' | 'custom-hf';
+
+export interface ResolvedModelEntry {
+  model_id: string;
+  display_name: string;
+  capabilities: {
+    vision_input: boolean;
+    reasoning: boolean;
+    tool_calls: boolean;
+    streaming: boolean;
+  };
+  source: ModelSource;
+  context_length?: number | null;
+  price_per_million_input?: number | null;
+  price_per_million_output?: number | null;
+}
+
+export interface DiscoveredCatalog {
+  cacheKey: string;
+  cachedAt: string;
+  source: ModelSource;
+  models: ResolvedModelEntry[];
+  next_cursor?: string | null;
+}
 
 const ModelSourceSchema = v.picklist([
   'curated',
@@ -102,5 +122,3 @@ export async function postDiscover(params: DiscoverParams): Promise<DiscoveryRes
   }
   return parsed.output as DiscoveryResponse;
 }
-
-export type { DiscoveredCatalog, ModelSource, ResolvedModelEntry };

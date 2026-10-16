@@ -18,6 +18,8 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { sqliteProfileDatabaseUrl } from './lib/profile-paths';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function targetTriple(): { triple: string; exe: string } {
@@ -70,7 +72,18 @@ if (warnings.length > 0) {
 const child = spawn('bun', ['run', 'tauri', 'dev'], {
   cwd: ROOT,
   stdio: 'inherit',
-  env: { ...process.env, DMAI_IMAGE_SIDECAR_DEV: ROOT },
+  env: {
+    ...process.env,
+    DMAI_IMAGE_SIDECAR_DEV: ROOT,
+    ...(process.env.DMAI_E2E_PROFILE_DIR
+      ? {
+          APPDATA: process.env.DMAI_E2E_PROFILE_DIR,
+          LOCALAPPDATA: process.env.DMAI_E2E_PROFILE_DIR,
+          DMAI_VAULT_PATH: join(process.env.DMAI_E2E_PROFILE_DIR, 'vault.hold'),
+          DATABASE_URL: sqliteProfileDatabaseUrl(process.env.DMAI_E2E_PROFILE_DIR),
+        }
+      : {}),
+  },
   shell: process.platform === 'win32', // resolve `bun` via PATHEXT on Windows
 });
 

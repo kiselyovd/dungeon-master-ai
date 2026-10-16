@@ -1,21 +1,27 @@
-//! LLM provider abstraction for the dungeon-master-ai backend.
+//! Temporary compatibility facade for the inward LLM contract and adapters.
 
-mod genai_common;
-pub mod mistralrs_provider;
-pub mod mock;
-pub mod openai_compat;
-pub mod provider;
-pub mod retry;
+pub mod mistralrs_provider {
+    pub use adapter_llm::mistralrs_provider::*;
+}
+pub mod mock {
+    pub use adapter_llm::mock::*;
+}
+pub mod openai_compat {
+    pub use adapter_llm::openai_compat::*;
+}
+pub mod provider {
+    pub use adapter_llm::provider::*;
+}
+pub mod retry {
+    pub use adapter_llm::retry::*;
+}
 pub mod sidecar_launcher;
 
-pub use mistralrs_provider::MistralrsLocalProvider;
-pub use mock::MockProvider;
-pub use openai_compat::OpenAICompatProvider;
-pub use provider::{
-    Capabilities, ChatChunk, ChatMessage, ChatRequest, ChunkStream, FinishReason, LlmError,
-    LlmProvider, MessagePart, ReasoningSpec, Tool, ToolCall, ToolResult,
+pub use adapter_llm::{
+    default_policy, is_retryable, Capabilities, ChatChunk, ChatMessage, ChatRequest, ChunkStream,
+    FinishReason, LlmError, LlmProvider, MessagePart, MistralrsLocalProvider, MockProvider,
+    OpenAICompatProvider, ReasoningSpec, RetryableProvider, Tool, ToolCall, ToolResult,
 };
-pub use retry::{default_policy, is_retryable, RetryableProvider};
 pub use sidecar_launcher::{
     MockSidecarLauncher, NullSidecarLauncher, SidecarError, SidecarHandle, SidecarLauncher,
     SpawnSpec,

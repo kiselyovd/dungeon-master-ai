@@ -79,7 +79,14 @@ export function ClassTab({ compendium }: ClassTabProps) {
             }}
           >
             <div style={{ fontFamily: 'Cinzel, serif', color: '#fff', fontSize: 16 }}>
-              {lang === 'ru' ? c.name_ru : c.name_en}
+              {c.name_key
+                ? i18n.t(c.name_key, {
+                    ns: 'character',
+                    defaultValue: lang === 'ru' ? c.name_ru : c.name_en,
+                  })
+                : lang === 'ru'
+                  ? c.name_ru
+                  : c.name_en}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
               d{c.hit_die} HP - {c.primary_ability.join(', ')}

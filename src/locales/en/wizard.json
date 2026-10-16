@@ -34,7 +34,7 @@
   "race_picker_title": "Choose your race",
   "subrace_picker_title": "Choose a subrace",
   "background_picker_title": "Choose your background",
-  "background_srd_limit_note": "SRD 5.1 ships only Acolyte. More will appear as content grows.",
+  "background_srd_limit_note": "SRD 5.2.1 provides Acolyte, Criminal, Sage, and Soldier backgrounds.",
   "abilities_title": "Distribute your ability scores",
   "abilities_method_label": "Method",
   "ability_method_point_buy": "Point Buy 27",

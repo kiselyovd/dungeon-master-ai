@@ -2,9 +2,11 @@
 
 pub mod agent;
 pub mod config;
+mod control_services;
 pub mod db;
 pub mod error;
 pub mod hf;
+pub mod http_services;
 pub mod image;
 pub mod license;
 pub mod local_runtime;
@@ -18,145 +20,13 @@ pub mod telemetry;
 pub mod testing;
 pub mod video;
 
-use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, post};
 use axum::Router;
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
 
 pub use state::AppState;
 
 pub fn router(state: AppState) -> Router {
-    let r = Router::new()
-        .route("/health", get(routes::health::health))
-        .route("/agent/turn", post(routes::agent::post_agent_turn))
-        .route("/chat", post(routes::chat::chat))
-        .route("/providers", get(routes::settings::get_providers))
-        .route("/combat/start", post(routes::combat::post_combat_start))
-        .route("/combat/action", post(routes::combat::post_combat_action))
-        .route("/combat/end", post(routes::combat::post_combat_end))
-        .route("/journal", get(routes::journal::get_journal))
-        .route("/npcs", get(routes::npc::get_npcs))
-        .route("/srd/races", get(routes::srd::get_races))
-        .route("/srd/classes", get(routes::srd::get_classes))
-        .route("/srd/backgrounds", get(routes::srd::get_backgrounds))
-        .route("/srd/spells", get(routes::srd::get_spells))
-        .route("/srd/equipment", get(routes::srd::get_equipment))
-        .route("/srd/feats", get(routes::srd::get_feats))
-        .route(
-            "/srd/weapon-properties",
-            get(routes::srd::get_weapon_properties),
-        )
-        .route(
-            "/character/assist",
-            post(routes::character_assist::post_character_assist),
-        )
-        .route(
-            "/sessions/{session_id}/messages",
-            get(routes::messages::list_messages),
-        )
-        .route(
-            "/sessions/{session_id}/saves",
-            get(routes::saves::list_saves).post(routes::saves::create_save),
-        )
-        .route(
-            "/sessions/{session_id}/saves/quick",
-            post(routes::saves::quick_save),
-        )
-        .route(
-            "/saves/{save_id}",
-            get(routes::saves::get_save)
-                .put(routes::saves::update_save)
-                .delete(routes::saves::delete_save),
-        )
-        .route(
-            "/saves/{save_id}/restore",
-            post(routes::saves::restore_save),
-        )
-        .route("/providers/catalog", get(routes::providers::get_catalog))
-        .route("/providers/{id}/caps", get(routes::providers::get_caps))
-        .route(
-            "/providers/discover",
-            post(routes::providers::post_discover),
-        )
-        .route("/settings/v2", post(routes::settings::post_settings_v2))
-        .route("/image/generate", post(routes::image::post_image_generate))
-        .route("/video/generate", post(routes::video::post_video_generate))
-        .route("/local-llm/manifest", get(routes::local_llm::get_manifest))
-        .route(
-            "/local-llm/active-model",
-            post(routes::local_llm::set_active_model),
-        )
-        .route(
-            "/local-llm/download/{model_id}",
-            post(routes::local_llm::start_download),
-        )
-        .route(
-            "/local-llm/model/{model_id}",
-            delete(routes::local_llm::cancel_or_delete),
-        )
-        .route(
-            "/local-llm/download-events",
-            get(routes::local_llm::download_events),
-        )
-        .route(
-            "/hf/token",
-            post(routes::hf::post_token).delete(routes::hf::delete_token),
-        )
-        .route("/hf/token/status", get(routes::hf::get_token_status))
-        .route("/hf/search", get(routes::hf::search))
-        // Wildcard capture so `Qwen/Qwen3-4B` style ids reach the handler
-        // intact - axum's plain `{repo_id}` would stop at the embedded slash,
-        // and `{*repo_id}` is only legal as the final segment. We therefore
-        // front-load the action verb ("license") and let the repo id occupy
-        // the wildcard tail.
-        .route(
-            "/hf/model/license/{*repo_id}",
-            get(routes::hf::license_check),
-        )
-        .route("/hf/manifest/add", post(routes::hf::add_manifest))
-        .route("/hf/manifest/{id}", delete(routes::hf::delete_manifest));
-
-    #[cfg(feature = "with-local-runtime")]
-    let r = r
-        .route(
-            "/local-mode/config",
-            get(routes::local_mode::get_config).post(routes::local_mode::post_config),
-        )
-        .route(
-            "/local/download/{id}",
-            post(routes::local_mode::post_download).delete(routes::local_mode::delete_download),
-        )
-        .route(
-            "/local/download/{id}/progress",
-            get(routes::local_mode::download_progress),
-        )
-        .route(
-            "/local/runtime/start",
-            post(routes::local_mode::runtime_start),
-        )
-        .route(
-            "/local/runtime/stop",
-            post(routes::local_mode::runtime_stop),
-        )
-        .route(
-            "/local/runtime/status",
-            get(routes::local_mode::runtime_status),
-        );
-
-    r.with_state(state)
-        // Vision turns base64 up to 4 staged images into the /agent/turn body,
-        // which can exceed axum's 2 MB default and 413. Raise the cap so the
-        // staged-image limits in the composer are the real ceiling. [M11 F2]
-        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_headers(Any)
-                .allow_methods(Any),
-        )
-        .layer(TraceLayer::new_for_http())
+    adapter_http::router(http_services::bundle(state))
 }
 
 pub async fn router_with_mock_llm() -> Router {

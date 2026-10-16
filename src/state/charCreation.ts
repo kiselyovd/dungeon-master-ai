@@ -1,6 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { AbilityScores, InventoryItem } from './pc';
 
+export const CURRENT_CHARACTER_RULESET_ID = 'srd-5.2.1' as const;
+export type CharacterRulesetId = typeof CURRENT_CHARACTER_RULESET_ID;
+
 export type WizardTab =
   | 'class'
   | 'race'
@@ -52,6 +55,7 @@ export interface TestChatTurn {
 }
 
 export interface CharacterDraft {
+  rulesetId: CharacterRulesetId;
   classId: string | null;
   subclassId: string | null;
   raceId: string | null;
@@ -79,6 +83,7 @@ export interface CharacterDraft {
 }
 
 export const EMPTY_DRAFT: CharacterDraft = {
+  rulesetId: CURRENT_CHARACTER_RULESET_ID,
   classId: null,
   subclassId: null,
   raceId: null,

@@ -1,6 +1,57 @@
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
+
+use app_application::ports::secrets::{SecretsError, SecretsStore};
 use app_llm::ReasoningSpec;
 use app_server::test_support::TestServer;
+use async_trait::async_trait;
 use serde_json::{json, Value};
+use tokio::sync::RwLock;
+
+struct FailingSecrets {
+    values: RwLock<HashMap<String, String>>,
+    writes: AtomicUsize,
+    failed: AtomicBool,
+}
+
+#[async_trait]
+impl SecretsStore for FailingSecrets {
+    async fn get(&self, key: &str) -> Result<Option<String>, SecretsError> {
+        Ok(self.values.read().await.get(key).cloned())
+    }
+
+    async fn set(&self, key: &str, value: &str) -> Result<(), SecretsError> {
+        self.write(Some((key, value))).await
+    }
+
+    async fn delete(&self, key: &str) -> Result<(), SecretsError> {
+        self.write(Some((key, ""))).await
+    }
+}
+
+impl FailingSecrets {
+    async fn write(&self, value: Option<(&str, &str)>) -> Result<(), SecretsError> {
+        let write = self.writes.fetch_add(1, Ordering::SeqCst) + 1;
+        if write == 2 && !self.failed.swap(true, Ordering::SeqCst) {
+            return Err(SecretsError::Operation {
+                operation: "test",
+                code: "injected",
+            });
+        }
+        if let Some((key, value)) = value {
+            if value.is_empty() {
+                self.values.write().await.remove(key);
+            } else {
+                self.values
+                    .write()
+                    .await
+                    .insert(key.to_string(), value.to_string());
+            }
+        }
+        Ok(())
+    }
+}
 
 fn baseline() -> Value {
     json!({
@@ -37,6 +88,42 @@ fn baseline() -> Value {
             "scene_transitions": "auto",
         },
     })
+}
+
+#[tokio::test]
+async fn post_settings_v2_secret_failure_rolls_back_secrets_and_runtime_snapshot() {
+    let server = TestServer::start().await;
+    let secrets = Arc::new(FailingSecrets {
+        values: RwLock::new(HashMap::from([
+            ("anthropic_api_key".into(), "old-anthropic".into()),
+            ("openai_compat_api_key".into(), "old-openai".into()),
+        ])),
+        writes: AtomicUsize::new(0),
+        failed: AtomicBool::new(false),
+    });
+    server.state.set_secrets_repo(secrets.clone());
+
+    let response = reqwest::Client::new()
+        .post(server.url("/settings/v2"))
+        .json(&baseline())
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(response.status(), 500);
+    assert_eq!(server.state.provider().name(), "mock");
+    assert_eq!(server.state.default_model(), "mock");
+    assert_eq!(
+        secrets.get("anthropic_api_key").await.unwrap().as_deref(),
+        Some("old-anthropic")
+    );
+    assert_eq!(
+        secrets
+            .get("openai_compat_api_key")
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("old-openai")
+    );
 }
 
 #[tokio::test]
@@ -481,10 +568,8 @@ async fn post_settings_v2_rebuilds_replicate_image_provider() {
 
 #[tokio::test]
 async fn post_settings_v2_degrades_replicate_without_api_key() {
-    // Image is an optional enhancement: a bad/unavailable image provider must
-    // NOT block the mandatory chat provider. The save succeeds with image
-    // disabled rather than 400ing the whole request.
     let server = TestServer::start().await;
+    let original_revision = server.state.settings_revision();
     let mut body = baseline();
     body["image"]["providers"]["replicate"]["api_key"] = Value::String(String::new());
     let res = reqwest::Client::new()
@@ -493,10 +578,11 @@ async fn post_settings_v2_degrades_replicate_without_api_key() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 200);
+    assert_eq!(res.status(), 400);
+    assert_eq!(server.state.settings_revision(), original_revision);
     assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
+        server.state.image_provider().is_some(),
+        "invalid settings must not clear the bundled default"
     );
 }
 
@@ -545,15 +631,14 @@ async fn post_settings_v2_degrades_local_image_without_sidecar_url() {
         .await
         .expect("request");
     assert_eq!(res.status(), 200);
-    assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
-    );
+    let p = server.state.image_provider().expect("bundled fallback");
+    assert_eq!(p.cost_per_image(), 0.0);
 }
 
 #[tokio::test]
 async fn post_settings_v2_degrades_replicate_without_provider_config_slice() {
     let server = TestServer::start().await;
+    let original_revision = server.state.settings_revision();
     let mut body = baseline();
     body["image"]["providers"] = json!({});
     let res = reqwest::Client::new()
@@ -562,10 +647,11 @@ async fn post_settings_v2_degrades_replicate_without_provider_config_slice() {
         .send()
         .await
         .expect("request");
-    assert_eq!(res.status(), 200);
+    assert_eq!(res.status(), 400);
+    assert_eq!(server.state.settings_revision(), original_revision);
     assert!(
-        server.state.image_provider().is_none(),
-        "image degraded to off"
+        server.state.image_provider().is_some(),
+        "invalid settings must not clear the bundled default"
     );
 }
 

@@ -9,21 +9,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SaveSummary, SaveTag } from '../api/saves';
-import saveThumbCombat from '../assets/save-thumb-combat.png';
-import saveThumbDialog from '../assets/save-thumb-dialog.png';
-import saveThumbExploration from '../assets/save-thumb-exploration.png';
-import saveThumbNpc from '../assets/save-thumb-npc.png';
+import { SAVE_ART } from '../assets/livingTabletop';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { useSaves } from '../hooks/useSaves';
 import { Icons } from '../ui/Icons';
 import { DmConfirmModal } from './DmConfirmModal';
 
-const TAG_THUMB_SRC: Record<SaveTag, string> = {
-  combat: saveThumbCombat,
-  exploration: saveThumbExploration,
-  dialog: saveThumbDialog,
-  npc: saveThumbNpc,
-};
+const TAG_THUMB_SRC: Record<SaveTag, string> = SAVE_ART;
 
 type Tab = 'all' | 'manual' | 'auto';
 

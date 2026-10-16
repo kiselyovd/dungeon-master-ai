@@ -10,7 +10,7 @@ import { mockTauri } from './fixtures/tauri-mock';
  * No `onboarding_completed` seed here so the modal mounts on load.
  */
 test.beforeEach(async ({ page }) => {
-  await mockTauri(page);
+  await mockTauri(page, { ui_language: 'en' });
 });
 
 test('mounts on first run and shows the welcome step', async ({ page }) => {
@@ -18,6 +18,7 @@ test('mounts on first run and shows the welcome step', async ({ page }) => {
   // The step counter (e.g. "Step 1 of 5") is unique to the onboarding modal.
   await expect(page.getByText(/Step 1 of 5/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+  await expect(page.getByTestId('onboarding-hero-art')).toBeVisible();
 });
 
 test('Continue advances Welcome -> Preset (hero precedes the technical steps)', async ({
@@ -43,6 +44,16 @@ test('"Skip setup" preset trims the flow to welcome -> preset -> hero', async ({
   // Lands directly on the Hero step (no chat/image).
   await expect(page.getByText(/Step 3 of 3/i)).toBeVisible();
   await expect(page.getByText(/Build from scratch/i)).toBeVisible();
+  await expect(page.locator('.dm-hero-cards[data-art-direction="living-tabletop"]')).toBeVisible();
+});
+
+test('reduced motion keeps welcome art visible without ambient animation', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+
+  const art = page.getByTestId('onboarding-hero-art');
+  await expect(art).toBeVisible();
+  await expect(page.locator('.dm-onboarding-hero')).toHaveCSS('animation-name', 'none');
 });
 
 test('completing the manual flow by picking a class dismisses onboarding', async ({ page }) => {
@@ -58,7 +69,7 @@ test('completing the manual flow by picking a class dismisses onboarding', async
 
 test('language picker flips EN/RU', async ({ page }) => {
   await page.goto('/');
-  const ru = page.getByRole('button', { name: 'RU', exact: true });
+  const ru = page.getByRole('button', { name: 'РУ', exact: true });
   const en = page.getByRole('button', { name: 'EN', exact: true });
   await expect(en).toHaveAttribute('aria-pressed', 'true');
   await ru.click();
@@ -69,7 +80,11 @@ test('language picker flips EN/RU', async ({ page }) => {
 test('onboarding does NOT reappear once completed (hydration gate)', async ({ page }) => {
   // Seed the persisted completed flag: the redesigned hydration gate must keep
   // the modal from flashing on a relaunch. (Audit blocker 1.)
-  await mockTauri(page, { onboarding_completed: true, hero_class: 'fighter' });
+  await mockTauri(page, {
+    onboarding_completed: true,
+    hero_class: 'fighter',
+    ui_language: 'en',
+  });
   await page.goto('/');
   await expect(page.getByText('DUNGEON MASTER AI')).toBeVisible();
   // The onboarding step counter must be absent (modal never mounted).

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ChatMessage } from '../../state/chat';
-import { streamAgentTurn } from '../agent';
+import { type AgentHistoryMessage, streamAgentTurn } from '../agent';
 import { setBackendPortForTesting } from '../client';
 
 /**
@@ -23,21 +22,13 @@ function sse(body: string): Response {
   });
 }
 
-const noop = () => {};
-const callbacks = {
-  onTextDelta: noop,
-  onToolCallStart: noop,
-  onToolCallResult: noop,
-  onAgentDone: noop,
-};
-
 describe('streamAgentTurn history serialization', () => {
   afterEach(() => {
     setBackendPortForTesting(null);
     vi.unstubAllGlobals();
   });
 
-  async function capture(history: ChatMessage[]): Promise<Record<string, unknown>> {
+  async function capture(history: AgentHistoryMessage[]): Promise<Record<string, unknown>> {
     setBackendPortForTesting(45678);
     let body: Record<string, unknown> = {};
     vi.stubGlobal(
@@ -52,13 +43,13 @@ describe('streamAgentTurn history serialization', () => {
       sessionId: 's',
       playerMessage: 'go north',
       history,
-      ...callbacks,
+      onEvent: () => {},
     });
     return body;
   }
 
   it('serializes a user history message with a parts array', async () => {
-    const body = await capture([{ id: '1', role: 'user', content: 'hello' } as ChatMessage]);
+    const body = await capture([{ role: 'user', content: 'hello' }]);
     expect((body.history as unknown[])[0]).toEqual({
       role: 'user',
       parts: [{ type: 'text', text: 'hello' }],
@@ -66,18 +57,14 @@ describe('streamAgentTurn history serialization', () => {
   });
 
   it('keeps existing user parts (e.g. image attachments) verbatim', async () => {
-    const parts = [{ type: 'image', image: { mime: 'image/png', data_base64: 'x' } }];
-    const body = await capture([
-      { id: '2', role: 'user', content: '', parts } as unknown as ChatMessage,
-    ]);
+    const parts = [{ type: 'image' as const, mime: 'image/png', data_b64: 'x' }];
+    const body = await capture([{ role: 'user', content: '', parts }]);
     const first = (body.history as { parts: unknown[] }[])[0];
     expect(first?.parts).toEqual(parts);
   });
 
   it('serializes an assistant history message with content (no parts)', async () => {
-    const body = await capture([
-      { id: '3', role: 'assistant', content: 'A dim tavern.' } as ChatMessage,
-    ]);
+    const body = await capture([{ role: 'assistant', content: 'A dim tavern.' }]);
     expect((body.history as unknown[])[0]).toEqual({
       role: 'assistant',
       content: 'A dim tavern.',

@@ -1,9 +1,12 @@
-//! M7-DM video generation module: trait + LTX-Video sidecar provider + SSE route.
+//! Temporary compatibility facade for outbound video adapters.
 
-pub mod provider;
-pub mod sidecar;
+pub use adapter_media::video::*;
 
-pub use provider::{
-    VideoCapabilities, VideoError, VideoEvent, VideoPrompt, VideoProvider, VideoStream,
-};
-pub use sidecar::LocalVideoSidecarProvider;
+pub mod provider {
+    pub use app_application::ports::media::{
+        VideoCapabilities, VideoError, VideoEvent, VideoPrompt, VideoProvider, VideoStream,
+    };
+}
+pub mod sidecar {
+    pub use adapter_media::video::sidecar::*;
+}

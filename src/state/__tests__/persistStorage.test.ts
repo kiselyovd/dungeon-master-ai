@@ -402,6 +402,44 @@ describe('persistStorage', () => {
     expect(await settings.get('agent_max_rounds')).toBeUndefined();
   });
 
+  it('never writes ephemeral bundled media fields or bytes', async () => {
+    const unsafeState = {
+      settings: { uiLanguage: 'en' },
+      session: {
+        currentScene: { name: 'Crossing', stepCounter: 1 },
+        mapImageUrl: 'data:image/webp;base64,BUNDLED_MAP_BYTES',
+      },
+      chat: {
+        chatStreamEvents: [
+          {
+            imageDataUrl: 'data:image/webp;base64,BUNDLED_ILLUSTRATION_BYTES',
+            imageSource: { type: 'bundled', assetId: 'illustration-tavern' },
+          },
+        ],
+      },
+      toolLog: {
+        entries: [{ imageDataUrl: 'data:image/webp;base64,BUNDLED_TOOL_BYTES' }],
+      },
+    };
+
+    await persistStorage.setItem('test', {
+      state: unsafeState as never,
+      version: 0,
+    });
+
+    const serialized = JSON.stringify(await persistStorage.getItem('test'));
+    for (const forbidden of [
+      'data:image',
+      'imageDataUrl',
+      'mapImageUrl',
+      'BUNDLED_MAP_BYTES',
+      'BUNDLED_ILLUSTRATION_BYTES',
+      'BUNDLED_TOOL_BYTES',
+    ]) {
+      expect(serialized).not.toContain(forbidden);
+    }
+  });
+
   it('removeItem clears the vault, the legacy file, and the prefs file', async () => {
     await persistStorage.setItem('any', {
       state: {

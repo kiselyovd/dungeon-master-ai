@@ -18,6 +18,12 @@ function freshSettingsStore() {
 }
 
 describe('SettingsSlice model tab fields', () => {
+  it('starts a new adventure in Russian', () => {
+    const store = freshSettingsStore();
+    expect(store.getState().settings.uiLanguage).toBe('ru');
+    expect(store.getState().settings.narrationLanguage).toBe('ru');
+  });
+
   it('has default systemPrompt as empty string', () => {
     const store = freshSettingsStore();
     expect(store.getState().settings.systemPrompt).toBe('');

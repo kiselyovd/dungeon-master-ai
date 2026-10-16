@@ -176,8 +176,8 @@ export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSl
   settings: {
     activeProvider: 'openai-compat',
     providers: DEFAULT_PROVIDERS,
-    uiLanguage: 'en',
-    narrationLanguage: 'en',
+    uiLanguage: 'ru',
+    narrationLanguage: 'ru',
     systemPrompt: '',
     temperature: 0.7,
     replicateApiKey: null,

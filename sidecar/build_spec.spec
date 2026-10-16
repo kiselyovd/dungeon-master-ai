@@ -1,4 +1,4 @@
-# PyInstaller spec for dmai-image-sidecar (--onedir).
+# PyInstaller spec for the single-file Tauri external binary.
 # Run with `pyinstaller --noconfirm --clean build_spec.spec`.
 
 block_cipher = None
@@ -21,22 +21,14 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
+    exclude_binaries=False,
     name='dmai-image-sidecar',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     console=True,
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='dmai-image-sidecar',
 )

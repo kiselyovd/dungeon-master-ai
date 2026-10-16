@@ -227,6 +227,10 @@ async fn agent_turn_endpoint_streams_text() {
         .unwrap();
 
     assert_eq!(resp.status(), 200);
+    assert_eq!(
+        resp.headers().get(reqwest::header::CONNECTION),
+        Some(&reqwest::header::HeaderValue::from_static("close"))
+    );
     let body = resp.text().await.unwrap();
     assert!(
         body.contains("text_delta"),
@@ -240,6 +244,57 @@ async fn agent_turn_endpoint_streams_text() {
         body.contains("agent_done"),
         "expected agent_done event in: {body}"
     );
+}
+
+#[tokio::test]
+async fn agent_map_tool_uses_bundled_provider_without_sidecar_or_persisted_base64() {
+    let pool = test_pool().await;
+    let session_id = uuid::Uuid::new_v4();
+    let campaign_id = uuid::Uuid::new_v4();
+    let mock = Arc::new(MockProvider::new(vec![
+        ChatChunk::ToolCallStart {
+            id: "map-fallback-1".into(),
+            name: "generate_map".into(),
+        },
+        ChatChunk::ToolCallArgsDelta {
+            id: "map-fallback-1".into(),
+            args_fragment: r#"{"prompt":"forest crossing"}"#.into(),
+        },
+        ChatChunk::ToolCallDone {
+            id: "map-fallback-1".into(),
+        },
+        ChatChunk::Done {
+            reason: FinishReason::ToolUse,
+        },
+    ]));
+    let server = TestServer::start_with(mock, pool.clone()).await;
+    assert!(server.state.media_sidecar_url().is_none());
+
+    let response = Client::new()
+        .post(server.url("/agent/turn"))
+        .json(&serde_json::json!({
+            "player_message": "Show the crossing",
+            "history": [],
+            "campaign_id": campaign_id,
+            "session_id": session_id
+        }))
+        .send()
+        .await
+        .expect("agent request");
+
+    assert_eq!(response.status(), 200);
+    let body = response.text().await.expect("SSE body");
+    assert!(body.contains("event: image_generated"));
+    assert!(body.contains(r#""source":"bundled""#));
+    assert!(body.contains(r#""kind":"map""#));
+    assert!(body.contains(r#""asset_id":"map-"#));
+
+    let persisted = app_server::db::list_messages_by_session(&pool, &session_id.to_string())
+        .await
+        .expect("persisted history");
+    let json = serde_json::to_string(&persisted).expect("serialized history");
+    assert!(!json.contains("image_b64"));
+    assert!(!json.contains("data:image"));
 }
 
 #[tokio::test]
@@ -307,8 +362,17 @@ async fn start_combat_executor_persists_passed_session_id() {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [] }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "executor failed: {val}");
 
     let encounter_id = val["encounter_id"].as_str().expect("encounter_id");
@@ -338,8 +402,17 @@ async fn quick_save_executor_uses_session_id_not_campaign_id() {
         name: "quick_save".into(),
         args: serde_json::json!({ "label": "before the boss" }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "executor failed: {val}");
 
     let save_id = val["save_id"].as_str().expect("save_id");
@@ -447,10 +520,7 @@ async fn orchestrator_emits_reasoning_text_from_thinking_chunks() {
             _ => {}
         }
     }
-    assert_eq!(
-        reasoning_texts,
-        vec!["Step 1: think.", " Step 2: conclude."]
-    );
+    assert_eq!(reasoning_texts, vec!["Step 1: think. Step 2: conclude."]);
     assert_eq!(text, "The answer is 42.");
     assert!(done);
 }
@@ -533,7 +603,7 @@ async fn execute_tool_generate_illustration_calls_provider_and_returns_bytes() {
 
     let (result, is_error) = execute_tool(
         &tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         Some(provider),
         None,
         None,
@@ -697,7 +767,7 @@ async fn execute_tool_generate_illustration_without_provider_is_a_clean_error() 
     };
     let (result, is_error) = execute_tool(
         &tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -729,8 +799,17 @@ async fn execute_set_scene_persists_and_is_retrievable() {
         }),
     };
 
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "execute_set_scene failed: {val}");
     assert_eq!(val["title"].as_str(), Some("The Dragon's Lair"));
     assert_eq!(val["mode"].as_str(), Some("combat"));
@@ -761,8 +840,17 @@ async fn setup_encounter_pool() -> (SqlitePool, uuid::Uuid, uuid::Uuid) {
         name: "start_combat".into(),
         args: serde_json::json!({ "initiative_entries": [{ "name": "Hero" }] }),
     };
-    let (val, is_err) =
-        execute_tool(&tc, &pool, None, None, None, "", campaign_id, session_id).await;
+    let (val, is_err) = execute_tool(
+        &tc,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
+        None,
+        None,
+        None,
+        "",
+        campaign_id,
+        session_id,
+    )
+    .await;
     assert!(!is_err, "start_combat failed: {val}");
 
     (pool, session_id, campaign_id)
@@ -786,7 +874,7 @@ async fn apply_damage_fire_resistance_halves_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -809,7 +897,7 @@ async fn apply_damage_fire_resistance_halves_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -845,7 +933,7 @@ async fn apply_damage_fire_immunity_deals_zero() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -867,7 +955,7 @@ async fn apply_damage_fire_immunity_deals_zero() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -903,7 +991,7 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -925,7 +1013,7 @@ async fn apply_damage_fire_vulnerability_doubles_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -960,7 +1048,7 @@ async fn apply_damage_no_relation_applies_full_damage() {
     };
     let (val, is_err) = execute_tool(
         &add_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,
@@ -982,7 +1070,7 @@ async fn apply_damage_no_relation_applies_full_damage() {
     };
     let (val, is_err) = execute_tool(
         &dmg_tc,
-        &pool,
+        &adapter_sqlite::SqliteStore::new(pool.clone()),
         None,
         None,
         None,

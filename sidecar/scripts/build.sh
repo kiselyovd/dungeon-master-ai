@@ -11,6 +11,13 @@ cd "$ROOT"
 pip install pyinstaller==6.10
 pyinstaller --noconfirm --clean build_spec.spec
 
-DEST="$ROOT/../src-tauri/binaries/python_sidecar_${TARGET}"
-mkdir -p "$DEST"
-cp -R dist/dmai-image-sidecar/* "$DEST/"
+case "$TARGET" in
+  *windows*) EXT=".exe" ;;
+  *) EXT="" ;;
+esac
+BIN_DIR="$ROOT/../src-tauri/binaries"
+DEST="$BIN_DIR/dmai-image-sidecar-${TARGET}${EXT}"
+mkdir -p "$BIN_DIR"
+cp "dist/dmai-image-sidecar${EXT}" "$DEST"
+chmod +x "$DEST" 2>/dev/null || true
+echo "Staged $DEST"

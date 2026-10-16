@@ -1,5 +1,6 @@
 import i18next from 'i18next';
 import type { StateCreator } from 'zustand';
+import type { ImageSource } from '../api/contracts/agent';
 import type { ChatErrorPayload } from '../api/errors';
 
 export type ChatRole = 'user' | 'assistant' | 'system';
@@ -55,6 +56,8 @@ export interface ChatStreamEvent {
   imageDataUrl?: string;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
+  /** Provenance for the ephemeral generated or bundled image. */
+  imageSource?: ImageSource;
   /** Data URL of a video clip produced by this tool call (generate_video). */
   videoDataUrl?: string;
 }
@@ -89,6 +92,8 @@ export interface ChatSlice {
     _nextSeq: number;
     streamingAssistant: string | null;
     streamingReasoning: string | null;
+    /** Monotonic estimated total for the active turn; never resets between tool rounds. */
+    streamingReasoningTokens: number;
     isStreaming: boolean;
     lastError: ChatErrorPayload | null;
     abortController: AbortController | null;
@@ -141,7 +146,12 @@ export interface ChatSlice {
     /** Settle an existing tool-call event with its result. */
     settleToolCallEvent: (id: string, result: unknown, isError: boolean) => void;
     /** Attach a generated image (data URL) to an existing stream event. */
-    attachStreamEventImage: (id: string, dataUrl: string, kind: 'map' | 'chat') => void;
+    attachStreamEventImage: (
+      id: string,
+      dataUrl: string,
+      kind: 'map' | 'chat',
+      source: ImageSource,
+    ) => void;
     /** Attach a generated video (data URL) to an existing stream event. */
     attachStreamEventVideo: (id: string, dataUrl: string) => void;
     /** Clear all stream events (called at stream start so prior turn cards are gone). */
@@ -156,6 +166,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
     _nextSeq: 0,
     streamingAssistant: null,
     streamingReasoning: null,
+    streamingReasoningTokens: 0,
     isStreaming: false,
     lastError: null,
     abortController: null,
@@ -200,12 +211,19 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     appendReasoningDelta: (text) => {
       if (text.length === 0) return;
-      set((s) => ({
-        chat: {
-          ...s.chat,
-          streamingReasoning: (s.chat.streamingReasoning ?? '') + text,
-        },
-      }));
+      set((s) => {
+        const streamingReasoning = (s.chat.streamingReasoning ?? '') + text;
+        return {
+          chat: {
+            ...s.chat,
+            streamingReasoning,
+            streamingReasoningTokens: Math.max(
+              s.chat.streamingReasoningTokens,
+              Math.ceil(streamingReasoning.length / 4),
+            ),
+          },
+        };
+      });
     },
 
     appendReasoning: (turnId, delta) => {
@@ -249,6 +267,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             ],
             streamingAssistant: null,
             streamingReasoning: null,
+            streamingReasoningTokens: 0,
           },
         };
       });
@@ -263,6 +282,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           _nextSeq: 0,
           streamingAssistant: null,
           streamingReasoning: null,
+          streamingReasoningTokens: 0,
           reasoningStreams: new Map<string, string>(),
           lastError: null,
         },
@@ -290,6 +310,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
             chatStreamEvents: [],
             streamingAssistant: null,
             streamingReasoning: null,
+            streamingReasoningTokens: 0,
             reasoningStreams: new Map<string, string>(),
             lastError: null,
             abortController: null,
@@ -300,7 +321,14 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
 
     beginStream: (controller) =>
       set((s) => ({
-        chat: { ...s.chat, isStreaming: true, abortController: controller, lastError: null },
+        chat: {
+          ...s.chat,
+          isStreaming: true,
+          abortController: controller,
+          lastError: null,
+          streamingReasoning: null,
+          streamingReasoningTokens: 0,
+        },
       })),
 
     endStream: () =>
@@ -349,12 +377,12 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
         },
       })),
 
-    attachStreamEventImage: (id, dataUrl, kind) =>
+    attachStreamEventImage: (id, dataUrl, kind, source) =>
       set((s) => ({
         chat: {
           ...s.chat,
           chatStreamEvents: s.chat.chatStreamEvents.map((e) =>
-            e.id === id ? { ...e, imageDataUrl: dataUrl, imageKind: kind } : e,
+            e.id === id ? { ...e, imageDataUrl: dataUrl, imageKind: kind, imageSource: source } : e,
           ),
         },
       })),

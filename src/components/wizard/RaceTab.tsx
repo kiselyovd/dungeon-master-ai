@@ -32,7 +32,14 @@ export function RaceTab({ compendium }: RaceTabProps) {
             }}
           >
             <div style={{ fontFamily: 'Cinzel, serif', color: '#fff', fontSize: 16 }}>
-              {lang === 'ru' ? r.name_ru : r.name_en}
+              {r.name_key
+                ? i18n.t(r.name_key, {
+                    ns: 'character',
+                    defaultValue: lang === 'ru' ? r.name_ru : r.name_en,
+                  })
+                : lang === 'ru'
+                  ? r.name_ru
+                  : r.name_en}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
               {r.size} - {r.speed} ft

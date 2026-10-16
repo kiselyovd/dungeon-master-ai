@@ -1,14 +1,8 @@
 import type { StateCreator } from 'zustand';
 
 /**
- * Persistent active campaign + session pointer. v1 keeps a single
- * active session per campaign (linear save model per the M2 design
- * decisions). v2 adds branching saves on top of the same shape.
- *
- * The IDs are UUIDs lazily minted on first launch by `ensureSession`,
- * then persisted via the split-storage adapter so a restart picks the
- * same session and the chat history rehydrates from
- * `/sessions/{id}/messages`.
+ * Persistent pointer to a backend-owned campaign aggregate and its active
+ * session. The frontend never invents either identifier.
  */
 
 /**
@@ -42,15 +36,9 @@ export interface SessionData {
 }
 
 export interface SessionActions {
-  setActiveSession: (campaignId: string, sessionId: string) => void;
-  /**
-   * Mint a fresh `(campaignId, sessionId)` pair if either is missing.
-   * Returns the resolved pair so callers can use it without an extra
-   * store read. Idempotent when both IDs are already set.
-   */
-  ensureSession: () => { campaignId: string; sessionId: string };
-  /** Forget the current session - next `ensureSession` mints a new pair. */
-  clearSession: () => void;
+  activate: (campaignId: string, sessionId: string) => void;
+  current: () => { campaignId: string; sessionId: string } | null;
+  clear: () => void;
   /** Set or clear the message-load error shown in the chat retry bar. */
   setLoadError: (message: string | null) => void;
   /** Replace the whole scene snapshot, or clear it with `null`. */
@@ -65,26 +53,6 @@ export interface SessionSlice {
   session: SessionData & SessionActions;
 }
 
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    // WebCrypto present but no randomUUID: build an RFC4122 v4 from CSPRNG bytes.
-    // Never Math.random - these ids key persisted campaign/session state.
-    const bytes = Array.from(crypto.getRandomValues(new Uint8Array(16)), (x, i) => {
-      if (i === 6) return (x & 0x0f) | 0x40; // version 4
-      if (i === 8) return (x & 0x3f) | 0x80; // variant 10x
-      return x;
-    });
-    const h = bytes.map((x) => x.toString(16).padStart(2, '0')).join('');
-    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-  }
-  throw new Error(
-    'newUuid: no secure crypto source (crypto.randomUUID / getRandomValues) available',
-  );
-}
-
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set, get) => ({
   session: {
     activeCampaignId: null,
@@ -93,24 +61,18 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     currentScene: null,
     mapImageUrl: null,
 
-    setActiveSession: (campaignId, sessionId) =>
+    activate: (campaignId, sessionId) =>
       set((s) => ({
         session: { ...s.session, activeCampaignId: campaignId, activeSessionId: sessionId },
       })),
 
-    ensureSession: () => {
+    current: () => {
       const current = get().session;
-      const campaignId = current.activeCampaignId ?? newUuid();
-      const sessionId = current.activeSessionId ?? newUuid();
-      if (campaignId !== current.activeCampaignId || sessionId !== current.activeSessionId) {
-        set((s) => ({
-          session: { ...s.session, activeCampaignId: campaignId, activeSessionId: sessionId },
-        }));
-      }
-      return { campaignId, sessionId };
+      if (current.activeCampaignId === null || current.activeSessionId === null) return null;
+      return { campaignId: current.activeCampaignId, sessionId: current.activeSessionId };
     },
 
-    clearSession: () =>
+    clear: () =>
       set((s) => ({
         session: { ...s.session, activeCampaignId: null, activeSessionId: null },
       })),

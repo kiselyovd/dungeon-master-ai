@@ -41,6 +41,10 @@ describe('HeroStep', () => {
     // Each hero card is a plain action button (immediate-action trigger, not a radio).
     const cards = container.querySelectorAll('.dm-hero-card');
     expect(cards).toHaveLength(4);
+    expect(container.querySelector('.dm-hero-cards')).toHaveAttribute(
+      'data-art-direction',
+      'living-tabletop',
+    );
   });
 
   // ------------------------------------------------------------------

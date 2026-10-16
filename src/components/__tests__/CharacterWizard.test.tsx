@@ -1,13 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import '../../i18n';
 import { fetchCompendium } from '../../api/srd';
+import i18n from '../../i18n';
 import { useStore } from '../../state/useStore';
 import { CharacterWizard } from '../CharacterWizard';
 
 vi.mock('../../api/srd', () => ({
   fetchCompendium: vi.fn().mockResolvedValue({
+    rulesetId: 'srd-5.2.1',
     races: [],
     classes: [],
     backgrounds: [],
@@ -19,10 +20,60 @@ vi.mock('../../api/srd', () => ({
 }));
 
 beforeEach(() => {
+  void i18n.changeLanguage('en');
   useStore.getState().charCreation.resetDraft();
 });
 
 describe('CharacterWizard container', () => {
+  it('renders the SRD 5.2.1 catalog in Russian and English without legacy species', async () => {
+    const catalog = {
+      rulesetId: 'srd-5.2.1',
+      races: [
+        {
+          id: 'orc',
+          name_key: 'catalog.species.orc',
+          name_en: 'Orc',
+          name_ru: 'Орк',
+          size: 'Medium',
+          speed: 30,
+          subraces: [],
+        },
+      ],
+      classes: [
+        {
+          id: 'fighter',
+          name_key: 'catalog.classes.fighter',
+          name_en: 'Fighter',
+          name_ru: 'Воин',
+          hit_die: 10,
+          primary_ability: ['str', 'dex'],
+          saving_throw_proficiencies: ['str', 'con'],
+        },
+      ],
+      backgrounds: [],
+      spells: [],
+      equipment: { weapons: [], armor: [], adventuring_gear: [] },
+      feats: [],
+      weapon_properties: [],
+    } as never;
+
+    await i18n.changeLanguage('ru');
+    vi.mocked(fetchCompendium).mockResolvedValueOnce(catalog);
+    const view = render(<CharacterWizard mode="initial" />);
+    expect(await screen.findByRole('radio', { name: /Воин/i })).toBeInTheDocument();
+    const russianTabs = await screen.findAllByRole('tab');
+    await userEvent.click(russianTabs[1] as HTMLElement);
+    expect(await screen.findByRole('radio', { name: /Орк/i })).toBeInTheDocument();
+    expect(screen.queryByText(/полуэльф/i)).toBeNull();
+
+    view.unmount();
+    await i18n.changeLanguage('en');
+    useStore.getState().charCreation.setActiveTab('class');
+    vi.mocked(fetchCompendium).mockResolvedValueOnce(catalog);
+    render(<CharacterWizard mode="initial" />);
+    expect(await screen.findByRole('radio', { name: /Fighter/i })).toBeInTheDocument();
+  });
+
   it('renders all 10 tab buttons in the strip', async () => {
     render(<CharacterWizard mode="initial" />);
     expect(await screen.findByRole('tab', { name: /class/i })).toBeInTheDocument();
@@ -97,6 +148,7 @@ describe('CharacterWizard navigation footer', () => {
 describe('CharacterWizard compendium load failure (E5)', () => {
   it('shows an error + retry when the compendium fetch fails, then recovers on retry', async () => {
     const okCompendium = {
+      rulesetId: 'srd-5.2.1' as const,
       races: [],
       classes: [],
       backgrounds: [],

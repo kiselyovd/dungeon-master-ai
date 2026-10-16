@@ -4,6 +4,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
 
+  resolve: {
+    // @pixi/react imports this CommonJS entry without its extension. Node's
+    // Windows ESM resolver needs the concrete file during real-root tests.
+    alias: { 'react-reconciler/constants': 'react-reconciler/constants.js' },
+  },
+
   define: {
     // @ts-expect-error process is a nodejs global
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
@@ -12,9 +18,19 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Keep the full Windows suite below the process-startup saturation point.
+    // Vitest otherwise forks up to every available logical CPU and workers can
+    // time out before loading jsdom on high-core developer machines.
+    maxWorkers: 4,
+    coverage: { reporter: ['text', 'lcov', 'json-summary'] },
     setupFiles: ['./src/setupTests.ts'],
     css: true,
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'src-tauri/**', 'target/**'],
+    server: {
+      deps: {
+        inline: ['@pixi/react'],
+      },
+    },
   },
 });

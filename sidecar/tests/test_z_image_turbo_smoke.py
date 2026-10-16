@@ -13,8 +13,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends.protocol import PromptParams  # noqa: E402
-from backends.z_image_turbo import ZImageTurboBackend  # noqa: E402
+from backends.protocol import PromptParams
+from backends.z_image_turbo import ZImageTurboBackend
 
 
 @pytest.mark.gpu
@@ -24,7 +24,7 @@ def test_z_image_turbo_svdq_smokes_on_cuda(gpu_weights_dir):
     # Auto-fetch SVDQ INT4 r128 safetensors if missing (4.01 GB).
     svdq_path = gpu_weights_dir / "quality-oss" / "svdq-int4_r128-z-image-turbo.safetensors"
     if not svdq_path.exists():
-        from huggingface_hub import hf_hub_download  # noqa: PLC0415
+        from huggingface_hub import hf_hub_download
         svdq_path.parent.mkdir(parents=True, exist_ok=True)
         local = hf_hub_download(
             repo_id="nunchaku-tech/nunchaku-z-image-turbo",

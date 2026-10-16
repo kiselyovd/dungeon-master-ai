@@ -43,6 +43,7 @@ function streamEventToLogEntry(event: ChatStreamEvent): ToolLogEntry {
   };
   if (event.imageDataUrl !== undefined) entry.imageDataUrl = event.imageDataUrl;
   if (event.imageKind !== undefined) entry.imageKind = event.imageKind;
+  if (event.imageSource !== undefined) entry.imageSource = event.imageSource;
   return entry;
 }
 
@@ -67,6 +68,7 @@ export function ChatPanel() {
   // in the staging error slot. Text-only chat is unaffected.
   const visionEnabled = useStore((s) => s.settings.visionEnabled);
   const streamingReasoning = useStore((s) => s.chat.streamingReasoning);
+  const streamingReasoningTokens = useStore((s) => s.chat.streamingReasoningTokens);
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -285,6 +287,7 @@ export function ChatPanel() {
         className={styles.history}
         onScroll={onScroll}
         data-testid="chat-history"
+        data-streaming={isStreaming ? 'true' : 'false'}
       >
         {sessionLoadError !== null && (
           <div role="alert" className={`${styles.sessionLoadError} dm-chat-error`}>
@@ -342,6 +345,7 @@ export function ChatPanel() {
             <ReasoningPill
               text={streamingReasoning ?? ''}
               isStreaming={isStreaming && streamingReasoning === null}
+              totalTokens={streamingReasoningTokens}
             />
             {streamingAssistant === null || streamingAssistant === '' ? (
               <div className={styles.typingRow}>
@@ -355,7 +359,12 @@ export function ChatPanel() {
           </div>
         )}
         {lastError !== null && (
-          <div role="alert" className={styles.errorAlert}>
+          <div
+            role="alert"
+            className={styles.errorAlert}
+            data-testid="chat-error"
+            data-error-code={lastError.code}
+          >
             {tErrors(lastError.code as ChatErrorCode, { message: lastError.message })}
           </div>
         )}

@@ -7,11 +7,48 @@
 @import "./saves.css";
 @import "./character.css";
 @import "./overlays.css";
+@import "./materials.css";
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Native scroll surfaces share the tabletop material language. Feature roots
+ * may still hide their scrollbar when scrolling is purely incidental. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-accent) var(--color-bg-deep);
+}
+
+*::-webkit-scrollbar {
+  width: var(--space-2);
+  height: var(--space-2);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-bg-deep);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: var(--space-6);
+  min-height: var(--space-6);
+  border: 2px solid var(--color-bg-deep);
+  border-radius: var(--radius-pill);
+  background: var(--color-border-accent);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-deep);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--color-bg-deep);
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
 }
 
 :root {
@@ -31,6 +68,11 @@ body,
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  overflow: hidden;
 }
 
 :focus-visible {

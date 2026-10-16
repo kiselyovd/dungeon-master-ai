@@ -12,8 +12,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends.protocol import PromptParams  # noqa: E402
-from backends.sdxl_turbo import SdxlTurboBackend  # noqa: E402
+from backends.protocol import PromptParams
+from backends.sdxl_turbo import SdxlTurboBackend
 
 
 def test_weights_dir_resolves_to_hf_repo_subdir():

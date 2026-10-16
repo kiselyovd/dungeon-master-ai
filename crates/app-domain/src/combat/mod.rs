@@ -11,4 +11,3 @@ pub mod result_events;
 pub mod saving_throw;
 pub mod turn_fsm;
 pub mod types;
-pub mod validator;

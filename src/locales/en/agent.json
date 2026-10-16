@@ -16,5 +16,6 @@
   "map_updated": "Map updated",
   "image_alt": "Generated image",
   "image_open": "Open image",
+  "image_source_bundled": "From the built-in collection",
   "video_alt": "Generated video"
 }

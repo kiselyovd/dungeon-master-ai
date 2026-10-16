@@ -35,6 +35,25 @@ const createSaveMock = vi.mocked(savesApi.createSave);
 const fetchSessionMessagesMock = vi.mocked(savesApi.fetchSessionMessages);
 const restoreSaveMock = vi.mocked(savesApi.restoreSave);
 
+function restored(messages: savesApi.SessionMessageWire[] = []): savesApi.RestoreSaveResponse {
+  return {
+    id: 'snapshot-1',
+    campaign_id: 'camp-1',
+    session_id: 'sess1',
+    revision: 4,
+    schema_version: 1,
+    ruleset_id: 'srd-5.2.1',
+    projection: {
+      messages,
+      character: {},
+      combat: null,
+      scene: null,
+      journal: [],
+      npcs: [],
+    },
+  };
+}
+
 const FIXTURE: SaveSummary[] = [
   {
     id: 's1',
@@ -71,7 +90,19 @@ const FIXTURE: SaveSummary[] = [
 describe('SavesScreen', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
-    useStore.getState().session.setActiveSession('camp-1', 'sess1');
+    useStore.getState().session.activate('camp-1', 'sess1');
+    useStore.getState().campaigns.setActive({
+      id: 'camp-1',
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      title: 'Test',
+      premise: '',
+      last_session_id: 'sess1',
+      revision: 4,
+      updated_at: '2026-08-13T00:00:00Z',
+      created_at: '2026-08-13T00:00:00Z',
+      seed: { kind: 'collaborative', answers: {} },
+    });
     fetchSessionSavesMock.mockReset();
     fetchSaveByIdMock.mockReset();
     deleteSaveByIdMock.mockReset();
@@ -87,9 +118,7 @@ describe('SavesScreen', () => {
     createSaveMock.mockResolvedValue({ id: 'new-1' });
     fetchSessionMessagesMock.mockResolvedValue([]);
     // Default: restore returns a v2 game_state with no combat (exploration save).
-    restoreSaveMock.mockResolvedValue({
-      game_state: { schema_version: 2, label: 'Before the boss', combat: null, scene: null },
-    });
+    restoreSaveMock.mockResolvedValue(restored());
   });
 
   afterEach(() => {
@@ -109,6 +138,10 @@ describe('SavesScreen', () => {
       // (auto-selected on mount), so use getAllByText.
       expect(screen.getAllByText('Before the boss').length).toBeGreaterThan(0);
     });
+    expect(document.querySelector('.dm-save-thumb[data-tag="exploration"] img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('save-exploration'),
+    );
   });
 
   it('Auto tab narrows the list to auto saves only', async () => {
@@ -135,7 +168,7 @@ describe('SavesScreen', () => {
     expect(heading).toHaveTextContent('Talked to the priest');
   });
 
-  it('clicking Load triggers fetchSaveById for the selected row', async () => {
+  it('clicking Load uses the atomic restore response without a follow-up save fetch', async () => {
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -146,7 +179,8 @@ describe('SavesScreen', () => {
     // First save auto-selected on mount.
     await user.click(screen.getByRole('button', { name: /Load/i }));
     await waitFor(() => {
-      expect(fetchSaveByIdMock).toHaveBeenCalledWith('s1');
+      expect(restoreSaveMock).toHaveBeenCalled();
+      expect(fetchSaveByIdMock).not.toHaveBeenCalled();
     });
   });
 
@@ -234,7 +268,7 @@ describe('SavesScreen', () => {
   });
 
   // C5: minimal rehydration on Load
-  it('C5: fetchSessionMessages is called with the save session_id on Load', async () => {
+  it('C5: restore returns messages without a fallible fetch after backend mutation', async () => {
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -242,7 +276,11 @@ describe('SavesScreen', () => {
     });
     await user.click(screen.getByRole('button', { name: /Load/i }));
     await waitFor(() => {
-      expect(fetchSessionMessagesMock).toHaveBeenCalledWith('sess1', { limit: 20 });
+      expect(restoreSaveMock).toHaveBeenCalledWith(
+        's1',
+        expect.objectContaining({ campaignId: 'camp-1', sessionId: 'sess1', expectedRevision: 4 }),
+      );
+      expect(fetchSessionMessagesMock).not.toHaveBeenCalled();
     });
   });
 
@@ -251,7 +289,7 @@ describe('SavesScreen', () => {
       { role: 'user', content: 'Hello dungeon master', parts: [] },
       { role: 'assistant', content: 'Welcome, adventurer', parts: [] },
     ];
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue(restored(wireMessages));
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -284,7 +322,7 @@ describe('SavesScreen', () => {
 
   it('C5: an inline error is shown and modal stays open when Load fails', async () => {
     useStore.getState().saves.open();
-    fetchSessionMessagesMock.mockRejectedValue(new Error('network error'));
+    restoreSaveMock.mockRejectedValue(new Error('network error'));
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -308,7 +346,7 @@ describe('SavesScreen', () => {
       content: `message-${i}`,
       parts: [],
     }));
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue(restored(wireMessages));
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {
@@ -340,7 +378,7 @@ describe('SavesScreen', () => {
       { role: 'tool_result', content: 'You find a sword.', parts: [] },
       { role: 'assistant', content: 'You find a gleaming sword!', parts: [] },
     ];
-    fetchSessionMessagesMock.mockResolvedValue(wireMessages);
+    restoreSaveMock.mockResolvedValue(restored(wireMessages));
     const user = userEvent.setup();
     render(<SavesScreen />);
     await waitFor(() => {

@@ -40,6 +40,31 @@ describe('chat.finalizeAssistant empty-stream placeholder', () => {
   });
 });
 
+describe('chat reasoning token estimate', () => {
+  beforeEach(() => {
+    useStore.setState(useStore.getInitialState());
+  });
+
+  it('is monotonic across multiple reasoning fragments in one agent turn', () => {
+    const chat = useStore.getState().chat;
+    chat.beginStream(new AbortController());
+    chat.appendReasoningDelta('x'.repeat(10_828));
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(2_707);
+
+    chat.appendReasoningDelta('tiny');
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(2_708);
+  });
+
+  it('resets only when a new agent turn starts', () => {
+    const chat = useStore.getState().chat;
+    chat.appendReasoningDelta('x'.repeat(400));
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(100);
+
+    chat.beginStream(new AbortController());
+    expect(useStore.getState().chat.streamingReasoningTokens).toBe(0);
+  });
+});
+
 describe('chat.truncateTo', () => {
   beforeEach(() => {
     useStore.setState(useStore.getInitialState());
@@ -171,7 +196,9 @@ describe('chat.attachStreamEventImage', () => {
 
     useStore
       .getState()
-      .chat.attachStreamEventImage('tc-img-1', 'data:image/png;base64,AAA', 'chat');
+      .chat.attachStreamEventImage('tc-img-1', 'data:image/png;base64,AAA', 'chat', {
+        type: 'generated',
+      });
 
     const events = useStore.getState().chat.chatStreamEvents;
     expect(events).toHaveLength(1);
@@ -187,7 +214,10 @@ describe('chat.attachStreamEventImage', () => {
     chat.addToolCallStartEvent('tc-a', 'generate_map', {}, 1);
     chat.addToolCallStartEvent('tc-b', 'generate_illustration', {}, 1);
 
-    useStore.getState().chat.attachStreamEventImage('tc-b', 'data:image/png;base64,BBB', 'map');
+    useStore.getState().chat.attachStreamEventImage('tc-b', 'data:image/png;base64,BBB', 'map', {
+      type: 'bundled',
+      assetId: 'map-forest-crossing',
+    });
 
     const events = useStore.getState().chat.chatStreamEvents;
     expect(events[0]?.imageDataUrl).toBeUndefined();

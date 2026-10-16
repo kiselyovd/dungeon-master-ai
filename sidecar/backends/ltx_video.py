@@ -8,11 +8,12 @@ ComfyUI GGUF Q8 path deferred to M9-DM+."""
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from backends._capabilities import assert_vram_free
-from backends.protocol import GenerationBackend, PromptParams
+from backends.protocol import PromptParams
 
 
 class LtxVideoBackend:
@@ -20,10 +21,10 @@ class LtxVideoBackend:
     modality: ClassVar[Literal["video"]] = "video"
     vram_estimate_bytes: ClassVar[int] = 7 * 1024**3
 
-    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+    def __init__(self, weights_dir: Path | None = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
         self._pipe = None
-        self._progress_callback: Optional[Callable[[float], None]] = None
+        self._progress_callback: Callable[[float], None] | None = None
 
     def set_progress_callback(self, cb: Callable[[float], None]) -> None:
         self._progress_callback = cb
@@ -35,8 +36,8 @@ class LtxVideoBackend:
         # distilled 2B transformer (~3-4 GB BF16) + VAE slicing/tiling (~1-2 GB).
         assert_vram_free(7 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import LTXPipeline, LTXVideoTransformer3DModel  # noqa: PLC0415
+        import torch
+        from diffusers import LTXPipeline, LTXVideoTransformer3DModel
 
         repo_dir = self._weights_dir / "ltx-video" / "ltx-video"
         distilled_path = self._weights_dir / "ltx-video" / "ltxv-2b-0.9.6-distilled-04-25.safetensors"
@@ -63,7 +64,7 @@ class LtxVideoBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -72,8 +73,8 @@ class LtxVideoBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
-        from diffusers.utils import export_to_video  # noqa: PLC0415
+        import torch
+        from diffusers.utils import export_to_video
 
         steps = params.steps or 8
         frames = params.frame_count or 97

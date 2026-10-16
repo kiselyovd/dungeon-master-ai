@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from typing import ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from backends._capabilities import assert_vram_free
-from backends.protocol import GenerationBackend, PromptParams
+from backends.protocol import PromptParams
 
 
 class SdxlLightningBackend:
@@ -17,7 +17,7 @@ class SdxlLightningBackend:
     modality: ClassVar[Literal["image"]] = "image"
     vram_estimate_bytes: ClassVar[int] = 8 * 1024**3
 
-    def __init__(self, weights_dir: Optional[Path] = None) -> None:
+    def __init__(self, weights_dir: Path | None = None) -> None:
         self._weights_dir = weights_dir or Path.home() / ".cache" / "dm-ai-gpu-weights"
         self._pipe = None
 
@@ -26,8 +26,8 @@ class SdxlLightningBackend:
             return
         assert_vram_free(7 * 1024**3)
 
-        import torch  # noqa: PLC0415
-        from diffusers import EulerDiscreteScheduler, StableDiffusionXLPipeline  # noqa: PLC0415
+        import torch
+        from diffusers import EulerDiscreteScheduler, StableDiffusionXLPipeline
 
         base_dir = self._weights_dir / "balanced" / "sdxl-base"
         lora_path = self._weights_dir / "balanced" / "lightning-lora.safetensors"
@@ -51,7 +51,7 @@ class SdxlLightningBackend:
         if self._pipe is not None:
             self._pipe = None
             try:
-                import torch  # noqa: PLC0415
+                import torch
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
@@ -60,7 +60,7 @@ class SdxlLightningBackend:
     def generate(self, params: PromptParams) -> bytes:
         assert self._pipe is not None, "call load() first"
 
-        import torch  # noqa: PLC0415
+        import torch
 
         generator = torch.Generator(device=self._pipe.device).manual_seed(params.seed or 0)
         if params.style_lora:

@@ -117,6 +117,7 @@ describe('VttCanvas', () => {
     const { container } = render(<VttCanvas />);
     const empty = container.querySelector('.dm-vtt-empty');
     expect(empty).toBeInTheDocument();
+    expect(empty).toHaveAttribute('data-art-direction', 'living-tabletop');
     // Container's title node carries the translated/key text; assert it is non-empty.
     const title = container.querySelector('.dm-vtt-empty-title');
     expect(title?.textContent ?? '').not.toBe('');
@@ -182,8 +183,10 @@ describe('VttCanvas', () => {
   it('grid toggle button loses is-active class after click', () => {
     const { getByRole } = render(<VttCanvas />);
     const gridBtn = getByRole('button', { name: /toggle grid|сетка/i });
+    expect(gridBtn).toHaveAttribute('aria-pressed', 'true');
     expect(gridBtn.className).toContain('is-active');
     fireEvent.click(gridBtn);
+    expect(gridBtn).toHaveAttribute('aria-pressed', 'false');
     expect(gridBtn.className).not.toContain('is-active');
   });
 
@@ -192,6 +195,7 @@ describe('VttCanvas', () => {
     const measureBtn = getByRole('button', { name: /measure|измерить/i });
     fireEvent.click(measureBtn);
     expect(measureBtn.className).toContain('is-active');
+    expect(measureBtn).toHaveAttribute('aria-pressed', 'true');
     expect(container.querySelector('[data-testid="measure-overlay"]')).toBeTruthy();
   });
 

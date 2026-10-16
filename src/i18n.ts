@@ -1,7 +1,7 @@
 import i18n from 'i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import enAgent from './locales/en/agent.json';
+import enCampaigns from './locales/en/campaigns.json';
 import enCharacter from './locales/en/character.json';
 import enChat from './locales/en/chat.json';
 import enCombat from './locales/en/combat.json';
@@ -18,6 +18,7 @@ import enTools from './locales/en/tools.json';
 import enUpdater from './locales/en/updater.json';
 import enWizard from './locales/en/wizard.json';
 import ruAgent from './locales/ru/agent.json';
+import ruCampaigns from './locales/ru/campaigns.json';
 import ruCharacter from './locales/ru/character.json';
 import ruChat from './locales/ru/chat.json';
 import ruCombat from './locales/ru/combat.json';
@@ -34,71 +35,74 @@ import ruTools from './locales/ru/tools.json';
 import ruUpdater from './locales/ru/updater.json';
 import ruWizard from './locales/ru/wizard.json';
 
-void i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    fallbackLng: 'en',
-    supportedLngs: ['en', 'ru'],
-    defaultNS: 'common',
-    ns: [
-      'common',
-      'chat',
-      'settings',
-      'errors',
-      'combat',
-      'journal',
-      'npc',
-      'agent',
-      'updater',
-      'local_mode',
-      'local_llm',
-      'onboarding',
-      'saves',
-      'character',
-      'wizard',
-      'tools',
-    ],
-    resources: {
-      en: {
-        common: enCommon,
-        chat: enChat,
-        settings: enSettings,
-        errors: enErrors,
-        combat: enCombat,
-        journal: enJournal,
-        npc: enNpc,
-        agent: enAgent,
-        updater: enUpdater,
-        local_mode: enLocalMode,
-        local_llm: enLocalLlm,
-        onboarding: enOnboarding,
-        saves: enSaves,
-        character: enCharacter,
-        wizard: enWizard,
-        tools: enTools,
-      },
-      ru: {
-        common: ruCommon,
-        chat: ruChat,
-        settings: ruSettings,
-        errors: ruErrors,
-        combat: ruCombat,
-        journal: ruJournal,
-        npc: ruNpc,
-        agent: ruAgent,
-        updater: ruUpdater,
-        local_mode: ruLocalMode,
-        local_llm: ruLocalLlm,
-        onboarding: ruOnboarding,
-        saves: ruSaves,
-        character: ruCharacter,
-        wizard: ruWizard,
-        tools: ruTools,
-      },
+void i18n.use(initReactI18next).init({
+  // Keep component tests deterministic in English; production boot is Russian
+  // until the persisted store applies the user's saved preference.
+  lng: import.meta.env.MODE === 'test' ? 'en' : 'ru',
+  fallbackLng: 'ru',
+  supportedLngs: ['en', 'ru'],
+  defaultNS: 'common',
+  ns: [
+    'common',
+    'chat',
+    'settings',
+    'errors',
+    'combat',
+    'journal',
+    'npc',
+    'agent',
+    'updater',
+    'local_mode',
+    'local_llm',
+    'onboarding',
+    'saves',
+    'character',
+    'campaigns',
+    'wizard',
+    'tools',
+  ],
+  resources: {
+    en: {
+      common: enCommon,
+      chat: enChat,
+      settings: enSettings,
+      errors: enErrors,
+      combat: enCombat,
+      journal: enJournal,
+      npc: enNpc,
+      agent: enAgent,
+      updater: enUpdater,
+      local_mode: enLocalMode,
+      local_llm: enLocalLlm,
+      onboarding: enOnboarding,
+      saves: enSaves,
+      character: enCharacter,
+      campaigns: enCampaigns,
+      wizard: enWizard,
+      tools: enTools,
     },
-    interpolation: { escapeValue: false },
-    react: { useSuspense: false },
-  });
+    ru: {
+      common: ruCommon,
+      chat: ruChat,
+      settings: ruSettings,
+      errors: ruErrors,
+      combat: ruCombat,
+      journal: ruJournal,
+      npc: ruNpc,
+      agent: ruAgent,
+      updater: ruUpdater,
+      local_mode: ruLocalMode,
+      local_llm: ruLocalLlm,
+      onboarding: ruOnboarding,
+      saves: ruSaves,
+      character: ruCharacter,
+      campaigns: ruCampaigns,
+      wizard: ruWizard,
+      tools: ruTools,
+    },
+  },
+  interpolation: { escapeValue: false },
+  react: { useSuspense: false },
+});
 
 export default i18n;

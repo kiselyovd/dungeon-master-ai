@@ -1,0 +1,103 @@
+/* Unified dark-fantasy material system. */
+:root {
+  --dm-texture-leather: url("../assets/living-tabletop/material-leather.webp");
+  --dm-texture-stone: url("../assets/living-tabletop/material-stone.webp");
+  --dm-texture-oak: url("../assets/living-tabletop/material-oak.webp");
+  --dm-texture-parchment: url("../assets/living-tabletop/material-parchment.webp");
+  --dm-texture-velvet: url("../assets/living-tabletop/material-velvet.webp");
+  --dm-texture-bronze: url("../assets/living-tabletop/material-bronze.webp");
+}
+
+html,
+body,
+#root,
+.dm-app {
+  background-image:
+    linear-gradient(rgba(12, 10, 16, 0.92), rgba(12, 10, 16, 0.92)), var(--dm-texture-leather);
+  background-repeat: repeat;
+  background-size:
+    auto,
+    640px 640px;
+}
+
+.dm-titlebar {
+  background-image:
+    linear-gradient(rgba(18, 15, 20, 0.88), rgba(18, 15, 20, 0.94)), var(--dm-texture-oak);
+  background-size:
+    auto,
+    512px 512px;
+}
+
+.dm-chat-panel {
+  background-image:
+    linear-gradient(rgba(20, 16, 27, 0.9), rgba(14, 12, 20, 0.95)), var(--dm-texture-leather);
+  background-size:
+    auto,
+    560px 560px;
+}
+
+.dm-vtt {
+  background-image:
+    radial-gradient(circle at 50% 40%, rgba(54, 43, 70, 0.2), rgba(10, 9, 14, 0.86)),
+    var(--dm-texture-stone);
+  background-size:
+    cover,
+    512px 512px;
+}
+
+.dm-actionbar-buttons,
+.dm-vtt-controls,
+.dm-vtt-layers {
+  background-image:
+    linear-gradient(rgba(23, 19, 31, 0.9), rgba(14, 12, 20, 0.96)), var(--dm-texture-velvet);
+  background-size:
+    auto,
+    420px 420px;
+}
+
+.dm-app-mark-glyph,
+.dm-action-primary,
+.dm-econ-dot {
+  background-image:
+    linear-gradient(rgba(212, 175, 55, 0.08), rgba(30, 20, 10, 0.34)), var(--dm-texture-bronze);
+  background-size:
+    auto,
+    256px 256px;
+}
+
+.dm-surface-leather {
+  background-image:
+    linear-gradient(rgba(14, 12, 19, 0.88), rgba(14, 12, 19, 0.88)), var(--dm-texture-leather);
+}
+
+.dm-surface-stone {
+  background-image:
+    linear-gradient(rgba(17, 16, 23, 0.78), rgba(17, 16, 23, 0.78)), var(--dm-texture-stone);
+}
+
+.dm-surface-oak {
+  background-image:
+    linear-gradient(rgba(24, 17, 15, 0.78), rgba(24, 17, 15, 0.78)), var(--dm-texture-oak);
+}
+
+.dm-surface-parchment {
+  background-image:
+    linear-gradient(rgba(241, 221, 169, 0.88), rgba(241, 221, 169, 0.88)),
+    var(--dm-texture-parchment);
+  color: #241a12;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html,
+  body,
+  #root,
+  .dm-app,
+  .dm-titlebar,
+  .dm-chat-panel,
+  .dm-vtt,
+  .dm-actionbar-buttons,
+  .dm-vtt-controls,
+  .dm-vtt-layers {
+    background-image: none;
+  }
+}

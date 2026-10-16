@@ -34,7 +34,7 @@
   "race_picker_title": "Выбери свою расу",
   "subrace_picker_title": "Выбери подрасу",
   "background_picker_title": "Выбери предысторию",
-  "background_srd_limit_note": "В SRD 5.1 есть только Прислужник. Остальные появятся при расширении компендиума.",
+  "background_srd_limit_note": "В SRD 5.2.1 доступны предыстории: Послушник, Преступник, Мудрец и Солдат.",
   "abilities_title": "Распредели характеристики",
   "abilities_method_label": "Метод",
   "ability_method_point_buy": "Point Buy 27",

@@ -47,3 +47,28 @@ target/
 
 # Local test model cache (audit live-testing artifacts)
 .cache-models/
+
+# Local credentials, QA state and generated runtime output (keep on disk).
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.stronghold
+*.stronghold.*
+*.sqlite
+*.sqlite-*
+*.sqlite.*
+*.db
+*.db-*
+*.db.*
+**/.venv/
+/.cache/
+/.artifacts/
+/.codegraph/
+/.playwright-mcp/
+/.dmai-fixpack-backup-*/
+/.dmai-fixpack.json
+/bash.exe.stackdump
+
+# Personal runtime permissions are local; project skills and agents may be shared.
+/.codex/config.toml

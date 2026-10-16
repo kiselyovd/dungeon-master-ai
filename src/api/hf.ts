@@ -9,6 +9,7 @@
  */
 
 import { backendUrl } from './client';
+import { discardResponseBody } from './response';
 
 export interface TokenStatus {
   connected: boolean;
@@ -22,6 +23,7 @@ async function jsonRequest<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new Error(`${init.method ?? 'GET'} ${path} HTTP ${res.status}`);
   }
   if (res.status === 204) {
+    await discardResponseBody(res);
     return undefined as unknown as T;
   }
   return (await res.json()) as T;
@@ -45,6 +47,7 @@ export async function clearToken(): Promise<void> {
   if (!res.ok) {
     throw new Error(`DELETE /hf/token HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 export interface HfModelSibling {

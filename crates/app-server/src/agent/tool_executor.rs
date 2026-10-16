@@ -1,16 +1,9 @@
 //! Executes validated tool-calls from the agent loop.
 //!
-//! Each call goes through `app_domain::combat::validator::validate_tool_call`
-//! first, then dispatches to the matching executor below. Executors return a
-//! `(Value, is_error)` tuple - they never panic. The result JSON is what gets
-//! injected back as a `ChatMessage::ToolResult` in the next round.
-//!
-//! M2/M3 boundary: the validator currently only knows the seven M2 combat
-//! tools. The eight new M3 tools (`set_scene`, `cast_spell`, `remember_npc`,
-//! `recall_npc`, `journal_append`, `quick_save`, `generate_map`,
-//! `generate_illustration`, `query_rules`) come back from the validator as
-//! `UnknownTool`. That returns a graceful `is_error=true` result here without
-//! crashing the loop. Phase D extends the validator dispatch table to cover them.
+//! Each call is decoded into an application-owned typed command before it is
+//! dispatched to the matching executor below. Executors return a
+//! `(Value, is_error)` tuple and never panic. The result JSON is injected back
+//! as a `ChatMessage::ToolResult` in the next round.
 //!
 //! Several executors below are stubbed because their backing tables/db
 //! helpers come in later phases:
@@ -21,26 +14,30 @@ use std::sync::Arc;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 
-use app_domain::combat::validator::validate_tool_call;
+use adapter_sqlite::tool_support::{TokenInsert, TokenPatch};
+use adapter_sqlite::SqliteStore;
+use app_application::agent::tool_decoder::decode_tool_call;
+use app_application::models::combat::{
+    CombatProjection, CombatSnapshot, COMBAT_PROJECTION_VERSION,
+};
+use app_application::ports::repositories::CombatRepository;
 use app_llm::ToolCall;
 use serde_json::{json, Value};
-use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
+
+#[cfg(test)]
+use sqlx::SqlitePool;
 
 /// Whether an unfinished combat encounter exists. The agent uses this to gate
 /// the combat-management tool subset (and rule injection) on/off per turn, so an
 /// exploration turn isn't burdened with combat tools + rules a small model would
 /// trip over. Any DB error conservatively reports `false` (exploration mode).
-pub async fn is_combat_active(pool: &SqlitePool) -> bool {
-    sqlx::query("SELECT id FROM combat_encounters WHERE ended_at IS NULL LIMIT 1")
-        .fetch_optional(pool)
-        .await
-        .map(|row| row.is_some())
-        .unwrap_or(false)
+pub async fn is_combat_active(store: &SqliteStore) -> bool {
+    store.is_combat_active().await.unwrap_or(false)
 }
 
-use crate::image::provider::{ImagePrompt, ImageProvider};
+use crate::image::provider::{ImagePrompt, ImageProvider, ImageSource};
 use crate::video::provider::{VideoPrompt, VideoProvider};
 
 /// Execute a tool-call. Returns `(result_value, is_error)`.
@@ -48,7 +45,7 @@ use crate::video::provider::{VideoPrompt, VideoProvider};
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_tool(
     tc: &ToolCall,
-    pool: &SqlitePool,
+    store: &SqliteStore,
     image_provider: Option<Arc<dyn ImageProvider>>,
     video_provider: Option<Arc<dyn VideoProvider>>,
     retriever: Option<&app_domain::srd::retriever::SrdRetriever>,
@@ -56,47 +53,38 @@ pub async fn execute_tool(
     campaign_id: Uuid,
     session_id: Uuid,
 ) -> (Value, bool) {
-    // Phase 1: Validate via domain dispatch table.
-    // M3 NOTE: The validator currently knows only the seven M2 tools. The
-    // eight new tools (set_scene, cast_spell, remember_npc, recall_npc,
-    // journal_append, quick_save, generate_map, generate_illustration,
-    // query_rules) return `UnknownTool`. That is handled gracefully here -
-    // we record the error and return without crashing. Phase D extends the
-    // validator.
-    let validated = match validate_tool_call(&tc.name, tc.args.clone()) {
+    // Decode untrusted LLM JSON once at the application boundary.
+    let command = match decode_tool_call(&tc.name, &tc.args) {
         Ok(v) => v,
         Err(e) => {
             warn!("tool validation failed: {} - {}", tc.name, e);
             return (json!({ "error": e.to_string() }), true);
         }
     };
+    let tool_name = command.tool_name();
+    let args = command.to_args();
 
-    // Phase 2: Execute the validated tool-call.
-    match validated.tool_name.as_str() {
-        "roll_dice" => execute_roll_dice(&validated.args),
-        "apply_damage" => execute_apply_damage(&validated.args, pool).await,
-        "apply_healing" => execute_apply_healing(&validated.args, pool).await,
-        "start_combat" => execute_start_combat(&validated.args, pool, session_id).await,
-        "end_combat" => execute_end_combat(pool).await,
-        "add_token" => execute_add_token(&validated.args, pool).await,
-        "update_token" => execute_update_token(&validated.args, pool).await,
-        "remove_token" => execute_remove_token(&validated.args, pool).await,
-        "set_scene" => execute_set_scene(&validated.args, pool, campaign_id).await,
-        "cast_spell" => execute_cast_spell(&validated.args, pool).await,
-        "remember_npc" => execute_remember_npc(&validated.args, pool, campaign_id).await,
-        "recall_npc" => execute_recall_npc(&validated.args, pool, campaign_id).await,
-        "journal_append" => execute_journal_append(&validated.args, pool, campaign_id).await,
-        "quick_save" => execute_quick_save(&validated.args, pool, session_id).await,
-        "generate_map" => execute_generate_map(&validated.args, image_provider).await,
-        "generate_illustration" => {
-            execute_generate_illustration(&validated.args, image_provider).await
-        }
-        "generate_video" => execute_generate_video(&validated.args, video_provider).await,
-        "query_rules" => execute_query_rules(&validated.args, retriever, embedding_model).await,
-        unknown => (
-            json!({ "error": format!("unhandled tool: {}", unknown) }),
-            true,
-        ),
+    // Transitional dispatch: Task 4 moves each typed variant into a use case.
+    match tool_name {
+        "roll_dice" => execute_roll_dice(&args),
+        "apply_damage" => execute_apply_damage(&args, store).await,
+        "apply_healing" => execute_apply_healing(&args, store).await,
+        "start_combat" => execute_start_combat(&args, store, session_id).await,
+        "end_combat" => execute_end_combat(store).await,
+        "add_token" => execute_add_token(&args, store).await,
+        "update_token" => execute_update_token(&args, store).await,
+        "remove_token" => execute_remove_token(&args, store).await,
+        "set_scene" => execute_set_scene(&args, store, campaign_id).await,
+        "cast_spell" => execute_cast_spell(&args, store).await,
+        "remember_npc" => execute_remember_npc(&args, store, campaign_id).await,
+        "recall_npc" => execute_recall_npc(&args, store, campaign_id).await,
+        "journal_append" => execute_journal_append(&args, store, campaign_id).await,
+        "quick_save" => execute_quick_save(&args, store, session_id).await,
+        "generate_map" => execute_generate_map(&args, image_provider).await,
+        "generate_illustration" => execute_generate_illustration(&args, image_provider).await,
+        "generate_video" => execute_generate_video(&args, video_provider).await,
+        "query_rules" => execute_query_rules(&args, retriever, embedding_model).await,
+        _ => unreachable!("decoded tool command is exhaustive"),
     }
 }
 
@@ -208,33 +196,21 @@ fn build_damage_resistance(
     resist
 }
 
-async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_apply_damage(args: &Value, store: &SqliteStore) -> (Value, bool) {
     use app_domain::combat::damage::compute_effective_damage;
-    use sqlx::Row;
 
     let token_id = args["token_id"].as_str().unwrap_or_default();
     let amount = args["amount"].as_i64().unwrap_or(0) as i32;
     let damage_type_str = args["type"].as_str().unwrap_or("").to_lowercase();
 
-    let row = sqlx::query(
-        "SELECT current_hp, max_hp, resistances, immunities, vulnerabilities \
-         FROM combat_tokens WHERE id = ?1",
-    )
-    .bind(token_id)
-    .fetch_optional(pool)
-    .await;
+    let row = store.token_state(token_id).await;
 
     match row {
-        Ok(Some(r)) => {
-            let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
-            let resistances: Option<String> = r.try_get("resistances").ok().flatten();
-            let immunities: Option<String> = r.try_get("immunities").ok().flatten();
-            let vulnerabilities: Option<String> = r.try_get("vulnerabilities").ok().flatten();
-
+        Ok(Some(token)) => {
             let resist = build_damage_resistance(
-                resistances.as_deref(),
-                immunities.as_deref(),
-                vulnerabilities.as_deref(),
+                token.resistances.as_deref(),
+                token.immunities.as_deref(),
+                token.vulnerabilities.as_deref(),
             );
 
             // Map the type string; unknown -> Normal (no modifier applied).
@@ -244,14 +220,9 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
                 amount
             };
 
-            let new_hp = (current_hp - effective).max(0);
-            if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
-                .bind(new_hp)
-                .bind(token_id)
-                .execute(pool)
-                .await
-            {
-                tracing::warn!(error = %e, "sqlx write failed in execute_apply_damage");
+            let new_hp = (token.current_hp - effective).max(0);
+            if let Err(e) = store.set_token_hp(token_id, new_hp).await {
+                tracing::warn!(error = %e, "persistence failed in execute_apply_damage");
                 return (json!({ "error": e.to_string() }), true);
             }
             (
@@ -270,28 +241,17 @@ async fn execute_apply_damage(args: &Value, pool: &SqlitePool) -> (Value, bool) 
     }
 }
 
-async fn execute_apply_healing(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_apply_healing(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let token_id = args["token_id"].as_str().unwrap_or_default();
     let amount = args["amount"].as_i64().unwrap_or(0) as i32;
 
-    let row = sqlx::query("SELECT current_hp, max_hp FROM combat_tokens WHERE id = ?1")
-        .bind(token_id)
-        .fetch_optional(pool)
-        .await;
+    let row = store.token_state(token_id).await;
 
     match row {
-        Ok(Some(r)) => {
-            use sqlx::Row;
-            let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
-            let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
-            let new_hp = (current_hp + amount).min(max_hp);
-            if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
-                .bind(new_hp)
-                .bind(token_id)
-                .execute(pool)
-                .await
-            {
-                tracing::warn!(error = %e, "sqlx write failed in execute_apply_healing");
+        Ok(Some(token)) => {
+            let new_hp = (token.current_hp + amount).min(token.max_hp);
+            if let Err(e) = store.set_token_hp(token_id, new_hp).await {
+                tracing::warn!(error = %e, "persistence failed in execute_apply_healing");
                 return (json!({ "error": e.to_string() }), true);
             }
             (json!({ "new_hp": new_hp, "healing_done": amount }), false)
@@ -303,7 +263,12 @@ async fn execute_apply_healing(args: &Value, pool: &SqlitePool) -> (Value, bool)
     }
 }
 
-async fn execute_start_combat(args: &Value, pool: &SqlitePool, session_id: Uuid) -> (Value, bool) {
+async fn execute_start_combat(
+    args: &Value,
+    store: &SqliteStore,
+    session_id: Uuid,
+) -> (Value, bool) {
+    use app_domain::combat::combatant::Combatant;
     use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
     use app_domain::combat::types::CombatantId;
     use app_domain::dice::{roll_expr_detailed, DiceExpr, Die};
@@ -368,39 +333,70 @@ async fn execute_start_combat(args: &Value, pool: &SqlitePool, session_id: Uuid)
         })
         .collect();
 
-    let initiative_json = serde_json::to_string(&ordered).unwrap_or_default();
     let encounter_id = uuid::Uuid::new_v4();
-    let now = chrono::Utc::now().to_rfc3339();
-    if let Err(e) = sqlx::query(
-        "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) VALUES (?1, ?2, 1, ?3, ?4)"
-    )
-    .bind(encounter_id.to_string())
-    .bind(session_id.to_string())
-    .bind(now)
-    .bind(initiative_json)
-    .execute(pool)
-    .await
-    {
-        tracing::warn!(error = %e, "sqlx write failed in execute_start_combat");
+    let combatants = order
+        .as_slice()
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let mut combatant = Combatant::new(
+                entry.id,
+                id_to_name.get(&entry.id.0).cloned().unwrap_or_default(),
+                10,
+                10,
+                10,
+            );
+            combatant.position = app_domain::combat::types::Position {
+                x: 8 + (index % 8) as i32,
+                y: 8 + (index / 8) as i32,
+            };
+            combatant
+        })
+        .collect();
+    let projection = CombatProjection {
+        schema_version: COMBAT_PROJECTION_VERSION,
+        encounter_id,
+        revision: 0,
+        snapshot: CombatSnapshot {
+            active: true,
+            round: 1,
+            current_combatant: order.as_slice().first().map(|entry| entry.id),
+            initiative: order.as_slice().to_vec(),
+            combatants,
+        },
+        events: Vec::new(),
+    };
+    if let Err(e) = store.create(session_id, projection.clone()).await {
+        tracing::warn!(error = %e, "persistence failed in execute_start_combat");
         return (json!({ "error": e.to_string() }), true);
     }
     (
-        json!({ "encounter_id": encounter_id.to_string(), "ordered": ordered }),
+        json!({
+            "encounter_id": encounter_id.to_string(),
+            "ordered": ordered,
+            "projection": projection,
+        }),
         false,
     )
 }
 
-async fn execute_end_combat(pool: &SqlitePool) -> (Value, bool) {
-    let now = chrono::Utc::now().to_rfc3339();
-    if let Err(e) = sqlx::query("UPDATE combat_encounters SET ended_at = ?1 WHERE ended_at IS NULL")
-        .bind(now)
-        .execute(pool)
-        .await
-    {
-        tracing::warn!(error = %e, "sqlx write failed in execute_end_combat");
-        return (json!({ "error": e.to_string() }), true);
+async fn execute_end_combat(store: &SqliteStore) -> (Value, bool) {
+    let encounter_id = match store.active_combat_id().await {
+        Ok(Some(encounter_id)) => encounter_id,
+        Ok(None) => return (json!({ "status": "combat_ended" }), false),
+        Err(e) => return (json!({ "error": e.to_string() }), true),
+    };
+    match store.end(encounter_id).await {
+        Ok(Some(projection)) => (
+            json!({ "status": "combat_ended", "projection": projection }),
+            false,
+        ),
+        Ok(None) => (json!({ "status": "combat_ended" }), false),
+        Err(e) => {
+            tracing::warn!(error = %e, "persistence failed in execute_end_combat");
+            (json!({ "error": e.to_string() }), true)
+        }
     }
-    (json!({ "status": "combat_ended" }), false)
 }
 
 /// Encode an optional JSON array field from the args into a JSON string for storage.
@@ -411,7 +407,7 @@ fn encode_resist_list(args: &Value, field: &str) -> Option<String> {
         .map(|arr| serde_json::to_string(arr).unwrap_or_else(|_| "[]".into()))
 }
 
-async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_add_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
     let name = args["name"].as_str().unwrap_or("Unknown");
     let x = args["x"].as_i64().unwrap_or(0) as i32;
@@ -424,116 +420,72 @@ async fn execute_add_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
     let immunities = encode_resist_list(args, "immunities");
     let vulnerabilities = encode_resist_list(args, "vulnerabilities");
 
-    // Get the most recent open encounter id.
-    let encounter_row = sqlx::query(
-        "SELECT id FROM combat_encounters WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
-    )
-    .fetch_optional(pool)
-    .await;
-
-    let encounter_id = match encounter_row {
-        Ok(Some(r)) => {
-            use sqlx::Row;
-            r.try_get::<String, _>("id").unwrap_or_default()
-        }
-        _ => return (json!({ "error": "no active encounter" }), true),
-    };
-
-    if let Err(e) = sqlx::query(
-        "INSERT OR REPLACE INTO combat_tokens \
-         (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, resistances, immunities, vulnerabilities) \
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,'[]',?9,?10,?11)"
-    )
-    .bind(id)
-    .bind(encounter_id)
-    .bind(name)
-    .bind(hp)
-    .bind(max_hp)
-    .bind(ac)
-    .bind(x)
-    .bind(y)
-    .bind(resistances)
-    .bind(immunities)
-    .bind(vulnerabilities)
-    .execute(pool)
-    .await
+    if let Err(e) = store
+        .add_token(TokenInsert {
+            id,
+            name,
+            hp,
+            max_hp,
+            ac,
+            x,
+            y,
+            resistances,
+            immunities,
+            vulnerabilities,
+        })
+        .await
     {
-        tracing::warn!(error = %e, "sqlx write failed in execute_add_token");
+        tracing::warn!(error = %e, "persistence failed in execute_add_token");
         return (json!({ "error": e.to_string() }), true);
     }
 
     (json!({ "token_id": id, "status": "added" }), false)
 }
 
-async fn execute_update_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_update_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
-    if let Some(hp) = args["hp"].as_i64() {
-        if let Err(e) = sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
-            .bind(hp as i32)
-            .bind(id)
-            .execute(pool)
-            .await
-        {
-            tracing::warn!(error = %e, "sqlx write failed in execute_update_token");
-            return (json!({ "error": e.to_string() }), true);
-        }
-    }
-    if let Some(x) = args["x"].as_i64() {
-        if let Some(y) = args["y"].as_i64() {
-            if let Err(e) =
-                sqlx::query("UPDATE combat_tokens SET pos_x = ?1, pos_y = ?2 WHERE id = ?3")
-                    .bind(x as i32)
-                    .bind(y as i32)
-                    .bind(id)
-                    .execute(pool)
-                    .await
-            {
-                tracing::warn!(error = %e, "sqlx write failed in execute_update_token");
-                return (json!({ "error": e.to_string() }), true);
-            }
-        }
-    }
-    // Persist resistance fields if provided.
-    for field in &["resistances", "immunities", "vulnerabilities"] {
-        if let Some(encoded) = encode_resist_list(args, field) {
-            // `field` is from a hardcoded allow-list above, not user input, so
-            // the dynamic SQL is audited-safe (sqlx 0.9 requires this assertion).
-            if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(format!(
-                "UPDATE combat_tokens SET {field} = ?1 WHERE id = ?2"
-            )))
-            .bind(encoded)
-            .bind(id)
-            .execute(pool)
-            .await
-            {
-                tracing::warn!(error = %e, "sqlx write failed in execute_update_token ({field})");
-                return (json!({ "error": e.to_string() }), true);
-            }
-        }
+    let patch = TokenPatch {
+        hp: args["hp"].as_i64().map(|value| value as i32),
+        position: args["x"]
+            .as_i64()
+            .zip(args["y"].as_i64())
+            .map(|(x, y)| (x as i32, y as i32)),
+        resistances: encode_resist_list(args, "resistances"),
+        immunities: encode_resist_list(args, "immunities"),
+        vulnerabilities: encode_resist_list(args, "vulnerabilities"),
+    };
+    if let Err(e) = store.update_token(id, patch).await {
+        tracing::warn!(error = %e, "persistence failed in execute_update_token");
+        return (json!({ "error": e.to_string() }), true);
     }
     (json!({ "token_id": id, "status": "updated" }), false)
 }
 
-async fn execute_remove_token(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_remove_token(args: &Value, store: &SqliteStore) -> (Value, bool) {
     let id = args["id"].as_str().unwrap_or_default();
-    if let Err(e) = sqlx::query("UPDATE combat_tokens SET is_dead = 1 WHERE id = ?1")
-        .bind(id)
-        .execute(pool)
-        .await
-    {
-        tracing::warn!(error = %e, "sqlx write failed in execute_remove_token");
+    if let Err(e) = store.mark_token_dead(id).await {
+        tracing::warn!(error = %e, "persistence failed in execute_remove_token");
         return (json!({ "error": e.to_string() }), true);
     }
     (json!({ "token_id": id, "status": "removed" }), false)
 }
 
-async fn execute_set_scene(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
+async fn execute_set_scene(args: &Value, store: &SqliteStore, campaign_id: Uuid) -> (Value, bool) {
     let title = args["title"].as_str().unwrap_or("Unnamed Scene");
     let subtitle = args.get("subtitle").and_then(|v| v.as_str());
     let mode = args["mode"].as_str().unwrap_or("exploration");
     let image_prompt = args.get("image_prompt").and_then(|v| v.as_str());
 
-    match crate::db::scene_insert(pool, campaign_id, title, subtitle, mode, image_prompt).await {
+    match crate::db::scene_insert(
+        store.pool(),
+        campaign_id,
+        title,
+        subtitle,
+        mode,
+        image_prompt,
+    )
+    .await
+    {
         Ok(scene_id) => (
             json!({
                 "scene_id": scene_id.to_string(),
@@ -544,7 +496,7 @@ async fn execute_set_scene(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -
             false,
         ),
         Err(e) => {
-            tracing::warn!(error = %e, "sqlx write failed in execute_set_scene");
+            tracing::warn!(error = %e, "persistence failed in execute_set_scene");
             (json!({ "error": e.to_string() }), true)
         }
     }
@@ -572,11 +524,10 @@ fn roll_spell_dice(
     (detail.total, detail.rolls)
 }
 
-async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
+async fn execute_cast_spell(args: &Value, store: &SqliteStore) -> (Value, bool) {
     use app_domain::combat::damage::compute_effective_damage;
     use app_domain::compendium::compendium;
     use app_domain::rng::SeededRng;
-    use sqlx::Row;
 
     let spell_key = args["spell"].as_str().unwrap_or("unknown");
 
@@ -636,15 +587,9 @@ async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
                     .and_then(|v| v.as_i64())
                     .unwrap_or(0) as i32;
 
-                let row = sqlx::query(
-                    "SELECT current_hp, max_hp, resistances, immunities, vulnerabilities \
-                     FROM combat_tokens WHERE id = ?1",
-                )
-                .bind(token_id)
-                .fetch_optional(pool)
-                .await;
+                let row = store.token_state(token_id).await;
 
-                let Ok(Some(r)) = row else {
+                let Ok(Some(token)) = row else {
                     target_results.push(json!({
                         "token_id": token_id,
                         "error": "token not found"
@@ -652,16 +597,10 @@ async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
                     continue;
                 };
 
-                let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
-                let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
-                let resistances: Option<String> = r.try_get("resistances").ok().flatten();
-                let immunities: Option<String> = r.try_get("immunities").ok().flatten();
-                let vulnerabilities: Option<String> = r.try_get("vulnerabilities").ok().flatten();
-
                 let resist = build_damage_resistance(
-                    resistances.as_deref(),
-                    immunities.as_deref(),
-                    vulnerabilities.as_deref(),
+                    token.resistances.as_deref(),
+                    token.immunities.as_deref(),
+                    token.vulnerabilities.as_deref(),
                 );
 
                 // Determine effective raw (before resistance) - handle save-for-half.
@@ -691,17 +630,10 @@ async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
                     raw_for_target
                 };
 
-                let new_hp = (current_hp - effective).max(0);
-                _ = max_hp; // read above, satisfies completeness
+                let new_hp = (token.current_hp - effective).max(0);
 
-                if let Err(e) =
-                    sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
-                        .bind(new_hp)
-                        .bind(token_id)
-                        .execute(pool)
-                        .await
-                {
-                    tracing::warn!(error = %e, "sqlx write failed in execute_cast_spell");
+                if let Err(e) = store.set_token_hp(token_id, new_hp).await {
+                    tracing::warn!(error = %e, "persistence failed in execute_cast_spell");
                     target_results.push(json!({
                         "token_id": token_id,
                         "error": e.to_string()
@@ -759,12 +691,9 @@ async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
                     .or_else(|| target.get("token_id").and_then(|v| v.as_str()))
                     .unwrap_or_default();
 
-                let row = sqlx::query("SELECT current_hp, max_hp FROM combat_tokens WHERE id = ?1")
-                    .bind(token_id)
-                    .fetch_optional(pool)
-                    .await;
+                let row = store.token_state(token_id).await;
 
-                let Ok(Some(r)) = row else {
+                let Ok(Some(token)) = row else {
                     target_results.push(json!({
                         "token_id": token_id,
                         "error": "token not found"
@@ -772,18 +701,10 @@ async fn execute_cast_spell(args: &Value, pool: &SqlitePool) -> (Value, bool) {
                     continue;
                 };
 
-                let current_hp: i32 = r.try_get("current_hp").unwrap_or(0);
-                let max_hp: i32 = r.try_get("max_hp").unwrap_or(current_hp);
-                let new_hp = (current_hp + heal_amount).min(max_hp);
+                let new_hp = (token.current_hp + heal_amount).min(token.max_hp);
 
-                if let Err(e) =
-                    sqlx::query("UPDATE combat_tokens SET current_hp = ?1 WHERE id = ?2")
-                        .bind(new_hp)
-                        .bind(token_id)
-                        .execute(pool)
-                        .await
-                {
-                    tracing::warn!(error = %e, "sqlx write failed in execute_cast_spell healing");
+                if let Err(e) = store.set_token_hp(token_id, new_hp).await {
+                    tracing::warn!(error = %e, "persistence failed in execute_cast_spell healing");
                     target_results.push(json!({
                         "token_id": token_id,
                         "error": e.to_string()
@@ -867,7 +788,11 @@ fn extract_dice_from_description(desc: &str) -> Option<String> {
     None
 }
 
-async fn execute_remember_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
+async fn execute_remember_npc(
+    args: &Value,
+    store: &SqliteStore,
+    campaign_id: Uuid,
+) -> (Value, bool) {
     let Some(name) = args["name"].as_str() else {
         return (json!({ "error": "name is required" }), true);
     };
@@ -881,19 +806,22 @@ async fn execute_remember_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid
     let role = args.get("role").and_then(|v| v.as_str()).unwrap_or("");
 
     if let Err(e) =
-        crate::db::npc_upsert_fact(pool, campaign_id, name, fact, disposition, role).await
+        crate::db::npc_upsert_fact(store.pool(), campaign_id, name, fact, disposition, role).await
     {
-        tracing::warn!(error = %e, "sqlx write failed in execute_remember_npc");
+        tracing::warn!(error = %e, "persistence failed in execute_remember_npc");
         return (json!({ "error": e.to_string() }), true);
     }
-    (json!({ "name": name, "status": "remembered" }), false)
+    (
+        json!({ "npc_id": name, "name": name, "status": "remembered" }),
+        false,
+    )
 }
 
-async fn execute_recall_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) -> (Value, bool) {
+async fn execute_recall_npc(args: &Value, store: &SqliteStore, campaign_id: Uuid) -> (Value, bool) {
     let Some(name) = args["name"].as_str() else {
         return (json!({ "error": "name is required" }), true);
     };
-    match crate::db::npc_get(pool, campaign_id, name).await {
+    match crate::db::npc_get(store.pool(), campaign_id, name).await {
         Ok(Some(npc)) => (
             json!({
                 "name": npc.name,
@@ -909,7 +837,7 @@ async fn execute_recall_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) 
             false,
         ),
         Err(e) => {
-            tracing::warn!(error = %e, "sqlx read failed in execute_recall_npc");
+            tracing::warn!(error = %e, "persistence failed in execute_recall_npc");
             (json!({ "error": e.to_string() }), true)
         }
     }
@@ -917,30 +845,30 @@ async fn execute_recall_npc(args: &Value, pool: &SqlitePool, campaign_id: Uuid) 
 
 async fn execute_journal_append(
     args: &Value,
-    pool: &SqlitePool,
+    store: &SqliteStore,
     campaign_id: Uuid,
 ) -> (Value, bool) {
     let Some(entry_html) = args["entry_html"].as_str() else {
         return (json!({ "error": "entry_html is required" }), true);
     };
     let chapter = args.get("chapter").and_then(|v| v.as_str());
-    match crate::db::journal_insert(pool, campaign_id, entry_html, chapter).await {
+    match crate::db::journal_insert(store.pool(), campaign_id, entry_html, chapter).await {
         Ok(id) => (json!({ "entry_id": id.to_string() }), false),
         Err(e) => {
-            tracing::warn!(error = %e, "sqlx write failed in execute_journal_append");
+            tracing::warn!(error = %e, "persistence failed in execute_journal_append");
             (json!({ "error": e.to_string() }), true)
         }
     }
 }
 
-async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -> (Value, bool) {
+async fn execute_quick_save(args: &Value, store: &SqliteStore, session_id: Uuid) -> (Value, bool) {
     let label = args
         .get("label")
         .and_then(|v| v.as_str())
         .unwrap_or("Quick save");
 
     // Build a real game_state snapshot from DB (schema_version 2).
-    let game_state = match crate::db::build_save_game_state(pool, session_id, label).await {
+    let game_state = match crate::db::build_save_game_state(store.pool(), session_id, label).await {
         Ok(gs) => gs,
         Err(e) => {
             tracing::warn!(error = %e, "failed to build game_state in execute_quick_save");
@@ -983,30 +911,11 @@ async fn execute_quick_save(args: &Value, pool: &SqlitePool, session_id: Uuid) -
     };
 
     let save_id = uuid::Uuid::new_v4();
-    let now = chrono::Utc::now().to_rfc3339();
-    let state_json = match serde_json::to_string(&game_state) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(error = %e, "failed to serialize game_state in execute_quick_save");
-            return (json!({ "error": e.to_string() }), true);
-        }
-    };
-
-    if let Err(e) = sqlx::query(
-        "INSERT INTO snapshots (id, session_id, turn_number, created_at, game_state, player_action, kind, title, summary, tag) \
-         VALUES (?1, ?2, 0, ?3, ?4, NULL, 'auto', ?5, ?6, ?7)",
-    )
-    .bind(save_id.to_string())
-    .bind(session_id.to_string())
-    .bind(now)
-    .bind(state_json)
-    .bind(title)
-    .bind(summary)
-    .bind(tag)
-    .execute(pool)
-    .await
+    if let Err(e) = store
+        .insert_quick_save(save_id, session_id, &game_state, &title, &summary, tag)
+        .await
     {
-        tracing::warn!(error = %e, "sqlx write failed in execute_quick_save");
+        tracing::warn!(error = %e, "persistence failed in execute_quick_save");
         return (json!({ "error": e.to_string() }), true);
     }
     (
@@ -1048,14 +957,22 @@ async fn run_image_generation(
         height,
     };
     match provider.generate(image_prompt).await {
-        Ok(bytes) => (
-            json!({
+        Ok(bytes) => {
+            let (source, asset_id) = match bytes.source {
+                ImageSource::Generated => ("generated", None),
+                ImageSource::Bundled { asset_id } => ("bundled", Some(asset_id)),
+            };
+            (
+                json!({
                 "status": "generated",
                 "mime_type": bytes.mime_type,
                 "image_b64": B64.encode(&bytes.data),
-            }),
-            false,
-        ),
+                "source": source,
+                "asset_id": asset_id,
+                }),
+                false,
+            )
+        }
         Err(e) => {
             warn!("image generation failed: {e}");
             (json!({ "error": e.to_string() }), true)
@@ -1158,6 +1075,15 @@ async fn execute_generate_video(
                         warn!("video generation error: {message}");
                         return (json!({ "error": message }), true);
                     }
+                    Some(VideoEvent::Cancelled) => {
+                        return (json!({ "error": "video generation cancelled" }), true);
+                    }
+                    Some(VideoEvent::Degraded { code }) => {
+                        return (
+                            json!({ "error": format!("video backend degraded: {code}") }),
+                            true,
+                        );
+                    }
                     Some(VideoEvent::Started { .. } | VideoEvent::Progress { .. }) => {
                         // Continue draining.
                     }
@@ -1223,7 +1149,7 @@ async fn execute_query_rules(
 #[cfg(test)]
 mod image_dispatch_tests {
     use super::*;
-    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider};
+    use crate::image::provider::{ImageBytes, ImageError, ImagePrompt, ImageProvider, ImageSource};
     use async_trait::async_trait;
     use std::sync::Mutex;
 
@@ -1238,6 +1164,7 @@ mod image_dispatch_tests {
             Ok(ImageBytes {
                 data: vec![1, 2, 3],
                 mime_type: "image/png".into(),
+                source: ImageSource::Generated,
             })
         }
         fn estimated_seconds(&self) -> u32 {
@@ -1509,7 +1436,7 @@ mod query_rules_tests {
     #[tokio::test]
     async fn query_rules_with_retriever_returns_chunks_aligned_by_cosine() {
         let retriever = make_test_retriever();
-        // Since the real embed_player_message uses fastembed (which requires
+        // Since the real embed_player_message uses the embedding adapter (which requires
         // a model file), we test graceful degradation: pass an invalid model
         // name so embed_player_message returns an error, verify embed_error status.
         let args = serde_json::json!({ "question": "attack" });
@@ -1531,7 +1458,7 @@ mod query_rules_tests {
 
     /// Direct wiring test: build retriever, manually produce a matching
     /// query embedding, call retrieve_by_embedding, assert the top result.
-    /// This validates the plumbing without fastembed.
+    /// This validates the plumbing without loading an embedding model.
     #[test]
     fn retriever_returns_best_match_by_cosine() {
         let retriever = make_test_retriever();
@@ -1572,7 +1499,8 @@ mod start_combat_tests {
             ]
         });
 
-        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        let (val, is_err) =
+            execute_start_combat(&args, &SqliteStore::new(pool.clone()), session_id).await;
         assert!(!is_err, "start_combat must not error: {val}");
 
         let ordered = val["ordered"].as_array().expect("ordered array present");
@@ -1589,6 +1517,12 @@ mod start_combat_tests {
         // Third is Goblin
         assert_eq!(ordered[2]["name"].as_str(), Some("Goblin"));
         assert_eq!(ordered[2]["roll"].as_i64(), Some(12));
+
+        let combatants = val["projection"]["snapshot"]["combatants"]
+            .as_array()
+            .expect("combatants array present");
+        assert_eq!(combatants[0]["position"], json!({ "x": 8, "y": 8 }));
+        assert_eq!(combatants[1]["position"], json!({ "x": 9, "y": 8 }));
 
         // encounter_id is present
         assert!(val["encounter_id"].as_str().is_some());
@@ -1608,7 +1542,8 @@ mod start_combat_tests {
             ]
         });
 
-        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        let (val, is_err) =
+            execute_start_combat(&args, &SqliteStore::new(pool.clone()), session_id).await;
         assert!(!is_err, "start_combat must not error: {val}");
 
         let ordered = val["ordered"].as_array().expect("ordered array present");
@@ -1635,7 +1570,8 @@ mod start_combat_tests {
             "initiative_entries": [{ "name": "Hero" }]
         });
 
-        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        let (val, is_err) =
+            execute_start_combat(&args, &SqliteStore::new(pool.clone()), session_id).await;
         assert!(!is_err, "start_combat must not error: {val}");
         let ordered = val["ordered"].as_array().expect("ordered array");
         assert_eq!(ordered.len(), 1);
@@ -1655,9 +1591,32 @@ mod start_combat_tests {
         let session_id = uuid::Uuid::new_v4();
 
         let args = json!({ "other_field": 42 });
-        let (val, is_err) = execute_start_combat(&args, &pool, session_id).await;
+        let (val, is_err) =
+            execute_start_combat(&args, &SqliteStore::new(pool.clone()), session_id).await;
         assert!(is_err, "must error when initiative_entries missing");
         assert!(val["error"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn end_combat_returns_the_authoritative_inactive_projection() {
+        let pool = make_pool().await;
+        let session_id = uuid::Uuid::new_v4();
+        let store = SqliteStore::new(pool);
+        let args = json!({
+            "initiative_entries": [
+                { "name": "Hero", "roll": 20 },
+                { "name": "Goblin", "roll": 1 }
+            ]
+        });
+        let (_, start_error) = execute_start_combat(&args, &store, session_id).await;
+        assert!(!start_error);
+
+        let (ended, end_error) = execute_end_combat(&store).await;
+
+        assert!(!end_error, "end_combat must not error: {ended}");
+        assert_eq!(ended["status"], "combat_ended");
+        assert_eq!(ended["projection"]["revision"], 1);
+        assert_eq!(ended["projection"]["snapshot"]["active"], false);
     }
 }
 
@@ -1681,47 +1640,51 @@ mod cast_spell_tests {
         max_hp: i32,
         resistances: Option<&str>,
     ) {
-        let enc_id = uuid::Uuid::new_v4().to_string();
-        let now = chrono::Utc::now().to_rfc3339();
-        let session_id = uuid::Uuid::new_v4().to_string();
-        sqlx::query(
-            "INSERT INTO combat_encounters (id, session_id, round, started_at, initiative) \
-             VALUES (?1, ?2, 1, ?3, '[]')",
-        )
-        .bind(&enc_id)
-        .bind(&session_id)
-        .bind(&now)
-        .execute(pool)
-        .await
-        .unwrap();
-
-        let resist_json = resistances
-            .map(|r| format!("[\"{r}\"]"))
-            .unwrap_or_else(|| "null".to_string());
-        sqlx::query(
-            "INSERT INTO combat_tokens \
-             (id, encounter_id, name, current_hp, max_hp, ac, pos_x, pos_y, conditions, resistances, immunities, vulnerabilities) \
-             VALUES (?1,?2,'TestToken',?3,?4,10,0,0,'[]',?5,null,null)",
-        )
-        .bind(token_id)
-        .bind(&enc_id)
-        .bind(hp)
-        .bind(max_hp)
-        .bind(resist_json)
-        .execute(pool)
-        .await
-        .unwrap();
+        let store = SqliteStore::new(pool.clone());
+        let encounter_id = uuid::Uuid::new_v4();
+        store
+            .create(
+                uuid::Uuid::new_v4(),
+                CombatProjection {
+                    schema_version: COMBAT_PROJECTION_VERSION,
+                    encounter_id,
+                    revision: 0,
+                    snapshot: CombatSnapshot {
+                        active: true,
+                        round: 1,
+                        current_combatant: None,
+                        initiative: Vec::new(),
+                        combatants: Vec::new(),
+                    },
+                    events: Vec::new(),
+                },
+            )
+            .await
+            .unwrap();
+        store
+            .add_token(TokenInsert {
+                id: token_id,
+                name: "TestToken",
+                hp,
+                max_hp,
+                ac: 10,
+                x: 0,
+                y: 0,
+                resistances: resistances.map(|value| format!("[\"{value}\"]")),
+                immunities: None,
+                vulnerabilities: None,
+            })
+            .await
+            .unwrap();
     }
 
     async fn token_hp(pool: &SqlitePool, token_id: &str) -> i32 {
-        use sqlx::Row;
-        sqlx::query("SELECT current_hp FROM combat_tokens WHERE id = ?1")
-            .bind(token_id)
-            .fetch_one(pool)
+        SqliteStore::new(pool.clone())
+            .token_state(token_id)
             .await
             .unwrap()
-            .try_get("current_hp")
             .unwrap()
+            .current_hp
     }
 
     // ------------------------------------------------------------------ //
@@ -1731,7 +1694,7 @@ mod cast_spell_tests {
     async fn unknown_spell_returns_not_in_srd() {
         let pool = make_pool().await;
         let args = json!({ "spell": "totally_made_up_spell_xyz" });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "not_in_srd must not be is_error");
         assert_eq!(val["status"].as_str(), Some("not_in_srd"));
     }
@@ -1750,7 +1713,7 @@ mod cast_spell_tests {
             "spell": "burning-hands",
             "targets": [token_id]
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "cast must not error: {val}");
         assert_eq!(val["status"].as_str(), Some("resolved"));
         assert_eq!(val["spell"].as_str(), Some("burning-hands"));
@@ -1791,7 +1754,7 @@ mod cast_spell_tests {
             "spell": "burning-hands",
             "targets": [token_id]
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "cast must not error: {val}");
 
         let targets = val["targets"].as_array().unwrap();
@@ -1820,7 +1783,7 @@ mod cast_spell_tests {
             "targets": [{ "token_id": token_id, "save_bonus": 10 }],
             "save_dc": 1
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "cast must not error: {val}");
 
         let targets = val["targets"].as_array().unwrap();
@@ -1846,7 +1809,7 @@ mod cast_spell_tests {
             "targets": [token_id],
             "spell_modifier": 3
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "cure-wounds must not error: {val}");
         assert_eq!(val["status"].as_str(), Some("resolved"));
         assert_eq!(val["kind"].as_str(), Some("healing"));
@@ -1868,7 +1831,7 @@ mod cast_spell_tests {
         // magic-missile has damage: null and is not a healing spell.
         let pool = make_pool().await;
         let args = json!({ "spell": "magic-missile" });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "narrative spell must not error: {val}");
         assert_eq!(val["status"].as_str(), Some("resolved"));
         assert!(
@@ -1890,7 +1853,7 @@ mod cast_spell_tests {
             "spell": "guiding-bolt",
             "targets": [token_id]
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "guiding-bolt must not error: {val}");
         assert_eq!(val["status"].as_str(), Some("resolved"));
 
@@ -1915,7 +1878,7 @@ mod cast_spell_tests {
             "targets": [{ "token_id": token_id, "save_bonus": 0 }],
             "save_dc": 30
         });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "shatter must not error: {val}");
 
         let targets = val["targets"].as_array().unwrap();
@@ -1933,7 +1896,7 @@ mod cast_spell_tests {
     async fn damage_spell_no_targets_resolves_cleanly() {
         let pool = make_pool().await;
         let args = json!({ "spell": "acid-splash" });
-        let (val, is_err) = execute_cast_spell(&args, &pool).await;
+        let (val, is_err) = execute_cast_spell(&args, &SqliteStore::new(pool.clone())).await;
         assert!(!is_err, "must not error with no targets: {val}");
         assert_eq!(val["status"].as_str(), Some("resolved"));
         let targets = val["targets"].as_array().unwrap();

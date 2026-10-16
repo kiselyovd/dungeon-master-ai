@@ -1,94 +1,98 @@
-//! Lazy, panic-on-failure loader for the SRD 5.1 character-creation datasets.
+//! Lazy, panic-on-failure loader for the normalized SRD 5.2.1 character catalog.
 //!
-//! YAML files are embedded at compile time via `include_str!()`. The first
-//! call to `compendium()` parses every file once and stores the aggregate in
-//! a `OnceLock`. Parse errors are programmer bugs (we ship our own data), so
-//! they panic loudly rather than threading a `Result` through every caller.
+//! The checked-in catalog contains identifiers and game mechanics required by
+//! character creation. Long-form rules prose stays in the separately indexed
+//! SRD retrieval corpus. Parse or identity failures are packaging defects and
+//! therefore fail loudly during development.
 
 use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use super::types::{Background, Class, EquipmentBundle, Feat, Race, Spell, WeaponProperty};
+use super::types::{
+    Background, Class, EquipmentBundle, Feat, Race, RulesetProvenance, Spell, WeaponMastery,
+    WeaponProperty,
+};
 
-#[derive(Clone, Debug)]
-pub struct Compendium {
+pub const CURRENT_RULESET_ID: &str = "srd-5.2.1";
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct CharacterCatalog {
+    pub provenance: RulesetProvenance,
+    #[serde(default)]
     pub races: Vec<Race>,
+    #[serde(default)]
     pub classes: Vec<Class>,
+    #[serde(default)]
     pub backgrounds: Vec<Background>,
+    #[serde(default)]
     pub spells: Vec<Spell>,
+    #[serde(default)]
     pub equipment: EquipmentBundle,
+    #[serde(default)]
     pub feats: Vec<Feat>,
+    #[serde(default)]
     pub weapon_properties: Vec<WeaponProperty>,
+    #[serde(default)]
+    pub weapon_masteries: Vec<WeaponMastery>,
 }
 
-const RACES_CLASSES_BACKGROUNDS_YAML: &str = include_str!("data/races_classes_backgrounds.yaml");
-const SPELLS_0_1_YAML: &str = include_str!("data/spells_level_0_1.yaml");
-const SPELLS_2_AK_YAML: &str = include_str!("data/spells_level_2_a_k.yaml");
-const SPELLS_2_LZ_YAML: &str = include_str!("data/spells_level_2_l_z.yaml");
-const EQUIPMENT_YAML: &str = include_str!("data/equipment.yaml");
-const FEATS_YAML: &str = include_str!("data/feats.yaml");
-const WEAPON_PROPERTIES_YAML: &str = include_str!("data/weapon_properties.yaml");
+/// Compatibility name retained while HTTP and wizard callers migrate.
+pub type Compendium = CharacterCatalog;
 
-#[derive(Deserialize)]
-struct RcbDoc {
-    races: Vec<Race>,
-    classes: Vec<Class>,
-    backgrounds: Vec<Background>,
-}
+const CATALOG_YAML: &str = include_str!("data/srd_5_2_1.yaml");
 
-#[derive(Deserialize)]
-struct SpellsDoc {
-    spells: Vec<Spell>,
-}
+static CELL: OnceLock<CharacterCatalog> = OnceLock::new();
 
-#[derive(Deserialize)]
-struct FeatsDoc {
-    feats: Vec<Feat>,
-}
-
-#[derive(Deserialize)]
-struct WeaponPropertiesDoc {
-    weapon_properties: Vec<WeaponProperty>,
-}
-
-static CELL: OnceLock<Compendium> = OnceLock::new();
-
-pub fn compendium() -> &'static Compendium {
+pub fn character_catalog() -> &'static CharacterCatalog {
     CELL.get_or_init(load)
 }
 
-fn load() -> Compendium {
-    let rcb: RcbDoc = serde_yaml::from_str(RACES_CLASSES_BACKGROUNDS_YAML)
-        .expect("races_classes_backgrounds.yaml must parse");
-    let spells_0_1: SpellsDoc =
-        serde_yaml::from_str(SPELLS_0_1_YAML).expect("spells_level_0_1.yaml must parse");
-    let spells_2_ak: SpellsDoc =
-        serde_yaml::from_str(SPELLS_2_AK_YAML).expect("spells_level_2_a_k.yaml must parse");
-    let spells_2_lz: SpellsDoc =
-        serde_yaml::from_str(SPELLS_2_LZ_YAML).expect("spells_level_2_l_z.yaml must parse");
-    let equipment: EquipmentBundle =
-        serde_yaml::from_str(EQUIPMENT_YAML).expect("equipment.yaml must parse");
-    let feats: FeatsDoc = serde_yaml::from_str(FEATS_YAML).expect("feats.yaml must parse");
-    let weapon_properties: WeaponPropertiesDoc =
-        serde_yaml::from_str(WEAPON_PROPERTIES_YAML).expect("weapon_properties.yaml must parse");
+pub fn compendium() -> &'static Compendium {
+    character_catalog()
+}
 
-    let mut spells = Vec::with_capacity(
-        spells_0_1.spells.len() + spells_2_ak.spells.len() + spells_2_lz.spells.len(),
+fn load() -> CharacterCatalog {
+    let mut catalog: CharacterCatalog =
+        serde_yaml::from_str(CATALOG_YAML).expect("srd_5_2_1.yaml must parse");
+    assert_eq!(
+        catalog.provenance.ruleset_id, CURRENT_RULESET_ID,
+        "character catalog ruleset identity must match the application ruleset"
     );
-    spells.extend(spells_0_1.spells);
-    spells.extend(spells_2_ak.spells);
-    spells.extend(spells_2_lz.spells);
 
-    Compendium {
-        races: rcb.races,
-        classes: rcb.classes,
-        backgrounds: rcb.backgrounds,
-        spells,
-        equipment,
-        feats: feats.feats,
-        weapon_properties: weapon_properties.weapon_properties,
+    let ruleset = catalog.provenance.ruleset_id.clone();
+    for entry in &mut catalog.races {
+        entry.ruleset_id.clone_from(&ruleset);
     }
+    for entry in &mut catalog.classes {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.backgrounds {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.spells {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.equipment.weapons {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.equipment.armor {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.equipment.adventuring_gear {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.feats {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.weapon_properties {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+    for entry in &mut catalog.weapon_masteries {
+        entry.ruleset_id.clone_from(&ruleset);
+    }
+
+    catalog
 }
 
 #[cfg(test)]
@@ -96,61 +100,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn compendium_loads_with_expected_counts() {
-        let c = compendium();
-        assert!(
-            c.races.len() >= 9,
-            "SRD 5.1 has 9 base races, got {}",
-            c.races.len()
-        );
-        assert!(
-            c.classes.len() >= 12,
-            "SRD 5.1 has 12 classes, got {}",
-            c.classes.len()
-        );
-        assert!(!c.backgrounds.is_empty(), "backgrounds missing");
-        assert!(
-            c.spells.len() >= 120,
-            "expected >=120 spells lvl 0-2, got {}",
-            c.spells.len()
-        );
-        assert!(
-            c.equipment.weapons.len() >= 30,
-            "expected >=30 weapons, got {}",
-            c.equipment.weapons.len()
-        );
-        assert!(!c.equipment.armor.is_empty(), "armor missing");
-        assert!(
-            !c.equipment.adventuring_gear.is_empty(),
-            "adventuring gear missing"
-        );
-        assert_eq!(c.feats.len(), 1, "SRD 5.1 has only Grappler");
-        assert!(
-            c.weapon_properties.len() >= 10,
-            "expected >=10 weapon properties"
-        );
-    }
-
-    #[test]
-    fn spells_partition_covers_levels_0_1_2() {
-        let c = compendium();
-        let by_level = |lvl: i32| c.spells.iter().filter(|s| s.level == lvl).count();
-        assert!(
-            by_level(0) >= 15,
-            "cantrips count looks low: {}",
-            by_level(0)
-        );
-        assert!(by_level(1) >= 40, "lvl 1 spells low: {}", by_level(1));
-        assert!(by_level(2) >= 40, "lvl 2 spells low: {}", by_level(2));
-    }
-
-    #[test]
-    fn race_dwarf_has_subraces() {
-        let dwarf = compendium()
-            .races
+    fn catalog_loads_with_the_supported_srd_521_surface() {
+        let catalog = character_catalog();
+        assert_eq!(catalog.provenance.ruleset_id, CURRENT_RULESET_ID);
+        assert_eq!(catalog.races.len(), 9);
+        assert_eq!(catalog.classes.len(), 12);
+        assert_eq!(catalog.backgrounds.len(), 4);
+        assert!(catalog
+            .spells
             .iter()
-            .find(|r| r.id == "dwarf")
-            .expect("dwarf race");
-        assert!(!dwarf.subraces.is_empty(), "dwarf has at least one subrace");
+            .any(|spell| spell.id == "magic-missile"));
+        assert!(catalog
+            .equipment
+            .weapons
+            .iter()
+            .any(|weapon| weapon.mastery.as_deref() == Some("vex")));
+        assert_eq!(catalog.weapon_masteries.len(), 8);
     }
 }

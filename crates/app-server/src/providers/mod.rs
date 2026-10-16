@@ -7,6 +7,7 @@
 pub mod catalog;
 pub mod discovery;
 pub mod registry;
+pub mod settings_factory;
 
 pub use catalog::{
     default_chat_model, find_chat_entry, find_entry_any_modality, CuratedModelEntry,

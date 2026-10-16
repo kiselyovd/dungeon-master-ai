@@ -22,7 +22,7 @@ impl ProviderRegistry {
     pub fn new(chat: Arc<dyn LlmProvider>) -> Self {
         Self {
             chat,
-            image: None,
+            image: Some(crate::image::bundled_image_provider()),
             video: None,
         }
     }
@@ -48,7 +48,7 @@ mod tests {
         let chat: Arc<dyn LlmProvider> = Arc::new(MockProvider::new(vec![]));
         let reg = ProviderRegistry::new(chat);
         assert_eq!(reg.chat.name(), "mock");
-        assert!(reg.image.is_none());
+        assert!(reg.image.is_some());
     }
 
     struct TestVideoProvider;

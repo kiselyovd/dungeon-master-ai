@@ -7,6 +7,7 @@ import {
   fetchSessionMessages,
   fetchSessionSaves,
   quickSaveSession,
+  restoreSave,
 } from '../saves';
 
 vi.mock('../client', () => ({
@@ -30,7 +31,10 @@ describe('saves API', () => {
             JSON.stringify([
               {
                 id: 's1',
+                campaign_id: 'camp1',
                 session_id: 'sess1',
+                snapshot_id: 'snap1',
+                revision: 4,
                 kind: 'manual',
                 title: 'before boss',
                 summary: 'rest at gate',
@@ -69,12 +73,21 @@ describe('saves API', () => {
       }),
     );
 
-    const result = await createSave('sess1', {
-      kind: 'manual',
-      title: 'before boss',
-      summary: 'rest',
-      tag: 'exploration',
-    });
+    const result = await createSave(
+      'sess1',
+      {
+        kind: 'manual',
+        title: 'before boss',
+        summary: 'rest',
+        tag: 'exploration',
+      },
+      {
+        campaignId: 'camp1',
+        expectedRevision: 4,
+        character: { name: 'Mira' },
+        causationId: 'save-1',
+      },
+    );
     expect(result.id).toBe('new-1');
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe('http://test.local/sessions/sess1/saves');
@@ -84,6 +97,10 @@ describe('saves API', () => {
       title: 'before boss',
       summary: 'rest',
       tag: 'exploration',
+      campaign_id: 'camp1',
+      expected_revision: 4,
+      character: { name: 'Mira' },
+      causation_id: 'save-1',
     });
     expect(calls[0]?.init.method).toBe('POST');
   });
@@ -100,7 +117,12 @@ describe('saves API', () => {
         });
       }),
     );
-    const result = await quickSaveSession('sess1');
+    const result = await quickSaveSession('sess1', {
+      campaignId: 'camp1',
+      expectedRevision: 4,
+      character: { name: 'Mira' },
+      causationId: 'quick-1',
+    });
     expect(result.id).toBe('q1');
     expect(calls[0]?.url).toBe('http://test.local/sessions/sess1/saves/quick');
     expect(calls[0]?.init?.method).toBe('POST');
@@ -114,14 +136,17 @@ describe('saves API', () => {
           new Response(
             JSON.stringify({
               id: 's1',
+              campaign_id: 'camp1',
               session_id: 'sess1',
+              snapshot_id: 'snap1',
+              revision: 4,
               kind: 'manual',
               title: 't',
               summary: 's',
               tag: 'combat',
               created_at: '2026-05-09T00:00:00Z',
               turn_number: 0,
-              game_state: { schema_version: 1, state: {} },
+              snapshot: { schema_version: 1, projection: {} },
             }),
             { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
           ),
@@ -153,6 +178,84 @@ describe('saves API', () => {
       vi.fn(async () => new Response('', { status: 404 })),
     );
     await expect(deleteSaveById('missing')).rejects.toBeInstanceOf(ChatError);
+  });
+
+  it('restoreSave validates and returns the complete atomic projection envelope', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              id: 'snapshot-1',
+              campaign_id: 'campaign-1',
+              session_id: 'session-1',
+              revision: 4,
+              schema_version: 1,
+              ruleset_id: 'srd-5.2.1',
+              projection: {
+                messages: [{ role: 'assistant', content: 'Restored' }],
+                character: {},
+                combat: null,
+                scene: null,
+                journal: [],
+                npcs: [],
+              },
+            }),
+            { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
+          ),
+      ),
+    );
+
+    await expect(
+      restoreSave('save-1', {
+        campaignId: 'campaign-1',
+        sessionId: 'session-1',
+        expectedRevision: 4,
+        causationId: 'restore-1',
+      }),
+    ).resolves.toMatchObject({
+      schema_version: 1,
+      ruleset_id: 'srd-5.2.1',
+      projection: { messages: [{ role: 'assistant', content: 'Restored' }] },
+    });
+  });
+
+  it('restoreSave rejects malformed message roles', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              id: 'snapshot-1',
+              campaign_id: 'campaign-1',
+              session_id: 'session-1',
+              revision: 4,
+              schema_version: 1,
+              ruleset_id: 'srd-5.2.1',
+              projection: {
+                messages: [{ role: 'owner' }],
+                character: {},
+                combat: null,
+                scene: null,
+                journal: [],
+                npcs: [],
+              },
+            }),
+            { status: 200, headers: new Headers({ 'content-type': 'application/json' }) },
+          ),
+      ),
+    );
+
+    await expect(
+      restoreSave('save-1', {
+        campaignId: 'campaign-1',
+        sessionId: 'session-1',
+        expectedRevision: 4,
+        causationId: 'restore-2',
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_response' });
   });
 
   describe('fetchSessionMessages', () => {

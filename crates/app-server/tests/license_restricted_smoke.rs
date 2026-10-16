@@ -135,7 +135,8 @@ async fn license_unrestricted_keeps_all_providers() {
 async fn license_restricted_filters_non_oss_image_silently() {
     let state = new_test_state().await;
     // local-mistralrs chat (OSS Apache 2.0 (Qwen)) + replicate image (non-OSS "varies per model")
-    // + restricted = chat survives, image filtered to None, warning fires.
+    // + restricted = chat survives and the incompatible primary is replaced
+    // by the OSS bundled catalog.
     let cfg = cfg_with(true, local_mistralrs_chat(), replicate_image());
 
     let res = post_settings_v2(State(state.clone()), Json(cfg))
@@ -145,15 +146,15 @@ async fn license_restricted_filters_non_oss_image_silently() {
     let body = res.0;
     assert_eq!(body["status"], "ok");
     assert_eq!(
-        body["license_restricted_no_compat"], true,
-        "warning must fire when restriction silently drops an enabled image provider"
+        body["license_restricted_no_compat"], false,
+        "bundled images remain compatible in restricted mode"
     );
 
     let reg = state.registry();
     assert_eq!(reg.chat.name(), "local-mistralrs");
     assert!(
-        reg.image.is_none(),
-        "non-OSS image provider must be filtered out"
+        reg.image.is_some(),
+        "non-OSS image provider must fall back to the bundled catalog"
     );
 }
 

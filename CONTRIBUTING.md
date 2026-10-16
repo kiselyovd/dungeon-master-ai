@@ -40,9 +40,10 @@ For cloud mode (OpenAI-compatible / OpenRouter) plain `bun run tauri dev` is all
 `scripts/gates.sh` is the single source of truth for the gates. The same script backs the git hooks and the CI `lint` job, so local and CI cannot drift.
 
 ```bash
-bun run gates        # full: cargo fmt --check, cargo clippy, biome ci, tsc, cargo test, vitest, em-dash
-bun run gates:fast   # fast subset: cargo fmt --check, biome ci, tsc, em-dash (no compile)
+bun run gates        # full: fmt, clippy, biome, architecture, tsc, Rust tests, vitest, em-dash
+bun run gates:fast   # fast subset: fmt, biome, architecture, tsc, em-dash
 bun run e2e          # Playwright (its own CI job; not part of gates.sh - needs a browser download)
+bun run e2e:tauri    # deterministic real Tauri/WebView smoke
 ```
 
 What the gates check:
@@ -50,9 +51,19 @@ What the gates check:
 - `cargo fmt --all --check` - Rust formatting.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` - Rust lints (warnings are errors).
 - `biome ci .` - TypeScript / frontend lint and format.
+- `bun run architecture:check` - strict Rust workspace edges and frontend import boundaries.
 - `bun run typecheck` (`tsc --noEmit`) - TypeScript types.
 - `cargo test --workspace` and `bun run test` (vitest) - the test suites.
 - `scripts/check-no-em-dash.sh` - the em-dash gate (see code style below).
+
+The Python 3.12 sidecar has an independent offline gate that also runs in normal CI:
+
+```bash
+python -m ruff check sidecar
+python -m pytest sidecar/tests -q
+```
+
+GPU tests remain opt-in with `RUN_GPU_TESTS=1`.
 
 Run `bun run gates` before opening a PR; it mirrors CI's blocking checks.
 
@@ -68,6 +79,8 @@ Run `bun run gates` before opening a PR; it mirrors CI's blocking checks.
 - Rust tests live next to each crate under `crates/<crate>/tests/` (integration) and inline `#[cfg(test)]` modules.
 - Frontend tests use vitest and live in `__tests__/` folders and `*.test.ts(x)` files under `src/`.
 - End-to-end Playwright specs live in `e2e/`.
+
+For architecture changes, keep application/domain types inward, translate at adapter boundaries, and update `scripts/architecture-boundaries.json` only when adding a deliberate workspace crate. Do not add an exception for a forbidden edge.
 
 When adding a feature or fixing a bug, add or update the matching tests so `bun run gates` stays green.
 

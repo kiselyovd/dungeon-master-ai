@@ -10,12 +10,17 @@ export function useLocalRuntimeStatus(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    let requestInFlight = false;
     const tick = async () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
       try {
         const data = await fetchLocalRuntimeStatus();
         if (!cancelled) setRuntimeStatus(data);
       } catch {
         // intentional: backend may not be up yet, retry on the next tick.
+      } finally {
+        requestInFlight = false;
       }
     };
     void tick();

@@ -7,5 +7,6 @@
   "http_error": "HTTP error: {{message}}",
   "aborted": "Request was cancelled.",
   "invalid_response": "Invalid response from the backend.",
+  "campaign_required": "Choose or create a campaign first.",
   "unknown": "Unexpected error: {{message}}"
 }

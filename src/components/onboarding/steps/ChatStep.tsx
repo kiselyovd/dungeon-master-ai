@@ -108,7 +108,8 @@ function LocalOnlyChatStep({ onBack, onNext, titleId }: Omit<ChatStepProps, 'pre
       await startLocalRuntimes();
       const snap = await fetchLocalRuntimeStatus();
       useStore.getState().localMode.setRuntimeStatus(snap);
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -290,7 +291,8 @@ function CloudChatStep({
         model: trimmedModel,
       });
       setActiveProvider('openai-compat');
-      await postSettingsV2(useStore.getState().settings);
+      const state = useStore.getState();
+      await postSettingsV2(state.settings, state.localMode);
       onNext();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));

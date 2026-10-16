@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import npcGuard from '../assets/npc-fallback-guard.png';
-import npcInnkeeper from '../assets/npc-fallback-innkeeper.png';
-import npcKnight from '../assets/npc-fallback-knight.png';
-import npcMage from '../assets/npc-fallback-mage.png';
-import npcMerchant from '../assets/npc-fallback-merchant.png';
-import npcPeasant from '../assets/npc-fallback-peasant.png';
-import npcPriestess from '../assets/npc-fallback-priestess.png';
-import npcRogue from '../assets/npc-fallback-rogue.png';
+import { NPC_ART } from '../assets/livingTabletop';
 import { useClosingAnimation } from '../hooks/useClosingAnimation';
 import { DISPOSITIONS, type Disposition, type NpcRecord } from '../state/npc';
 import styles from './NpcMemoryGrid.module.css';
@@ -22,16 +15,7 @@ type NpcArchetype =
   | 'knight'
   | 'peasant';
 
-const ARCHETYPE_PORTRAIT: Record<NpcArchetype, string> = {
-  innkeeper: npcInnkeeper,
-  guard: npcGuard,
-  merchant: npcMerchant,
-  rogue: npcRogue,
-  mage: npcMage,
-  priestess: npcPriestess,
-  knight: npcKnight,
-  peasant: npcPeasant,
-};
+const ARCHETYPE_PORTRAIT: Record<NpcArchetype, string> = NPC_ART;
 
 const ARCHETYPE_ORDER: readonly NpcArchetype[] = [
   'innkeeper',

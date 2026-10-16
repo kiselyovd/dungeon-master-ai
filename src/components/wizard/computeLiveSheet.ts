@@ -101,18 +101,22 @@ interface MinimalCompendium {
     name_en: string;
     name_ru: string;
     skill_proficiencies: string[];
+    ability_score_options: string[];
   }>;
 }
 
 function finalAbilityScore(
   base: number,
   ability: keyof AbilityScores,
-  race: MinimalCompendium['races'][number] | null,
-  subrace: MinimalCompendium['races'][number]['subraces'][number] | null,
+  background: MinimalCompendium['backgrounds'][number] | null,
 ): number {
-  const raceBoost = race?.ability_score_increases[ability] ?? 0;
-  const subraceBoost = subrace?.additional_asi?.[ability] ?? 0;
-  return base + raceBoost + subraceBoost;
+  // SRD 5.2.1 assigns ability increases through the background, not species.
+  // Until the dedicated +2/+1 chooser lands, use the source order as a stable,
+  // legal default: +2 to the first listed ability and +1 to the second.
+  const options = background?.ability_score_options ?? [];
+  if (options[0] === ability) return base + 2;
+  if (options[1] === ability) return base + 1;
+  return base;
 }
 
 export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompendium): LiveSheet {
@@ -130,7 +134,7 @@ export function computeLiveSheet(draft: CharacterDraft, compendium: MinimalCompe
 
   const abilities: Record<keyof AbilityScores, LiveSheetAbilityRow> = {} as never;
   for (const k of ABILITY_KEYS) {
-    const finalScore = finalAbilityScore(draft.abilities[k], k, race, subrace);
+    const finalScore = finalAbilityScore(draft.abilities[k], k, bg);
     abilities[k] = { score: finalScore, mod: abilityMod(finalScore) };
   }
 

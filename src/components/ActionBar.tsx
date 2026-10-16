@@ -1,6 +1,5 @@
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { aggregateConditionEffects } from '../state/conditions';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 
@@ -10,11 +9,7 @@ interface Props {
   reactionUsed?: boolean;
   movementFt?: number;
   speedFt?: number;
-  /**
-   * Conditions on the active token. When provided, gates are derived from
-   * these (overrides the store lookup). [W1.5]
-   */
-  activeConditions?: string[] | undefined;
+  pending?: boolean;
   onAttack?: (() => void) | undefined;
   onCast?: (() => void) | undefined;
   onMove?: (() => void) | undefined;
@@ -56,7 +51,6 @@ export function ActionBar({
   reactionUsed: reactionUsedProp,
   movementFt: movementFtProp,
   speedFt: speedFtProp,
-  activeConditions: activeConditionsProp,
   onAttack,
   onCast,
   onMove,
@@ -66,6 +60,7 @@ export function ActionBar({
   onUseObject,
   onEndTurn,
   onIntent,
+  pending = false,
 }: Props) {
   const { t } = useTranslation('combat');
 
@@ -74,50 +69,27 @@ export function ActionBar({
   const storeReactionUsed = useStore((s) => s.combat.reactionUsed);
   const storeMovementRemaining = useStore((s) => s.combat.movementRemaining);
   const storeSpeedFt = useStore((s) => s.pc.speedFt);
-  const storeEndTurn = useStore((s) => s.combat.endTurn);
-  const storeUseAction = useStore((s) => s.combat.useAction);
-
-  // W1.5: derive active token conditions from store when not provided via prop.
-  const storeCurrentTurnId = useStore((s) => s.combat.currentTurnId);
-  const storeTokens = useStore((s) => s.combat.tokens);
-  const storeActiveToken = storeTokens.find((t) => t.id === storeCurrentTurnId);
-  const resolvedConditions = activeConditionsProp ?? storeActiveToken?.conditions ?? [];
-  const conditionGates = aggregateConditionEffects(resolvedConditions);
-
   const actionUsed = actionUsedProp ?? storeActionUsed;
   const bonusUsed = bonusUsedProp ?? storeBonusUsed;
   const reactionUsed = reactionUsedProp ?? storeReactionUsed;
   const movementFt = movementFtProp ?? storeMovementRemaining;
   const speedFt = speedFtProp ?? storeSpeedFt;
-  const resolvedEndTurn = onEndTurn ?? storeEndTurn;
+  const resolvedEndTurn = onEndTurn;
+  const reactionBlocked = reactionUsed;
 
-  // W1.5: when conditions prevent ALL actions, derive disabled/label states.
-  const turnSkipped = conditionGates.preventsActions;
-  // Reactions are blocked either by the reactionUsed flag or by conditions.
-  const reactionBlocked = reactionUsed || conditionGates.preventsReactions;
-
-  // An action button (when not explicitly overridden) consumes the action
-  // economy from the store and posts a localized intent to the DM agent. [F1]
+  // The server projection owns action economy. A click only emits a request.
   const actionHandler = (explicit: (() => void) | undefined, intentKey: string): (() => void) =>
-    explicit ??
-    (() => {
-      storeUseAction();
-      onIntent?.(t(intentKey));
-    });
+    explicit ?? (() => onIntent?.(t(intentKey)));
   // Move has no action-economy cost here (movement is consumed by token drag);
   // it just posts the intent when bare.
   const moveHandler = onMove ?? (() => onIntent?.(t('intent_move')));
 
   // Movement label: always show 0 when conditions lock movement.
-  const effectiveMovementFt = conditionGates.movementMultiplier === 0 ? 0 : movementFt;
+  const effectiveMovementFt = movementFt;
   const moveLabel = `${t('move')} (${t('movement_label', { remaining: effectiveMovementFt, total: speedFt })})`;
   const actionUsedTitle = t('action_used_tooltip');
-  const turnSkippedTitle = t('turn_skipped');
-
-  // W1.4/W1.5: action buttons disabled when: (a) action already used this turn,
-  // OR (b) conditions prevent actions (stunned/paralyzed/unconscious/etc.).
-  const actionDisabled = actionUsed || turnSkipped;
-  const actionTitle = turnSkipped ? turnSkippedTitle : actionUsed ? actionUsedTitle : undefined;
+  const actionDisabled = actionUsed || pending;
+  const actionTitle = actionUsed ? actionUsedTitle : undefined;
 
   const actions: ActionButton[] = [
     {
@@ -148,7 +120,7 @@ export function ActionBar({
       kbd: 'M',
       // Disabled when: no movement left, OR conditions lock movement, OR
       // conditions prevent all actions (incapacitated can't move either).
-      disabled: effectiveMovementFt === 0 || turnSkipped,
+      disabled: effectiveMovementFt === 0 || pending,
       onClick: moveHandler,
     },
     {
@@ -194,7 +166,7 @@ export function ActionBar({
       icon: <Icons.Hourglass size={20} />,
       kind: 'end',
       kbd: 'Enter',
-      disabled: resolvedEndTurn === undefined,
+      disabled: resolvedEndTurn === undefined || pending,
       onClick: resolvedEndTurn,
     },
   ];
@@ -202,20 +174,10 @@ export function ActionBar({
   return (
     <div className="dm-actionbar" role="toolbar" aria-label={t('action_bar')}>
       <div className="dm-actionbar-econ">
-        <EconChip label={t('action')} used={actionUsed || turnSkipped} />
+        <EconChip label={t('action')} used={actionUsed} />
         <EconChip label={t('bonus_action')} used={bonusUsed} />
         <EconChip label={t('reaction')} used={reactionBlocked} />
       </div>
-      {turnSkipped && (
-        <div
-          data-testid="action-bar-turn-skipped"
-          className="dm-actionbar-skipped"
-          role="status"
-          aria-live="polite"
-        >
-          {t('cant_act')}
-        </div>
-      )}
       <div className="dm-actionbar-buttons">
         {actions.map((a) => (
           <button

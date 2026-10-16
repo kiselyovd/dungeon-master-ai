@@ -1,7 +1,7 @@
 import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Language } from '../state/settings';
 import { useStore } from '../state/useStore';
+import { LanguageSegmentedControl } from '../ui/LanguageSegmentedControl';
 import type { PresetId, Step } from './onboarding/presets';
 import { computeSteps, DEFAULT_PRESET } from './onboarding/presets';
 import { ChatStep } from './onboarding/steps/ChatStep';
@@ -17,8 +17,8 @@ import { WelcomeStep } from './onboarding/steps/WelcomeStep';
  *
  * Mounted by `App.tsx` over the entire UI when `state.onboarding.completed`
  * is `false`. After the Hero step finalizes we flip the flag and dismount.
- * CharacterWizard is then mounted by App.tsx (condition: !pc.heroClass) to
- * let the user create their hero.
+ * Campaign routing decides whether the next screen is the campaign library or
+ * a campaign-scoped CharacterWizard.
  *
  * The step sequence is computed from `computeSteps(preset)` so optional steps
  * (image, video) are inserted or removed based on the user's preset choice.
@@ -36,14 +36,9 @@ interface OnboardingProps {
    * blocking PreflightModal). [E2]
    */
   onComplete?: (preset: PresetId) => void;
-  /**
-   * Called when the user chooses "Build from scratch" on the hero step.
-   * App.tsx uses this to open CharacterWizard in initial mode.
-   */
-  onExitToWizard?: () => void;
 }
 
-export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
+export function Onboarding({ onComplete }: OnboardingProps) {
   const { t } = useTranslation('onboarding');
   const { t: tCommon } = useTranslation('common');
   const titleId = useId();
@@ -75,12 +70,6 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
 
   const finalize = (): void => {
     completeOnboarding();
-    // "Build from scratch" leaves no hero class applied: open the full
-    // CharacterWizard so the user can build a custom character. Picking a class
-    // card sets pc.heroClass, so this is skipped for the preset path.
-    if (!useStore.getState().pc.heroClass) {
-      onExitToWizard?.();
-    }
     onComplete?.(preset);
   };
 
@@ -110,14 +99,20 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
         aria-labelledby={titleId}
         aria-label={t('dialog_label')}
       >
-        <LanguagePicker
-          value={uiLanguage}
-          onChange={setUiLanguage}
-          ariaLabel={tCommon('language')}
-        />
-
-        <div className="dm-onboarding-counter" aria-live="polite">
-          {counterText}
+        <div className="dm-onboarding-header">
+          <div className="dm-onboarding-heading-context">
+            <div className="dm-onboarding-counter" aria-live="polite">
+              {counterText}
+            </div>
+            <div className="dm-onboarding-current-step">{stepLabels[stepIndex]}</div>
+          </div>
+          <div className="dm-onboarding-lang">
+            <LanguageSegmentedControl
+              value={uiLanguage}
+              onChange={setUiLanguage}
+              ariaLabel={tCommon('language')}
+            />
+          </div>
         </div>
 
         <ol className="dm-onboarding-steps" aria-label={t('stepper_label')}>
@@ -165,43 +160,6 @@ export function Onboarding({ onComplete, onExitToWizard }: OnboardingProps) {
           {currentStep === 'hero' && <HeroStep titleId={titleId} onBack={back} onNext={next} />}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ---- LanguagePicker ----------------------------------------------------
-
-interface LanguagePickerProps {
-  value: Language;
-  onChange: (lang: Language) => void;
-  ariaLabel: string;
-}
-
-/**
- * Two-button toggle (EN / RU) sitting in the top-right of the onboarding card.
- * Visible on all steps so a brand-new user can flip language before
- * onboarding completes (Settings is reachable only afterwards). We deliberately
- * use the bare locale codes - flag emojis are politically charged for RU users.
- */
-function LanguagePicker({ value, onChange, ariaLabel }: LanguagePickerProps) {
-  const langs: readonly { code: Language; label: string }[] = [
-    { code: 'en', label: 'EN' },
-    { code: 'ru', label: 'RU' },
-  ];
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: <fieldset> would force a default border + legend layout that fights the pill-toggle styling; role="group" matches the WAI-ARIA Toolbar/Group pattern for inline controls
-    <div className="dm-onboarding-lang" role="group" aria-label={ariaLabel}>
-      {langs.map((l) => (
-        <button
-          key={l.code}
-          type="button"
-          className={`dm-onboarding-lang-btn${value === l.code ? ' is-active' : ''}`}
-          aria-pressed={value === l.code}
-          onClick={() => onChange(l.code)}
-        >
-          {l.label}
-        </button>
-      ))}
     </div>
   );
 }

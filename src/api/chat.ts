@@ -1,11 +1,20 @@
-import type { ChatMessage } from '../state/chat';
 import { backendUrl } from './client';
 import { ChatError, type ChatErrorCode } from './errors';
 import { safeParseDone, safeParseHttpError, safeParseStreamError, safeParseText } from './schemas';
 import { parseSseEvents } from './sse';
 
+export interface ChatTransportMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  parts?: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; mime: string; data_b64: string; name?: string | null }
+  >;
+}
+
 export interface StreamChatOptions {
-  messages: ChatMessage[];
+  messages: ChatTransportMessage[];
   model?: string;
   /** Optional session UUID; when provided, server persists user + assistant rows. */
   sessionId?: string;
@@ -20,7 +29,7 @@ export interface StreamChatOptions {
  * everything else uses the legacy `content` string shape (which the backend
  * accepts via dual-shape Deserialize).
  */
-export function toWireMessage(m: ChatMessage): Record<string, unknown> {
+export function toWireMessage(m: ChatTransportMessage): Record<string, unknown> {
   if (m.role === 'user' && m.parts && m.parts.some((p) => p.type === 'image')) {
     return { role: 'user', parts: m.parts };
   }
@@ -221,7 +230,7 @@ type BackendMessage =
  * shaped as the frontend's `ChatMessage` (with synthesized `id`s). Tool
  * results are filtered out - they belong in the tool log, not the chat.
  */
-export async function fetchSessionMessages(sessionId: string): Promise<ChatMessage[]> {
+export async function fetchSessionMessages(sessionId: string): Promise<ChatTransportMessage[]> {
   const url = await backendUrl(`/sessions/${encodeURIComponent(sessionId)}/messages`);
   const resp = await fetch(url);
   if (!resp.ok) {
@@ -230,7 +239,7 @@ export async function fetchSessionMessages(sessionId: string): Promise<ChatMessa
   const json = (await resp.json()) as { messages?: BackendMessage[] };
   const list = json.messages ?? [];
 
-  const out: ChatMessage[] = [];
+  const out: ChatTransportMessage[] = [];
   for (const m of list) {
     const id = newRowId();
     if (m.role === 'user') {

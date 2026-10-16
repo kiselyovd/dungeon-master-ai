@@ -6,22 +6,15 @@
  * imports; they live here now to avoid duplication.
  */
 
-import portraitCleric from '../assets/char-portrait-cleric.png';
-import portraitFighter from '../assets/char-portrait-fighter.png';
-import portraitPaladin from '../assets/char-portrait-paladin.png';
-import portraitRogue from '../assets/char-portrait-rogue.png';
-import portraitWizard from '../assets/char-portrait-wizard.png';
+import { HERO_ART } from '../assets/livingTabletop';
 import type { HeroClassId } from '../state/pc';
 
 /**
- * Map from hero class id (or 'paladin' for legacy compat) to the imported
- * portrait PNG data URL. CharacterSheet uses the 'paladin' key; the four
- * canonical onboarding classes are fighter / wizard / rogue / cleric.
+ * Map from hero class id (or 'paladin' for persisted legacy saves) to the
+ * living-tabletop portrait URL. Paladins use the fighter art until they become
+ * a selectable class with their own semantic asset.
  */
 export const HERO_PORTRAIT: Record<HeroClassId | 'paladin', string> = {
-  fighter: portraitFighter,
-  wizard: portraitWizard,
-  rogue: portraitRogue,
-  cleric: portraitCleric,
-  paladin: portraitPaladin,
+  ...HERO_ART,
+  paladin: HERO_ART.fighter,
 };

@@ -9,7 +9,7 @@ import type {
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import vttEmptyArt from '../assets/vtt-empty.png';
+import { KEY_ART } from '../assets/livingTabletop';
 import { useStore } from '../state/useStore';
 import { Icons } from '../ui/Icons';
 import { CombatOverlay } from './CombatOverlay';
@@ -22,6 +22,7 @@ interface Props {
   /** Optional override; when omitted the count is derived from the container height. */
   heightCells?: number;
   cellSize?: number;
+  onMoveToken?: (id: string, x: number, y: number) => void;
 }
 
 /** Floor for the Pixi viewport - never render at 0x0; everything else tracks the container. */
@@ -40,13 +41,13 @@ function deriveCells(containerPx: number, cellSize: number, override: number | u
   return Math.max(1, Math.floor(containerPx / cellSize));
 }
 
-export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
+export function VttCanvas({ widthCells, heightCells, cellSize = 30, onMoveToken }: Props) {
   const { t } = useTranslation('combat');
 
   const combatActive = useStore((s) => s.combat.active);
   const tokens = useStore((s) => s.combat.tokens);
-  const tryMoveToken = useStore((s) => s.combat.tryMoveToken);
   const currentTurnId = useStore((s) => s.combat.currentTurnId);
+  const combatRevision = useStore((s) => s.combat.revision);
   const aoeTemplates = useStore((s) => s.combat.aoeTemplates);
   const mapImageUrl = useStore((s) => s.session.mapImageUrl);
   const hasMap = mapImageUrl !== null;
@@ -329,7 +330,6 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
 
   return (
     <div className="dm-vtt" ref={containerRef} data-testid="dm-vtt">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: the canvas is a 2D map surface; wheel-zoom and drag-to-pan are pointer-only interactions with no keyboard analogue, and the toolbar buttons provide accessible zoom/fit controls */}
       <div
         className="dm-vtt-canvas"
         onWheel={onWheel}
@@ -373,8 +373,9 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
               zoom={zoom}
               widthCells={effectiveWidthCells}
               heightCells={effectiveHeightCells}
-              onMoveToken={tryMoveToken}
+              {...(onMoveToken ? { onMoveToken } : {})}
               currentTurnId={currentTurnId}
+              revision={combatRevision}
               aoeTemplates={aoeTemplates}
             />
           )}
@@ -434,8 +435,8 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
       </div>
 
       {isEmpty && (
-        <div className="dm-vtt-empty" aria-live="polite">
-          <img src={vttEmptyArt} alt="" className="dm-vtt-empty-art" />
+        <div className="dm-vtt-empty" aria-live="polite" data-art-direction="living-tabletop">
+          <img src={KEY_ART.vttEmpty} alt="" className="dm-vtt-empty-art" />
           <div className="dm-vtt-empty-title">{t('empty_map_title')}</div>
           <div className="dm-vtt-empty-text">{t('empty_map_text')}</div>
         </div>
@@ -480,6 +481,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           className={`dm-vtt-ctrl${showGrid ? ' is-active' : ''}`}
           title={t('map_toggle_grid')}
           aria-label={t('map_toggle_grid')}
+          aria-pressed={showGrid}
           onClick={() => setShowGrid((v) => !v)}
         >
           <Icons.GridIcon size={16} />
@@ -489,6 +491,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           className={`dm-vtt-ctrl${measureMode ? ' is-active' : ''}`}
           title={t('map_measure')}
           aria-label={t('map_measure')}
+          aria-pressed={measureMode}
           onClick={() => setMeasureMode((v) => !v)}
         >
           <Icons.Ruler size={16} />
@@ -499,6 +502,7 @@ export function VttCanvas({ widthCells, heightCells, cellSize = 30 }: Props) {
           title={t('map_layers')}
           aria-label={t('map_layers')}
           aria-expanded={layersOpen}
+          aria-pressed={layersOpen}
           onClick={() => setLayersOpen((v) => !v)}
         >
           <Icons.Layers size={16} />

@@ -4,20 +4,20 @@ on `unload()`, and produces PNG / MP4 bytes from a PromptParams."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Optional, Protocol, runtime_checkable
+from typing import ClassVar, Literal, Protocol, runtime_checkable
 
 
 @dataclass
 class PromptParams:
     text: str
-    negative: Optional[str] = None
-    seed: Optional[int] = None
-    steps: Optional[int] = None
-    guidance: Optional[float] = None
+    negative: str | None = None
+    seed: int | None = None
+    steps: int | None = None
+    guidance: float | None = None
     resolution: tuple[int, int] = (1024, 1024)
-    style_lora: Optional[str] = None
+    style_lora: str | None = None
     # video-only
-    frame_count: Optional[int] = None
+    frame_count: int | None = None
 
 
 @runtime_checkable

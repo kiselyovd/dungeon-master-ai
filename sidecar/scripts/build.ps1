@@ -1,6 +1,6 @@
 # Build dmai-image-sidecar for the current Windows host. Output lands in
-# src-tauri/binaries/python_sidecar_x86_64-pc-windows-msvc/ so Tauri's
-# externalBin picks it up automatically.
+# src-tauri/binaries/dmai-image-sidecar-<target>.exe using Tauri's externalBin
+# naming convention.
 
 param(
     [string]$Target = 'x86_64-pc-windows-msvc'
@@ -13,9 +13,13 @@ Push-Location $Root
 try {
     pip install pyinstaller==6.10
     pyinstaller --noconfirm --clean build_spec.spec
-    $Dest = Join-Path $Root "../src-tauri/binaries/python_sidecar_$Target"
-    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-    Copy-Item -Recurse -Force "dist/dmai-image-sidecar/*" $Dest
+    $BinDir = Join-Path $Root "../src-tauri/binaries"
+    New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+    $Extension = if ($Target -like '*windows*') { '.exe' } else { '' }
+    $Source = Join-Path $Root "dist/dmai-image-sidecar$Extension"
+    $Dest = Join-Path $BinDir "dmai-image-sidecar-$Target$Extension"
+    Copy-Item -LiteralPath $Source -Destination $Dest -Force
+    Write-Host "Staged $Dest"
 } finally {
     Pop-Location
 }

@@ -5,9 +5,7 @@ import { useStore } from '../state/useStore';
 /**
  * Mount-time hook that:
  *
- * 1. Lazily mints `(activeCampaignId, activeSessionId)` if neither is set
- *    (first launch).
- * 2. Pulls the persisted chat history for the active session via
+ * Pulls the persisted chat history for the explicitly active session via
  *    `GET /sessions/{id}/messages` and seeds the chat slice so the UI
  *    rehydrates after a restart (M4.5 release-checklist line 54).
  *
@@ -21,13 +19,18 @@ export interface UseSessionReturn {
 }
 
 export function useSession(): UseSessionReturn {
-  const ensureSession = useStore((s) => s.session.ensureSession);
+  const currentSession = useStore((s) => s.session.current);
   const setMessages = useStore((s) => s.chat.setMessages);
   const setLoadError = useStore((s) => s.session.setLoadError);
 
   const load = useCallback(
     (signal?: AbortSignal): Promise<void> => {
-      const { sessionId } = ensureSession();
+      const active = currentSession();
+      if (active === null) {
+        setLoadError('campaign_required');
+        return Promise.resolve();
+      }
+      const { sessionId } = active;
       return fetchSessionMessages(sessionId)
         .then((messages) => {
           if (signal?.aborted) return;
@@ -40,7 +43,7 @@ export function useSession(): UseSessionReturn {
           setLoadError(message);
         });
     },
-    [ensureSession, setMessages, setLoadError],
+    [currentSession, setMessages, setLoadError],
   );
 
   useEffect(() => {

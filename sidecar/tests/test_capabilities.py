@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backends._capabilities import InsufficientVramError, assert_vram_free  # noqa: E402
+from backends._capabilities import InsufficientVramError, assert_vram_free
 
 
 def test_assert_vram_free_passes_when_enough():
@@ -26,6 +26,8 @@ def test_assert_vram_free_raises_when_short():
 
 
 def test_assert_vram_free_no_cuda_raises_runtime_error():
-    with patch("backends._capabilities._mem_get_info", side_effect=RuntimeError("no cuda")):
-        with pytest.raises(RuntimeError, match="no cuda"):
-            assert_vram_free(1)
+    with (
+        patch("backends._capabilities._mem_get_info", side_effect=RuntimeError("no cuda")),
+        pytest.raises(RuntimeError, match="no cuda"),
+    ):
+        assert_vram_free(1)

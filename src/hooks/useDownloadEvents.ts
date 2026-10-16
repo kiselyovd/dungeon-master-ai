@@ -11,10 +11,11 @@ import { useEffect } from 'react';
 import { subscribeDownloadEvents } from '../api/localLlm';
 import { useLocalLlmStore } from '../state/localLlm';
 
-export function useDownloadEvents(): void {
+export function useDownloadEvents(enabled = true): void {
   const applyDownloadEvent = useLocalLlmStore((s) => s.applyDownloadEvent);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancel: (() => void) | undefined;
     let unmounted = false;
 
@@ -41,5 +42,5 @@ export function useDownloadEvents(): void {
     // applyDownloadEvent is a Zustand store method and is a stable reference
     // across renders; listing it here satisfies the exhaustive-deps rule without
     // causing re-subscription churn.
-  }, [applyDownloadEvent]);
+  }, [applyDownloadEvent, enabled]);
 }

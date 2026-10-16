@@ -7,8 +7,8 @@ users don't switch presets per request.
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
-from typing import Optional
 
 from backends import GenerationBackend, PromptParams
 from backends.ltx_video import LtxVideoBackend
@@ -21,10 +21,14 @@ from backends.z_image_turbo import ZImageTurboBackend
 class PipelineDispatcher:
     def __init__(self, backends: dict[str, GenerationBackend]) -> None:
         self.backends = backends
-        self.loaded: Optional[str] = None
+        self.loaded: str | None = None
+        # Every pipeline load/unload/generate operation is GPU-exclusive. The
+        # HTTP server can dispatch sync endpoints on multiple worker threads,
+        # so an explicit lock is required even with one process and one GPU.
+        self._gpu_lock = threading.RLock()
 
     @classmethod
-    def production(cls, weights_dir: Optional[Path] = None) -> "PipelineDispatcher":
+    def production(cls, weights_dir: Path | None = None) -> PipelineDispatcher:
         return cls({
             "fast": SdxlTurboBackend(weights_dir),
             "balanced": SdxlLightningBackend(weights_dir),
@@ -34,16 +38,23 @@ class PipelineDispatcher:
         })
 
     @classmethod
-    def test_instance(cls) -> "PipelineDispatcher":
+    def test_instance(cls) -> PipelineDispatcher:
         """Empty dispatcher; tests inject stub backends via `d.backends[id] = ...`."""
         return cls({})
 
     def generate(self, backend_id: str, params: PromptParams) -> bytes:
-        if backend_id not in self.backends:
-            raise KeyError(f"unknown backend: {backend_id}")
-        if self.loaded != backend_id:
+        with self._gpu_lock:
+            if backend_id not in self.backends:
+                raise KeyError(f"unknown backend: {backend_id}")
+            if self.loaded != backend_id:
+                if self.loaded is not None:
+                    self.backends[self.loaded].unload()
+                self.backends[backend_id].load()
+                self.loaded = backend_id
+            return self.backends[backend_id].generate(params)
+
+    def unload(self) -> None:
+        with self._gpu_lock:
             if self.loaded is not None:
                 self.backends[self.loaded].unload()
-            self.backends[backend_id].load()
-            self.loaded = backend_id
-        return self.backends[backend_id].generate(params)
+                self.loaded = None

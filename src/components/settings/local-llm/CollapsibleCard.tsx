@@ -1,9 +1,11 @@
 import { type ReactNode, useState } from 'react';
+import { Icons } from '../../../ui/Icons';
 
 import styles from './CollapsibleCard.module.css';
 
 export interface CollapsibleCardProps {
   title: string;
+  icon?: ReactNode;
   chip?: string;
   defaultOpen?: boolean;
   children: ReactNode;
@@ -11,6 +13,7 @@ export interface CollapsibleCardProps {
 
 export function CollapsibleCard({
   title,
+  icon,
   chip,
   defaultOpen = false,
   children,
@@ -25,11 +28,14 @@ export function CollapsibleCard({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
+        {icon && (
+          <span aria-hidden className={styles.icon}>
+            {icon}
+          </span>
+        )}
         <span className={styles.title}>{title}</span>
         {chip && <span className={styles.chip}>{chip}</span>}
-        <span aria-hidden className={styles.chevron}>
-          {open ? 'v' : '>'}
-        </span>
+        <Icons.ChevronDown aria-hidden className={styles.chevron ?? ''} size={16} />
       </button>
       {open && <div className={styles.body}>{children}</div>}
     </section>

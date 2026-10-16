@@ -4,6 +4,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import { KEY_ART } from '../../../assets/livingTabletop';
 import { Icons } from '../../../ui/Icons';
 
 export interface WelcomeStepProps {
@@ -16,6 +17,10 @@ export function WelcomeStep({ titleId, onNext }: WelcomeStepProps) {
 
   return (
     <>
+      <div className="dm-onboarding-hero" data-art-direction="living-tabletop">
+        <img src={KEY_ART.onboarding} alt="" data-testid="onboarding-hero-art" />
+        <span className="dm-ambient-light" aria-hidden="true" />
+      </div>
       <div className="dm-onboarding-glyph-row">
         <div className="dm-app-mark-glyph dm-onboarding-glyph-lg">
           <Icons.D20 size={32} />

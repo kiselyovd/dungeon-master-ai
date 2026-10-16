@@ -5,19 +5,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import tokenCleric from '../assets/token-cleric.png';
-import tokenFighter from '../assets/token-fighter.png';
-import tokenRogue from '../assets/token-rogue.png';
-import tokenWizard from '../assets/token-wizard.png';
+import { TOKEN_ART } from '../assets/livingTabletop';
 import type { CombatToken as TokenData } from '../state/combat';
 import { useStore } from '../state/useStore';
 
-const CLASS_TOKEN: Record<string, string> = {
-  fighter: tokenFighter,
-  wizard: tokenWizard,
-  rogue: tokenRogue,
-  cleric: tokenCleric,
-};
+const CLASS_TOKEN: Partial<Record<string, string>> = TOKEN_ART;
 
 interface Props {
   token: TokenData;

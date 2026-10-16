@@ -32,6 +32,13 @@ const Base = ({ children, size = 16, strokeWidth = 1.6, className, style, ...res
 );
 
 export const Icons = {
+  Crest: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 2.5l7 2.7v6.2c0 4.3-2.7 7.8-7 10.1c-4.3-2.3-7-5.8-7-10.1V5.2z" />
+      <path d="M12 6l4 2.3v4.8L12 16l-4-2.9V8.3z" />
+      <path d="M12 6v10M8 8.3l8 4.8M16 8.3l-8 4.8" />
+    </Base>
+  ),
   Sword: (p: IconProps) => (
     <Base {...p}>
       <path d="M14.5 17.5L4 21l3.5-10.5" />

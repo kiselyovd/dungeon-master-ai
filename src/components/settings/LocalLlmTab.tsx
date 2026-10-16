@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { startLocalRuntimes, stopLocalRuntimes } from '../../api/localRuntime';
+import {
+  persistLocalModeConfig,
+  startLocalRuntimes,
+  stopLocalRuntimes,
+} from '../../api/localRuntime';
 import { useLocalRuntimeStatus } from '../../hooks/useLocalRuntimeStatus';
 import { useModelDownload } from '../../hooks/useModelDownload';
 import type { ModelId, VramStrategy } from '../../state/localMode';
 import { useStore } from '../../state/useStore';
+import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
+import { Icons } from '../../ui/Icons';
+import { Select } from '../../ui/Select';
 import { ModelDownloadCard } from '../ModelDownloadCard';
 import { RuntimeStatusPill } from '../RuntimeStatusPill';
 import styles from '../SettingsForm.module.css';
@@ -94,6 +101,10 @@ export function LocalLlmTab() {
     setStartStatus('pending');
     setStartError(null);
     try {
+      await persistLocalModeConfig({
+        selected_llm: lm.selectedLlm,
+        vram_strategy: lm.vramStrategy,
+      });
       await startLocalRuntimes();
       setStartStatus('idle');
     } catch (e) {
@@ -104,7 +115,7 @@ export function LocalLlmTab() {
         startResetRef.current = null;
       }, RUNTIME_RESET_DELAY_MS);
     }
-  }, [clearStartReset]);
+  }, [clearStartReset, lm.selectedLlm, lm.vramStrategy]);
 
   const handleStop = useCallback(async () => {
     clearStopReset();
@@ -149,47 +160,49 @@ export function LocalLlmTab() {
 
       <Field label={tLocal('vram_strategy')}>
         {({ id }) => (
-          <select
+          <Select
             id={id}
             value={lm.vramStrategy}
-            onChange={(e) => lm.setVramStrategy(e.target.value as VramStrategy)}
-            className={styles.fullWidth}
-          >
-            <option value="auto-swap">{tLocal('strategy_auto_swap')}</option>
-            <option value="keep-both-loaded">{tLocal('strategy_keep_both')}</option>
-            <option value="disable-image-gen">{tLocal('strategy_disable_image')}</option>
-          </select>
+            onChange={(value) => lm.setVramStrategy(value as VramStrategy)}
+            ariaLabel={tLocal('vram_strategy')}
+            options={[
+              { value: 'auto-swap', label: tLocal('strategy_auto_swap') },
+              { value: 'keep-both-loaded', label: tLocal('strategy_keep_both') },
+              { value: 'disable-image-gen', label: tLocal('strategy_disable_image') },
+            ]}
+          />
         )}
       </Field>
 
       <h3 className={styles.localHeading}>{t('local_runtime_section')}</h3>
       <div className={styles.localRuntimeRow}>
-        <button
-          type="button"
+        <Button
+          variant="primary"
           disabled={startStatus === 'pending'}
           data-status={startStatus}
           onClick={() => {
             void handleStart();
           }}
         >
+          <Icons.Sparkle size={16} />
           {startStatus === 'pending' ? tLocal('runtime_starting') : tLocal('start_runtimes')}
-        </button>
+        </Button>
         {startStatus === 'error' && (
           <span role="alert" className={styles.localErrorChip} title={startError ?? undefined}>
             {tLocal('runtime_start_error')}
             {startError ? `: ${startError}` : ''}
           </span>
         )}
-        <button
-          type="button"
+        <Button
           disabled={stopStatus === 'pending'}
           data-status={stopStatus}
           onClick={() => {
             void handleStop();
           }}
         >
+          <Icons.Stop size={15} />
           {stopStatus === 'pending' ? tLocal('runtime_stopping') : tLocal('stop_runtimes')}
-        </button>
+        </Button>
         {stopStatus === 'error' && (
           <span role="alert" className={styles.localErrorChip}>
             {tLocal('runtime_stop_error')}

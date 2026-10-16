@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type CampaignsSlice, createCampaignsSlice } from './campaigns';
 import { type CharCreationSlice, createCharCreationSlice } from './charCreation';
 import { type ChatSlice, createChatSlice } from './chat';
 import { type CombatSlice, createCombatSlice } from './combat';
@@ -9,6 +10,7 @@ import { createNpcSlice, type NpcSlice } from './npc';
 import { createOnboardingSlice, type OnboardingSlice } from './onboarding';
 import { createPcSlice, type PcSlice } from './pc';
 import { type PersistedSettings, persistStorage } from './persistStorage';
+import { createRestorationSlice, type RestorationSlice } from './restoration';
 import { createSavesSlice, type SavesSlice } from './saves';
 import { createSessionSlice, type SessionSlice } from './session';
 import {
@@ -30,7 +32,9 @@ export type AppState = ChatSlice &
   OnboardingSlice &
   PcSlice &
   SavesSlice &
-  CharCreationSlice;
+  RestorationSlice &
+  CharCreationSlice &
+  CampaignsSlice;
 
 const PERSIST_NAME = 'dungeon-master-ai';
 
@@ -48,7 +52,9 @@ export const useStore = create<AppState>()(
       ...createOnboardingSlice(...a),
       ...createPcSlice(...a),
       ...createSavesSlice(...a),
+      ...createRestorationSlice(...a),
       ...createCharCreationSlice(...a),
+      ...createCampaignsSlice(...a),
     }),
     {
       name: PERSIST_NAME,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatError } from '../errors';
-import { fetchCompendium, resetSrdCacheForTests } from '../srd';
+import { CURRENT_RULESET_ID, fetchCompendium, resetSrdCacheForTests } from '../srd';
 
 vi.mock('../client', () => ({
   backendUrl: vi.fn(async (path: string) => `http://test.local${path}`),
@@ -10,6 +10,8 @@ const fixtures: Record<string, unknown> = {
   '/srd/races': [
     {
       id: 'dwarf',
+      ruleset_id: CURRENT_RULESET_ID,
+      name_key: 'catalog.species.dwarf',
       name_en: 'Dwarf',
       name_ru: 'Дварф',
       ability_score_increases: { con: 2 },
@@ -22,7 +24,8 @@ const fixtures: Record<string, unknown> = {
       traits: [],
       subraces: [],
       source_url: 'https://example.test/',
-      srd_section: 'SRD 5.1',
+      source_page: 84,
+      srd_section: 'Character Origins / Dwarf',
     },
   ],
   '/srd/classes': [],
@@ -30,6 +33,8 @@ const fixtures: Record<string, unknown> = {
   '/srd/spells': [
     {
       id: 'fire-bolt',
+      ruleset_id: CURRENT_RULESET_ID,
+      name_key: 'catalog.spells.fire-bolt',
       name_en: 'Fire Bolt',
       name_ru: 'Огненный снаряд',
       level: 0,
@@ -44,7 +49,8 @@ const fixtures: Record<string, unknown> = {
       description_en: 'x',
       description_ru: 'ы',
       source_url: 'https://example.test/',
-      srd_section: 'SRD 5.1',
+      source_page: 110,
+      srd_section: 'Spells / Fire Bolt',
     },
   ],
   '/srd/equipment': { weapons: [], armor: [], adventuring_gear: [] },
@@ -79,6 +85,7 @@ afterEach(() => {
 describe('fetchCompendium', () => {
   it('fans out across all seven endpoints and parses each response', async () => {
     const c = await fetchCompendium();
+    expect(c.rulesetId).toBe(CURRENT_RULESET_ID);
     expect(c.races).toHaveLength(1);
     expect(c.races[0]?.id).toBe('dwarf');
     expect(c.spells[0]?.id).toBe('fire-bolt');
@@ -100,6 +107,14 @@ describe('fetchCompendium', () => {
       vi.fn(async () => new Response('', { status: 500 })),
     );
     await expect(fetchCompendium()).rejects.toBeInstanceOf(ChatError);
+  });
+
+  it('rejects a catalog entry from another ruleset', async () => {
+    const original = fixtures['/srd/races'];
+    const first = (original as Array<Record<string, unknown>>)[0] ?? {};
+    fixtures['/srd/races'] = [{ ...first, ruleset_id: 'srd-5.1' }];
+    await expect(fetchCompendium()).rejects.toMatchObject({ code: 'invalid_response' });
+    fixtures['/srd/races'] = original;
   });
 
   it('clears the cache on failure so a retry re-fetches (E5)', async () => {

@@ -1,0 +1,29 @@
+[package]
+name = "app-bootstrap"
+version = "0.12.1"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "app-server"
+path = "src/main.rs"
+
+[dependencies]
+adapter-http = { workspace = true }
+adapter-llm = { workspace = true }
+adapter-media = { workspace = true }
+adapter-secrets = { workspace = true }
+adapter-sqlite = { workspace = true }
+app-application = { workspace = true }
+app-domain = { workspace = true }
+app-llm = { path = "../app-llm" }
+app-server = { path = "../app-server" }
+anyhow = { workspace = true }
+axum = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

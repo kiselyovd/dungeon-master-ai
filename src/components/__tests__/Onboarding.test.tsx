@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import '../../i18n';
+import i18n from '../../i18n';
 import { useStore } from '../../state/useStore';
 import { Onboarding } from '../Onboarding';
 
@@ -27,8 +27,9 @@ import { Onboarding } from '../Onboarding';
 describe('Onboarding', () => {
   const originalFetch = globalThis.fetch;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     useStore.setState(useStore.getInitialState());
+    await i18n.changeLanguage('en');
     globalThis.fetch = vi.fn(
       async () =>
         new Response(JSON.stringify({ kind: 'anthropic', model: 'claude-haiku-4-5-20251001' }), {
@@ -79,6 +80,16 @@ describe('Onboarding', () => {
 
     // After advancing to preset step - should now show Step 2 of 5.
     expect(screen.getByText(/Step 2 of 5/i)).toBeInTheDocument();
+  });
+
+  it('pairs the compact counter with the current step in a dedicated header', () => {
+    const { container } = render(<Onboarding />);
+
+    const header = container.querySelector('.dm-onboarding-header');
+    expect(header).toBeInTheDocument();
+    expect(header?.querySelector('.dm-onboarding-counter')).toHaveTextContent(/Step 1 of 5/i);
+    expect(header?.querySelector('.dm-onboarding-current-step')).toHaveTextContent('Welcome');
+    expect(within(header as HTMLElement).getByRole('group')).toBeInTheDocument();
   });
 
   // ------------------------------------------------------------------
@@ -136,16 +147,16 @@ describe('Onboarding', () => {
     const user = userEvent.setup();
     render(<Onboarding />);
 
-    expect(useStore.getState().settings.uiLanguage).toBe('en');
-
-    const ruButton = screen.getByRole('button', { name: 'RU' });
-    expect(ruButton).toHaveAttribute('aria-pressed', 'false');
-
-    await user.click(ruButton);
-
     expect(useStore.getState().settings.uiLanguage).toBe('ru');
-    expect(screen.getByRole('button', { name: 'RU' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'false');
+
+    const ruButton = screen.getByRole('button', { name: 'РУ' });
+    expect(ruButton).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'EN' }));
+
+    expect(useStore.getState().settings.uiLanguage).toBe('en');
+    expect(screen.getByRole('button', { name: 'РУ' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   // ------------------------------------------------------------------

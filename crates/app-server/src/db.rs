@@ -13,8 +13,7 @@ pub struct SnapshotRow {
 
 /// Run SQLx migrations from the embedded `migrations/` directory.
 pub async fn init_db(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    sqlx::migrate!("./migrations").run(pool).await?;
-    Ok(())
+    adapter_sqlite::pool::migrate(pool).await
 }
 
 /// Insert a new snapshot row. Returns the new snapshot UUID.

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use app_domain::combat::combatant::Combatant;
 use app_domain::combat::initiative::{InitiativeEntry, InitiativeOrder};
 use app_domain::combat::resolver::{CombatAction, CombatResolver, ValidationError};
-use app_domain::combat::types::{CombatantId, DamageType};
+use app_domain::combat::types::{CombatantId, DamageType, Position};
 use app_domain::dice::DiceExpr;
 use app_domain::rng::SeededRng;
 
@@ -121,4 +121,43 @@ fn successful_attack_produces_result_events() {
     // May produce either a hit with damage or a critical miss (natural 1)
     // With +8 mod the vast majority will be hits - just check no panic.
     let _ = events;
+}
+
+#[test]
+fn move_updates_position_and_budget_only_after_resolution() {
+    let (a_id, _b_id, mut resolver) = two_combatants();
+    let events = resolver
+        .resolve(CombatAction::Move {
+            combatant: a_id,
+            to: Position { x: 2, y: 1 },
+        })
+        .expect("move within the authoritative budget");
+    let actor = &resolver.combatants[&a_id];
+    assert_eq!(actor.position, Position { x: 2, y: 1 });
+    assert_eq!(actor.budget.movement_ft, 20);
+    assert_eq!(events.movement[0].feet_used, 10);
+}
+
+#[test]
+fn rejected_move_leaves_position_and_budget_unchanged() {
+    let (a_id, _b_id, mut resolver) = two_combatants();
+    let result = resolver.resolve(CombatAction::Move {
+        combatant: a_id,
+        to: Position { x: 7, y: 0 },
+    });
+    assert!(matches!(result, Err(ValidationError::ActionEconomy(_))));
+    let actor = &resolver.combatants[&a_id];
+    assert_eq!(actor.position, Position::default());
+    assert_eq!(actor.budget.movement_ft, 30);
+}
+
+#[test]
+fn end_turn_advances_order_and_refreshes_next_actor() {
+    let (a_id, b_id, mut resolver) = two_combatants();
+    resolver.combatants.get_mut(&b_id).unwrap().budget.action = false;
+    resolver
+        .resolve(CombatAction::EndTurn { combatant: a_id })
+        .expect("active actor may end turn");
+    assert_eq!(resolver.order.current().id, b_id);
+    assert!(resolver.combatants[&b_id].budget.action);
 }

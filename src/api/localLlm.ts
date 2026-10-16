@@ -6,8 +6,24 @@
  * (snake_case) + `crates/app-server/src/routes/local_llm.rs` (download_states).
  */
 
-import type { SystemEntry, UserEntry } from '../state/local_llm/manifest';
 import { backendUrl } from './client';
+import { discardResponseBody } from './response';
+
+export interface SystemEntry {
+  id: string;
+  hf_repo: string;
+  hf_filename: string;
+  arch: string;
+  quant: string;
+  size_gb: number;
+  license: string;
+  display_name: string;
+}
+
+export interface UserEntry extends SystemEntry {
+  added_at: string;
+  source: 'hf-search';
+}
 
 export interface DownloadStateWire {
   state: string;
@@ -56,6 +72,7 @@ export async function setActiveLocalModel(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`POST /local-llm/active-model HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /** POST /local-llm/download/:model_id - initiates a background download (202). */
@@ -65,6 +82,7 @@ export async function startModelDownload(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`POST /local-llm/download/${id} HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /** DELETE /local-llm/model/:model_id - cancels in-progress or removes installed (204). */
@@ -74,6 +92,7 @@ export async function cancelOrDeleteModel(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`DELETE /local-llm/model/${id} HTTP ${res.status}`);
   }
+  await discardResponseBody(res);
 }
 
 /**

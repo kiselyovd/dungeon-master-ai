@@ -1,6 +1,14 @@
-//! Hugging Face integration: search, license gating, user manifest add/remove.
+//! Temporary compatibility facade for Hugging Face adapters.
 
-pub mod client;
-pub mod compat;
-pub mod manifest;
-pub mod types;
+pub mod client {
+    pub use adapter_media::hf::client::*;
+}
+pub mod compat {
+    pub use adapter_media::hf::compat::*;
+}
+pub mod manifest {
+    pub use adapter_media::hf::manifest::*;
+}
+pub mod types {
+    pub use adapter_media::hf::types::*;
+}

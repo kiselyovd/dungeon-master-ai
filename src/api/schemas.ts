@@ -124,6 +124,8 @@ export const ImageGeneratedSchema = v.object({
   mime_type: v.string(),
   image_b64: v.string(),
   kind: v.optional(v.picklist(['map', 'chat'])),
+  source: v.optional(v.picklist(['generated', 'bundled'])),
+  asset_id: v.optional(v.string()),
 });
 
 export type ImageGeneratedPayload = v.InferOutput<typeof ImageGeneratedSchema>;

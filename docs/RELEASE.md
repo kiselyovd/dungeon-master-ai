@@ -1,54 +1,73 @@
 # Release pipeline
 
-Tag a `v*` ref and the `.github/workflows/release.yml` workflow takes over: it matrix-builds the four supported targets, signs Windows binaries, notarizes the macOS .app, generates `latest.json`, and publishes a GitHub Release.
+This guide describes the current cloud-first release path and the separate local-runtime artifacts. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the operator checklist and [../ARCHITECTURE.md](../ARCHITECTURE.md) for runtime ownership.
 
-## Required secrets
+## Supported CI matrix
 
-Set these in `Settings -> Secrets and variables -> Actions`:
+Normal cloud bundle and tagged release workflows build three targets:
 
-| Secret | Source | Notes |
-|---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | `tauri signer generate` | Base64 of the `.key` file. See `tauri.conf.json -> plugins.updater.pubkey` for the matching public key. |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | passphrase you typed when generating the key | |
-| `APPLE_API_KEY` | App Store Connect API key | `.p8` contents, base64-encoded |
-| `APPLE_API_ISSUER` | App Store Connect API key | issuer UUID |
-| `APPLE_API_KEY_ID` | App Store Connect API key | 10-character key ID |
-| `APPLE_TEAM_ID` | Apple Developer | 10-character team ID |
-| `WINDOWS_CERT_BASE64` | code-signing cert | base64 of the `.pfx` (EV cert preferred; self-signed works for early betas) |
-| `WINDOWS_CERT_PASSWORD` | code-signing cert | `.pfx` password |
+- Windows x64: `x86_64-pc-windows-msvc`
+- macOS Apple Silicon: `aarch64-apple-darwin`
+- Linux x64: `x86_64-unknown-linux-gnu`
 
-## First-time keypair generation (run locally, ONCE)
+Intel macOS is not in the current matrix. The cloud flavor packages the Tauri shell and `dmai-server` only. Local model/media binaries are produced by manual prebuild workflows and are not implied by a green cloud bundle.
+
+## Required release secrets
+
+| Secret | Purpose |
+| --- | --- |
+| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater signature key |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Updater key passphrase |
+| `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_ID`, `APPLE_TEAM_ID` | Optional macOS notarization |
+| `WINDOWS_CERT_BASE64`, `WINDOWS_CERT_PASSWORD` | Optional Windows Authenticode signing |
+
+Generate the updater key once and keep the private material outside the repository:
 
 ```pwsh
 bun tauri signer generate -w "$env:USERPROFILE/.dmai/updater-key"
 ```
 
-The command prints the public key. Paste it into `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. The private key stays on disk and is uploaded to the GitHub repo as the `TAURI_SIGNING_PRIVATE_KEY` secret (base64-encoded).
+Never commit private keys, vault passphrases, provider credentials, or runtime-control tokens.
 
-**Never commit the private key.**
+## Tagged release
 
-## What the workflow does (cloud-only first-GA path)
+A pushed `v*` tag triggers `.github/workflows/release.yml`:
 
-1. Matrix-builds for `x86_64-pc-windows-msvc`, `aarch64-apple-darwin`, `x86_64-apple-darwin`, and `x86_64-unknown-linux-gnu`.
-2. Runs `bun run tauri:build:cloud` (cloud-only flavor) so the bundle contains the Tauri shell + the dmai-server backend + the auto-updater plugin signature.
-3. Optional: signs Windows binaries via `signtool` if `WINDOWS_CERT_BASE64` is set; otherwise skips with no error.
-4. Optional: notarizes the macOS .app via `notarytool` if `APPLE_API_KEY` is set; otherwise skips.
-5. The `publish` job runs `scripts/build_latest_json.ts` to produce the updater manifest, then `gh release create` uploads all artifacts plus `latest.json`.
+1. Each matrix runner executes `bun run tauri:build:cloud`.
+2. Windows signing and macOS notarization run only when their secrets are present.
+3. Bundles are uploaded as workflow artifacts.
+4. The publish job builds `latest.json` and uses `gh release create` to publish the GitHub Release.
 
-## Local Mode: mistralrs sidecar (built from source) + Python SDXL sidecar (deferred)
+Publishing is a state-changing external operation. Do not push a tag or create a release without explicit authorization.
 
-Upstream `EricLBuehler/mistral.rs` ships source-only releases (no prebuilt server binaries), so `mistralrs-server` is built from source:
+## Local runtime artifacts
 
-- `scripts/build_mistralrs.{sh,ps1}` clone `EricLBuehler/mistral.rs` at the pinned `MISTRALRS_TAG` and `cargo build --release` the `mistralrs-server` crate, staging the binary under `src-tauri/binaries/`. CPU-only by default; pass `--cuda` (bash) or `-Cuda` (PowerShell) for a GPU build on a machine with the CUDA toolkit installed.
-- The `prebuild-sidecars.yml` workflow (manual `workflow_dispatch`) runs the CPU-only build for all four targets and uploads the binaries as artifacts. A CUDA CI build is intentionally out of scope - GitHub-hosted runners have no GPU; GPU users run the script locally with `--cuda`.
-- For local `cargo test` / `tauri dev` without a staged binary, `build.rs` lays down an empty placeholder so the externalBin check passes. A release `tauri build` with no real binary now emits a loud `cargo:warning` instead of silently shipping a non-functional Local Mode.
+Tauri is the only runtime process owner. A local bundle declares `dmai-server`, `mistralrs-server`, and `dmai-image-sidecar`; the cloud override declares only `dmai-server`.
 
-The Python SDXL image sidecar is still deferred: it pulls torch + diffusers (~5 GB) and PyInstaller bundling would balloon CI time. It returns in Batch C of M11.
+- `.github/workflows/prebuild-sidecars.yml` builds CPU mistralrs `v0.8.3` for the three supported targets.
+- `.github/workflows/prebuild-python-sidecar.yml` builds the Python 3.12 PyInstaller media sidecar for the same targets.
+- `scripts/build_mistralrs.sh` and `.ps1` stage `mistralrs-server-<target>`.
+- `sidecar/scripts/build.sh` and `.ps1` stage `dmai-image-sidecar-<target>`.
 
-## Open issue: Windows EV certificate provisioning
+GPU builds remain local because hosted runners do not provide the required GPU toolchain. Before a local release build, verify that all target-suffixed binaries are real executables. Debug placeholders are not release artifacts; non-cloud release builds fail when required binaries are missing.
 
-Spec section 10 #8 is unresolved: until an EV cert lands in the secret `WINDOWS_CERT_BASE64`, the workflow uses whatever (self-signed) cert is provided. Self-signed installers trigger SmartScreen "Unrecognized app" warnings; an EV cert removes them.
+## Verification layers
 
-## Open issue: macOS notarization re-signing of CPython _internal/
+Run and report these independently:
 
-PyInstaller bundles include CPython dylibs under `_internal/` that notarization wants codesigned. The current workflow does not re-sign each dylib individually; on the first real release run we may need to add a `codesign --force --deep --options runtime --timestamp ...` pass before `notarytool submit`. Track in spec section 10 #3.
+```bash
+bun run architecture:check
+bun run gates
+bun run e2e
+bun run e2e:tauri
+bun run tauri:build:cloud
+python -m ruff check sidecar
+python -m pytest sidecar/tests -q
+```
+
+Also run `bun scripts/tauri-cdp-play.ts` only when the real local runtime and models are staged. That live-model flow is non-deterministic and does not replace deterministic browser or Tauri smoke coverage.
+
+## Current signing limitations
+
+- Without a trusted Windows certificate, SmartScreen may show an unrecognized publisher warning.
+- macOS PyInstaller dylibs may require an additional deep-sign pass before notarization on the first production local-runtime release.

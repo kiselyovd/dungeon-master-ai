@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { ImageSource } from '../api/contracts/agent';
 
 export interface ToolLogEntry {
   id: string;
@@ -17,6 +18,8 @@ export interface ToolLogEntry {
   imageDataUrl?: string;
   /** Routing kind of the attached image. */
   imageKind?: 'map' | 'chat';
+  /** Provenance for the ephemeral generated or bundled image. */
+  imageSource?: ImageSource;
   /** Data URL of a video clip produced by this tool call, if any. */
   videoDataUrl?: string;
 }
@@ -27,6 +30,7 @@ export interface ToolLogSlice {
     isOpen: boolean;
     addPending: (id: string, toolName: string, args: unknown, round: number) => void;
     settle: (id: string, result: unknown, isError: boolean, handledBy: string) => void;
+    attachImage: (id: string, dataUrl: string, kind: 'map' | 'chat', source: ImageSource) => void;
     clear: () => void;
     open: () => void;
     close: () => void;
@@ -64,6 +68,18 @@ export const createToolLogSlice: StateCreator<ToolLogSlice, [], [], ToolLogSlice
           ...s.toolLog,
           entries: s.toolLog.entries.map((e) =>
             e.id === id ? { ...e, result, isError, handledBy } : e,
+          ),
+        },
+      })),
+
+    attachImage: (id, dataUrl, kind, source) =>
+      set((s) => ({
+        toolLog: {
+          ...s.toolLog,
+          entries: s.toolLog.entries.map((entry) =>
+            entry.id === id
+              ? { ...entry, imageDataUrl: dataUrl, imageKind: kind, imageSource: source }
+              : entry,
           ),
         },
       })),
