@@ -44,6 +44,7 @@ mod tests {
     use super::default_db_path_for_executable;
     use std::path::Path;
 
+    #[cfg(windows)]
     #[test]
     fn windows_executable_keeps_data_beside_binary() {
         assert_eq!(
@@ -52,6 +53,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn unix_executable_keeps_data_beside_binary() {
         assert_eq!(

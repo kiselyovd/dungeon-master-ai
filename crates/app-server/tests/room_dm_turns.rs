@@ -1276,9 +1276,7 @@ impl app_application::ports::room_listener::RoomListenerControl for StopFailsOnc
         Box::pin(async move {
             if self
                 .failures
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                    count.checked_sub(1)
-                })
+                .compare_exchange(1, 0, Ordering::SeqCst, Ordering::SeqCst)
                 .is_ok()
             {
                 return Err(app_application::ports::room_listener::RoomListenerError {
@@ -1312,9 +1310,7 @@ impl app_application::ports::secrets::SecretsStore for DeleteFailsOnce {
         if key == "native:host_room_request"
             && self
                 .failures
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                    count.checked_sub(1)
-                })
+                .compare_exchange(1, 0, Ordering::SeqCst, Ordering::SeqCst)
                 .is_ok()
         {
             return Err(app_application::ports::secrets::SecretsError::Operation {
@@ -1395,9 +1391,7 @@ impl app_application::ports::secrets::SecretsStore for CredentialReadFailsOnce {
         if key.contains(":credential:")
             && self
                 .failures
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                    count.checked_sub(1)
-                })
+                .compare_exchange(1, 0, Ordering::SeqCst, Ordering::SeqCst)
                 .is_ok()
         {
             return Err(app_application::ports::secrets::SecretsError::Operation {
@@ -2254,9 +2248,7 @@ impl app_application::ports::room_listener::RoomListenerControl for RecordingHos
             self.binds.lock().unwrap().push(spec.bind_addr);
             if self
                 .fail
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                    count.checked_sub(1)
-                })
+                .compare_exchange(1, 0, Ordering::SeqCst, Ordering::SeqCst)
                 .is_ok()
             {
                 return Err(app_application::ports::room_listener::RoomListenerError {
