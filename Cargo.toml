@@ -33,7 +33,7 @@ futures = "0.3"
 tokio-stream = "0.1"
 axum = { version = "0.8", features = ["macros"] }
 tower-http = { version = "0.7", features = ["cors", "request-id", "trace"] }
-genai = "=0.6.5"
+genai = "=0.7.2"
 backon = "1"
 reqwest = { version = "0.13", features = ["json", "stream", "query"] }
 sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio", "tls-native-tls", "macros", "migrate", "uuid", "chrono"] }
