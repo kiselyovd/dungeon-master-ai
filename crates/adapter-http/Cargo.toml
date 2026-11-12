@@ -13,7 +13,7 @@ with-local-runtime = []
 app-application = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
-base64 = "0.22"
+base64 = "0.23"
 futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -25,4 +25,4 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
-tower = { version = "0.5", features = ["util"] }
+tower = { version = "=0.5.3", features = ["util"] }
